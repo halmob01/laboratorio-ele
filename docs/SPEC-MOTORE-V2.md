@@ -40,7 +40,8 @@ Classi di potenziale: fase (`F`, `L1`, `L2`, `L3`), neutro (`N`), terra (`PE`). 
 - `corto`: due potenziali diversi di fase, o fase e neutro, nella stessa rete; anche `a` e `b` di un secondario insieme;
 - `faseterra`: un potenziale di fase nella rete della terra;
 - `secondarioMisto`: un potenziale del secondario nella stessa rete di un potenziale della rete (isolamento perso);
-- `neutroterra`: neutro e terra uniti a valle di un differenziale (solo se il livello ha un differenziale).
+- `neutroterra`: neutro e terra uniti (con un differenziale chiuso a valle lo fa scattare; senza, è un errore di sicurezza `safe.neutralEarth`);
+- `caricoTerra` `{ comp }`: un carico o una bobina tra una fase e la terra (si accende, ma la corrente torna dalla terra): fa fallire la prova, e con un differenziale lo fa scattare per squilibrio.
 
 ## 4. Componenti (parts.js)
 
@@ -89,7 +90,7 @@ Il motore senza PE collegato alla terra non cambia il funzionamento: lo segnala 
 Dopo ogni azione dell'allievo il motore calcola lo stato stabile:
 
 ```
-ripeti al massimo 20 volte:
+ripeti al massimo 40 volte:
   unisci i morsetti (fili + contatti dei componenti nello stato attuale)
   calcola potenziali e guasti
   se c'è un guasto che una protezione chiusa può interrompere: fai scattare la protezione (sezione 6), ricomincia
@@ -102,7 +103,7 @@ ripeti al massimo 20 volte:
 se non si è stabilizzato: guasto 'instabile' (un relè che si apre e si chiude da solo)
 ```
 
-Le bobine si aggiornano tutte insieme a ogni giro (aggiornamento sincrono). Un circuito come "KM1 con NC di KM2 e KM2 con NC di KM1" alimentati insieme oscillerebbe: si risolve aggiornando le bobine **in ordine di livello** (`level.comps`) una per volta dentro lo stesso giro, il che corrisponde a "il primo che chiude vince". Il guasto `instabile` resta solo per i circuiti che oscillano davvero (un contattore che si autoalimenta con il proprio NC).
+Le bobine si aggiornano **una per volta, in ordine di livello** (`level.comps`): a ogni giro cambia al massimo una bobina, poi si ricalcola. Così "KM1 con NC di KM2 e KM2 con NC di KM1" premuti insieme non oscillano: il primo che chiude vince. Il guasto `instabile` resta per i circuiti che oscillano davvero (un contattore che si autoalimenta con il proprio NC).
 
 **Azioni** (dalla sessione, dalle prove, dalla demo):
 - `press(id)`, `release(id)`: pulsanti;
@@ -134,7 +135,9 @@ Le bobine si aggiornano tutte insieme a ogni giro (aggiornamento sincrono). Un c
   - c'è `faseterra` e aprirlo elimina il guasto;
   - c'è `neutroterra` a valle;
   - un carico acceso è attraversato da corrente in un solo polo del differenziale (fase presa a valle e neutro a monte, o il contrario). Si prova aprendo un polo alla volta: se aprire solo il polo di fase spegne il carico ma aprire solo il polo di neutro no, il carico è squilibrato.
-- **Relè termico** (`ft`): accumula calore quando un motore a valle è in `hum` o il livello simula un sovraccarico (`overload: true` in una prova); scatta oltre `tripAfter` secondi (predefinito 3); `reset` lo riarma solo dopo che il calore è sceso (1 s di riposo).
+- **Relè termico** (`ft`): accumula calore solo per i motori che passano dai suoi poli (togliendo i poli il loro stato cambia) quando sono in `hum` o con il sovraccarico simulato (`overload on` in una prova); scatta oltre `tripAfter` secondi (predefinito 3); `reset` lo riarma subito.
+- **Fase a terra senza differenziale**: scatta il magnetotermico che elimina il guasto (semplificazione di un impianto TN); se nessuno, scatta il quadro con causa `faseterra`.
+- **Tasto di prova** del differenziale: fa scattare solo se c'è 230 V tra `1` e `N1`.
 
 Una protezione scattata resta aperta finché l'allievo non la riarma con `toggle`.
 
@@ -162,7 +165,7 @@ checks: [
 - Ogni prova parte da una simulazione nuova sul cablaggio dell'allievo, con le protezioni chiuse e i comandi a riposo (o nello stato `level.initial`).
 - `do` è un elenco di azioni (`press X`, `release X`, `toggle X`, `reset X`, `test X`, `wait 5`). `expect` si controlla alla fine; una prova può avere più tappe con `steps: [{ do, expect }, ...]`.
 - Se durante una prova compare un guasto statico o scatta una protezione non prevista, la prova fallisce con il codice del guasto.
-- Risultato: `work.ok` se tutte le prove passano. Per ogni prova fallita: `{ code: 'work.checkFail', check: id, label, want, got }` (al massimo tre, poi `work.checkMore`). Guasti: `work.short`, `work.phaseToEarth`, `work.burnt` `{ comp }`, `work.unstable`.
+- Risultato: `work.ok` se tutte le prove passano. Per ogni prova fallita: `{ code: 'work.checkFail', check: id, label, want, got }` (al massimo tre, poi `work.checkMore`). Guasti (controllati anche nello stato iniziale e alla fine di ogni tappa): `work.short`, `work.phaseToEarth`, `work.loadOnEarth` `{ comp }`, `work.secondaryMixed`, `work.tripped` `{ comp }`, `work.burnt` `{ comp }`, `work.unstable`.
 
 Le prove sono anche il "collaudo" che l'allievo vede: la vista le elenca con esito dopo Verifica.
 
@@ -178,14 +181,15 @@ Il colore `rosso` si aggiunge alla palette solo nei livelli che lo dichiarano (`
 ### Sicurezza
 
 Si valuta solo se il circuito funziona. Regole dichiarate dal livello in `level.safety`:
-- `phaseSwitched: ['S1', ...]`: i comandi devono interrompere la fase (il neutro dei carichi è sempre sul neutro: come `alwaysN` di oggi);
+- `phaseSwitched: ['L', ...]`: carichi che, quando sono spenti, non devono avere la fase su nessun morsetto (il comando interrompe la fase);
 - `earth: [['M.PE', 'Q.PE'], ...]`: morsetti che devono essere sulla terra;
 - `never: [['KM1', 'KM2']]`: due bobine mai alimentate insieme, in nessuna tappa delle prove e nemmeno premendo insieme i due pulsanti (prova aggiuntiva automatica: `press` di tutti i pulsanti NA dei due contattori);
 - `stopWins: 'SB0'`: premendo l'arresto insieme alla marcia il motore non parte;
 - `emergency: 'ES'`: con il fungo azionato nessuna bobina è alimentata e nessun motore gira, qualunque pulsante si prema; sbloccandolo il motore non riparte da solo;
-- `rcdCovers: ['L1', 'P1']`: i carichi indicati passano dal differenziale.
+- `rcdCovers: ['L1', 'P1']`: i carichi indicati passano dal differenziale;
+- `protectedBy: { M: 'QM', KM: 'QM' }`: aprendo la protezione indicata il componente si ferma (motore e circuito di comando a valle del salvamotore).
 
-Codici: `safe.neutralBroken`, `safe.noEarth` `{ comp }`, `safe.interlock`, `safe.stopNotPriority`, `safe.emergency`, `safe.restartAfterEmergency`, `safe.notCovered` `{ comp }`.
+Codici: `safe.notProtected` `{ comp, by }`, `safe.neutralBroken`, `safe.noEarth` `{ comp }`, `safe.interlock`, `safe.stopNotPriority`, `safe.emergency`, `safe.restartAfterEmergency`, `safe.notCovered` `{ comp }`.
 
 ## 9. Corrente visibile
 

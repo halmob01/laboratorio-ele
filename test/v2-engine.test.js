@@ -224,3 +224,95 @@ test('nastro: il finecorsa ferma il motore a fine corsa', () => {
   assert.equal(o.motors.M, 'off');
   assert.equal(o.parts.FC2.act, true);
 });
+
+/* ---------- casi dalla revisione indipendente ---------- */
+
+import { setWires } from '../src/engine/v2/index.js';
+
+test('quadro di casa: con il differenziale scattato dal tasto di prova la soluzione resta a 3 stelle', () => {
+  const L = {
+    engine: 2,
+    comps: [Q1, comp('ID', 'rcd'), comp('M1', 'mt', { rank: 2 }), comp('M2', 'mt', { rank: 2 }), comp('S', 'sw'), comp('L', 'lamp'), comp('P', 'presa')],
+    checks: [
+      { id: 'luce', label: 'luce', do: ['toggle S'], expect: { loads: { L: 'on' } } },
+      { id: 'presa', label: 'presa', expect: { loads: { P: 'on' } } },
+      { id: 'test', label: 'tasto T', do: ['toggle S', 'test ID'], expect: { tripped: ['ID'], loads: { L: 'off' } } },
+    ],
+    safety: { phaseSwitched: ['L'], rcdCovers: ['L', 'P'], earth: [['P.PE', 'Q.PE']] },
+  };
+  const ws = W('Q.F ID.1', 'Q.N ID.N1 blu', 'ID.2 M1.1', 'ID.N2 M1.N1 blu', 'ID.2 M2.1', 'ID.N2 M2.N1 blu',
+    'M1.2 S.a', 'S.b L.A', 'L.B M1.N2 blu', 'M2.2 P.L', 'P.N M2.N2 blu', 'P.PE Q.PE gv');
+  const r = evaluateV2(L, ws);
+  assert.equal(r.pass, true, JSON.stringify(r.safe));
+  // neutro della presa a monte: la sfida fallisce con un motivo solo
+  const bad = ws.map(w => (w.a === 'P.N' ? { ...w, b: 'Q.N' } : w));
+  const r2 = evaluateV2(L, bad);
+  assert.equal(r2.work.ok, false);
+  assert.ok(r2.work.items.every(i => i.code === 'work.tripped' || i.cause === 'work.tripped'), JSON.stringify(r2.work.items));
+});
+
+const C13 = {
+  ...MOTOR,
+  comps: MOTOR.comps.filter(c => c.id !== 'FR'),
+  controlColor: 'rosso',
+  checks: [
+    { id: 'marcia', label: 'marcia', do: ['press SB1', 'release SB1'], expect: { motors: { M: 'fwd' } } },
+    { id: 'arresto', label: 'arresto', do: ['press SB1', 'release SB1', 'press SB0', 'release SB0'], expect: { motors: { M: 'off' } } },
+  ],
+  safety: { stopWins: 'SB0', earth: [['M.PE', 'Q.PE']], protectedBy: { M: 'QM', KM: 'QM' } },
+};
+const c13Power = W('Q.L1 QM.1', 'Q.L2 QM.3 nero', 'Q.L3 QM.5 grigio', 'QM.2 KM.1', 'QM.4 KM.3 nero', 'QM.6 KM.5 grigio',
+  'KM.2 M.U', 'KM.4 M.V nero', 'KM.6 M.W grigio', 'M.PE Q.PE gv');
+const c13Ctl = W('QM.2 SB0.1 rosso', 'SB0.2 SB1.3 rosso', 'SB1.4 KM.A1 rosso', 'KM.A2 Q.N blu', 'SB1.3 KM.13 rosso', 'KM.14 SB1.4 rosso');
+
+test('marcia e arresto: soluzione a 3 stelle; arresto solo nel ramo di autoritenuta segnalato', () => {
+  assert.equal(evaluateV2(C13, renum(c13Power.concat(c13Ctl))).pass, true);
+  const weak = W('QM.2 SB1.3 rosso', 'SB1.4 KM.A1 rosso', 'KM.A2 Q.N blu', 'QM.2 SB0.1 rosso', 'SB0.2 KM.13 rosso', 'KM.14 SB1.4 rosso');
+  const r = evaluateV2(C13, renum(c13Power.concat(weak)));
+  assert.ok(r.safe.items.some(i => i.code === 'safe.stopNotPriority'), JSON.stringify(r));
+});
+
+test('comando preso a monte del salvamotore o motore senza salvamotore: non protetto', () => {
+  const up = c13Ctl.map(w => (w.a === 'QM.2' ? { ...w, a: 'Q.L1' } : w));
+  const r = evaluateV2(C13, renum(c13Power.concat(up)));
+  assert.ok(r.safe.items.some(i => i.code === 'safe.notProtected' && i.comp === 'KM'), JSON.stringify(r.safe));
+});
+
+test('bobina e spia con il ritorno sulla terra: guasto, non funzionamento', () => {
+  const ctl = c13Ctl.map(w => (w.b === 'Q.N' ? { ...w, b: 'Q.PE', c: 'gv' } : w));
+  const r = evaluateV2(C13, renum(c13Power.concat(ctl)));
+  assert.equal(r.work.ok, false);
+  assert.equal(r.work.items[0].code, 'work.loadOnEarth');
+});
+
+test('fase a terra senza differenziale: scatta il salvamotore, motivo fase a terra', () => {
+  const s = createSim(C13, renum(c13Power.concat(c13Ctl, W('QM.6 Q.PE gv'))));
+  assert.deepEqual(observe(s).tripped, ['QM']);
+  const L = { engine: 2, src: SRC3, comps: [Q3, comp('M', 'motor3')], checks: [{ id: 'g', label: 'g', expect: { motors: { M: 'fwd' } } }] };
+  const r = evaluateV2(L, W('Q.L1 M.U', 'Q.L2 M.V', 'Q.L3 M.W', 'Q.L3 Q.PE gv'));
+  assert.equal(r.work.items[0].code, 'work.phaseToEarth');
+});
+
+test('dopo un corto, togliere il filo ridà l\'alimentazione', () => {
+  const L = { engine: 2, src: SRC3, comps: [Q3, comp('M', 'motor3')] };
+  const ok = W('Q.L1 M.U', 'Q.L2 M.V', 'Q.L3 M.W');
+  const s = createSim(L, ok.concat(W('Q.L1 Q.L2')));
+  assert.equal(observe(s).supply, false);
+  setWires(s, ok);
+  assert.equal(observe(s).motors.M, 'fwd');
+});
+
+test('relè termico escluso dalla potenza: non scalda e la prova di sovraccarico fallisce', () => {
+  const L = { ...MOTOR, controlColor: 'rosso', checks: [{ id: 'sovr', label: 'sovraccarico', do: ['press SB1', 'release SB1', 'overload on', 'wait 5'], expect: { tripped: ['FR'], motors: { M: 'off' } } }] };
+  const bypass = power.filter(w => !w.a.startsWith('KM.') && !w.a.startsWith('FR.')).concat(W('KM.2 M.U', 'KM.4 M.V nero', 'KM.6 M.W grigio'));
+  const r = evaluateV2(L, renum(bypass.concat(control, hold)));
+  assert.equal(r.work.ok, false);
+  const r2 = evaluateV2(L, renum(power.concat(control, hold)));
+  assert.equal(r2.work.ok, true, JSON.stringify(r2.work));
+});
+
+test('campanello: i fili del secondario dopo il pulsante sono a bassa tensione (bianco ammesso)', () => {
+  const L = { ...BELL, checks: [{ id: 'b', label: 'b', do: ['press P'], expect: { loads: { B: 'on' } } }] };
+  const r = evaluateV2(L, W('Q.F T.1', 'Q.N T.2 blu', 'T.3 P.3 bianco', 'P.4 B.1 bianco', 'B.2 T.4 bianco'));
+  assert.equal(r.color.ok, true, JSON.stringify(r.color));
+});

@@ -23,7 +23,7 @@ export function runAction(sim, step) {
 
 // Confronta l'osservazione con l'atteso; ritorna null se va bene, altrimenti { want, got } della prima differenza.
 function mismatch(obs, expect) {
-  for (const group of ['loads', 'motors', 'coils']) {
+  for (const group of ['motors', 'loads', 'coils']) {
     const want = expect[group];
     if (!want) continue;
     for (const [id, v] of Object.entries(want)) {
@@ -45,7 +45,21 @@ function mismatch(obs, expect) {
 }
 
 // Guasti che fanno fallire una prova (il neutro a terra senza differenziale e' un problema di sicurezza, non di funzionamento).
-const BLOCKING = { corto: 'work.short', faseterra: 'work.phaseToEarth', quadro: 'work.short', secondarioMisto: 'work.secondaryMixed', instabile: 'work.unstable' };
+const BLOCKING = { corto: 'work.short', faseterra: 'work.phaseToEarth', secondarioMisto: 'work.secondaryMixed', instabile: 'work.unstable', caricoTerra: 'work.loadOnEarth' };
+const QUADRO = { corto: 'work.short', faseterra: 'work.phaseToEarth' };
+
+// Primo motivo di fallimento in uno stato osservato, oppure null.
+function blockingOf(o, allowTrip) {
+  const q = o.faults.find(x => x.code === 'quadro');
+  if (q) return { code: QUADRO[q.cause] || 'work.short' };
+  const f = o.faults.find(x => BLOCKING[x.code]);
+  if (f) return f.comp ? { code: BLOCKING[f.code], comp: f.comp } : { code: BLOCKING[f.code] };
+  const tr = o.tripped.find(x => !allowTrip.has(x));
+  if (tr) return { code: 'work.tripped', comp: tr };
+  const burnt = Object.keys(o.loads).find(id => o.loads[id] === 'burnt');
+  if (burnt) return { code: 'work.burnt', comp: burnt };
+  return null;
+}
 
 // Esegue una prova. Ritorna { ok, sim, fail?: { code, ... }, states: [observe...] }.
 export function runCheck(level, wires, check) {
@@ -53,22 +67,20 @@ export function runCheck(level, wires, check) {
   const states = [observe(sim)];
   const stages = check.steps || [{ do: check.do || [], expect: check.expect || {} }];
   const allowTrip = new Set();
+  const first = blockingOf(states[0], allowTrip);
+  if (first) return { ok: false, sim, states, fail: first };
   for (const st of stages) {
-    (st.expect && st.expect.tripped || []).forEach(x => allowTrip.add(x));
+    ((st.expect && st.expect.tripped) || []).forEach(x => allowTrip.add(x));
     for (const step of st.do || []) {
       runAction(sim, step);
       const o = observe(sim);
       states.push(o);
-      const f = o.faults.find(x => BLOCKING[x.code]);
-      if (f) return { ok: false, sim, states, fail: { code: BLOCKING[f.code] } };
-      const tr = o.tripped.find(x => !allowTrip.has(x));
-      if (tr) return { ok: false, sim, states, fail: { code: 'work.tripped', comp: tr } };
-      const burnt = Object.keys(o.loads).find(id => o.loads[id] === 'burnt');
-      if (burnt) return { ok: false, sim, states, fail: { code: 'work.burnt', comp: burnt } };
+      const f = blockingOf(o, allowTrip);
+      if (f) return { ok: false, sim, states, fail: f };
     }
     const o = observe(sim);
-    const f0 = o.faults.find(x => BLOCKING[x.code]);
-    if (f0) return { ok: false, sim, states, fail: { code: BLOCKING[f0.code] } };
+    const f = blockingOf(o, allowTrip);
+    if (f) return { ok: false, sim, states, fail: f };
     const mm = mismatch(o, st.expect || {});
     if (mm) return { ok: false, sim, states, fail: { code: 'work.checkFail', ...mm } };
   }
@@ -107,11 +119,21 @@ export function wireRoles(level, wires) {
   level.comps.filter(c => c.type === 'trafo').forEach(c => {
     ['3', '4'].forEach(t => { const k = uf.f(c.id + '.' + t); if (!roles[k]) roles[k] = 'bassa'; });
   });
-  return wires.map(w => roles[uf.f(w.a)] || 'comando');
+  // reti senza ruolo: se, con tutti i contatti chiusi, arrivano al secondario di un trasformatore sono a bassa tensione
+  const all = makeUF();
+  wires.forEach(w => all.u(w.a, w.b));
+  const ON = { on: true, pressed: true, left: 1, act: true, tripped: false }, OFF = { on: false, pressed: false, left: 0, act: false, tripped: false };
+  level.comps.forEach(c => {
+    const p = partOf(c);
+    p.contacts(c, ON).concat(p.contacts(c, OFF)).forEach(([a, b]) => all.u(c.id + '.' + a, c.id + '.' + b));
+  });
+  const low = new Set();
+  level.comps.filter(c => c.type === 'trafo').forEach(c => ['3', '4'].forEach(t => low.add(all.f(c.id + '.' + t))));
+  return wires.map(w => roles[uf.f(w.a)] || (low.has(all.f(w.a)) ? 'bassa' : 'comando'));
 }
 
 export function allowedColorsV2(level, role, wire) {
-  const red = level.controlColor === 'rosso' && isCtlTerm(level, wire.a) && isCtlTerm(level, wire.b) ? ['rosso'] : [];
+  const red = level.controlColor === 'rosso' && (isCtlTerm(level, wire.a) || isCtlTerm(level, wire.b)) ? ['rosso'] : [];
   if (role === 'neutro') return ['blu'];
   if (role === 'terra') return ['gv'];
   if (role === 'bassa') return ['marrone', 'nero', 'grigio', 'rosso', 'bianco'];
@@ -171,11 +193,13 @@ export function evaluateV2(level, wires) {
       // il neutro di ogni carico indicato e' sempre sul neutro (il comando interrompe la fase)
       const sim = createSim(level, wires);
       const pots = [observe(sim)].concat(states);
+      // un carico spento non deve avere la fase su nessun morsetto
+      const PH = ['F', 'L1', 'L2', 'L3'];
       const broken = S.phaseSwitched.some(id => {
         const c = level.comps.find(x => x.id === id);
         const p = partOf(c);
         const ts = (p.load || p.coil || []).map(t => id + '.' + t);
-        return !pots.every(o => !o.supply || ts.some(t => o.potential(t) === 'N'));
+        return !pots.every(o => o.loads[id] === 'on' || o.coils[id] === true || !ts.some(t => PH.includes(o.potential(t))));
       });
       if (broken) fail('safe.neutralBroken');
     }
@@ -195,10 +219,15 @@ export function evaluateV2(level, wires) {
     if (S.stopWins) {
       const sim = createSim(level, wires);
       act(sim, 'press', S.stopWins);
-      level.comps.filter(c => c.type === 'pb').forEach(c => { act(sim, 'press', c.id); act(sim, 'release', c.id); });
+      const running = o => Object.values(o.motors).some(m => m !== 'off') || Object.values(o.coils).some(Boolean);
+      let bad = false;
+      level.comps.filter(c => c.type === 'pb').forEach(c => {
+        act(sim, 'press', c.id);
+        if (running(observe(sim))) bad = true;   // si guarda con la marcia ancora premuta
+        act(sim, 'release', c.id);
+      });
       act(sim, 'release', S.stopWins);
-      const o = observe(sim);
-      if (Object.values(o.motors).some(m => m !== 'off') || Object.values(o.coils).some(Boolean)) fail('safe.stopNotPriority');
+      if (bad || running(observe(sim))) fail('safe.stopNotPriority');
     }
     if (S.emergency) {
       const sim = createSim(level, wires);
@@ -217,7 +246,14 @@ export function evaluateV2(level, wires) {
       const rcds = level.comps.filter(c => c.type === 'rcd').map(c => c.id);
       S.rcdCovers.forEach(id => {
         const run = runs.find(x => { const o = observe(x.r.sim); return o.loads[id] === 'on' || o.coils[id]; });
-        if (run && stillOnIfOpen(run.r.sim, id, rcds)) fail('safe.notCovered', { comp: id });
+        if (!run || stillOnIfOpen(run.r.sim, id, rcds)) fail('safe.notCovered', { comp: id });
+      });
+    }
+    if (S.protectedBy) {
+      // ogni componente indicato deve fermarsi aprendo la sua protezione (il motore e il comando passano dal salvamotore)
+      Object.entries(S.protectedBy).forEach(([id, prot]) => {
+        const run = runs.find(x => { const o = observe(x.r.sim); return o.loads[id] === 'on' || o.coils[id] || (o.motors[id] && o.motors[id] !== 'off'); });
+        if (!run || stillOnIfOpen(run.r.sim, id, [prot])) fail('safe.notProtected', { comp: id, by: prot });
       });
     }
     if (states.some(o => o.faults.some(f => f.code === 'neutroterra'))) fail('safe.neutralEarth');

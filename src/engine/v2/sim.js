@@ -42,6 +42,8 @@ export function setWires(sim, wires) {
   sim.wires = wires.slice();
   sim.burnt = {};
   sim.unstable = false;
+  sim.mainTrip = false;
+  sim.kmHistory = [];
   settle(sim);
 }
 
@@ -56,6 +58,7 @@ function connect(sim, open = {}) {
     let pairs = p.contacts(c, sim.parts[c.id] || {});
     const o = open[c.id];
     if (o === 'all') pairs = [];
+    else if (o === 'power' && p.power) pairs = pairs.filter(([a]) => !p.power.some(([x]) => x === a));
     else if (o && p.poles) pairs = pairs.filter(([a]) => !p.poles[o].includes(a));
     pairs.forEach(([a, b]) => uf.u(c.id + '.' + a, c.id + '.' + b));
   });
@@ -93,11 +96,12 @@ function analyse(sim, open) {
   };
   // trasformatori: secondario alimentato se il primario ha 230 V
   const trafos = level.comps.filter(c => c.type === 'trafo');
+  const burntNow = [];
   const trafoOn = {};
   trafos.forEach(c => {
     const v = voltage(potAt(c.id + '.1'), potAt(c.id + '.2'));
     trafoOn[c.id] = v === 230;
-    if (v === 400) sim.burnt[c.id] = true;
+    if (v === 400) burntNow.push(c.id);
     if (trafoOn[c.id] && !sim.burnt[c.id]) {
       addPot(c.id + '.3', c.id + ':a');
       addPot(c.id + '.4', c.id + ':b');
@@ -145,6 +149,9 @@ function analyse(sim, open) {
       else if (v > 0) st = 'weak';
       if (p.load) loads[id] = st;
       else coils[id] = st === 'on';
+      // un carico tra una fase e la terra si accende, ma la corrente torna dalla terra: e' un guasto
+      const px = potAt(x), py = potAt(y);
+      if (v > 0 && (px === 'PE' || py === 'PE')) faults.push({ code: 'caricoTerra', comp: id });
       if (st === 'burnt') loads[id] = loads[id] || 'burnt';
     }
     if (p.motor) {
@@ -159,7 +166,7 @@ function analyse(sim, open) {
       motors[id] = st;
     }
   });
-  return { uf, pots, potAt, volt, faults, loads, coils, motors, trafoOn };
+  return { uf, pots, potAt, volt, faults, loads, coils, motors, trafoOn, burntNow };
 }
 
 /* ---------- protezioni ---------- */
@@ -184,13 +191,21 @@ function protect(sim, an) {
     const c = pick(closedProtections(sim, 'corto'), a => hasFault(a, ['corto']));
     if (c) { trip(sim, c); return true; }
     sim.mainTrip = true;
+    sim.mainTripCause = 'corto';
     return true;
   }
   // fase a terra, neutro a terra: differenziale
   if (hasFault(an, ['faseterra', 'neutroterra'])) {
     const c = pick(closedProtections(sim, 'terra'), a => hasFault(a, ['faseterra', 'neutroterra']));
     if (c) { trip(sim, c); return true; }
-    if (hasFault(an, ['faseterra'])) { sim.mainTrip = true; return true; }
+    if (hasFault(an, ['faseterra'])) {
+      // senza differenziale: un guasto franco a terra fa scattare il magnetotermico (impianto TN, semplificazione)
+      const m = pick(closedProtections(sim, 'corto'), a => hasFault(a, ['faseterra']));
+      if (m) { trip(sim, m); return true; }
+      sim.mainTrip = true;
+      sim.mainTripCause = 'faseterra';
+      return true;
+    }
   }
   // squilibrio: un carico acceso attraversa un solo polo di un differenziale
   for (const r of closedProtections(sim, 'terra')) {
@@ -218,6 +233,8 @@ export function settle(sim) {
     machineSwitches(sim);
     const an = analyse(sim);
     Object.entries(an.loads).forEach(([id, st]) => { if (st === 'burnt') sim.burnt[id] = true; });
+    an.burntNow.forEach(id => (sim.burnt[id] = true));
+    if (sim.kmHistory.length > 200) sim.kmHistory.splice(0, sim.kmHistory.length - 200);
     sim.kmHistory.push(comps.filter(c => c.type === 'km' && sim.parts[c.id].on).map(c => c.id));
     if (protect(sim, an)) continue;
     // bobine una alla volta, in ordine di livello
@@ -250,6 +267,7 @@ export function act(sim, action, id) {
   if (!c) throw new Error('componente sconosciuto: ' + id);
   const s = sim.parts[id];
   const p = partOf(c);
+  if (!(p.actions || []).includes(action)) throw new Error('azione ' + action + ' non valida per ' + id);
   if (action === 'press') s.pressed = true;
   else if (action === 'release') s.pressed = false;
   else if (action === 'toggle') {
@@ -260,7 +278,8 @@ export function act(sim, action, id) {
   else if (action === 'test' && c.type === 'rcd') {
     if (s.on) {
       const an = analyse(sim);
-      if (an.potAt(id + '.1') && an.potAt(id + '.1') !== 'mix') trip(sim, c);
+      // il tasto di prova funziona solo se il differenziale e' alimentato tra fase e neutro
+      if (an.volt(id + '.1', id + '.N1') === 230) trip(sim, c);
     }
   } else throw new Error('azione non valida: ' + action);
   settle(sim);
@@ -281,7 +300,10 @@ export function advance(sim, seconds) {
       const s = sim.parts[c.id];
       if (c.type === 'tmr' && !an.coils[c.id] && s.left > 0) s.left = Math.max(0, s.left - STEP);
       if (c.type === 'ft' && !s.tripped) {
-        const hot = Object.values(an.motors).some(m => m === 'hum') || (sim.overload && Object.values(an.motors).some(m => m === 'fwd' || m === 'rev'));
+        // scalda solo per i motori che passano davvero dai suoi poli
+        const without = analyse(sim, { [c.id]: 'power' });
+        const mine = Object.keys(an.motors).filter(mid => an.motors[mid] !== without.motors[mid]);
+        const hot = mine.some(mid => an.motors[mid] === 'hum' || (sim.overload && (an.motors[mid] === 'fwd' || an.motors[mid] === 'rev')));
         s.heat = hot ? s.heat + STEP : Math.max(0, s.heat - STEP);
         if (s.heat >= (c.tripAfter || 3)) s.tripped = true;
       }
@@ -303,14 +325,14 @@ export function observe(sim) {
   const an = analyse(sim);
   const faults = an.faults.slice();
   if (sim.unstable) faults.push({ code: 'instabile' });
-  if (sim.mainTrip) faults.push({ code: 'quadro' });
+  if (sim.mainTrip) faults.push({ code: 'quadro', cause: sim.mainTripCause || 'corto' });
   const parts = {};
   Object.entries(sim.parts).forEach(([k, v]) => (parts[k] = { ...v }));
   return {
     t: sim.t,
     faults,
     tripped: sim.level.comps.filter(c => sim.parts[c.id].tripped).map(c => c.id),
-    loads: an.loads,
+    loads: { ...an.loads, ...Object.fromEntries(Object.keys(sim.burnt).filter(id => !(id in an.loads)).map(id => [id, 'burnt'])) },
     motors: an.motors,
     coils: an.coils,
     parts,
@@ -325,7 +347,7 @@ export function stillOnIfOpen(sim, id, protIds) {
   const open = {};
   protIds.forEach(p => (open[p] = 'all'));
   const an = analyse(sim, open);
-  return an.loads[id] === 'on' || an.coils[id] === true;
+  return an.loads[id] === 'on' || an.coils[id] === true || (an.motors[id] !== undefined && an.motors[id] !== 'off');
 }
 
 export { analyse as analyseV2, connect as connectV2, PARTS };

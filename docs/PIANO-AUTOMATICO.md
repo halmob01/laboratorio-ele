@@ -52,7 +52,7 @@ Si alternano i due moduli perché entrambi abbiano livelli giocabili anche se la
 
 Ordine dei compiti. Il gate di H1 si fa dopo H1.7.
 
-**H1.1 Testi dei codici v2** (`src/content/it.js`): `work.allChecksOk` {n}, `work.checkFail` {check, label, cause, want, got, comp}, `work.checkMore` {n}, `work.secondaryMixed`, `work.unstable`, `work.tripped` {comp}, `work.burnt` {comp}, `safe.noEarth` {comp}, `safe.interlock`, `safe.stopNotPriority`, `safe.emergency`, `safe.restartAfterEmergency`, `safe.notCovered` {comp}, `safe.neutralEarth`, `safe.ok` variante `v2`. Ruoli dei colori nuovi: `bassa`, `comando`. Nomi di stato: motore fermo, gira in avanti, gira all'indietro, ronza e non parte; lampada bruciata; protezione scattata. Il testo di `work.checkFail` usa la `label` della prova ("Prova non superata: premi Marcia e rilascia, il motore resta acceso. Il motore è fermo.").
+**H1.1 Testi dei codici v2** (`src/content/it.js`): `work.allChecksOk` {n}, `work.checkFail` {check, label, cause, want, got, comp}, `work.checkMore` {n}, `work.secondaryMixed`, `work.unstable`, `work.tripped` {comp}, `work.burnt` {comp}, `work.loadOnEarth` {comp}, `safe.noEarth` {comp}, `safe.notProtected` {comp, by}, `safe.interlock`, `safe.stopNotPriority`, `safe.emergency`, `safe.restartAfterEmergency`, `safe.notCovered` {comp}, `safe.neutralEarth`, `safe.ok` variante `v2`. Ruoli dei colori nuovi: `bassa`, `comando`. Nomi di stato: motore fermo, gira in avanti, gira all'indietro, ronza e non parte; lampada bruciata; protezione scattata. Il testo di `work.checkFail` usa la `label` della prova ("Prova non superata: premi Marcia e rilascia, il motore resta acceso. Il motore è fermo.").
 
 **H1.2 Sessione** (`src/engine/session.js`), come in SPEC sezione 10:
 - per `level.engine === 2` la sessione tiene una simulazione (`createSim`), aggiornata con `setWires` a ogni filo; `toggleControl(id)` chiama l'azione adatta (`toggle`); nuovi `press(id)`, `release(id)`, `resetPart(id)`, `testPart(id)`, `tick(seconds)`;
@@ -71,7 +71,7 @@ Test in `test/session-v2.test.js`: un livello di prova v2 si gioca dalla session
 
 **H1.6 Scena** (`src/ui2d/render.js`): per i livelli v2 la stanza mostra i carichi del livello: lampade (anche bruciate), presa con una lampada da tavolo collegata, campanello (onde quando suona), e per l'industriale una **scena della macchina**: motore visto di lato con la ventola che gira e la freccia del senso, spie sul pannello, nastro con un pacco che avanza e i finecorsa alle estremità. Sotto la scena, dopo Verifica, l'elenco delle **prove funzionali** con esito (spunta o croce e motivo).
 
-**H1.7 Mappa e palette**: in `src/content/home.js` due moduli nuovi, "Modulo 2, Civile avanzato" e "Modulo 3, Industriale", con i livelli via via pronti (i non pronti come segnaposto "in arrivo"); `UPCOMING` contiene solo le prove dei moduli. Il colore `rosso` compare nella palette solo nei livelli con `palette` che lo include. Aggiornare i test della mappa.
+**H1.7 Mappa e palette**: in `src/content/home.js` due moduli nuovi, "Modulo 2, Civile avanzato" e "Modulo 3, Industriale", con i livelli via via pronti (i non pronti come segnaposto "in arrivo"); `UPCOMING` contiene solo le prove dei moduli. I colori `rosso` e `bianco` (non ancora in `src/engine/wires.js`, da aggiungere senza cambiare il comportamento dei livelli v1) compaiono nella palette solo nei livelli con `palette` che li include: rosso nel Modulo 3, bianco nel campanello. Aggiornare i test della mappa.
 
 **Gate H1**: check verde; screenshot 390 e 1280 di un livello v2 di prova costruito con i componenti nuovi (si può usare c13 in bozza, non ancora nella mappa); revisione Opus di H1.2, H1.3, H1.5 (sessione, flusso, orologio) e controllo che i livelli v1 si comportino come prima.
 
@@ -95,7 +95,7 @@ Lezioni del Modulo 2: pulsante e interruttore (il pulsante torna a riposo); il r
 
 ### Modulo 3, Industriale
 
-Tutti `engine: 2`, `src` trifase, `controlColor: 'rosso'`, palette con il rosso. Circuito di comando a 230 V tra L1 e neutro, preso a valle del salvamotore (da far confermare al collega: nelle macchine si usa spesso un trasformatore a 24 V).
+Tutti `engine: 2`, `src` trifase, `controlColor: 'rosso'`, palette con il rosso, `safety.protectedBy: { M: 'QM', KM: 'QM' }` (con i contattori del livello) e `safety.earth` del motore. Circuito di comando a 230 V tra L1 e neutro, preso a valle del salvamotore (da far confermare al collega: nelle macchine si usa spesso un trasformatore a 24 V).
 
 | Id | Titolo | Componenti | Prove e sicurezza | Sfida guasto |
 |---|---|---|---|---|
