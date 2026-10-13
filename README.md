@@ -1,14 +1,12 @@
 # Laboratorio elettrico
 
-Gioco guidato per l'open day del CFP: tre missioni sull'elettricità
-(lampadina, interruttore, due lampade con un interruttore).
-Alla fine si apre la pagina con i contatti della scuola, le date e i laboratori aperti.
+Laboratorio interattivo di impianti elettrici: quattro livelli (presa, punto luce interrotto, deviato, invertito).
+Si collegano i fili nel banco di lavoro e si verifica il circuito: funziona, colori giusti, sicurezza.
 
 ## File
 
-- `index.html`: tutto il gioco in un solo file (HTML, CSS e JavaScript).
+- `index.html`: tutto il laboratorio in un solo file (HTML, CSS e JavaScript).
 
 ## Uso
 
-Apri `index.html` in un browser. Il gioco parte subito, senza scegliere il mestiere.
-I dati della scuola si modificano nel blocco `SCUOLA` dentro `index.html`.
+Apri `index.html` in un browser. Non serve un server.
