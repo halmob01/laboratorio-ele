@@ -81,6 +81,7 @@ function onLevelChange() {
 function parseRoute() {
   const m = /^#\/livello\/([^/]+)(\/verifica)?$/.exec(location.hash || '');
   if (m && levels.some(l => l.id === m[1])) return { name: 'level', id: m[1], verify: !!m[2], key: m[0] };
+  if (location.hash === '#/quaderno') return { name: 'quaderno', key: '#/quaderno' };
   return { name: 'home', key: '#/home' };
 }
 let route = parseRoute();
@@ -176,8 +177,11 @@ function render() {
   if (!S) return;
   renderChrome();
   const home = route.name === 'home';
+  const qd = route.name === 'quaderno';
   $('#screen-home').hidden = !home;
-  $('#screen-level').hidden = home;
+  $('#screen-quaderno').hidden = !qd;
+  $('#screen-level').hidden = home || qd;
+  if (qd) { stopDemo(); demo.page = -1; $('#screen-quaderno').innerHTML = V.quadernoHTML(S, levels); return; }
   if (home) {
     stopDemo(); demo.page = -1;
     $('#screen-home').innerHTML = V.homeHTML(S);
@@ -417,3 +421,5 @@ $('#footer').innerHTML = V.footerHTML();
 renderPalette();
 session.start();
 applyRoute();
+
+document.addEventListener('click', e => { if (e.target.closest('[data-act="print"]')) window.print(); });

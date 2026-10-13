@@ -68,6 +68,7 @@ export const INFO_PRIVACY = [
 export const FOOTER = [
   { title: 'Gioco', items: [
     { id: 'mappa', label: 'Mappa dei livelli' },
+    { id: 'quaderno', label: 'Quaderno' },
     { id: 'classifica', label: 'Classifica', soon: true },
     { id: 'legenda', label: 'Legenda dei simboli' },
     { id: 'glossario', label: 'Glossario' },

@@ -417,9 +417,20 @@ button:disabled{cursor:default}
 .sum li{margin-top:4px}
 .btn.grow{flex:1}
 .uact .btn:disabled{opacity:.45;cursor:default}
+.quaderno{max-width:760px;margin:0 auto}
+.qhead{display:flex;justify-content:space-between;align-items:center;gap:12px}
+.qmod{margin-top:20px}
+.qlv{margin-top:14px;padding-top:12px;border-top:1px solid var(--line)}
+.qlv h3{margin:0}
 @media print{
-  .quaderno-print *{color:#000}
+  #appbar,#tabbar,#footer,.levelbar,.qhead .btn,.note{display:none!important}
+  body,.card{background:#fff!important;box-shadow:none!important;border:0!important}
+  .quaderno,.quaderno *{color:#000!important}
+  .qlv{break-inside:avoid}
 }
+a.tool{display:flex;align-items:center;justify-content:center;text-decoration:none}
+@media (min-width:920px){a.tool{justify-content:flex-start}}
+#main:focus{outline:none}
 </style>
 </head>
 <body>
@@ -429,6 +440,8 @@ button:disabled{cursor:default}
 
   <main id="main" tabindex="-1">
     <section id="screen-home" hidden aria-label="Mappa dei livelli"></section>
+
+    <section id="screen-quaderno" hidden aria-label="Quaderno"></section>
 
     <section id="screen-level" hidden aria-label="Livello">
       <div class="levelbar"><a class="back" href="#/home">&larr; Mappa</a><span class="lvtag" id="lvTag"></span></div>
@@ -2103,6 +2116,7 @@ button:disabled{cursor:default}
   var FOOTER = [
     { title: "Gioco", items: [
       { id: "mappa", label: "Mappa dei livelli" },
+      { id: "quaderno", label: "Quaderno" },
       { id: "classifica", label: "Classifica", soon: true },
       { id: "legenda", label: "Legenda dei simboli" },
       { id: "glossario", label: "Glossario" }
@@ -2243,6 +2257,7 @@ button:disabled{cursor:default}
   }
   function toolsHTML() {
     return `<div class="tools" role="group" aria-label="Strumenti">
+      <a class="tool" href="#/quaderno">Quaderno</a>
       <button class="tool" data-open="legenda">Legenda dei simboli</button>
       <button class="tool" data-open="glossario">Glossario</button>
       <button class="tool" data-open="intro">Rivedi l\u2019introduzione</button>
@@ -2265,6 +2280,7 @@ button:disabled{cursor:default}
           return `<a class="fbtn" href="mailto:${esc(CONTACT_EMAIL)}?subject=${encodeURIComponent(subj)}" data-mail="${it.mail}">${it.label}</a>`;
         }
         if (it.id === "mappa") return `<a class="fbtn" href="#/home">${it.label}</a>`;
+        if (it.id === "quaderno") return `<a class="fbtn" href="#/quaderno">${it.label}</a>`;
         return `<button class="fbtn" data-open="${it.id}">${it.label}</button>`;
       }).join("");
       return items ? `<nav class="fcol" aria-label="${col.title}"><div class="ftitle">${col.title.toUpperCase()}</div>${items}</nav>` : "";
@@ -2384,6 +2400,17 @@ button:disabled{cursor:default}
     if (!u || s.playMode === "verifica") return "";
     return `<button class="link" data-act="summary">Sintesi</button><button class="link" data-unit="lesson">Rivedi la lezione</button>`;
   }
+  function quadernoHTML(s, levelList) {
+    const stars = {};
+    s.levels.forEach((l) => stars[l.id] = l);
+    const mods = MODULES.map((m) => {
+      const items = m.levels.filter((x) => typeof x === "string").map((id) => levelList.find((l) => l.id === id)).filter((l) => l && l.unit && l.unit.summary);
+      if (!items.length) return "";
+      const body = items.map((l) => `<article class="qlv"><h3>${esc(l.title)}</h3><ul class="sum">${l.unit.summary.map((t) => `<li>${esc(t)}</li>`).join("")}</ul></article>`).join("");
+      return `<section class="qmod"><div class="kick">${m.tag}</div><h2>${m.title}</h2>${body}</section>`;
+    }).join("");
+    return `<div class="levelbar"><a class="back" href="#/home">&larr; Mappa</a></div><div class="card quaderno"><div class="qhead"><h1>Quaderno</h1><button class="btn" data-act="print">Stampa</button></div><p class="note">Le sintesi dei livelli, da ripassare o stampare. Sono sempre consultabili, anche per i livelli non ancora giocati.</p>${mods || "<p>Nessuna sintesi disponibile.</p>"}</div>`;
+  }
 
   // src/ui2d/app.js
   var $ = (s) => document.querySelector(s);
@@ -2472,6 +2499,7 @@ button:disabled{cursor:default}
   function parseRoute() {
     const m = /^#\/livello\/([^/]+)(\/verifica)?$/.exec(location.hash || "");
     if (m && levels.some((l) => l.id === m[1])) return { name: "level", id: m[1], verify: !!m[2], key: m[0] };
+    if (location.hash === "#/quaderno") return { name: "quaderno", key: "#/quaderno" };
     return { name: "home", key: "#/home" };
   }
   var route = parseRoute();
@@ -2587,8 +2615,16 @@ button:disabled{cursor:default}
     if (!S) return;
     renderChrome();
     const home = route.name === "home";
+    const qd = route.name === "quaderno";
     $("#screen-home").hidden = !home;
-    $("#screen-level").hidden = home;
+    $("#screen-quaderno").hidden = !qd;
+    $("#screen-level").hidden = home || qd;
+    if (qd) {
+      stopDemo();
+      demo.page = -1;
+      $("#screen-quaderno").innerHTML = quadernoHTML(S, levels);
+      return;
+    }
     if (home) {
       stopDemo();
       demo.page = -1;
@@ -2974,6 +3010,9 @@ button:disabled{cursor:default}
   renderPalette();
   session.start();
   applyRoute();
+  document.addEventListener("click", (e) => {
+    if (e.target.closest('[data-act="print"]')) window.print();
+  });
 })();
 </script>
 </body>

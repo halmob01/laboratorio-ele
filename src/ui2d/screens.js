@@ -75,6 +75,7 @@ export function homeHTML(s) {
 
 function toolsHTML() {
   return `<div class="tools" role="group" aria-label="Strumenti">
+      <a class="tool" href="#/quaderno">Quaderno</a>
       <button class="tool" data-open="legenda">Legenda dei simboli</button>
       <button class="tool" data-open="glossario">Glossario</button>
       <button class="tool" data-open="intro">Rivedi l’introduzione</button>
@@ -107,6 +108,7 @@ export function footerHTML() {
           return `<a class="fbtn" href="mailto:${esc(CONTACT_EMAIL)}?subject=${encodeURIComponent(subj)}" data-mail="${it.mail}">${it.label}</a>`;
         }
         if (it.id === 'mappa') return `<a class="fbtn" href="#/home">${it.label}</a>`;
+        if (it.id === 'quaderno') return `<a class="fbtn" href="#/quaderno">${it.label}</a>`;
         return `<button class="fbtn" data-open="${it.id}">${it.label}</button>`;
       }).join('');
     return items ? `<nav class="fcol" aria-label="${col.title}"><div class="ftitle">${col.title.toUpperCase()}</div>${items}</nav>` : '';
@@ -245,4 +247,17 @@ export function sideLinksHTML(s) {
   const u = s.unit;
   if (!u || s.playMode === 'verifica') return '';
   return `<button class="link" data-act="summary">Sintesi</button><button class="link" data-unit="lesson">Rivedi la lezione</button>`;
+}
+
+/* ---------- quaderno: le sintesi di tutti i livelli ---------- */
+export function quadernoHTML(s, levelList) {
+  const stars = {};
+  s.levels.forEach(l => (stars[l.id] = l));
+  const mods = MODULES.map(m => {
+    const items = m.levels.filter(x => typeof x === 'string').map(id => levelList.find(l => l.id === id)).filter(l => l && l.unit && l.unit.summary);
+    if (!items.length) return '';
+    const body = items.map(l => `<article class="qlv"><h3>${esc(l.title)}</h3><ul class="sum">${l.unit.summary.map(t => `<li>${esc(t)}</li>`).join('')}</ul></article>`).join('');
+    return `<section class="qmod"><div class="kick">${m.tag}</div><h2>${m.title}</h2>${body}</section>`;
+  }).join('');
+  return `<div class="levelbar"><a class="back" href="#/home">&larr; Mappa</a></div><div class="card quaderno"><div class="qhead"><h1>Quaderno</h1><button class="btn" data-act="print">Stampa</button></div><p class="note">Le sintesi dei livelli, da ripassare o stampare. Sono sempre consultabili, anche per i livelli non ancora giocati.</p>${mods || '<p>Nessuna sintesi disponibile.</p>'}</div>`;
 }

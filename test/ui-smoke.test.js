@@ -397,3 +397,19 @@ test('sintesi: si apre dall\'esercizio e dopo la verifica', () => {
   assert.ok(q(d, '#result [data-act="full"]'));
   assert.ok(q(d, '#work').className.includes('passed'));
 });
+
+test('quaderno: il collegamento dalla mappa porta alle sintesi e il livello c01 e\' presente', () => {
+  const { w, d, errors } = openPage({ seen: true });
+  const link = q(d, '#screen-home a[href="#/quaderno"]');
+  assert.ok(link, 'collegamento nella mappa');
+  go(w, '#/quaderno');
+  assert.equal(q(d, '#screen-quaderno').hidden, false);
+  assert.equal(q(d, '#screen-home').hidden, true);
+  const txt = q(d, '#screen-quaderno').textContent;
+  assert.match(txt, new RegExp(lv('c01-circuito-chiuso').title));
+  assert.match(txt, /Stampa/);
+  assert.ok(qa(d, '#screen-quaderno li').length >= 5);
+  assert.deepEqual(errors, []);
+  go(w, '#/home');
+  assert.equal(q(d, '#screen-quaderno').hidden, true);
+});
