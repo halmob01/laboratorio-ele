@@ -1,235 +1,139 @@
-# Piano di lavoro automatico (notte 13-14 ottobre 2026)
+# Piano di lavoro automatico, seconda parte della notte (13-14 ottobre 2026)
 
-Scritto da Opus per essere eseguito da Sonnet in autonomia, senza domande a Matteo. Riferimenti obbligatori: `docs/LEZIONE-ED-ESERCIZIO.md` (modello approvato), `docs/bozze/*.png` (aspetto), `docs/SYLLABUS.md` (contenuti), `docs/PIANO-DI-LAVORO.md` (ruoli).
+Scritto da Opus, da eseguire con Sonnet in autonomia, senza domande a Matteo. Il piano precedente (fasi A, B, C, tutte chiuse e unite in `main`) resta nella storia di git.
 
-## 0. Protocollo di lavoro autonomo
+Riferimenti obbligatori: `docs/LEZIONE-ED-ESERCIZIO.md` (modello di lezione ed esercizio), `docs/SYLLABUS.md` (sezioni 4, 6, 10 e 11 per il Modulo 1), `docs/DOMANDE-PER-MATTEO.md`, `docs/STATO-AVANZAMENTO.md`.
+
+## 0. Protocollo
 
 **All'inizio di ogni sessione**, anche dopo un'interruzione:
 1. Leggi `docs/STATO-AVANZAMENTO.md`: dice l'ultimo compito chiuso e il prossimo.
-2. `git fetch`, passa al ramo indicato lì, `npm install` se manca `node_modules`, `npm run check`.
+2. `git fetch`, passa al ramo `b3-notte`, `npm install` se manca `node_modules`, `npm run check`.
 3. Riprendi dal primo compito non chiuso.
 
 **Per ogni compito**
-- Un compito alla volta, nell'ordine di questo piano.
-- Chiuso un compito: `npm run check` verde, commit sul ramo di lavoro, push del ramo, aggiorna `docs/STATO-AVANZAMENTO.md` (una riga: compito, commit, note), commit e push anche di quello.
-- Commit con i trailer richiesti dalla sessione.
-- Se un test esistente si rompe per un cambiamento voluto del comportamento, aggiorna il test e scrivi il motivo nel messaggio di commit. Non cancellare test per farli passare.
+- Un compito alla volta, nell'ordine di questo piano. Prima di iniziarlo controlla l'ora con `date` (sezione 1).
+- Chiuso un compito: `npm run check` verde, commit sul ramo, push del ramo, una riga in `STATO-AVANZAMENTO.md`, commit e push.
+- Commit con i trailer richiesti dalla sessione. Mai più di un'ora senza commit: se serve, commit intermedio con `[wip]`.
+- Un test che si rompe per un cambiamento voluto si aggiorna, con il motivo nel commit. Non si cancellano test per farli passare.
 
 **Ramo e pubblicazione**
-- Ramo di lavoro: `b2-modello-lezione`, creato da `main`.
-- Unione in `main` (fast-forward, poi push) **solo al gate di fine fase** (A, B, C, D), e solo se: test verdi, screenshot controllati a 390 e 1280 px, revisione indipendente fatta e i suoi problemi gravi corretti. Così al mattino Matteo trova su GitHub Pages l'ultima fase completa e funzionante.
-- Mai `push --force`. Mai riscrivere la storia di `main`.
+- Ramo di lavoro: `b3-notte`, creato da `main` (contiene già questo piano).
+- Unione in `main` (fast-forward, poi push) solo al gate di fine fase, e solo con test verdi, screenshot a 390 e 1280 px guardati davvero, revisione Opus fatta e problemi gravi e medi corretti.
+- Mai `push --force`, mai riscrivere `main`. `CONTACT_EMAIL` resta vuoto.
 
-**Quando qualcosa non è chiaro**
-- Non fermarti. Scegli l'opzione più semplice e coerente con `LEZIONE-ED-ESERCIZIO.md`, scrivi la scelta in `docs/DOMANDE-PER-MATTEO.md` (domanda, scelta fatta, come cambiarla) e vai avanti.
-- Ti fermi solo se un passo è irreversibile o rischia di rompere `main`: in quel caso chiudi la fase precedente, scrivi la situazione in `STATO-AVANZAMENTO.md` e smetti.
+**Quando qualcosa non è chiaro**: scegli l'opzione più semplice coerente con questo piano, annota domanda, scelta e come cambiarla in `DOMANDE-PER-MATTEO.md`, vai avanti. Ti fermi solo davanti a un passo irreversibile.
 
-**Regole sui contenuti (valgono per ogni testo del gioco)**
-- Italiano, tono sobrio e tecnico, frasi brevi, seconda persona singolare. Niente emoji, niente slogan, niente punti esclamativi, niente toni infantili.
-- Sul sito non compaiono: codici interni (c01...), "milestone", "prologo", "build". Si usano "Modulo", "Per cominciare", "livello".
-- Termini fissi: fase, neutro, terra; morsetto; quadro; levetta del quadro; giallo-verde. Colori: fase marrone, nero o grigio; neutro blu; terra giallo-verde.
-- Ogni affermazione tecnica deve essere corretta per un impianto civile italiano. In caso di dubbio scrivi la frase più prudente e segnala il punto in `DOMANDE-PER-MATTEO.md` sotto "Da far controllare al collega di laboratorio".
-- Non pubblicare indirizzi email. `CONTACT_EMAIL` resta vuoto.
+**Regole sui contenuti**: italiano sobrio e tecnico, seconda persona singolare, frasi brevi, niente emoji, slogan, punti esclamativi o toni infantili. Sul sito non compaiono codici interni, "milestone", "prologo", "build": si usano "Modulo", "Prova del modulo", "Per cominciare", "livello". Termini e colori fissi come nelle lezioni esistenti. Ogni frase tecnica dubbia va in `DOMANDE-PER-MATTEO.md`, sotto "Da far controllare al collega di laboratorio".
 
-**Revisioni**
-- Chi scrive non rivede il proprio lavoro. Ai gate lancia una revisione con lo strumento Agent, `model: "opus"`, `subagent_type: "general-purpose"`, in sola lettura, chiedendo problemi concreti con file, riga e scenario. Correggi i problemi gravi e medi, annota gli altri.
-- Controllo visivo: Playwright con Chromium già installato (`/opt/pw-browsers`), screenshot a 390x844 e 1280x800 di ogni schermata toccata, salvati nella scratchpad. Guardali davvero prima di chiudere il compito.
+**Revisioni**: chi scrive non rivede. Ai gate: Agent con `model: "opus"`, `subagent_type: "general-purpose"`, sola lettura, problemi concreti con file, riga e scenario. Controllo visivo con Playwright e Chromium (`/opt/pw-browsers`); per le pagine 3D lancia Chromium con `args=['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist']` e aspetta almeno 1,5 s prima dello screenshot.
 
-## 1. Tetto di stanotte e margine
+## 1. Tetto della notte
 
-**Stop assoluto alle 05:45 di mercoledì 14 ottobre**: a quell'ora si chiude il compito in corso con un commit (anche `[wip]`), si aggiorna `STATO-AVANZAMENTO.md` e ci si ferma, qualunque sia il punto raggiunto. Dopo il reset settimanale delle 06:00 non si usa utilizzo. L'ora si controlla con `date` prima di iniziare ogni compito.
+**Stop assoluto alle 05:45 di mercoledì 14 ottobre**: si chiude il compito in corso con un commit (anche `[wip]`), si aggiorna `STATO-AVANZAMENTO.md` e ci si ferma. Dopo il reset delle 06:00 non si usa utilizzo. Resta programmata una sola ripresa automatica alle 00:35, che segue lo stesso protocollo.
 
-**Stanotte si fanno solo le fasi A e B.** La fase C si inizia solo se A e B sono chiuse e unite in `main` prima delle 04:00; in quel caso si chiude livello per livello (c02, poi c03, poi c05, poi c06), con un commit e una voce in `STATO-AVANZAMENTO.md` per ciascuno, e alle 05:30 non se ne inizia uno nuovo. Le fasi D ed E **non** si fanno stanotte: aspettano l'approvazione di Matteo.
-
-Perché: il limite della sessione si azzera ogni 5 ore e quello settimanale mercoledì alle 06:00. Il lavoro si interrompe di colpo quando il limite finisce, e quello che non è salvato con un commit può andare perso se l'ambiente viene chiuso. Il margine serve a non lasciare a metà una fase e a lasciare a Matteo utilizzo per la giornata.
-
-**Regole per non perdere lavoro**
-- Commit e push dopo ogni compito, anche piccolo (A1, A2, ...). Mai più di un'ora di lavoro senza commit: se un compito è lungo, commit intermedio con `[wip]` nel messaggio sul ramo di lavoro.
-- `STATO-AVANZAMENTO.md` sempre aggiornato prima di iniziare il compito successivo.
-- Se la sessione riparte e trova modifiche non salvate, le verifica con `npm run check`: se passano le salva con commit, altrimenti le scarta con `git stash` e annota il fatto.
-
-| Fase | Contenuto | Stanotte |
+| Fase | Contenuto | Regola oraria |
 |---|---|---|
-| A | Nuovo modello di lezione ed esercizio, applicato a c01 | sì |
-| B | Quaderno delle sintesi | sì |
-| C | Lezioni, passi, sintesi e sfide guasto di c02, c03, c05, c06 | solo se avanza tempo, un livello alla volta |
-| D | Livello nuovo c04, due lampade in parallelo | no, dopo approvazione |
-| E | Rifiniture | no, dopo approvazione |
+| E0 | Banco su computer per i livelli con molti componenti (c05, c06) | subito, è breve |
+| F | Modulo 1, Il trilocale: proposta 3D con impaginazione propria | priorità della notte |
+| D | Livello c04, due lampade in parallelo | si inizia solo se F è unita in `main` prima delle 03:00 |
+| E | Rifiniture | solo dopo D, e non dopo le 05:00 |
 
-## 2. Fase A: modello di lezione ed esercizio su c01
+Alle 05:30 non si inizia nessun compito nuovo.
 
-### A1. Formato dei dati (`src/content/units.js`)
+## 2. E0. Banco su computer per i livelli con molti componenti
 
-Sostituisce `lesson.paras`, `prediction`, `guided`, `afterGuide`. La sfida guasto (`fault`) resta com'è.
+Problema visto negli screenshot: su computer, in c05 e c06, i componenti sono impilati in una colonna stretta al centro del banco, con molto spazio vuoto ai lati e morsetti piccoli.
 
-```js
-unit = {
-  support: 'guidato' | 'passi' | 'obiettivo',
-  lesson: { pages: [ page, ... ] },          // l'ultima è sempre di tipo 'sintesi'
-  steps: [ step, ... ],                       // passi dell'esercizio
-  summary: [ 'punto', ... ],                  // la sintesi (usata dalla pagina sintesi e dal Quaderno)
-  fault: { ...come oggi }
-}
+- In `src/ui2d/layout.js` aggiungi una disposizione per schermi larghi (stessa soglia CSS, 920 px): con 4 o più componenti, quadro in alto su tutta la larghezza, gli altri su due colonne nell'ordine del percorso della fase (c05: deviatore A e deviatore B affiancati, lampada sotto; c06: deviatore A, invertitore, deviatore B, lampada in griglia 2x2). Il telefono resta com'è.
+- `composeComps(level, { wide })`; `app.js` passa `wide = !MQ.matches` e ridisegna al cambio di `MQ` (esiste già `onMQ`).
+- Test: i test di layout esistenti restano verdi; aggiungi un test che con `wide` nessun componente si sovrappone e il viewBox è più largo che alto.
+- Screenshot 1280 di c05 e c06 a cablaggio completo. Nessuna revisione separata: si unisce in `main` insieme alla fase F.
 
-page =
-  | { type: 'spiegazione', title, paras: [...], art?: '<chiave art.js>', room?: 'lit'|'dark',
-      table?: { head: [a, b], rows: [[a, b], ...] }, warn?: 'testo del riquadro Attenzione' }
-  | { type: 'pezzi', title, focus: ['Q'], paras: [...] }        // focus = id dei componenti in evidenza
-  | { type: 'demo', title, captions: { wires: ['testo per il filo 1', ...], power: '...', controls?: ['...'] } }
-  | { type: 'previsione', question, options: [{ id, text }], correct, why }
-  | { type: 'sintesi', title: 'Da ricordare' }                  // i punti sono in unit.summary
+## 3. Fase F. Modulo 1, Il trilocale: proposta 3D
 
-step =
-  | { kind: 'wire', from: 'Q.F', to: ['L.A', 'L.B'], color: 'marrone', title, text }
-  | { kind: 'power', title, text }
-  | { kind: 'control', id: 'S', title, text }        // azionare un comando con la luce accesa
-  | { kind: 'verify', title, text }
-```
+### F.0 Cosa si consegna stanotte, e cosa no
 
-Un passo `wire` è fatto quando `from` è collegato a uno dei `to` attraverso i soli fili (union-find sui fili, contatti esclusi). Il colore non conta per segnare il passo: lo giudica la verifica.
+Si consegna una **proposta funzionante** da far provare a Matteo: la pagina del Modulo 1 con l'appartamento in 3D, i tre cablaggi (bagno, camera, corridoio) e la luce che si accende nella stanza giusta. Non si fanno stanotte: collaudo finale, multimetro, guasti nascosti, procedura di sicurezza, dimensionamento. Nella pagina compaiono come scheda "Collaudo finale, in arrivo" con una riga di descrizione.
 
-### A2. Contenuti di c01 (testi definitivi, da copiare)
+### F.1 Impaginazione (diversa dal resto del sito)
 
-`support: 'guidato'`
+Rotta: `#/modulo/1`. Nella mappa la scheda "Modulo 1, Il trilocale" (oggi in `UPCOMING`) diventa una scheda aperta con etichetta "Anteprima" e pulsante "Entra nel trilocale".
 
-Pagine:
-1. `spiegazione`, `room: 'lit'`, title "Una lampada al soffitto", paras:
-   - "In ogni stanza c’è almeno una lampada collegata al quadro elettrico di casa."
-   - "In questo livello la colleghi tu, sul banco, con due fili. Alla fine la vedrai accendersi nella stanza."
-2. `pezzi`, focus `['Q']`, title "Il quadro: da qui arriva la corrente", paras:
-   - "Il quadro ha due uscite. La FASE porta la corrente verso la lampada, il NEUTRO la riporta indietro."
-   - "La levetta accende e spegne tutto l’impianto."
-3. `pezzi`, focus `['L']`, title "La lampada: due morsetti", paras:
-   - "I morsetti sono le viti che stringono il filo. La lampada ne ha due, A e B: un filo per ciascuno."
-   - "Per la lampada A e B sono equivalenti: conta che i due fili vadano a due morsetti diversi."
-4. `spiegazione`, art `giro`, title "Perché servono due fili", paras:
-   - "La corrente scorre solo se ha un giro completo da fare: esce dalla fase, attraversa la lampada e torna al neutro."
-   - "Se manca uno dei due fili il giro è interrotto. Si dice circuito aperto: la lampada resta spenta."
-   - warn: "Non collegare mai la fase direttamente al neutro: è un cortocircuito e il quadro scatta."
-5. `demo`, title "Guarda come si fa", captions:
-   - wires: ["Filo marrone dalla FASE del quadro al morsetto A della lampada.", "Filo blu dal NEUTRO al morsetto B."]
-   - power: "Levetta su: il giro è chiuso e la lampada si accende. I puntini gialli sono la corrente."
-6. `previsione`: domanda, opzioni, risposta e spiegazione attuali di c01 (invariati).
-7. `sintesi`.
+**Telefono (390 px)**, dall'alto:
+1. Barra: "← Mappa" a sinistra, "Modulo 1 · Il trilocale" a destra.
+2. **Scena 3D** a tutta larghezza, altezza 52vh (minimo 300 px). In sovrimpressione, in basso, tre pastiglie di stato (Bagno, Camera, Corridoio: "da cablare", "in corso", "funziona"); in alto a destra due pulsanti piccoli: "Pianta" (passa alla pianta 2D, sezione F.5) e "Vista d'insieme".
+3. **Linguette dei circuiti**: Bagno, Camera, Corridoio. Sotto la linguetta attiva: una riga di presentazione del circuito ("Bagno: punto luce interrotto, un interruttore vicino alla porta"), poi il compito con i passi o l'obiettivo, palette, banco e pulsanti, come nella pagina dell'esercizio (stesse funzioni di `render.js` e `screens.js`, nessuna copia del codice).
+4. Scheda "Collaudo finale", disattivata, "in arrivo".
 
-summary:
-- "Una lampada ha bisogno di due fili: fase e neutro."
-- "La fase va a un morsetto, il neutro all’altro. A e B sono equivalenti."
-- "Fase: marrone, nero o grigio. Neutro: blu."
-- "Se manca un filo il circuito è aperto e la luce resta spenta."
-- "Mai la fase direttamente sul neutro: è un cortocircuito."
+Quando un circuito supera la verifica: la pagina torna alla scena, la telecamera si sposta sulla stanza (0,8 s; nessuna animazione con `prefers-reduced-motion`), la luce si accende e sotto il banco compare l'esito come oggi. Toccare una stanza nella scena apre la sua linguetta.
 
-steps:
-1. wire Q.F → [L.A, L.B], marrone. title "Collega la fase alla lampada"; text "Colore marrone. Tocca FASE sul quadro, poi un morsetto della lampada."
-2. wire Q.N → [L.A, L.B], blu. title "Collega il neutro all’altro morsetto"; text "Colore blu. Tocca NEUTRO sul quadro, poi il morsetto libero della lampada."
-3. power. title "Dai corrente"; text "Tocca la levetta del quadro."
-4. verify. title "Controlla l’impianto"; text "Premi Verifica."
+**Computer (1280 px)**: due colonne in un contenitore largo al massimo 1280 px. A sinistra la scena 3D, fissa (`position: sticky`), larga circa il 58%, alta `calc(100vh - 120px)`. A destra linguette, compito, banco e, sotto il banco, i pulsanti in riga (la colonna laterale da 280 px qui non ci sta). Pastiglie di stato e pulsanti della scena come sul telefono.
 
-Etichette brevi dei passi nella barra: "1 Fase", "2 Neutro", "3 Levetta", "4 Verifica" (campo `short` nello step).
+Prima del codice: bozzetto delle due impaginazioni (HTML statico, scena sostituita da un riquadro grigio), screenshot in `docs/bozze/trilocale-telefono.png` e `docs/bozze/trilocale-desktop.png`, guardali, poi scrivi il codice.
 
-### A3. Motore
+### F.2 I tre circuiti come dati
 
-Nuovo file `src/engine/steps.js`, funzioni pure, nessun DOM:
-- `stepsState(level, wires, power, states, result)` restituisce `{ current: indice | null, done: [bool...] }`. I passi sono sequenziali: il passo corrente è il primo non fatto. `power` è fatto se `power` è vero; `control` è fatto se il comando è stato azionato almeno una volta con la luce accesa (la sessione tiene un insieme `operated`); `verify` è fatto se c'è un risultato con `pass`.
-- `ghostFor(level, step, wires)`: per un passo `wire` restituisce `[from, to, color]`, dove `to` è il primo dei `to` ancora libero (nessun filo). Serve al tratteggio in modalità `guidato`.
+- Nuovo file `src/content/trilocale.js` con `TRILOCALE = { rooms, circuits, plan }`.
+- I tre circuiti sono livelli nello stesso formato di `levels.js` (identificativi stabili `t01-bagno`, `t02-camera`, `t03-corridoio`, mai mostrati), derivati da c03, c05, c06 ma con nomi legati alla casa: "Interruttore bagno"; "Deviatore porta", "Deviatore comodino"; "Deviatore ingresso", "Invertitore soggiorno", "Deviatore camera". Il campo `where` indica la parete.
+- Supporto decrescente: `support: 'passi'` per bagno e camera, `'obiettivo'` per il corridoio; passi e sintesi brevi. Niente lezione a pagine (i concetti sono nel Modulo 0): al suo posto la riga di presentazione e un collegamento "Ripassa la lezione" al livello corrispondente del Modulo 0.
+- Il trilocale usa **una sessione separata**: `createSession({ levels: TRILOCALE.circuits, deriveFull, storage })` con chiave di salvataggio `fase-e-neutro-trilocale`. I punti del trilocale si sommano a quelli del giocatore nella barra in alto (somma dei due `totalXp`); annota in `DOMANDE-PER-MATTEO.md` che i valori sono provvisori.
+- Stato della casa: modulo puro `src/trilocale/house.js` che, dati fili e stati dei comandi di ogni circuito, calcola `lit` di ogni stanza con `analyse` del motore. Serve perché la sessione dà l'istantanea solo del circuito selezionato, mentre la scena deve mostrare tutte e tre le stanze. Per i circuiti non selezionati si usano gli ultimi fili e stati noti, tenuti in memoria e salvati nella stessa chiave. Il quadro della casa è unico: un solo interruttore generale in scena, e il quadro di ogni circuito nel motore lo segue.
+- Test (`test/trilocale.test.js`): ogni circuito con la sua soluzione passa la verifica; `house.js` accende solo la stanza giusta; azionare un comando cambia la luce secondo la tabella di verità (deviata e invertita, tutte le combinazioni).
 
-Nuovo file `src/engine/demo.js`:
-- `demoFrames(level, captions)` restituisce l'elenco di fotogrammi `{ wires: [...primi k fili della soluzione], power, states, caption }`: un fotogramma per ogni filo della soluzione, poi uno con la levetta su, poi uno per ogni comando azionato (per i livelli con comandi: si aziona ogni comando e si mostra la luce che cambia). Il motore calcola `lit` e `flow` per ogni fotogramma con le funzioni esistenti.
+### F.3 Scena 3D
 
-`src/engine/session.js`:
-- Fasi dell'unità: `lesson` → `build` → `done`, più `fault`. La previsione diventa una pagina della lezione: `answerPrediction` funziona quando la pagina corrente è di tipo `previsione`; "Avanti" è bloccato finché non si risponde.
-- `unitNext`, `unitBack` scorrono `lesson.pages`; dall'ultima pagina si passa a `build`.
-- Nuovo `skipLesson()`: passa a `build` da qualsiasi pagina. Nessuna penalità oltre alla previsione non data.
-- Un livello già completato (stelle > 0) si apre in `build`. "Rivedi la lezione" riporta alla pagina 1.
-- La snapshot espone `unit.page`, `unit.pages`, `unit.pageData`, `steps: stepsState(...)`, `ghost` (solo se `support === 'guidato'` e modalità apprendimento), `summary`.
-- Rimuovi `guided`, `afterGuide`, `guideStep` e i loro test, sostituiti dai passi.
-- La modalità "contatore" resta nel motore. Nella vista compare solo nel pannello di esito dopo che il livello è superato, come "Sfida: parti dal contatore".
+- Libreria `three`, versione fissata esatta in `package.json` (usa `0.176.0`; se non si installa, l'ultima 0.17x disponibile, fissata esatta). Licenza MIT, annotata in `docs/LICENZE.md`.
+- **Pacchetto separato**: `scripts/build.mjs` produce, oltre a `index.html`, un secondo file `trilocale.js` (esbuild, minificato) con three e la scena. `index.html` lo carica solo quando si apre `#/modulo/1`, aggiungendo un tag `<script>` al volo; durante il caricamento la scena mostra "Caricamento della scena". La pagina principale non si appesantisce. Test: `index.html` non contiene three; `trilocale.js` sotto 700 KB.
+- **Senza WebGL** (o se il caricamento fallisce): al posto della scena compare la pianta 2D (F.5) con le stanze colorate quando sono accese. jsdom non ha WebGL: i test di pagina verificano proprio questo ripiego.
+- **Modello**: forme semplici, nessun asset esterno stanotte. Pianta di circa 9 x 7 m: ingresso con corridoio, soggiorno, camera, bagno, cucina (cucina e soggiorno sono scena). Pavimento, muri alti 1 m (taglio "casa di bambola": dall'alto si vede dentro), porte come aperture. Arredi a blocchi: letto e comodino in camera, lavabo e doccia in bagno, divano e tavolo in soggiorno, piano cucina. Colori coerenti con il banco 2D: muri `#F3EEE4`, pavimento caldo chiaro, contorni scuri sottili.
+- **Luci**: ambiente bassa e fredda (casa di notte). Per ogni stanza una `PointLight` calda (circa `#FFD27A`) e una lampadina emissiva; da spente, intensità 0 e lampadina grigia. Ombre disattivate.
+- **Comandi in scena**: piastrine sui muri nelle posizioni dei comandi, con etichetta sovrapposta in HTML. Toccarle aziona il comando del circuito (se il circuito non è quello selezionato, prima lo seleziona). Il quadro generale è una scatola in ingresso con la sua levetta.
+- **Telecamera**: prospettica, vista d'insieme dall'alto a circa 55 gradi. Trascinando si ruota di più o meno 35 gradi al massimo, zoom limitato, niente spostamento libero. "Vista d'insieme" riporta alla posizione iniziale.
+- **Prestazioni**: `setPixelRatio(Math.min(devicePixelRatio, 1.5))`; si disegna solo quando cambia qualcosa (stato o telecamera), non in un ciclo continuo; al cambio di rotta si ferma tutto e si libera il renderer.
+- Accessibilità: la scena ha `role="img"` e un'etichetta che dice quali stanze sono accese; ogni azione della scena ha un equivalente nei pulsanti della pagina.
 
-### A4. Vista della lezione (`src/ui2d/screens.js`, `app.js`, `style.css`)
+### F.4 Integrazione
 
-- Una scheda centrata (max 720 px su desktop) con: riga in alto "Lezione · N di M · <tipo>" e a destra "Salta la lezione" (link su una riga), barra di avanzamento a segmenti, titolo, contenuto, pulsanti Indietro / Avanti. Sull'ultima pagina il pulsante principale è "Ora tocca a te".
-- `spiegazione`: paragrafi; se `room`, la stanza (riusa il disegno esistente della stanza in versione accesa o spenta); se `art`, il disegno di `art.js`; tabella e riquadro "Attenzione" (bordo sinistro rosso, sfondo rosato) come nella bozza `lezione-testo.png`.
-- `pezzi`: il banco vero del livello senza fili, i componenti fuori da `focus` con opacità 0,28, i morsetti dei componenti in `focus` con anello giallo.
-- `demo`: il banco che mostra i fotogrammi di `demoFrames` uno ogni 1,8 s. Il filo nuovo si disegna con un'animazione `stroke-dashoffset` di 0,8 s. Didascalia numerata sotto (riquadro giallo chiaro), pulsante pausa/ripresa, contatore "2 / 4", "Rivedi" dall'inizio. Con `prefers-reduced-motion` niente animazione automatica: si avanza con un pulsante "Passo successivo".
-- `previsione`: come oggi.
-- `sintesi`: elenco puntato di `summary`, nota "La trovi anche nel Quaderno, dalla mappa".
+- `src/trilocale/` contiene `house.js` (puro, testato), `scene.js` (three), `page.js` (impaginazione e collegamento con la sessione). `app.js` aggiunge la rotta, la scheda nella mappa e il caricamento del pacchetto; la pagina dell'esercizio si riusa importando le funzioni esistenti.
+- Il Quaderno include le sintesi dei tre circuiti sotto "Modulo 1".
+- La barra in basso del telefono resta; "Mappa" è attiva anche su `#/modulo/1`.
 
-### A5. Vista dell'esercizio
+### F.5 Pianta
 
-Seguire `docs/bozze/esercizio-telefono.png` e `esercizio-desktop.png`.
+Pianta in SVG generata dagli stessi dati di `rooms`: stanze con il nome, simboli del punto luce (cerchio con croce), dell'interruttore, del deviatore e dell'invertitore nelle posizioni dei comandi, linee dei circuiti con i trattini che indicano il numero di conduttori in ogni tratto (schema unifilare). È sia la vista "Pianta" della scena sia il ripiego senza WebGL. I conduttori di ogni tratto vanno in `DOMANDE-PER-MATTEO.md` da far controllare.
 
-- Colonna centrata, max 1040 px. In ordine:
-  1. barra dei passi (etichette `short`; fatti in azzurro chiaro, corrente scuro, futuri grigi) e riga del compito (titolo e testo del passo corrente). Con `support: 'obiettivo'` la barra non c'è: c'è solo l'obiettivo del livello. Con `support: 'passi'` c'è la barra ma non il tratteggio.
-  2. banco, con la palette compatta sopra (cinque pallini, quello scelto con il nome);
-  3. pulsanti. Telefono: riga "Annulla", "Annulla tutto", "Aiuto"; sotto, "Verifica" a tutta larghezza. Desktop: colonna di 300 px a destra del banco con Verifica, Annulla, Annulla tutto, Aiuto, Sintesi, Rivedi la lezione, e sotto la legenda "in tensione / passa corrente / la tensione si ferma".
-  4. stanza grande in fondo, a tutta larghezza, con intestazione "La stanza" e stato "Luce spenta / Luce accesa".
-- "Aiuto" apre un piccolo menu: "Suggerimento" (come `requestHint`, costa XP) e "Mostra la soluzione". Su telefono "Sintesi" e "Rivedi la lezione" stanno in fondo alla scheda dei passi come link.
-- Quando la verifica è superata: la pagina scorre fino alla stanza (`scrollIntoView` liscio; immediato con movimento ridotto), sotto la stanza compare il pannello di esito: titolo "Impianto funzionante", riga XP, pulsanti "Sintesi", "Sfida guasto" (se c'è e non risolta), "Sfida: parti dal contatore", "Prossimo livello".
-- Esito non superato: il pannello compare sotto i pulsanti, vicino al banco, con i tre controlli (funziona, colori, sicurezza) come oggi.
-- Rimuovi: la riga "Parti dal Quadro/Contatore" in cima al banco; la scheda "Il morsetto" e il riquadro "Controllo del circuito" sempre visibili; la scheda di testo lunga sopra il banco.
-- La barra in basso per telefono (Mappa, Livello, Classifica) resta.
-
-### A6. Test
-
-- Aggiorna `test/unit.test.js` e `test/ui-smoke.test.js` al nuovo flusso: pagine, salto, previsione come pagina, passi che avanzano, tratteggio solo in `guidato`, esito con scorrimento alla stanza.
-- Nuovi test `test/steps.test.js` (passi di c01, colore che non conta, A e B equivalenti, ordine) e `test/demo.test.js` (numero di fotogrammi, ultimo fotogramma acceso, per tutti i livelli: l'ultimo fotogramma con la levetta su ha `lit` vero).
-- Tutti i test esistenti del motore (equivalenza, flow, progressi) devono restare verdi.
-
-### A7. Gate di fase A
+### F.6 Gate della fase F (insieme a E0)
 
 1. `npm run check` verde.
-2. Screenshot a 390 e 1280 di: ogni pagina della lezione di c01, l'esercizio a metà, l'esercizio superato. Confronto con le bozze.
-3. Revisione indipendente Opus su `steps.js`, `demo.js`, le modifiche a `session.js` e il flusso della vista.
-4. Correzioni, poi unione in `main` e push. Aggiorna la sezione 13 di `SYLLABUS.md` (stato) e `STATO-AVANZAMENTO.md`.
+2. Screenshot a 390x844 e 1280x800: mappa con la scheda del Modulo 1; trilocale appena aperto (tutto spento); bagno cablato e acceso; tre stanze accese; pianta. Guardali e confrontali con i bozzetti.
+3. Prova con Playwright: aprire, cablare il bagno con clic sui morsetti, verificare, toccare l'interruttore in scena e vedere la luce spegnersi.
+4. Revisione Opus in sola lettura di `src/trilocale/` e delle modifiche a `app.js` e `build.mjs`: renderer non liberato, ascoltatori non rimossi al cambio di rotta, ripiego senza WebGL, coerenza tra scena e motore.
+5. Correzioni, unione in `main`, push. In `STATO-AVANZAMENTO.md`: come si apre la proposta e cosa manca.
 
-## 3. Fase B: Quaderno
+## 4. Fase D. c04, due lampade in parallelo
 
-- Rotta `#/quaderno`. Nella mappa, tra gli strumenti, "Quaderno"; nel footer desktop, sotto Gioco.
-- Pagina con l'elenco dei livelli che hanno `summary`, raggruppati per modulo, ognuno con titolo e punti. Livelli non ancora giocati: sintesi visibile comunque (il Quaderno è un materiale di ripasso, non un premio).
-- Pulsante "Stampa" che usa `window.print()` con un foglio di stile di stampa semplice (niente barre, nero su bianco).
-- Test: la rotta funziona, mostra c01, il link dalla mappa porta lì.
-- Gate: check, screenshot, unione in `main`.
+Solo se F è unita in `main` prima delle 03:00.
 
-## 4. Fase C: contenuti di c02, c03, c05, c06
+1. **Specifica prima del codice**: `docs/SPEC-PIU-CARICHI.md`, revisione Opus della specifica, poi codice.
+   - `level.load` resta; si aggiunge `level.loads: [[a, b], ...]`, con `loads = [load]` se manca. Nessun livello esistente cambia comportamento.
+   - `analyse` dà lo stato di ogni carico e `lit` complessivo; `evaluate` controlla che per ogni combinazione dei comandi ogni carico si accenda quando deve (in c04 entrambe le lampade seguono l'interruttore); `flowOf` mostra la corrente su ogni percorso fase-neutro che attraversa un carico acceso.
+   - Lampade in serie: il modello non simula la caduta di tensione. La serie è un errore riconosciuto dalla verifica ("le lampade sono in serie: ognuna deve ricevere fase e neutro"), senza luce debole.
+2. Livello `c04-parallelo` in `levels.js` al posto del segnaposto "Due lampade" del Modulo 0: quadro, interruttore, due portalampada affiancati; stanza con due lampade.
+3. Unità didattica nel formato delle altre (support `passi`): pagine su parallelo e serie, demo, previsione ("Se si brucia una lampada, l'altra resta accesa?"), sintesi, sfida guasto con le lampade in serie.
+4. Gate: check, screenshot, revisione Opus del motore e dei testi, correzioni, unione in `main`.
 
-Per ognuno: `support`, pagine della lezione, `steps`, `summary`, `fault` con diagnosi. Riusa il formato di c01. Lunghezza: 4-7 pagine, sempre con `pezzi` per i componenti nuovi, `demo`, `previsione` e `sintesi`. Usa `spiegazione` per i concetti che lo richiedono (terra e sicurezza nella presa; perché si interrompe la fase; come lavora un deviatore; come lavora un invertitore).
+## 5. Fase E. Rifiniture
 
-| Livello | support | Concetti da spiegare | Sfida guasto (dal syllabus) |
-|---|---|---|---|
-| c02-presa | guidato | terra e sua funzione; L, N, PE sulla presa; colore giallo-verde solo per la terra | fase e neutro scambiati sulla presa |
-| c03-interrotto | passi | l'interruttore interrompe la fase, mai il neutro; perché (lampada spenta ma in tensione) | interruttore sul neutro |
-| c05-deviato | passi | come è fatto un deviatore (comune C, 1, 2); i due fili di collegamento tra i deviatori | fili 1 e 2 incrociati tra i deviatori (la luce funziona solo in alcune posizioni) |
-| c06-invertito | obiettivo | l'invertitore tra due deviatori; incrocio dei collegamenti | un collegamento sbagliato sull'invertitore (il guasto con il tester arriva con il multimetro, Modulo 1) |
+Solo dopo D, non dopo le 05:00, in quest'ordine, fermandosi quando scade il tempo:
+1. Accessibilità: fuoco sul titolo della lezione dopo "Avanti" e "Indietro"; niente `tabindex` nella stanza disegnata nella lezione.
+2. Sfida guasto dopo una diagnosi sbagliata: nascondi il pulsante "Sfida guasto" per la sessione e scrivi il motivo, oppure azzera la diagnosi; scegli e annota.
+3. Passi che risultano fatti anche con un cortocircuito (`steps.js`): un passo `wire` è fatto solo se nel suo gruppo non c'è la sorgente di un altro passo.
+4. `README.md`: come si prova, come si aggiunge un livello, come si apre il trilocale.
 
-- Per la presa la "luce che si accende" è l'apparecchio collegato: la stanza (scena `tavolo`) mostra l'apparecchio acceso quando la presa funziona. Adatta la pagina finale di conseguenza.
-- Per i guasti che non si vedono a luce spenta (c03 interruttore sul neutro) la diagnosi si basa sugli aloni di tensione: assicurati che `flowVisible` sia vero durante la sfida guasto anche nei livelli `onDemand`.
-- Ogni sfida guasto: i fili di partenza devono produrre un impianto davvero difettoso secondo `evaluate` (test automatico per ognuno) e la correzione indicata in `fixSay` deve portare a `pass` (test automatico).
-- Elenca in `DOMANDE-PER-MATTEO.md`, sotto "Da far controllare al collega di laboratorio", ogni frase tecnica su cui non sei sicuro.
-- Gate: check, screenshot delle lezioni nuove, revisione Opus dei testi rispetto al syllabus e alle regole di contenuto (correttezza tecnica, tono, coerenza dei termini), correzioni, unione in `main`.
+## 6. Cosa trova Matteo al mattino
 
-## 5. Fase D: c04, due lampade in parallelo (non stanotte)
-
-Richiede più carichi nel motore. È la parte più delicata: progettala prima in un file `docs/SPEC-PIU-CARICHI.md` e falla rivedere da Opus (Agent) prima di scrivere codice.
-
-Linee guida per la specifica:
-- `level.load` (una coppia) resta valido; si aggiunge `level.loads: [[a, b], ...]`. Se manca, `loads = [load]`. Nessun livello esistente cambia comportamento: i test di equivalenza devono restare verdi senza modifiche.
-- `analyse` calcola `lit` per ogni carico; `lit` complessivo = tutti i carichi accesi quando devono.
-- `evaluate`: "funziona" se, per ogni combinazione dei comandi, ogni carico si accende quando ci si aspetta (per c04: entrambe le lampade seguono l'interruttore).
-- `flowOf`: corrente su ogni percorso fase-neutro che attraversa almeno un carico acceso.
-- Layout: due portalampada affiancati; stanza con due lampade.
-- Contenuti come in Fase C (support `passi`; concetto: parallelo, ogni lampada riceve fase e neutro; sfida guasto: lampade in serie, si accendono deboli o non si accendono: rappresentare come "non si accendono").
-- Inserire c04 nella mappa al posto del segnaposto "Due lampade" del Modulo 0.
-- Gate come le altre fasi, con revisione Opus del motore in sessione separata.
-
-## 6. Fase E: rifiniture (non stanotte)
-
-- Controllo ortografico e terminologico di tutti i testi in `src/content/` (elenco delle correzioni nel commit).
-- Accessibilità: etichette `aria` dei pulsanti nuovi, ordine del focus nella lezione e nella pagina dell'esercizio, contrasto dei testi sulle didascalie.
-- `README.md`: come si prova, come si aggiunge un livello con il nuovo formato.
-- Aggiorna `docs/PIANO-DI-LAVORO.md` (B1 e B2 alla luce di quanto fatto).
-
-## 7. Cosa trova Matteo al mattino
-
-- `docs/STATO-AVANZAMENTO.md`: cosa è stato fatto, commit per commit, e dove ci si è fermati.
-- `docs/DOMANDE-PER-MATTEO.md`: scelte fatte in autonomia da confermare e frasi tecniche da far controllare.
-- Su GitHub Pages: l'ultima fase chiusa.
+- Su GitHub Pages l'ultima fase chiusa: almeno la proposta del trilocale, dalla mappa, scheda "Modulo 1".
+- `docs/STATO-AVANZAMENTO.md`: compiti fatti e punto di arrivo.
+- `docs/DOMANDE-PER-MATTEO.md`: scelte da confermare (impaginazione 3D, punti del trilocale, conduttori nella pianta) e frasi da far controllare.
+- `docs/bozze/trilocale-*.png`: i bozzetti con cui confrontare il risultato.
