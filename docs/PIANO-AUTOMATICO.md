@@ -35,15 +35,24 @@ Scritto da Opus per essere eseguito da Sonnet in autonomia, senza domande a Matt
 - Chi scrive non rivede il proprio lavoro. Ai gate lancia una revisione con lo strumento Agent, `model: "opus"`, `subagent_type: "general-purpose"`, in sola lettura, chiedendo problemi concreti con file, riga e scenario. Correggi i problemi gravi e medi, annota gli altri.
 - Controllo visivo: Playwright con Chromium già installato (`/opt/pw-browsers`), screenshot a 390x844 e 1280x800 di ogni schermata toccata, salvati nella scratchpad. Guardali davvero prima di chiudere il compito.
 
-## 1. Stima: fin dove si arriva
+## 1. Tetto di stanotte e margine
 
-| Fase | Contenuto | Probabilità di chiuderla stanotte |
+**Stanotte si fanno solo le fasi A e B.** La fase C si inizia solo se A e B sono chiuse e unite in `main` prima delle 04:00; in quel caso si chiude livello per livello (c02, poi c03, poi c05, poi c06), con un commit e una voce in `STATO-AVANZAMENTO.md` per ciascuno, e alle 05:30 non se ne inizia uno nuovo. Le fasi D ed E **non** si fanno stanotte: aspettano l'approvazione di Matteo.
+
+Perché: il limite della sessione si azzera ogni 5 ore e quello settimanale mercoledì alle 06:00. Il lavoro si interrompe di colpo quando il limite finisce, e quello che non è salvato con un commit può andare perso se l'ambiente viene chiuso. Il margine serve a non lasciare a metà una fase e a lasciare a Matteo utilizzo per la giornata.
+
+**Regole per non perdere lavoro**
+- Commit e push dopo ogni compito, anche piccolo (A1, A2, ...). Mai più di un'ora di lavoro senza commit: se un compito è lungo, commit intermedio con `[wip]` nel messaggio sul ramo di lavoro.
+- `STATO-AVANZAMENTO.md` sempre aggiornato prima di iniziare il compito successivo.
+- Se la sessione riparte e trova modifiche non salvate, le verifica con `npm run check`: se passano le salva con commit, altrimenti le scarta con `git stash` e annota il fatto.
+
+| Fase | Contenuto | Stanotte |
 |---|---|---|
-| A | Nuovo modello di lezione ed esercizio, applicato a c01 | alta |
-| B | Quaderno delle sintesi | alta |
-| C | Lezioni, passi, sintesi e sfide guasto di c02, c03, c05, c06 | media |
-| D | Livello nuovo c04, due lampade in parallelo (richiede più carichi nel motore) | bassa: si fa solo se A-C sono chiuse |
-| E | Rifiniture: accessibilità, ortografia, documentazione | se avanza tempo |
+| A | Nuovo modello di lezione ed esercizio, applicato a c01 | sì |
+| B | Quaderno delle sintesi | sì |
+| C | Lezioni, passi, sintesi e sfide guasto di c02, c03, c05, c06 | solo se avanza tempo, un livello alla volta |
+| D | Livello nuovo c04, due lampade in parallelo | no, dopo approvazione |
+| E | Rifiniture | no, dopo approvazione |
 
 ## 2. Fase A: modello di lezione ed esercizio su c01
 
@@ -196,7 +205,7 @@ Per ognuno: `support`, pagine della lezione, `steps`, `summary`, `fault` con dia
 - Elenca in `DOMANDE-PER-MATTEO.md`, sotto "Da far controllare al collega di laboratorio", ogni frase tecnica su cui non sei sicuro.
 - Gate: check, screenshot delle lezioni nuove, revisione Opus dei testi rispetto al syllabus e alle regole di contenuto (correttezza tecnica, tono, coerenza dei termini), correzioni, unione in `main`.
 
-## 5. Fase D: c04, due lampade in parallelo (solo se A-C sono chiuse)
+## 5. Fase D: c04, due lampade in parallelo (non stanotte)
 
 Richiede più carichi nel motore. È la parte più delicata: progettala prima in un file `docs/SPEC-PIU-CARICHI.md` e falla rivedere da Opus (Agent) prima di scrivere codice.
 
@@ -210,7 +219,7 @@ Linee guida per la specifica:
 - Inserire c04 nella mappa al posto del segnaposto "Due lampade" del Modulo 0.
 - Gate come le altre fasi, con revisione Opus del motore in sessione separata.
 
-## 6. Fase E: rifiniture (se avanza tempo)
+## 6. Fase E: rifiniture (non stanotte)
 
 - Controllo ortografico e terminologico di tutti i testi in `src/content/` (elenco delle correzioni nel commit).
 - Accessibilità: etichette `aria` dei pulsanti nuovi, ordine del focus nella lezione e nella pagina dell'esercizio, contrasto dei testi sulle didascalie.
