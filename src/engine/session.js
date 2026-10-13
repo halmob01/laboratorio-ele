@@ -68,7 +68,7 @@ export function createSession({ levels, deriveFull, storage = memoryStorage(), i
   };
   // La fase dell'unita' vale per il livello, qualunque sia il punto di partenza (quadro o contatore).
   const unitState = () =>
-    unitByKey[levelIndex] || (unitByKey[levelIndex] = { phase: startPhase(), pred: null, diag: null, faultSolved: false });
+    unitByKey[levelIndex] || (unitByKey[levelIndex] = { phase: startPhase(), page: 0, pred: null, diag: null, faultSolved: false });
   // Uscendo dalla sfida guasto o da una prova di salto, la fase riparte da capo.
   const dropUnitState = () => { delete unitByKey[levelIndex]; };
   const save = () => { try { storage.save(progress); } catch (e) { /* si continua senza salvare */ } };
@@ -118,6 +118,8 @@ export function createSession({ levels, deriveFull, storage = memoryStorage(), i
       solutionShown,
       unit: us && {
         phase,
+        page: us.page || 0,
+        pages: level.unit.lesson.pages.length,
         pred: us.pred && { ...us.pred },
         diag: us.diag && { ...us.diag },
         faultSolved: us.faultSolved,
@@ -203,7 +205,7 @@ export function createSession({ levels, deriveFull, storage = memoryStorage(), i
         statesByKey[keyOf()] = {};
         resultsByKey[keyOf()] = null;
         usageByKey[keyOf()] = { hints: 0, solution: false, checks: 0 };
-        unitByKey[levelIndex] = { phase: 'build', pred: null, diag: null, faultSolved: false };
+        unitByKey[levelIndex] = { phase: 'build', page: 0, pred: null, diag: null, faultSolved: false };
       }
       progress.last = levels[i].id;
       save();
@@ -336,13 +338,22 @@ export function createSession({ levels, deriveFull, storage = memoryStorage(), i
       const level = levelAt();
       if (!level.unit) return;
       const us = unitState();
-      if (us.phase === 'lesson') us.phase = 'prediction';
+      if (us.phase === 'lesson') {
+        if ((us.page || 0) < level.unit.lesson.pages.length - 1) us.page = (us.page || 0) + 1;
+        else us.phase = 'prediction';
+      }
       else if (us.phase === 'prediction' && us.pred) us.phase = 'build';
       emit();
+    },
+    // Indietro nella lezione: pagina precedente (alla prima non fa nulla).
+    unitBack() {
+      const us = levelAt().unit && unitState();
+      if (us && us.phase === 'lesson' && us.page > 0) { us.page--; emit(); }
     },
     showLesson() {
       if (!levelAt().unit || playMode === 'verifica') return;
       unitState().phase = 'lesson';
+      unitState().page = 0;
       emit();
     },
     answerPrediction(optionId) {

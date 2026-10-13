@@ -34,7 +34,28 @@ const loopPaths = {
   neutro: 'M110 170 H386',
 };
 
+const quadro = () =>
+  `<rect x="70" y="14" width="340" height="86" rx="10" fill="#1E2635" stroke="${INK}" stroke-width="3"/>` +
+  `<text x="240" y="40" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="15" fill="#F3EFE6">QUADRO</text>` +
+  term(140, 100) + term(340, 100) +
+  `<text x="140" y="82" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="14" font-weight="600" fill="#8DB7EA">NEUTRO</text>` +
+  `<text x="340" y="82" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="14" font-weight="600" fill="#E9A15F">FASE</text>`;
+const lampada2 = on =>
+  `<rect x="150" y="190" width="180" height="62" rx="10" fill="${on ? LAMP : '#E6E0D2'}" stroke="${INK}" stroke-width="3"/>` +
+  `<text x="240" y="242" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="15" fill="${INK}">LAMPADA</text>` +
+  term(190, 190) + term(290, 190) +
+  `<text x="190" y="216" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="14" fill="${INK}">B</text>` +
+  `<text x="290" y="216" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="14" fill="${INK}">A</text>`;
+
 const ART = {
+  bancoVuoto: () => svg(quadro() + lampada2(false), 'Il quadro con le uscite fase e neutro, e sotto la lampada con i morsetti A e B'),
+  bancoCablato: () =>
+    svg(
+      quadro() + lampada2(true) +
+        `<path d="M340 107 C340 150 290 150 290 183" fill="none" stroke="${FASE}" stroke-width="6" stroke-linecap="round"/>` +
+        `<path d="M140 107 C140 150 190 150 190 183" fill="none" stroke="${NEUTRO}" stroke-width="6" stroke-linecap="round"/>`,
+      'Un filo marrone dalla fase a un morsetto della lampada e un filo blu dal neutro all’altro'
+    ),
   lampada: () =>
     svg(
       `<rect x="30" y="20" width="420" height="230" rx="10" fill="#F3EFE6" stroke="${SOFT}" stroke-width="2"/>` +

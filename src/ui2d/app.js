@@ -65,7 +65,7 @@ function showHint() {
 function onLevelChange() {
   comps = composeComps(S.level);
   SEL = null;
-  $('#lvTag').textContent = S.level.code + ' · ' + S.level.name + (S.mode === 'contatore' ? ' · dal contatore' : '') + (S.playMode === 'verifica' ? ' · prova di salto' : '');
+  $('#lvTag').textContent = S.level.name + (S.mode === 'contatore' ? ' · dal contatore' : '') + (S.playMode === 'verifica' ? ' · prova di salto' : '');
   $('#room').innerHTML = R.roomHTML(S.level, comps);
   setRoomVB();
   setInfo('morsetto', null, false);
@@ -129,6 +129,7 @@ function applyRoute() {
   routeApplied = route.key;
   if (route.name === 'level') {
     rebuild = true;
+    if (!profile.introSeen && !overlayKind) openIntro();   // l'introduzione si apre al primo tentativo di giocare
     session.selectLevel(route.id, { verify: route.verify });   // emette: disegna
   } else {
     render();
@@ -256,6 +257,7 @@ $('#unit').addEventListener('click', e => {
   if (u) {
     const a = u.dataset.unit;
     if (a === 'next') session.unitNext();
+    else if (a === 'back') session.unitBack();
     else if (a === 'lesson') session.showLesson();
     else if (a === 'startFault') session.startFault();
     else if (a === 'leaveFault') session.leaveFault();
@@ -329,4 +331,3 @@ $('#footer').innerHTML = V.footerHTML();
 renderPalette();
 session.start();
 applyRoute();
-if (!profile.introSeen) openIntro();

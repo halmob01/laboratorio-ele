@@ -858,7 +858,7 @@ button:disabled{cursor:default}
       const seen = progress.stars[progressKey(l.id)] > 0 || b && b.pred;
       return l.unit && playMode === "apprendimento" && !seen ? "lesson" : "build";
     };
-    const unitState = () => unitByKey[levelIndex] || (unitByKey[levelIndex] = { phase: startPhase(), pred: null, diag: null, faultSolved: false });
+    const unitState = () => unitByKey[levelIndex] || (unitByKey[levelIndex] = { phase: startPhase(), page: 0, pred: null, diag: null, faultSolved: false });
     const dropUnitState = () => {
       delete unitByKey[levelIndex];
     };
@@ -910,6 +910,8 @@ button:disabled{cursor:default}
         solutionShown,
         unit: us && {
           phase,
+          page: us.page || 0,
+          pages: level.unit.lesson.pages.length,
           pred: us.pred && { ...us.pred },
           diag: us.diag && { ...us.diag },
           faultSolved: us.faultSolved,
@@ -987,7 +989,7 @@ button:disabled{cursor:default}
           statesByKey[keyOf()] = {};
           resultsByKey[keyOf()] = null;
           usageByKey[keyOf()] = { hints: 0, solution: false, checks: 0 };
-          unitByKey[levelIndex] = { phase: "build", pred: null, diag: null, faultSolved: false };
+          unitByKey[levelIndex] = { phase: "build", page: 0, pred: null, diag: null, faultSolved: false };
         }
         progress.last = levels2[i].id;
         save();
@@ -1117,13 +1119,24 @@ button:disabled{cursor:default}
         const level = levelAt();
         if (!level.unit) return;
         const us = unitState();
-        if (us.phase === "lesson") us.phase = "prediction";
-        else if (us.phase === "prediction" && us.pred) us.phase = "build";
+        if (us.phase === "lesson") {
+          if ((us.page || 0) < level.unit.lesson.pages.length - 1) us.page = (us.page || 0) + 1;
+          else us.phase = "prediction";
+        } else if (us.phase === "prediction" && us.pred) us.phase = "build";
         emit();
+      },
+      // Indietro nella lezione: pagina precedente (alla prima non fa nulla).
+      unitBack() {
+        const us = levelAt().unit && unitState();
+        if (us && us.phase === "lesson" && us.page > 0) {
+          us.page--;
+          emit();
+        }
       },
       showLesson() {
         if (!levelAt().unit || playMode === "verifica") return;
         unitState().phase = "lesson";
+        unitState().page = 0;
         emit();
       },
       answerPrediction(optionId) {
@@ -1311,13 +1324,50 @@ button:disabled{cursor:default}
   var UNITS = {
     "c01-circuito-chiuso": {
       lesson: {
-        title: "Il circuito chiuso",
-        art: "giro",
-        paras: [
-          "Una lampada si accende quando la corrente pu\xF2 attraversarla. Servono due collegamenti: uno porta la corrente alla lampada, l\u2019altro la riporta indietro.",
-          "Nell\u2019impianto di casa i due fili si chiamano fase e neutro. Per convenzione la fase \xE8 marrone (oppure nera o grigia) e il neutro \xE8 blu.",
-          "Se uno dei due collegamenti manca, il circuito \xE8 aperto: la corrente non circola e la lampada resta spenta.",
-          "Un filo pu\xF2 essere in tensione senza che passi corrente. Sul banco la tensione si vede con un alone, la corrente con i puntini che scorrono."
+        pages: [
+          {
+            title: "Che cosa devi costruire",
+            art: "bancoVuoto",
+            paras: [
+              "Sul banco ci sono due oggetti. In alto il quadro elettrico: \xE8 il punto da cui l\u2019impianto riceve la corrente dalla rete. Ha due uscite, FASE e NEUTRO.",
+              "In basso la lampada. Ha due morsetti, A e B: sono le viti a cui si fissano i fili.",
+              "Il tuo compito \xE8 collegare la lampada al quadro con due fili."
+            ]
+          },
+          {
+            title: "Perch\xE9 servono due fili",
+            art: "giro",
+            paras: [
+              "La corrente scorre solo se ha un giro completo da fare. Parte dalla fase, attraversa la lampada e torna al neutro.",
+              "Il primo filo porta la corrente alla lampada, il secondo la riporta indietro. Se ne manca uno il giro \xE8 interrotto: si dice circuito aperto e la lampada resta spenta."
+            ]
+          },
+          {
+            title: "Dove si collega ogni filo",
+            art: "bancoCablato",
+            paras: [
+              "Primo filo: dalla FASE a un morsetto della lampada. Secondo filo: dal NEUTRO all\u2019altro morsetto.",
+              "Per la lampada A e B sono equivalenti: non conta quale scegli, conta che i due fili vadano a due morsetti diversi.",
+              "Non collegare mai la fase direttamente al neutro: sarebbe un cortocircuito e il quadro scatterebbe."
+            ]
+          },
+          {
+            title: "I colori dei fili",
+            art: "fili",
+            paras: [
+              "Il colore dice a che cosa \xE8 collegato il filo. Il filo che parte dalla fase \xE8 marrone (si usano anche nero e grigio). Quello che parte dal neutro \xE8 blu.",
+              "Il giallo-verde \xE8 riservato alla terra, che in questo livello non serve."
+            ]
+          },
+          {
+            title: "Come si usa il banco",
+            art: "tensione",
+            paras: [
+              "Scegli il colore, tocca il morsetto di partenza e poi quello di arrivo. Per togliere un filo, toccalo.",
+              "Quando hai finito alza la levetta del quadro per dare corrente, poi premi Verifica.",
+              "Sul banco un alone attorno a un filo vuol dire che c\u2019\xE8 tensione. I puntini che scorrono vuol dire che passa corrente: un filo pu\xF2 avere la tensione senza che passi corrente, se il giro non \xE8 completo."
+            ]
+          }
         ]
       },
       prediction: {
@@ -1892,7 +1942,14 @@ button:disabled{cursor:default}
     const g = on ? `<circle class="art-glow" cx="386" cy="135" r="62" fill="${LAMP}" opacity=".28"/>` : "";
     return g + `<circle cx="386" cy="135" r="30" fill="${on ? LAMP : "#E6E0D2"}" stroke="${INK}" stroke-width="3"/><path d="M366 115 L406 155 M406 115 L366 155" stroke="${INK}" stroke-width="3" stroke-linecap="round"/>` + term(386, 100) + term(386, 170);
   }
+  var quadro = () => `<rect x="70" y="14" width="340" height="86" rx="10" fill="#1E2635" stroke="${INK}" stroke-width="3"/><text x="240" y="40" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="15" fill="#F3EFE6">QUADRO</text>` + term(140, 100) + term(340, 100) + `<text x="140" y="82" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="14" font-weight="600" fill="#8DB7EA">NEUTRO</text><text x="340" y="82" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="14" font-weight="600" fill="#E9A15F">FASE</text>`;
+  var lampada2 = (on) => `<rect x="150" y="190" width="180" height="62" rx="10" fill="${on ? LAMP : "#E6E0D2"}" stroke="${INK}" stroke-width="3"/><text x="240" y="242" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="15" fill="${INK}">LAMPADA</text>` + term(190, 190) + term(290, 190) + `<text x="190" y="216" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="14" fill="${INK}">B</text><text x="290" y="216" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="14" fill="${INK}">A</text>`;
   var ART = {
+    bancoVuoto: () => svg(quadro() + lampada2(false), "Il quadro con le uscite fase e neutro, e sotto la lampada con i morsetti A e B"),
+    bancoCablato: () => svg(
+      quadro() + lampada2(true) + `<path d="M340 107 C340 150 290 150 290 183" fill="none" stroke="${FASE}" stroke-width="6" stroke-linecap="round"/><path d="M140 107 C140 150 190 150 190 183" fill="none" stroke="${NEUTRO}" stroke-width="6" stroke-linecap="round"/>`,
+      "Un filo marrone dalla fase a un morsetto della lampada e un filo blu dal neutro all\u2019altro"
+    ),
     lampada: () => svg(
       `<rect x="30" y="20" width="420" height="230" rx="10" fill="#F3EFE6" stroke="${SOFT}" stroke-width="2"/>` + line(240, 20, 240, 70, INK, 3) + `<path d="M205 100 Q240 50 275 100 Z" fill="#E6E0D2" stroke="${INK}" stroke-width="3"/><circle cx="240" cy="108" r="14" fill="${LAMP}" stroke="${INK}" stroke-width="3"/><rect x="350" y="120" width="44" height="72" rx="8" fill="#FBF9F4" stroke="${INK}" stroke-width="3"/><rect x="361" y="132" width="22" height="22" rx="4" fill="#E6E0D2" stroke="${INK}" stroke-width="2"/><path d="M372 192 V230 H240 V122" fill="none" stroke="${SOFT}" stroke-width="3" stroke-dasharray="6 8"/>`,
       "Una lampada al soffitto comandata da un interruttore a parete, con i fili nel muro"
@@ -1951,7 +2008,7 @@ button:disabled{cursor:default}
     return `<li class="lvcard ${st === "in corso" ? "cur" : ""}" data-status="${st}">
       <span class="node" aria-hidden="true"></span>
       <div class="lvbody">
-        <div class="lvhead"><div><div class="code">${l.code}</div><h3>${esc(l.title)}</h3></div>${pill}</div>
+        <div class="lvhead"><div><h3>${esc(l.title)}</h3></div>${pill}</div>
         <p>${esc(l.blurb)}</p>${stars}
         <div class="lvact"><a class="btn main" href="#/livello/${l.id}">${main}</a>${skip}</div>
       </div>
@@ -1959,7 +2016,7 @@ button:disabled{cursor:default}
   }
   function soonCard(x) {
     return `<li class="lvcard soon"><span class="node" aria-hidden="true"></span>
-      <div class="lvbody"><div class="lvhead"><div><div class="code">${x.code}</div><h3>${esc(x.title)}</h3></div><span class="pill st-soon">In arrivo</span></div><p>${esc(x.blurb)}</p></div></li>`;
+      <div class="lvbody"><div class="lvhead"><div><h3>${esc(x.title)}</h3></div><span class="pill st-soon">In arrivo</span></div><p>${esc(x.blurb)}</p></div></li>`;
   }
   function continueTarget(s) {
     const open = (l) => l.status !== "completato" && l.status !== "saltato";
@@ -1970,7 +2027,7 @@ button:disabled{cursor:default}
     const t = continueTarget(s);
     const byId = {};
     s.levels.forEach((l) => byId[l.id] = l);
-    const cont = t ? `<section class="cont" aria-label="Continua"><div class="kick">${t.status === "nuovo" ? "COMINCIA DA QUI" : "RIPRENDI DA QUI"}</div><h2>${t.code} \xB7 ${esc(t.title)}</h2><p>${esc(t.blurb)}</p><a class="btn lamp" href="#/livello/${t.id}">${t.status === "nuovo" ? "Inizia" : "Continua"}</a></section>` : `<section class="cont"><div class="kick">COMPLETATO</div><h2>Hai completato i livelli disponibili</h2><p>Altri livelli sono in preparazione.</p></section>`;
+    const cont = t ? `<section class="cont" aria-label="Continua"><div class="kick">${t.status === "nuovo" ? "COMINCIA DA QUI" : "RIPRENDI DA QUI"}</div><h2>${esc(t.title)}</h2><p>${esc(t.blurb)}</p><a class="btn lamp" href="#/livello/${t.id}">${t.status === "nuovo" ? "Inizia" : "Continua"}</a></section>` : `<section class="cont"><div class="kick">COMPLETATO</div><h2>Hai completato i livelli disponibili</h2><p>Altri livelli sono in preparazione.</p></section>`;
     const mods = MODULES.map((m) => {
       const have = m.levels.filter((x) => typeof x === "string");
       const done = have.filter((id) => byId[id] && (byId[id].status === "completato" || byId[id].status === "saltato")).length;
@@ -2066,38 +2123,39 @@ button:disabled{cursor:default}
   function unitHTML(s) {
     const L = s.level, u = L.unit, code = L.code;
     if (s.playMode === "verifica") {
-      return `<div class="kick">${code} \xB7 PROVA DI SALTO</div><h2>${esc(L.title)}</h2><p>${esc(L.goal)}</p><p class="note">Senza suggerimenti e senza soluzione. Se la superi il livello risulta saltato e i punti si contano.</p>`;
+      return `<div class="kick">PROVA DI SALTO</div><h2>${esc(L.title)}</h2><p>${esc(L.goal)}</p><p class="note">Senza suggerimenti e senza soluzione. Se la superi il livello risulta saltato e i punti si contano.</p>`;
     }
-    if (!u) return `<div class="kick">${code} \xB7 LIVELLO</div><h2>${esc(L.title)}</h2><p>${esc(L.goal)}</p>`;
+    if (!u) return `<div class="kick">LIVELLO</div><h2>${esc(L.title)}</h2><p>${esc(L.goal)}</p>`;
     const ph = s.unit.phase;
     if (ph === "lesson") {
-      return `<div class="kick">${code} \xB7 LEZIONE</div><h2>${esc(u.lesson.title)}</h2>
-      <div class="lessonart">${artHTML(u.lesson.art)}</div>
-      ${u.lesson.paras.map((p) => `<p>${esc(p)}</p>`).join("")}
-      <div class="uact"><button class="btn primary" data-unit="next">Avanti</button></div>`;
+      const pg = u.lesson.pages[s.unit.page], last = s.unit.page === s.unit.pages - 1;
+      return `<div class="kick">LEZIONE \xB7 ${s.unit.page + 1} di ${s.unit.pages}</div><h2>${esc(pg.title)}</h2>
+      <div class="lessonart">${artHTML(pg.art)}</div>
+      ${pg.paras.map((p) => `<p>${esc(p)}</p>`).join("")}
+      <div class="uact">${s.unit.page > 0 ? '<button class="btn" data-unit="back">Indietro</button>' : ""}<button class="btn primary" data-unit="next">${last ? "Alla previsione" : "Avanti"}</button></div>`;
     }
     if (ph === "prediction") {
       const p = u.prediction, a = s.unit.pred;
-      return `<div class="kick">${code} \xB7 PREVISIONE</div><h2>${esc(p.question)}</h2>
+      return `<div class="kick">PREVISIONE</div><h2>${esc(p.question)}</h2>
       ${optButtons(p.options, a, p.correct, "pred")}
       ${a ? `<p class="fb ${a.correct ? "ok" : "ko"}"><b>${a.correct ? "Giusto." : "Non proprio."}</b> ${esc(p.why)}</p><div class="uact"><button class="btn primary" data-unit="next">Provalo sul banco</button></div>` : '<p class="note">Scegli una risposta prima di provare.</p>'}`;
     }
     if (ph === "fault") {
       const f = u.fault, d = s.unit.diag;
-      return `<div class="kick">${code} \xB7 SFIDA GUASTO</div><h2>${esc(f.diagnosis.question)}</h2><p>${esc(f.say)}</p>
+      return `<div class="kick">SFIDA GUASTO</div><h2>${esc(f.diagnosis.question)}</h2><p>${esc(f.say)}</p>
       ${optButtons(f.diagnosis.options, d, f.diagnosis.correct, "diag")}
       ${d ? `<p class="fb ${d.correct ? "ok" : "ko"}"><b>${d.correct ? "Giusto." : "Non proprio."}</b> ${d.correct ? esc(f.diagnosis.why) + " " + esc(f.fixSay) : "Osserva i fili: gli aloni mostrano dove arriva la tensione."}</p>` : ""}
       <div class="uact"><button class="btn" data-unit="leaveFault">Esci dalla sfida</button></div>`;
     }
     if (ph === "done") {
       const me = s.levels[s.levelIndex];
-      return `<div class="kick">${code} \xB7 COMPLETATO</div><h2>Livello superato</h2><p>${esc(L.title)}: ${me.xp} XP.</p>
+      return `<div class="kick">COMPLETATO</div><h2>Livello superato</h2><p>${esc(L.title)}: ${me.xp} XP.</p>
       <div class="uact">${s.unit.hasFault && !s.unit.faultSolved ? '<button class="btn primary" data-unit="startFault">Sfida guasto</button>' : ""}<a class="btn ${s.unit.hasFault && !s.unit.faultSolved ? "" : "primary"}" href="#/home">Torna alla mappa</a><button class="btn" data-unit="lesson">Rivedi la lezione</button></div>`;
     }
     let guide = "";
     if (s.guide) guide = `<div class="guide"><b>Esempio guidato</b><p>${esc(s.guide.say)}</p></div>`;
     else if (u.afterGuide && !(s.result && s.result.pass)) guide = `<p class="note">${esc(u.afterGuide)}</p>`;
-    return `<div class="kick">${code} \xB7 CABLAGGIO</div><h2>${esc(L.title)}</h2><p>${esc(L.goal)}</p>${guide}<div class="uact"><button class="btn" data-unit="lesson">Rivedi la lezione</button></div>`;
+    return `<div class="kick">CABLAGGIO</div><h2>${esc(L.title)}</h2><p>${esc(L.goal)}</p>${guide}<div class="uact"><button class="btn" data-unit="lesson">Rivedi la lezione</button></div>`;
   }
 
   // src/ui2d/app.js
@@ -2176,7 +2234,7 @@ button:disabled{cursor:default}
   function onLevelChange() {
     comps = composeComps(S.level);
     SEL = null;
-    $("#lvTag").textContent = S.level.code + " \xB7 " + S.level.name + (S.mode === "contatore" ? " \xB7 dal contatore" : "") + (S.playMode === "verifica" ? " \xB7 prova di salto" : "");
+    $("#lvTag").textContent = S.level.name + (S.mode === "contatore" ? " \xB7 dal contatore" : "") + (S.playMode === "verifica" ? " \xB7 prova di salto" : "");
     $("#room").innerHTML = roomHTML(S.level, comps);
     setRoomVB();
     setInfo("morsetto", null, false);
@@ -2239,6 +2297,7 @@ button:disabled{cursor:default}
     routeApplied = route.key;
     if (route.name === "level") {
       rebuild = true;
+      if (!profile.introSeen && !overlayKind) openIntro();
       session.selectLevel(route.id, { verify: route.verify });
     } else {
       render();
@@ -2448,6 +2507,7 @@ button:disabled{cursor:default}
     if (u) {
       const a = u.dataset.unit;
       if (a === "next") session.unitNext();
+      else if (a === "back") session.unitBack();
       else if (a === "lesson") session.showLesson();
       else if (a === "startFault") session.startFault();
       else if (a === "leaveFault") session.leaveFault();
@@ -2564,7 +2624,6 @@ button:disabled{cursor:default}
   renderPalette();
   session.start();
   applyRoute();
-  if (!profile.introSeen) openIntro();
 })();
 </script>
 </body>

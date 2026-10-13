@@ -18,12 +18,19 @@ test('c01: la soluzione prende tre stelle in entrambe le modalita\'', () => {
   }
 });
 
+const lesson = s => { while (s.snapshot().unit.phase === 'lesson') s.unitNext(); };
+
 test('c01: si parte dalla lezione, poi previsione, poi cablaggio con esempio guidato', () => {
   const s = make();
   assert.equal(s.snapshot().unit.phase, 'lesson');
   s.addWire('Q.F', 'L.A', 'marrone');                 // ignorato in lezione
   assert.equal(s.snapshot().wires.length, 0);
+  assert.equal(s.snapshot().unit.pages, 5);
   s.unitNext();
+  assert.equal(s.snapshot().unit.page, 1);
+  s.unitBack();
+  assert.equal(s.snapshot().unit.page, 0);
+  lesson(s);
   assert.equal(s.snapshot().unit.phase, 'prediction');
   s.unitNext();                                        // senza risposta non si procede
   assert.equal(s.snapshot().unit.phase, 'prediction');
@@ -41,7 +48,7 @@ test('c01: si parte dalla lezione, poi previsione, poi cablaggio con esempio gui
 
 test('c01: tutta l\'unita\' fino alla sfida guasto e agli XP', () => {
   const s = make();
-  s.unitNext(); s.answerPrediction('b'); s.unitNext();
+  lesson(s); s.answerPrediction('b'); s.unitNext();
   L.solution.forEach(([a, b, c]) => s.addWire(a, b, c));
   const r = s.check();
   assert.equal(r.pass, true);
@@ -69,7 +76,7 @@ test('c01: tutta l\'unita\' fino alla sfida guasto e agli XP', () => {
 
 test('c01: sfida guasto risolta senza aver capito la diagnosi non da\' il bonus', () => {
   const s = make();
-  s.unitNext(); s.answerPrediction('b'); s.unitNext();
+  lesson(s); s.answerPrediction('b'); s.unitNext();
   L.solution.forEach(([a, b, c]) => s.addWire(a, b, c));
   s.check();
   s.startFault();
@@ -83,7 +90,7 @@ test('c01: sfida guasto risolta senza aver capito la diagnosi non da\' il bonus'
 
 test('i suggerimenti costano XP e la previsione sbagliata non da\' il bonus', () => {
   const s = make();
-  s.unitNext(); s.answerPrediction('a'); s.unitNext();
+  lesson(s); s.answerPrediction('a'); s.unitNext();
   s.requestHint(); s.requestHint();
   L.solution.forEach(([a, b, c]) => s.addWire(a, b, c));
   s.check();
@@ -148,7 +155,7 @@ test('sfida guasto: non si supera cambiando modalita\' ne\' indovinando la diagn
   const { levels, deriveFull } = await import('../src/content/index.js');
   const s = createSession({ levels, deriveFull });
   s.selectLevel('c01-circuito-chiuso');
-  s.unitNext(); s.unitNext();
+  lesson(s);
   s.answerPrediction('b'); s.unitNext();
   const L = levels[0];
   L.solution.forEach(([a, b, c]) => s.addWire(a, b, c));

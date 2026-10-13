@@ -57,10 +57,18 @@ const solve = (w, d, level) => level.solution.forEach(([a, b, c]) => wire(w, d, 
 const profile = w => JSON.parse(w.localStorage.getItem('fase-e-neutro-profilo') || '{}');
 const saved = w => JSON.parse(w.localStorage.getItem('fase-e-neutro-1') || '{}');
 
+const lessonAll = (w, d) => {
+  for (let i = 0; i < 5; i++) {
+    const b = q(d, '[data-unit="next"]');
+    if (!b || !/LEZIONE/.test(q(d, '#unit').textContent)) break;
+    click(w, b);
+  }
+};
+
 // Porta c01 fino al cablaggio (lezione, previsione giusta).
 function toBuild(w, d) {
   go(w, '#/livello/c01-circuito-chiuso');
-  click(w, q(d, '[data-unit="next"]'));
+  lessonAll(w, d);
   click(w, q(d, '[data-pred="b"]'));
   click(w, q(d, '[data-unit="next"]'));
 }
@@ -68,6 +76,8 @@ function toBuild(w, d) {
 /* ---------- primo accesso ---------- */
 test('al primo accesso c\'e\' l\'introduzione, poi il nome, poi la mappa', () => {
   const { w, d, errors } = openPage();
+  assert.ok(q(d, '#overlay').hidden);                    // la mappa si apre senza introduzione
+  go(w, '#/livello/c01-circuito-chiuso');                // al primo tentativo di giocare
   assert.ok(!q(d, '#overlay').hidden);
   assert.match(q(d, '#overlay').textContent, /PER COMINCIARE · 1\/8/);
   assert.doesNotMatch(d.body.textContent, /prologo/i);
@@ -87,6 +97,7 @@ test('al primo accesso c\'e\' l\'introduzione, poi il nome, poi la mappa', () =>
 
 test('l\'introduzione si salta e il nome si puo\' non dare', () => {
   const { w, d } = openPage();
+  go(w, '#/livello/c01-circuito-chiuso');
   click(w, q(d, '[data-intro="skip"]'));
   assert.match(q(d, '#overlay').textContent, /Come ti chiami/);
   click(w, q(d, '[data-skipname]'));
@@ -112,7 +123,7 @@ test('la mappa mostra i livelli, il livello in arrivo e Continua', () => {
   assert.ok(q(d, '#screen-level').hidden);
   assert.equal(qa(d, '.rail .lvcard').length, 6);
   assert.equal(qa(d, '.rail .lvcard.soon').length, 1);
-  assert.match(q(d, '.homemain .cont').textContent, /c01 · Il circuito chiuso/);
+  assert.match(q(d, '.homemain .cont').textContent, /Il circuito chiuso/);
   assert.match(q(d, '.rail').textContent, /Due lampade/);
   assert.equal(qa(d, '.rail .lvcard a[href*="verifica"]').length, 5);   // "Già lo so" su ogni livello nuovo
   assert.match(q(d, '.homeside').textContent, /Area docente/);
@@ -141,7 +152,11 @@ test('c01: lezione, previsione, esempio guidato, corrente visibile e completamen
   assert.ok(q(d, '#screen-home').hidden);
   assert.match(q(d, '#unit').textContent, /LEZIONE/);
   assert.match(q(d, '#screen-level').className, /phase-learn/);
+  assert.match(q(d, '#unit').textContent, /1 di 5/);
   click(w, q(d, '[data-unit="next"]'));
+  assert.match(q(d, '#unit').textContent, /2 di 5/);
+  click(w, q(d, '[data-unit="back"]'));
+  lessonAll(w, d);
   assert.match(q(d, '#unit').textContent, /PREVISIONE/);
   click(w, q(d, '[data-pred="a"]'));
   assert.match(q(d, '#unit').textContent, /Non proprio/);
@@ -210,7 +225,7 @@ test('«Già lo so»: prova di salto senza aiuti, poi il livello risulta saltato
   const card = q(d, '.rail .lvcard');
   assert.equal(card.dataset.status, 'saltato');
   assert.match(card.textContent, /Saltato/);
-  assert.match(q(d, '.homemain .cont').textContent, /c02 · La presa/);   // Continua passa al prossimo livello
+  assert.match(q(d, '.homemain .cont').textContent, /La presa/);   // Continua passa al prossimo livello
   assert.match(q(d, '#bPlayer').textContent, /110 XP/);
   assert.deepEqual(errors, []);
 });
@@ -221,10 +236,10 @@ test('si superano tutti i livelli cablando la soluzione (quadro e contatore)', (
     const { w, d, errors } = openPage({ seen: true });
     levels.forEach(base => {
       go(w, '#/livello/' + base.id);
-      if (base.unit) { click(w, q(d, '[data-unit="next"]')); click(w, q(d, '[data-pred="b"]')); click(w, q(d, '[data-unit="next"]')); }
+      if (base.unit) { lessonAll(w, d); click(w, q(d, '[data-pred="b"]')); click(w, q(d, '[data-unit="next"]')); }
       if (mode === 'contatore') click(w, q(d, '[data-mode="contatore"]'));
       const lvl = mode === 'contatore' ? deriveFull(base) : base;
-      assert.match(q(d, '#lvTag').textContent, new RegExp(base.code));
+      assert.match(q(d, '#lvTag').textContent, new RegExp(base.name));
       solve(w, d, lvl);
       assert.equal(qa(d, '#bench [data-wire]').length, lvl.solution.length, base.id + ' ' + mode);
       click(w, q(d, '#bCheck'));
@@ -327,5 +342,5 @@ test('un indirizzo sconosciuto porta alla mappa e il tasto Indietro funziona', (
   go(w, '#/home');
   assert.ok(!q(d, '#screen-home').hidden);
   const direct = openPage({ seen: true, hash: '#/livello/c06-invertito' });
-  assert.match(q(direct.d, '#lvTag').textContent, /c06/);
+  assert.match(q(direct.d, '#lvTag').textContent, /Invertito/);
 });

@@ -32,7 +32,7 @@ function levelCard(l, s) {
   return `<li class="lvcard ${st === 'in corso' ? 'cur' : ''}" data-status="${st}">
       <span class="node" aria-hidden="true"></span>
       <div class="lvbody">
-        <div class="lvhead"><div><div class="code">${l.code}</div><h3>${esc(l.title)}</h3></div>${pill}</div>
+        <div class="lvhead"><div><h3>${esc(l.title)}</h3></div>${pill}</div>
         <p>${esc(l.blurb)}</p>${stars}
         <div class="lvact"><a class="btn main" href="#/livello/${l.id}">${main}</a>${skip}</div>
       </div>
@@ -40,7 +40,7 @@ function levelCard(l, s) {
 }
 function soonCard(x) {
   return `<li class="lvcard soon"><span class="node" aria-hidden="true"></span>
-      <div class="lvbody"><div class="lvhead"><div><div class="code">${x.code}</div><h3>${esc(x.title)}</h3></div><span class="pill st-soon">In arrivo</span></div><p>${esc(x.blurb)}</p></div></li>`;
+      <div class="lvbody"><div class="lvhead"><div><h3>${esc(x.title)}</h3></div><span class="pill st-soon">In arrivo</span></div><p>${esc(x.blurb)}</p></div></li>`;
 }
 
 // Livello da proporre con "Continua": l'ultimo aperto se non e' finito, altrimenti il primo non completato.
@@ -55,7 +55,7 @@ export function homeHTML(s) {
   const byId = {};
   s.levels.forEach(l => (byId[l.id] = l));
   const cont = t
-    ? `<section class="cont" aria-label="Continua"><div class="kick">${t.status === 'nuovo' ? 'COMINCIA DA QUI' : 'RIPRENDI DA QUI'}</div><h2>${t.code} · ${esc(t.title)}</h2><p>${esc(t.blurb)}</p><a class="btn lamp" href="#/livello/${t.id}">${t.status === 'nuovo' ? 'Inizia' : 'Continua'}</a></section>`
+    ? `<section class="cont" aria-label="Continua"><div class="kick">${t.status === 'nuovo' ? 'COMINCIA DA QUI' : 'RIPRENDI DA QUI'}</div><h2>${esc(t.title)}</h2><p>${esc(t.blurb)}</p><a class="btn lamp" href="#/livello/${t.id}">${t.status === 'nuovo' ? 'Inizia' : 'Continua'}</a></section>`
     : `<section class="cont"><div class="kick">COMPLETATO</div><h2>Hai completato i livelli disponibili</h2><p>Altri livelli sono in preparazione.</p></section>`;
   const mods = MODULES.map(m => {
     const have = m.levels.filter(x => typeof x === 'string');
@@ -173,37 +173,38 @@ const optButtons = (opts, chosen, correctId, action) =>
 export function unitHTML(s) {
   const L = s.level, u = L.unit, code = L.code;
   if (s.playMode === 'verifica') {
-    return `<div class="kick">${code} · PROVA DI SALTO</div><h2>${esc(L.title)}</h2><p>${esc(L.goal)}</p><p class="note">Senza suggerimenti e senza soluzione. Se la superi il livello risulta saltato e i punti si contano.</p>`;
+    return `<div class="kick">PROVA DI SALTO</div><h2>${esc(L.title)}</h2><p>${esc(L.goal)}</p><p class="note">Senza suggerimenti e senza soluzione. Se la superi il livello risulta saltato e i punti si contano.</p>`;
   }
-  if (!u) return `<div class="kick">${code} · LIVELLO</div><h2>${esc(L.title)}</h2><p>${esc(L.goal)}</p>`;
+  if (!u) return `<div class="kick">LIVELLO</div><h2>${esc(L.title)}</h2><p>${esc(L.goal)}</p>`;
   const ph = s.unit.phase;
   if (ph === 'lesson') {
-    return `<div class="kick">${code} · LEZIONE</div><h2>${esc(u.lesson.title)}</h2>
-      <div class="lessonart">${artHTML(u.lesson.art)}</div>
-      ${u.lesson.paras.map(p => `<p>${esc(p)}</p>`).join('')}
-      <div class="uact"><button class="btn primary" data-unit="next">Avanti</button></div>`;
+    const pg = u.lesson.pages[s.unit.page], last = s.unit.page === s.unit.pages - 1;
+    return `<div class="kick">LEZIONE · ${s.unit.page + 1} di ${s.unit.pages}</div><h2>${esc(pg.title)}</h2>
+      <div class="lessonart">${artHTML(pg.art)}</div>
+      ${pg.paras.map(p => `<p>${esc(p)}</p>`).join('')}
+      <div class="uact">${s.unit.page > 0 ? '<button class="btn" data-unit="back">Indietro</button>' : ''}<button class="btn primary" data-unit="next">${last ? 'Alla previsione' : 'Avanti'}</button></div>`;
   }
   if (ph === 'prediction') {
     const p = u.prediction, a = s.unit.pred;
-    return `<div class="kick">${code} · PREVISIONE</div><h2>${esc(p.question)}</h2>
+    return `<div class="kick">PREVISIONE</div><h2>${esc(p.question)}</h2>
       ${optButtons(p.options, a, p.correct, 'pred')}
       ${a ? `<p class="fb ${a.correct ? 'ok' : 'ko'}"><b>${a.correct ? 'Giusto.' : 'Non proprio.'}</b> ${esc(p.why)}</p><div class="uact"><button class="btn primary" data-unit="next">Provalo sul banco</button></div>` : '<p class="note">Scegli una risposta prima di provare.</p>'}`;
   }
   if (ph === 'fault') {
     const f = u.fault, d = s.unit.diag;
-    return `<div class="kick">${code} · SFIDA GUASTO</div><h2>${esc(f.diagnosis.question)}</h2><p>${esc(f.say)}</p>
+    return `<div class="kick">SFIDA GUASTO</div><h2>${esc(f.diagnosis.question)}</h2><p>${esc(f.say)}</p>
       ${optButtons(f.diagnosis.options, d, f.diagnosis.correct, 'diag')}
       ${d ? `<p class="fb ${d.correct ? 'ok' : 'ko'}"><b>${d.correct ? 'Giusto.' : 'Non proprio.'}</b> ${d.correct ? esc(f.diagnosis.why) + ' ' + esc(f.fixSay) : 'Osserva i fili: gli aloni mostrano dove arriva la tensione.'}</p>` : ''}
       <div class="uact"><button class="btn" data-unit="leaveFault">Esci dalla sfida</button></div>`;
   }
   if (ph === 'done') {
     const me = s.levels[s.levelIndex];
-    return `<div class="kick">${code} · COMPLETATO</div><h2>Livello superato</h2><p>${esc(L.title)}: ${me.xp} XP.</p>
+    return `<div class="kick">COMPLETATO</div><h2>Livello superato</h2><p>${esc(L.title)}: ${me.xp} XP.</p>
       <div class="uact">${s.unit.hasFault && !s.unit.faultSolved ? '<button class="btn primary" data-unit="startFault">Sfida guasto</button>' : ''}<a class="btn ${s.unit.hasFault && !s.unit.faultSolved ? '' : 'primary'}" href="#/home">Torna alla mappa</a><button class="btn" data-unit="lesson">Rivedi la lezione</button></div>`;
   }
   // cablaggio
   let guide = '';
   if (s.guide) guide = `<div class="guide"><b>Esempio guidato</b><p>${esc(s.guide.say)}</p></div>`;
   else if (u.afterGuide && !(s.result && s.result.pass)) guide = `<p class="note">${esc(u.afterGuide)}</p>`;
-  return `<div class="kick">${code} · CABLAGGIO</div><h2>${esc(L.title)}</h2><p>${esc(L.goal)}</p>${guide}<div class="uact"><button class="btn" data-unit="lesson">Rivedi la lezione</button></div>`;
+  return `<div class="kick">CABLAGGIO</div><h2>${esc(L.title)}</h2><p>${esc(L.goal)}</p>${guide}<div class="uact"><button class="btn" data-unit="lesson">Rivedi la lezione</button></div>`;
 }
