@@ -361,3 +361,4 @@ Prima schermata, senza obbligo di nome per guardarsi intorno.
 - **Piè di pagina solo su computer,** con la mappa del sito: Gioco (mappa dei livelli, classifica, legenda, glossario), Aiuto (Segnala un problema, Scrivici), Informazioni (informativa). Le voci del piè di pagina sono pulsanti, in fondo alla pagina. Sul telefono non c'è. L'**Area docente** è invece un pulsante della homepage, su telefono e computer.
 - **Segnala un problema e Scrivici** aprono un messaggio di posta già indirizzato all'indirizzo di contatto del progetto (da indicare), con il livello e la versione del gioco già scritti nell'oggetto. Nessun invio automatico di dati.
 - **Informativa:** non sta nella homepage. Compare in forma breve (una riga) quando si sceglie il nome, e per intero nel piè di pagina.
+- **Il piè di pagina è un componente a sé,** nel canvas (`Footer`) e nel codice (un modulo della vista con le proprie voci come dato), così si cambia senza toccare homepage e livelli.
