@@ -43,3 +43,12 @@ test('il flusso passa per entrambe le lampade', () => {
   assert.ok(Object.values(f.wires).every(w => w.current));
   assert.equal(flowOf(L, sol, { S: 0 }).current, false);
 });
+
+test('manca solo il neutro: non e\' una serie', () => {
+  const w = wires([
+    ['Q.F', 'S.a', 'marrone'], ['S.b', 'L1.A', 'marrone'], ['S.b', 'L2.A', 'marrone'],
+    ['L1.B', 'L2.B', 'blu'],
+  ]);
+  const r = evaluate(L, w);
+  assert.notEqual(r.work.items[0].code, 'work.loadsInSeries');
+});

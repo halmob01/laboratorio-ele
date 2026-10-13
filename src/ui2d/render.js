@@ -250,7 +250,12 @@ export function statusHTML(s) {
   const q = s.power ? ['Quadro acceso', 'ok'] : s.trip ? ['Quadro scattato', 'bad'] : ['Quadro spento', ''];
   let msg = sessionMessage(s.message);
   if (s.message && s.message.code === 'lampDark' && s.flowVisible) msg += ' ' + flowMessage(s.flow, s.level);
-  return `<span class="pill ${q[1]}">${q[0]}</span><span class="pill${s.lit ? ' on' : ''}">${s.level.room === 'tavolo' ? 'Lampada' : 'Luce'} ${s.lit ? 'accesa' : 'spenta'}</span><span class="msg" aria-live="polite">${msg}</span>`;
+  const multi = s.litLoads && s.litLoads.length > 1;
+  const nOn = multi ? s.litLoads.filter(Boolean).length : 0;
+  const lampTxt = multi
+    ? (nOn === s.litLoads.length ? 'Lampade accese' : nOn ? `Lampade accese: ${nOn} di ${s.litLoads.length}` : 'Lampade spente')
+    : `${s.level.room === 'tavolo' ? 'Lampada' : 'Luce'} ${s.lit ? 'accesa' : 'spenta'}`;
+  return `<span class="pill ${q[1]}">${q[0]}</span><span class="pill${s.lit || nOn ? ' on' : ''}">${lampTxt}</span><span class="msg" aria-live="polite">${msg}</span>`;
 }
 
 const MARK = { ok: '✓', na: '–', ko: '✕' };

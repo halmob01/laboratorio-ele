@@ -645,9 +645,15 @@ a.tool{display:flex;align-items:center;justify-content:center;text-decoration:no
     for (let i = 0; i < loads.length; i++) {
       for (let j = i + 1; j < loads.length; j++) {
         loads[i].forEach((x) => loads[j].forEach((y) => {
-          if (res.every((r) => {
+          const joined = res.every((r) => {
             const k = r.uf.f(x);
             return k === r.uf.f(y) && k !== r.F && k !== r.N;
+          });
+          if (!joined) return;
+          const ox = loads[i].find((t) => t !== x), oy = loads[j].find((t) => t !== y);
+          if (res.some((r) => {
+            const p = r.uf.f(ox), q = r.uf.f(oy);
+            return p === r.F && q === r.N || p === r.N && q === r.F;
           })) series = true;
         }));
       }
@@ -888,7 +894,8 @@ a.tool{display:flex;align-items:center;justify-content:center;text-decoration:no
         else if (e.kind === "contact") out.contacts[e.key] = true;
       });
       out.current = onPath.size > 0;
-    } else {
+    }
+    if (!an.lit) {
       const sources = /* @__PURE__ */ new Set([sr.F, sr.N, sr.PE]);
       const loads = new Set(loadsOf(level).flat());
       Object.keys(degree).forEach((t) => {
@@ -1293,7 +1300,7 @@ a.tool{display:flex;align-items:center;justify-content:center;text-decoration:no
           applyLive();
           if (power) {
             const cur = analyse(levelAt(), wires(), states());
-            message = cur.lit ? null : { code: "lampDark" };
+            message = cur.anyLit ? null : { code: "lampDark" };
           }
         }
         emit();
@@ -2024,7 +2031,7 @@ a.tool{display:flex;align-items:center;justify-content:center;text-decoration:no
             { id: "c", text: "L\u2019interruttore \xE8 sul neutro." }
           ],
           correct: "a",
-          why: "Il filo va dalla prima lampada alla seconda: le lampade sono in serie e nessuna delle due ha un percorso completo tra fase e neutro. Ogni lampada deve avere il suo filo di fase e il suo filo di neutro."
+          why: "Il filo va dalla prima lampada alla seconda: le lampade sono in serie e nessuna delle due \xE8 collegata direttamente tra fase e neutro: la corrente deve attraversarle una dopo l\u2019altra. Ogni lampada deve avere il suo filo di fase e il suo filo di neutro."
         },
         fixSay: "Collega la fase a entrambe le lampade dal morsetto 2 dell\u2019interruttore e il neutro a entrambe, ognuna sul suo morsetto libero. Poi premi Verifica."
       }
@@ -2835,7 +2842,10 @@ a.tool{display:flex;align-items:center;justify-content:center;text-decoration:no
     const q = s.power ? ["Quadro acceso", "ok"] : s.trip ? ["Quadro scattato", "bad"] : ["Quadro spento", ""];
     let msg = sessionMessage(s.message);
     if (s.message && s.message.code === "lampDark" && s.flowVisible) msg += " " + flowMessage(s.flow, s.level);
-    return `<span class="pill ${q[1]}">${q[0]}</span><span class="pill${s.lit ? " on" : ""}">${s.level.room === "tavolo" ? "Lampada" : "Luce"} ${s.lit ? "accesa" : "spenta"}</span><span class="msg" aria-live="polite">${msg}</span>`;
+    const multi = s.litLoads && s.litLoads.length > 1;
+    const nOn = multi ? s.litLoads.filter(Boolean).length : 0;
+    const lampTxt = multi ? nOn === s.litLoads.length ? "Lampade accese" : nOn ? `Lampade accese: ${nOn} di ${s.litLoads.length}` : "Lampade spente" : `${s.level.room === "tavolo" ? "Lampada" : "Luce"} ${s.lit ? "accesa" : "spenta"}`;
+    return `<span class="pill ${q[1]}">${q[0]}</span><span class="pill${s.lit || nOn ? " on" : ""}">${lampTxt}</span><span class="msg" aria-live="polite">${msg}</span>`;
   }
   var MARK = { ok: "\u2713", na: "\u2013", ko: "\u2715" };
   function resultHTML(s) {
@@ -3896,7 +3906,7 @@ a.tool{display:flex;align-items:center;justify-content:center;text-decoration:no
     session.setMode(b.dataset.mode);
   });
   setInterval(() => {
-    if (S && S.lit) {
+    if (S && (S.lit || S.litLoads && S.litLoads.some(Boolean))) {
       KWH += 0.1;
       const k = $("#kwh");
       if (k) k.textContent = kwhText(KWH);

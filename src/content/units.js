@@ -401,7 +401,7 @@ export const UNITS = {
           { id: 'c', text: 'L’interruttore è sul neutro.' },
         ],
         correct: 'a',
-        why: 'Il filo va dalla prima lampada alla seconda: le lampade sono in serie e nessuna delle due ha un percorso completo tra fase e neutro. Ogni lampada deve avere il suo filo di fase e il suo filo di neutro.',
+        why: 'Il filo va dalla prima lampada alla seconda: le lampade sono in serie e nessuna delle due è collegata direttamente tra fase e neutro: la corrente deve attraversarle una dopo l’altra. Ogni lampada deve avere il suo filo di fase e il suo filo di neutro.',
       },
       fixSay: 'Collega la fase a entrambe le lampade dal morsetto 2 dell’interruttore e il neutro a entrambe, ognuna sul suo morsetto libero. Poi premi Verifica.',
     },

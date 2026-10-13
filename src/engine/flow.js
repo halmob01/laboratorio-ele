@@ -92,7 +92,8 @@ export function flowOf(level, wires, states) {
       else if (e.kind === 'contact') out.contacts[e.key] = true;
     });
     out.current = onPath.size > 0;
-  } else {
+  }
+  if (!an.lit) {
     // Dove la tensione si ferma: morsetti in tensione con un solo collegamento.
     const sources = new Set([sr.F, sr.N, sr.PE]);
     const loads = new Set(loadsOf(level).flat());

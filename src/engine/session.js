@@ -312,7 +312,7 @@ export function createSession({ levels, deriveFull, storage = memoryStorage(), i
         applyLive();
         if (power) {
           const cur = analyse(levelAt(), wires(), states());
-          message = cur.lit ? null : { code: 'lampDark' };
+          message = cur.anyLit ? null : { code: 'lampDark' };
         }
       }
       emit();

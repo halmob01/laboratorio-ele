@@ -33,7 +33,11 @@ function multiLoadProblem(level, res, add) {
     for (let j = i + 1; j < loads.length; j++) {
       loads[i].forEach(x => loads[j].forEach(y => {
         // in serie: restano uniti in ogni stato dei comandi e quel punto non coincide mai con fase o neutro
-        if (res.every(r => { const k = r.uf.f(x); return k === r.uf.f(y) && k !== r.F && k !== r.N; })) series = true;
+        const joined = res.every(r => { const k = r.uf.f(x); return k === r.uf.f(y) && k !== r.F && k !== r.N; });
+        if (!joined) return;
+        // e' una serie solo se i due morsetti liberi arrivano uno alla fase e uno al neutro
+        const ox = loads[i].find(t => t !== x), oy = loads[j].find(t => t !== y);
+        if (res.some(r => { const p = r.uf.f(ox), q = r.uf.f(oy); return (p === r.F && q === r.N) || (p === r.N && q === r.F); })) series = true;
       }));
     }
   }

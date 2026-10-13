@@ -309,7 +309,7 @@ document.querySelector('.mode').addEventListener('click', e => {
   session.setMode(b.dataset.mode);
 });
 setInterval(() => {
-  if (S && S.lit) { KWH += 0.1; const k = $('#kwh'); if (k) k.textContent = R.kwhText(KWH); }
+  if (S && (S.lit || (S.litLoads && S.litLoads.some(Boolean)))) { KWH += 0.1; const k = $('#kwh'); if (k) k.textContent = R.kwhText(KWH); }
 }, 700);
 $('#info').addEventListener('click', e => { if (e.target.closest('[data-x]')) $('#info').classList.remove('open'); });
 if (window.ResizeObserver) {
