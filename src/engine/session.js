@@ -93,7 +93,7 @@ export function createSession({ levels, deriveFull, storage = memoryStorage(), i
   function stepsPart(level, phase) {
     const u = level.unit;
     if (!u || !u.steps || playMode !== 'apprendimento' || phase === 'lesson') return { steps: null, ghost: null };
-    const st = stepsState(u.steps, wires(), { power, operated: operated(), result: resultsByKey[keyOf()] || null });
+    const st = stepsState(u.steps, wires(), { power, operated: operated(), result: resultsByKey[keyOf()] || null, fault: !!analyse(level, wires(), states()).fault });
     const cur = st.current === null ? null : u.steps[st.current];
     const ghost = phase === 'build' && u.support === 'guidato' && cur ? ghostFor(cur, wires()) : null;
     return { steps: { list: u.steps, done: st.done, current: st.current }, ghost };
@@ -440,7 +440,7 @@ export function createSession({ levels, deriveFull, storage = memoryStorage(), i
     answerDiagnosis(optionId) {
       const level = levelAt();
       const us = level.unit && level.unit.fault && unitState();
-      if (!us || us.phase !== 'fault' || us.diag) return;
+      if (!us || us.phase !== 'fault' || (us.diag && us.diag.correct)) return;   // dopo una risposta sbagliata si puo' riprovare
       us.diag = { option: optionId, correct: level.unit.fault.diagnosis.correct === optionId };
       if (!us.diag.correct) us.diagWrong = true;
       emit();

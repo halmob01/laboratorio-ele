@@ -26,7 +26,7 @@ export function stepsState(steps, wires, ctx) {
   let ok = true;
   const done = steps.map(st => {
     let d;
-    if (st.kind === 'wire') d = wireDone(st, wires);
+    if (st.kind === 'wire') d = !ctx.fault && wireDone(st, wires);   // con un cortocircuito i passi di cablaggio non risultano fatti
     else if (st.kind === 'power') d = !!ctx.power;
     else if (st.kind === 'control') d = operated.has(st.id);
     else if (st.kind === 'verify') d = !!(ctx.result && ctx.result.pass);

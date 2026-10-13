@@ -346,6 +346,7 @@ function onUnitClick(e) {
     else if (a === 'skip') session.skipLesson();
     else if (a === 'lesson') session.showLesson();
     else if (a === 'leaveFault') session.leaveFault();
+    if (a === 'next' || a === 'back') { const h = document.querySelector('#lesson h2'); if (h) h.focus({ preventScroll: true }); }   // il lettore di schermo riparte dal titolo della pagina
     return;
   }
   const act = e.target.closest('[data-act]');

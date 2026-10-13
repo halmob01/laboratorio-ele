@@ -58,3 +58,17 @@ npm run check      # build e test insieme
 I test confrontano il nuovo motore con quello originale (`test/fixtures/legacy-engine.cjs`) su migliaia di
 cablaggi giusti e sbagliati, verificano che il layout ricomponga la geometria di prima, provano la sessione di
 gioco da sola e aprono la pagina costruita in un browser simulato.
+
+## Come si prova
+
+Aprire `index.html` in un browser (nessun server necessario). Per il trilocale in 3D serve `trilocale.js` nella stessa cartella; senza, compare la pianta 2D. Rotte utili: `#/livello/c04-parallelo`, `#/modulo/1` (trilocale).
+
+## Come si aggiunge un livello
+
+1. Definire il livello in `src/content/levels.js` (componenti, `controls`, `load` o `loads`, `solution`, suggerimenti).
+2. Aggiungere la disposizione sul banco in `src/ui2d/layout.js` (voce `BASE`).
+3. Scrivere l'unita' didattica in `src/content/units.js` (lezione, passi, sintesi, sfida guasto).
+4. Inserirlo nella mappa in `src/content/home.js`.
+5. `npm run check`: i test controllano che la soluzione passi e che il guasto fallisca.
+
+Livelli con piu' carichi (lampade in parallelo): vedi `docs/SPEC-PIU-CARICHI.md`.
