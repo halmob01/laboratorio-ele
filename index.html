@@ -606,6 +606,7 @@ a.tool{display:flex;align-items:center;justify-content:center;text-decoration:no
     );
     return uf;
   }
+  var loadsOf = (level) => level.loads || [level.load];
   function analyse(level, wires, states) {
     const uf = connect(level, wires, states);
     const sr = sourceOf(level);
@@ -614,8 +615,12 @@ a.tool{display:flex;align-items:center;justify-content:center;text-decoration:no
     if (F === N) fault = "corto";
     else if (F === PE) fault = "faseterra";
     const a = uf.f(level.load[0]), b = uf.f(level.load[1]);
-    const lit = !fault && (a === F && b === N || a === N && b === F);
-    return { uf, F, N, PE, fault, lit, a, b };
+    const litLoads = loadsOf(level).map(([x, y]) => {
+      const p = uf.f(x), q = uf.f(y);
+      return !fault && (p === F && q === N || p === N && q === F);
+    });
+    const lit = litLoads.every(Boolean);
+    return { uf, F, N, PE, fault, lit, anyLit: litLoads.some(Boolean), litLoads, a, b };
   }
   function potentialOf(analysis, terminalId) {
     const k = analysis.uf.f(terminalId);
@@ -633,6 +638,37 @@ a.tool{display:flex;align-items:center;justify-content:center;text-decoration:no
     if (sec.ok) sec.status = "ok";
     else if (sec.items.length && sec.items[0].code === "safe.skipped") sec.status = "na";
     else sec.status = "ko";
+  }
+  function multiLoadProblem(level, res, add) {
+    const loads = loadsOf(level);
+    let series = false;
+    for (let i = 0; i < loads.length; i++) {
+      for (let j = i + 1; j < loads.length; j++) {
+        loads[i].forEach((x) => loads[j].forEach((y) => {
+          if (res.every((r) => {
+            const k = r.uf.f(x);
+            return k === r.uf.f(y) && k !== r.F && k !== r.N;
+          })) series = true;
+        }));
+      }
+    }
+    if (series) {
+      add("work", "work.loadsInSeries");
+      return true;
+    }
+    const never = [];
+    loads.forEach((_, i) => {
+      if (!res.some((r) => r.litLoads[i])) never.push(i + 1);
+    });
+    if (never.length) {
+      never.forEach((n) => add("work", "work.loadNeverLit", { n }));
+      return true;
+    }
+    if (res.some((r) => r.anyLit !== r.lit)) {
+      add("work", "work.loadsDiffer");
+      return true;
+    }
+    return false;
   }
   function evaluate(level, wires) {
     const ctl = level.controls;
@@ -671,6 +707,7 @@ a.tool{display:flex;align-items:center;justify-content:center;text-decoration:no
         if (!anyN) add("work", "work.noNeutralAtSocket");
         if (anyF && anyN) add("work", "work.wrongSocketTerminals");
       }
+    } else if (loadsOf(level).length > 1 && multiLoadProblem(level, res, add)) {
     } else {
       const anyLit = res.some((r) => r.lit);
       if (!anyLit) {
@@ -739,7 +776,7 @@ a.tool{display:flex;align-items:center;justify-content:center;text-decoration:no
           add("safe", "safe.socketPolarity");
         }
       } else {
-        const alwaysN = level.load.some((t) => res.every((r) => r.uf.f(t) === r.N));
+        const alwaysN = loadsOf(level).every((l) => l.some((t) => res.every((r) => r.uf.f(t) === r.N)));
         if (!alwaysN) {
           ok = false;
           add("safe", "safe.neutralBroken");
@@ -802,7 +839,7 @@ a.tool{display:flex;align-items:center;justify-content:center;text-decoration:no
         ([x, y]) => edges.push({ a: c2.id + "." + x, b: c2.id + "." + y, kind: "contact", key: c2.id + "." + x + "-" + y })
       )
     );
-    const loadEdge = { a: level.load[0], b: level.load[1], kind: "load", key: "load" };
+    const loadEdges = loadsOf(level).map(([a, b], i) => ({ a, b, kind: "load", key: "load" + i }));
     const degree = {};
     edges.forEach((e) => {
       degree[e.a] = (degree[e.a] || 0) + 1;
@@ -812,14 +849,14 @@ a.tool{display:flex;align-items:center;justify-content:center;text-decoration:no
     wires.forEach((w) => {
       out.wires[w.id] = { net: potentialOf(an, w.a), current: false };
     });
-    if (an.lit) {
-      const all = edges.concat([loadEdge]);
+    if (an.anyLit) {
+      const all = edges.concat(loadEdges);
       const adj = {};
       all.forEach((e, i) => {
         (adj[e.a] = adj[e.a] || []).push([e.b, i]);
         (adj[e.b] = adj[e.b] || []).push([e.a, i]);
       });
-      const loadIdx = all.length - 1;
+      const loadIdx = new Set(loadEdges.map((_, i) => edges.length + i));
       const onPath = /* @__PURE__ */ new Set();
       let count = 0;
       let steps = 0;
@@ -828,7 +865,7 @@ a.tool{display:flex;align-items:center;justify-content:center;text-decoration:no
       const dfs = (node) => {
         if (count > MAX_PATHS || ++steps > MAX_STEPS) return;
         if (node === sr.N) {
-          if (stack.includes(loadIdx)) {
+          if (stack.some((i) => loadIdx.has(i))) {
             count++;
             stack.forEach((i) => onPath.add(i));
           }
@@ -853,12 +890,12 @@ a.tool{display:flex;align-items:center;justify-content:center;text-decoration:no
       out.current = onPath.size > 0;
     } else {
       const sources = /* @__PURE__ */ new Set([sr.F, sr.N, sr.PE]);
-      const loads = new Set(level.load);
+      const loads = new Set(loadsOf(level).flat());
       Object.keys(degree).forEach((t) => {
         const pot = potentialOf(an, t);
         if ((pot === "F" || pot === "N") && degree[t] === 1 && !sources.has(t) && !loads.has(t)) out.deadEnds.push(t);
       });
-      level.load.forEach((t) => {
+      loadsOf(level).flat().forEach((t) => {
         const pot = potentialOf(an, t);
         if ((pot === "F" || pot === "N") && degree[t] === 1) out.deadEnds.push(t);
       });
@@ -1070,6 +1107,7 @@ a.tool{display:flex;align-items:center;justify-content:center;text-decoration:no
         trip,
         message,
         lit: power && analysis.lit,
+        litLoads: analysis.litLoads.map((x) => power && x),
         fault: analysis.fault,
         // 'F' | 'N' | 'PE' | null per il morsetto dato (indipendente da power)
         potential: (tid) => potentialOf(analysis, tid),
@@ -1409,6 +1447,7 @@ a.tool{display:flex;align-items:center;justify-content:center;text-decoration:no
         power,
         trip: false,
         lit: power && an.lit,
+        litLoads: an.litLoads.map((x) => power && x),
         potential: (tid) => potentialOf(an, tid),
         controlStates: { ...states },
         flow: flowOf(level, wires, states),
@@ -1519,6 +1558,33 @@ a.tool{display:flex;align-items:center;justify-content:center;text-decoration:no
         "Parti dalla fase: dal quadro va all\u2019interruttore, non direttamente alla lampada.",
         "Dall\u2019altro morsetto dell\u2019interruttore il filo va a un morsetto della lampada.",
         "Il neutro (blu) va dal quadro all\u2019altro morsetto della lampada, senza passare dall\u2019interruttore."
+      ]
+    },
+    {
+      id: "c04-parallelo",
+      code: "c04",
+      blurb: "Il parallelo: due lampade, un solo comando.",
+      flow: "always",
+      n: 0,
+      name: "Parallelo",
+      title: "Due lampade, un interruttore",
+      goal: "Comanda due lampade con un solo interruttore: premendolo, si accendono e si spengono insieme.",
+      loadName: "Le lampade",
+      comps: [
+        { id: "Q", type: "quadro", short: "Quadro", title: "Quadro elettrico", terms: { N: { l: "NEUTRO" }, F: { l: "FASE" } } },
+        { id: "S", type: "sw", short: "Interruttore", title: "Interruttore", where: "Parete", terms: { a: { l: "1" }, b: { l: "2" } } },
+        { id: "L1", type: "lamp", short: "Lampada 1", title: "Portalampada 1", terms: { B: { l: "B" }, A: { l: "A" } } },
+        { id: "L2", type: "lamp", short: "Lampada 2", title: "Portalampada 2", terms: { B: { l: "B" }, A: { l: "A" } } }
+      ],
+      controls: ["S"],
+      load: ["L1.A", "L1.B"],
+      loads: [["L1.A", "L1.B"], ["L2.A", "L2.B"]],
+      room: "soffitto",
+      solution: [["Q.F", "S.a", "marrone"], ["S.b", "L1.A", "marrone"], ["S.b", "L2.A", "marrone"], ["Q.N", "L1.B", "blu"], ["Q.N", "L2.B", "blu"]],
+      hints: [
+        "La fase va dal quadro all\u2019interruttore, come in un punto luce con una sola lampada.",
+        "Dal morsetto 2 dell\u2019interruttore parte un filo per ogni lampada: due fili di fase, uno su ciascuna.",
+        "Il neutro (blu) va dal quadro a tutte e due le lampade, sul morsetto che resta libero, senza passare dall\u2019interruttore."
       ]
     },
     {
@@ -1860,6 +1926,109 @@ a.tool{display:flex;align-items:center;justify-content:center;text-decoration:no
         fixSay: "Sposta l\u2019interruttore sulla fase: la fase passa dall\u2019interruttore con fili marroni, il neutro blu va diretto alla lampada. Poi premi Verifica."
       }
     },
+    "c04-parallelo": {
+      support: "passi",
+      lesson: {
+        pages: [
+          {
+            type: "spiegazione",
+            title: "Due lampade, un solo interruttore",
+            room: "lit",
+            paras: [
+              "In una stanza spesso ci sono pi\xF9 lampade che si accendono e si spengono insieme, con lo stesso interruttore.",
+              "In questo livello colleghi due lampade a un solo interruttore. Alla fine le vedrai accendersi tutte e due nella stanza."
+            ]
+          },
+          {
+            type: "pezzi",
+            title: "Due portalampada",
+            focus: ["L1", "L2"],
+            paras: [
+              "Ogni lampada ha il suo portalampada, con i suoi due morsetti A e B.",
+              "Ogni lampada ha bisogno dei suoi due fili: uno di fase e uno di neutro."
+            ]
+          },
+          {
+            type: "spiegazione",
+            title: "Il parallelo",
+            art: "parallelo",
+            paras: [
+              "Le lampade sono collegate in parallelo: tutte e due ricevono la fase da un lato e il neutro dall\u2019altro, come se ognuna fosse sola.",
+              "La fase passa dall\u2019interruttore e poi si divide: un filo per ogni lampada. Il neutro arriva dal quadro a tutte e due, senza passare dall\u2019interruttore.",
+              "Per questo se una lampada si brucia l\u2019altra resta accesa: il suo percorso non dipende da quello dell\u2019altra."
+            ]
+          },
+          {
+            type: "spiegazione",
+            title: "L\u2019errore da evitare: la serie",
+            art: "serie",
+            paras: [
+              "Se si collega la seconda lampada dopo la prima, la corrente le attraversa una dopo l\u2019altra. Si dice che sono in serie.",
+              "In serie ogni lampada riceve solo una parte della tensione: la luce non \xE8 quella giusta e se una si brucia si spegne anche l\u2019altra. Nel gioco le lampade in serie non si accendono."
+            ],
+            warn: "Ogni lampada deve avere un filo di fase e un filo di neutro. Mai una lampada collegata all\u2019altra."
+          },
+          {
+            type: "demo",
+            title: "Guarda come si fa",
+            captions: {
+              wires: [
+                "Filo marrone dalla FASE del quadro al morsetto 1 dell\u2019interruttore.",
+                "Filo marrone dal morsetto 2 dell\u2019interruttore al morsetto A della lampada 1.",
+                "Un secondo filo marrone dallo stesso morsetto 2 al morsetto A della lampada 2.",
+                "Filo blu dal NEUTRO al morsetto B della lampada 1.",
+                "Un secondo filo blu dal NEUTRO al morsetto B della lampada 2."
+              ],
+              power: "Levetta su: l\u2019interruttore \xE8 aperto e le lampade sono spente.",
+              controls: ["Interruttore chiuso: tutte e due le lampade si accendono."]
+            }
+          },
+          {
+            type: "previsione",
+            question: "Le due lampade sono in parallelo e una si brucia. Che cosa fa l\u2019altra?",
+            options: [
+              { id: "a", text: "Si spegne anche l\u2019altra." },
+              { id: "b", text: "Resta accesa." },
+              { id: "c", text: "Il quadro scatta." }
+            ],
+            correct: "b",
+            why: "Resta accesa. In parallelo ogni lampada ha il suo percorso tra fase e neutro: se uno si interrompe, l\u2019altro non cambia. Una lampada bruciata \xE8 un percorso aperto, non un cortocircuito, quindi il quadro non scatta."
+          },
+          { type: "sintesi", title: "Da ricordare" }
+        ]
+      },
+      steps: [
+        { kind: "wire", from: "Q.F", to: ["S.a"], color: "marrone", short: "1 Fase", title: "Porta la fase all\u2019interruttore", text: "Dalla FASE del quadro al morsetto 1 dell\u2019interruttore." },
+        { kind: "wire", from: "S.b", to: ["L1.A", "L1.B"], color: "marrone", short: "2 Lampada 1", title: "Dall\u2019interruttore alla prima lampada", text: "Dal morsetto 2 dell\u2019interruttore a un morsetto della lampada 1." },
+        { kind: "wire", from: "S.b", to: ["L2.A", "L2.B"], color: "marrone", short: "3 Lampada 2", title: "Dall\u2019interruttore alla seconda lampada", text: "Dallo stesso morsetto 2 a un morsetto della lampada 2. Lo stesso morsetto, due fili." },
+        { kind: "wire", from: "Q.N", to: ["L1.A", "L1.B"], color: "blu", short: "4 Neutro 1", title: "Il neutro alla prima lampada", text: "Dal NEUTRO al morsetto libero della lampada 1." },
+        { kind: "wire", from: "Q.N", to: ["L2.A", "L2.B"], color: "blu", short: "5 Neutro 2", title: "Il neutro alla seconda lampada", text: "Dal NEUTRO al morsetto libero della lampada 2." },
+        { kind: "power", short: "6 Levetta", title: "Dai corrente", text: "Tocca la levetta del quadro, poi prova l\u2019interruttore." },
+        { kind: "verify", short: "7 Verifica", title: "Controlla l\u2019impianto", text: "Premi Verifica." }
+      ],
+      summary: [
+        "Pi\xF9 lampade in parallelo: ognuna ha un filo di fase e uno di neutro.",
+        "L\u2019interruttore sta sulla fase, prima che si divida verso le lampade.",
+        "Il neutro va a ogni lampada senza passare dall\u2019interruttore.",
+        "Se una lampada si brucia le altre restano accese.",
+        "In serie, invece, la corrente le attraversa una dopo l\u2019altra: \xE8 un errore."
+      ],
+      fault: {
+        say: "L\u2019impianto \xE8 gi\xE0 cablato, ma le lampade non si accendono. Dai corrente e prova l\u2019interruttore.",
+        wires: [["Q.F", "S.a", "marrone"], ["S.b", "L1.A", "marrone"], ["L1.B", "L2.A", "marrone"], ["L2.B", "Q.N", "blu"]],
+        diagnosis: {
+          question: "Che cosa non va?",
+          options: [
+            { id: "a", text: "Le lampade sono collegate in serie, una dopo l\u2019altra." },
+            { id: "b", text: "Manca il neutro a tutte e due le lampade." },
+            { id: "c", text: "L\u2019interruttore \xE8 sul neutro." }
+          ],
+          correct: "a",
+          why: "Il filo va dalla prima lampada alla seconda: le lampade sono in serie e nessuna delle due ha un percorso completo tra fase e neutro. Ogni lampada deve avere il suo filo di fase e il suo filo di neutro."
+        },
+        fixSay: "Collega la fase a entrambe le lampade dal morsetto 2 dell\u2019interruttore e il neutro a entrambe, ognuna sul suo morsetto libero. Poi premi Verifica."
+      }
+    },
     "c05-deviato": {
       support: "passi",
       lesson: {
@@ -2108,6 +2277,12 @@ a.tool{display:flex;align-items:center;justify-content:center;text-decoration:no
         return "Fase e neutro arrivano alla presa, ma non ai morsetti giusti.";
       case "work.neverLit":
         return level.loadName + " non si accende mai.";
+      case "work.loadNeverLit":
+        return "La lampada " + item.n + " non si accende mai.";
+      case "work.loadsInSeries":
+        return "Le lampade sono in serie: la corrente le attraversa una dopo l\u2019altra. Ognuna deve avere un filo di fase e uno di neutro, come in parallelo.";
+      case "work.loadsDiffer":
+        return "Le due lampade non si accendono insieme: devono seguire lo stesso comando.";
       case "work.noPhaseAtLoad":
         return "Alla lampada non arriva mai la fase.";
       case "work.noNeutralAtLoad":
@@ -2351,6 +2526,15 @@ a.tool{display:flex;align-items:center;justify-content:center;text-decoration:no
       },
       plates: { S: { x: 344, y: 122 } }
     },
+    "c04-parallelo": {
+      comps: {
+        Q: c(20, 0, 380, 100, { N: [0.12, "b"], F: [0.8, "b"] }),
+        S: c(190, 140, 210, 120, { a: [0.5, "t"], b: [0.5, "b"] }),
+        L1: c(20, 300, 185, 90, { B: [0.25, "t"], A: [0.75, "t"] }),
+        L2: c(215, 300, 185, 90, { B: [0.25, "t"], A: [0.75, "t"] })
+      },
+      plates: { S: { x: 344, y: 122 } }
+    },
     "c05-deviato": {
       comps: {
         Q: c(20, 0, 380, 100, { N: [0.12, "b"], F: [0.8, "b"] }),
@@ -2464,10 +2648,20 @@ a.tool{display:flex;align-items:center;justify-content:center;text-decoration:no
       });
       s += `<text x="312" y="196" text-anchor="middle" style="font:500 12px 'Barlow',sans-serif;fill:#EAF0F8">Presa</text>`;
     } else {
-      s += `<line x1="200" y1="0" x2="200" y2="40" stroke="var(--ink)" stroke-width="2.5" opacity=".7"/>`;
-      s += `<rect x="194" y="38" width="12" height="12" rx="2" fill="var(--ink)" opacity=".75"/>`;
-      s += `<circle id="bulb" class="bulb" cx="200" cy="62" r="13"/>`;
-      s += `<path class="shade" d="M168 52 Q200 12 232 52 Z"/>`;
+      if (!(level.loads && level.loads.length > 1)) {
+        s += `<line x1="200" y1="0" x2="200" y2="40" stroke="var(--ink)" stroke-width="2.5" opacity=".7"/>`;
+        s += `<rect x="194" y="38" width="12" height="12" rx="2" fill="var(--ink)" opacity=".75"/>`;
+      }
+      if (level.loads && level.loads.length > 1) {
+        level.loads.forEach((_, i) => {
+          const x = level.loads.length === 2 ? 130 + i * 140 : 200;
+          s += `<line x1="${x}" y1="0" x2="${x}" y2="40" stroke="var(--ink)" stroke-width="2.5" opacity=".7"/><rect x="${x - 6}" y="38" width="12" height="12" rx="2" fill="var(--ink)" opacity=".75"/>`;
+          s += `<circle id="bulb${i}" class="bulb" cx="${x}" cy="62" r="13"/><path class="shade" d="M${x - 32} 52 Q${x} 12 ${x + 32} 52 Z"/>`;
+        });
+      } else {
+        s += `<circle id="bulb" class="bulb" cx="200" cy="62" r="13"/>`;
+        s += `<path class="shade" d="M168 52 Q200 12 232 52 Z"/>`;
+      }
       comps2.filter((c2) => c2.plate).forEach((c2) => {
         const p = c2.plate;
         s += `<g class="pl" data-ctl="${c2.id}" role="button" tabindex="0" aria-label="${c2.short}, premi per cambiare"><rect x="${p.x - 24}" y="${p.y - 38}" width="48" height="${76 + 20}" fill="transparent"/><rect class="plate" x="${p.x - 20}" y="${p.y - 32}" width="40" height="64" rx="6"/><rect id="rt-${c2.id}" class="rk hi" x="${p.x - 13}" y="${p.y - 24}" width="26" height="24" rx="3"/><rect id="rb-${c2.id}" class="rk lo" x="${p.x - 13}" y="${p.y}" width="26" height="24" rx="3"/><rect x="${p.x - p.l.length * 3.6 - 7}" y="${p.y + 38}" width="${p.l.length * 7.2 + 14}" height="19" rx="9" fill="rgba(10,16,24,.62)"/><text x="${p.x}" y="${p.y + 52}" text-anchor="middle">${p.l}</text></g>`;
@@ -2479,18 +2673,22 @@ a.tool{display:flex;align-items:center;justify-content:center;text-decoration:no
     return level.room === "tavolo" ? "0 50 400 190" : "0 0 400 190";
   }
   function roomStaticHTML(level, comps2, lit) {
-    let h = roomHTML(level, comps2).replace(/id="glow"/g, 'id="sglow"').replace(/url\(#glow\)/g, "url(#sglow)").replace(/id="night"/g, 'id="snight"').replace(/id="bulb"/g, 'id="sbulb"');
+    let h = roomHTML(level, comps2).replace(/id="glow"/g, 'id="sglow"').replace(/url\(#glow\)/g, "url(#sglow)").replace(/id="night"/g, 'id="snight"').replace(/id="bulb(\d?)"/g, 'id="sbulb$1"');
     if (lit) {
-      h = h.replace('class="night" x="0" y="0" width="400" height="250" opacity=".66"', 'class="night" x="0" y="0" width="400" height="250" opacity="0"').replace(/(class="glowc"[^>]*?)opacity="0"/, '$1opacity="1"').replace('class="bulb"', 'class="bulb on"');
+      h = h.replace('class="night" x="0" y="0" width="400" height="250" opacity=".66"', 'class="night" x="0" y="0" width="400" height="250" opacity="0"').replace(/(class="glowc"[^>]*?)opacity="0"/, '$1opacity="1"').replace(/class="bulb"/g, 'class="bulb on"');
     }
     return h;
   }
   function updateRoom(root, s, comps2) {
     const n = root.querySelector("#night"), g = root.querySelector("#glow"), b = root.querySelector("#bulb");
-    const lit = s.lit;
+    const lit = s.litLoads && s.litLoads.length > 1 ? s.litLoads.some(Boolean) : s.lit;
     if (n) n.setAttribute("opacity", lit ? "0" : ".66");
     if (g) g.setAttribute("opacity", lit ? "1" : "0");
     if (b) b.setAttribute("class", "bulb" + (lit ? " on" : ""));
+    (s.litLoads || []).forEach((on, i) => {
+      const x = root.querySelector("#bulb" + i);
+      if (x) x.setAttribute("class", "bulb" + (on ? " on" : ""));
+    });
     comps2.filter((c2) => c2.plate).forEach((c2) => {
       const t = root.querySelector("#rt-" + c2.id), bt = root.querySelector("#rb-" + c2.id), st = s.controlStates[c2.id] ? 1 : 0;
       if (t) t.setAttribute("class", "rk " + (st ? "hi" : "lo"));
@@ -2573,6 +2771,12 @@ a.tool{display:flex;align-items:center;justify-content:center;text-decoration:no
     const H = Math.max(...comps2.map((c2) => c2.y + c2.h)) + 22;
     return `10 -28 400 ${H + 28}`;
   }
+  function litOf(s, c2) {
+    const loads = s.level && s.level.loads;
+    if (!loads || !s.litLoads) return s.lit;
+    const i = loads.findIndex((l) => l[0].split(".")[0] === c2.id);
+    return i >= 0 ? s.litLoads[i] : s.lit;
+  }
   function benchHTML(s, comps2, ui2) {
     const live = (id) => s.power && s.potential(id) === "F";
     const H = Math.max(...comps2.map((c2) => c2.y + c2.h)) + 22;
@@ -2584,7 +2788,7 @@ a.tool{display:flex;align-items:center;justify-content:center;text-decoration:no
       o += `<text class="ttl" x="${c2.x + 2}" y="${c2.y - 9}">${c2.title}</text>`;
       o += `<g class="help" data-help="${c2.type}" role="button" tabindex="0" aria-label="Che cos\u2019\xE8: ${c2.title}"><circle cx="${c2.x + c2.w - 12}" cy="${c2.y - 13}" r="19" fill="transparent" stroke="none"/><circle cx="${c2.x + c2.w - 9}" cy="${c2.y - 13}" r="${ui2.mobile ? 11 : 9}"/><text x="${c2.x + c2.w - 9}" y="${c2.y - 8.5}" text-anchor="middle">?</text></g>`;
       o += `<rect class="body" x="${c2.x}" y="${c2.y}" width="${c2.w}" height="${c2.h}" rx="10"/>`;
-      o += `<g transform="translate(${c2.x},${c2.y})"${toggles ? ` class="togg" data-ctl="${c2.id}" style="cursor:pointer"` : ""}>${toggles ? `<rect x="0" y="0" width="${c2.w}" height="${c2.h}" rx="10" fill="transparent"/>` : ""}${schem(c2, s, live, s.lit, ui2)}</g>`;
+      o += `<g transform="translate(${c2.x},${c2.y})"${toggles ? ` class="togg" data-ctl="${c2.id}" style="cursor:pointer"` : ""}>${toggles ? `<rect x="0" y="0" width="${c2.w}" height="${c2.h}" rx="10" fill="transparent"/>` : ""}${schem(c2, s, live, litOf(s, c2), ui2)}</g>`;
       if (dimmed(c2)) o += "</g>";
     });
     if (s.solutionShown) {
@@ -2663,7 +2867,7 @@ a.tool{display:flex;align-items:center;justify-content:center;text-decoration:no
         "c01-circuito-chiuso",
         "c02-presa",
         "c03-interrotto",
-        { soon: true, code: "c04", title: "Due lampade", blurb: "Il parallelo: due carichi, un solo comando." },
+        "c04-parallelo",
         "c05-deviato",
         "c06-invertito"
       ]
@@ -2790,6 +2994,18 @@ a.tool{display:flex;align-items:center;justify-content:center;text-decoration:no
       "Due componenti del banco collegati con un filo marrone e uno blu"
     )
   };
+  var lampSym = (x, y, on = true) => `<circle cx="${x}" cy="${y}" r="28" fill="${on ? LAMP : "#E6E0D2"}" stroke="${INK}" stroke-width="3"/><path d="M${x - 17} ${y - 17} L${x + 17} ${y + 17} M${x + 17} ${y - 17} L${x - 17} ${y + 17}" stroke="${INK}" stroke-width="3" stroke-linecap="round"/>`;
+  var ART_MORE = {
+    parallelo: () => svg(
+      line(60, 60, 420, 60, FASE, 6) + line(60, 210, 420, 210, NEUTRO, 6) + line(170, 60, 170, 107, FASE, 6) + line(170, 163, 170, 210, NEUTRO, 6) + line(310, 60, 310, 107, FASE, 6) + line(310, 163, 310, 210, NEUTRO, 6) + lampSym(170, 135) + lampSym(310, 135) + text(60, 44, "FASE", FASE, "start") + text(60, 236, "NEUTRO", NEUTRO, "start") + text(240, 262, "ogni lampada ha fase e neutro", INK),
+      "Due lampade collegate in parallelo: ognuna ha un filo di fase in alto e un filo di neutro in basso"
+    ),
+    serie: () => svg(
+      line(40, 135, 122, 135, FASE, 6) + lampSym(150, 135, false) + line(178, 135, 272, 135, FASE, 6) + lampSym(300, 135, false) + line(328, 135, 440, 135, NEUTRO, 6) + text(40, 112, "FASE", FASE, "start") + text(440, 112, "NEUTRO", NEUTRO, "end") + text(240, 215, "una dopo l\u2019altra: errore", INK),
+      "Due lampade in serie: la corrente le attraversa una dopo l\u2019altra"
+    )
+  };
+  Object.assign(ART, ART_MORE);
   function artHTML(key) {
     return ART[key] ? ART[key]() : "";
   }

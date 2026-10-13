@@ -118,6 +118,7 @@ export function createSession({ levels, deriveFull, storage = memoryStorage(), i
       trip,
       message,
       lit: power && analysis.lit,
+      litLoads: analysis.litLoads.map(x => power && x),
       fault: analysis.fault,
       // 'F' | 'N' | 'PE' | null per il morsetto dato (indipendente da power)
       potential: tid => potentialOf(analysis, tid),

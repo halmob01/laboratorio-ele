@@ -58,10 +58,21 @@ export function roomHTML(level, comps) {
     [[300, 150], [312, 150], [324, 150]].forEach(([x, y], i) => { s += `<circle class="hole" cx="${x}" cy="${y}" r="${i === 1 ? 3.2 : 3.8}"/>`; });
     s += `<text x="312" y="196" text-anchor="middle" style="font:500 12px 'Barlow',sans-serif;fill:#EAF0F8">Presa</text>`;
   } else {
-    s += `<line x1="200" y1="0" x2="200" y2="40" stroke="var(--ink)" stroke-width="2.5" opacity=".7"/>`;
-    s += `<rect x="194" y="38" width="12" height="12" rx="2" fill="var(--ink)" opacity=".75"/>`;
-    s += `<circle id="bulb" class="bulb" cx="200" cy="62" r="13"/>`;
-    s += `<path class="shade" d="M168 52 Q200 12 232 52 Z"/>`;
+    if (!(level.loads && level.loads.length > 1)) {
+      s += `<line x1="200" y1="0" x2="200" y2="40" stroke="var(--ink)" stroke-width="2.5" opacity=".7"/>`;
+      s += `<rect x="194" y="38" width="12" height="12" rx="2" fill="var(--ink)" opacity=".75"/>`;
+    }
+    if (level.loads && level.loads.length > 1) {
+      // piu' lampade: una per carico, affiancate (il primo filo gia' disegnato e' quello della prima)
+      level.loads.forEach((_, i) => {
+        const x = level.loads.length === 2 ? 130 + i * 140 : 200;
+        s += `<line x1="${x}" y1="0" x2="${x}" y2="40" stroke="var(--ink)" stroke-width="2.5" opacity=".7"/><rect x="${x - 6}" y="38" width="12" height="12" rx="2" fill="var(--ink)" opacity=".75"/>`;
+        s += `<circle id="bulb${i}" class="bulb" cx="${x}" cy="62" r="13"/><path class="shade" d="M${x - 32} 52 Q${x} 12 ${x + 32} 52 Z"/>`;
+      });
+    } else {
+      s += `<circle id="bulb" class="bulb" cx="200" cy="62" r="13"/>`;
+      s += `<path class="shade" d="M168 52 Q200 12 232 52 Z"/>`;
+    }
     comps.filter(c => c.plate).forEach(c => {
       const p = c.plate;
       s += `<g class="pl" data-ctl="${c.id}" role="button" tabindex="0" aria-label="${c.short}, premi per cambiare"><rect x="${p.x - 24}" y="${p.y - 38}" width="48" height="${76 + 20}" fill="transparent"/><rect class="plate" x="${p.x - 20}" y="${p.y - 32}" width="40" height="64" rx="6"/><rect id="rt-${c.id}" class="rk hi" x="${p.x - 13}" y="${p.y - 24}" width="26" height="24" rx="3"/><rect id="rb-${c.id}" class="rk lo" x="${p.x - 13}" y="${p.y}" width="26" height="24" rx="3"/><rect x="${p.x - p.l.length * 3.6 - 7}" y="${p.y + 38}" width="${p.l.length * 7.2 + 14}" height="19" rx="9" fill="rgba(10,16,24,.62)"/><text x="${p.x}" y="${p.y + 52}" text-anchor="middle">${p.l}</text></g>`;
@@ -76,21 +87,22 @@ export function roomViewBox(level) {
 export function roomStaticHTML(level, comps, lit) {
   let h = roomHTML(level, comps)
     .replace(/id="glow"/g, 'id="sglow"').replace(/url\(#glow\)/g, 'url(#sglow)')
-    .replace(/id="night"/g, 'id="snight"').replace(/id="bulb"/g, 'id="sbulb"');
+    .replace(/id="night"/g, 'id="snight"').replace(/id="bulb(\d?)"/g, 'id="sbulb$1"');
   if (lit) {
     h = h.replace('class="night" x="0" y="0" width="400" height="250" opacity=".66"', 'class="night" x="0" y="0" width="400" height="250" opacity="0"')
       .replace(/(class="glowc"[^>]*?)opacity="0"/, '$1opacity="1"')
-      .replace('class="bulb"', 'class="bulb on"');
+      .replace(/class="bulb"/g, 'class="bulb on"');
   }
   return h;
 }
 // Aggiorna la scena (luce, posizione dei comandi) senza ridisegnarla.
 export function updateRoom(root, s, comps) {
   const n = root.querySelector('#night'), g = root.querySelector('#glow'), b = root.querySelector('#bulb');
-  const lit = s.lit;
+  const lit = s.litLoads && s.litLoads.length > 1 ? s.litLoads.some(Boolean) : s.lit;
   if (n) n.setAttribute('opacity', lit ? '0' : '.66');
   if (g) g.setAttribute('opacity', lit ? '1' : '0');
   if (b) b.setAttribute('class', 'bulb' + (lit ? ' on' : ''));
+  (s.litLoads || []).forEach((on, i) => { const x = root.querySelector('#bulb' + i); if (x) x.setAttribute('class', 'bulb' + (on ? ' on' : '')); });
   comps.filter(c => c.plate).forEach(c => {
     const t = root.querySelector('#rt-' + c.id), bt = root.querySelector('#rb-' + c.id), st = s.controlStates[c.id] ? 1 : 0;
     if (t) t.setAttribute('class', 'rk ' + (st ? 'hi' : 'lo'));
@@ -168,6 +180,14 @@ export function benchViewBox(comps) {
   return `10 -28 400 ${H + 28}`;
 }
 
+// La lampada del banco e' accesa? Con piu' carichi si guarda quella del componente.
+function litOf(s, c) {
+  const loads = s.level && s.level.loads;
+  if (!loads || !s.litLoads) return s.lit;
+  const i = loads.findIndex(l => l[0].split('.')[0] === c.id);
+  return i >= 0 ? s.litLoads[i] : s.lit;
+}
+
 // ui: { mobile, sel, kwh }
 export function benchHTML(s, comps, ui) {
   const live = id => s.power && s.potential(id) === 'F';
@@ -180,7 +200,7 @@ export function benchHTML(s, comps, ui) {
     o += `<text class="ttl" x="${c.x + 2}" y="${c.y - 9}">${c.title}</text>`;
     o += `<g class="help" data-help="${c.type}" role="button" tabindex="0" aria-label="Che cos’è: ${c.title}"><circle cx="${c.x + c.w - 12}" cy="${c.y - 13}" r="19" fill="transparent" stroke="none"/><circle cx="${c.x + c.w - 9}" cy="${c.y - 13}" r="${ui.mobile ? 11 : 9}"/><text x="${c.x + c.w - 9}" y="${c.y - 8.5}" text-anchor="middle">?</text></g>`;
     o += `<rect class="body" x="${c.x}" y="${c.y}" width="${c.w}" height="${c.h}" rx="10"/>`;
-    o += `<g transform="translate(${c.x},${c.y})"${toggles ? ` class="togg" data-ctl="${c.id}" style="cursor:pointer"` : ''}>${toggles ? `<rect x="0" y="0" width="${c.w}" height="${c.h}" rx="10" fill="transparent"/>` : ''}${schem(c, s, live, s.lit, ui)}</g>`;
+    o += `<g transform="translate(${c.x},${c.y})"${toggles ? ` class="togg" data-ctl="${c.id}" style="cursor:pointer"` : ''}>${toggles ? `<rect x="0" y="0" width="${c.w}" height="${c.h}" rx="10" fill="transparent"/>` : ''}${schem(c, s, live, litOf(s, c), ui)}</g>`;
     if (dimmed(c)) o += '</g>';
   });
   if (s.solutionShown) {
