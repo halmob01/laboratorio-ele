@@ -232,6 +232,7 @@ export function createSession({ levels, deriveFull, storage = memoryStorage(), i
       mode = m;
       const us = unitByKey[levelIndex];
       if (us && us.phase === 'fault') { us.phase = 'done'; us.diag = null; }
+      else if (us && us.phase === 'lesson' && m !== 'quadro') us.phase = 'build';
       else if (playMode === 'verifica') dropUnitState();
       playMode = 'apprendimento';
       resetLevelState();
@@ -373,7 +374,7 @@ export function createSession({ levels, deriveFull, storage = memoryStorage(), i
       emit();
     },
     showLesson() {
-      if (!levelAt().unit || playMode === 'verifica') return;
+      if (!levelAt().unit || playMode === 'verifica' || mode !== 'quadro') return;
       const us = unitState();
       us.phase = 'lesson';
       us.page = 0;
@@ -387,8 +388,10 @@ export function createSession({ levels, deriveFull, storage = memoryStorage(), i
       if (!pg || pg.type !== 'previsione') return;
       const correct = pg.correct === optionId;
       us.pred = { option: optionId, correct };
-      if (correct) {
-        record().pred = true;
+      // il bonus vale solo se la previsione precede la prima riuscita del livello
+      if (correct && !(progress.stars[progressKey(level.id, 'quadro')] > 0)) {
+        progress.best[progressKey(level.id, 'quadro')] = progress.best[progressKey(level.id, 'quadro')] || { base: 0, pred: false, fault: false, skipped: false };
+        progress.best[progressKey(level.id, 'quadro')].pred = true;
         save();
       }
       emit();

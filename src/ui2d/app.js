@@ -151,10 +151,12 @@ function renderLevelScreen() {
   if (inLesson) { renderLesson(); return; }
   stopDemo();
   demo.page = -1;
+  $('#lesson').innerHTML = '';
   $('#work').classList.toggle('passed', !!(S.result && S.result.pass));
   $('#unit').innerHTML = V.unitHTML(S);
   $('#sideLinks').innerHTML = V.sideLinksHTML(S);
-  $('#modeBar').hidden = S.playMode === 'verifica' || (!!S.unit && ph !== 'done');
+  const doneBefore = (S.levels.find(l => l.id === S.level.id) || {}).stars > 0;
+  $('#modeBar').hidden = S.playMode === 'verifica' || (!!S.unit && ph !== 'done' && !doneBefore);
   $('#bHint').hidden = $('#bSol').hidden = S.playMode === 'verifica';
   $('#bSol').textContent = S.solutionShown ? 'Nascondi soluzione' : 'Mostra soluzione';
   $('#bSol').setAttribute('aria-pressed', String(S.solutionShown));
@@ -177,6 +179,7 @@ function render() {
   $('#screen-home').hidden = !home;
   $('#screen-level').hidden = home;
   if (home) {
+    stopDemo(); demo.page = -1;
     $('#screen-home').innerHTML = V.homeHTML(S);
     return;
   }

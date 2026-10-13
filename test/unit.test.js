@@ -201,3 +201,17 @@ test('sfida guasto: non si supera cambiando modalita\' ne\' indovinando la diagn
   s.setMode('contatore');
   assert.notEqual(s.snapshot().unit.phase, 'fault');
 });
+
+test('previsione a posteriori non da\' bonus e la lezione non si apre in modalita\' contatore', () => {
+  const s = make();
+  s.skipLesson();
+  L.solution.forEach(([a, b, c]) => s.addWire(a, b, c));
+  s.check();
+  s.showLesson();
+  while (s.snapshot().unit.pageData.type !== 'previsione') s.unitNext();
+  s.answerPrediction('b');
+  assert.equal(row(s).xp, 110);
+  s.setMode('contatore');
+  s.showLesson();
+  assert.notEqual(s.snapshot().unit && s.snapshot().unit.phase, 'lesson');
+});

@@ -1111,7 +1111,8 @@ button:disabled{cursor:default}
         if (us && us.phase === "fault") {
           us.phase = "done";
           us.diag = null;
-        } else if (playMode === "verifica") dropUnitState();
+        } else if (us && us.phase === "lesson" && m !== "quadro") us.phase = "build";
+        else if (playMode === "verifica") dropUnitState();
         playMode = "apprendimento";
         resetLevelState();
         emit();
@@ -1250,7 +1251,7 @@ button:disabled{cursor:default}
         emit();
       },
       showLesson() {
-        if (!levelAt().unit || playMode === "verifica") return;
+        if (!levelAt().unit || playMode === "verifica" || mode !== "quadro") return;
         const us = unitState();
         us.phase = "lesson";
         us.page = 0;
@@ -1264,8 +1265,9 @@ button:disabled{cursor:default}
         if (!pg || pg.type !== "previsione") return;
         const correct = pg.correct === optionId;
         us.pred = { option: optionId, correct };
-        if (correct) {
-          record().pred = true;
+        if (correct && !(progress.stars[progressKey(level.id, "quadro")] > 0)) {
+          progress.best[progressKey(level.id, "quadro")] = progress.best[progressKey(level.id, "quadro")] || { base: 0, pred: false, fault: false, skipped: false };
+          progress.best[progressKey(level.id, "quadro")].pred = true;
           save();
         }
         emit();
@@ -2561,10 +2563,12 @@ button:disabled{cursor:default}
     }
     stopDemo();
     demo.page = -1;
+    $("#lesson").innerHTML = "";
     $("#work").classList.toggle("passed", !!(S.result && S.result.pass));
     $("#unit").innerHTML = unitHTML(S);
     $("#sideLinks").innerHTML = sideLinksHTML(S);
-    $("#modeBar").hidden = S.playMode === "verifica" || !!S.unit && ph !== "done";
+    const doneBefore = (S.levels.find((l) => l.id === S.level.id) || {}).stars > 0;
+    $("#modeBar").hidden = S.playMode === "verifica" || !!S.unit && ph !== "done" && !doneBefore;
     $("#bHint").hidden = $("#bSol").hidden = S.playMode === "verifica";
     $("#bSol").textContent = S.solutionShown ? "Nascondi soluzione" : "Mostra soluzione";
     $("#bSol").setAttribute("aria-pressed", String(S.solutionShown));
@@ -2586,6 +2590,8 @@ button:disabled{cursor:default}
     $("#screen-home").hidden = !home;
     $("#screen-level").hidden = home;
     if (home) {
+      stopDemo();
+      demo.page = -1;
       $("#screen-home").innerHTML = homeHTML(S);
       return;
     }
