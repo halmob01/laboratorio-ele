@@ -1,8 +1,14 @@
-<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Laboratorio elettrico</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Barlow+Condensed:wght@500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
 <style>
+:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
 /* Layout: sinistra la stanza con la luce, destra il banco di lavoro con i componenti da cablare */
 :root{
   --bg:#EDF1F0; --ink:#17201E; --ink2:#52635F; --card:#FFFFFF; --line:#CDD6D3;
@@ -184,7 +190,8 @@ button.btn.primary{background:var(--accent);color:var(--on-accent);border-color:
   .info .x{display:block;float:right;margin:-4px -4px 6px 10px;font:500 14px/1 'Barlow',sans-serif;background:var(--chip);color:var(--ink);border:1px solid var(--line);border-radius:8px;padding:9px 12px;min-height:40px}
 }
 </style>
-
+</head>
+<body>
 <div class="wrap">
   <header class="top">
     <div class="brand">
@@ -222,529 +229,1246 @@ button.btn.primary{background:var(--accent);color:var(--on-accent);border-color:
     </section>
   </main>
 </div>
-
 <script>
-//ENGINE-START
-const COLORS={
-  marrone:{n:'Marrone',base:'#8A5224'},
-  nero:{n:'Nero',base:'#222222'},
-  grigio:{n:'Grigio',base:'#9AA3A0'},
-  blu:{n:'Blu',base:'#3D9BE9'},
-  gv:{n:'Giallo-verde',base:'#E4C400',dash:'#2E8B3D'}
-};
-const PHASE_OK=['marrone','nero','grigio'];
-const T=(f,s,l,n)=>({f,s,l,n});
-const SRC=lv=>lv.src||{F:'Q.F',N:'Q.N',PE:'Q.PE'};
-const LEVELS=[
-{n:1,name:'Presa',title:'La presa di corrente',
- goal:'Collega la presa al quadro con i tre fili giusti, poi dai corrente con la levetta del quadro. La lampada sul tavolo deve accendersi.',
- loadName:'La lampada',
- comps:[
-  {id:'Q',type:'quadro',short:'Quadro',title:'Quadro elettrico',x:20,y:0,w:380,h:100,terms:{F:T(.2,'b','FASE'),PE:T(.5,'b','TERRA'),N:T(.8,'b','NEUTRO')}},
-  {id:'P',type:'presa',short:'Presa',title:'Presa bipasso 10/16 A',x:110,y:170,w:200,h:120,terms:{L:T(.2,'t','L'),PE:T(.5,'t','PE'),N:T(.8,'t','N')}}
- ],
- controls:[],load:['P.L','P.N'],earth:['Q.PE','P.PE'],pol:'P.L',room:'tavolo',
- solution:[['Q.F','P.L','marrone'],['Q.N','P.N','blu'],['Q.PE','P.PE','gv']],
- hints:['Il marrone è la fase: va dal quadro al morsetto L della presa.','Il blu è il neutro: va dal quadro al morsetto N della presa.','Il giallo-verde è la terra: va al morsetto PE, quello al centro.']},
-{n:2,name:'Interrotto',title:'Punto luce interrotto',
- goal:'Accendi e spegni la lampada con un interruttore. L’interruttore interrompe la fase, mai il neutro.',
- loadName:'La lampada',
- comps:[
-  {id:'Q',type:'quadro',short:'Quadro',title:'Quadro elettrico',x:20,y:0,w:380,h:100,terms:{N:T(.12,'b','NEUTRO'),F:T(.8,'b','FASE')}},
-  {id:'S',type:'sw',short:'Interruttore',title:'Interruttore',x:190,y:140,w:210,h:120,terms:{a:T(.5,'t','1'),b:T(.5,'b','2')},plate:{x:344,y:122,l:'Parete'}},
-  {id:'L',type:'lamp',short:'Lampada',title:'Portalampada',x:190,y:300,w:210,h:90,terms:{B:T(.25,'t','B'),A:T(.75,'t','A')}}
- ],
- controls:['S'],load:['L.A','L.B'],room:'soffitto',
- solution:[['Q.F','S.a','marrone'],['S.b','L.A','marrone'],['Q.N','L.B','blu']],
- hints:['Parti dalla fase: dal quadro va all’interruttore, non direttamente alla lampada.','Dall’altro morsetto dell’interruttore il filo va a un morsetto della lampada.','Il neutro (blu) va dal quadro all’altro morsetto della lampada, senza passare dall’interruttore.']},
-{n:3,name:'Deviato',title:'Punto luce deviato',
- goal:'Comanda la stessa lampada da due punti con due deviatori. Premendo uno qualsiasi dei due, la luce deve cambiare.',
- loadName:'La lampada',
- comps:[
-  {id:'Q',type:'quadro',short:'Quadro',title:'Quadro elettrico',x:20,y:0,w:380,h:100,terms:{N:T(.12,'b','NEUTRO'),F:T(.8,'b','FASE')}},
-  {id:'D1',type:'dev',short:'Deviatore A',title:'Deviatore A',x:190,y:140,w:210,h:115,terms:{C:T(.5,'t','C'),'1':T(.28,'b','1'),'2':T(.72,'b','2')},plate:{x:56,y:122,l:'Ingresso'}},
-  {id:'D2',type:'dev',flip:true,short:'Deviatore B',title:'Deviatore B',x:190,y:290,w:210,h:115,terms:{'1':T(.28,'t','1'),'2':T(.72,'t','2'),C:T(.5,'b','C')},plate:{x:344,y:122,l:'Fondo'}},
-  {id:'L',type:'lamp',short:'Lampada',title:'Portalampada',x:190,y:440,w:210,h:90,terms:{B:T(.25,'t','B'),A:T(.75,'t','A')}}
- ],
- controls:['D1','D2'],load:['L.A','L.B'],room:'soffitto',
- solution:[['Q.F','D1.C','marrone'],['D1.1','D2.1','nero'],['D1.2','D2.2','grigio'],['D2.C','L.A','marrone'],['Q.N','L.B','blu']],
- hints:['La fase entra nel morsetto C (comune) del primo deviatore.','I morsetti 1 e 2 del primo deviatore vanno a 1 e 2 del secondo: 1 con 1 e 2 con 2.','Il comune C del secondo deviatore va alla lampada. Il neutro va dal quadro alla lampada, senza passare dai deviatori.']},
-{n:4,name:'Invertito',title:'Punto luce invertito',
- goal:'Aggiungi un terzo punto di comando in mezzo, con l’invertitore. Premendo uno qualsiasi dei tre, la luce deve cambiare.',
- loadName:'La lampada',
- comps:[
-  {id:'Q',type:'quadro',short:'Quadro',title:'Quadro elettrico',x:20,y:0,w:380,h:100,terms:{N:T(.12,'b','NEUTRO'),F:T(.8,'b','FASE')}},
-  {id:'D1',type:'dev',short:'Deviatore A',title:'Deviatore A',x:190,y:140,w:210,h:112,terms:{C:T(.5,'t','C'),'1':T(.28,'b','1'),'2':T(.72,'b','2')},plate:{x:56,y:122,l:'Ingresso'}},
-  {id:'I',type:'inv',short:'Invertitore',title:'Invertitore',x:190,y:286,w:210,h:112,terms:{'1':T(.28,'t','1'),'2':T(.72,'t','2'),'3':T(.28,'b','3'),'4':T(.72,'b','4')},plate:{x:200,y:122,l:'Camera'}},
-  {id:'D2',type:'dev',flip:true,short:'Deviatore B',title:'Deviatore B',x:190,y:432,w:210,h:112,terms:{'1':T(.28,'t','1'),'2':T(.72,'t','2'),C:T(.5,'b','C')},plate:{x:344,y:122,l:'Fondo'}},
-  {id:'L',type:'lamp',short:'Lampada',title:'Portalampada',x:190,y:578,w:210,h:90,terms:{B:T(.25,'t','B'),A:T(.75,'t','A')}}
- ],
- controls:['D1','I','D2'],load:['L.A','L.B'],room:'soffitto',
- solution:[['Q.F','D1.C','marrone'],['D1.1','I.1','nero'],['D1.2','I.2','grigio'],['I.3','D2.1','nero'],['I.4','D2.2','grigio'],['D2.C','L.A','marrone'],['Q.N','L.B','blu']],
- hints:['È come la deviata, ma in mezzo ai due fili di collegamento metti l’invertitore.','I morsetti 1 e 2 del deviatore A vanno ai morsetti 1 e 2 (in alto) dell’invertitore.','Dai morsetti 3 e 4 (in basso) dell’invertitore, due fili vanno a 1 e 2 del deviatore B. Il comune C del B va alla lampada.']}
-];
-function buildFull(base){
-  const lv=JSON.parse(JSON.stringify(base));
-  const pos=base.n===1?{F:.08,PE:.28,N:.48}:{N:.08,F:.28,PE:.48};
-  const nm={F:'FASE',N:'NEUTRO',PE:'TERRA'};
-  const K={id:'K',type:'cont',short:'Contatore',title:'Contatore',x:20,y:0,w:380,h:96,terms:{}};
-  const Q={id:'Q',type:'quadro',full:true,bx:.78,short:'Quadro',title:'Quadro elettrico',x:20,y:140,w:380,h:130,terms:{}};
-  Object.keys(pos).forEach(k=>{
-    K.terms[k]=T(pos[k],'b',nm[k],nm[k]);
-    Q.terms[k+'i']=T(pos[k],'t',nm[k],nm[k]+' (ingresso)');
-    if(k!=='PE'||base.n===1)Q.terms[k]=T(pos[k],'b',nm[k],nm[k]+' (uscita)');
-  });
-  const others=lv.comps.filter(c=>c.id!=='Q');
-  const shift=(Q.y+Q.h+44)-Math.min(...others.map(c=>c.y));
-  others.forEach(c=>c.y+=shift);
-  lv.comps=[K,Q].concat(others);
-  lv.src={F:'K.F',N:'K.N',PE:'K.PE'};lv.full=true;
-  lv.solution=[['K.F','Q.Fi','marrone'],['K.N','Q.Ni','blu'],['K.PE','Q.PEi','gv']].concat(base.solution);
-  if(lv.earth)lv.earth=['K.PE',lv.earth[1]];else lv.mustEarth=['K.PE','Q.PEi'];
-  lv.hints=['Parti dal contatore: la fase (marrone) va al morsetto FASE in alto sul quadro, il neutro (blu) al NEUTRO, la terra (giallo-verde) alla TERRA. Sono i morsetti in ingresso, quelli in alto.'].concat(base.hints);
-  lv.goal=base.goal+' Parti dal contatore: collega anche i tre fili che portano la corrente fino al quadro.';
-  return lv;
-}
-function makeUF(){const p={};function f(x){if(p[x]===undefined)p[x]=x;while(p[x]!==x){p[x]=p[p[x]];x=p[x];}return x}function u(a,b){p[f(a)]=f(b)}return{f,u}}
-function contacts(c,st){
-  if(c.type==='quadro')return c.full?[['Fi','F'],['Ni','N'],['PEi','PE']]:[];
-  if(c.type==='sw')return st?[['a','b']]:[];
-  if(c.type==='dev')return [['C',st?'2':'1']];
-  if(c.type==='inv')return st?[['1','4'],['2','3']]:[['1','3'],['2','4']];
-  return [];
-}
-function sim(lv,wires,states){
-  const uf=makeUF();
-  wires.forEach(w=>uf.u(w.a,w.b));
-  lv.comps.forEach(c=>contacts(c,states[c.id]||0).forEach(([a,b])=>uf.u(c.id+'.'+a,c.id+'.'+b)));
-  return uf;
-}
-function analyse(lv,wires,states){
-  const uf=sim(lv,wires,states);
-  const sr=SRC(lv);const F=uf.f(sr.F),N=uf.f(sr.N),PE=uf.f(sr.PE);
-  let fault=null;
-  if(F===N)fault='corto';else if(F===PE)fault='faseterra';
-  const a=uf.f(lv.load[0]),b=uf.f(lv.load[1]);
-  const lit=!fault&&((a===F&&b===N)||(a===N&&b===F));
-  return{uf,F,N,PE,fault,lit,a,b};
-}
-function tname(lv,tid){
-  const [cid,id]=tid.split('.');const c=lv.comps.find(k=>k.id===cid);
-  return c.short+' · '+(c.terms[id].n||c.terms[id].l);
-}
-function evaluate(lv,wires){
-  const ctl=lv.controls,combos=[];
-  for(let m=0;m<(1<<ctl.length);m++){const st={};ctl.forEach((id,i)=>st[id]=(m>>i)&1);combos.push(st);}
-  const res=combos.map(st=>analyse(lv,wires,st));
-  const out={work:{ok:false,msgs:[]},color:{ok:false,msgs:[]},safe:{ok:false,msgs:[]}};
-  const name=id=>{const c=lv.comps.find(k=>k.id===id);const t=c.short[0].toLowerCase()+c.short.slice(1);return (c.type==='dev'?'Il ':'L\u2019')+t;};
-  if(!wires.length){
-    out.work.msgs.push('Non hai ancora collegato nessun filo.');
-    out.color.msgs.push('Collega prima qualche filo.');
-    out.safe.msgs.push('Si controlla quando il circuito funziona.');
-    out.stars=0;out.pass=false;return out;
+(() => {
+  // src/engine/wires.js
+  var WIRE_COLORS = ["marrone", "nero", "grigio", "blu", "gv"];
+  var PHASE_COLORS = ["marrone", "nero", "grigio"];
+  function allowedColors(role) {
+    if (role === "neutro") return ["blu"];
+    if (role === "terra") return ["gv"];
+    return PHASE_COLORS;
   }
-  /* funziona */
-  const faults=res.filter(r=>r.fault);
-  if(faults.length){
-    out.work.msgs.push(faults[0].fault==='corto'?'Cortocircuito: la fase arriva al neutro attraverso i fili. Il magnetotermico scatta.':'La fase è finita sul filo di terra: scatta il differenziale.');
-  }else if(!ctl.length){
-    if(res[0].lit){out.work.ok=true;out.work.msgs.push('Dai corrente: la lampada si accende.');}
-    else{
-      const r=res[0];
-      const anyF=r.a===r.F||r.b===r.F,anyN=r.a===r.N||r.b===r.N;
-      if(!anyF)out.work.msgs.push('Alla presa non arriva la fase.');
-      if(!anyN)out.work.msgs.push('Alla presa non arriva il neutro.');
-      if(anyF&&anyN)out.work.msgs.push('Fase e neutro arrivano alla presa, ma non ai morsetti giusti.');
-    }
-  }else{
-    const anyLit=res.some(r=>r.lit);
-    if(!anyLit){
-      const anyF=res.some(r=>r.a===r.F||r.b===r.F),anyN=res.some(r=>r.a===r.N||r.b===r.N);
-      out.work.msgs.push(lv.loadName+' non si accende mai.');
-      if(!anyF)out.work.msgs.push('Alla lampada non arriva mai la fase.');
-      if(!anyN)out.work.msgs.push('Alla lampada non arriva il neutro.');
-    }else{
-      let allGood=true;
-      ctl.forEach((id,i)=>{
-        let flips=0;
-        combos.forEach((st,m)=>{if(res[m].lit!==res[m^(1<<i)].lit)flips++;});
-        if(flips===0){allGood=false;out.work.msgs.push(name(id)+' non comanda la lampada: cambiarlo non cambia niente.');}
-        else if(flips<combos.length){allGood=false;out.work.msgs.push(name(id)+' comanda la lampada solo con alcune posizioni degli altri comandi.');}
-      });
-      if(allGood){out.work.ok=true;out.work.msgs.push('Ogni comando cambia la luce, in qualunque posizione si trovino gli altri.');}
-    }
-  }
-  /* colori */
-  const uw=makeUF();wires.forEach(w=>uw.u(w.a,w.b));lv.comps.filter(c=>c.type==='quadro').forEach(c=>contacts(c,0).forEach(([a,b])=>uw.u(c.id+'.'+a,c.id+'.'+b)));
-  const sr2=SRC(lv);const Fn=uw.f(sr2.F),Nn=uw.f(sr2.N),Pn=uw.f(sr2.PE);
-  const bad=[];
-  wires.forEach(w=>{
-    const k=uw.f(w.a);let role='fase';
-    if(k===Nn&&k!==Fn)role='neutro';else if(k===Pn&&k!==Fn)role='terra';
-    const okc=role==='neutro'?['blu']:role==='terra'?['gv']:PHASE_OK;
-    if(!okc.includes(w.c)){
-      const need=role==='neutro'?'blu':role==='terra'?'giallo-verde':'marrone, nero o grigio';
-      const rn=role==='neutro'?'del neutro':role==='terra'?'di terra':'di fase';
-      bad.push('Il filo '+tname(lv,w.a)+' → '+tname(lv,w.b)+' è un filo '+rn+': deve essere '+need+'.');
-    }
-  });
-  if(!bad.length){out.color.ok=true;out.color.msgs.push(lv.earth?'Fase, neutro e terra hanno i colori giusti.':'Il blu è solo sul neutro, gli altri fili hanno colori da fase.');}
-  else{out.color.msgs=bad.slice(0,3);if(bad.length>3)out.color.msgs.push('E altri '+(bad.length-3)+' fili con il colore sbagliato.');}
-  /* sicurezza */
-  if(!out.work.ok){out.safe.msgs.push('Si controlla quando il circuito funziona.');}
-  else{
-    const r0=res[0];let ok=true;
-    if(lv.full&&(r0.uf.f('Q.Fi')===r0.N||r0.uf.f('Q.Ni')===r0.F)){ok=false;out.safe.msgs.push('Fase e neutro sono invertiti tra contatore e quadro.');}
-    if(lv.earth){
-      if(r0.uf.f(lv.earth[1])!==r0.uf.f(lv.earth[0])){ok=false;out.safe.msgs.push('La presa non ha il filo di terra: se un apparecchio si guasta, la carcassa può andare in tensione.');}
-      if(r0.uf.f(lv.pol)!==r0.F){ok=false;out.safe.msgs.push('Fase e neutro sono invertiti sulla presa: L deve andare alla fase.');}
-    }else{
-      const alwaysN=lv.load.some(t=>res.every(r=>r.uf.f(t)===r.N));
-      if(!alwaysN){ok=false;out.safe.msgs.push('Hai fatto passare il neutro dai comandi. Spenta la luce, i morsetti della lampada restano in tensione. L\u2019interruttore va sulla fase.');}
-    }
-    if(lv.mustEarth&&r0.uf.f(lv.mustEarth[0])!==r0.uf.f(lv.mustEarth[1])){ok=false;out.safe.msgs.push('Il quadro non è collegato alla terra: manca il filo giallo-verde che arriva dal contatore.');}
-    if(ok){out.safe.ok=true;out.safe.msgs.push(lv.earth?'Terra collegata, fase e neutro al posto giusto.':(lv.full?'Il neutro arriva sempre alla lampada e il quadro è collegato a terra.':'Il neutro arriva sempre alla lampada: i comandi interrompono solo la fase.'));}
-  }
-  out.stars=(out.work.ok?1:0)+(out.color.ok?1:0)+(out.safe.ok?1:0);
-  out.pass=out.stars===3;
-  return out;
-}
-//ENGINE-END
 
-const $=s=>document.querySelector(s);
-const MQ=window.matchMedia('(max-width:919px)');
-const buzz=()=>{try{navigator.vibrate&&navigator.vibrate(12)}catch(e){}};
-const svgNS='http://www.w3.org/2000/svg';
-const HELP={
-  morsetto:['Il morsetto','È la vite che stringe il filo. Ogni componente ha i suoi morsetti: per collegare due componenti si porta un filo da un morsetto all’altro.'],
-  quadro:['Il quadro elettrico','Distribuisce la corrente alla casa. Da qui escono tre fili: la fase (marrone, nero o grigio), il neutro (blu) e la terra (giallo-verde). La levetta è il magnetotermico: scatta da solo se c’è un cortocircuito. Tocca la levetta per dare o togliere corrente. Se parti dal contatore, i fili in ingresso sono i morsetti in alto e le uscite sono in basso.'],
-  cont:['Il contatore','È l\u2019arrivo della corrente dalla rete e misura quanta energia consumi (kWh). Da qui escono la fase (marrone) e il neutro (blu). La terra non arriva dalla rete: arriva dal dispersore, cioè dalla rete di terra dell\u2019edificio.'],
-  presa:['La presa bipasso','Ha tre morsetti: L riceve la fase, N il neutro, PE la terra (il foro al centro). La terra protegge dalle scosse se un apparecchio si guasta.'],
-  sw:['L’interruttore','Ha due morsetti e un contatto che si apre o si chiude. Aperto, la corrente non passa e la lampada si spegne. Si mette sempre sulla fase. Toccalo per cambiarne la posizione.'],
-  dev:['Il deviatore','Ha un morsetto comune (C) e due vie (1 e 2). Il contatto collega C a 1 oppure a 2. Due deviatori insieme comandano la stessa luce da due punti.'],
-  inv:['L’invertitore','Ha quattro morsetti: due in alto (1 e 2) e due in basso (3 e 4). In una posizione collega 1 con 3 e 2 con 4, nell’altra li incrocia. Si mette tra due deviatori per avere un terzo comando.'],
-  lamp:['Il portalampada','Ha due morsetti. La lampada si accende solo se da un morsetto arriva la fase e dall’altro il neutro: la corrente deve poter attraversarla.']
-};
-let LI=0,SEL=null,COL='marrone',GHOST=false,HINT=-1,RES=null,POWER=false,TRIP=false,MSG='',MODE='quadro',KWH=42.7;
-const WIRES={},STATES={},RESULTS={},LV_CACHE={};
-let WID=1,PROG={};
-try{PROG=JSON.parse(localStorage.getItem('lab-elettrico-1')||'{}')||{}}catch(e){PROG={}}
-function saveProg(){try{localStorage.setItem('lab-elettrico-1',JSON.stringify(PROG))}catch(e){}}
-const KEY=()=>LI+'|'+MODE,PK=n=>n+(MODE==='contatore'?'c':'');
-const LV=()=>LV_CACHE[KEY()]||(LV_CACHE[KEY()]=MODE==='contatore'?buildFull(LEVELS[LI]):LEVELS[LI]);
-const W=()=>WIRES[KEY()]||(WIRES[KEY()]=[]),ST=()=>STATES[KEY()]||(STATES[KEY()]={});
-const CUR=()=>analyse(LV(),W(),ST());
-function tpos(c,id){const t=c.terms[id];return{x:c.x+c.w*t.f,y:t.s==='t'?c.y+22:c.y+c.h-22,s:t.s}}
-function tp(tid){const [cid,id]=tid.split('.');return tpos(LV().comps.find(k=>k.id===cid),id)}
-function wirePath(p1,p2){
-  if(p1.s==='b'&&p2.s==='t'&&p2.y-p1.y>200){
-    const yv=p2.y-40;
-    return `M${p1.x} ${p1.y} L${p1.x} ${yv} C${p1.x} ${yv+26} ${p2.x} ${p2.y-40} ${p2.x} ${p2.y}`;
+  // src/engine/components.js
+  var COMPONENT_TYPES = {
+    // Il quadro, nella versione completa (parte dal contatore), collega ingresso e uscita.
+    quadro: {
+      contacts: (c2) => c2.full ? [["Fi", "F"], ["Ni", "N"], ["PEi", "PE"]] : []
+    },
+    cont: { contacts: () => [] },
+    presa: { contacts: () => [] },
+    lamp: { contacts: () => [] },
+    // Interruttore: chiuso (1) collega i due morsetti.
+    sw: {
+      control: true,
+      contacts: (c2, st) => st ? [["a", "b"]] : []
+    },
+    // Deviatore: il comune C va al morsetto 1 (stato 0) oppure al 2 (stato 1).
+    dev: {
+      control: true,
+      contacts: (c2, st) => [["C", st ? "2" : "1"]]
+    },
+    // Invertitore: in una posizione collega dritto, nell'altra incrocia.
+    inv: {
+      control: true,
+      contacts: (c2, st) => st ? [["1", "4"], ["2", "3"]] : [["1", "3"], ["2", "4"]]
+    }
+  };
+  function contactsOf(component, state) {
+    const t = COMPONENT_TYPES[component.type];
+    return t ? t.contacts(component, state) : [];
   }
-  if(p2.s==='b'&&p1.s==='t'&&p1.y-p2.y>200)return wirePath(p2,p1);
-  const s1=p1.s==='t'?-1:1,s2=p2.s==='t'?-1:1,d=Math.max(36,Math.abs(p2.y-p1.y)*.45);
-  return `M${p1.x} ${p1.y} C${p1.x} ${p1.y+s1*d} ${p2.x} ${p2.y+s2*d} ${p2.x} ${p2.y}`;
-}
 
-/* ---------- livelli e palette ---------- */
-function renderLevels(){
-  $('#levels').innerHTML=LEVELS.map((l,i)=>{
-    const s=PROG[PK(l.n)]||0;
-    return `<button class="lv" data-lv="${i}" aria-current="${i===LI}"><span>${l.n} · ${l.name}</span><small>${'★'.repeat(s)}${'☆'.repeat(3-s)}</small></button>`;
-  }).join('');
-}
-function renderPalette(){
-  $('#palette').innerHTML=Object.keys(COLORS).map(k=>{
-    const c=COLORS[k];
-    const bg=c.dash?`repeating-linear-gradient(90deg,${c.base} 0 6px,${c.dash} 6px 12px)`:c.base;
-    return `<button class="chip" data-col="${k}" aria-pressed="${k===COL}"><span class="sw" style="background:${bg}"></span>${c.n}</button>`;
-  }).join('');
-}
-function setInfo(key,extra,open){
-  const h=HELP[key];
-  $('#info').innerHTML=`<button class="x" data-x="1" aria-label="Chiudi">Chiudi</button><h3>${h[0]}</h3><p>${h[1]}</p>${extra?`<p style="margin-top:8px"><b>Suggerimento:</b> ${extra}</p>`:''}`;
-  $('#info').classList.toggle('open',open!==false);
-}
-function setHint(){
-  const lv=LV();HINT=(HINT+1)%lv.hints.length;
-  $('#info').innerHTML=`<button class="x" data-x="1" aria-label="Chiudi">Chiudi</button><h3>Suggerimento ${HINT+1} di ${lv.hints.length}</h3><p>${lv.hints[HINT]}</p>`;
-  $('#info').classList.add('open');
-}
-
-/* ---------- stanza ---------- */
-function buildRoom(){
-  const lv=LV();let s='';
-  s+=`<defs><radialGradient id="glow"><stop offset="0" stop-color="#FFE9A8" stop-opacity=".95"/><stop offset=".45" stop-color="#FFD25E" stop-opacity=".38"/><stop offset="1" stop-color="#FFD25E" stop-opacity="0"/></radialGradient></defs>`;
-  s+=`<rect class="wall" x="0" y="0" width="400" height="196"/><rect class="floor" x="0" y="196" width="400" height="54"/><rect class="skirt" x="0" y="190" width="400" height="8"/>`;
-  let gx=200,gy=58;
-  if(lv.room==='tavolo'){
-    gx=135;gy=108;
-    s+=`<rect x="52" y="172" width="170" height="10" rx="2" fill="var(--table)"/><rect x="62" y="182" width="8" height="52" fill="var(--table)"/><rect x="204" y="182" width="8" height="52" fill="var(--table)"/>`;
+  // src/engine/circuit.js
+  function sourceOf(level) {
+    return level.src || { F: "Q.F", N: "Q.N", PE: "Q.PE" };
   }
-  s+=`<rect id="night" class="night" x="0" y="0" width="400" height="250" opacity=".66"/>`;
-  s+=`<circle id="glow" class="glowc" cx="${gx}" cy="${gy}" r="${lv.room==='tavolo'?150:190}" fill="url(#glow)" opacity="0"/>`;
-  if(lv.room==='tavolo'){
-    s+=`<path d="M135 170 C150 215 232 222 262 156" fill="none" stroke="var(--ink)" stroke-width="3" stroke-linecap="round" opacity=".8"/>`;
-    s+=`<rect x="262" y="146" width="22" height="16" rx="3" fill="#222"/>`;
-    s+=`<ellipse cx="135" cy="170" rx="22" ry="5" fill="var(--ink)" opacity=".8"/><rect x="132" y="116" width="6" height="54" fill="var(--ink)" opacity=".8"/>`;
-    s+=`<circle id="bulb" class="bulb" cx="135" cy="108" r="10"/>`;
-    s+=`<path class="shade" d="M112 78 H158 L170 116 H100 Z"/>`;
-    s+=`<rect class="plate" x="284" y="124" width="56" height="52" rx="6"/>`;
-    [[300,150],[312,150],[324,150]].forEach(([x,y],i)=>{s+=`<circle class="hole" cx="${x}" cy="${y}" r="${i===1?3.2:3.8}"/>`});
-    s+=`<text x="312" y="196" text-anchor="middle" style="font:500 12px 'Barlow',sans-serif;fill:#EAF0F8">Presa</text>`;
-  }else{
-    s+=`<line x1="200" y1="0" x2="200" y2="40" stroke="var(--ink)" stroke-width="2.5" opacity=".7"/>`;
-    s+=`<rect x="194" y="38" width="12" height="12" rx="2" fill="var(--ink)" opacity=".75"/>`;
-    s+=`<circle id="bulb" class="bulb" cx="200" cy="62" r="13"/>`;
-    s+=`<path class="shade" d="M168 52 Q200 12 232 52 Z"/>`;
-    lv.comps.filter(c=>c.plate).forEach(c=>{
-      const p=c.plate;
-      s+=`<g class="pl" data-ctl="${c.id}" role="button" tabindex="0" aria-label="${c.short}, premi per cambiare"><rect x="${p.x-24}" y="${p.y-38}" width="48" height="${76+20}" fill="transparent"/><rect class="plate" x="${p.x-20}" y="${p.y-32}" width="40" height="64" rx="6"/><rect id="rt-${c.id}" class="rk hi" x="${p.x-13}" y="${p.y-24}" width="26" height="24" rx="3"/><rect id="rb-${c.id}" class="rk lo" x="${p.x-13}" y="${p.y}" width="26" height="24" rx="3"/><rect x="${p.x-p.l.length*3.6-7}" y="${p.y+38}" width="${p.l.length*7.2+14}" height="19" rx="9" fill="rgba(10,16,24,.62)"/><text x="${p.x}" y="${p.y+52}" text-anchor="middle">${p.l}</text></g>`;
+  function makeUF() {
+    const p = {};
+    function f(x) {
+      if (p[x] === void 0) p[x] = x;
+      while (p[x] !== x) {
+        p[x] = p[p[x]];
+        x = p[x];
+      }
+      return x;
+    }
+    function u(a, b) {
+      p[f(a)] = f(b);
+    }
+    return { f, u };
+  }
+  function connect(level, wires, states) {
+    const uf = makeUF();
+    wires.forEach((w) => uf.u(w.a, w.b));
+    level.comps.forEach(
+      (c2) => contactsOf(c2, states[c2.id] || 0).forEach(([a, b]) => uf.u(c2.id + "." + a, c2.id + "." + b))
+    );
+    return uf;
+  }
+  function analyse(level, wires, states) {
+    const uf = connect(level, wires, states);
+    const sr = sourceOf(level);
+    const F = uf.f(sr.F), N = uf.f(sr.N), PE = uf.f(sr.PE);
+    let fault = null;
+    if (F === N) fault = "corto";
+    else if (F === PE) fault = "faseterra";
+    const a = uf.f(level.load[0]), b = uf.f(level.load[1]);
+    const lit = !fault && (a === F && b === N || a === N && b === F);
+    return { uf, F, N, PE, fault, lit, a, b };
+  }
+  function potentialOf(analysis, terminalId) {
+    const k = analysis.uf.f(terminalId);
+    if (k === analysis.F) return "F";
+    if (k === analysis.N) return "N";
+    if (k === analysis.PE) return "PE";
+    return null;
+  }
+
+  // src/engine/evaluate.js
+  function section() {
+    return { ok: false, status: "ko", items: [] };
+  }
+  function finish(sec) {
+    if (sec.ok) sec.status = "ok";
+    else if (sec.items.length && sec.items[0].code === "safe.skipped") sec.status = "na";
+    else sec.status = "ko";
+  }
+  function evaluate(level, wires) {
+    const ctl = level.controls;
+    const combos = [];
+    for (let m = 0; m < 1 << ctl.length; m++) {
+      const st = {};
+      ctl.forEach((id, i) => st[id] = m >> i & 1);
+      combos.push(st);
+    }
+    const res = combos.map((st) => analyse(level, wires, st));
+    const out = { work: section(), color: section(), safe: section() };
+    const add = (sec, code, params) => out[sec].items.push(params ? { code, ...params } : { code });
+    if (!wires.length) {
+      add("work", "work.noWires");
+      add("color", "color.noWires");
+      add("safe", "safe.skipped");
+      out.stars = 0;
+      out.pass = false;
+      finish(out.work);
+      finish(out.color);
+      finish(out.safe);
+      return out;
+    }
+    const faults = res.filter((r) => r.fault);
+    if (faults.length) {
+      add("work", faults[0].fault === "corto" ? "work.short" : "work.phaseToEarth");
+    } else if (!ctl.length) {
+      if (res[0].lit) {
+        out.work.ok = true;
+        add("work", "work.socketLit");
+      } else {
+        const r = res[0];
+        const anyF = r.a === r.F || r.b === r.F;
+        const anyN = r.a === r.N || r.b === r.N;
+        if (!anyF) add("work", "work.noPhaseAtSocket");
+        if (!anyN) add("work", "work.noNeutralAtSocket");
+        if (anyF && anyN) add("work", "work.wrongSocketTerminals");
+      }
+    } else {
+      const anyLit = res.some((r) => r.lit);
+      if (!anyLit) {
+        const anyF = res.some((r) => r.a === r.F || r.b === r.F);
+        const anyN = res.some((r) => r.a === r.N || r.b === r.N);
+        add("work", "work.neverLit");
+        if (!anyF) add("work", "work.noPhaseAtLoad");
+        if (!anyN) add("work", "work.noNeutralAtLoad");
+      } else {
+        let allGood = true;
+        ctl.forEach((id, i) => {
+          let flips = 0;
+          combos.forEach((st, m) => {
+            if (res[m].lit !== res[m ^ 1 << i].lit) flips++;
+          });
+          if (flips === 0) {
+            allGood = false;
+            add("work", "work.controlNoEffect", { comp: id });
+          } else if (flips < combos.length) {
+            allGood = false;
+            add("work", "work.controlPartial", { comp: id });
+          }
+        });
+        if (allGood) {
+          out.work.ok = true;
+          add("work", "work.allControlsOk");
+        }
+      }
+    }
+    const uw = makeUF();
+    wires.forEach((w) => uw.u(w.a, w.b));
+    level.comps.filter((c2) => c2.type === "quadro").forEach((c2) => contactsOf(c2, 0).forEach(([a, b]) => uw.u(c2.id + "." + a, c2.id + "." + b)));
+    const sr = sourceOf(level);
+    const Fn = uw.f(sr.F), Nn = uw.f(sr.N), Pn = uw.f(sr.PE);
+    const bad = [];
+    wires.forEach((w) => {
+      const k = uw.f(w.a);
+      let role = "fase";
+      if (k === Nn && k !== Fn) role = "neutro";
+      else if (k === Pn && k !== Fn) role = "terra";
+      if (!allowedColors(role).includes(w.c)) bad.push({ code: "color.wrong", a: w.a, b: w.b, role });
+    });
+    if (!bad.length) {
+      out.color.ok = true;
+      add("color", "color.ok", { earth: !!level.earth });
+    } else {
+      bad.slice(0, 3).forEach((b) => out.color.items.push(b));
+      if (bad.length > 3) add("color", "color.more", { n: bad.length - 3 });
+    }
+    if (!out.work.ok) {
+      add("safe", "safe.skipped");
+    } else {
+      const r0 = res[0];
+      let ok = true;
+      if (level.full && (r0.uf.f("Q.Fi") === r0.N || r0.uf.f("Q.Ni") === r0.F)) {
+        ok = false;
+        add("safe", "safe.sourceSwapped");
+      }
+      if (level.earth) {
+        if (r0.uf.f(level.earth[1]) !== r0.uf.f(level.earth[0])) {
+          ok = false;
+          add("safe", "safe.noEarthAtSocket");
+        }
+        if (r0.uf.f(level.pol) !== r0.F) {
+          ok = false;
+          add("safe", "safe.socketPolarity");
+        }
+      } else {
+        const alwaysN = level.load.some((t) => res.every((r) => r.uf.f(t) === r.N));
+        if (!alwaysN) {
+          ok = false;
+          add("safe", "safe.neutralBroken");
+        }
+      }
+      if (level.mustEarth && r0.uf.f(level.mustEarth[0]) !== r0.uf.f(level.mustEarth[1])) {
+        ok = false;
+        add("safe", "safe.noPanelEarth");
+      }
+      if (ok) {
+        out.safe.ok = true;
+        add("safe", "safe.ok", { variant: level.earth ? "socket" : level.full ? "full" : "basic" });
+      }
+    }
+    out.stars = (out.work.ok ? 1 : 0) + (out.color.ok ? 1 : 0) + (out.safe.ok ? 1 : 0);
+    out.pass = out.stars === 3;
+    finish(out.work);
+    finish(out.color);
+    finish(out.safe);
+    return out;
+  }
+
+  // src/engine/full.js
+  var NAMES = { F: "FASE", N: "NEUTRO", PE: "TERRA" };
+  function buildFull(base, text) {
+    const lv = JSON.parse(JSON.stringify(base));
+    const earthThrough = !!base.earth;
+    const order = earthThrough ? ["F", "PE", "N"] : ["N", "F", "PE"];
+    const K = { id: "K", type: "cont", ...text.components.K, terms: {} };
+    const Q = { id: "Q", type: "quadro", full: true, ...text.components.Q, terms: {} };
+    order.forEach((k) => {
+      K.terms[k] = { l: NAMES[k], n: NAMES[k] };
+      Q.terms[k + "i"] = { l: NAMES[k], n: NAMES[k] + " (ingresso)" };
+      if (k !== "PE" || earthThrough) Q.terms[k] = { l: NAMES[k], n: NAMES[k] + " (uscita)" };
+    });
+    const others = lv.comps.filter((c2) => c2.id !== "Q");
+    lv.comps = [K, Q].concat(others);
+    lv.src = { F: "K.F", N: "K.N", PE: "K.PE" };
+    lv.full = true;
+    lv.solution = [["K.F", "Q.Fi", "marrone"], ["K.N", "Q.Ni", "blu"], ["K.PE", "Q.PEi", "gv"]].concat(
+      base.solution
+    );
+    if (lv.earth) lv.earth = ["K.PE", lv.earth[1]];
+    else lv.mustEarth = ["K.PE", "Q.PEi"];
+    lv.hints = [text.hint].concat(base.hints);
+    lv.goal = base.goal + text.goalSuffix;
+    return lv;
+  }
+
+  // src/engine/session.js
+  function memoryStorage() {
+    let data = {};
+    return { load: () => data, save: (o) => {
+      data = o;
+    } };
+  }
+  var MODES = ["quadro", "contatore"];
+  function createSession({ levels: levels2, deriveFull: deriveFull2, storage: storage2 = memoryStorage(), initialLevel = 0 }) {
+    const levelCache = {};
+    const wiresByKey = {};
+    const statesByKey = {};
+    const resultsByKey = {};
+    const usageByKey = {};
+    let nextWireId = 1;
+    let progress = {};
+    try {
+      progress = storage2.load() || {};
+    } catch (e) {
+      progress = {};
+    }
+    let levelIndex = initialLevel;
+    let mode = "quadro";
+    let power = false;
+    let trip = false;
+    let message = null;
+    let hintIndex = -1;
+    let solutionShown = false;
+    const listeners = /* @__PURE__ */ new Set();
+    const keyOf = (i = levelIndex, m = mode) => i + "|" + m;
+    const progressKey = (n, m = mode) => n + (m === "contatore" ? "c" : "");
+    const levelAt = (i = levelIndex, m = mode) => {
+      const k = keyOf(i, m);
+      return levelCache[k] || (levelCache[k] = m === "contatore" ? deriveFull2(levels2[i]) : levels2[i]);
+    };
+    const wires = () => wiresByKey[keyOf()] || (wiresByKey[keyOf()] = []);
+    const states = () => statesByKey[keyOf()] || (statesByKey[keyOf()] = {});
+    const usage = () => usageByKey[keyOf()] || (usageByKey[keyOf()] = { hints: 0, solution: false, checks: 0 });
+    function snapshot() {
+      const level = levelAt();
+      const analysis = analyse(level, wires(), states());
+      return {
+        levelKey: keyOf(),
+        level,
+        levelIndex,
+        levelCount: levels2.length,
+        mode,
+        wires: wires().slice(),
+        controlStates: { ...states() },
+        power,
+        trip,
+        message,
+        lit: power && analysis.lit,
+        fault: analysis.fault,
+        // 'F' | 'N' | 'PE' | null per il morsetto dato (indipendente da power)
+        potential: (tid) => potentialOf(analysis, tid),
+        result: resultsByKey[keyOf()] || null,
+        solutionShown,
+        levels: levels2.map((l, i) => ({
+          index: i,
+          n: l.n,
+          name: l.name,
+          stars: progress[progressKey(l.n)] || 0
+        })),
+        usage: { ...usage() }
+      };
+    }
+    const emit = () => {
+      const s = snapshot();
+      listeners.forEach((f) => f(s));
+    };
+    function resetLevelState() {
+      power = false;
+      trip = false;
+      message = null;
+      hintIndex = -1;
+      solutionShown = false;
+    }
+    function applyLive() {
+      const cur = analyse(levelAt(), wires(), states());
+      if (power && cur.fault) {
+        power = false;
+        trip = true;
+        message = { code: "trip", fault: cur.fault };
+      }
+    }
+    function wiresChanged() {
+      resultsByKey[keyOf()] = null;
+      if (power) {
+        power = false;
+        message = { code: "editWhileLive" };
+      } else if (trip) {
+        trip = false;
+        message = null;
+      } else {
+        message = null;
+      }
+    }
+    return {
+      snapshot,
+      subscribe(fn) {
+        listeners.add(fn);
+        return () => listeners.delete(fn);
+      },
+      start() {
+        emit();
+      },
+      selectLevel(i) {
+        if (i < 0 || i >= levels2.length) return;
+        levelIndex = i;
+        resetLevelState();
+        emit();
+      },
+      nextLevel() {
+        this.selectLevel(levelIndex + 1);
+      },
+      setMode(m) {
+        if (!MODES.includes(m) || m === mode) return;
+        mode = m;
+        resetLevelState();
+        emit();
+      },
+      // Collega a-b con il colore dato; se il filo esiste gia' lo toglie.
+      addWire(a, b, color) {
+        if (!a || !b || a === b) return;
+        const ws = wires();
+        const k = ws.findIndex((w) => w.a === a && w.b === b || w.a === b && w.b === a);
+        wiresChanged();
+        if (k >= 0) ws.splice(k, 1);
+        else ws.push({ id: nextWireId++, a, b, c: color });
+        emit();
+      },
+      removeWire(id) {
+        const ws = wires();
+        const k = ws.findIndex((x) => x.id === id);
+        if (k < 0) return;
+        wiresChanged();
+        ws.splice(k, 1);
+        emit();
+      },
+      undo() {
+        if (!wires().length) return;
+        wiresChanged();
+        wires().pop();
+        emit();
+      },
+      clear() {
+        if (!wires().length) return;
+        wiresChanged();
+        wiresByKey[keyOf()] = [];
+        statesByKey[keyOf()] = {};
+        emit();
+      },
+      toggleBreaker() {
+        if (power) {
+          power = false;
+          message = { code: "powerOff" };
+        } else {
+          power = true;
+          trip = false;
+          message = null;
+          applyLive();
+          if (power) {
+            const cur = analyse(levelAt(), wires(), states());
+            message = cur.lit ? null : { code: "lampDark" };
+          }
+        }
+        emit();
+      },
+      toggleControl(id) {
+        const st = states();
+        st[id] = st[id] ? 0 : 1;
+        message = null;
+        applyLive();
+        emit();
+      },
+      check() {
+        const level = levelAt();
+        const r = evaluate(level, wires());
+        resultsByKey[keyOf()] = r;
+        usage().checks++;
+        const pk = progressKey(level.n);
+        if ((progress[pk] || 0) < r.stars) {
+          progress[pk] = r.stars;
+          try {
+            storage2.save(progress);
+          } catch (e) {
+          }
+        }
+        emit();
+        return r;
+      },
+      // Suggerimento successivo (a rotazione). Non cambia il circuito, quindi non emette.
+      requestHint() {
+        const hints = levelAt().hints;
+        hintIndex = (hintIndex + 1) % hints.length;
+        usage().hints++;
+        return { index: hintIndex, total: hints.length, text: hints[hintIndex] };
+      },
+      toggleSolution() {
+        solutionShown = !solutionShown;
+        if (solutionShown) usage().solution = true;
+        emit();
+      }
+    };
+  }
+
+  // src/content/levels.js
+  var LEVELS = [
+    {
+      n: 1,
+      name: "Presa",
+      title: "La presa di corrente",
+      goal: "Collega la presa al quadro con i tre fili giusti, poi dai corrente con la levetta del quadro. La lampada sul tavolo deve accendersi.",
+      loadName: "La lampada",
+      comps: [
+        { id: "Q", type: "quadro", short: "Quadro", title: "Quadro elettrico", terms: { F: { l: "FASE" }, PE: { l: "TERRA" }, N: { l: "NEUTRO" } } },
+        { id: "P", type: "presa", short: "Presa", title: "Presa bipasso 10/16 A", terms: { L: { l: "L" }, PE: { l: "PE" }, N: { l: "N" } } }
+      ],
+      controls: [],
+      load: ["P.L", "P.N"],
+      earth: ["Q.PE", "P.PE"],
+      pol: "P.L",
+      room: "tavolo",
+      solution: [["Q.F", "P.L", "marrone"], ["Q.N", "P.N", "blu"], ["Q.PE", "P.PE", "gv"]],
+      hints: [
+        "Il marrone \xE8 la fase: va dal quadro al morsetto L della presa.",
+        "Il blu \xE8 il neutro: va dal quadro al morsetto N della presa.",
+        "Il giallo-verde \xE8 la terra: va al morsetto PE, quello al centro."
+      ]
+    },
+    {
+      n: 2,
+      name: "Interrotto",
+      title: "Punto luce interrotto",
+      goal: "Accendi e spegni la lampada con un interruttore. L\u2019interruttore interrompe la fase, mai il neutro.",
+      loadName: "La lampada",
+      comps: [
+        { id: "Q", type: "quadro", short: "Quadro", title: "Quadro elettrico", terms: { N: { l: "NEUTRO" }, F: { l: "FASE" } } },
+        { id: "S", type: "sw", short: "Interruttore", title: "Interruttore", where: "Parete", terms: { a: { l: "1" }, b: { l: "2" } } },
+        { id: "L", type: "lamp", short: "Lampada", title: "Portalampada", terms: { B: { l: "B" }, A: { l: "A" } } }
+      ],
+      controls: ["S"],
+      load: ["L.A", "L.B"],
+      room: "soffitto",
+      solution: [["Q.F", "S.a", "marrone"], ["S.b", "L.A", "marrone"], ["Q.N", "L.B", "blu"]],
+      hints: [
+        "Parti dalla fase: dal quadro va all\u2019interruttore, non direttamente alla lampada.",
+        "Dall\u2019altro morsetto dell\u2019interruttore il filo va a un morsetto della lampada.",
+        "Il neutro (blu) va dal quadro all\u2019altro morsetto della lampada, senza passare dall\u2019interruttore."
+      ]
+    },
+    {
+      n: 3,
+      name: "Deviato",
+      title: "Punto luce deviato",
+      goal: "Comanda la stessa lampada da due punti con due deviatori. Premendo uno qualsiasi dei due, la luce deve cambiare.",
+      loadName: "La lampada",
+      comps: [
+        { id: "Q", type: "quadro", short: "Quadro", title: "Quadro elettrico", terms: { N: { l: "NEUTRO" }, F: { l: "FASE" } } },
+        { id: "D1", type: "dev", short: "Deviatore A", title: "Deviatore A", where: "Ingresso", terms: { C: { l: "C" }, "1": { l: "1" }, "2": { l: "2" } } },
+        { id: "D2", type: "dev", short: "Deviatore B", title: "Deviatore B", where: "Fondo", terms: { "1": { l: "1" }, "2": { l: "2" }, C: { l: "C" } } },
+        { id: "L", type: "lamp", short: "Lampada", title: "Portalampada", terms: { B: { l: "B" }, A: { l: "A" } } }
+      ],
+      controls: ["D1", "D2"],
+      load: ["L.A", "L.B"],
+      room: "soffitto",
+      solution: [["Q.F", "D1.C", "marrone"], ["D1.1", "D2.1", "nero"], ["D1.2", "D2.2", "grigio"], ["D2.C", "L.A", "marrone"], ["Q.N", "L.B", "blu"]],
+      hints: [
+        "La fase entra nel morsetto C (comune) del primo deviatore.",
+        "I morsetti 1 e 2 del primo deviatore vanno a 1 e 2 del secondo: 1 con 1 e 2 con 2.",
+        "Il comune C del secondo deviatore va alla lampada. Il neutro va dal quadro alla lampada, senza passare dai deviatori."
+      ]
+    },
+    {
+      n: 4,
+      name: "Invertito",
+      title: "Punto luce invertito",
+      goal: "Aggiungi un terzo punto di comando in mezzo, con l\u2019invertitore. Premendo uno qualsiasi dei tre, la luce deve cambiare.",
+      loadName: "La lampada",
+      comps: [
+        { id: "Q", type: "quadro", short: "Quadro", title: "Quadro elettrico", terms: { N: { l: "NEUTRO" }, F: { l: "FASE" } } },
+        { id: "D1", type: "dev", short: "Deviatore A", title: "Deviatore A", where: "Ingresso", terms: { C: { l: "C" }, "1": { l: "1" }, "2": { l: "2" } } },
+        { id: "I", type: "inv", short: "Invertitore", title: "Invertitore", where: "Camera", terms: { "1": { l: "1" }, "2": { l: "2" }, "3": { l: "3" }, "4": { l: "4" } } },
+        { id: "D2", type: "dev", short: "Deviatore B", title: "Deviatore B", where: "Fondo", terms: { "1": { l: "1" }, "2": { l: "2" }, C: { l: "C" } } },
+        { id: "L", type: "lamp", short: "Lampada", title: "Portalampada", terms: { B: { l: "B" }, A: { l: "A" } } }
+      ],
+      controls: ["D1", "I", "D2"],
+      load: ["L.A", "L.B"],
+      room: "soffitto",
+      solution: [["Q.F", "D1.C", "marrone"], ["D1.1", "I.1", "nero"], ["D1.2", "I.2", "grigio"], ["I.3", "D2.1", "nero"], ["I.4", "D2.2", "grigio"], ["D2.C", "L.A", "marrone"], ["Q.N", "L.B", "blu"]],
+      hints: [
+        "\xC8 come la deviata, ma in mezzo ai due fili di collegamento metti l\u2019invertitore.",
+        "I morsetti 1 e 2 del deviatore A vanno ai morsetti 1 e 2 (in alto) dell\u2019invertitore.",
+        "Dai morsetti 3 e 4 (in basso) dell\u2019invertitore, due fili vanno a 1 e 2 del deviatore B. Il comune C del B va alla lampada."
+      ]
+    }
+  ];
+
+  // src/content/it.js
+  var COLOR_NAMES = {
+    marrone: "Marrone",
+    nero: "Nero",
+    grigio: "Grigio",
+    blu: "Blu",
+    gv: "Giallo-verde"
+  };
+  var HELP = {
+    morsetto: ["Il morsetto", "\xC8 la vite che stringe il filo. Ogni componente ha i suoi morsetti: per collegare due componenti si porta un filo da un morsetto all\u2019altro."],
+    quadro: ["Il quadro elettrico", "Distribuisce la corrente alla casa. Da qui escono tre fili: la fase (marrone, nero o grigio), il neutro (blu) e la terra (giallo-verde). La levetta \xE8 il magnetotermico: scatta da solo se c\u2019\xE8 un cortocircuito. Tocca la levetta per dare o togliere corrente. Se parti dal contatore, i fili in ingresso sono i morsetti in alto e le uscite sono in basso."],
+    cont: ["Il contatore", "\xC8 l\u2019arrivo della corrente dalla rete e misura quanta energia consumi (kWh). Da qui escono la fase (marrone) e il neutro (blu). La terra non arriva dalla rete: arriva dal dispersore, cio\xE8 dalla rete di terra dell\u2019edificio."],
+    presa: ["La presa bipasso", "Ha tre morsetti: L riceve la fase, N il neutro, PE la terra (il foro al centro). La terra protegge dalle scosse se un apparecchio si guasta."],
+    sw: ["L\u2019interruttore", "Ha due morsetti e un contatto che si apre o si chiude. Aperto, la corrente non passa e la lampada si spegne. Si mette sempre sulla fase. Toccalo per cambiarne la posizione."],
+    dev: ["Il deviatore", "Ha un morsetto comune (C) e due vie (1 e 2). Il contatto collega C a 1 oppure a 2. Due deviatori insieme comandano la stessa luce da due punti."],
+    inv: ["L\u2019invertitore", "Ha quattro morsetti: due in alto (1 e 2) e due in basso (3 e 4). In una posizione collega 1 con 3 e 2 con 4, nell\u2019altra li incrocia. Si mette tra due deviatori per avere un terzo comando."],
+    lamp: ["Il portalampada", "Ha due morsetti. La lampada si accende solo se da un morsetto arriva la fase e dall\u2019altro il neutro: la corrente deve poter attraversarla."]
+  };
+  var FULL_TEXT = {
+    components: {
+      K: { short: "Contatore", title: "Contatore" },
+      Q: { short: "Quadro", title: "Quadro elettrico" }
+    },
+    hint: "Parti dal contatore: la fase (marrone) va al morsetto FASE in alto sul quadro, il neutro (blu) al NEUTRO, la terra (giallo-verde) alla TERRA. Sono i morsetti in ingresso, quelli in alto.",
+    goalSuffix: " Parti dal contatore: collega anche i tre fili che portano la corrente fino al quadro."
+  };
+  var findComp = (level, id) => level.comps.find((k) => k.id === id);
+  function termName(level, tid) {
+    const [cid, id] = tid.split(".");
+    const c2 = findComp(level, cid);
+    return c2.short + " \xB7 " + (c2.terms[id].n || c2.terms[id].l);
+  }
+  function compName(level, id) {
+    const c2 = findComp(level, id);
+    const t = c2.short[0].toLowerCase() + c2.short.slice(1);
+    return (c2.type === "dev" ? "Il " : "L\u2019") + t;
+  }
+  var ROLE_OF = { neutro: "del neutro", terra: "di terra", fase: "di fase" };
+  var COLOR_NEEDED = { neutro: "blu", terra: "giallo-verde", fase: "marrone, nero o grigio" };
+  function itemText(item, level) {
+    switch (item.code) {
+      case "work.noWires":
+        return "Non hai ancora collegato nessun filo.";
+      case "work.short":
+        return "Cortocircuito: la fase arriva al neutro attraverso i fili. Il magnetotermico scatta.";
+      case "work.phaseToEarth":
+        return "La fase \xE8 finita sul filo di terra: scatta il differenziale.";
+      case "work.socketLit":
+        return "Dai corrente: la lampada si accende.";
+      case "work.noPhaseAtSocket":
+        return "Alla presa non arriva la fase.";
+      case "work.noNeutralAtSocket":
+        return "Alla presa non arriva il neutro.";
+      case "work.wrongSocketTerminals":
+        return "Fase e neutro arrivano alla presa, ma non ai morsetti giusti.";
+      case "work.neverLit":
+        return level.loadName + " non si accende mai.";
+      case "work.noPhaseAtLoad":
+        return "Alla lampada non arriva mai la fase.";
+      case "work.noNeutralAtLoad":
+        return "Alla lampada non arriva il neutro.";
+      case "work.controlNoEffect":
+        return compName(level, item.comp) + " non comanda la lampada: cambiarlo non cambia niente.";
+      case "work.controlPartial":
+        return compName(level, item.comp) + " comanda la lampada solo con alcune posizioni degli altri comandi.";
+      case "work.allControlsOk":
+        return "Ogni comando cambia la luce, in qualunque posizione si trovino gli altri.";
+      case "color.noWires":
+        return "Collega prima qualche filo.";
+      case "color.wrong":
+        return "Il filo " + termName(level, item.a) + " \u2192 " + termName(level, item.b) + " \xE8 un filo " + ROLE_OF[item.role] + ": deve essere " + COLOR_NEEDED[item.role] + ".";
+      case "color.more":
+        return "E altri " + item.n + " fili con il colore sbagliato.";
+      case "color.ok":
+        return item.earth ? "Fase, neutro e terra hanno i colori giusti." : "Il blu \xE8 solo sul neutro, gli altri fili hanno colori da fase.";
+      case "safe.skipped":
+        return "Si controlla quando il circuito funziona.";
+      case "safe.sourceSwapped":
+        return "Fase e neutro sono invertiti tra contatore e quadro.";
+      case "safe.noEarthAtSocket":
+        return "La presa non ha il filo di terra: se un apparecchio si guasta, la carcassa pu\xF2 andare in tensione.";
+      case "safe.socketPolarity":
+        return "Fase e neutro sono invertiti sulla presa: L deve andare alla fase.";
+      case "safe.neutralBroken":
+        return "Hai fatto passare il neutro dai comandi. Spenta la luce, i morsetti della lampada restano in tensione. L\u2019interruttore va sulla fase.";
+      case "safe.noPanelEarth":
+        return "Il quadro non \xE8 collegato alla terra: manca il filo giallo-verde che arriva dal contatore.";
+      case "safe.ok":
+        return item.variant === "socket" ? "Terra collegata, fase e neutro al posto giusto." : item.variant === "full" ? "Il neutro arriva sempre alla lampada e il quadro \xE8 collegato a terra." : "Il neutro arriva sempre alla lampada: i comandi interrompono solo la fase.";
+      default:
+        return item.code;
+    }
+  }
+  function describeEvaluation(result, level) {
+    const sec = (s) => ({ ok: s.ok, status: s.status, msgs: s.items.map((i) => itemText(i, level)) });
+    return {
+      work: sec(result.work),
+      color: sec(result.color),
+      safe: sec(result.safe),
+      stars: result.stars,
+      pass: result.pass
+    };
+  }
+  function sessionMessage(msg) {
+    if (!msg) return "";
+    switch (msg.code) {
+      case "trip":
+        return msg.fault === "corto" ? "Il magnetotermico \xE8 scattato: la fase tocca il neutro (cortocircuito)." : "\xC8 scattato il differenziale: la fase \xE8 finita sul filo di terra.";
+      case "editWhileLive":
+        return "Per sicurezza il quadro si \xE8 spento: non si toccano i fili con la corrente.";
+      case "powerOff":
+        return "Quadro spento.";
+      case "lampDark":
+        return "Il quadro \xE8 acceso ma la lampada resta spenta.";
+      default:
+        return "";
+    }
+  }
+
+  // src/content/index.js
+  var levels = LEVELS;
+  var deriveFull = (base) => buildFull(base, FULL_TEXT);
+
+  // src/ui2d/layout.js
+  var c = (x, y, w, h, terms, extra = {}) => {
+    const t = {};
+    Object.keys(terms).forEach((k) => t[k] = { f: terms[k][0], s: terms[k][1] });
+    return { x, y, w, h, terms: t, ...extra };
+  };
+  var BASE = {
+    1: {
+      comps: {
+        Q: c(20, 0, 380, 100, { F: [0.2, "b"], PE: [0.5, "b"], N: [0.8, "b"] }),
+        P: c(110, 170, 200, 120, { L: [0.2, "t"], PE: [0.5, "t"], N: [0.8, "t"] })
+      },
+      plates: {}
+    },
+    2: {
+      comps: {
+        Q: c(20, 0, 380, 100, { N: [0.12, "b"], F: [0.8, "b"] }),
+        S: c(190, 140, 210, 120, { a: [0.5, "t"], b: [0.5, "b"] }),
+        L: c(190, 300, 210, 90, { B: [0.25, "t"], A: [0.75, "t"] })
+      },
+      plates: { S: { x: 344, y: 122 } }
+    },
+    3: {
+      comps: {
+        Q: c(20, 0, 380, 100, { N: [0.12, "b"], F: [0.8, "b"] }),
+        D1: c(190, 140, 210, 115, { C: [0.5, "t"], "1": [0.28, "b"], "2": [0.72, "b"] }),
+        D2: c(190, 290, 210, 115, { "1": [0.28, "t"], "2": [0.72, "t"], C: [0.5, "b"] }, { flip: true }),
+        L: c(190, 440, 210, 90, { B: [0.25, "t"], A: [0.75, "t"] })
+      },
+      plates: { D1: { x: 56, y: 122 }, D2: { x: 344, y: 122 } }
+    },
+    4: {
+      comps: {
+        Q: c(20, 0, 380, 100, { N: [0.12, "b"], F: [0.8, "b"] }),
+        D1: c(190, 140, 210, 112, { C: [0.5, "t"], "1": [0.28, "b"], "2": [0.72, "b"] }),
+        I: c(190, 286, 210, 112, { "1": [0.28, "t"], "2": [0.72, "t"], "3": [0.28, "b"], "4": [0.72, "b"] }),
+        D2: c(190, 432, 210, 112, { "1": [0.28, "t"], "2": [0.72, "t"], C: [0.5, "b"] }, { flip: true }),
+        L: c(190, 578, 210, 90, { B: [0.25, "t"], A: [0.75, "t"] })
+      },
+      plates: { D1: { x: 56, y: 122 }, I: { x: 200, y: 122 }, D2: { x: 344, y: 122 } }
+    }
+  };
+  function fullLayout(n) {
+    const base = BASE[n];
+    const earthThrough = n === 1;
+    const pos = earthThrough ? { F: 0.08, PE: 0.28, N: 0.48 } : { N: 0.08, F: 0.28, PE: 0.48 };
+    const K = { x: 20, y: 0, w: 380, h: 96, terms: {} };
+    const Q = { x: 20, y: 140, w: 380, h: 130, bx: 0.78, terms: {} };
+    Object.keys(pos).forEach((k) => {
+      K.terms[k] = { f: pos[k], s: "b" };
+      Q.terms[k + "i"] = { f: pos[k], s: "t" };
+      if (k !== "PE" || earthThrough) Q.terms[k] = { f: pos[k], s: "b" };
+    });
+    const others = Object.keys(base.comps).filter((id) => id !== "Q");
+    const shift = Q.y + Q.h + 44 - Math.min(...others.map((id) => base.comps[id].y));
+    const comps2 = { K, Q };
+    others.forEach((id) => comps2[id] = { ...base.comps[id], y: base.comps[id].y + shift });
+    return { comps: comps2, plates: base.plates };
+  }
+  function layoutFor(level) {
+    return level.full ? fullLayout(level.n) : BASE[level.n];
+  }
+  function composeComps(level) {
+    const layout = layoutFor(level);
+    return level.comps.map((c2) => {
+      const g = layout.comps[c2.id];
+      const terms = {};
+      Object.keys(c2.terms).forEach((k) => terms[k] = { ...c2.terms[k], f: g.terms[k].f, s: g.terms[k].s });
+      const o = { ...c2, x: g.x, y: g.y, w: g.w, h: g.h, terms };
+      if (g.flip) o.flip = true;
+      if (g.bx !== void 0) o.bx = g.bx;
+      if (c2.where && layout.plates[c2.id]) o.plate = { x: layout.plates[c2.id].x, y: layout.plates[c2.id].y, l: c2.where };
+      return o;
     });
   }
-  $('#room').innerHTML=s;
-  setRoomVB();
-}
-function setRoomVB(){
-  const r=$('#room'),lv=LV();
-  r.setAttribute('viewBox',MQ.matches?(lv.room==='tavolo'?'0 76 400 108':'0 0 400 108'):'0 0 400 250');
-}
-function updateRoom(lit){
-  const lv=LV();
-  const n=$('#night'),g=$('#glow'),b=$('#bulb');
-  if(n)n.setAttribute('opacity',lit?'0':'.66');
-  if(g)g.setAttribute('opacity',lit?'1':'0');
-  if(b)b.setAttribute('class','bulb'+(lit?' on':''));
-  lv.comps.filter(c=>c.plate).forEach(c=>{
-    const t=$('#rt-'+c.id),bt=$('#rb-'+c.id),st=ST()[c.id]?1:0;
-    if(t)t.setAttribute('class','rk '+(st?'hi':'lo'));
-    if(bt)bt.setAttribute('class','rk '+(st?'lo':'hi'));
-  });
-}
 
-/* ---------- banco di lavoro ---------- */
-function kwhTxt(){return KWH.toFixed(1).padStart(6,'0').replace('.',',')+' kWh'}
-function ln(x1,y1,x2,y2,live,off){return `<line class="cl${live?' on':''}${off?' off':''}" x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}"/>`}
-function dot(x,y){return `<circle class="ct" cx="${x}" cy="${y}" r="4"/>`}
-function schem(c,cur,live,lit){
-  const w=c.w,h=c.h,L=t=>live(c.id+'.'+t),st=ST()[c.id]?1:0;let s='';
-  if(c.type==='quadro'){
-    const bx=w*(c.bx||.5),tr=POWER?'on':TRIP?'trip':'';
-    const ky=POWER?16:TRIP?27:38;
-    const stt=POWER?'ACCESO':TRIP?'SCATTATO':'SPENTO';
-    if(c.full){[['Fi','F'],['Ni','N'],['PEi','PE']].forEach(([i,o])=>{if(c.terms[i]&&c.terms[o]){const x=w*c.terms[i].f;s+=ln(x,22,x,h-22,L(i));}});}
-    s+=`<g class="brk" data-q="1" role="button" tabindex="0" aria-label="Magnetotermico"><rect x="${bx-34}" y="6" width="68" height="56" fill="transparent"/><rect class="hs" x="${bx-26}" y="8" width="52" height="50" rx="5"/><rect class="slotr" x="${bx-8}" y="13" width="16" height="40" rx="3"/><rect class="knob" x="${bx-10}" y="${ky}" width="20" height="16" rx="3"/><circle class="led ${tr}" cx="${bx+18}" cy="16" r="3.2"/></g>`;
-    if(c.full)s+=`<text class="lbl" x="${bx}" y="80" text-anchor="middle" style="font-size:10px;fill:var(--ink2)">${stt}</text><text class="lbl" x="${bx}" y="94" text-anchor="middle" style="font-size:10px;fill:var(--ink2)">MAGNETOTERMICO</text>`;
-    else s+=`<text class="lbl" x="${bx-60}" y="38" text-anchor="end" style="font-size:10px;fill:var(--ink2)">${stt}</text>`;
-  }
-  if(c.type==='cont'){
-    Object.keys(c.terms).forEach(k=>{const x=w*c.terms[k].f;s+=ln(x,32,x,h-22,L(k));});
-    s+=`<text class="lbl" x="${w-14}" y="17" text-anchor="end" style="font-size:10px;fill:var(--ink2)">DALLA RETE 230 V</text>`;
-    s+=`<rect x="${w*.58}" y="28" width="${w*.36}" height="40" rx="5" fill="#16231C" stroke="var(--comp-edge)"/><text id="kwh" x="${w*.76}" y="54" text-anchor="middle" style="font:500 15px 'IBM Plex Mono',monospace;fill:#8FE3AE">${kwhTxt()}</text><circle class="led ${POWER?'on blink':''}" cx="${w*.58+10}" cy="38" r="3"/>`;
-  }
-  if(c.type==='sw'){
-    const x=w/2;
-    s+=ln(x,22,x,52,L('a'))+ln(x,74,x,h-22,L('b'));
-    s+=dot(x,52)+dot(x,74);
-    s+=st?ln(x,52,x,74,L('a')&&L('b')):ln(x,52,x+16,66,false);
-  }
-  if(c.type==='dev'){
-    const g=c.flip?`transform="translate(0,${h}) scale(1,-1)"`:'';
-    const y2=h-22-(c.flip?0:0);
-    s+=`<g ${g}>`+ln(w/2,22,w/2,46,L('C'))+ln(w*.28,72,w*.28,y2,L('1'))+ln(w*.72,72,w*.72,y2,L('2'))+dot(w/2,46)+dot(w*.28,72)+dot(w*.72,72);
-    const tx=st?w*.72:w*.28,tl=L('C')&&L(st?'2':'1');
-    s+=ln(w/2,46,tx,72,tl)+`</g>`;
-  }
-  if(c.type==='inv'){
-    const a=w*.28,b=w*.72,y1=22,y2=h-22;
-    const straight=!st,t1=L('1'),t2=L('2');
-    s+=ln(a,y1,a,y2,straight&&t1,!straight)+ln(b,y1,b,y2,straight&&t2,!straight);
-    s+=ln(a,y1,b,y2,!straight&&t1,straight)+ln(b,y1,a,y2,!straight&&t2,straight);
-  }
-  if(c.type==='lamp'){
-    const cx=w/2,cy=58;
-    s+=ln(w*.25,22,w*.25,cy,L('B'))+ln(w*.25,cy,cx-16,cy,L('B'))+ln(w*.75,22,w*.75,cy,L('A'))+ln(w*.75,cy,cx+16,cy,L('A'));
-    s+=`<circle class="bulb${lit?' on':''}" cx="${cx}" cy="${cy}" r="16"/><path d="M${cx-9} ${cy-9} L${cx+9} ${cy+9} M${cx+9} ${cy-9} L${cx-9} ${cy+9}" stroke="${lit?'#7A4A00':'var(--sch)'}" stroke-width="2" fill="none"/>`;
-  }
-  if(c.type==='presa'){
-    const cx=w/2,hy=84;
-    s+=`<rect class="faceplate" x="${cx-44}" y="54" width="88" height="46" rx="6"/>`;
-    s+=ln(w*.2,22,cx-24,54,L('L'))+ln(w*.5,22,cx,54,L('PE'))+ln(w*.8,22,cx+24,54,L('N'));
-    [[-24],[0],[24]].forEach(([d],i)=>{s+=`<circle class="hole" cx="${cx+d}" cy="${hy}" r="${i===1?4:5}"/>`});
-    s+=`<text class="lbl" x="${cx}" y="${h-6}" text-anchor="middle" style="font-size:10px;fill:var(--ink2)">VISTA DA DIETRO</text>`;
-  }
-  return s;
-}
-function termSVG(c,id,cur){
-  const p=tpos(c,id),tid=c.id+'.'+id,t=c.terms[id];
-  const rot=((tid.charCodeAt(0)*37+tid.charCodeAt(tid.length-1)*17)%160)-20;
-  const m=MQ.matches,lx=p.x+(m?19:16);
-  return `<g class="term${SEL===tid?' sel':''}" data-term="${tid}" transform="translate(${p.x},${p.y})" role="button" tabindex="0" aria-label="Morsetto ${c.short} ${t.l}"><circle class="hit" r="${m?26:20}"/><circle class="halo" r="${m?18.5:15.5}"/><circle class="screw" r="${m?13:10.5}"/><line class="slot" x1="${MQ.matches?-8:-6}" y1="0" x2="${MQ.matches?8:6}" y2="0" transform="rotate(${rot})"/></g><text class="lbl" x="${lx}" y="${p.y+4.5}">${t.l}</text>`;
-}
-function renderBench(){
-  const lv=LV(),cur=CUR();
-  const live=id=>POWER&&cur.uf.f(id)===cur.F;
-  const lit=POWER&&cur.lit;
-  const H=Math.max(...lv.comps.map(c=>c.y+c.h))+22;
-  const b=$('#bench');b.setAttribute('viewBox',`10 -28 400 ${H+28}`);
-  let s=`<defs><pattern id="pegs" width="16" height="16" patternUnits="userSpaceOnUse"><circle cx="8" cy="8" r="1.4" fill="var(--dot)"/></pattern></defs><rect x="0" y="-28" width="420" height="${H+28}" fill="var(--bench)"/><rect x="0" y="-28" width="420" height="${H+28}" fill="url(#pegs)"/>`;
-  lv.comps.forEach(c=>{
-    s+=`<text class="ttl" x="${c.x+2}" y="${c.y-9}">${c.title}</text>`;
-    s+=`<g class="help" data-help="${c.type}" role="button" tabindex="0" aria-label="Che cos’è: ${c.title}"><circle cx="${c.x+c.w-12}" cy="${c.y-13}" r="19" fill="transparent" stroke="none"/><circle cx="${c.x+c.w-9}" cy="${c.y-13}" r="${MQ.matches?11:9}"/><text x="${c.x+c.w-9}" y="${c.y-8.5}" text-anchor="middle">?</text></g>`;
-    s+=`<rect class="body" x="${c.x}" y="${c.y}" width="${c.w}" height="${c.h}" rx="10"/>`;
-    s+=`<g transform="translate(${c.x},${c.y})"${c.type==='sw'||c.type==='dev'||c.type==='inv'?` class="togg" data-ctl="${c.id}" style="cursor:pointer"`:''}>${(c.type==='sw'||c.type==='dev'||c.type==='inv')?`<rect x="0" y="0" width="${c.w}" height="${c.h}" rx="10" fill="transparent"/>`:''}${schem(c,cur,live,lit)}</g>`;
-  });
-  if(GHOST)s+=lv.solution.map(([a,bb,col])=>{const q=COLORS[col];return `<path class="ghost" d="${wirePath(tp(a),tp(bb))}" stroke="${q.dash?q.base:q.base}"/>`}).join('');
-  W().forEach(w=>{
-    const d=wirePath(tp(w.a),tp(w.b)),q=COLORS[w.c];
-    const fl=POWER&&cur.uf.f(w.a)===cur.F?'f':POWER&&cur.uf.f(w.a)===cur.N?'n':'';
-    s+=`<g data-wire="${w.id}"><path class="w-hit" d="${d}"/><path class="w-edge" d="${d}"/><path class="w-col" d="${d}" stroke="${q.base}"/>${q.dash?`<path class="w-col dash" d="${d}" stroke="${q.dash}"/>`:''}${fl?`<path class="flow ${fl}" d="${d}"/>`:''}</g>`;
-  });
-  lv.comps.forEach(c=>{Object.keys(c.terms).forEach(id=>{s+=termSVG(c,id,cur)})});
-  s+=`<path id="prev" d=""/>`;
-  b.innerHTML=s;
-}
-function renderStatus(){
-  const cur=CUR(),lit=POWER&&cur.lit;
-  const q=POWER?['Quadro acceso','ok']:TRIP?['Quadro scattato','bad']:['Quadro spento',''];
-  $('#status').innerHTML=`<span class="pill ${q[1]}">${q[0]}</span><span class="pill${lit?' on':''}">${LV().room==='tavolo'?'Lampada':'Luce'} ${lit?'accesa':'spenta'}</span><span class="msg" aria-live="polite">${MSG}</span>`;
-  updateRoom(lit);
-}
-function renderResult(){
-  const el=$('#result'),r=RESULTS[KEY()];
-  if(!r){el.innerHTML=`<h3>Controllo del circuito</h3><p class="muted">Quando hai collegato i fili, premi <b>Verifica</b>. Ti diciamo se funziona, se i colori sono giusti e se l’impianto è sicuro.</p>`;return}
-  const row=(t,o)=>`<div class="row"><span class="mark ${o.ok?'ok':o.msgs[0]&&o.msgs[0].startsWith('Si controlla')?'na':'ko'}" aria-hidden="true">${o.ok?'✓':o.msgs[0]&&o.msgs[0].startsWith('Si controlla')?'–':'✕'}</span><div><b>${t}</b><ul>${o.msgs.map(m=>`<li>${m}</li>`).join('')}</ul></div></div>`;
-  const last=LI===LEVELS.length-1;
-  el.innerHTML=`<h3>${r.pass?'Livello superato':'Controllo del circuito'}</h3><div class="stars" aria-label="${r.stars} stelle su 3">${'★'.repeat(r.stars)}<span class="e">${'★'.repeat(3-r.stars)}</span></div>${row('Funziona',r.work)}${row('Colori dei fili',r.color)}${row('Sicurezza',r.safe)}${r.pass?(last?`<p class="next"><b>Hai completato tutti i livelli.</b></p>`:`<div class="next"><button class="btn primary" id="bNext" style="margin-left:0">Livello successivo</button></div>`):''}`;
-}
-function renderAll(){renderBench();renderStatus();renderResult()}
-function loadLevel(i){
-  LI=i;SEL=null;GHOST=false;HINT=-1;POWER=false;TRIP=false;MSG='';
-  const lv=LV();
-  $('#kick').textContent='Livello '+lv.n+' di '+LEVELS.length+(MODE==='contatore'?' \u00b7 dal contatore':'');
-  $('#lvName').textContent=lv.title;$('#lvGoal').textContent=lv.goal;
-  $('#bSol').textContent='Mostra soluzione';$('#bSol').setAttribute('aria-pressed','false');
-  buildRoom();setInfo('morsetto',null,false);renderLevels();renderAll();
-}
+  // src/ui2d/palette.js
+  var WIRE_STYLE = {
+    marrone: { base: "#8A5224" },
+    nero: { base: "#222222" },
+    grigio: { base: "#9AA3A0" },
+    blu: { base: "#3D9BE9" },
+    gv: { base: "#E4C400", dash: "#2E8B3D" }
+  };
 
-/* ---------- logica di gioco ---------- */
-function applyLive(){
-  const cur=CUR();
-  if(POWER&&cur.fault){
-    POWER=false;TRIP=true;
-    MSG=cur.fault==='corto'?'Il magnetotermico è scattato: la fase tocca il neutro (cortocircuito).':'È scattato il differenziale: la fase è finita sul filo di terra.';
+  // src/ui2d/render.js
+  function termPosOf(c2, id) {
+    const t = c2.terms[id];
+    return { x: c2.x + c2.w * t.f, y: t.s === "t" ? c2.y + 22 : c2.y + c2.h - 22, s: t.s };
   }
-}
-function wiresChanged(){
-  RESULTS[KEY()]=null;
-  if(POWER){POWER=false;MSG='Per sicurezza il quadro si è spento: non si toccano i fili con la corrente.';}
-  else if(TRIP){TRIP=false;MSG='';}
-  else MSG='';
-}
-function addWire(a,b){
-  if(!a||!b||a===b)return;
-  const ws=W();const k=ws.findIndex(w=>(w.a===a&&w.b===b)||(w.a===b&&w.b===a));
-  wiresChanged();
-  if(k>=0)ws.splice(k,1);else ws.push({id:WID++,a,b,c:COL});
-  buzz();renderAll();
-}
-function toggleBreaker(){
-  if(POWER){POWER=false;MSG='Quadro spento.';}
-  else{
-    POWER=true;TRIP=false;MSG='';
-    applyLive();
-    if(POWER)MSG=CUR().lit?'':'Il quadro è acceso ma la lampada resta spenta.';
+  function termPos(comps2, tid) {
+    const [cid, id] = tid.split(".");
+    return termPosOf(comps2.find((k) => k.id === cid), id);
   }
-  renderAll();
-}
-function toggleCtl(id){
-  const st=ST();st[id]=st[id]?0:1;MSG='';
-  applyLive();
-  if(POWER&&!CUR().lit&&!TRIP)MSG='';
-  renderAll();
-}
-function svgPt(e){
-  const b=$('#bench'),pt=b.createSVGPoint();pt.x=e.clientX;pt.y=e.clientY;
-  return pt.matrixTransform(b.getScreenCTM().inverse());
-}
-function clearSel(){
-  SEL=null;document.querySelectorAll('.term.sel').forEach(n=>n.classList.remove('sel'));
-  const p=$('#prev');if(p)p.setAttribute('d','');
-}
-let dragging=false,moved=false,downPt=null,reselect=false;
-const bench=$('#bench');
-function hidePrev(){const p=$('#prev');if(p)p.setAttribute('d','')}
-bench.addEventListener('pointerdown',e=>{
-  dragging=false;
-  const t=e.target.closest('[data-term]');
-  if(!t)return;
-  const id=t.dataset.term;
-  if(SEL&&SEL!==id){const a=SEL;clearSel();addWire(a,id);return}
-  reselect=(SEL===id);
-  clearSel();SEL=id;dragging=true;moved=false;downPt={x:e.clientX,y:e.clientY};
-  t.classList.add('sel');
-});
-window.addEventListener('pointermove',e=>{
-  if(!SEL)return;
-  if(dragging&&downPt&&Math.hypot(e.clientX-downPt.x,e.clientY-downPt.y)>10)moved=true;
-  if(e.pointerType!=='mouse'&&!dragging)return;
-  const p=$('#prev');if(!p)return;
-  const a=tp(SEL),q=svgPt(e);
-  p.setAttribute('d',`M${a.x} ${a.y} L${q.x} ${q.y}`);
-});
-window.addEventListener('pointerup',e=>{
-  if(!dragging)return;dragging=false;
-  const el=document.elementFromPoint(e.clientX,e.clientY);
-  const t=el&&el.closest?el.closest('[data-term]'):null;
-  if(SEL&&t&&t.dataset.term!==SEL){const a=SEL;clearSel();addWire(a,t.dataset.term);}
-  else if(SEL&&t&&t.dataset.term===SEL&&reselect&&!moved){clearSel();}
-  else hidePrev();
-});
-window.addEventListener('pointercancel',()=>{dragging=false;hidePrev()});
-bench.addEventListener('click',e=>{
-  const t=e.target.closest('[data-term]');
-  if(t)return;
-  const h=e.target.closest('[data-help]');if(h){setInfo(h.dataset.help);return}
-  const q=e.target.closest('[data-q]');if(q){clearSel();toggleBreaker();return}
-  const c=e.target.closest('[data-ctl]');if(c){clearSel();toggleCtl(c.dataset.ctl);return}
-  const w=e.target.closest('[data-wire]');if(w){clearSel();const id=+w.dataset.wire;const ws=W();const k=ws.findIndex(x=>x.id===id);if(k>=0){wiresChanged();ws.splice(k,1);renderAll();}return}
-  clearSel();
-});
-bench.addEventListener('keydown',e=>{
-  if(e.key!=='Enter'&&e.key!==' ')return;
-  const t=e.target.closest('[data-term]');
-  if(t){e.preventDefault();const id=t.dataset.term;if(SEL&&SEL!==id){const a=SEL;clearSel();addWire(a,id);}else{clearSel();SEL=id;t.classList.add('sel');}return}
-  const q=e.target.closest('[data-q]');if(q){e.preventDefault();toggleBreaker();return}
-  const h=e.target.closest('[data-help]');if(h){e.preventDefault();setInfo(h.dataset.help);}
-});
-$('#room').addEventListener('click',e=>{const c=e.target.closest('[data-ctl]');if(c)toggleCtl(c.dataset.ctl)});
-$('#room').addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){const c=e.target.closest('[data-ctl]');if(c){e.preventDefault();toggleCtl(c.dataset.ctl)}}});
-document.querySelector('.mode').addEventListener('click',e=>{
-  const b=e.target.closest('[data-mode]');if(!b||b.dataset.mode===MODE)return;
-  MODE=b.dataset.mode;document.querySelectorAll('.seg').forEach(x=>x.setAttribute('aria-pressed',String(x.dataset.mode===MODE)));
-  loadLevel(LI);renderResult();
-});
-setInterval(()=>{if(POWER&&CUR().lit){KWH+=0.1;const k=$('#kwh');if(k)k.textContent=kwhTxt();}},700);
-$('#info').addEventListener('click',e=>{if(e.target.closest('[data-x]'))$('#info').classList.remove('open')});
-if(window.ResizeObserver){new ResizeObserver(()=>{document.documentElement.style.setProperty('--roomH',Math.ceil($('.roomcard').getBoundingClientRect().height)+8+'px')}).observe($('.roomcard'))}
-const onMQ=()=>{setRoomVB();renderBench();if(!MQ.matches)$('#info').classList.add('open')};
-if(MQ.addEventListener)MQ.addEventListener('change',onMQ);
-$('#palette').addEventListener('click',e=>{const b=e.target.closest('[data-col]');if(b){COL=b.dataset.col;renderPalette()}});
-$('#levels').addEventListener('click',e=>{const b=e.target.closest('[data-lv]');if(b){loadLevel(+b.dataset.lv);renderResult()}});
-$('#bUndo').addEventListener('click',()=>{if(W().length){wiresChanged();W().pop();renderAll()}});
-$('#bClear').addEventListener('click',()=>{if(W().length){wiresChanged();WIRES[KEY()]=[];STATES[KEY()]={};renderAll()}});
-$('#bHint').addEventListener('click',setHint);
-$('#bSol').addEventListener('click',()=>{GHOST=!GHOST;$('#bSol').textContent=GHOST?'Nascondi soluzione':'Mostra soluzione';$('#bSol').setAttribute('aria-pressed',String(GHOST));renderBench()});
-$('#bCheck').addEventListener('click',()=>{
-  const r=evaluate(LV(),W());RESULTS[KEY()]=r;
-  const n=PK(LV().n);if((PROG[n]||0)<r.stars){PROG[n]=r.stars;saveProg();renderLevels();}
-  renderResult();
-  $('#result').scrollIntoView({behavior:'smooth',block:'nearest'});
-});
-$('#result').addEventListener('click',e=>{if(e.target.id==='bNext'){loadLevel(LI+1);renderResult();window.scrollTo({top:0,behavior:'smooth'})}});
+  function wirePath(p1, p2) {
+    if (p1.s === "b" && p2.s === "t" && p2.y - p1.y > 200) {
+      const yv = p2.y - 40;
+      return `M${p1.x} ${p1.y} L${p1.x} ${yv} C${p1.x} ${yv + 26} ${p2.x} ${p2.y - 40} ${p2.x} ${p2.y}`;
+    }
+    if (p2.s === "b" && p1.s === "t" && p1.y - p2.y > 200) return wirePath(p2, p1);
+    const s1 = p1.s === "t" ? -1 : 1, s2 = p2.s === "t" ? -1 : 1, d = Math.max(36, Math.abs(p2.y - p1.y) * 0.45);
+    return `M${p1.x} ${p1.y} C${p1.x} ${p1.y + s1 * d} ${p2.x} ${p2.y + s2 * d} ${p2.x} ${p2.y}`;
+  }
+  function levelsHTML(s) {
+    return s.levels.map((l) => `<button class="lv" data-lv="${l.index}" aria-current="${l.index === s.levelIndex}"><span>${l.n} \xB7 ${l.name}</span><small>${"\u2605".repeat(l.stars)}${"\u2606".repeat(3 - l.stars)}</small></button>`).join("");
+  }
+  function paletteHTML(col) {
+    return WIRE_COLORS.map((k) => {
+      const c2 = WIRE_STYLE[k];
+      const bg = c2.dash ? `repeating-linear-gradient(90deg,${c2.base} 0 6px,${c2.dash} 6px 12px)` : c2.base;
+      return `<button class="chip" data-col="${k}" aria-pressed="${k === col}"><span class="sw" style="background:${bg}"></span>${COLOR_NAMES[k]}</button>`;
+    }).join("");
+  }
+  function roomHTML(level, comps2) {
+    let s = "";
+    s += `<defs><radialGradient id="glow"><stop offset="0" stop-color="#FFE9A8" stop-opacity=".95"/><stop offset=".45" stop-color="#FFD25E" stop-opacity=".38"/><stop offset="1" stop-color="#FFD25E" stop-opacity="0"/></radialGradient></defs>`;
+    s += `<rect class="wall" x="0" y="0" width="400" height="196"/><rect class="floor" x="0" y="196" width="400" height="54"/><rect class="skirt" x="0" y="190" width="400" height="8"/>`;
+    let gx = 200, gy = 58;
+    if (level.room === "tavolo") {
+      gx = 135;
+      gy = 108;
+      s += `<rect x="52" y="172" width="170" height="10" rx="2" fill="var(--table)"/><rect x="62" y="182" width="8" height="52" fill="var(--table)"/><rect x="204" y="182" width="8" height="52" fill="var(--table)"/>`;
+    }
+    s += `<rect id="night" class="night" x="0" y="0" width="400" height="250" opacity=".66"/>`;
+    s += `<circle id="glow" class="glowc" cx="${gx}" cy="${gy}" r="${level.room === "tavolo" ? 150 : 190}" fill="url(#glow)" opacity="0"/>`;
+    if (level.room === "tavolo") {
+      s += `<path d="M135 170 C150 215 232 222 262 156" fill="none" stroke="var(--ink)" stroke-width="3" stroke-linecap="round" opacity=".8"/>`;
+      s += `<rect x="262" y="146" width="22" height="16" rx="3" fill="#222"/>`;
+      s += `<ellipse cx="135" cy="170" rx="22" ry="5" fill="var(--ink)" opacity=".8"/><rect x="132" y="116" width="6" height="54" fill="var(--ink)" opacity=".8"/>`;
+      s += `<circle id="bulb" class="bulb" cx="135" cy="108" r="10"/>`;
+      s += `<path class="shade" d="M112 78 H158 L170 116 H100 Z"/>`;
+      s += `<rect class="plate" x="284" y="124" width="56" height="52" rx="6"/>`;
+      [[300, 150], [312, 150], [324, 150]].forEach(([x, y], i) => {
+        s += `<circle class="hole" cx="${x}" cy="${y}" r="${i === 1 ? 3.2 : 3.8}"/>`;
+      });
+      s += `<text x="312" y="196" text-anchor="middle" style="font:500 12px 'Barlow',sans-serif;fill:#EAF0F8">Presa</text>`;
+    } else {
+      s += `<line x1="200" y1="0" x2="200" y2="40" stroke="var(--ink)" stroke-width="2.5" opacity=".7"/>`;
+      s += `<rect x="194" y="38" width="12" height="12" rx="2" fill="var(--ink)" opacity=".75"/>`;
+      s += `<circle id="bulb" class="bulb" cx="200" cy="62" r="13"/>`;
+      s += `<path class="shade" d="M168 52 Q200 12 232 52 Z"/>`;
+      comps2.filter((c2) => c2.plate).forEach((c2) => {
+        const p = c2.plate;
+        s += `<g class="pl" data-ctl="${c2.id}" role="button" tabindex="0" aria-label="${c2.short}, premi per cambiare"><rect x="${p.x - 24}" y="${p.y - 38}" width="48" height="${76 + 20}" fill="transparent"/><rect class="plate" x="${p.x - 20}" y="${p.y - 32}" width="40" height="64" rx="6"/><rect id="rt-${c2.id}" class="rk hi" x="${p.x - 13}" y="${p.y - 24}" width="26" height="24" rx="3"/><rect id="rb-${c2.id}" class="rk lo" x="${p.x - 13}" y="${p.y}" width="26" height="24" rx="3"/><rect x="${p.x - p.l.length * 3.6 - 7}" y="${p.y + 38}" width="${p.l.length * 7.2 + 14}" height="19" rx="9" fill="rgba(10,16,24,.62)"/><text x="${p.x}" y="${p.y + 52}" text-anchor="middle">${p.l}</text></g>`;
+      });
+    }
+    return s;
+  }
+  function roomViewBox(level, mobile) {
+    return mobile ? level.room === "tavolo" ? "0 76 400 108" : "0 0 400 108" : "0 0 400 250";
+  }
+  function updateRoom(root, s, comps2) {
+    const n = root.querySelector("#night"), g = root.querySelector("#glow"), b = root.querySelector("#bulb");
+    const lit = s.lit;
+    if (n) n.setAttribute("opacity", lit ? "0" : ".66");
+    if (g) g.setAttribute("opacity", lit ? "1" : "0");
+    if (b) b.setAttribute("class", "bulb" + (lit ? " on" : ""));
+    comps2.filter((c2) => c2.plate).forEach((c2) => {
+      const t = root.querySelector("#rt-" + c2.id), bt = root.querySelector("#rb-" + c2.id), st = s.controlStates[c2.id] ? 1 : 0;
+      if (t) t.setAttribute("class", "rk " + (st ? "hi" : "lo"));
+      if (bt) bt.setAttribute("class", "rk " + (st ? "lo" : "hi"));
+    });
+  }
+  var kwhText = (kwh) => kwh.toFixed(1).padStart(6, "0").replace(".", ",") + " kWh";
+  var ln = (x1, y1, x2, y2, live, off) => `<line class="cl${live ? " on" : ""}${off ? " off" : ""}" x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}"/>`;
+  var dot = (x, y) => `<circle class="ct" cx="${x}" cy="${y}" r="4"/>`;
+  function schem(c2, s, live, lit, ui2) {
+    const w = c2.w, h = c2.h, L = (t) => live(c2.id + "." + t), st = s.controlStates[c2.id] ? 1 : 0;
+    let o = "";
+    if (c2.type === "quadro") {
+      const bx = w * (c2.bx || 0.5), tr = s.power ? "on" : s.trip ? "trip" : "";
+      const ky = s.power ? 16 : s.trip ? 27 : 38;
+      const stt = s.power ? "ACCESO" : s.trip ? "SCATTATO" : "SPENTO";
+      if (c2.full) {
+        [["Fi", "F"], ["Ni", "N"], ["PEi", "PE"]].forEach(([i, k]) => {
+          if (c2.terms[i] && c2.terms[k]) {
+            const x = w * c2.terms[i].f;
+            o += ln(x, 22, x, h - 22, L(i));
+          }
+        });
+      }
+      o += `<g class="brk" data-q="1" role="button" tabindex="0" aria-label="Magnetotermico"><rect x="${bx - 34}" y="6" width="68" height="56" fill="transparent"/><rect class="hs" x="${bx - 26}" y="8" width="52" height="50" rx="5"/><rect class="slotr" x="${bx - 8}" y="13" width="16" height="40" rx="3"/><rect class="knob" x="${bx - 10}" y="${ky}" width="20" height="16" rx="3"/><circle class="led ${tr}" cx="${bx + 18}" cy="16" r="3.2"/></g>`;
+      if (c2.full) o += `<text class="lbl" x="${bx}" y="80" text-anchor="middle" style="font-size:10px;fill:var(--ink2)">${stt}</text><text class="lbl" x="${bx}" y="94" text-anchor="middle" style="font-size:10px;fill:var(--ink2)">MAGNETOTERMICO</text>`;
+      else o += `<text class="lbl" x="${bx - 60}" y="38" text-anchor="end" style="font-size:10px;fill:var(--ink2)">${stt}</text>`;
+    }
+    if (c2.type === "cont") {
+      Object.keys(c2.terms).forEach((k) => {
+        const x = w * c2.terms[k].f;
+        o += ln(x, 32, x, h - 22, L(k));
+      });
+      o += `<text class="lbl" x="${w - 14}" y="17" text-anchor="end" style="font-size:10px;fill:var(--ink2)">DALLA RETE 230 V</text>`;
+      o += `<rect x="${w * 0.58}" y="28" width="${w * 0.36}" height="40" rx="5" fill="#16231C" stroke="var(--comp-edge)"/><text id="kwh" x="${w * 0.76}" y="54" text-anchor="middle" style="font:500 15px 'IBM Plex Mono',monospace;fill:#8FE3AE">${kwhText(ui2.kwh)}</text><circle class="led ${s.power ? "on blink" : ""}" cx="${w * 0.58 + 10}" cy="38" r="3"/>`;
+    }
+    if (c2.type === "sw") {
+      const x = w / 2;
+      o += ln(x, 22, x, 52, L("a")) + ln(x, 74, x, h - 22, L("b"));
+      o += dot(x, 52) + dot(x, 74);
+      o += st ? ln(x, 52, x, 74, L("a") && L("b")) : ln(x, 52, x + 16, 66, false);
+    }
+    if (c2.type === "dev") {
+      const g = c2.flip ? `transform="translate(0,${h}) scale(1,-1)"` : "";
+      const y2 = h - 22;
+      o += `<g ${g}>` + ln(w / 2, 22, w / 2, 46, L("C")) + ln(w * 0.28, 72, w * 0.28, y2, L("1")) + ln(w * 0.72, 72, w * 0.72, y2, L("2")) + dot(w / 2, 46) + dot(w * 0.28, 72) + dot(w * 0.72, 72);
+      const tx = st ? w * 0.72 : w * 0.28, tl = L("C") && L(st ? "2" : "1");
+      o += ln(w / 2, 46, tx, 72, tl) + `</g>`;
+    }
+    if (c2.type === "inv") {
+      const a = w * 0.28, b = w * 0.72, y1 = 22, y2 = h - 22;
+      const straight = !st, t1 = L("1"), t2 = L("2");
+      o += ln(a, y1, a, y2, straight && t1, !straight) + ln(b, y1, b, y2, straight && t2, !straight);
+      o += ln(a, y1, b, y2, !straight && t1, straight) + ln(b, y1, a, y2, !straight && t2, straight);
+    }
+    if (c2.type === "lamp") {
+      const cx = w / 2, cy = 58;
+      o += ln(w * 0.25, 22, w * 0.25, cy, L("B")) + ln(w * 0.25, cy, cx - 16, cy, L("B")) + ln(w * 0.75, 22, w * 0.75, cy, L("A")) + ln(w * 0.75, cy, cx + 16, cy, L("A"));
+      o += `<circle class="bulb${lit ? " on" : ""}" cx="${cx}" cy="${cy}" r="16"/><path d="M${cx - 9} ${cy - 9} L${cx + 9} ${cy + 9} M${cx + 9} ${cy - 9} L${cx - 9} ${cy + 9}" stroke="${lit ? "#7A4A00" : "var(--sch)"}" stroke-width="2" fill="none"/>`;
+    }
+    if (c2.type === "presa") {
+      const cx = w / 2, hy = 84;
+      o += `<rect class="faceplate" x="${cx - 44}" y="54" width="88" height="46" rx="6"/>`;
+      o += ln(w * 0.2, 22, cx - 24, 54, L("L")) + ln(w * 0.5, 22, cx, 54, L("PE")) + ln(w * 0.8, 22, cx + 24, 54, L("N"));
+      [-24, 0, 24].forEach((d, i) => {
+        o += `<circle class="hole" cx="${cx + d}" cy="${hy}" r="${i === 1 ? 4 : 5}"/>`;
+      });
+      o += `<text class="lbl" x="${cx}" y="${h - 6}" text-anchor="middle" style="font-size:10px;fill:var(--ink2)">VISTA DA DIETRO</text>`;
+    }
+    return o;
+  }
+  function termSVG(c2, id, ui2) {
+    const p = termPosOf(c2, id), tid = c2.id + "." + id, t = c2.terms[id];
+    const rot = (tid.charCodeAt(0) * 37 + tid.charCodeAt(tid.length - 1) * 17) % 160 - 20;
+    const m = ui2.mobile, lx = p.x + (m ? 19 : 16);
+    return `<g class="term${ui2.sel === tid ? " sel" : ""}" data-term="${tid}" transform="translate(${p.x},${p.y})" role="button" tabindex="0" aria-label="Morsetto ${c2.short} ${t.l}"><circle class="hit" r="${m ? 26 : 20}"/><circle class="halo" r="${m ? 18.5 : 15.5}"/><circle class="screw" r="${m ? 13 : 10.5}"/><line class="slot" x1="${m ? -8 : -6}" y1="0" x2="${m ? 8 : 6}" y2="0" transform="rotate(${rot})"/></g><text class="lbl" x="${lx}" y="${p.y + 4.5}">${t.l}</text>`;
+  }
+  function benchViewBox(comps2) {
+    const H = Math.max(...comps2.map((c2) => c2.y + c2.h)) + 22;
+    return `10 -28 400 ${H + 28}`;
+  }
+  function benchHTML(s, comps2, ui2) {
+    const live = (id) => s.power && s.potential(id) === "F";
+    const H = Math.max(...comps2.map((c2) => c2.y + c2.h)) + 22;
+    let o = `<defs><pattern id="pegs" width="16" height="16" patternUnits="userSpaceOnUse"><circle cx="8" cy="8" r="1.4" fill="var(--dot)"/></pattern></defs><rect x="0" y="-28" width="420" height="${H + 28}" fill="var(--bench)"/><rect x="0" y="-28" width="420" height="${H + 28}" fill="url(#pegs)"/>`;
+    comps2.forEach((c2) => {
+      const toggles = c2.type === "sw" || c2.type === "dev" || c2.type === "inv";
+      o += `<text class="ttl" x="${c2.x + 2}" y="${c2.y - 9}">${c2.title}</text>`;
+      o += `<g class="help" data-help="${c2.type}" role="button" tabindex="0" aria-label="Che cos\u2019\xE8: ${c2.title}"><circle cx="${c2.x + c2.w - 12}" cy="${c2.y - 13}" r="19" fill="transparent" stroke="none"/><circle cx="${c2.x + c2.w - 9}" cy="${c2.y - 13}" r="${ui2.mobile ? 11 : 9}"/><text x="${c2.x + c2.w - 9}" y="${c2.y - 8.5}" text-anchor="middle">?</text></g>`;
+      o += `<rect class="body" x="${c2.x}" y="${c2.y}" width="${c2.w}" height="${c2.h}" rx="10"/>`;
+      o += `<g transform="translate(${c2.x},${c2.y})"${toggles ? ` class="togg" data-ctl="${c2.id}" style="cursor:pointer"` : ""}>${toggles ? `<rect x="0" y="0" width="${c2.w}" height="${c2.h}" rx="10" fill="transparent"/>` : ""}${schem(c2, s, live, s.lit, ui2)}</g>`;
+    });
+    if (s.solutionShown) {
+      o += s.level.solution.map(([a, b, col]) => `<path class="ghost" d="${wirePath(termPos(comps2, a), termPos(comps2, b))}" stroke="${WIRE_STYLE[col].base}"/>`).join("");
+    }
+    s.wires.forEach((w) => {
+      const d = wirePath(termPos(comps2, w.a), termPos(comps2, w.b)), q = WIRE_STYLE[w.c];
+      const pot = s.potential(w.a);
+      const fl = s.power && pot === "F" ? "f" : s.power && pot === "N" ? "n" : "";
+      o += `<g data-wire="${w.id}"><path class="w-hit" d="${d}"/><path class="w-edge" d="${d}"/><path class="w-col" d="${d}" stroke="${q.base}"/>${q.dash ? `<path class="w-col dash" d="${d}" stroke="${q.dash}"/>` : ""}${fl ? `<path class="flow ${fl}" d="${d}"/>` : ""}</g>`;
+    });
+    comps2.forEach((c2) => {
+      Object.keys(c2.terms).forEach((id) => {
+        o += termSVG(c2, id, ui2);
+      });
+    });
+    o += `<path id="prev" d=""/>`;
+    return o;
+  }
+  function statusHTML(s) {
+    const q = s.power ? ["Quadro acceso", "ok"] : s.trip ? ["Quadro scattato", "bad"] : ["Quadro spento", ""];
+    return `<span class="pill ${q[1]}">${q[0]}</span><span class="pill${s.lit ? " on" : ""}">${s.level.room === "tavolo" ? "Lampada" : "Luce"} ${s.lit ? "accesa" : "spenta"}</span><span class="msg" aria-live="polite">${sessionMessage(s.message)}</span>`;
+  }
+  var MARK = { ok: "\u2713", na: "\u2013", ko: "\u2715" };
+  function resultHTML(s) {
+    if (!s.result) {
+      return `<h3>Controllo del circuito</h3><p class="muted">Quando hai collegato i fili, premi <b>Verifica</b>. Ti diciamo se funziona, se i colori sono giusti e se l\u2019impianto \xE8 sicuro.</p>`;
+    }
+    const r = describeEvaluation(s.result, s.level);
+    const row = (t, o) => `<div class="row"><span class="mark ${o.status}" aria-hidden="true">${MARK[o.status]}</span><div><b>${t}</b><ul>${o.msgs.map((m) => `<li>${m}</li>`).join("")}</ul></div></div>`;
+    const last = s.levelIndex === s.levelCount - 1;
+    return `<h3>${r.pass ? "Livello superato" : "Controllo del circuito"}</h3><div class="stars" aria-label="${r.stars} stelle su 3">${"\u2605".repeat(r.stars)}<span class="e">${"\u2605".repeat(3 - r.stars)}</span></div>${row("Funziona", r.work)}${row("Colori dei fili", r.color)}${row("Sicurezza", r.safe)}${r.pass ? last ? `<p class="next"><b>Hai completato tutti i livelli.</b></p>` : `<div class="next"><button class="btn primary" id="bNext" style="margin-left:0">Livello successivo</button></div>` : ""}`;
+  }
 
-renderPalette();loadLevel(0);renderResult();
+  // src/ui2d/app.js
+  var $ = (s) => document.querySelector(s);
+  var MQ = window.matchMedia("(max-width:919px)");
+  var buzz = () => {
+    try {
+      navigator.vibrate && navigator.vibrate(12);
+    } catch (e) {
+    }
+  };
+  var STORAGE_KEY = "lab-elettrico-1";
+  var storage = {
+    load() {
+      try {
+        return JSON.parse(localStorage.getItem(STORAGE_KEY) || "{}") || {};
+      } catch (e) {
+        return {};
+      }
+    },
+    save(o) {
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(o));
+      } catch (e) {
+      }
+    }
+  };
+  var session = createSession({ levels, deriveFull, storage });
+  var S = null;
+  var comps = [];
+  var lastKey = null;
+  var rebuild = false;
+  var COL = "marrone";
+  var SEL = null;
+  var KWH = 42.7;
+  var ui = () => ({ mobile: MQ.matches, sel: SEL, kwh: KWH });
+  function renderPalette() {
+    $("#palette").innerHTML = paletteHTML(COL);
+  }
+  function setRoomVB() {
+    $("#room").setAttribute("viewBox", roomViewBox(S.level, MQ.matches));
+  }
+  function renderBench() {
+    const b = $("#bench");
+    b.setAttribute("viewBox", benchViewBox(comps));
+    b.innerHTML = benchHTML(S, comps, ui());
+  }
+  function renderStatus() {
+    $("#status").innerHTML = statusHTML(S);
+    updateRoom($("#room"), S, comps);
+  }
+  function renderResult() {
+    $("#result").innerHTML = resultHTML(S);
+  }
+  function setInfo(key, extra, open) {
+    const h = HELP[key];
+    $("#info").innerHTML = `<button class="x" data-x="1" aria-label="Chiudi">Chiudi</button><h3>${h[0]}</h3><p>${h[1]}</p>${extra ? `<p style="margin-top:8px"><b>Suggerimento:</b> ${extra}</p>` : ""}`;
+    $("#info").classList.toggle("open", open !== false);
+  }
+  function showHint() {
+    const h = session.requestHint();
+    $("#info").innerHTML = `<button class="x" data-x="1" aria-label="Chiudi">Chiudi</button><h3>Suggerimento ${h.index + 1} di ${h.total}</h3><p>${h.text}</p>`;
+    $("#info").classList.add("open");
+  }
+  function onLevelChange() {
+    comps = composeComps(S.level);
+    SEL = null;
+    $("#kick").textContent = "Livello " + S.level.n + " di " + S.levelCount + (S.mode === "contatore" ? " \xB7 dal contatore" : "");
+    $("#lvName").textContent = S.level.title;
+    $("#lvGoal").textContent = S.level.goal;
+    $("#room").innerHTML = roomHTML(S.level, comps);
+    setRoomVB();
+    setInfo("morsetto", null, false);
+  }
+  session.subscribe((s) => {
+    S = s;
+    if (s.levelKey !== lastKey || rebuild) {
+      lastKey = s.levelKey;
+      rebuild = false;
+      onLevelChange();
+    }
+    $("#bSol").textContent = s.solutionShown ? "Nascondi soluzione" : "Mostra soluzione";
+    $("#bSol").setAttribute("aria-pressed", String(s.solutionShown));
+    $("#levels").innerHTML = levelsHTML(s);
+    renderBench();
+    renderStatus();
+    renderResult();
+  });
+  function svgPt(e) {
+    const b = $("#bench"), pt = b.createSVGPoint();
+    pt.x = e.clientX;
+    pt.y = e.clientY;
+    return pt.matrixTransform(b.getScreenCTM().inverse());
+  }
+  function clearSel() {
+    SEL = null;
+    document.querySelectorAll(".term.sel").forEach((n) => n.classList.remove("sel"));
+    const p = $("#prev");
+    if (p) p.setAttribute("d", "");
+  }
+  function addWire(a, b) {
+    if (!a || !b || a === b) return;
+    session.addWire(a, b, COL);
+    buzz();
+  }
+  var dragging = false;
+  var moved = false;
+  var downPt = null;
+  var reselect = false;
+  var bench = $("#bench");
+  function hidePrev() {
+    const p = $("#prev");
+    if (p) p.setAttribute("d", "");
+  }
+  bench.addEventListener("pointerdown", (e) => {
+    dragging = false;
+    const t = e.target.closest("[data-term]");
+    if (!t) return;
+    const id = t.dataset.term;
+    if (SEL && SEL !== id) {
+      const a = SEL;
+      clearSel();
+      addWire(a, id);
+      return;
+    }
+    reselect = SEL === id;
+    clearSel();
+    SEL = id;
+    dragging = true;
+    moved = false;
+    downPt = { x: e.clientX, y: e.clientY };
+    t.classList.add("sel");
+  });
+  window.addEventListener("pointermove", (e) => {
+    if (!SEL) return;
+    if (dragging && downPt && Math.hypot(e.clientX - downPt.x, e.clientY - downPt.y) > 10) moved = true;
+    if (e.pointerType !== "mouse" && !dragging) return;
+    const p = $("#prev");
+    if (!p) return;
+    const a = termPos(comps, SEL), q = svgPt(e);
+    p.setAttribute("d", `M${a.x} ${a.y} L${q.x} ${q.y}`);
+  });
+  window.addEventListener("pointerup", (e) => {
+    if (!dragging) return;
+    dragging = false;
+    const el = document.elementFromPoint(e.clientX, e.clientY);
+    const t = el && el.closest ? el.closest("[data-term]") : null;
+    if (SEL && t && t.dataset.term !== SEL) {
+      const a = SEL;
+      clearSel();
+      addWire(a, t.dataset.term);
+    } else if (SEL && t && t.dataset.term === SEL && reselect && !moved) {
+      clearSel();
+    } else hidePrev();
+  });
+  window.addEventListener("pointercancel", () => {
+    dragging = false;
+    hidePrev();
+  });
+  bench.addEventListener("click", (e) => {
+    const t = e.target.closest("[data-term]");
+    if (t) return;
+    const h = e.target.closest("[data-help]");
+    if (h) {
+      setInfo(h.dataset.help);
+      return;
+    }
+    const q = e.target.closest("[data-q]");
+    if (q) {
+      clearSel();
+      session.toggleBreaker();
+      return;
+    }
+    const c2 = e.target.closest("[data-ctl]");
+    if (c2) {
+      clearSel();
+      session.toggleControl(c2.dataset.ctl);
+      return;
+    }
+    const w = e.target.closest("[data-wire]");
+    if (w) {
+      clearSel();
+      session.removeWire(+w.dataset.wire);
+      return;
+    }
+    clearSel();
+  });
+  bench.addEventListener("keydown", (e) => {
+    if (e.key !== "Enter" && e.key !== " ") return;
+    const t = e.target.closest("[data-term]");
+    if (t) {
+      e.preventDefault();
+      const id = t.dataset.term;
+      if (SEL && SEL !== id) {
+        const a = SEL;
+        clearSel();
+        addWire(a, id);
+      } else {
+        clearSel();
+        SEL = id;
+        t.classList.add("sel");
+      }
+      return;
+    }
+    const q = e.target.closest("[data-q]");
+    if (q) {
+      e.preventDefault();
+      session.toggleBreaker();
+      return;
+    }
+    const h = e.target.closest("[data-help]");
+    if (h) {
+      e.preventDefault();
+      setInfo(h.dataset.help);
+    }
+  });
+  $("#room").addEventListener("click", (e) => {
+    const c2 = e.target.closest("[data-ctl]");
+    if (c2) session.toggleControl(c2.dataset.ctl);
+  });
+  $("#room").addEventListener("keydown", (e) => {
+    if (e.key === "Enter" || e.key === " ") {
+      const c2 = e.target.closest("[data-ctl]");
+      if (c2) {
+        e.preventDefault();
+        session.toggleControl(c2.dataset.ctl);
+      }
+    }
+  });
+  document.querySelector(".mode").addEventListener("click", (e) => {
+    const b = e.target.closest("[data-mode]");
+    if (!b || b.dataset.mode === S.mode) return;
+    document.querySelectorAll(".seg").forEach((x) => x.setAttribute("aria-pressed", String(x.dataset.mode === b.dataset.mode)));
+    session.setMode(b.dataset.mode);
+  });
+  setInterval(() => {
+    if (S && S.lit) {
+      KWH += 0.1;
+      const k = $("#kwh");
+      if (k) k.textContent = kwhText(KWH);
+    }
+  }, 700);
+  $("#info").addEventListener("click", (e) => {
+    if (e.target.closest("[data-x]")) $("#info").classList.remove("open");
+  });
+  if (window.ResizeObserver) {
+    new ResizeObserver(() => {
+      document.documentElement.style.setProperty("--roomH", Math.ceil($(".roomcard").getBoundingClientRect().height) + 8 + "px");
+    }).observe($(".roomcard"));
+  }
+  var onMQ = () => {
+    setRoomVB();
+    renderBench();
+    if (!MQ.matches) $("#info").classList.add("open");
+  };
+  if (MQ.addEventListener) MQ.addEventListener("change", onMQ);
+  $("#palette").addEventListener("click", (e) => {
+    const b = e.target.closest("[data-col]");
+    if (b) {
+      COL = b.dataset.col;
+      renderPalette();
+    }
+  });
+  $("#levels").addEventListener("click", (e) => {
+    const b = e.target.closest("[data-lv]");
+    if (b) {
+      rebuild = true;
+      session.selectLevel(+b.dataset.lv);
+    }
+  });
+  $("#bUndo").addEventListener("click", () => session.undo());
+  $("#bClear").addEventListener("click", () => session.clear());
+  $("#bHint").addEventListener("click", showHint);
+  $("#bSol").addEventListener("click", () => session.toggleSolution());
+  $("#bCheck").addEventListener("click", () => {
+    session.check();
+    $("#result").scrollIntoView({ behavior: "smooth", block: "nearest" });
+  });
+  $("#result").addEventListener("click", (e) => {
+    if (e.target.id === "bNext") {
+      rebuild = true;
+      session.nextLevel();
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+  });
+  renderPalette();
+  session.start();
+})();
 </script>
-
-</body></html>
+</body>
+</html>
