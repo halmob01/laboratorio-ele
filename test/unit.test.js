@@ -217,3 +217,25 @@ test('previsione a posteriori non da\' bonus e la lezione non si apre in modalit
   s.showLesson();
   assert.notEqual(s.snapshot().unit && s.snapshot().unit.phase, 'lesson');
 });
+
+test('sfida guasto: dopo una diagnosi sbagliata si puo\' riprovare', () => {
+  const s = make();
+  lesson(s);
+  L.solution.forEach(([a, b, c]) => s.addWire(a, b, c));
+  s.check();
+  s.startFault();
+  const f = L.unit.fault.diagnosis;
+  const wrong = f.options.find(o => o.id !== f.correct).id;
+  s.answerDiagnosis(wrong);
+  assert.equal(s.snapshot().unit.diag.correct, false);
+  s.answerDiagnosis(f.correct);
+  assert.equal(s.snapshot().unit.diag.correct, true);
+});
+
+test('con un cortocircuito i passi di cablaggio non risultano fatti', () => {
+  const s = make();
+  lesson(s);
+  L.solution.forEach(([a, b, c]) => s.addWire(a, b, c));
+  s.addWire('Q.F', 'Q.N', 'marrone');
+  assert.ok(s.snapshot().steps.done.every(d => d === false));
+});

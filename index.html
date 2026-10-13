@@ -923,7 +923,7 @@ a.tool{display:flex;align-items:center;justify-content:center;text-decoration:no
     let ok = true;
     const done = steps.map((st) => {
       let d;
-      if (st.kind === "wire") d = wireDone(st, wires);
+      if (st.kind === "wire") d = !ctx.fault && wireDone(st, wires);
       else if (st.kind === "power") d = !!ctx.power;
       else if (st.kind === "control") d = operated.has(st.id);
       else if (st.kind === "verify") d = !!(ctx.result && ctx.result.pass);
@@ -1090,7 +1090,7 @@ a.tool{display:flex;align-items:center;justify-content:center;text-decoration:no
     function stepsPart(level, phase) {
       const u = level.unit;
       if (!u || !u.steps || playMode !== "apprendimento" || phase === "lesson") return { steps: null, ghost: null };
-      const st = stepsState(u.steps, wires(), { power, operated: operated(), result: resultsByKey[keyOf()] || null });
+      const st = stepsState(u.steps, wires(), { power, operated: operated(), result: resultsByKey[keyOf()] || null, fault: !!analyse(level, wires(), states()).fault });
       const cur = st.current === null ? null : u.steps[st.current];
       const ghost = phase === "build" && u.support === "guidato" && cur ? ghostFor(cur, wires()) : null;
       return { steps: { list: u.steps, done: st.done, current: st.current }, ghost };
@@ -1427,7 +1427,7 @@ a.tool{display:flex;align-items:center;justify-content:center;text-decoration:no
       answerDiagnosis(optionId) {
         const level = levelAt();
         const us = level.unit && level.unit.fault && unitState();
-        if (!us || us.phase !== "fault" || us.diag) return;
+        if (!us || us.phase !== "fault" || us.diag && us.diag.correct) return;
         us.diag = { option: optionId, correct: level.unit.fault.diagnosis.correct === optionId };
         if (!us.diag.correct) us.diagWrong = true;
         emit();
@@ -2680,7 +2680,7 @@ a.tool{display:flex;align-items:center;justify-content:center;text-decoration:no
     return level.room === "tavolo" ? "0 50 400 190" : "0 0 400 190";
   }
   function roomStaticHTML(level, comps2, lit) {
-    let h = roomHTML(level, comps2).replace(/id="glow"/g, 'id="sglow"').replace(/url\(#glow\)/g, "url(#sglow)").replace(/id="night"/g, 'id="snight"').replace(/id="bulb(\d?)"/g, 'id="sbulb$1"');
+    let h = roomHTML(level, comps2).replace(/id="glow"/g, 'id="sglow"').replace(/url\(#glow\)/g, "url(#sglow)").replace(/ tabindex="0"/g, "").replace(/id="night"/g, 'id="snight"').replace(/id="bulb(\d?)"/g, 'id="sbulb$1"');
     if (lit) {
       h = h.replace('class="night" x="0" y="0" width="400" height="250" opacity=".66"', 'class="night" x="0" y="0" width="400" height="250" opacity="0"').replace(/(class="glowc"[^>]*?)opacity="0"/, '$1opacity="1"').replace(/class="bulb"/g, 'class="bulb on"');
     }
@@ -3157,9 +3157,9 @@ a.tool{display:flex;align-items:center;justify-content:center;text-decoration:no
       </div>
     </div>`;
   }
-  var optButtons = (opts, chosen, correctId, action) => `<div class="opts">${opts.map((o) => {
+  var optButtons = (opts, chosen, correctId, action, retry = false) => `<div class="opts">${opts.map((o) => {
     const cls = chosen ? o.id === correctId ? "right" : o.id === chosen.option ? "wrong" : "" : "";
-    return `<button class="opt ${cls}" data-${action}="${o.id}" ${chosen ? "disabled" : ""}>${esc(o.text)}</button>`;
+    return `<button class="opt ${cls}" data-${action}="${o.id}" ${chosen && !(retry && !chosen.correct && o.id !== chosen.option) ? "disabled" : ""}>${esc(o.text)}</button>`;
   }).join("")}</div>`;
   var KIND = { spiegazione: "Spiegazione", pezzi: "I pezzi", demo: "Guarda come si fa", previsione: "Previsione", sintesi: "In sintesi" };
   function lessonHTML(s, extra = {}) {
@@ -3189,7 +3189,7 @@ a.tool{display:flex;align-items:center;justify-content:center;text-decoration:no
     const blocked = pg.type === "previsione" && !u.pred;
     return `<div class="lhead"><div class="kick">Lezione \xB7 ${u.page + 1} di ${u.pages} \xB7 ${KIND[pg.type]}</div><button class="link" data-unit="skip">Salta la lezione</button></div>
     <div class="prog" aria-hidden="true">${Array.from({ length: u.pages }, (_, k) => `<b class="${k <= u.page ? "on" : ""}"></b>`).join("")}</div>
-    <h2>${esc(pg.title || "")}</h2>${body}
+    <h2 tabindex="-1">${esc(pg.title || "")}</h2>${body}
     <div class="uact">${u.page > 0 ? '<button class="btn" data-unit="back">Indietro</button>' : ""}<button class="btn primary grow" data-unit="next" ${blocked ? "disabled" : ""}>${last ? "Ora tocca a te" : "Avanti"}</button></div>`;
   }
   function summaryHTML(s) {
@@ -3209,8 +3209,8 @@ a.tool{display:flex;align-items:center;justify-content:center;text-decoration:no
     if (ph === "fault") {
       const f = u.fault, d = s.unit.diag;
       return `<div class="kick">Sfida guasto</div><h2>${esc(f.diagnosis.question)}</h2><p>${esc(f.say)}</p>
-      ${optButtons(f.diagnosis.options, d, f.diagnosis.correct, "diag")}
-      ${d ? `<p class="fb ${d.correct ? "ok" : "ko"}"><b>${d.correct ? "Giusto." : "Non proprio."}</b> ${d.correct ? esc(f.diagnosis.why) + " " + esc(f.fixSay) : "Osserva i fili: gli aloni mostrano dove arriva la tensione."}</p>` : ""}
+      ${optButtons(f.diagnosis.options, d, f.diagnosis.correct, "diag", true)}
+      ${d ? `<p class="fb ${d.correct ? "ok" : "ko"}"><b>${d.correct ? "Giusto." : "Non proprio."}</b> ${d.correct ? esc(f.diagnosis.why) + " " + esc(f.fixSay) : "Osserva i fili: gli aloni mostrano dove arriva la tensione. Puoi riprovare."}</p>` : ""}
       <div class="uact"><button class="btn" data-unit="leaveFault">Esci dalla sfida</button></div>`;
     }
     if (ph === "done") {
@@ -3961,6 +3961,10 @@ a.tool{display:flex;align-items:center;justify-content:center;text-decoration:no
       else if (a === "skip") session.skipLesson();
       else if (a === "lesson") session.showLesson();
       else if (a === "leaveFault") session.leaveFault();
+      if (a === "next" || a === "back") {
+        const h = document.querySelector("#lesson h2");
+        if (h) h.focus({ preventScroll: true });
+      }
       return;
     }
     const act = e.target.closest("[data-act]");

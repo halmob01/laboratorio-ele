@@ -87,7 +87,7 @@ export function roomViewBox(level) {
 export function roomStaticHTML(level, comps, lit) {
   let h = roomHTML(level, comps)
     .replace(/id="glow"/g, 'id="sglow"').replace(/url\(#glow\)/g, 'url(#sglow)')
-    .replace(/id="night"/g, 'id="snight"').replace(/id="bulb(\d?)"/g, 'id="sbulb$1"');
+    .replace(/ tabindex="0"/g, '').replace(/id="night"/g, 'id="snight"').replace(/id="bulb(\d?)"/g, 'id="sbulb$1"');
   if (lit) {
     h = h.replace('class="night" x="0" y="0" width="400" height="250" opacity=".66"', 'class="night" x="0" y="0" width="400" height="250" opacity="0"')
       .replace(/(class="glowc"[^>]*?)opacity="0"/, '$1opacity="1"')

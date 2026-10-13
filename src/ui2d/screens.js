@@ -172,10 +172,10 @@ export function introHTML(i) {
 }
 
 /* ---------- scheda dell'unità nel livello ---------- */
-const optButtons = (opts, chosen, correctId, action) =>
+const optButtons = (opts, chosen, correctId, action, retry = false) =>
   `<div class="opts">${opts.map(o => {
     const cls = chosen ? (o.id === correctId ? 'right' : o.id === chosen.option ? 'wrong' : '') : '';
-    return `<button class="opt ${cls}" data-${action}="${o.id}" ${chosen ? 'disabled' : ''}>${esc(o.text)}</button>`;
+    return `<button class="opt ${cls}" data-${action}="${o.id}" ${chosen && !(retry && !chosen.correct && o.id !== chosen.option) ? 'disabled' : ''}>${esc(o.text)}</button>`;
   }).join('')}</div>`;
 
 const KIND = { spiegazione: 'Spiegazione', pezzi: 'I pezzi', demo: 'Guarda come si fa', previsione: 'Previsione', sintesi: 'In sintesi' };
@@ -209,7 +209,7 @@ export function lessonHTML(s, extra = {}) {
   const blocked = pg.type === 'previsione' && !u.pred;
   return `<div class="lhead"><div class="kick">Lezione · ${u.page + 1} di ${u.pages} · ${KIND[pg.type]}</div><button class="link" data-unit="skip">Salta la lezione</button></div>
     <div class="prog" aria-hidden="true">${Array.from({ length: u.pages }, (_, k) => `<b class="${k <= u.page ? 'on' : ''}"></b>`).join('')}</div>
-    <h2>${esc(pg.title || '')}</h2>${body}
+    <h2 tabindex="-1">${esc(pg.title || '')}</h2>${body}
     <div class="uact">${u.page > 0 ? '<button class="btn" data-unit="back">Indietro</button>' : ''}<button class="btn primary grow" data-unit="next" ${blocked ? 'disabled' : ''}>${last ? 'Ora tocca a te' : 'Avanti'}</button></div>`;
 }
 
@@ -234,8 +234,8 @@ export function unitHTML(s) {
   if (ph === 'fault') {
     const f = u.fault, d = s.unit.diag;
     return `<div class="kick">Sfida guasto</div><h2>${esc(f.diagnosis.question)}</h2><p>${esc(f.say)}</p>
-      ${optButtons(f.diagnosis.options, d, f.diagnosis.correct, 'diag')}
-      ${d ? `<p class="fb ${d.correct ? 'ok' : 'ko'}"><b>${d.correct ? 'Giusto.' : 'Non proprio.'}</b> ${d.correct ? esc(f.diagnosis.why) + ' ' + esc(f.fixSay) : 'Osserva i fili: gli aloni mostrano dove arriva la tensione.'}</p>` : ''}
+      ${optButtons(f.diagnosis.options, d, f.diagnosis.correct, 'diag', true)}
+      ${d ? `<p class="fb ${d.correct ? 'ok' : 'ko'}"><b>${d.correct ? 'Giusto.' : 'Non proprio.'}</b> ${d.correct ? esc(f.diagnosis.why) + ' ' + esc(f.fixSay) : 'Osserva i fili: gli aloni mostrano dove arriva la tensione. Puoi riprovare.'}</p>` : ''}
       <div class="uact"><button class="btn" data-unit="leaveFault">Esci dalla sfida</button></div>`;
   }
   if (ph === 'done') {
