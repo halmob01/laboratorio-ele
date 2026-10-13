@@ -1,4 +1,4 @@
-# Piano di lavoro del Laboratorio elettrico
+# Piano di lavoro di Fase e Neutro (Laboratorio elettrico)
 
 Riepilogo di ciò che è stato scelto, delle fasi da fare e di chi fa e chi rivede ogni compito. Il dettaglio didattico sta in `docs/SYLLABUS.md`.
 
@@ -17,6 +17,8 @@ Riepilogo di ciò che è stato scelto, delle fasi da fare e di chi fa e chi rive
 - Ogni livello è un'unità: lezione breve con disegno animato, previsione, esempio guidato, esercizio, verifica con spiegazione del perché, sfida guasto.
 - Prologo animato in più scene all'ingresso di ogni milestone, come in sito-feudo.
 - Due modalità: apprendimento (aiuti) e verifica (nessun aiuto, esito registrato). Le prove di milestone sono sempre in verifica.
+
+**Nome.** Fase e Neutro.
 
 **Homepage e salto.** Prima schermata con intestazione, pulsante Continua, mappa dei livelli e delle milestone, strumenti. Nessun livello bloccato; "Già lo so" apre il livello in verifica come prova di salto; i livelli saltati non danno XP. Dettagli in SYLLABUS sezione 12.
 
@@ -148,9 +150,8 @@ Bonus (per esempio stella-triangolo), accessibilità e prestazioni, eventuale ve
 
 ## 5. Ancora aperto
 
-- Asset 3D: solo forme semplici, o anche modelli liberi?
-- Dove si ospita la versione per gli allievi: come sito-feudo, su GitHub Pages?
+- Pubblicazione su GitHub Pages: serve prima il merge su `main` e l'attivazione di Pages sul repository.
 - Schema multifilare: disposizione dei componenti uguale a quella del banco (consigliato) o libera?
 - Controllo dei punteggi sul foglio: in B3 o dopo?
-- Salto dei livelli: nessun blocco, prova di salto in verifica, XP zero ai livelli non giocati (proposta da confermare).
+- Presa: tutti i livelli aperti, prova di salto in verifica, XP zero ai livelli non giocati. Asset 3D: forme semplici più modelli liberi dove migliorano la resa, licenza annotata.
 - Numeri degli XP e soglie dei gradi: si tarano dopo la prima prova in classe.

@@ -1,5 +1,7 @@
 # Syllabus del Laboratorio elettrico
 
+Nome del gioco: **Fase e Neutro**. Moodboard della homepage (palette, caratteri, linguaggio dei fili, bozze per telefono e computer) nel canvas di progetto; si ricostruisce da questa sezione 12.
+
 Bozza 1. Questo documento fissa la struttura del gioco; i dettagli di ogni livello si scrivono uno alla volta, in ordine di build.
 
 | Sezione | Stato |
@@ -14,7 +16,7 @@ Bozza 1. Questo documento fissa la struttura del gioco; i dettagli di ogni livel
 | 8. XP, gradi e classifica | proposta da calibrare |
 | 9. Raccolta dati | proposta, da condividere con il referente privacy |
 | 10. Build | definita |
-| 11. Decisioni | quattro prese, il resto aperto |
+| 11. Decisioni | otto prese, il resto aperto |
 | 12. Homepage, salto dei livelli, impaginazione | proposta da confermare |
 
 ## 1. Idea del gioco
@@ -292,17 +294,16 @@ Per ogni build: i test del motore e del layout restano verdi, la pagina costruit
 3. Obiettivi e valori di dimensionamento: li ho scelti io come punto di partenza; il collega di laboratorio può proporre modifiche.
 4. Nessun codice classe: classifica unica, azzerata dal docente tra un gruppo e l'altro.
 
-**Proposte da confermare (sezione 12)**
-
-- Tutti i livelli aperti, nessun blocco; salto con prova di salto in modalità verifica; i livelli saltati non danno XP.
+5. Nome del gioco: Fase e Neutro.
+6. Tutti i livelli aperti, nessun blocco; salto con prova di salto in modalità verifica; i livelli saltati non danno XP (sezione 12).
+7. Asset 3D: forme semplici di base, più modelli liberi dove migliorano la resa, con licenza verificata e annotata uno per uno.
+8. Ospitalità: GitHub Pages.
 
 **Aperte**
 
-5. Controllo dei punteggi sul foglio: in B3 o dopo?
-6. XP e gradi: i numeri della sezione 8 si tarano dopo la prima prova in classe.
-7. Asset 3D: solo forme semplici, o anche modelli liberi?
-8. Dove si ospita la versione per gli allievi: come sito-feudo, su GitHub Pages?
-9. Schema multifilare: la disposizione dei componenti ricalca quella del banco (consigliato, più facile da collegare) o è libera?
+9. Controllo dei punteggi sul foglio: in B3 o dopo?
+10. XP e gradi: i numeri della sezione 8 si tarano dopo la prima prova in classe.
+11. Schema multifilare: la disposizione dei componenti ricalca quella del banco (consigliato, più facile da collegare) o è libera?
 
 ## 12. Homepage, salto dei livelli, impaginazione
 
@@ -345,3 +346,11 @@ Prima schermata, senza obbligo di nome per guardarsi intorno.
 - Il filo si collega con tocco sul primo e sul secondo morsetto, oltre al trascinamento (già previsto nel codice attuale, da rivedere con il dito).
 - Prove su telefono reale a ogni build, in verticale e in orizzontale.
 - Il file resta unico, senza dipendenze di rete a parte i caratteri; si valuta di includere i caratteri nel file per l'uso offline in aula.
+
+### 12.4 Aspetto (moodboard)
+
+- **Carta e inchiostro:** sfondo carta calda #F3EFE6, testo #1B2230, pannelli scuri "quadro" #1E2635.
+- **I colori dei cavi sono i colori della pagina:** fase marrone #8B4A24, neutro blu #2563A8, terra verde #4C9A2A, lampada gialla #F5B800 per ciò che è acceso (completato, stelle, pulsante Continua).
+- **Caratteri:** Barlow Condensed per i titoli, IBM Plex Sans per i testi, IBM Plex Mono per morsetti e valori.
+- **La mappa è un circuito:** due fili, fase e neutro, scorrono sul lato della lista; i livelli sono i carichi; quelli completati sono accesi.
+- **Pubblico:** una colonna sul telefono con barra in basso; sul computer lista a sinistra e colonna laterale con Continua, classifica e strumenti.
