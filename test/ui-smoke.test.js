@@ -419,3 +419,25 @@ test('quaderno: il collegamento dalla mappa porta alle sintesi e il livello c01 
   go(w, '#/home');
   assert.equal(q(d, '#screen-quaderno').hidden, true);
 });
+
+test('trilocale: la rotta apre il primo circuito con la casa, le linguette e la pianta', () => {
+  const { w, d, errors } = openPage({ seen: true });
+  assert.match(q(d, '#screen-home').textContent, /Il trilocale/);
+  go(w, '#/modulo/1');
+  assert.match(w.location.hash, /#\/livello\/t01-bagno/);
+  assert.equal(q(d, '#house').hidden, false);
+  assert.equal(qa(d, '#house .htab').length, 3);
+  assert.ok(q(d, '#screen-level').classList.contains('with-house'));
+  assert.ok(q(d, '#house #hPlan svg.plan'), 'la pianta e\' pronta');
+  assert.match(q(d, '#house').textContent, /Caricamento della scena|Pianta/);
+  go(w, '#/livello/c01-circuito-chiuso');
+  assert.equal(q(d, '#house').hidden, true);
+  assert.deepEqual(errors, []);
+});
+
+test('quaderno: compaiono anche le sintesi del trilocale', () => {
+  const { w, d } = openPage({ seen: true });
+  go(w, '#/quaderno');
+  assert.match(q(d, '#screen-quaderno').textContent, /Il trilocale/);
+  assert.match(q(d, '#screen-quaderno').textContent, /Il bagno/);
+});

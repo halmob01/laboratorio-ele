@@ -26,3 +26,16 @@ const html = template.replace('/*CSS*/', () => css.trimEnd()).replace('/*JS*/', 
 
 await writeFile(join(root, 'index.html'), html);
 console.log('index.html scritto (' + Math.round(html.length / 1024) + ' KB)');
+
+// Pacchetto della scena 3D del Modulo 1: separato, si carica solo aprendo un circuito del trilocale.
+const scene = await build({
+  entryPoints: [join(root, 'src/trilocale/scene.js')],
+  bundle: true,
+  format: 'iife',
+  target: 'es2020',
+  minify: true,
+  write: false,
+  legalComments: 'none',
+});
+await writeFile(join(root, 'trilocale.js'), scene.outputFiles[0].text);
+console.log('trilocale.js scritto (' + Math.round(scene.outputFiles[0].text.length / 1024) + ' KB)');

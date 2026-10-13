@@ -19,7 +19,6 @@ export const MODULES = [
 
 // Moduli ancora da costruire, mostrati in fondo alla mappa.
 export const UPCOMING = [
-  { tag: 'MODULO 1', title: 'Il trilocale', note: 'Bagno, camera, corridoio e collaudo in 3D' },
   { tag: 'MODULO 2', title: 'Civile avanzato', note: 'Relè, presa comandata, quadro' },
   { tag: 'MODULO 3', title: 'Industriale', note: 'Trifase, motore, nastro trasportatore' },
 ];

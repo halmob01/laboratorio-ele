@@ -8,6 +8,7 @@ import { composeComps } from './layout.js';
 import * as R from './render.js';
 import * as V from './screens.js';
 import { INTRO } from '../content/home.js';
+import { createHouse, isHouseLevel, firstCircuit } from '../trilocale/page.js';
 
 const $ = s => document.querySelector(s);
 const MQ = window.matchMedia('(max-width:919px)');
@@ -29,6 +30,7 @@ const session = createSession({ levels, deriveFull, storage });
 
 /* ---------- stato della sola vista ---------- */
 let S = null;           // ultima istantanea della sessione
+const house = createHouse(document.querySelector('#house'), { session, go: h => { location.hash = h; }, reduced: () => REDUCED.matches });
 let comps = [];         // componenti con geometria per il livello corrente
 let lastKey = null;
 let rebuild = false;    // forza il ridisegno della scena anche se il livello non cambia
@@ -82,6 +84,11 @@ function onLevelChange() {
 function parseRoute() {
   const m = /^#\/livello\/([^/]+)(\/verifica)?$/.exec(location.hash || '');
   if (m && levels.some(l => l.id === m[1])) return { name: 'level', id: m[1], verify: !!m[2], key: m[0] };
+  if (location.hash === '#/modulo/1') {
+    const id = firstCircuit(session);
+    try { history.replaceState(null, '', '#/livello/' + id); } catch (e) { location.hash = '#/livello/' + id; }
+    return { name: 'level', id, verify: false, key: '#/livello/' + id };
+  }
   if (location.hash === '#/quaderno') return { name: 'quaderno', key: '#/quaderno' };
   return { name: 'home', key: '#/home' };
 }
@@ -147,7 +154,10 @@ function renderLevelScreen() {
   const ph = S.unit ? S.unit.phase : 'build';
   const inLesson = !!S.unit && ph === 'lesson' && S.playMode === 'apprendimento';
   const scr = $('#screen-level');
-  scr.className = 'phase-' + (inLesson ? 'learn' : 'play') + (S.playMode === 'verifica' ? ' verify' : '');
+  const hl = isHouseLevel(S.level.id);
+  scr.className = 'phase-' + (inLesson ? 'learn' : 'play') + (S.playMode === 'verifica' ? ' verify' : '') + (hl ? ' with-house' : '');
+  $('#house').hidden = !hl;
+  if (hl) house.sync(S); else if (house.isMounted()) house.unmount();
   $('#lesson').hidden = !inLesson;
   $('#work').hidden = inLesson;
   if (inLesson) { renderLesson(); return; }
@@ -182,6 +192,7 @@ function render() {
   $('#screen-home').hidden = !home;
   $('#screen-quaderno').hidden = !qd;
   $('#screen-level').hidden = home || qd;
+  if (home || qd) house.unmount();
   if (qd) { stopDemo(); demo.page = -1; $('#screen-quaderno').innerHTML = V.quadernoHTML(S, levels); return; }
   if (home) {
     stopDemo(); demo.page = -1;
@@ -317,7 +328,8 @@ $('#bCheck').addEventListener('click', () => {
   const r = session.check();
   const behavior = REDUCED.matches ? 'auto' : 'smooth';
   // se l'impianto funziona si scorre fino alla stanza accesa, altrimenti all'esito dei controlli
-  (r.pass ? $('.roomcard') : $('#result')).scrollIntoView({ behavior, block: r.pass ? 'start' : 'nearest' });
+  if (r.pass && isHouseLevel(S.level.id)) house.passed();
+  (r.pass ? (isHouseLevel(S.level.id) ? $('#house') : $('.roomcard')) : $('#result')).scrollIntoView({ behavior, block: r.pass ? 'start' : 'nearest' });
 });
 $('#bFlow').addEventListener('click', () => session.toggleFlow());
 $('#result').addEventListener('click', e => {

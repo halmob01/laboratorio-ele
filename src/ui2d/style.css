@@ -421,3 +421,50 @@ button:disabled{cursor:default}
 a.tool{display:flex;align-items:center;justify-content:center;text-decoration:none}
 @media (min-width:920px){a.tool{justify-content:flex-start}}
 #main:focus{outline:none}
+
+/* ---------- Modulo 1, il trilocale: la casa accanto all'esercizio ---------- */
+.levelgrid{display:block}
+.house{display:flex;flex-direction:column;gap:10px;margin-bottom:12px}
+.hstage{position:relative;height:52vh;min-height:300px;border-radius:12px;overflow:hidden;background:#2B3340;border:1px solid var(--line)}
+.hscene,.hplan{position:absolute;inset:0}
+.house3d{display:block;width:100%;height:100%;touch-action:pan-y}
+.hlabels{position:absolute;inset:0;pointer-events:none;overflow:hidden}
+.hlabel{position:absolute;left:0;top:0;white-space:nowrap;font:600 11px/1 'IBM Plex Mono',monospace;color:#fff}
+.hlabel.room{text-transform:uppercase;letter-spacing:.06em;opacity:.8;text-shadow:0 1px 2px rgba(0,0,0,.7)}
+.hlabel.ctl{background:rgba(10,16,24,.7);padding:3px 6px;border-radius:6px}
+.htools{position:absolute;top:8px;right:8px;display:flex;gap:6px;z-index:2}
+.btn.small{min-height:34px;padding:4px 10px;font-size:13px}
+.hmsg{position:absolute;left:0;right:0;bottom:0;padding:10px 12px;color:#fff;font-size:14px;background:rgba(10,16,24,.6)}
+.htabs{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.htab{display:flex;flex-direction:column;align-items:center;gap:2px;padding:8px 6px;border:1.5px solid var(--line);border-radius:10px;background:var(--card);color:var(--ink);text-decoration:none}
+.htab[aria-selected="true"]{border-color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent)}
+.htab b{font-size:15px}
+.htab small{font:500 12px/1.2 'IBM Plex Mono',monospace;color:var(--ink2)}
+.htab small.st-ok{color:var(--ok)}
+.plan{display:block;width:100%;height:100%;background:#2B3340}
+.proom rect{fill:#E6DCCB;stroke:#35404C;stroke-width:2;cursor:pointer}
+.proom.lit rect{fill:#F6E3B0}
+.proom.sel rect{stroke:#F5B800;stroke-width:3}
+.pname{font:600 11px 'IBM Plex Mono',monospace;fill:#35404C;pointer-events:none}
+.pline{stroke:#8B4A24;stroke-width:2;fill:none}
+.ptick{stroke:#8B4A24;stroke-width:1.5}
+.plamp circle{fill:#C7CECB;stroke:#35404C;stroke-width:1.5}
+.plamp.lit circle{fill:#F5B800}
+.plamp path{stroke:#35404C;stroke-width:1.5}
+.pctl rect{fill:#FBF9F4;stroke:#35404C;stroke-width:1.5;cursor:pointer}
+.pbrk rect{fill:#2F3A46}
+.pbrk text{fill:#fff;font:700 12px sans-serif}
+.with-house .roomcard{display:none}
+.trimod .tricard{display:flex;flex-direction:column;gap:12px;align-items:flex-start;background:var(--card);border:1.5px solid var(--line);border-radius:12px;padding:16px}
+.trimod .tricard p{margin:0;color:var(--ink2)}
+@media (min-width:920px){
+  .with-house .levelgrid{display:grid;grid-template-columns:58% minmax(0,1fr);gap:16px;align-items:start}
+  .with-house .house{position:sticky;top:12px;margin:0}
+  .with-house .hstage{height:calc(100vh - 190px);min-height:420px}
+  .with-house .work{max-width:none}
+  .with-house .benchrow{display:block}
+  .with-house .benchside .actions{display:grid;grid-template-columns:repeat(3,1fr);margin-top:10px}
+  .with-house .benchside .actions .primary{order:0}
+}
+@media (prefers-reduced-motion:reduce){.hstage *{transition:none!important}}
+@media (max-width:600px){.hlabel.ctl{display:none!important}}

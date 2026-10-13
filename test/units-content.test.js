@@ -13,6 +13,8 @@ for (const L of withUnit) {
   test(`${L.id}: struttura della lezione`, () => {
     const pages = u.lesson.pages;
     assert.equal(pages[pages.length - 1].type, 'sintesi');
+    assert.ok(u.summary.length >= 3);
+    if (L.id.startsWith('t')) return;     // i circuiti del trilocale hanno una lezione breve, senza demo
     assert.equal(pages.filter(p => p.type === 'previsione').length, 1);
     const prev = pages.find(p => p.type === 'previsione');
     assert.ok(prev.options.some(o => o.id === prev.correct));
@@ -24,7 +26,8 @@ for (const L of withUnit) {
   test(`${L.id}: i passi si completano con la soluzione`, () => {
     const st = stepsState(u.steps, W(L.solution), { power: true, operated: new Set(L.controls || []), result: { pass: true } });
     assert.ok(st.done.every(Boolean), JSON.stringify(st));
-    assert.ok(demoFrames(L, u.lesson.pages.find(p => p.type === 'demo').captions).length > L.solution.length);
+    const dp = u.lesson.pages.find(p => p.type === 'demo');
+    if (dp) assert.ok(demoFrames(L, dp.captions).length > L.solution.length);
   });
 
   if (u.fault) {

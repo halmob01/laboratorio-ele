@@ -203,6 +203,19 @@ export function createSession({ levels, deriveFull, storage = memoryStorage(), i
     },
     start() { emit(); },
 
+    // Stato di un livello qualsiasi (non solo quello aperto), per chi disegna piu' circuiti insieme (la casa).
+    // `lit`: la lampada si accende con i fili e i comandi attuali, ignorando il quadro; `power` vale solo per il livello aperto.
+    peek(x) {
+      const i = indexOf(x);
+      if (i < 0 || i >= levels.length) return null;
+      const lv = levelAt(i, 'quadro');
+      const k = keyOf(i, 'quadro');
+      const w = wiresByKey[k] || [], st = statesByKey[k] || {};
+      const a = analyse(lv, w, st);
+      const id = levels[i].id;
+      return { id, lit: !!a.lit, wired: w.length, controls: { ...st }, passed: (progress.stars[id] || 0) > 0, open: i === levelIndex, power: i === levelIndex && power };
+    },
+
     // Apre un livello (indice o id). Con { verify: true } e' una prova di salto: senza lezione e senza aiuti.
     selectLevel(x, opts = {}) {
       const i = indexOf(x);

@@ -13,7 +13,9 @@ const c = (x, y, w, h, terms, extra = {}) => {
   return { x, y, w, h, terms: t, ...extra };
 };
 
-const BASE = {
+import { TRILOCALE_LAYOUT_OF } from '../content/trilocale.js';
+
+const BASE_ = {
   'c01-circuito-chiuso': {
     comps: {
       Q: c(20, 0, 380, 100, { N: [.12, 'b'], F: [.8, 'b'] }),
@@ -56,6 +58,8 @@ const BASE = {
     plates: { D1: { x: 56, y: 122 }, I: { x: 200, y: 122 }, D2: { x: 344, y: 122 } },
   },
 };
+
+const BASE = new Proxy(BASE_, { get: (o, k) => o[k] || o[TRILOCALE_LAYOUT_OF[k]] });
 
 // Versione "dal contatore": contatore in alto, quadro sotto, il resto spostato piu' in basso.
 function fullLayout(id) {

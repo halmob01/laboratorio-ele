@@ -23,6 +23,9 @@ html{scroll-padding-top:env(safe-area-inset-top,0px)}
 
     <section id="screen-level" hidden aria-label="Livello">
       <div class="levelbar"><a class="back" href="#/home">&larr; Mappa</a><span class="lvtag" id="lvTag"></span></div>
+      <div class="levelgrid" id="levelgrid">
+      <aside class="house" id="house" hidden aria-label="La casa"></aside>
+      <div class="levelmain">
       <div class="card lessoncard" id="lesson" hidden></div>
       <div class="work" id="work">
         <div class="card task unit" id="unit"></div>
@@ -54,6 +57,8 @@ html{scroll-padding-top:env(safe-area-inset-top,0px)}
           <div class="status" id="status"></div>
         </div>
         <div class="card info" id="info"></div>
+      </div>
+      </div>
       </div>
     </section>
   </main>

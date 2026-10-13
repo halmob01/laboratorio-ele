@@ -47,7 +47,7 @@ function soonCard(x) {
 export function continueTarget(s) {
   const open = l => l.status !== 'completato' && l.status !== 'saltato';
   const last = s.levels.find(l => l.id === s.last);
-  return (last && open(last) && last) || s.levels.find(open) || null;
+  return (last && open(last) && last) || s.levels.find(l => open(l) && !l.id.startsWith('t')) || null;
 }
 
 export function homeHTML(s) {
@@ -66,9 +66,15 @@ export function homeHTML(s) {
         <ol class="rail">${items}</ol>
       </section>`;
   }).join('');
+  const tri = s.levels.filter(l => l.id.startsWith('t'));
+  const triDone = tri.filter(l => l.status === 'completato' || l.status === 'saltato').length;
+  const trilocale = `<section class="module trimod" aria-label="Modulo 1, Il trilocale">
+        <div class="mhead"><div><div class="kick">MODULO 1</div><h2>Il trilocale</h2></div><div class="count">Anteprima · ${triDone} di ${tri.length} circuiti</div></div>
+        <div class="tricard"><p>Una casa vista dall’alto con tre punti luce da cablare: bagno, camera e corridoio. Quando l’impianto funziona, la luce si accende nella stanza.</p><a class="btn lamp" href="#/modulo/1">${triDone ? 'Continua nel trilocale' : 'Entra nel trilocale'}</a></div>
+      </section>`;
   const up = UPCOMING.map(m => `<div class="upc"><div class="uphead"><span class="kick">${m.tag}</span><span class="soonl">In arrivo</span></div><h3>${m.title}</h3><p>${m.note}</p></div>`).join('');
   return `<div class="homegrid">
-      <div class="homemain">${cont.replace('class="cont"', 'class="cont only-narrow"')}${mods}<div class="upcoming">${up}</div></div>
+      <div class="homemain">${cont.replace('class="cont"', 'class="cont only-narrow"')}${mods}${trilocale}<div class="upcoming">${up}</div></div>
       <aside class="homeside">${cont}${toolsHTML()}</aside>
     </div>`;
 }
@@ -259,5 +265,7 @@ export function quadernoHTML(s, levelList) {
     const body = items.map(l => `<article class="qlv"><h3>${esc(l.title)}</h3><ul class="sum">${l.unit.summary.map(t => `<li>${esc(t)}</li>`).join('')}</ul></article>`).join('');
     return `<section class="qmod"><div class="kick">${m.tag}</div><h2>${m.title}</h2>${body}</section>`;
   }).join('');
-  return `<div class="levelbar"><a class="back" href="#/home">&larr; Mappa</a></div><div class="card quaderno"><div class="qhead"><h1>Quaderno</h1><button class="btn" data-act="print">Stampa</button></div><p class="note">Le sintesi dei livelli, da ripassare o stampare. Sono sempre consultabili, anche per i livelli non ancora giocati.</p>${mods || '<p>Nessuna sintesi disponibile.</p>'}</div>`;
+  const triItems = levelList.filter(l => l.id.startsWith('t') && l.unit && l.unit.summary);
+  const triHTML = triItems.length ? `<section class="qmod"><div class="kick">MODULO 1</div><h2>Il trilocale</h2>${triItems.map(l => `<article class="qlv"><h3>${esc(l.title)}</h3><ul class="sum">${l.unit.summary.map(t => `<li>${esc(t)}</li>`).join('')}</ul></article>`).join('')}</section>` : '';
+  return `<div class="levelbar"><a class="back" href="#/home">&larr; Mappa</a></div><div class="card quaderno"><div class="qhead"><h1>Quaderno</h1><button class="btn" data-act="print">Stampa</button></div><p class="note">Le sintesi dei livelli, da ripassare o stampare. Sono sempre consultabili, anche per i livelli non ancora giocati.</p>${mods}${triHTML}</div>`;
 }
