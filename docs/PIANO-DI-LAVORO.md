@@ -18,6 +18,10 @@ Riepilogo di ciò che è stato scelto, delle fasi da fare e di chi fa e chi rive
 - Prologo animato in più scene all'ingresso di ogni milestone, come in sito-feudo.
 - Due modalità: apprendimento (aiuti) e verifica (nessun aiuto, esito registrato). Le prove di milestone sono sempre in verifica.
 
+**Homepage e salto.** Prima schermata con intestazione, pulsante Continua, mappa dei livelli e delle milestone, strumenti. Nessun livello bloccato; "Già lo so" apre il livello in verifica come prova di salto; i livelli saltati non danno XP. Dettagli in SYLLABUS sezione 12.
+
+**Aspetto.** Il disegno attuale non è vincolante: la pagina si ridisegna pensando prima al telefono (una colonna, schede Banco/Schema/Stanza, barra in basso). Deve funzionare bene su telefono.
+
 **Corrente visibile.** Quattro stati di ogni filo (non collegato, in tensione sulla fase, sul neutro, percorso da corrente), punto di apertura evidenziato, aiuto che si riduce con i livelli e sparisce nelle prove.
 
 **Schemi.** Funzionale (da c02), multifilare (da c05), unifilare in pianta (trilocale), con simbologia normalizzata e collegati al banco. Tre tipi di esercizio: dallo schema al cablaggio, dal cablaggio allo schema, riconoscere gli errori in uno schema.
@@ -63,6 +67,9 @@ Riepilogo di ciò che è stato scelto, delle fasi da fare e di chi fa e chi rive
 
 | Compito | Realizza | Rivede |
 |---|---|---|
+| 1.0 Specifica di impaginazione per telefono e homepage (schermate, navigazione, bozza di aspetto) | Opus | Matteo |
+| 1.0b Nuova impaginazione e navigazione a schermate; homepage con mappa e stati dei livelli | Sonnet | Opus; prova di Matteo su telefono |
+| 1.0c Prova di salto e regole XP dei livelli saltati | Sonnet | Opus |
 | 1.1 Syllabus come dato: obiettivi, livelli con id stabili, unità; versione dei salvataggi e migrazione | Sonnet | Opus |
 | 1.2 Registro locale degli eventi, XP, gradi, profilo con nome libero e filtro | Sonnet | Opus |
 | 1.3 `flowOf`: percorso della corrente e punti di apertura; test con confronto a un oracolo a cammini semplici | Opus; test Sonnet | Opus, sessione separata |
@@ -145,4 +152,5 @@ Bonus (per esempio stella-triangolo), accessibilità e prestazioni, eventuale ve
 - Dove si ospita la versione per gli allievi: come sito-feudo, su GitHub Pages?
 - Schema multifilare: disposizione dei componenti uguale a quella del banco (consigliato) o libera?
 - Controllo dei punteggi sul foglio: in B3 o dopo?
+- Salto dei livelli: nessun blocco, prova di salto in verifica, XP zero ai livelli non giocati (proposta da confermare).
 - Numeri degli XP e soglie dei gradi: si tarano dopo la prima prova in classe.

@@ -15,6 +15,7 @@ Bozza 1. Questo documento fissa la struttura del gioco; i dettagli di ogni livel
 | 9. Raccolta dati | proposta, da condividere con il referente privacy |
 | 10. Build | definita |
 | 11. Decisioni | quattro prese, il resto aperto |
+| 12. Homepage, salto dei livelli, impaginazione | proposta da confermare |
 
 ## 1. Idea del gioco
 
@@ -270,7 +271,7 @@ Ogni build è utilizzabile in aula da sola e lascia le precedenti funzionanti. I
 | Build | Contenuto | Novità tecniche |
 |---|---|---|
 | B0 | Separazione di motore, contenuti e vista | fatta, sul ramo `separazione-motore-vista` |
-| B1 Fondamenta 1 | Livelli c01-c04 (circuito chiuso, presa, interruttore, parallelo); lezioni brevi; previsione; esempio guidato; spiegazioni degli errori; corrente visibile; schema funzionale e esercizi di tipo A; dimensionamento semplice; XP e profilo nel browser; prologo della Milestone 0 | Syllabus come dato, identificativi dei livelli e migrazione dei salvataggi, registro locale degli eventi, `flowOf` nel motore, simboli SVG dei primi componenti, scheda dello schema |
+| B1 Fondamenta 1 | Homepage con mappa dei livelli e salto; nuova impaginazione pensata prima per il telefono; livelli c01-c04 (circuito chiuso, presa, interruttore, parallelo); lezioni brevi; previsione; esempio guidato; spiegazioni degli errori; corrente visibile; schema funzionale e esercizi di tipo A; dimensionamento semplice; XP e profilo nel browser; prologo della Milestone 0 | Navigazione a schermate (indirizzo con `#`), stato di ogni livello (nuovo, in corso, completato, saltato), syllabus come dato, identificativi dei livelli e migrazione dei salvataggi, registro locale degli eventi, `flowOf` nel motore, simboli SVG dei primi componenti, scheda dello schema |
 | B2 Fondamenta 2 | Livelli c05-c06 (deviato, invertito); schema multifilare; esercizi di tipo B e C; guasto "filo sbagliato"; Milestone 0 completa | Editor degli schemi, `netlist` e `compareNetlists`, schemi con errori inseriti |
 | B3 Classifica | Classifica condivisa su Foglio Google, pannello docente, statistiche degli errori | Invio punteggi, eventualmente ricalcolo sul foglio |
 | B4 Milestone 1 | Trilocale: pagina 3D, pianta unifilare, multimetro, guasti nascosti, procedura di sicurezza, collaudo | three.js nel build, vista del trilocale, difetti nei componenti, multimetro nel motore |
@@ -291,6 +292,10 @@ Per ogni build: i test del motore e del layout restano verdi, la pagina costruit
 3. Obiettivi e valori di dimensionamento: li ho scelti io come punto di partenza; il collega di laboratorio può proporre modifiche.
 4. Nessun codice classe: classifica unica, azzerata dal docente tra un gruppo e l'altro.
 
+**Proposte da confermare (sezione 12)**
+
+- Tutti i livelli aperti, nessun blocco; salto con prova di salto in modalità verifica; i livelli saltati non danno XP.
+
 **Aperte**
 
 5. Controllo dei punteggi sul foglio: in B3 o dopo?
@@ -298,3 +303,45 @@ Per ogni build: i test del motore e del layout restano verdi, la pagina costruit
 7. Asset 3D: solo forme semplici, o anche modelli liberi?
 8. Dove si ospita la versione per gli allievi: come sito-feudo, su GitHub Pages?
 9. Schema multifilare: la disposizione dei componenti ricalca quella del banco (consigliato, più facile da collegare) o è libera?
+
+## 12. Homepage, salto dei livelli, impaginazione
+
+Il disegno attuale della pagina (aspetto e disposizione) non è vincolante: si può cambiare. Il vincolo è che tutto funzioni bene dal telefono.
+
+### 12.1 Homepage
+
+Prima schermata, senza obbligo di nome per guardarsi intorno.
+
+| Blocco | Contenuto |
+|---|---|
+| Intestazione | Nome del giocatore (si cambia con un tocco), grado, XP totali |
+| Continua | Un solo pulsante grande: riprende dall'ultimo livello iniziato |
+| Mappa | Le milestone come sezioni; ogni livello è una scheda con titolo, obiettivo in una riga, stelle e stato |
+| Prove di milestone | Schede distinte, con la pagina 3D come premio |
+| Classifica | Anteprima delle prime righe e collegamento alla classifica intera (da B3) |
+| Strumenti | Legenda dei simboli, glossario dei termini, informativa, accesso docente |
+
+**Stati di una scheda:** nuovo, in corso, completato (con stelle), saltato. Il livello a cui si è arrivati è evidenziato.
+
+**Navigazione.** Ogni schermata ha un indirizzo (`#/home`, `#/livello/c03`, `#/classifica`), così il pulsante Indietro del telefono funziona e un livello si può aprire da un collegamento. Dal livello si torna alla mappa con un solo tocco.
+
+### 12.2 Saltare i livelli
+
+**Proposta.** Nessun livello è bloccato: l'allievo che sa già può aprire qualsiasi scheda. Per non perdere la parte didattica senza forzare nessuno:
+
+- **Aprire e provare** è sempre possibile, con lezione e aiuti.
+- **Prova di salto.** Su ogni scheda c'è "Già lo so": il livello si apre direttamente in modalità verifica, senza lezione e senza aiuti. Se la prova è superata il livello risulta completato, altrimenti si può ritentare o seguire il livello normale.
+- **XP.** I livelli superati con la prova di salto danno XP pieni solo se senza suggerimenti (come in verifica); i livelli semplicemente non giocati danno zero. Così chi salta non scavalca in classifica chi ha giocato, senza dover bloccare nulla.
+- **Prove di milestone.** Sempre aperte. Una prova di milestone superata segna come "verificati" i livelli della sua milestone non ancora completati, senza XP aggiuntivi.
+- **Sicurezza dei dati.** Nei dati raccolti ogni livello ha lo stato: giocato, saltato con prova, non svolto. Il docente vede dove l'allievo ha lacune.
+
+**Alternativa più rigida** (non consigliata): blocco progressivo con sblocco per milestone. Frena chi parte da zero in modo ordinato, ma penalizza chi sa già e porta a scorciatoie non tracciate.
+
+### 12.3 Impaginazione pensata per il telefono
+
+- Una colonna sul telefono, due su schermo largo. Il banco occupa tutta la larghezza.
+- Schede **Banco · Schema · Stanza** (e Lezione) al posto delle colonne affiancate; su schermo largo restano visibili insieme.
+- Barra in basso con Mappa, Livello, Classifica; bersagli di tocco di almeno 44 px; nessuna funzione solo con passaggio del mouse.
+- Il filo si collega con tocco sul primo e sul secondo morsetto, oltre al trascinamento (già previsto nel codice attuale, da rivedere con il dito).
+- Prove su telefono reale a ogni build, in verticale e in orizzontale.
+- Il file resta unico, senza dipendenze di rete a parte i caratteri; si valuta di includere i caratteri nel file per l'uso offline in aula.
