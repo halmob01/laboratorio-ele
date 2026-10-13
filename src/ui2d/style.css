@@ -146,24 +146,15 @@ button.btn.primary{background:var(--accent);color:var(--on-accent);border-color:
 .info .x{display:none}
 @media (max-width:919px){
   body{padding-block:10px 28px}
-  .wrap,.grid{gap:10px}
-  .col{display:contents}
-  .goal{order:1}.roomcard{order:2}.benchcard{order:3}.res{order:4}
+  .wrap{gap:10px}
   .top{gap:8px}
   h1{font-size:22px}
   .brand svg{width:26px;height:26px}
   .card{padding:12px}
-  .goal h2{font-size:21px}
-  .goal p{font-size:15px;margin-top:4px}
-  .roomcard{position:sticky;top:0;z-index:6;padding:0}
-  #room{width:100%;height:auto;aspect-ratio:400/108}
-  .status{position:absolute;left:8px;right:8px;bottom:6px;padding:0;border:0;gap:6px;pointer-events:none}
-  .status .pill{font-size:12px;padding:5px 8px;box-shadow:0 0 0 1px rgba(0,0,0,.12)}
-  .msg{background:rgba(8,12,20,.82);color:#fff;border-radius:8px;padding:6px 9px;font-size:13px;line-height:1.3;min-height:0;pointer-events:auto}
-  .msg:empty{display:none}
   .benchcard{padding:12px 0}
-  .benchcard>.mode,.benchcard>.tip,.benchcard>.actions{margin-inline:12px}
-  .benchcard>.palette{position:sticky;top:var(--roomH,104px);z-index:5;background:var(--card);margin:0 0 6px;padding:8px 12px;display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:6px;border-bottom:1px solid var(--line)}
+  .benchcard>.mode{margin-inline:12px}
+  .benchcard>.palette{background:var(--card);margin:0 0 6px;padding:8px 12px;display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:6px;border-bottom:1px solid var(--line)}
+  .benchside{padding-inline:12px}
   .chip{flex-direction:column;align-items:stretch;gap:5px;border-radius:10px;padding:6px 4px 6px;font-size:12px;text-align:center;line-height:1.1;overflow-wrap:anywhere}
   .chip .sw{width:100%;height:12px}
   .seg.chip{flex-direction:row;justify-content:center;padding:9px 14px;font-size:14px;border-radius:999px;min-height:40px;align-items:center}
@@ -174,11 +165,10 @@ button.btn.primary{background:var(--accent);color:var(--on-accent);border-color:
   .lbl{font-size:12px}
   .ttl{font-size:14px}
   .w-hit{stroke-width:24px}
-  .actions{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  .actions{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}
+  .actions .btn{padding-inline:6px}
   button.btn{min-height:46px;font-size:16px}
   button.btn.primary{grid-column:1/-1;margin-left:0}
-  .res{scroll-margin-top:calc(var(--roomH,104px) + 12px)}
-  .res h3{font-size:19px}
   .info{display:none}
   .info.open{display:block;position:fixed;left:16px;right:16px;bottom:calc(14px + env(safe-area-inset-bottom,0px));z-index:30;box-shadow:0 10px 30px rgba(0,0,0,.35);border-color:var(--comp-edge)}
   .info .x{display:block;float:right;margin:-4px -4px 6px 10px;font:500 14px/1 'IBM Plex Sans',sans-serif;background:var(--chip);color:var(--ink);border:1px solid var(--line);border-radius:8px;padding:9px 12px;min-height:40px}
@@ -300,9 +290,7 @@ button:disabled{cursor:default}
 .guide{margin-top:12px;background:var(--chip);border-radius:10px;padding:12px 14px}
 .guide p{margin-top:4px;color:var(--ink)}
 .xpline{margin-top:6px;font-size:14px;color:var(--ink2)}
-.phase-learn .roomcard,.phase-learn .benchcard,.phase-learn .res{display:none}
-.phase-learn .info{display:none}
-.verify .goal .kick{color:var(--warn)}
+.verify .unit .kick{color:var(--warn)}
 
 /* corrente visibile */
 .halo-w{fill:none;stroke-width:18;stroke-linecap:round;pointer-events:none}
@@ -351,3 +339,74 @@ button:disabled{cursor:default}
 .dots i{width:9px;height:9px;border-radius:50%;background:var(--line)}
 .dots i.done{background:var(--ink2)}.dots i.now{background:var(--accent)}
 .introact{display:flex;flex-wrap:wrap;gap:8px}
+
+/* ---------- pagina dell'esercizio: passi, banco, stanza in fondo ---------- */
+.work{display:flex;flex-direction:column;gap:12px;max-width:1040px;margin:0 auto}
+.work[hidden],.lessoncard[hidden]{display:none}
+.work .task{order:1;padding:12px 14px;border-left:5px solid var(--lamp)}
+.work .benchcard{order:2}
+.work .res{order:3}.work.passed .res{order:5}
+.work .roomcard{order:4}
+.work .info{order:6}
+.work .res:empty{display:none}
+.task h2{font:700 24px/1.1 'Barlow Condensed',sans-serif;text-transform:none;margin-top:8px}
+.task p{margin-top:4px;color:var(--ink2);font-size:15px}
+.steps{list-style:none;margin:0;padding:0;display:flex;gap:6px}
+.steps li{flex:1;text-align:center;padding:7px 2px;border-radius:9px;font:600 12px/1.2 'IBM Plex Sans',sans-serif;background:var(--chip);color:var(--ink2)}
+.steps li.done{background:#DCE8F6;color:var(--neutro)}
+.steps li.cur{background:var(--ink);color:var(--bg)}
+.benchrow{display:flex;flex-direction:column}
+.benchmain{min-width:0}
+.sidelinks{display:flex;gap:16px;margin-top:10px;flex-wrap:wrap}
+.link{background:none;border:0;padding:6px 0;font:500 14px/1.2 'IBM Plex Sans',sans-serif;color:var(--accent);text-decoration:underline;cursor:pointer;min-height:36px}
+.roomcard{padding:0;overflow:hidden}
+.roomhead{display:flex;justify-content:space-between;padding:10px 14px;font:500 13px/1 'IBM Plex Mono',monospace;color:var(--ink2);text-transform:uppercase;letter-spacing:.06em}
+#room{display:block;width:100%;height:auto;aspect-ratio:400/190}
+@media (min-width:920px){#room{aspect-ratio:1040/320}}
+.status{position:static;border-top:1px solid var(--line);padding:10px 14px}
+.msg{background:none;color:var(--ink2)}
+@media (min-width:920px){
+  .benchrow{display:grid;grid-template-columns:minmax(0,1fr) 280px;gap:16px;align-items:start}
+  .benchside{display:flex;flex-direction:column;gap:6px}
+  .benchside .actions{display:flex;flex-direction:column;margin-top:0}
+  .benchside .actions .btn{width:100%;justify-content:center}
+  .benchside .actions .primary{order:-1;margin-left:0}
+  #bench{max-height:520px}
+}
+.dimmed{opacity:.28}
+.focusring{fill:none;stroke:var(--lamp);stroke-width:4}
+.newwire .w-col{stroke-dasharray:100;stroke-dashoffset:100;animation:drawwire .8s ease forwards}
+@keyframes drawwire{to{stroke-dashoffset:0}}
+.newwire .w-col{--len:1}
+@media (prefers-reduced-motion:reduce){.newwire .w-col{animation:none;stroke-dashoffset:0}}
+
+/* lezione */
+.lessoncard{max-width:720px;margin:0 auto;padding:16px;width:100%}
+.lhead{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}
+.lhead .kick{font:500 12px/1.3 'IBM Plex Mono',monospace;letter-spacing:.08em;text-transform:uppercase;color:var(--accent)}
+.lhead .link{white-space:nowrap;flex:none}
+.prog{display:flex;gap:5px;margin:8px 0 12px}
+.prog b{height:5px;flex:1;border-radius:3px;background:var(--line)}
+.prog b.on{background:var(--accent)}
+.lessoncard h2{font:700 28px/1.05 'Barlow Condensed',sans-serif;text-transform:uppercase;margin-bottom:10px}
+.lessoncard p{margin-top:10px;max-width:62ch}
+.lessoncard .q{font:600 22px/1.2 'Barlow Condensed',sans-serif;margin:6px 0}
+.vis{border-radius:12px;overflow:hidden;border:1px solid var(--line);background:var(--bench);margin-bottom:4px}
+.vis svg{display:block;width:100%;height:auto}
+.lbench{max-height:380px}
+.capt{display:flex;gap:10px;align-items:flex-start;margin-top:12px;padding:12px;border-radius:10px;background:#FFF3C4;border:1px solid #E8CF73;color:#2A1B00;font-size:15px;min-height:62px}
+.capt .n{flex:none;width:26px;height:26px;border-radius:50%;background:var(--lamp);text-align:center;font:700 14px/26px 'IBM Plex Sans',sans-serif;color:#1B2230}
+.dplayer{display:flex;gap:8px;align-items:center;margin-top:10px;flex-wrap:wrap}
+.dplayer .btn{min-height:40px;font-size:14px;padding:8px 12px}
+.pcount{margin-left:auto;font:500 13px 'IBM Plex Mono',monospace;color:var(--ink2)}
+.ltable{margin-top:12px;border:1px solid var(--line);border-radius:10px;overflow:hidden;font-size:15px}
+.lt{display:flex;justify-content:space-between;padding:8px 12px;border-top:1px solid var(--line)}
+.lt.head{background:var(--chip);border-top:0;font:500 12px 'IBM Plex Mono',monospace;color:var(--ink2);text-transform:uppercase}
+.lwarn{margin-top:12px;padding:10px 12px;border-left:5px solid var(--bad);background:rgba(190,37,48,.1);border-radius:6px;font-size:15px}
+.sum{margin:12px 0 0;padding-left:20px;line-height:1.5}
+.sum li{margin-top:4px}
+.btn.grow{flex:1}
+.uact .btn:disabled{opacity:.45;cursor:default}
+@media print{
+  .quaderno-print *{color:#000}
+}

@@ -46,3 +46,8 @@ export function demoFrames(level, captions = {}) {
   });
   return out;
 }
+
+/** Istantanea "vuota" (nessun filo, quadro spento) per disegnare il banco in una pagina di lezione. */
+export function blankSnap(level) {
+  return frame(level, [], false, {}, '', null).snap;
+}

@@ -69,8 +69,20 @@ export function roomHTML(level, comps) {
   }
   return s;
 }
-export function roomViewBox(level, mobile) {
-  return mobile ? (level.room === 'tavolo' ? '0 76 400 108' : '0 0 400 108') : '0 0 400 250';
+export function roomViewBox(level) {
+  return level.room === 'tavolo' ? '0 50 400 190' : '0 0 400 190';
+}
+// La stessa stanza, ferma, per le pagine della lezione: ids con prefisso per non confondersi con quella del livello.
+export function roomStaticHTML(level, comps, lit) {
+  let h = roomHTML(level, comps)
+    .replace(/id="glow"/g, 'id="sglow"').replace(/url\(#glow\)/g, 'url(#sglow)')
+    .replace(/id="night"/g, 'id="snight"').replace(/id="bulb"/g, 'id="sbulb"');
+  if (lit) {
+    h = h.replace('class="night" x="0" y="0" width="400" height="250" opacity=".66"', 'class="night" x="0" y="0" width="400" height="250" opacity="0"')
+      .replace(/(class="glowc"[^>]*?)opacity="0"/, '$1opacity="1"')
+      .replace('class="bulb"', 'class="bulb on"');
+  }
+  return h;
 }
 // Aggiorna la scena (luce, posizione dei comandi) senza ridisegnarla.
 export function updateRoom(root, s, comps) {
@@ -161,18 +173,21 @@ export function benchHTML(s, comps, ui) {
   const live = id => s.power && s.potential(id) === 'F';
   const H = Math.max(...comps.map(c => c.y + c.h)) + 22;
   let o = `<defs><pattern id="pegs" width="16" height="16" patternUnits="userSpaceOnUse"><circle cx="8" cy="8" r="1.4" fill="var(--dot)"/></pattern></defs><rect x="0" y="-28" width="420" height="${H + 28}" fill="var(--bench)"/><rect x="0" y="-28" width="420" height="${H + 28}" fill="url(#pegs)"/>`;
+  const dimmed = c => ui.focus && !ui.focus.includes(c.id);
   comps.forEach(c => {
     const toggles = c.type === 'sw' || c.type === 'dev' || c.type === 'inv';
+    if (dimmed(c)) o += '<g class="dimmed">';
     o += `<text class="ttl" x="${c.x + 2}" y="${c.y - 9}">${c.title}</text>`;
     o += `<g class="help" data-help="${c.type}" role="button" tabindex="0" aria-label="Che cos’è: ${c.title}"><circle cx="${c.x + c.w - 12}" cy="${c.y - 13}" r="19" fill="transparent" stroke="none"/><circle cx="${c.x + c.w - 9}" cy="${c.y - 13}" r="${ui.mobile ? 11 : 9}"/><text x="${c.x + c.w - 9}" y="${c.y - 8.5}" text-anchor="middle">?</text></g>`;
     o += `<rect class="body" x="${c.x}" y="${c.y}" width="${c.w}" height="${c.h}" rx="10"/>`;
     o += `<g transform="translate(${c.x},${c.y})"${toggles ? ` class="togg" data-ctl="${c.id}" style="cursor:pointer"` : ''}>${toggles ? `<rect x="0" y="0" width="${c.w}" height="${c.h}" rx="10" fill="transparent"/>` : ''}${schem(c, s, live, s.lit, ui)}</g>`;
+    if (dimmed(c)) o += '</g>';
   });
   if (s.solutionShown) {
     o += s.level.solution.map(([a, b, col]) => `<path class="ghost" d="${wirePath(termPos(comps, a), termPos(comps, b))}" stroke="${WIRE_STYLE[col].base}"/>`).join('');
   }
-  if (s.guide) {
-    const [ga, gb, gc] = s.guide.wire;
+  if (s.ghost) {
+    const [ga, gb, gc] = s.ghost;
     o += `<path class="ghost guide" d="${wirePath(termPos(comps, ga), termPos(comps, gb))}" stroke="${WIRE_STYLE[gc].base}"/>`;
   }
   // Con la corrente visibile ogni filo ha uno stato: in tensione (alone), percorso da corrente (puntini).
@@ -190,7 +205,7 @@ export function benchHTML(s, comps, ui) {
       const k = s.power && pot === 'F' ? 'f' : s.power && pot === 'N' ? 'n' : '';
       if (k) fl = `<path class="flow ${k}" d="${d}"/>`;
     }
-    o += `<g data-wire="${w.id}">${halo}<path class="w-hit" d="${d}"/><path class="w-edge" d="${d}"/><path class="w-col" d="${d}" stroke="${q.base}"/>${q.dash ? `<path class="w-col dash" d="${d}" stroke="${q.dash}"/>` : ''}${fl}</g>`;
+    o += `<g data-wire="${w.id}"${ui.newWire === w.id ? ' class="newwire"' : ''}>${halo}<path class="w-hit" d="${d}"/><path class="w-edge" d="${d}"/><path class="w-col" d="${d}" stroke="${q.base}"${ui.newWire === w.id ? ' pathLength="100"' : ''}/>${q.dash ? `<path class="w-col dash" d="${d}" stroke="${q.dash}"/>` : ''}${fl}</g>`;
   });
   if (fv && !s.lit) {
     s.flow.deadEnds.forEach(t => {
@@ -198,7 +213,14 @@ export function benchHTML(s, comps, ui) {
       o += `<circle class="stop" cx="${p.x}" cy="${p.y}" r="${ui.mobile ? 23 : 19}"/>`;
     });
   }
-  comps.forEach(c => { Object.keys(c.terms).forEach(id => { o += termSVG(c, id, ui); }); });
+  comps.forEach(c => {
+    const dim = ui.focus && !ui.focus.includes(c.id), ring = ui.focus && ui.focus.includes(c.id);
+    Object.keys(c.terms).forEach(id => {
+      const p = termPosOf(c, id);
+      if (ring) o += `<circle class="focusring" cx="${p.x}" cy="${p.y}" r="${ui.mobile ? 24 : 20}"/>`;
+      o += dim ? `<g class="dimmed">${termSVG(c, id, ui)}</g>` : termSVG(c, id, ui);
+    });
+  });
   o += `<path id="prev" d=""/>`;
   return o;
 }
@@ -213,12 +235,18 @@ export function statusHTML(s) {
 
 const MARK = { ok: '✓', na: '–', ko: '✕' };
 export function resultHTML(s) {
-  if (!s.result) {
-    return `<h3>Controllo del circuito</h3><p class="muted">Quando hai collegato i fili, premi <b>Verifica</b>. Ti diciamo se funziona, se i colori sono giusti e se l’impianto è sicuro.</p>`;
-  }
+  if (!s.result) return '';
   const r = describeEvaluation(s.result, s.level);
   const row = (t, o) => `<div class="row"><span class="mark ${o.status}" aria-hidden="true">${MARK[o.status]}</span><div><b>${t}</b><ul>${o.msgs.map(m => `<li>${m}</li>`).join('')}</ul></div></div>`;
   const last = s.levelIndex === s.levelCount - 1;
   const xp = s.levels[s.levelIndex].xp;
-  return `<h3>${r.pass ? 'Livello superato' : 'Controllo del circuito'}</h3><div class="stars" aria-label="${r.stars} stelle su 3">${'★'.repeat(r.stars)}<span class="e">${'★'.repeat(3 - r.stars)}</span></div>${row('Funziona', r.work)}${row('Colori dei fili', r.color)}${row('Sicurezza', r.safe)}<p class="xpline">Punti di questo livello: <b>${xp} XP</b></p>${r.pass ? (last ? `<p class="next"><b>Hai completato tutti i livelli.</b></p>` : `<div class="next"><button class="btn primary" id="bNext" style="margin-left:0">Livello successivo</button></div>`) : ''}`;
+  const u = s.unit;
+  const acts = [];
+  if (r.pass) {
+    if (u && u.summary.length) acts.push('<button class="btn" data-act="summary">Sintesi</button>');
+    if (u && u.hasFault && !u.faultSolved && s.playMode !== 'verifica' && s.mode === 'quadro') acts.push('<button class="btn" data-act="fault">Sfida guasto</button>');
+    if (s.playMode !== 'verifica' && s.mode === 'quadro') acts.push('<button class="btn" data-act="full">Sfida: parti dal contatore</button>');
+    acts.push(last ? '' : '<button class="btn primary" id="bNext">Livello successivo</button>');
+  }
+  return `<h3>${r.pass ? 'Impianto funzionante' : 'Controllo del circuito'}</h3><div class="stars" aria-label="${r.stars} stelle su 3">${'★'.repeat(r.stars)}<span class="e">${'★'.repeat(3 - r.stars)}</span></div>${row('Funziona', r.work)}${row('Colori dei fili', r.color)}${row('Sicurezza', r.safe)}<p class="xpline">Punti di questo livello: <b>${xp} XP</b></p>${r.pass && last ? '<p class="next"><b>Hai completato tutti i livelli.</b></p>' : ''}${acts.length ? `<div class="uact">${acts.join('')}</div>` : ''}`;
 }

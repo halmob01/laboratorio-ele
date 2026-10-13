@@ -21,34 +21,37 @@ html{scroll-padding-top:env(safe-area-inset-top,0px)}
 
     <section id="screen-level" hidden aria-label="Livello">
       <div class="levelbar"><a class="back" href="#/home">&larr; Mappa</a><span class="lvtag" id="lvTag"></span></div>
-      <div class="grid">
-        <section class="col left" aria-label="Stanza">
-          <div class="card goal unit" id="unit"></div>
-          <div class="card roomcard">
-            <svg id="room" viewBox="0 0 400 250" preserveAspectRatio="xMidYMid slice" role="img" aria-label="Stanza con la luce da accendere"></svg>
-            <div class="status" id="status"></div>
-          </div>
-          <div class="card info" id="info"></div>
-        </section>
-
-        <section class="col" aria-label="Banco di lavoro">
-          <div class="card benchcard">
-            <div class="mode" id="modeBar" role="group" aria-label="Punto di partenza"><span class="mlabel">Parti dal</span><button class="chip seg" data-mode="quadro" aria-pressed="true">Quadro</button><button class="chip seg" data-mode="contatore" aria-pressed="false">Contatore</button><span class="mlabel hint">il contatore è la versione completa</span></div>
-            <div class="palette" id="palette" role="group" aria-label="Colore del filo"></div>
-            <p class="tip">Scegli il colore, poi tocca due morsetti per collegarli (o trascina). Tocca un filo per toglierlo. Per provare: dai corrente dal quadro e tocca l’interruttore.</p>
-            <svg id="bench" role="img" aria-label="Banco di lavoro con i componenti da collegare"></svg>
-            <div class="flowlegend" id="flowLegend" hidden></div>
-            <div class="actions">
-              <button class="btn" id="bUndo">Annulla filo</button>
-              <button class="btn" id="bClear">Svuota</button>
-              <button class="btn" id="bFlow" aria-pressed="false" hidden>Mostra la corrente</button>
-              <button class="btn" id="bHint">Suggerimento</button>
-              <button class="btn" id="bSol" aria-pressed="false">Mostra soluzione</button>
-              <button class="btn primary" id="bCheck">Verifica</button>
+      <div class="card lessoncard" id="lesson" hidden></div>
+      <div class="work" id="work">
+        <div class="card task unit" id="unit"></div>
+        <div class="card benchcard">
+          <div class="mode" id="modeBar" role="group" aria-label="Punto di partenza"><span class="mlabel">Parti dal</span><button class="chip seg" data-mode="quadro" aria-pressed="true">Quadro</button><button class="chip seg" data-mode="contatore" aria-pressed="false">Contatore</button><span class="mlabel hint">il contatore è la versione completa</span></div>
+          <div class="palette" id="palette" role="group" aria-label="Colore del filo"></div>
+          <div class="benchrow">
+            <div class="benchmain">
+              <svg id="bench" role="img" aria-label="Banco di lavoro con i componenti da collegare"></svg>
+            </div>
+            <div class="benchside">
+              <div class="actions">
+                <button class="btn" id="bUndo">Annulla</button>
+                <button class="btn" id="bClear">Annulla tutto</button>
+                <button class="btn" id="bFlow" aria-pressed="false" hidden>Mostra la corrente</button>
+                <button class="btn" id="bHint">Suggerimento</button>
+                <button class="btn" id="bSol" aria-pressed="false">Mostra soluzione</button>
+                <button class="btn primary" id="bCheck">Verifica</button>
+              </div>
+              <div class="flowlegend" id="flowLegend" hidden></div>
+              <div class="sidelinks" id="sideLinks"></div>
             </div>
           </div>
-          <div class="card res" id="result" aria-live="polite"></div>
-        </section>
+        </div>
+        <div class="card res" id="result" aria-live="polite"></div>
+        <div class="card roomcard">
+          <div class="roomhead"><span>La stanza</span></div>
+          <svg id="room" viewBox="0 0 400 250" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Stanza con la luce da accendere"></svg>
+          <div class="status" id="status"></div>
+        </div>
+        <div class="card info" id="info"></div>
       </div>
     </section>
   </main>

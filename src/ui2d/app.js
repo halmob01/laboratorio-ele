@@ -1,7 +1,7 @@
 // Vista 2D: collega la sessione del motore al DOM (disegno, tocco, tastiera).
 // Le regole del gioco stanno in src/engine/session.js; qui ci sono solo ingressi e uscite grafiche.
 
-import { createSession, cleanName } from '../engine/index.js';
+import { createSession, cleanName, demoFrames, blankSnap } from '../engine/index.js';
 import { levels, deriveFull } from '../content/index.js';
 import { HELP } from '../content/it.js';
 import { composeComps } from './layout.js';
@@ -39,7 +39,11 @@ const ui = () => ({ mobile: MQ.matches, sel: SEL, kwh: KWH });
 
 /* ---------- disegno ---------- */
 function renderPalette() { $('#palette').innerHTML = R.paletteHTML(COL); }
-function setRoomVB() { $('#room').setAttribute('viewBox', R.roomViewBox(S.level, MQ.matches)); }
+function setRoomVB() {
+  const r = $('#room');
+  r.setAttribute('viewBox', R.roomViewBox(S.level));
+  r.setAttribute('preserveAspectRatio', S.level.room === 'tavolo' ? 'xMidYMid slice' : 'xMidYMin slice');
+}
 function renderBench() {
   const b = $('#bench');
   b.setAttribute('viewBox', R.benchViewBox(comps));
@@ -63,6 +67,7 @@ function showHint() {
 }
 
 function onLevelChange() {
+  stopDemo();
   comps = composeComps(S.level);
   SEL = null;
   $('#lvTag').textContent = S.level.name + (S.mode === 'contatore' ? ' · dal contatore' : '') + (S.playMode === 'verifica' ? ' · prova di salto' : '');
@@ -86,12 +91,70 @@ function renderChrome() {
   $('#tabbar').innerHTML = V.tabbarHTML(route, S.last);
 }
 
+/* ---------- lezione: pagine e dimostrazione ---------- */
+const REDUCED = window.matchMedia ? window.matchMedia('(prefers-reduced-motion: reduce)') : { matches: false };
+let demo = { page: -1, frames: [], i: 0, timer: null, playing: false };
+function stopDemo() { if (demo.timer) clearInterval(demo.timer); demo.timer = null; demo.playing = false; }
+function drawDemo() {
+  const f = demo.frames[demo.i];
+  const b = $('#demoBench');
+  if (!f || !b) return;
+  b.innerHTML = R.benchHTML(f.snap, comps, { mobile: MQ.matches, sel: null, kwh: KWH, newWire: f.newWire });
+  $('#demoCap').textContent = f.caption;
+  $('#demoN').textContent = String(demo.i + 1);
+  $('#demoCount').textContent = (demo.i + 1) + ' / ' + demo.frames.length;
+  const t = document.querySelector('[data-demo="toggle"]');
+  if (t) { t.textContent = demo.playing ? 'Pausa' : 'Riprendi'; t.setAttribute('aria-label', t.textContent); }
+}
+function demoTick() {
+  if (demo.i < demo.frames.length - 1) { demo.i++; drawDemo(); }
+  if (demo.i >= demo.frames.length - 1) { stopDemo(); drawDemo(); }
+}
+function startDemo() {
+  stopDemo();
+  if (REDUCED.matches || demo.i >= demo.frames.length - 1) { drawDemo(); return; }
+  demo.playing = true;
+  demo.timer = setInterval(demoTick, 1800);
+  drawDemo();
+}
+
+function renderLesson() {
+  const pg = S.unit.pageData, extra = {}, ui2 = { mobile: MQ.matches, sel: null, kwh: KWH };
+  if (pg.type !== 'demo') stopDemo();
+  if (pg.type === 'spiegazione' && pg.room) extra.roomInner = R.roomStaticHTML(S.level, comps, pg.room === 'lit');
+  if (pg.type === 'pezzi') {
+    extra.benchBox = R.benchViewBox(comps);
+    extra.benchInner = R.benchHTML(blankSnap(S.level), comps, { ...ui2, focus: pg.focus });
+  }
+  let fresh = false;
+  if (pg.type === 'demo') {
+    const key = S.levelKey + '|' + S.unit.page;
+    if (demo.page !== key) { stopDemo(); demo = { page: key, frames: demoFrames(S.level, pg.captions), i: 0, timer: null, playing: false }; fresh = true; }
+    const f = demo.frames[demo.i];
+    extra.benchBox = R.benchViewBox(comps);
+    extra.benchInner = R.benchHTML(f.snap, comps, { ...ui2, newWire: f.newWire });
+    extra.caption = f.caption; extra.frame = demo.i; extra.frames = demo.frames.length; extra.playing = demo.playing;
+  } else {
+    demo.page = -1;
+  }
+  $('#lesson').innerHTML = V.lessonHTML(S, extra);
+  if (fresh) startDemo();
+}
+
 function renderLevelScreen() {
   const ph = S.unit ? S.unit.phase : 'build';
+  const inLesson = !!S.unit && ph === 'lesson' && S.playMode === 'apprendimento';
   const scr = $('#screen-level');
-  scr.className = 'phase-' + ((ph === 'lesson' || ph === 'prediction') ? 'learn' : 'play') + (S.playMode === 'verifica' ? ' verify' : '');
+  scr.className = 'phase-' + (inLesson ? 'learn' : 'play') + (S.playMode === 'verifica' ? ' verify' : '');
+  $('#lesson').hidden = !inLesson;
+  $('#work').hidden = inLesson;
+  if (inLesson) { renderLesson(); return; }
+  stopDemo();
+  demo.page = -1;
+  $('#work').classList.toggle('passed', !!(S.result && S.result.pass));
   $('#unit').innerHTML = V.unitHTML(S);
-  $('#modeBar').hidden = S.playMode === 'verifica' || !!S.unit && ph !== 'build' && ph !== 'done';
+  $('#sideLinks').innerHTML = V.sideLinksHTML(S);
+  $('#modeBar').hidden = S.playMode === 'verifica' || (!!S.unit && ph !== 'done');
   $('#bHint').hidden = $('#bSol').hidden = S.playMode === 'verifica';
   $('#bSol').textContent = S.solutionShown ? 'Nascondi soluzione' : 'Mostra soluzione';
   $('#bSol').setAttribute('aria-pressed', String(S.solutionShown));
@@ -243,29 +306,49 @@ $('#bClear').addEventListener('click', () => session.clear());
 $('#bHint').addEventListener('click', showHint);
 $('#bSol').addEventListener('click', () => session.toggleSolution());
 $('#bCheck').addEventListener('click', () => {
-  session.check();
-  $('#result').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  const r = session.check();
+  const behavior = REDUCED.matches ? 'auto' : 'smooth';
+  // se l'impianto funziona si scorre fino alla stanza accesa, altrimenti all'esito dei controlli
+  (r.pass ? $('.roomcard') : $('#result')).scrollIntoView({ behavior, block: r.pass ? 'start' : 'nearest' });
 });
 $('#bFlow').addEventListener('click', () => session.toggleFlow());
 $('#result').addEventListener('click', e => {
   if (e.target.id === 'bNext') { const n = S.levels[S.levelIndex + 1]; if (n) location.hash = '#/livello/' + n.id; }
 });
 
-/* ---------- scheda dell'unita' (lezione, previsione, guasto) ---------- */
-$('#unit').addEventListener('click', e => {
+/* ---------- scheda dell'unita' (lezione, previsione, guasto, azioni dopo la verifica) ---------- */
+function onUnitClick(e) {
   const u = e.target.closest('[data-unit]');
-  if (u) {
+  if (u && !u.disabled) {
     const a = u.dataset.unit;
     if (a === 'next') session.unitNext();
     else if (a === 'back') session.unitBack();
+    else if (a === 'skip') session.skipLesson();
     else if (a === 'lesson') session.showLesson();
-    else if (a === 'startFault') session.startFault();
     else if (a === 'leaveFault') session.leaveFault();
+    return;
+  }
+  const act = e.target.closest('[data-act]');
+  if (act) {
+    opener = act;
+    const a = act.dataset.act;
+    if (a === 'summary') openOverlay('summary', V.summaryHTML(S));
+    else if (a === 'fault') session.startFault();
+    else if (a === 'full') { document.querySelectorAll('.seg').forEach(x => x.setAttribute('aria-pressed', String(x.dataset.mode === 'contatore'))); session.setMode('contatore'); }
+    return;
+  }
+  const dm = e.target.closest('[data-demo]');
+  if (dm) {
+    const a = dm.dataset.demo;
+    if (a === 'toggle') { if (demo.playing) { stopDemo(); drawDemo(); } else { if (demo.i >= demo.frames.length - 1) demo.i = 0; startDemo(); } }
+    else if (a === 'step') { stopDemo(); if (demo.i < demo.frames.length - 1) demo.i++; drawDemo(); }
+    else if (a === 'restart') { demo.i = 0; startDemo(); }
     return;
   }
   const p = e.target.closest('[data-pred]'); if (p) { session.answerPrediction(p.dataset.pred); return; }
   const d = e.target.closest('[data-diag]'); if (d) session.answerDiagnosis(d.dataset.diag);
-});
+}
+['#unit', '#lesson', '#sideLinks', '#result'].forEach(id => $(id).addEventListener('click', onUnitClick));
 
 /* ---------- finestre: introduzione, nome, schede informative ---------- */
 const overlay = $('#overlay');

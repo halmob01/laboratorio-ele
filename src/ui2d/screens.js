@@ -170,41 +170,79 @@ const optButtons = (opts, chosen, correctId, action) =>
     return `<button class="opt ${cls}" data-${action}="${o.id}" ${chosen ? 'disabled' : ''}>${esc(o.text)}</button>`;
   }).join('')}</div>`;
 
+const KIND = { spiegazione: 'Spiegazione', pezzi: 'I pezzi', demo: 'Guarda come si fa', previsione: 'Previsione', sintesi: 'In sintesi' };
+
+/* ---------- lezione: una scheda per pagina ---------- */
+// extra: { benchBox, benchInner, roomInner, frame, frames, playing } preparati da app.js
+export function lessonHTML(s, extra = {}) {
+  const u = s.unit, pg = u.pageData, last = u.page === u.pages - 1;
+  let body = '';
+  if (pg.type === 'spiegazione') {
+    if (pg.room) body += `<div class="vis"><svg viewBox="0 0 400 190" role="img" aria-label="La stanza con la lampada">${extra.roomInner || ''}</svg></div>`;
+    if (pg.art) body += `<div class="vis">${artHTML(pg.art)}</div>`;
+    body += pg.paras.map(t => `<p>${esc(t)}</p>`).join('');
+    if (pg.table) body += `<div class="ltable"><div class="lt head"><span>${esc(pg.table.head[0])}</span><span>${esc(pg.table.head[1])}</span></div>${pg.table.rows.map(r => `<div class="lt"><span>${esc(r[0])}</span><b>${esc(r[1])}</b></div>`).join('')}</div>`;
+    if (pg.warn) body += `<div class="lwarn"><b>Attenzione.</b> ${esc(pg.warn)}</div>`;
+  } else if (pg.type === 'pezzi') {
+    body += `<div class="vis"><svg class="lbench" viewBox="${extra.benchBox}" role="img" aria-label="Il banco con i componenti in evidenza">${extra.benchInner || ''}</svg></div>`;
+    body += pg.paras.map(t => `<p>${esc(t)}</p>`).join('');
+  } else if (pg.type === 'demo') {
+    const f = extra.frames || 1, i = extra.frame || 0;
+    body += `<div class="vis"><svg class="lbench" id="demoBench" viewBox="${extra.benchBox}" role="img" aria-label="Dimostrazione del cablaggio">${extra.benchInner || ''}</svg></div>`;
+    body += `<div class="capt"><b class="n" id="demoN">${i + 1}</b><span id="demoCap">${esc(extra.caption || '')}</span></div>`;
+    body += `<div class="dplayer"><button class="btn pp" data-demo="toggle" aria-label="${extra.playing ? 'Pausa' : 'Riprendi'}">${extra.playing ? 'Pausa' : 'Riprendi'}</button><button class="btn" data-demo="step">Passo successivo</button><button class="btn" data-demo="restart">Rivedi</button><span class="pcount" id="demoCount">${i + 1} / ${f}</span></div>`;
+  } else if (pg.type === 'previsione') {
+    const a = u.pred;
+    body += `<h3 class="q">${esc(pg.question)}</h3>${optButtons(pg.options, a, pg.correct, 'pred')}`;
+    body += a ? `<p class="fb ${a.correct ? 'ok' : 'ko'}"><b>${a.correct ? 'Giusto.' : 'Non proprio.'}</b> ${esc(pg.why)}</p>` : '<p class="note">Scegli una risposta per andare avanti.</p>';
+  } else if (pg.type === 'sintesi') {
+    body += `<ul class="sum">${u.summary.map(t => `<li>${esc(t)}</li>`).join('')}</ul><p class="note">La trovi anche nel Quaderno, dalla mappa.</p>`;
+  }
+  const blocked = pg.type === 'previsione' && !u.pred;
+  return `<div class="lhead"><div class="kick">Lezione · ${u.page + 1} di ${u.pages} · ${KIND[pg.type]}</div><button class="link" data-unit="skip">Salta la lezione</button></div>
+    <div class="prog" aria-hidden="true">${Array.from({ length: u.pages }, (_, k) => `<b class="${k <= u.page ? 'on' : ''}"></b>`).join('')}</div>
+    <h2>${esc(pg.title || '')}</h2>${body}
+    <div class="uact">${u.page > 0 ? '<button class="btn" data-unit="back">Indietro</button>' : ''}<button class="btn primary grow" data-unit="next" ${blocked ? 'disabled' : ''}>${last ? 'Ora tocca a te' : 'Avanti'}</button></div>`;
+}
+
+/* ---------- sintesi (finestra) ---------- */
+export function summaryHTML(s) {
+  const L = s.level;
+  return `<div class="mcard" role="dialog" aria-modal="true" aria-labelledby="mT"><div class="mtop"><h2 id="mT">Da ricordare</h2><button class="btn" data-close="1">Chiudi</button></div><div class="mbody"><p><b>${esc(L.title)}</b></p><ul class="sum">${s.unit.summary.map(t => `<li>${esc(t)}</li>`).join('')}</ul></div></div>`;
+}
+
+/* ---------- compito dell'esercizio ---------- */
+export function stepsBarHTML(st) {
+  return `<ol class="steps" aria-label="Passi">${st.list.map((x, i) => `<li class="${st.done[i] ? 'done' : i === st.current ? 'cur' : ''}"${i === st.current ? ' aria-current="step"' : ''}>${esc(x.short)}</li>`).join('')}</ol>`;
+}
+
 export function unitHTML(s) {
-  const L = s.level, u = L.unit, code = L.code;
+  const L = s.level, u = L.unit;
   if (s.playMode === 'verifica') {
-    return `<div class="kick">PROVA DI SALTO</div><h2>${esc(L.title)}</h2><p>${esc(L.goal)}</p><p class="note">Senza suggerimenti e senza soluzione. Se la superi il livello risulta saltato e i punti si contano.</p>`;
+    return `<div class="kick">Prova di salto</div><h2>${esc(L.title)}</h2><p>${esc(L.goal)}</p><p class="note">Senza suggerimenti e senza soluzione. Se la superi il livello risulta saltato e i punti si contano.</p>`;
   }
-  if (!u) return `<div class="kick">LIVELLO</div><h2>${esc(L.title)}</h2><p>${esc(L.goal)}</p>`;
+  if (!u) return `<div class="kick">Livello</div><h2>${esc(L.title)}</h2><p>${esc(L.goal)}</p>`;
   const ph = s.unit.phase;
-  if (ph === 'lesson') {
-    const pg = u.lesson.pages[s.unit.page], last = s.unit.page === s.unit.pages - 1;
-    return `<div class="kick">LEZIONE · ${s.unit.page + 1} di ${s.unit.pages}</div><h2>${esc(pg.title)}</h2>
-      <div class="lessonart">${artHTML(pg.art)}</div>
-      ${pg.paras.map(p => `<p>${esc(p)}</p>`).join('')}
-      <div class="uact">${s.unit.page > 0 ? '<button class="btn" data-unit="back">Indietro</button>' : ''}<button class="btn primary" data-unit="next">${last ? 'Alla previsione' : 'Avanti'}</button></div>`;
-  }
-  if (ph === 'prediction') {
-    const p = u.prediction, a = s.unit.pred;
-    return `<div class="kick">PREVISIONE</div><h2>${esc(p.question)}</h2>
-      ${optButtons(p.options, a, p.correct, 'pred')}
-      ${a ? `<p class="fb ${a.correct ? 'ok' : 'ko'}"><b>${a.correct ? 'Giusto.' : 'Non proprio.'}</b> ${esc(p.why)}</p><div class="uact"><button class="btn primary" data-unit="next">Provalo sul banco</button></div>` : '<p class="note">Scegli una risposta prima di provare.</p>'}`;
-  }
   if (ph === 'fault') {
     const f = u.fault, d = s.unit.diag;
-    return `<div class="kick">SFIDA GUASTO</div><h2>${esc(f.diagnosis.question)}</h2><p>${esc(f.say)}</p>
+    return `<div class="kick">Sfida guasto</div><h2>${esc(f.diagnosis.question)}</h2><p>${esc(f.say)}</p>
       ${optButtons(f.diagnosis.options, d, f.diagnosis.correct, 'diag')}
       ${d ? `<p class="fb ${d.correct ? 'ok' : 'ko'}"><b>${d.correct ? 'Giusto.' : 'Non proprio.'}</b> ${d.correct ? esc(f.diagnosis.why) + ' ' + esc(f.fixSay) : 'Osserva i fili: gli aloni mostrano dove arriva la tensione.'}</p>` : ''}
       <div class="uact"><button class="btn" data-unit="leaveFault">Esci dalla sfida</button></div>`;
   }
   if (ph === 'done') {
-    const me = s.levels[s.levelIndex];
-    return `<div class="kick">COMPLETATO</div><h2>Livello superato</h2><p>${esc(L.title)}: ${me.xp} XP.</p>
-      <div class="uact">${s.unit.hasFault && !s.unit.faultSolved ? '<button class="btn primary" data-unit="startFault">Sfida guasto</button>' : ''}<a class="btn ${s.unit.hasFault && !s.unit.faultSolved ? '' : 'primary'}" href="#/home">Torna alla mappa</a><button class="btn" data-unit="lesson">Rivedi la lezione</button></div>`;
+    return `${s.steps ? stepsBarHTML(s.steps) : ''}<h2>Livello completato</h2><p>Puoi rifare l’impianto, rivedere la sintesi o passare al livello successivo.</p>`;
   }
   // cablaggio
-  let guide = '';
-  if (s.guide) guide = `<div class="guide"><b>Esempio guidato</b><p>${esc(s.guide.say)}</p></div>`;
-  else if (u.afterGuide && !(s.result && s.result.pass)) guide = `<p class="note">${esc(u.afterGuide)}</p>`;
-  return `<div class="kick">CABLAGGIO</div><h2>${esc(L.title)}</h2><p>${esc(L.goal)}</p>${guide}<div class="uact"><button class="btn" data-unit="lesson">Rivedi la lezione</button></div>`;
+  if (s.steps && u.support !== 'obiettivo') {
+    const cur = s.steps.current === null ? null : s.steps.list[s.steps.current];
+    return `${stepsBarHTML(s.steps)}<h2>${esc(cur ? cur.title : 'Impianto completato')}</h2><p>${esc(cur ? cur.text : 'Tutti i passi sono fatti.')}</p>`;
+  }
+  return `<div class="kick">Obiettivo</div><h2>${esc(L.title)}</h2><p>${esc(L.goal)}</p>`;
+}
+
+export function sideLinksHTML(s) {
+  const u = s.unit;
+  if (!u || s.playMode === 'verifica') return '';
+  return `<button class="link" data-act="summary">Sintesi</button><button class="link" data-unit="lesson">Rivedi la lezione</button>`;
 }

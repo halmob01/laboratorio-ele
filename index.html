@@ -156,24 +156,15 @@ button.btn.primary{background:var(--accent);color:var(--on-accent);border-color:
 .info .x{display:none}
 @media (max-width:919px){
   body{padding-block:10px 28px}
-  .wrap,.grid{gap:10px}
-  .col{display:contents}
-  .goal{order:1}.roomcard{order:2}.benchcard{order:3}.res{order:4}
+  .wrap{gap:10px}
   .top{gap:8px}
   h1{font-size:22px}
   .brand svg{width:26px;height:26px}
   .card{padding:12px}
-  .goal h2{font-size:21px}
-  .goal p{font-size:15px;margin-top:4px}
-  .roomcard{position:sticky;top:0;z-index:6;padding:0}
-  #room{width:100%;height:auto;aspect-ratio:400/108}
-  .status{position:absolute;left:8px;right:8px;bottom:6px;padding:0;border:0;gap:6px;pointer-events:none}
-  .status .pill{font-size:12px;padding:5px 8px;box-shadow:0 0 0 1px rgba(0,0,0,.12)}
-  .msg{background:rgba(8,12,20,.82);color:#fff;border-radius:8px;padding:6px 9px;font-size:13px;line-height:1.3;min-height:0;pointer-events:auto}
-  .msg:empty{display:none}
   .benchcard{padding:12px 0}
-  .benchcard>.mode,.benchcard>.tip,.benchcard>.actions{margin-inline:12px}
-  .benchcard>.palette{position:sticky;top:var(--roomH,104px);z-index:5;background:var(--card);margin:0 0 6px;padding:8px 12px;display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:6px;border-bottom:1px solid var(--line)}
+  .benchcard>.mode{margin-inline:12px}
+  .benchcard>.palette{background:var(--card);margin:0 0 6px;padding:8px 12px;display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:6px;border-bottom:1px solid var(--line)}
+  .benchside{padding-inline:12px}
   .chip{flex-direction:column;align-items:stretch;gap:5px;border-radius:10px;padding:6px 4px 6px;font-size:12px;text-align:center;line-height:1.1;overflow-wrap:anywhere}
   .chip .sw{width:100%;height:12px}
   .seg.chip{flex-direction:row;justify-content:center;padding:9px 14px;font-size:14px;border-radius:999px;min-height:40px;align-items:center}
@@ -184,11 +175,10 @@ button.btn.primary{background:var(--accent);color:var(--on-accent);border-color:
   .lbl{font-size:12px}
   .ttl{font-size:14px}
   .w-hit{stroke-width:24px}
-  .actions{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  .actions{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}
+  .actions .btn{padding-inline:6px}
   button.btn{min-height:46px;font-size:16px}
   button.btn.primary{grid-column:1/-1;margin-left:0}
-  .res{scroll-margin-top:calc(var(--roomH,104px) + 12px)}
-  .res h3{font-size:19px}
   .info{display:none}
   .info.open{display:block;position:fixed;left:16px;right:16px;bottom:calc(14px + env(safe-area-inset-bottom,0px));z-index:30;box-shadow:0 10px 30px rgba(0,0,0,.35);border-color:var(--comp-edge)}
   .info .x{display:block;float:right;margin:-4px -4px 6px 10px;font:500 14px/1 'IBM Plex Sans',sans-serif;background:var(--chip);color:var(--ink);border:1px solid var(--line);border-radius:8px;padding:9px 12px;min-height:40px}
@@ -310,9 +300,7 @@ button:disabled{cursor:default}
 .guide{margin-top:12px;background:var(--chip);border-radius:10px;padding:12px 14px}
 .guide p{margin-top:4px;color:var(--ink)}
 .xpline{margin-top:6px;font-size:14px;color:var(--ink2)}
-.phase-learn .roomcard,.phase-learn .benchcard,.phase-learn .res{display:none}
-.phase-learn .info{display:none}
-.verify .goal .kick{color:var(--warn)}
+.verify .unit .kick{color:var(--warn)}
 
 /* corrente visibile */
 .halo-w{fill:none;stroke-width:18;stroke-linecap:round;pointer-events:none}
@@ -361,6 +349,77 @@ button:disabled{cursor:default}
 .dots i{width:9px;height:9px;border-radius:50%;background:var(--line)}
 .dots i.done{background:var(--ink2)}.dots i.now{background:var(--accent)}
 .introact{display:flex;flex-wrap:wrap;gap:8px}
+
+/* ---------- pagina dell'esercizio: passi, banco, stanza in fondo ---------- */
+.work{display:flex;flex-direction:column;gap:12px;max-width:1040px;margin:0 auto}
+.work[hidden],.lessoncard[hidden]{display:none}
+.work .task{order:1;padding:12px 14px;border-left:5px solid var(--lamp)}
+.work .benchcard{order:2}
+.work .res{order:3}.work.passed .res{order:5}
+.work .roomcard{order:4}
+.work .info{order:6}
+.work .res:empty{display:none}
+.task h2{font:700 24px/1.1 'Barlow Condensed',sans-serif;text-transform:none;margin-top:8px}
+.task p{margin-top:4px;color:var(--ink2);font-size:15px}
+.steps{list-style:none;margin:0;padding:0;display:flex;gap:6px}
+.steps li{flex:1;text-align:center;padding:7px 2px;border-radius:9px;font:600 12px/1.2 'IBM Plex Sans',sans-serif;background:var(--chip);color:var(--ink2)}
+.steps li.done{background:#DCE8F6;color:var(--neutro)}
+.steps li.cur{background:var(--ink);color:var(--bg)}
+.benchrow{display:flex;flex-direction:column}
+.benchmain{min-width:0}
+.sidelinks{display:flex;gap:16px;margin-top:10px;flex-wrap:wrap}
+.link{background:none;border:0;padding:6px 0;font:500 14px/1.2 'IBM Plex Sans',sans-serif;color:var(--accent);text-decoration:underline;cursor:pointer;min-height:36px}
+.roomcard{padding:0;overflow:hidden}
+.roomhead{display:flex;justify-content:space-between;padding:10px 14px;font:500 13px/1 'IBM Plex Mono',monospace;color:var(--ink2);text-transform:uppercase;letter-spacing:.06em}
+#room{display:block;width:100%;height:auto;aspect-ratio:400/190}
+@media (min-width:920px){#room{aspect-ratio:1040/320}}
+.status{position:static;border-top:1px solid var(--line);padding:10px 14px}
+.msg{background:none;color:var(--ink2)}
+@media (min-width:920px){
+  .benchrow{display:grid;grid-template-columns:minmax(0,1fr) 280px;gap:16px;align-items:start}
+  .benchside{display:flex;flex-direction:column;gap:6px}
+  .benchside .actions{display:flex;flex-direction:column;margin-top:0}
+  .benchside .actions .btn{width:100%;justify-content:center}
+  .benchside .actions .primary{order:-1;margin-left:0}
+  #bench{max-height:520px}
+}
+.dimmed{opacity:.28}
+.focusring{fill:none;stroke:var(--lamp);stroke-width:4}
+.newwire .w-col{stroke-dasharray:100;stroke-dashoffset:100;animation:drawwire .8s ease forwards}
+@keyframes drawwire{to{stroke-dashoffset:0}}
+.newwire .w-col{--len:1}
+@media (prefers-reduced-motion:reduce){.newwire .w-col{animation:none;stroke-dashoffset:0}}
+
+/* lezione */
+.lessoncard{max-width:720px;margin:0 auto;padding:16px;width:100%}
+.lhead{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}
+.lhead .kick{font:500 12px/1.3 'IBM Plex Mono',monospace;letter-spacing:.08em;text-transform:uppercase;color:var(--accent)}
+.lhead .link{white-space:nowrap;flex:none}
+.prog{display:flex;gap:5px;margin:8px 0 12px}
+.prog b{height:5px;flex:1;border-radius:3px;background:var(--line)}
+.prog b.on{background:var(--accent)}
+.lessoncard h2{font:700 28px/1.05 'Barlow Condensed',sans-serif;text-transform:uppercase;margin-bottom:10px}
+.lessoncard p{margin-top:10px;max-width:62ch}
+.lessoncard .q{font:600 22px/1.2 'Barlow Condensed',sans-serif;margin:6px 0}
+.vis{border-radius:12px;overflow:hidden;border:1px solid var(--line);background:var(--bench);margin-bottom:4px}
+.vis svg{display:block;width:100%;height:auto}
+.lbench{max-height:380px}
+.capt{display:flex;gap:10px;align-items:flex-start;margin-top:12px;padding:12px;border-radius:10px;background:#FFF3C4;border:1px solid #E8CF73;color:#2A1B00;font-size:15px;min-height:62px}
+.capt .n{flex:none;width:26px;height:26px;border-radius:50%;background:var(--lamp);text-align:center;font:700 14px/26px 'IBM Plex Sans',sans-serif;color:#1B2230}
+.dplayer{display:flex;gap:8px;align-items:center;margin-top:10px;flex-wrap:wrap}
+.dplayer .btn{min-height:40px;font-size:14px;padding:8px 12px}
+.pcount{margin-left:auto;font:500 13px 'IBM Plex Mono',monospace;color:var(--ink2)}
+.ltable{margin-top:12px;border:1px solid var(--line);border-radius:10px;overflow:hidden;font-size:15px}
+.lt{display:flex;justify-content:space-between;padding:8px 12px;border-top:1px solid var(--line)}
+.lt.head{background:var(--chip);border-top:0;font:500 12px 'IBM Plex Mono',monospace;color:var(--ink2);text-transform:uppercase}
+.lwarn{margin-top:12px;padding:10px 12px;border-left:5px solid var(--bad);background:rgba(190,37,48,.1);border-radius:6px;font-size:15px}
+.sum{margin:12px 0 0;padding-left:20px;line-height:1.5}
+.sum li{margin-top:4px}
+.btn.grow{flex:1}
+.uact .btn:disabled{opacity:.45;cursor:default}
+@media print{
+  .quaderno-print *{color:#000}
+}
 </style>
 </head>
 <body>
@@ -373,34 +432,37 @@ button:disabled{cursor:default}
 
     <section id="screen-level" hidden aria-label="Livello">
       <div class="levelbar"><a class="back" href="#/home">&larr; Mappa</a><span class="lvtag" id="lvTag"></span></div>
-      <div class="grid">
-        <section class="col left" aria-label="Stanza">
-          <div class="card goal unit" id="unit"></div>
-          <div class="card roomcard">
-            <svg id="room" viewBox="0 0 400 250" preserveAspectRatio="xMidYMid slice" role="img" aria-label="Stanza con la luce da accendere"></svg>
-            <div class="status" id="status"></div>
-          </div>
-          <div class="card info" id="info"></div>
-        </section>
-
-        <section class="col" aria-label="Banco di lavoro">
-          <div class="card benchcard">
-            <div class="mode" id="modeBar" role="group" aria-label="Punto di partenza"><span class="mlabel">Parti dal</span><button class="chip seg" data-mode="quadro" aria-pressed="true">Quadro</button><button class="chip seg" data-mode="contatore" aria-pressed="false">Contatore</button><span class="mlabel hint">il contatore è la versione completa</span></div>
-            <div class="palette" id="palette" role="group" aria-label="Colore del filo"></div>
-            <p class="tip">Scegli il colore, poi tocca due morsetti per collegarli (o trascina). Tocca un filo per toglierlo. Per provare: dai corrente dal quadro e tocca l’interruttore.</p>
-            <svg id="bench" role="img" aria-label="Banco di lavoro con i componenti da collegare"></svg>
-            <div class="flowlegend" id="flowLegend" hidden></div>
-            <div class="actions">
-              <button class="btn" id="bUndo">Annulla filo</button>
-              <button class="btn" id="bClear">Svuota</button>
-              <button class="btn" id="bFlow" aria-pressed="false" hidden>Mostra la corrente</button>
-              <button class="btn" id="bHint">Suggerimento</button>
-              <button class="btn" id="bSol" aria-pressed="false">Mostra soluzione</button>
-              <button class="btn primary" id="bCheck">Verifica</button>
+      <div class="card lessoncard" id="lesson" hidden></div>
+      <div class="work" id="work">
+        <div class="card task unit" id="unit"></div>
+        <div class="card benchcard">
+          <div class="mode" id="modeBar" role="group" aria-label="Punto di partenza"><span class="mlabel">Parti dal</span><button class="chip seg" data-mode="quadro" aria-pressed="true">Quadro</button><button class="chip seg" data-mode="contatore" aria-pressed="false">Contatore</button><span class="mlabel hint">il contatore è la versione completa</span></div>
+          <div class="palette" id="palette" role="group" aria-label="Colore del filo"></div>
+          <div class="benchrow">
+            <div class="benchmain">
+              <svg id="bench" role="img" aria-label="Banco di lavoro con i componenti da collegare"></svg>
+            </div>
+            <div class="benchside">
+              <div class="actions">
+                <button class="btn" id="bUndo">Annulla</button>
+                <button class="btn" id="bClear">Annulla tutto</button>
+                <button class="btn" id="bFlow" aria-pressed="false" hidden>Mostra la corrente</button>
+                <button class="btn" id="bHint">Suggerimento</button>
+                <button class="btn" id="bSol" aria-pressed="false">Mostra soluzione</button>
+                <button class="btn primary" id="bCheck">Verifica</button>
+              </div>
+              <div class="flowlegend" id="flowLegend" hidden></div>
+              <div class="sidelinks" id="sideLinks"></div>
             </div>
           </div>
-          <div class="card res" id="result" aria-live="polite"></div>
-        </section>
+        </div>
+        <div class="card res" id="result" aria-live="polite"></div>
+        <div class="card roomcard">
+          <div class="roomhead"><span>La stanza</span></div>
+          <svg id="room" viewBox="0 0 400 250" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Stanza con la luce da accendere"></svg>
+          <div class="status" id="status"></div>
+        </div>
+        <div class="card info" id="info"></div>
       </div>
     </section>
   </main>
@@ -739,6 +801,39 @@ button:disabled{cursor:default}
     return out;
   }
 
+  // src/engine/steps.js
+  var wireDone = (step, wires) => {
+    const uf = makeUF();
+    wires.forEach((w) => uf.u(w.a, w.b));
+    return step.to.some((t) => uf.f(step.from) === uf.f(t));
+  };
+  function stepsState(steps, wires, ctx) {
+    const operated = new Set(ctx.operated || []);
+    let ok = true;
+    const done = steps.map((st) => {
+      let d;
+      if (st.kind === "wire") d = wireDone(st, wires);
+      else if (st.kind === "power") d = !!ctx.power;
+      else if (st.kind === "control") d = operated.has(st.id);
+      else if (st.kind === "verify") d = !!(ctx.result && ctx.result.pass);
+      else d = false;
+      ok = ok && d;
+      return ok;
+    });
+    const cur = done.findIndex((d) => !d);
+    return { done, current: cur < 0 ? null : cur };
+  }
+  function ghostFor(step, wires) {
+    if (!step || step.kind !== "wire") return null;
+    const touched = /* @__PURE__ */ new Set();
+    wires.forEach((w) => {
+      touched.add(w.a);
+      touched.add(w.b);
+    });
+    const target = step.to.find((t) => !touched.has(t)) || step.to[0];
+    return [step.from, target, step.color];
+  }
+
   // src/engine/progress.js
   var PROGRESS_VERSION = 2;
   function emptyProgress() {
@@ -825,6 +920,7 @@ button:disabled{cursor:default}
     const resultsByKey = {};
     const usageByKey = {};
     const unitByKey = {};
+    const operatedByKey = {};
     let nextWireId = 1;
     let progress;
     try {
@@ -869,17 +965,24 @@ button:disabled{cursor:default}
       }
     };
     const record = () => progress.best[progressKey(levelAt().id)] || (progress.best[progressKey(levelAt().id)] = { base: 0, pred: false, fault: false, skipped: false });
-    function guideStep(level, ws, phase) {
-      if (!level.unit || !level.unit.guided || phase !== "build" || playMode !== "apprendimento") return null;
-      const has = ([a, b]) => ws.some((w) => w.a === a && w.b === b || w.a === b && w.b === a);
-      const k = level.unit.guided.findIndex((g) => !has(g.wire));
-      return k < 0 ? null : { index: k, total: level.unit.guided.length, wire: level.unit.guided[k].wire, say: level.unit.guided[k].say };
-    }
+    const operated = () => operatedByKey[keyOf()] || (operatedByKey[keyOf()] = []);
+    const currentPage = () => {
+      const l = levelAt();
+      return l.unit && l.unit.lesson.pages[unitState().page || 0];
+    };
     function flowVisible(level) {
       if (playMode !== "apprendimento") return false;
       if (level.flow === "always") return true;
       if (level.flow === "onDemand") return flowOnDemand;
       return false;
+    }
+    function stepsPart(level, phase) {
+      const u = level.unit;
+      if (!u || !u.steps || playMode !== "apprendimento" || phase === "lesson") return { steps: null, ghost: null };
+      const st = stepsState(u.steps, wires(), { power, operated: operated(), result: resultsByKey[keyOf()] || null });
+      const cur = st.current === null ? null : u.steps[st.current];
+      const ghost = phase === "build" && u.support === "guidato" && cur ? ghostFor(cur, wires()) : null;
+      return { steps: { list: u.steps, done: st.done, current: st.current }, ghost };
     }
     function snapshot() {
       const level = levelAt();
@@ -912,12 +1015,15 @@ button:disabled{cursor:default}
           phase,
           page: us.page || 0,
           pages: level.unit.lesson.pages.length,
+          pageData: phase === "lesson" ? level.unit.lesson.pages[us.page || 0] : null,
           pred: us.pred && { ...us.pred },
           diag: us.diag && { ...us.diag },
           faultSolved: us.faultSolved,
-          hasFault: !!level.unit.fault
+          hasFault: !!level.unit.fault,
+          summary: level.unit.summary || [],
+          support: level.unit.support || "passi"
         },
-        guide: guideStep(level, wires(), phase),
+        ...stepsPart(level, phase),
         levels: levels2.map((l, i) => {
           const pk = progressKey(l.id);
           const rec = progress.best[pk];
@@ -964,7 +1070,7 @@ button:disabled{cursor:default}
     }
     const inBuildOrFault = () => {
       const l = levelAt();
-      return !l.unit || !["lesson", "prediction"].includes(unitState().phase);
+      return !l.unit || unitState().phase !== "lesson";
     };
     return {
       snapshot,
@@ -1062,6 +1168,7 @@ button:disabled{cursor:default}
       toggleControl(id) {
         const st = states();
         st[id] = st[id] ? 0 : 1;
+        if (power && !operated().includes(id)) operated().push(id);
         message = null;
         applyLive();
         emit();
@@ -1114,15 +1221,17 @@ button:disabled{cursor:default}
         emit();
       },
       /* ---------- unita' didattica ---------- */
-      // lezione -> previsione -> cablaggio
+      // Avanti nella lezione: pagina successiva; dall'ultima si passa al cablaggio.
+      // Sulla pagina di previsione si va avanti solo dopo aver risposto.
       unitNext() {
         const level = levelAt();
         if (!level.unit) return;
         const us = unitState();
-        if (us.phase === "lesson") {
-          if ((us.page || 0) < level.unit.lesson.pages.length - 1) us.page = (us.page || 0) + 1;
-          else us.phase = "prediction";
-        } else if (us.phase === "prediction" && us.pred) us.phase = "build";
+        if (us.phase !== "lesson") return;
+        const pg = currentPage();
+        if (pg.type === "previsione" && !us.pred) return;
+        if ((us.page || 0) < level.unit.lesson.pages.length - 1) us.page = (us.page || 0) + 1;
+        else us.phase = "build";
         emit();
       },
       // Indietro nella lezione: pagina precedente (alla prima non fa nulla).
@@ -1133,17 +1242,27 @@ button:disabled{cursor:default}
           emit();
         }
       },
+      // Salta la lezione: si va subito al cablaggio, senza penalita' oltre alla previsione non data.
+      skipLesson() {
+        const us = levelAt().unit && unitState();
+        if (!us || us.phase !== "lesson") return;
+        us.phase = "build";
+        emit();
+      },
       showLesson() {
         if (!levelAt().unit || playMode === "verifica") return;
-        unitState().phase = "lesson";
-        unitState().page = 0;
+        const us = unitState();
+        us.phase = "lesson";
+        us.page = 0;
         emit();
       },
       answerPrediction(optionId) {
         const level = levelAt();
         const us = level.unit && unitState();
-        if (!us || us.phase !== "prediction" || us.pred) return;
-        const correct = level.unit.prediction.correct === optionId;
+        if (!us || us.phase !== "lesson" || us.pred) return;
+        const pg = currentPage();
+        if (!pg || pg.type !== "previsione") return;
+        const correct = pg.correct === optionId;
         us.pred = { option: optionId, correct };
         if (correct) {
           record().pred = true;
@@ -1179,6 +1298,47 @@ button:disabled{cursor:default}
         emit();
       }
     };
+  }
+
+  // src/engine/demo.js
+  function frame(level, wires, power, states, caption, newWire) {
+    const an = analyse(level, wires, states);
+    return {
+      caption,
+      newWire,
+      // id del filo appena aggiunto (per l'animazione), o null
+      snap: {
+        level,
+        wires,
+        power,
+        trip: false,
+        lit: power && an.lit,
+        potential: (tid) => potentialOf(an, tid),
+        controlStates: { ...states },
+        flow: flowOf(level, wires, states),
+        flowVisible: true,
+        solutionShown: false,
+        guide: null,
+        message: null
+      }
+    };
+  }
+  function demoFrames(level, captions = {}) {
+    const sol = level.solution.map(([a, b, c2], i) => ({ id: i + 1, a, b, c: c2 }));
+    const out = [];
+    for (let k = 1; k <= sol.length; k++) {
+      out.push(frame(level, sol.slice(0, k), false, {}, (captions.wires || [])[k - 1] || "", k));
+    }
+    out.push(frame(level, sol, true, {}, captions.power || "", null));
+    const states = {};
+    (level.controls || []).forEach((id, i) => {
+      states[id] = 1;
+      out.push(frame(level, sol, true, states, (captions.controls || [])[i] || "", null));
+    });
+    return out;
+  }
+  function blankSnap(level) {
+    return frame(level, [], false, {}, "", null).snap;
   }
 
   // src/engine/profile.js
@@ -1323,67 +1483,84 @@ button:disabled{cursor:default}
   // src/content/units.js
   var UNITS = {
     "c01-circuito-chiuso": {
+      support: "guidato",
       lesson: {
         pages: [
           {
-            title: "Che cosa devi costruire",
-            art: "bancoVuoto",
+            type: "spiegazione",
+            title: "Una lampada al soffitto",
+            room: "lit",
             paras: [
-              "Sul banco ci sono due oggetti. In alto il quadro elettrico: \xE8 il punto da cui l\u2019impianto riceve la corrente dalla rete. Ha due uscite, FASE e NEUTRO.",
-              "In basso la lampada. Ha due morsetti, A e B: sono le viti a cui si fissano i fili.",
-              "Il tuo compito \xE8 collegare la lampada al quadro con due fili."
+              "In ogni stanza c\u2019\xE8 almeno una lampada collegata al quadro elettrico di casa.",
+              "In questo livello la colleghi tu, sul banco, con due fili. Alla fine la vedrai accendersi nella stanza."
             ]
           },
           {
+            type: "pezzi",
+            title: "Il quadro: da qui arriva la corrente",
+            focus: ["Q"],
+            paras: [
+              "Il quadro ha due uscite. La FASE porta la corrente verso la lampada, il NEUTRO la riporta indietro.",
+              "La levetta accende e spegne tutto l\u2019impianto."
+            ]
+          },
+          {
+            type: "pezzi",
+            title: "La lampada: due morsetti",
+            focus: ["L"],
+            paras: [
+              "I morsetti sono le viti che stringono il filo. La lampada ne ha due, A e B: un filo per ciascuno.",
+              "Per la lampada A e B sono equivalenti: conta che i due fili vadano a due morsetti diversi."
+            ]
+          },
+          {
+            type: "spiegazione",
             title: "Perch\xE9 servono due fili",
             art: "giro",
             paras: [
-              "La corrente scorre solo se ha un giro completo da fare. Parte dalla fase, attraversa la lampada e torna al neutro.",
-              "Il primo filo porta la corrente alla lampada, il secondo la riporta indietro. Se ne manca uno il giro \xE8 interrotto: si dice circuito aperto e la lampada resta spenta."
-            ]
+              "La corrente scorre solo se ha un giro completo da fare: esce dalla fase, attraversa la lampada e torna al neutro.",
+              "Se manca uno dei due fili il giro \xE8 interrotto. Si dice circuito aperto: la lampada resta spenta."
+            ],
+            warn: "Non collegare mai la fase direttamente al neutro: \xE8 un cortocircuito e il quadro scatta."
           },
           {
-            title: "Dove si collega ogni filo",
-            art: "bancoCablato",
-            paras: [
-              "Primo filo: dalla FASE a un morsetto della lampada. Secondo filo: dal NEUTRO all\u2019altro morsetto.",
-              "Per la lampada A e B sono equivalenti: non conta quale scegli, conta che i due fili vadano a due morsetti diversi.",
-              "Non collegare mai la fase direttamente al neutro: sarebbe un cortocircuito e il quadro scatterebbe."
-            ]
+            type: "demo",
+            title: "Guarda come si fa",
+            captions: {
+              wires: [
+                "Filo marrone dalla FASE del quadro al morsetto A della lampada.",
+                "Filo blu dal NEUTRO al morsetto B."
+              ],
+              power: "Levetta su: il giro \xE8 chiuso e la lampada si accende. I puntini gialli sono la corrente."
+            }
           },
           {
-            title: "I colori dei fili",
-            art: "fili",
-            paras: [
-              "Il colore dice a che cosa \xE8 collegato il filo. Il filo che parte dalla fase \xE8 marrone (si usano anche nero e grigio). Quello che parte dal neutro \xE8 blu.",
-              "Il giallo-verde \xE8 riservato alla terra, che in questo livello non serve."
-            ]
+            type: "previsione",
+            question: "Collego solo il filo di fase alla lampada e do corrente. Che cosa succede?",
+            options: [
+              { id: "a", text: "La lampada si accende." },
+              { id: "b", text: "La lampada resta spenta." },
+              { id: "c", text: "Il quadro scatta." }
+            ],
+            correct: "b",
+            why: "La lampada resta spenta. La fase arriva a un morsetto, ma senza il neutro manca il percorso di ritorno: il circuito \xE8 aperto e non passa corrente. Il quadro non scatta, perch\xE9 non c\u2019\xE8 nessun cortocircuito."
           },
-          {
-            title: "Come si usa il banco",
-            art: "tensione",
-            paras: [
-              "Scegli il colore, tocca il morsetto di partenza e poi quello di arrivo. Per togliere un filo, toccalo.",
-              "Quando hai finito alza la levetta del quadro per dare corrente, poi premi Verifica.",
-              "Sul banco un alone attorno a un filo vuol dire che c\u2019\xE8 tensione. I puntini che scorrono vuol dire che passa corrente: un filo pu\xF2 avere la tensione senza che passi corrente, se il giro non \xE8 completo."
-            ]
-          }
+          { type: "sintesi", title: "Da ricordare" }
         ]
       },
-      prediction: {
-        question: "Collego solo il filo di fase alla lampada e do corrente. Che cosa succede?",
-        options: [
-          { id: "a", text: "La lampada si accende." },
-          { id: "b", text: "La lampada resta spenta." },
-          { id: "c", text: "Il quadro scatta." }
-        ],
-        correct: "b",
-        why: "La lampada resta spenta. La fase arriva a un morsetto, ma senza il neutro manca il percorso di ritorno: il circuito \xE8 aperto e non passa corrente. Il quadro non scatta, perch\xE9 non c\u2019\xE8 nessun cortocircuito."
-      },
-      guided: [
-        { wire: ["Q.F", "L.A", "marrone"], say: "Scegli il colore marrone, tocca il morsetto FASE del quadro e poi il morsetto A della lampada. Il tratteggio mostra il percorso." }
+      steps: [
+        { kind: "wire", from: "Q.F", to: ["L.A", "L.B"], color: "marrone", short: "1 Fase", title: "Collega la fase alla lampada", text: "Colore marrone. Tocca FASE sul quadro, poi un morsetto della lampada." },
+        { kind: "wire", from: "Q.N", to: ["L.A", "L.B"], color: "blu", short: "2 Neutro", title: "Collega il neutro all\u2019altro morsetto", text: "Colore blu. Tocca NEUTRO sul quadro, poi il morsetto libero della lampada." },
+        { kind: "power", short: "3 Levetta", title: "Dai corrente", text: "Tocca la levetta del quadro." },
+        { kind: "verify", short: "4 Verifica", title: "Controlla l\u2019impianto", text: "Premi Verifica." }
       ],
-      afterGuide: "Ora completa il circuito: manca il collegamento di ritorno. Il neutro \xE8 blu.",
+      summary: [
+        "Una lampada ha bisogno di due fili: fase e neutro.",
+        "La fase va a un morsetto, il neutro all\u2019altro. A e B sono equivalenti.",
+        "Fase: marrone, nero o grigio. Neutro: blu.",
+        "Se manca un filo il circuito \xE8 aperto e la luce resta spenta.",
+        "Mai la fase direttamente sul neutro: \xE8 un cortocircuito."
+      ],
       fault: {
         say: "L\u2019impianto \xE8 gi\xE0 cablato ma la lampada non si accende. Dai corrente e osserva i fili.",
         wires: [["Q.F", "L.A", "marrone"], ["Q.F", "L.B", "marrone"]],
@@ -1690,8 +1867,15 @@ button:disabled{cursor:default}
     }
     return s;
   }
-  function roomViewBox(level, mobile) {
-    return mobile ? level.room === "tavolo" ? "0 76 400 108" : "0 0 400 108" : "0 0 400 250";
+  function roomViewBox(level) {
+    return level.room === "tavolo" ? "0 50 400 190" : "0 0 400 190";
+  }
+  function roomStaticHTML(level, comps2, lit) {
+    let h = roomHTML(level, comps2).replace(/id="glow"/g, 'id="sglow"').replace(/url\(#glow\)/g, "url(#sglow)").replace(/id="night"/g, 'id="snight"').replace(/id="bulb"/g, 'id="sbulb"');
+    if (lit) {
+      h = h.replace('class="night" x="0" y="0" width="400" height="250" opacity=".66"', 'class="night" x="0" y="0" width="400" height="250" opacity="0"').replace(/(class="glowc"[^>]*?)opacity="0"/, '$1opacity="1"').replace('class="bulb"', 'class="bulb on"');
+    }
+    return h;
   }
   function updateRoom(root, s, comps2) {
     const n = root.querySelector("#night"), g = root.querySelector("#glow"), b = root.querySelector("#bulb");
@@ -1785,18 +1969,21 @@ button:disabled{cursor:default}
     const live = (id) => s.power && s.potential(id) === "F";
     const H = Math.max(...comps2.map((c2) => c2.y + c2.h)) + 22;
     let o = `<defs><pattern id="pegs" width="16" height="16" patternUnits="userSpaceOnUse"><circle cx="8" cy="8" r="1.4" fill="var(--dot)"/></pattern></defs><rect x="0" y="-28" width="420" height="${H + 28}" fill="var(--bench)"/><rect x="0" y="-28" width="420" height="${H + 28}" fill="url(#pegs)"/>`;
+    const dimmed = (c2) => ui2.focus && !ui2.focus.includes(c2.id);
     comps2.forEach((c2) => {
       const toggles = c2.type === "sw" || c2.type === "dev" || c2.type === "inv";
+      if (dimmed(c2)) o += '<g class="dimmed">';
       o += `<text class="ttl" x="${c2.x + 2}" y="${c2.y - 9}">${c2.title}</text>`;
       o += `<g class="help" data-help="${c2.type}" role="button" tabindex="0" aria-label="Che cos\u2019\xE8: ${c2.title}"><circle cx="${c2.x + c2.w - 12}" cy="${c2.y - 13}" r="19" fill="transparent" stroke="none"/><circle cx="${c2.x + c2.w - 9}" cy="${c2.y - 13}" r="${ui2.mobile ? 11 : 9}"/><text x="${c2.x + c2.w - 9}" y="${c2.y - 8.5}" text-anchor="middle">?</text></g>`;
       o += `<rect class="body" x="${c2.x}" y="${c2.y}" width="${c2.w}" height="${c2.h}" rx="10"/>`;
       o += `<g transform="translate(${c2.x},${c2.y})"${toggles ? ` class="togg" data-ctl="${c2.id}" style="cursor:pointer"` : ""}>${toggles ? `<rect x="0" y="0" width="${c2.w}" height="${c2.h}" rx="10" fill="transparent"/>` : ""}${schem(c2, s, live, s.lit, ui2)}</g>`;
+      if (dimmed(c2)) o += "</g>";
     });
     if (s.solutionShown) {
       o += s.level.solution.map(([a, b, col]) => `<path class="ghost" d="${wirePath(termPos(comps2, a), termPos(comps2, b))}" stroke="${WIRE_STYLE[col].base}"/>`).join("");
     }
-    if (s.guide) {
-      const [ga, gb, gc] = s.guide.wire;
+    if (s.ghost) {
+      const [ga, gb, gc] = s.ghost;
       o += `<path class="ghost guide" d="${wirePath(termPos(comps2, ga), termPos(comps2, gb))}" stroke="${WIRE_STYLE[gc].base}"/>`;
     }
     const fv = s.flowVisible && s.power;
@@ -1813,7 +2000,7 @@ button:disabled{cursor:default}
         const k = s.power && pot === "F" ? "f" : s.power && pot === "N" ? "n" : "";
         if (k) fl = `<path class="flow ${k}" d="${d}"/>`;
       }
-      o += `<g data-wire="${w.id}">${halo}<path class="w-hit" d="${d}"/><path class="w-edge" d="${d}"/><path class="w-col" d="${d}" stroke="${q.base}"/>${q.dash ? `<path class="w-col dash" d="${d}" stroke="${q.dash}"/>` : ""}${fl}</g>`;
+      o += `<g data-wire="${w.id}"${ui2.newWire === w.id ? ' class="newwire"' : ""}>${halo}<path class="w-hit" d="${d}"/><path class="w-edge" d="${d}"/><path class="w-col" d="${d}" stroke="${q.base}"${ui2.newWire === w.id ? ' pathLength="100"' : ""}/>${q.dash ? `<path class="w-col dash" d="${d}" stroke="${q.dash}"/>` : ""}${fl}</g>`;
     });
     if (fv && !s.lit) {
       s.flow.deadEnds.forEach((t) => {
@@ -1822,8 +2009,11 @@ button:disabled{cursor:default}
       });
     }
     comps2.forEach((c2) => {
+      const dim = ui2.focus && !ui2.focus.includes(c2.id), ring = ui2.focus && ui2.focus.includes(c2.id);
       Object.keys(c2.terms).forEach((id) => {
-        o += termSVG(c2, id, ui2);
+        const p = termPosOf(c2, id);
+        if (ring) o += `<circle class="focusring" cx="${p.x}" cy="${p.y}" r="${ui2.mobile ? 24 : 20}"/>`;
+        o += dim ? `<g class="dimmed">${termSVG(c2, id, ui2)}</g>` : termSVG(c2, id, ui2);
       });
     });
     o += `<path id="prev" d=""/>`;
@@ -1837,14 +2027,20 @@ button:disabled{cursor:default}
   }
   var MARK = { ok: "\u2713", na: "\u2013", ko: "\u2715" };
   function resultHTML(s) {
-    if (!s.result) {
-      return `<h3>Controllo del circuito</h3><p class="muted">Quando hai collegato i fili, premi <b>Verifica</b>. Ti diciamo se funziona, se i colori sono giusti e se l\u2019impianto \xE8 sicuro.</p>`;
-    }
+    if (!s.result) return "";
     const r = describeEvaluation(s.result, s.level);
     const row = (t, o) => `<div class="row"><span class="mark ${o.status}" aria-hidden="true">${MARK[o.status]}</span><div><b>${t}</b><ul>${o.msgs.map((m) => `<li>${m}</li>`).join("")}</ul></div></div>`;
     const last = s.levelIndex === s.levelCount - 1;
     const xp = s.levels[s.levelIndex].xp;
-    return `<h3>${r.pass ? "Livello superato" : "Controllo del circuito"}</h3><div class="stars" aria-label="${r.stars} stelle su 3">${"\u2605".repeat(r.stars)}<span class="e">${"\u2605".repeat(3 - r.stars)}</span></div>${row("Funziona", r.work)}${row("Colori dei fili", r.color)}${row("Sicurezza", r.safe)}<p class="xpline">Punti di questo livello: <b>${xp} XP</b></p>${r.pass ? last ? `<p class="next"><b>Hai completato tutti i livelli.</b></p>` : `<div class="next"><button class="btn primary" id="bNext" style="margin-left:0">Livello successivo</button></div>` : ""}`;
+    const u = s.unit;
+    const acts = [];
+    if (r.pass) {
+      if (u && u.summary.length) acts.push('<button class="btn" data-act="summary">Sintesi</button>');
+      if (u && u.hasFault && !u.faultSolved && s.playMode !== "verifica" && s.mode === "quadro") acts.push('<button class="btn" data-act="fault">Sfida guasto</button>');
+      if (s.playMode !== "verifica" && s.mode === "quadro") acts.push('<button class="btn" data-act="full">Sfida: parti dal contatore</button>');
+      acts.push(last ? "" : '<button class="btn primary" id="bNext">Livello successivo</button>');
+    }
+    return `<h3>${r.pass ? "Impianto funzionante" : "Controllo del circuito"}</h3><div class="stars" aria-label="${r.stars} stelle su 3">${"\u2605".repeat(r.stars)}<span class="e">${"\u2605".repeat(3 - r.stars)}</span></div>${row("Funziona", r.work)}${row("Colori dei fili", r.color)}${row("Sicurezza", r.safe)}<p class="xpline">Punti di questo livello: <b>${xp} XP</b></p>${r.pass && last ? '<p class="next"><b>Hai completato tutti i livelli.</b></p>' : ""}${acts.length ? `<div class="uact">${acts.join("")}</div>` : ""}`;
   }
 
   // src/content/home.js
@@ -2120,42 +2316,71 @@ button:disabled{cursor:default}
     const cls = chosen ? o.id === correctId ? "right" : o.id === chosen.option ? "wrong" : "" : "";
     return `<button class="opt ${cls}" data-${action}="${o.id}" ${chosen ? "disabled" : ""}>${esc(o.text)}</button>`;
   }).join("")}</div>`;
+  var KIND = { spiegazione: "Spiegazione", pezzi: "I pezzi", demo: "Guarda come si fa", previsione: "Previsione", sintesi: "In sintesi" };
+  function lessonHTML(s, extra = {}) {
+    const u = s.unit, pg = u.pageData, last = u.page === u.pages - 1;
+    let body = "";
+    if (pg.type === "spiegazione") {
+      if (pg.room) body += `<div class="vis"><svg viewBox="0 0 400 190" role="img" aria-label="La stanza con la lampada">${extra.roomInner || ""}</svg></div>`;
+      if (pg.art) body += `<div class="vis">${artHTML(pg.art)}</div>`;
+      body += pg.paras.map((t) => `<p>${esc(t)}</p>`).join("");
+      if (pg.table) body += `<div class="ltable"><div class="lt head"><span>${esc(pg.table.head[0])}</span><span>${esc(pg.table.head[1])}</span></div>${pg.table.rows.map((r) => `<div class="lt"><span>${esc(r[0])}</span><b>${esc(r[1])}</b></div>`).join("")}</div>`;
+      if (pg.warn) body += `<div class="lwarn"><b>Attenzione.</b> ${esc(pg.warn)}</div>`;
+    } else if (pg.type === "pezzi") {
+      body += `<div class="vis"><svg class="lbench" viewBox="${extra.benchBox}" role="img" aria-label="Il banco con i componenti in evidenza">${extra.benchInner || ""}</svg></div>`;
+      body += pg.paras.map((t) => `<p>${esc(t)}</p>`).join("");
+    } else if (pg.type === "demo") {
+      const f = extra.frames || 1, i = extra.frame || 0;
+      body += `<div class="vis"><svg class="lbench" id="demoBench" viewBox="${extra.benchBox}" role="img" aria-label="Dimostrazione del cablaggio">${extra.benchInner || ""}</svg></div>`;
+      body += `<div class="capt"><b class="n" id="demoN">${i + 1}</b><span id="demoCap">${esc(extra.caption || "")}</span></div>`;
+      body += `<div class="dplayer"><button class="btn pp" data-demo="toggle" aria-label="${extra.playing ? "Pausa" : "Riprendi"}">${extra.playing ? "Pausa" : "Riprendi"}</button><button class="btn" data-demo="step">Passo successivo</button><button class="btn" data-demo="restart">Rivedi</button><span class="pcount" id="demoCount">${i + 1} / ${f}</span></div>`;
+    } else if (pg.type === "previsione") {
+      const a = u.pred;
+      body += `<h3 class="q">${esc(pg.question)}</h3>${optButtons(pg.options, a, pg.correct, "pred")}`;
+      body += a ? `<p class="fb ${a.correct ? "ok" : "ko"}"><b>${a.correct ? "Giusto." : "Non proprio."}</b> ${esc(pg.why)}</p>` : '<p class="note">Scegli una risposta per andare avanti.</p>';
+    } else if (pg.type === "sintesi") {
+      body += `<ul class="sum">${u.summary.map((t) => `<li>${esc(t)}</li>`).join("")}</ul><p class="note">La trovi anche nel Quaderno, dalla mappa.</p>`;
+    }
+    const blocked = pg.type === "previsione" && !u.pred;
+    return `<div class="lhead"><div class="kick">Lezione \xB7 ${u.page + 1} di ${u.pages} \xB7 ${KIND[pg.type]}</div><button class="link" data-unit="skip">Salta la lezione</button></div>
+    <div class="prog" aria-hidden="true">${Array.from({ length: u.pages }, (_, k) => `<b class="${k <= u.page ? "on" : ""}"></b>`).join("")}</div>
+    <h2>${esc(pg.title || "")}</h2>${body}
+    <div class="uact">${u.page > 0 ? '<button class="btn" data-unit="back">Indietro</button>' : ""}<button class="btn primary grow" data-unit="next" ${blocked ? "disabled" : ""}>${last ? "Ora tocca a te" : "Avanti"}</button></div>`;
+  }
+  function summaryHTML(s) {
+    const L = s.level;
+    return `<div class="mcard" role="dialog" aria-modal="true" aria-labelledby="mT"><div class="mtop"><h2 id="mT">Da ricordare</h2><button class="btn" data-close="1">Chiudi</button></div><div class="mbody"><p><b>${esc(L.title)}</b></p><ul class="sum">${s.unit.summary.map((t) => `<li>${esc(t)}</li>`).join("")}</ul></div></div>`;
+  }
+  function stepsBarHTML(st) {
+    return `<ol class="steps" aria-label="Passi">${st.list.map((x, i) => `<li class="${st.done[i] ? "done" : i === st.current ? "cur" : ""}"${i === st.current ? ' aria-current="step"' : ""}>${esc(x.short)}</li>`).join("")}</ol>`;
+  }
   function unitHTML(s) {
-    const L = s.level, u = L.unit, code = L.code;
+    const L = s.level, u = L.unit;
     if (s.playMode === "verifica") {
-      return `<div class="kick">PROVA DI SALTO</div><h2>${esc(L.title)}</h2><p>${esc(L.goal)}</p><p class="note">Senza suggerimenti e senza soluzione. Se la superi il livello risulta saltato e i punti si contano.</p>`;
+      return `<div class="kick">Prova di salto</div><h2>${esc(L.title)}</h2><p>${esc(L.goal)}</p><p class="note">Senza suggerimenti e senza soluzione. Se la superi il livello risulta saltato e i punti si contano.</p>`;
     }
-    if (!u) return `<div class="kick">LIVELLO</div><h2>${esc(L.title)}</h2><p>${esc(L.goal)}</p>`;
+    if (!u) return `<div class="kick">Livello</div><h2>${esc(L.title)}</h2><p>${esc(L.goal)}</p>`;
     const ph = s.unit.phase;
-    if (ph === "lesson") {
-      const pg = u.lesson.pages[s.unit.page], last = s.unit.page === s.unit.pages - 1;
-      return `<div class="kick">LEZIONE \xB7 ${s.unit.page + 1} di ${s.unit.pages}</div><h2>${esc(pg.title)}</h2>
-      <div class="lessonart">${artHTML(pg.art)}</div>
-      ${pg.paras.map((p) => `<p>${esc(p)}</p>`).join("")}
-      <div class="uact">${s.unit.page > 0 ? '<button class="btn" data-unit="back">Indietro</button>' : ""}<button class="btn primary" data-unit="next">${last ? "Alla previsione" : "Avanti"}</button></div>`;
-    }
-    if (ph === "prediction") {
-      const p = u.prediction, a = s.unit.pred;
-      return `<div class="kick">PREVISIONE</div><h2>${esc(p.question)}</h2>
-      ${optButtons(p.options, a, p.correct, "pred")}
-      ${a ? `<p class="fb ${a.correct ? "ok" : "ko"}"><b>${a.correct ? "Giusto." : "Non proprio."}</b> ${esc(p.why)}</p><div class="uact"><button class="btn primary" data-unit="next">Provalo sul banco</button></div>` : '<p class="note">Scegli una risposta prima di provare.</p>'}`;
-    }
     if (ph === "fault") {
       const f = u.fault, d = s.unit.diag;
-      return `<div class="kick">SFIDA GUASTO</div><h2>${esc(f.diagnosis.question)}</h2><p>${esc(f.say)}</p>
+      return `<div class="kick">Sfida guasto</div><h2>${esc(f.diagnosis.question)}</h2><p>${esc(f.say)}</p>
       ${optButtons(f.diagnosis.options, d, f.diagnosis.correct, "diag")}
       ${d ? `<p class="fb ${d.correct ? "ok" : "ko"}"><b>${d.correct ? "Giusto." : "Non proprio."}</b> ${d.correct ? esc(f.diagnosis.why) + " " + esc(f.fixSay) : "Osserva i fili: gli aloni mostrano dove arriva la tensione."}</p>` : ""}
       <div class="uact"><button class="btn" data-unit="leaveFault">Esci dalla sfida</button></div>`;
     }
     if (ph === "done") {
-      const me = s.levels[s.levelIndex];
-      return `<div class="kick">COMPLETATO</div><h2>Livello superato</h2><p>${esc(L.title)}: ${me.xp} XP.</p>
-      <div class="uact">${s.unit.hasFault && !s.unit.faultSolved ? '<button class="btn primary" data-unit="startFault">Sfida guasto</button>' : ""}<a class="btn ${s.unit.hasFault && !s.unit.faultSolved ? "" : "primary"}" href="#/home">Torna alla mappa</a><button class="btn" data-unit="lesson">Rivedi la lezione</button></div>`;
+      return `${s.steps ? stepsBarHTML(s.steps) : ""}<h2>Livello completato</h2><p>Puoi rifare l\u2019impianto, rivedere la sintesi o passare al livello successivo.</p>`;
     }
-    let guide = "";
-    if (s.guide) guide = `<div class="guide"><b>Esempio guidato</b><p>${esc(s.guide.say)}</p></div>`;
-    else if (u.afterGuide && !(s.result && s.result.pass)) guide = `<p class="note">${esc(u.afterGuide)}</p>`;
-    return `<div class="kick">CABLAGGIO</div><h2>${esc(L.title)}</h2><p>${esc(L.goal)}</p>${guide}<div class="uact"><button class="btn" data-unit="lesson">Rivedi la lezione</button></div>`;
+    if (s.steps && u.support !== "obiettivo") {
+      const cur = s.steps.current === null ? null : s.steps.list[s.steps.current];
+      return `${stepsBarHTML(s.steps)}<h2>${esc(cur ? cur.title : "Impianto completato")}</h2><p>${esc(cur ? cur.text : "Tutti i passi sono fatti.")}</p>`;
+    }
+    return `<div class="kick">Obiettivo</div><h2>${esc(L.title)}</h2><p>${esc(L.goal)}</p>`;
+  }
+  function sideLinksHTML(s) {
+    const u = s.unit;
+    if (!u || s.playMode === "verifica") return "";
+    return `<button class="link" data-act="summary">Sintesi</button><button class="link" data-unit="lesson">Rivedi la lezione</button>`;
   }
 
   // src/ui2d/app.js
@@ -2206,7 +2431,9 @@ button:disabled{cursor:default}
     $("#palette").innerHTML = paletteHTML(COL);
   }
   function setRoomVB() {
-    $("#room").setAttribute("viewBox", roomViewBox(S.level, MQ.matches));
+    const r = $("#room");
+    r.setAttribute("viewBox", roomViewBox(S.level));
+    r.setAttribute("preserveAspectRatio", S.level.room === "tavolo" ? "xMidYMid slice" : "xMidYMin slice");
   }
   function renderBench() {
     const b = $("#bench");
@@ -2232,6 +2459,7 @@ button:disabled{cursor:default}
     $("#info").classList.add("open");
   }
   function onLevelChange() {
+    stopDemo();
     comps = composeComps(S.level);
     SEL = null;
     $("#lvTag").textContent = S.level.name + (S.mode === "contatore" ? " \xB7 dal contatore" : "") + (S.playMode === "verifica" ? " \xB7 prova di salto" : "");
@@ -2250,12 +2478,93 @@ button:disabled{cursor:default}
     $("#appbar").innerHTML = appbarHTML(S, profile);
     $("#tabbar").innerHTML = tabbarHTML(route, S.last);
   }
+  var REDUCED = window.matchMedia ? window.matchMedia("(prefers-reduced-motion: reduce)") : { matches: false };
+  var demo = { page: -1, frames: [], i: 0, timer: null, playing: false };
+  function stopDemo() {
+    if (demo.timer) clearInterval(demo.timer);
+    demo.timer = null;
+    demo.playing = false;
+  }
+  function drawDemo() {
+    const f = demo.frames[demo.i];
+    const b = $("#demoBench");
+    if (!f || !b) return;
+    b.innerHTML = benchHTML(f.snap, comps, { mobile: MQ.matches, sel: null, kwh: KWH, newWire: f.newWire });
+    $("#demoCap").textContent = f.caption;
+    $("#demoN").textContent = String(demo.i + 1);
+    $("#demoCount").textContent = demo.i + 1 + " / " + demo.frames.length;
+    const t = document.querySelector('[data-demo="toggle"]');
+    if (t) {
+      t.textContent = demo.playing ? "Pausa" : "Riprendi";
+      t.setAttribute("aria-label", t.textContent);
+    }
+  }
+  function demoTick() {
+    if (demo.i < demo.frames.length - 1) {
+      demo.i++;
+      drawDemo();
+    }
+    if (demo.i >= demo.frames.length - 1) {
+      stopDemo();
+      drawDemo();
+    }
+  }
+  function startDemo() {
+    stopDemo();
+    if (REDUCED.matches || demo.i >= demo.frames.length - 1) {
+      drawDemo();
+      return;
+    }
+    demo.playing = true;
+    demo.timer = setInterval(demoTick, 1800);
+    drawDemo();
+  }
+  function renderLesson() {
+    const pg = S.unit.pageData, extra = {}, ui2 = { mobile: MQ.matches, sel: null, kwh: KWH };
+    if (pg.type !== "demo") stopDemo();
+    if (pg.type === "spiegazione" && pg.room) extra.roomInner = roomStaticHTML(S.level, comps, pg.room === "lit");
+    if (pg.type === "pezzi") {
+      extra.benchBox = benchViewBox(comps);
+      extra.benchInner = benchHTML(blankSnap(S.level), comps, { ...ui2, focus: pg.focus });
+    }
+    let fresh = false;
+    if (pg.type === "demo") {
+      const key = S.levelKey + "|" + S.unit.page;
+      if (demo.page !== key) {
+        stopDemo();
+        demo = { page: key, frames: demoFrames(S.level, pg.captions), i: 0, timer: null, playing: false };
+        fresh = true;
+      }
+      const f = demo.frames[demo.i];
+      extra.benchBox = benchViewBox(comps);
+      extra.benchInner = benchHTML(f.snap, comps, { ...ui2, newWire: f.newWire });
+      extra.caption = f.caption;
+      extra.frame = demo.i;
+      extra.frames = demo.frames.length;
+      extra.playing = demo.playing;
+    } else {
+      demo.page = -1;
+    }
+    $("#lesson").innerHTML = lessonHTML(S, extra);
+    if (fresh) startDemo();
+  }
   function renderLevelScreen() {
     const ph = S.unit ? S.unit.phase : "build";
+    const inLesson = !!S.unit && ph === "lesson" && S.playMode === "apprendimento";
     const scr = $("#screen-level");
-    scr.className = "phase-" + (ph === "lesson" || ph === "prediction" ? "learn" : "play") + (S.playMode === "verifica" ? " verify" : "");
+    scr.className = "phase-" + (inLesson ? "learn" : "play") + (S.playMode === "verifica" ? " verify" : "");
+    $("#lesson").hidden = !inLesson;
+    $("#work").hidden = inLesson;
+    if (inLesson) {
+      renderLesson();
+      return;
+    }
+    stopDemo();
+    demo.page = -1;
+    $("#work").classList.toggle("passed", !!(S.result && S.result.pass));
     $("#unit").innerHTML = unitHTML(S);
-    $("#modeBar").hidden = S.playMode === "verifica" || !!S.unit && ph !== "build" && ph !== "done";
+    $("#sideLinks").innerHTML = sideLinksHTML(S);
+    $("#modeBar").hidden = S.playMode === "verifica" || !!S.unit && ph !== "done";
     $("#bHint").hidden = $("#bSol").hidden = S.playMode === "verifica";
     $("#bSol").textContent = S.solutionShown ? "Nascondi soluzione" : "Mostra soluzione";
     $("#bSol").setAttribute("aria-pressed", String(S.solutionShown));
@@ -2492,8 +2801,9 @@ button:disabled{cursor:default}
   $("#bHint").addEventListener("click", showHint);
   $("#bSol").addEventListener("click", () => session.toggleSolution());
   $("#bCheck").addEventListener("click", () => {
-    session.check();
-    $("#result").scrollIntoView({ behavior: "smooth", block: "nearest" });
+    const r = session.check();
+    const behavior = REDUCED.matches ? "auto" : "smooth";
+    (r.pass ? $(".roomcard") : $("#result")).scrollIntoView({ behavior, block: r.pass ? "start" : "nearest" });
   });
   $("#bFlow").addEventListener("click", () => session.toggleFlow());
   $("#result").addEventListener("click", (e) => {
@@ -2502,15 +2812,48 @@ button:disabled{cursor:default}
       if (n) location.hash = "#/livello/" + n.id;
     }
   });
-  $("#unit").addEventListener("click", (e) => {
+  function onUnitClick(e) {
     const u = e.target.closest("[data-unit]");
-    if (u) {
+    if (u && !u.disabled) {
       const a = u.dataset.unit;
       if (a === "next") session.unitNext();
       else if (a === "back") session.unitBack();
+      else if (a === "skip") session.skipLesson();
       else if (a === "lesson") session.showLesson();
-      else if (a === "startFault") session.startFault();
       else if (a === "leaveFault") session.leaveFault();
+      return;
+    }
+    const act = e.target.closest("[data-act]");
+    if (act) {
+      opener = act;
+      const a = act.dataset.act;
+      if (a === "summary") openOverlay("summary", summaryHTML(S));
+      else if (a === "fault") session.startFault();
+      else if (a === "full") {
+        document.querySelectorAll(".seg").forEach((x) => x.setAttribute("aria-pressed", String(x.dataset.mode === "contatore")));
+        session.setMode("contatore");
+      }
+      return;
+    }
+    const dm = e.target.closest("[data-demo]");
+    if (dm) {
+      const a = dm.dataset.demo;
+      if (a === "toggle") {
+        if (demo.playing) {
+          stopDemo();
+          drawDemo();
+        } else {
+          if (demo.i >= demo.frames.length - 1) demo.i = 0;
+          startDemo();
+        }
+      } else if (a === "step") {
+        stopDemo();
+        if (demo.i < demo.frames.length - 1) demo.i++;
+        drawDemo();
+      } else if (a === "restart") {
+        demo.i = 0;
+        startDemo();
+      }
       return;
     }
     const p = e.target.closest("[data-pred]");
@@ -2520,7 +2863,8 @@ button:disabled{cursor:default}
     }
     const d = e.target.closest("[data-diag]");
     if (d) session.answerDiagnosis(d.dataset.diag);
-  });
+  }
+  ["#unit", "#lesson", "#sideLinks", "#result"].forEach((id) => $(id).addEventListener("click", onUnitClick));
   var overlay = $("#overlay");
   var overlayKind = null;
   var introI = 0;

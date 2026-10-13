@@ -57,10 +57,14 @@ const solve = (w, d, level) => level.solution.forEach(([a, b, c]) => wire(w, d, 
 const profile = w => JSON.parse(w.localStorage.getItem('fase-e-neutro-profilo') || '{}');
 const saved = w => JSON.parse(w.localStorage.getItem('fase-e-neutro-1') || '{}');
 
-const lessonAll = (w, d) => {
-  for (let i = 0; i < 5; i++) {
+// Percorre tutte le pagine della lezione rispondendo alla previsione con `ans`.
+const lessonAll = (w, d, ans = 'b') => {
+  for (let i = 0; i < 12; i++) {
+    if (q(d, '#lesson').hidden) break;
+    const p = q(d, `[data-pred="${ans}"]`);
+    if (p && !p.disabled) click(w, p);
     const b = q(d, '[data-unit="next"]');
-    if (!b || !/LEZIONE/.test(q(d, '#unit').textContent)) break;
+    if (!b) break;
     click(w, b);
   }
 };
@@ -69,8 +73,6 @@ const lessonAll = (w, d) => {
 function toBuild(w, d) {
   go(w, '#/livello/c01-circuito-chiuso');
   lessonAll(w, d);
-  click(w, q(d, '[data-pred="b"]'));
-  click(w, q(d, '[data-unit="next"]'));
 }
 
 /* ---------- primo accesso ---------- */
@@ -150,23 +152,30 @@ test('c01: lezione, previsione, esempio guidato, corrente visibile e completamen
   const { w, d, errors } = openPage({ seen: true });
   go(w, '#/livello/c01-circuito-chiuso');
   assert.ok(q(d, '#screen-home').hidden);
-  assert.match(q(d, '#unit').textContent, /LEZIONE/);
+  assert.ok(!q(d, '#lesson').hidden);
+  assert.ok(q(d, '#work').hidden);
   assert.match(q(d, '#screen-level').className, /phase-learn/);
-  assert.match(q(d, '#unit').textContent, /1 di 5/);
+  assert.match(q(d, '#lesson').textContent, /1 di 7/);
   click(w, q(d, '[data-unit="next"]'));
-  assert.match(q(d, '#unit').textContent, /2 di 5/);
+  assert.match(q(d, '#lesson').textContent, /2 di 7/);
   click(w, q(d, '[data-unit="back"]'));
-  lessonAll(w, d);
-  assert.match(q(d, '#unit').textContent, /PREVISIONE/);
+  for (let i = 0; i < 5; i++) click(w, q(d, '[data-unit="next"]'));
+  assert.match(q(d, '#lesson').textContent, /Previsione/);
+  assert.ok(q(d, '[data-unit="next"]').disabled);          // senza risposta non si va avanti
   click(w, q(d, '[data-pred="a"]'));
-  assert.match(q(d, '#unit').textContent, /Non proprio/);
+  assert.match(q(d, '#lesson').textContent, /Non proprio/);
   click(w, q(d, '[data-unit="next"]'));
-  assert.match(q(d, '#unit').textContent, /Esempio guidato/);
+  assert.match(q(d, '#lesson').textContent, /Da ricordare/);
+  click(w, q(d, '[data-unit="next"]'));
+  assert.ok(q(d, '#lesson').hidden);
+  assert.ok(!q(d, '#work').hidden);
+  assert.match(q(d, '#unit').textContent, /Collega la fase alla lampada/);
+  assert.equal(qa(d, '#unit .steps li').length, 4);
   assert.equal(qa(d, '#bench .ghost.guide').length, 1);
 
   wire(w, d, 'Q.F', 'L.A', 'marrone');
-  assert.equal(qa(d, '#bench .ghost.guide').length, 0);
-  assert.match(q(d, '#unit').textContent, /manca il collegamento di ritorno/);
+  assert.equal(qa(d, '#bench .ghost.guide').length, 1);       // ora il tratteggio indica il neutro
+  assert.match(q(d, '#unit').textContent, /Collega il neutro all’altro morsetto/);
   click(w, q(d, '[data-q]'));
   assert.match(q(d, '#status').textContent, /Quadro acceso/);
   assert.match(q(d, '#status .msg').textContent, /La tensione arriva fino a Lampada · A e lì si ferma/);
@@ -175,6 +184,8 @@ test('c01: lezione, previsione, esempio guidato, corrente visibile e completamen
   assert.equal(qa(d, '#bench .flow.cur').length, 0);      // tensione senza corrente
 
   wire(w, d, 'Q.N', 'L.B', 'blu');                        // modificare i fili spegne il quadro
+  assert.equal(qa(d, '#bench .ghost.guide').length, 0);
+  assert.match(q(d, '#unit').textContent, /Dai corrente/);
   click(w, q(d, '[data-q]'));
   assert.match(q(d, '#status').textContent, /Luce accesa/);
   assert.equal(qa(d, '#bench .stop').length, 0);
@@ -182,8 +193,8 @@ test('c01: lezione, previsione, esempio guidato, corrente visibile e completamen
   assert.equal(qa(d, '#flowLegend span').length, 4);
 
   click(w, q(d, '#bCheck'));
-  assert.match(q(d, '#result h3').textContent, /Livello superato/);
-  assert.match(q(d, '#unit').textContent, /COMPLETATO/);
+  assert.match(q(d, '#result h3').textContent, /Impianto funzionante/);
+  assert.match(q(d, '#unit').textContent, /Livello completato/);
   assert.match(q(d, '#result').textContent, /Punti di questo livello: 110 XP/);   // 100 + 10 senza suggerimenti, previsione sbagliata
   assert.deepEqual(errors, []);
 });
@@ -193,8 +204,8 @@ test('c01: sfida guasto dalla pagina', () => {
   toBuild(w, d);
   solve(w, d, lv('c01-circuito-chiuso'));
   click(w, q(d, '#bCheck'));
-  click(w, q(d, '[data-unit="startFault"]'));
-  assert.match(q(d, '#unit').textContent, /SFIDA GUASTO/);
+  click(w, q(d, '[data-act="fault"]'));
+  assert.match(q(d, '#unit').textContent, /Sfida guasto/);
   assert.equal(qa(d, '#bench [data-wire]').length, 2);
   click(w, q(d, '[data-q]'));
   assert.equal(qa(d, '#bench .stop').length, 2);
@@ -203,7 +214,7 @@ test('c01: sfida guasto dalla pagina', () => {
   click(w, qa(d, '#bench [data-wire]')[1]);              // si toglie il filo sul morsetto B (il secondo)
   wire(w, d, 'Q.N', 'L.B', 'blu');
   click(w, q(d, '#bCheck'));
-  assert.match(q(d, '#result h3').textContent, /Livello superato/);
+  assert.match(q(d, '#result h3').textContent, /Impianto funzionante/);
   assert.match(q(d, '#result').textContent, /140 XP/);       // 110 + previsione giusta 10 + guasto 20 = 140
 });
 
@@ -211,7 +222,7 @@ test('c01: sfida guasto dalla pagina', () => {
 test('«Già lo so»: prova di salto senza aiuti, poi il livello risulta saltato in mappa', () => {
   const { w, d, errors } = openPage({ seen: true });
   go(w, '#/livello/c01-circuito-chiuso/verifica');
-  assert.match(q(d, '#unit').textContent, /PROVA DI SALTO/);
+  assert.match(q(d, '#unit').textContent, /Prova di salto/);
   assert.match(q(d, '#lvTag').textContent, /prova di salto/);
   assert.ok(q(d, '#bHint').hidden && q(d, '#bSol').hidden);
   assert.ok(q(d, '#modeBar').hidden);
@@ -220,7 +231,7 @@ test('«Già lo so»: prova di salto senza aiuti, poi il livello risulta saltato
   click(w, q(d, '[data-q]'));
   assert.equal(qa(d, '#bench .flow.cur').length, 0);           // niente corrente visibile in verifica
   click(w, q(d, '#bCheck'));
-  assert.match(q(d, '#result h3').textContent, /Livello superato/);
+  assert.match(q(d, '#result h3').textContent, /Impianto funzionante/);
   go(w, '#/home');
   const card = q(d, '.rail .lvcard');
   assert.equal(card.dataset.status, 'saltato');
@@ -236,14 +247,14 @@ test('si superano tutti i livelli cablando la soluzione (quadro e contatore)', (
     const { w, d, errors } = openPage({ seen: true });
     levels.forEach(base => {
       go(w, '#/livello/' + base.id);
-      if (base.unit) { lessonAll(w, d); click(w, q(d, '[data-pred="b"]')); click(w, q(d, '[data-unit="next"]')); }
+      if (base.unit) lessonAll(w, d);
       if (mode === 'contatore') click(w, q(d, '[data-mode="contatore"]'));
       const lvl = mode === 'contatore' ? deriveFull(base) : base;
       assert.match(q(d, '#lvTag').textContent, new RegExp(base.name));
       solve(w, d, lvl);
       assert.equal(qa(d, '#bench [data-wire]').length, lvl.solution.length, base.id + ' ' + mode);
       click(w, q(d, '#bCheck'));
-      assert.match(q(d, '#result h3').textContent, /Livello superato/, base.id + ' ' + mode);
+      assert.match(q(d, '#result h3').textContent, /Impianto funzionante/, base.id + ' ' + mode);
       assert.equal(qa(d, '#result .mark.ok').length, 3);
       click(w, q(d, '[data-mode="quadro"]'));
     });
@@ -343,4 +354,46 @@ test('un indirizzo sconosciuto porta alla mappa e il tasto Indietro funziona', (
   assert.ok(!q(d, '#screen-home').hidden);
   const direct = openPage({ seen: true, hash: '#/livello/c06-invertito' });
   assert.match(q(direct.d, '#lvTag').textContent, /Invertito/);
+});
+
+/* ---------- lezione: salto, dimostrazione, sintesi ---------- */
+test('lezione: "Salta la lezione" porta al cablaggio da qualsiasi pagina', () => {
+  const { w, d, errors } = openPage({ seen: true });
+  go(w, '#/livello/c01-circuito-chiuso');
+  click(w, q(d, '[data-unit="next"]'));
+  click(w, q(d, '[data-unit="skip"]'));
+  assert.ok(q(d, '#lesson').hidden);
+  assert.match(q(d, '#unit').textContent, /Collega la fase alla lampada/);
+  click(w, q(d, '[data-unit="lesson"]'));                  // "Rivedi la lezione" riparte dalla prima pagina
+  assert.match(q(d, '#lesson').textContent, /1 di 7/);
+  assert.deepEqual(errors, []);
+});
+
+test('lezione: la dimostrazione avanza a passi e mostra la luce accesa', () => {
+  const { w, d, errors } = openPage({ seen: true });
+  go(w, '#/livello/c01-circuito-chiuso');
+  for (let i = 0; i < 4; i++) click(w, q(d, '[data-unit="next"]'));
+  assert.match(q(d, '#lesson').textContent, /Guarda come si fa/);
+  click(w, q(d, '[data-demo="toggle"]'));                   // pausa (la dimostrazione parte da sola)
+  click(w, q(d, '[data-demo="restart"]'));
+  click(w, q(d, '[data-demo="toggle"]'));
+  click(w, q(d, '[data-demo="step"]'));
+  assert.match(q(d, '#demoCap').textContent, /Filo blu/);
+  click(w, q(d, '[data-demo="step"]'));
+  assert.match(q(d, '#demoCap').textContent, /Levetta su/);
+  assert.equal(qa(d, '#demoBench .bulb.on').length, 1);
+  assert.deepEqual(errors, []);
+});
+
+test('sintesi: si apre dall\'esercizio e dopo la verifica', () => {
+  const { w, d } = openPage({ seen: true });
+  toBuild(w, d);
+  click(w, q(d, '#sideLinks [data-act="summary"]'));
+  assert.match(q(d, '#overlay').textContent, /Mai la fase direttamente sul neutro/);
+  click(w, q(d, '#overlay [data-close]'));
+  solve(w, d, lv('c01-circuito-chiuso'));
+  click(w, q(d, '#bCheck'));
+  assert.ok(q(d, '#result [data-act="summary"]'));
+  assert.ok(q(d, '#result [data-act="full"]'));
+  assert.ok(q(d, '#work').className.includes('passed'));
 });

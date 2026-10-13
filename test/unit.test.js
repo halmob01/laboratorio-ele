@@ -18,37 +18,67 @@ test('c01: la soluzione prende tre stelle in entrambe le modalita\'', () => {
   }
 });
 
-const lesson = s => { while (s.snapshot().unit.phase === 'lesson') s.unitNext(); };
+// Percorre la lezione rispondendo alla previsione con `ans` (e' una pagina come le altre).
+const lesson = (s, ans = 'b') => {
+  while (s.snapshot().unit.phase === 'lesson') {
+    if (s.snapshot().unit.pageData.type === 'previsione') s.answerPrediction(ans);
+    s.unitNext();
+  }
+};
 
-test('c01: si parte dalla lezione, poi previsione, poi cablaggio con esempio guidato', () => {
+test('c01: lezione a pagine, previsione come pagina, poi cablaggio con i passi', () => {
   const s = make();
   assert.equal(s.snapshot().unit.phase, 'lesson');
   s.addWire('Q.F', 'L.A', 'marrone');                 // ignorato in lezione
   assert.equal(s.snapshot().wires.length, 0);
-  assert.equal(s.snapshot().unit.pages, 5);
+  assert.equal(s.snapshot().unit.pages, 7);
+  assert.equal(s.snapshot().unit.pageData.type, 'spiegazione');
   s.unitNext();
   assert.equal(s.snapshot().unit.page, 1);
   s.unitBack();
   assert.equal(s.snapshot().unit.page, 0);
-  lesson(s);
-  assert.equal(s.snapshot().unit.phase, 'prediction');
+  s.unitBack();                                        // alla prima pagina non fa nulla
+  assert.equal(s.snapshot().unit.page, 0);
+  while (s.snapshot().unit.pageData.type !== 'previsione') s.unitNext();
+  const pageIdx = s.snapshot().unit.page;
   s.unitNext();                                        // senza risposta non si procede
-  assert.equal(s.snapshot().unit.phase, 'prediction');
+  assert.equal(s.snapshot().unit.page, pageIdx);
   s.answerPrediction('a');
   assert.deepEqual(s.snapshot().unit.pred, { option: 'a', correct: false });
   s.answerPrediction('b');                             // la risposta data non si cambia
   assert.equal(s.snapshot().unit.pred.option, 'a');
   s.unitNext();
+  assert.equal(s.snapshot().unit.pageData.type, 'sintesi');
+  s.unitNext();
   const snap = s.snapshot();
   assert.equal(snap.unit.phase, 'build');
-  assert.deepEqual(snap.guide.wire, ['Q.F', 'L.A', 'marrone']);
-  s.addWire('L.A', 'Q.F', 'marrone');                  // morsetti scambiati: vale lo stesso
-  assert.equal(s.snapshot().guide, null);
+  assert.deepEqual(snap.ghost, ['Q.F', 'L.A', 'marrone']);   // c01 e' "guidato": c'e' il tratteggio
+  assert.equal(snap.steps.current, 0);
+  s.addWire('L.B', 'Q.F', 'marrone');                  // un morsetto qualsiasi della lampada va bene
+  const after = s.snapshot();
+  assert.equal(after.steps.current, 1);
+  assert.deepEqual(after.ghost, ['Q.N', 'L.A', 'blu']);       // il tratteggio passa al morsetto libero
+});
+
+test('c01: si puo\' saltare la lezione da qualsiasi pagina, senza il bonus previsione', () => {
+  const s = make();
+  s.unitNext(); s.unitNext();
+  s.skipLesson();
+  assert.equal(s.snapshot().unit.phase, 'build');
+  L.solution.forEach(([a, b, c]) => s.addWire(a, b, c));
+  s.check();
+  assert.equal(row(s).xp, 100 + 10);                   // niente +10 della previsione
+  // un livello gia' fatto si riapre sul cablaggio e la lezione si puo' rivedere
+  const s2 = createSession({ levels, deriveFull, initialLevel: 0, storage: { load: () => ({ v: 2, stars: { [C01]: 3 }, best: {}, last: null }), save() {} } });
+  assert.equal(s2.snapshot().unit.phase, 'build');
+  s2.showLesson();
+  assert.equal(s2.snapshot().unit.phase, 'lesson');
+  assert.equal(s2.snapshot().unit.page, 0);
 });
 
 test('c01: tutta l\'unita\' fino alla sfida guasto e agli XP', () => {
   const s = make();
-  lesson(s); s.answerPrediction('b'); s.unitNext();
+  lesson(s);
   L.solution.forEach(([a, b, c]) => s.addWire(a, b, c));
   const r = s.check();
   assert.equal(r.pass, true);
@@ -76,7 +106,7 @@ test('c01: tutta l\'unita\' fino alla sfida guasto e agli XP', () => {
 
 test('c01: sfida guasto risolta senza aver capito la diagnosi non da\' il bonus', () => {
   const s = make();
-  lesson(s); s.answerPrediction('b'); s.unitNext();
+  lesson(s);
   L.solution.forEach(([a, b, c]) => s.addWire(a, b, c));
   s.check();
   s.startFault();
@@ -90,7 +120,7 @@ test('c01: sfida guasto risolta senza aver capito la diagnosi non da\' il bonus'
 
 test('i suggerimenti costano XP e la previsione sbagliata non da\' il bonus', () => {
   const s = make();
-  lesson(s); s.answerPrediction('a'); s.unitNext();
+  lesson(s, 'a');
   s.requestHint(); s.requestHint();
   L.solution.forEach(([a, b, c]) => s.addWire(a, b, c));
   s.check();
@@ -104,7 +134,8 @@ test('prova di salto: niente lezione, niente aiuti, e passata vale "saltato"', (
   const snap = s.snapshot();
   assert.equal(snap.playMode, 'verifica');
   assert.equal(snap.unit.phase, 'build');
-  assert.equal(snap.guide, null);
+  assert.equal(snap.ghost, null);
+  assert.equal(snap.steps, null);
   assert.equal(snap.flowVisible, false);
   assert.equal(s.requestHint(), null);
   s.toggleSolution();
@@ -144,7 +175,7 @@ test('i livelli senza unita\' funzionano come prima', () => {
   s.selectLevel('c03-interrotto');
   const snap = s.snapshot();
   assert.equal(snap.unit, null);
-  assert.equal(snap.guide, null);
+  assert.equal(snap.ghost, null);
   levels.find(l => l.id === 'c03-interrotto').solution.forEach(([a, b, c]) => s.addWire(a, b, c));
   assert.equal(s.check().pass, true);
   assert.equal(s.snapshot().levels.find(l => l.id === 'c03-interrotto').xp, 110);
@@ -156,7 +187,6 @@ test('sfida guasto: non si supera cambiando modalita\' ne\' indovinando la diagn
   const s = createSession({ levels, deriveFull });
   s.selectLevel('c01-circuito-chiuso');
   lesson(s);
-  s.answerPrediction('b'); s.unitNext();
   const L = levels[0];
   L.solution.forEach(([a, b, c]) => s.addWire(a, b, c));
   s.check();
