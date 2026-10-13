@@ -144,7 +144,7 @@ export const UNITS = {
           focus: ['P'],
           paras: [
             'L è il morsetto della fase (L sta per linea). N è il neutro. PE è la terra, il morsetto al centro.',
-            'Ogni uscita del quadro va al morsetto con la stessa funzione: fase su L, neutro su N, terra su PE.',
+            'Ogni uscita del quadro va al morsetto con la stessa funzione: fase su L, neutro su N, terra su PE. Se fase e neutro sono scambiati si dice che la polarità è invertita.',
           ],
         },
         {
@@ -153,7 +153,7 @@ export const UNITS = {
           art: 'terra',
           paras: [
             'La terra è un filo di sicurezza, collegato alla carcassa metallica dell’apparecchio e al dispersore nel terreno.',
-            'Se un guasto porta la tensione sulla carcassa, la corrente trova la strada della terra e l’impianto scatta, invece di passare attraverso chi tocca l’apparecchio.',
+            'Se un guasto porta la tensione sulla carcassa, la corrente trova la strada della terra e il quadro scatta, invece di passare attraverso chi tocca l’apparecchio.',
             'Per questo il filo della terra ha un colore tutto suo: giallo-verde. Non si usa per nient’altro.',
           ],
           warn: 'Non scambiare mai la terra con un altro filo, e non usare il giallo-verde per fase o neutro.',
@@ -167,7 +167,7 @@ export const UNITS = {
               'Filo blu dal NEUTRO del quadro al morsetto N.',
               'Filo giallo-verde dalla TERRA del quadro al morsetto PE.',
             ],
-            power: 'Levetta su: l’apparecchio collegato alla presa si accende.',
+            power: 'Levetta su: la lampada da tavolo collegata alla presa si accende.',
           },
         },
         {
@@ -179,7 +179,7 @@ export const UNITS = {
             { id: 'c', text: 'Il quadro scatta.' },
           ],
           correct: 'b',
-          why: 'L’apparecchio funziona, perché fase e neutro bastano a far passare la corrente. Ma senza la terra manca la protezione: se un guasto porta tensione sulla carcassa, nulla fa scattare l’impianto. Per questo il livello non è superato senza la terra.',
+          why: 'L’apparecchio funziona, perché fase e neutro bastano a far passare la corrente. Ma senza la terra manca la protezione: se un guasto porta tensione sulla carcassa, questa resta in tensione senza che nulla intervenga, finché qualcuno la tocca: allora la corrente passa attraverso la persona. Per questo il livello non è superato senza la terra.',
         },
         { type: 'sintesi', title: 'Da ricordare' },
       ],
@@ -196,7 +196,7 @@ export const UNITS = {
       'Ogni uscita del quadro va al morsetto con la stessa funzione.',
       'La terra è un filo di sicurezza: giallo-verde, solo per la terra.',
       'Fase e neutro bastano a far funzionare l’apparecchio, ma senza terra l’impianto non è sicuro.',
-      'Fase su N e neutro su L è uno scambio di polarità: l’apparecchio funziona, ma l’impianto è difettoso.',
+      'Fase su N e neutro su L: la polarità è invertita. L’apparecchio funziona, ma la presa è cablata male.',
     ],
     fault: {
       say: 'La presa è già cablata e l’apparecchio funziona, ma l’impianto ha un difetto. Controlla a quali morsetti arrivano fase e neutro.',
@@ -209,7 +209,7 @@ export const UNITS = {
           { id: 'c', text: 'Il filo giallo-verde è sul morsetto sbagliato.' },
         ],
         correct: 'b',
-        why: 'Il marrone, che porta la fase, arriva al morsetto N, e il blu, che porta il neutro, arriva a L. L’apparecchio si accende lo stesso, ma la polarità è invertita: l’interruttore dell’apparecchio interromperebbe il neutro e lascerebbe la fase presente dentro l’apparecchio spento.',
+        why: 'Il marrone, che porta la fase, arriva al morsetto N, e il blu, che porta il neutro, arriva a L. L’apparecchio si accende lo stesso, ma la presa è cablata male: la fase deve stare sempre sul morsetto L. Uno scambio così non si vede dall’esterno, e chi lavora sull’impianto si aspetta la fase su L.',
       },
       fixSay: 'Scambia i due fili: la fase va su L e il neutro su N. Poi premi Verifica.',
     },
@@ -242,7 +242,7 @@ export const UNITS = {
           art: 'tensione',
           paras: [
             'L’interruttore va sempre sul filo di fase, tra il quadro e la lampada. Il neutro va dal quadro alla lampada senza passare dall’interruttore.',
-            'Il motivo è la sicurezza. Con l’interruttore sulla fase, a luce spenta la lampada non è in tensione e si può cambiare la lampadina senza rischi.',
+            'Il motivo è la sicurezza. Con l’interruttore sulla fase, a luce spenta il portalampada non è in tensione. Per lavorarci, comunque, si toglie tensione dal quadro.',
             'Con l’interruttore sul neutro la lampada si spegnerebbe lo stesso, ma la fase resterebbe collegata al portalampada: toccando il portalampada si prenderebbe la scossa.',
           ],
           warn: 'L’interruttore interrompe sempre la fase. Mai il neutro.',
@@ -253,7 +253,7 @@ export const UNITS = {
           captions: {
             wires: [
               'Filo marrone dalla FASE del quadro al morsetto 1 dell’interruttore.',
-              'Filo marrone dal morsetto 2 dell’interruttore alla lampada.',
+              'Filo marrone dal morsetto 2 dell’interruttore al morsetto A della lampada.',
               'Filo blu dal NEUTRO direttamente alla lampada.',
             ],
             power: 'Levetta su: l’interruttore è aperto e la lampada è spenta.',
@@ -269,7 +269,7 @@ export const UNITS = {
             { id: 'c', text: 'Anche la lampada.' },
           ],
           correct: 'b',
-          why: 'La fase arriva fino all’interruttore e lì si ferma: quel tratto è in tensione. Dopo l’interruttore, fino alla lampada, il filo non è in tensione. Per questo la lampada si può toccare a luce spenta.',
+          why: 'La fase arriva fino all’interruttore e lì si ferma: quel tratto è in tensione. Dopo l’interruttore, fino alla lampada, il filo non è in tensione. Per questo, con l’interruttore sulla fase, a luce spenta il portalampada non è in tensione.',
         },
         { type: 'sintesi', title: 'Da ricordare' },
       ],
@@ -282,8 +282,8 @@ export const UNITS = {
       { kind: 'verify', short: '5 Verifica', title: 'Controlla l’impianto', text: 'Premi Verifica.' },
     ],
     summary: [
-      'L’interruttore si mette sul filo di fase, tra il quadro e il carico.',
-      'Il neutro va direttamente al carico, senza interruttore.',
+      'L’interruttore si mette sul filo di fase, tra il quadro e la lampada.',
+      'Il neutro va direttamente alla lampada, senza interruttore.',
       'A luce spenta il tratto dopo l’interruttore non è in tensione.',
       'Un interruttore sul neutro spegne la luce ma lascia la fase sul portalampada: è un errore pericoloso.',
     ],
@@ -300,7 +300,7 @@ export const UNITS = {
         correct: 'a',
         why: 'La fase va direttamente alla lampada e l’interruttore interrompe il neutro. A luce spenta il portalampada resta in tensione: è un impianto pericoloso, anche se la lampada si spegne.',
       },
-      fixSay: 'Sposta l’interruttore sulla fase: la fase deve passare dall’interruttore, il neutro andare diretto alla lampada. Poi premi Verifica.',
+      fixSay: 'Sposta l’interruttore sulla fase: la fase passa dall’interruttore con fili marroni, il neutro blu va diretto alla lampada. Poi premi Verifica.',
     },
   },
   'c05-deviato': {
@@ -330,7 +330,7 @@ export const UNITS = {
           title: 'Due deviatori in coppia',
           focus: ['D1', 'D2'],
           paras: [
-            'I due deviatori si collegano con due fili: 1 con 1 e 2 con 2. Sono i fili di collegamento, o fili di corsa.',
+            'I due deviatori si collegano con due fili: 1 con 1 e 2 con 2. Sono i fili di collegamento tra i deviatori.',
             'Il comune del primo riceve la fase. Il comune del secondo va alla lampada.',
           ],
         },
@@ -338,7 +338,7 @@ export const UNITS = {
           type: 'spiegazione',
           title: 'Perché la luce cambia da entrambi i punti',
           paras: [
-            'Ogni deviatore sceglie una delle due strade. La luce è accesa quando i due deviatori scelgono la stessa strada: C1 collegato a 1 e C2 a 1, oppure entrambi a 2.',
+            'Ogni deviatore sceglie una delle due strade. La luce è accesa quando i due deviatori scelgono la stessa strada: il comune del deviatore A su 1 e quello del deviatore B su 1, oppure entrambi su 2.',
             'Se i deviatori scelgono strade diverse, il giro è interrotto e la luce è spenta. Premere uno qualsiasi dei due cambia la scelta, quindi cambia lo stato della luce.',
           ],
           table: { head: ['Deviatore A', 'Deviatore B', 'Luce'], rows: [['1', '1', 'accesa'], ['2', '2', 'accesa'], ['1', '2', 'spenta'], ['2', '1', 'spenta']] },
@@ -354,8 +354,8 @@ export const UNITS = {
               'Filo marrone dal comune C del deviatore B alla lampada.',
               'Filo blu dal NEUTRO direttamente alla lampada.',
             ],
-            power: 'Levetta su: con i deviatori in posizioni diverse la luce è spenta.',
-            controls: ['Deviatore A premuto: i due deviatori scelgono la stessa strada e la lampada si accende.', 'Deviatore B premuto: scelgono strade diverse e la lampada si spegne.'],
+            power: 'Levetta su: tutti e due i deviatori sono sulla strada 1 e la lampada è accesa.',
+            controls: ['Deviatore A premuto: A passa sulla strada 2, B resta sulla 1. Strade diverse, la lampada si spegne.', 'Deviatore B premuto: anche B passa sulla strada 2. Stessa strada, la lampada si riaccende.'],
           },
         },
         {
@@ -374,8 +374,8 @@ export const UNITS = {
     },
     steps: [
       { kind: 'wire', from: 'Q.F', to: ['D1.C'], color: 'marrone', short: '1 Fase', title: 'La fase entra nel primo deviatore', text: 'Dalla FASE del quadro al comune C del deviatore A.' },
-      { kind: 'wire', from: 'D1.1', to: ['D2.1'], color: 'nero', short: '2 Corsa 1', title: 'Primo filo di collegamento', text: 'Dal morsetto 1 del deviatore A al morsetto 1 del deviatore B.' },
-      { kind: 'wire', from: 'D1.2', to: ['D2.2'], color: 'grigio', short: '3 Corsa 2', title: 'Secondo filo di collegamento', text: 'Dal morsetto 2 del deviatore A al morsetto 2 del deviatore B.' },
+      { kind: 'wire', from: 'D1.1', to: ['D2.1'], color: 'nero', short: '2 Collegamento 1', title: 'Primo filo di collegamento', text: 'Dal morsetto 1 del deviatore A al morsetto 1 del deviatore B.' },
+      { kind: 'wire', from: 'D1.2', to: ['D2.2'], color: 'grigio', short: '3 Collegamento 2', title: 'Secondo filo di collegamento', text: 'Dal morsetto 2 del deviatore A al morsetto 2 del deviatore B.' },
       { kind: 'wire', from: 'D2.C', to: ['L.A'], color: 'marrone', short: '4 Lampada', title: 'Dal secondo deviatore alla lampada', text: 'Dal comune C del deviatore B a un morsetto della lampada.' },
       { kind: 'wire', from: 'Q.N', to: ['L.B'], color: 'blu', short: '5 Neutro', title: 'Il neutro va diretto', text: 'Dal NEUTRO del quadro all’altro morsetto della lampada.' },
       { kind: 'power', short: '6 Levetta', title: 'Dai corrente', text: 'Tocca la levetta, poi prova i due deviatori.' },
@@ -389,7 +389,7 @@ export const UNITS = {
       'La luce è accesa quando i due deviatori scelgono la stessa strada.',
     ],
     fault: {
-      say: 'L’impianto è già cablato, ma la luce si accende solo in certe posizioni dei deviatori. Prova a premerli entrambi.',
+      say: 'L’impianto è già cablato, ma la luce si accende solo in una posizione dei deviatori. Prova a premerli entrambi.',
       wires: [['Q.F', 'D1.C', 'marrone'], ['D1.1', 'D2.1', 'nero'], ['D2.C', 'L.A', 'marrone'], ['Q.N', 'L.B', 'blu']],
       diagnosis: {
         question: 'Che cosa non va?',
@@ -448,7 +448,7 @@ export const UNITS = {
               'Filo marrone dal comune C del deviatore B alla lampada.',
               'Filo blu dal NEUTRO direttamente alla lampada.',
             ],
-            power: 'Levetta su: la luce è spenta.',
+            power: 'Levetta su: la luce è accesa.',
             controls: ['Deviatore A premuto: la luce cambia.', 'Invertitore premuto: la luce cambia.', 'Deviatore B premuto: la luce cambia.'],
           },
         },
@@ -467,8 +467,8 @@ export const UNITS = {
       ],
     },
     steps: [
-      { kind: 'wire', from: 'Q.F', to: ['D1.C'], color: 'marrone', short: '1 Fase', title: 'Fase', text: 'Dalla FASE al comune C del deviatore A.' },
-      { kind: 'verify', short: '2 Verifica', title: 'Collega i tre punti di comando', text: 'Collega i deviatori all’invertitore con due fili di collegamento, poi l’invertitore all’altro deviatore. Il comune del secondo va alla lampada, il neutro diretto alla lampada. Poi premi Verifica.' },
+      { kind: 'wire', from: 'Q.F', to: ['D1.C'], color: 'marrone', short: '1 Fase', title: 'La fase entra nel deviatore A', text: 'Dalla FASE al comune C del deviatore A.' },
+      { kind: 'verify', short: '2 Verifica', title: 'Collega i tre punti di comando', text: 'Collega il deviatore A ai morsetti 1 e 2 dell’invertitore, poi i morsetti 3 e 4 al deviatore B. Il comune C del deviatore B va alla lampada, il neutro va diretto alla lampada. Dai corrente, prova i tre comandi e premi Verifica.' },
     ],
     summary: [
       'L’invertitore ha quattro morsetti: 1 e 2 in alto, 3 e 4 in basso.',
@@ -478,18 +478,18 @@ export const UNITS = {
     ],
     fault: {
       say: 'L’impianto è già cablato, ma la luce non si accende da tutte le posizioni. Prova a premere i tre comandi.',
-      wires: [['Q.F', 'D1.C', 'marrone'], ['D1.1', 'I.1', 'nero'], ['D1.2', 'I.2', 'grigio'], ['I.3', 'D2.1', 'nero'], ['D2.C', 'L.A', 'marrone'], ['Q.N', 'L.B', 'blu']],
+      wires: [['Q.F', 'D1.C', 'marrone'], ['D1.1', 'I.1', 'nero'], ['D1.2', 'I.3', 'grigio'], ['I.2', 'D2.1', 'nero'], ['I.4', 'D2.2', 'grigio'], ['D2.C', 'L.A', 'marrone'], ['Q.N', 'L.B', 'blu']],
       diagnosis: {
         question: 'Che cosa non va?',
         options: [
-          { id: 'a', text: 'Manca il filo tra il morsetto 4 dell’invertitore e il deviatore B.' },
+          { id: 'a', text: 'I fili del deviatore A arrivano a 1 e 3 dell’invertitore invece che a 1 e 2.' },
           { id: 'b', text: 'Manca il neutro alla lampada.' },
           { id: 'c', text: 'La fase non arriva al deviatore A.' },
         ],
         correct: 'a',
-        why: 'Uno dei due fili di collegamento a valle dell’invertitore manca: in alcune posizioni il giro è interrotto e la luce non può accendersi.',
+        why: 'Con l’invertitore a riposo il contatto 1-3 unisce i due fili del deviatore A: la fase non arriva mai al deviatore B, se non in certe posizioni.',
       },
-      fixSay: 'Aggiungi il filo mancante tra il morsetto 4 dell’invertitore e il morsetto 2 del deviatore B. Poi premi Verifica.',
+      fixSay: 'Sposta i fili: il deviatore A va ai morsetti 1 e 2 dell’invertitore, il deviatore B ai morsetti 3 e 4. Poi premi Verifica.',
     },
   },
 };

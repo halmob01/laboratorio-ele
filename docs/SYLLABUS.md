@@ -87,7 +87,7 @@ I livelli che già esistono sono segnati; due livelli sono nuovi e si inseriscon
 | c02-presa | La presa | Terra e perché serve (esiste) | O1, O3, O8, O13 | Primo schema funzionale con i simboli e cablaggio dallo schema (tipo A); scelta di protezione e cavo per la linea prese; guasto: fase e neutro scambiati sulla presa |
 | c03-interrotto | L'interruttore | Interrompere la fase (esiste) | O4, O8 | Cablaggio dallo schema; sullo schema si vede dove l'interruttore apre il circuito; guasto: interruttore sul neutro (luce spenta ma morsetti in tensione) |
 | c04-parallelo | Due lampade, un interruttore | Parallelo (nuovo) | O5, O8, O13 | Cablaggio dallo schema; scelta di protezione e cavo per la linea luce |
-| c05-deviato | Il deviato | Comando da due punti (esiste) | O6, O9 | Primo schema multifilare; dal cablaggio allo schema (tipo B); guasto: fili 1 e 2 incrociati |
+| c05-deviato | Il deviato | Comando da due punti (esiste) | O6, O9 | Primo schema multifilare; dal cablaggio allo schema (tipo B); guasto: un filo di collegamento tra i deviatori mancante (incrociati il deviato funziona) |
 | c06-invertito | L'invertito | Comando da tre punti (esiste) | O7, O9, O12 | Riconoscere gli errori in uno schema dato (tipo C); guasto con il tester di tensione |
 
 Bonus in ogni livello della Milestone 0: partire dal contatore (esiste già come modalità).
