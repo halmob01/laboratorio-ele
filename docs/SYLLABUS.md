@@ -14,7 +14,7 @@ Bozza 1. Questo documento fissa la struttura del gioco; i dettagli di ogni livel
 | 8. XP, gradi e classifica | proposta da calibrare |
 | 9. Raccolta dati | proposta, da condividere con il referente privacy |
 | 10. Build | definita |
-| 11. Decisioni | tre prese, il resto aperto |
+| 11. Decisioni | quattro prese, il resto aperto |
 
 ## 1. Idea del gioco
 
@@ -241,7 +241,7 @@ Semplice, come in sito-feudo: un punteggio finale che si legge subito.
 - Conta il miglior tentativo di ogni livello, quindi rigiocare non fa accumulare XP.
 - Si propongono gradi crescenti con gli XP totali (per esempio Apprendista, Aiutante, Operatore, Installatore, Collaudatore). Le soglie si tarano dopo la prima prova in classe.
 - La classifica ordina per XP totali, poi per meno suggerimenti, poi per chi ha raggiunto prima il punteggio.
-- Pannello docente come in sito-feudo, con in più il filtro per classe e le statistiche degli errori (sezione 9).
+- Pannello docente come in sito-feudo, con in più le statistiche degli errori (sezione 9). La classifica è unica: il docente la azzera tra un gruppo e l'altro, come nel feudo.
 
 ## 9. Raccolta dati
 
@@ -250,20 +250,18 @@ Semplice, come in sito-feudo: un punteggio finale che si legge subito.
 Si raccoglie:
 
 - **Nome o soprannome,** a testo libero fino a 20 caratteri come nel feudo, con moderazione del docente. Accanto al campo compare l'invito a usare il solo nome di battesimo o un soprannome, non il cognome.
-- **Codice classe,** facoltativo, per distinguere i gruppi (per esempio 2B).
 - **Identificativo casuale di partita,** generato nel browser, non collegato a una persona.
 - **Per ogni livello:** stelle, XP, numero di tentativi, suggerimenti usati, soluzione mostrata sì/no.
 - **Errori per tipo,** in forma aggregata e senza testo libero (per esempio "interruttore sul neutro": 14 volte), per dire al docente dove la classe sbaglia.
 
 Non si raccolgono cognome, email, indirizzo IP, posizione, né altro testo libero oltre al nome o soprannome.
 
-**Come funziona in sito-feudo, e che cosa riuso.** Il feudo salva la partita nel browser, a fine gioco invia nome e punteggio a un Foglio Google tramite uno script, mostra la classifica leggendo lo stesso foglio e ha un pannello docente con password. Conta le visite con GoatCounter, senza cookie. Il modello va bene per un gioco di classe perché non richiede un server da mantenere e i dati restano nell'account del docente. Per il laboratorio propongo di riusarlo, con tre differenze:
+**Come funziona in sito-feudo, e che cosa riuso.** Il feudo salva la partita nel browser, a fine gioco invia nome e punteggio a un Foglio Google tramite uno script, mostra la classifica leggendo lo stesso foglio e ha un pannello docente con password. Conta le visite con GoatCounter, senza cookie. Il modello va bene per un gioco di classe perché non richiede un server da mantenere e i dati restano nell'account del docente. Per il laboratorio propongo di riusarlo, con due differenze:
 
 1. **Moderazione.** Come nel feudo il nome è libero (fino a 20 caratteri). In più il pannello docente permette di rinominare o togliere una riga, e un filtro semplice nasconde le parole più comuni da evitare.
-2. **Codice classe,** assente nel feudo, perché qui le classi sono più d'una.
-3. **Controllo del punteggio.** Nel feudo il codice del punteggio si firma con un valore nascosto dentro la pagina, quindi uno studente esperto potrebbe falsificarlo. Nel laboratorio il motore è puro JavaScript e può essere rieseguito sul foglio (gli script di Google sono JavaScript): lo script può ricalcolare stelle e XP dai cablaggi inviati e rifiutare i punteggi che non tornano. Per un gioco di classe a bassa posta in gioco si può partire senza e aggiungerlo dopo.
+2. **Controllo del punteggio.** Nel feudo il codice del punteggio si firma con un valore nascosto dentro la pagina, quindi uno studente esperto potrebbe falsificarlo. Nel laboratorio il motore è puro JavaScript e può essere rieseguito sul foglio (gli script di Google sono JavaScript): lo script può ricalcolare stelle e XP dai cablaggi inviati e rifiutare i punteggi che non tornano. Per un gioco di classe a bassa posta in gioco si può partire senza e aggiungerlo dopo.
 
-**Privacy.** Un nome di battesimo con un codice classe, per chi conosce la classe, identifica una persona. Con allievi minorenni il trattamento va quindi concordato con il referente per la privacy della scuola prima di raccogliere dati. In gioco serve un'informativa breve in italiano semplice. Questa non è una valutazione legale.
+**Privacy.** Un nome di battesimo, per chi conosce la classe, identifica una persona. Con allievi minorenni il trattamento va quindi concordato con il referente per la privacy della scuola prima di raccogliere dati. In gioco serve un'informativa breve in italiano semplice. Questa non è una valutazione legale.
 
 ## 10. Build
 
@@ -274,7 +272,7 @@ Ogni build è utilizzabile in aula da sola e lascia le precedenti funzionanti. I
 | B0 | Separazione di motore, contenuti e vista | fatta, sul ramo `separazione-motore-vista` |
 | B1 Fondamenta 1 | Livelli c01-c04 (circuito chiuso, presa, interruttore, parallelo); lezioni brevi; previsione; esempio guidato; spiegazioni degli errori; corrente visibile; schema funzionale e esercizi di tipo A; dimensionamento semplice; XP e profilo nel browser; prologo della Milestone 0 | Syllabus come dato, identificativi dei livelli e migrazione dei salvataggi, registro locale degli eventi, `flowOf` nel motore, simboli SVG dei primi componenti, scheda dello schema |
 | B2 Fondamenta 2 | Livelli c05-c06 (deviato, invertito); schema multifilare; esercizi di tipo B e C; guasto "filo sbagliato"; Milestone 0 completa | Editor degli schemi, `netlist` e `compareNetlists`, schemi con errori inseriti |
-| B3 Classifica | Classifica condivisa su Foglio Google, pannello docente, codice classe, statistiche degli errori | Invio punteggi, eventualmente ricalcolo sul foglio |
+| B3 Classifica | Classifica condivisa su Foglio Google, pannello docente, statistiche degli errori | Invio punteggi, eventualmente ricalcolo sul foglio |
 | B4 Milestone 1 | Trilocale: pagina 3D, pianta unifilare, multimetro, guasti nascosti, procedura di sicurezza, collaudo | three.js nel build, vista del trilocale, difetti nei componenti, multimetro nel motore |
 | B5 Milestone 2 | Livelli c07-c11 e prova di milestone | Relè e componenti con stato derivato dal circuito, temporizzazione |
 | B6 Milestone 3 | Livelli c12-c16 e nastro trasportatore | Trifase, teleruttori, motore, risoluzione fino a stato stabile per l'autoritenuta |
@@ -291,10 +289,10 @@ Per ogni build: i test del motore e del layout restano verdi, la pagina costruit
 1. Trilocale: bagno interrotto, camera deviata, corridoio invertito.
 2. Nome del giocatore a testo libero, con moderazione del docente.
 3. Obiettivi e valori di dimensionamento: li ho scelti io come punto di partenza; il collega di laboratorio può proporre modifiche.
+4. Nessun codice classe: classifica unica, azzerata dal docente tra un gruppo e l'altro.
 
 **Aperte**
 
-4. Codice classe: chi lo assegna agli allievi?
 5. Controllo dei punteggi sul foglio: in B3 o dopo?
 6. XP e gradi: i numeri della sezione 8 si tarano dopo la prima prova in classe.
 7. Asset 3D: solo forme semplici, o anche modelli liberi?
