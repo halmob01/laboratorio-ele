@@ -67,3 +67,19 @@ test('il pacchetto 3D e\' separato: la pagina principale non contiene three e il
   assert.equal(index.includes('WebGLRenderer'), false);
   assert.ok(statSync(new URL('../trilocale.js', import.meta.url)).size < 700 * 1024);
 });
+
+test('i circuiti del trilocale restano sempre dal quadro e la casa non si scollega dal motore', () => {
+  const s = createSession({ levels, deriveFull, initialLevel: 'c03-interrotto' });
+  s.setMode('contatore');
+  s.selectLevel('t01-bagno');
+  assert.equal(s.snapshot().mode, 'quadro');
+  s.setMode('contatore');
+  assert.equal(s.snapshot().mode, 'quadro');
+});
+
+test('dopo un ricaricamento un circuito verificato si vede acceso con la sua soluzione', () => {
+  const stars = { 't01-bagno': 3 };
+  const s = createSession({ levels, deriveFull, initialLevel: 'c01-circuito-chiuso', storage: { load: () => ({ v: 2, stars, best: {}, last: null }), save() {} } });
+  assert.equal(houseState(s, true).rooms.bagno.lit, true);
+  assert.equal(houseState(s, false).rooms.bagno.lit, false);   // quadro generale spento
+});

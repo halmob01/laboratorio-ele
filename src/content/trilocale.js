@@ -10,21 +10,21 @@ const rename = (comps, names) => comps.map(c => (names[c.id] ? { ...c, ...names[
 
 const bagno = {
   ...base('c03-interrotto'),
-  id: 't01-bagno', code: 't01', n: 0, name: 'Bagno', title: 'Il bagno',
+  id: 't01-bagno', quadroOnly: true, code: 't01', n: 0, name: 'Bagno', title: 'Il bagno',
   blurb: 'Punto luce interrotto, con l’interruttore vicino alla porta.',
   goal: 'Cabla il punto luce del bagno: un interruttore vicino alla porta accende e spegne la lampada.',
   comps: rename(base('c03-interrotto').comps, { S: { short: 'Interruttore', title: 'Interruttore del bagno', where: 'Porta' }, L: { short: 'Lampada', title: 'Lampada del bagno' } }),
 };
 const camera = {
   ...base('c05-deviato'),
-  id: 't02-camera', code: 't02', n: 0, name: 'Camera', title: 'La camera',
+  id: 't02-camera', quadroOnly: true, code: 't02', n: 0, name: 'Camera', title: 'La camera',
   blurb: 'Punto luce deviato, dalla porta e dal comodino.',
   goal: 'Cabla il punto luce della camera: si accende e si spegne dalla porta e dal comodino.',
   comps: rename(base('c05-deviato').comps, { D1: { short: 'Deviatore porta', title: 'Deviatore della porta', where: 'Porta' }, D2: { short: 'Deviatore comodino', title: 'Deviatore del comodino', where: 'Comodino' }, L: { short: 'Lampada', title: 'Lampada della camera' } }),
 };
 const corridoio = {
   ...base('c06-invertito'),
-  id: 't03-corridoio', code: 't03', n: 0, name: 'Corridoio', title: 'Il corridoio',
+  id: 't03-corridoio', quadroOnly: true, code: 't03', n: 0, name: 'Corridoio', title: 'Il corridoio',
   blurb: 'Punto luce invertito, da tre punti.',
   goal: 'Cabla il punto luce del corridoio: si comanda dall’ingresso, dal soggiorno e dalla camera.',
   comps: rename(base('c06-invertito').comps, { D1: { short: 'Deviatore ingresso', title: 'Deviatore dell’ingresso', where: 'Ingresso' }, I: { short: 'Invertitore soggiorno', title: 'Invertitore del soggiorno', where: 'Soggiorno' }, D2: { short: 'Deviatore camera', title: 'Deviatore della camera', where: 'Camera' }, L: { short: 'Lampada', title: 'Lampada del corridoio' } }),

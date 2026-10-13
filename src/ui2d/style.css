@@ -437,7 +437,7 @@ a.tool{display:flex;align-items:center;justify-content:center;text-decoration:no
 .hmsg{position:absolute;left:0;right:0;bottom:0;padding:10px 12px;color:#fff;font-size:14px;background:rgba(10,16,24,.6)}
 .htabs{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
 .htab{display:flex;flex-direction:column;align-items:center;gap:2px;padding:8px 6px;border:1.5px solid var(--line);border-radius:10px;background:var(--card);color:var(--ink);text-decoration:none}
-.htab[aria-selected="true"]{border-color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent)}
+.htab[data-sel="true"]{border-color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent)}
 .htab b{font-size:15px}
 .htab small{font:500 12px/1.2 'IBM Plex Mono',monospace;color:var(--ink2)}
 .htab small.st-ok{color:var(--ok)}
@@ -468,3 +468,5 @@ a.tool{display:flex;align-items:center;justify-content:center;text-decoration:no
 }
 @media (prefers-reduced-motion:reduce){.hstage *{transition:none!important}}
 @media (max-width:600px){.hlabel.ctl{display:none!important}}
+.hsoon{display:flex;justify-content:space-between;align-items:baseline;padding:10px 12px;border:1.5px dashed var(--line);border-radius:10px;color:var(--ink2);font-size:14px}
+.hsoon small{font:500 12px 'IBM Plex Mono',monospace}

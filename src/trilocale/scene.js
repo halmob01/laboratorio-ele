@@ -222,7 +222,7 @@ export function createScene(container, cb) {
     else if (u.room) cb.onRoom(u.room);
   });
   el.addEventListener('wheel', e => {
-    if (!e.ctrlKey && Math.abs(e.deltaY) < 1) return;
+    if (!e.ctrlKey) return;
     e.preventDefault();
     view.dist = Math.max(8, Math.min(20, view.dist + e.deltaY * 0.01));
     needs = true; schedule();

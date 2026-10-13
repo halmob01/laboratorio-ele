@@ -211,9 +211,22 @@ export function createSession({ levels, deriveFull, storage = memoryStorage(), i
       const lv = levelAt(i, 'quadro');
       const k = keyOf(i, 'quadro');
       const w = wiresByKey[k] || [], st = statesByKey[k] || {};
-      const a = analyse(lv, w, st);
       const id = levels[i].id;
-      return { id, lit: !!a.lit, wired: w.length, controls: { ...st }, passed: (progress.stars[id] || 0) > 0, open: i === levelIndex, power: i === levelIndex && power };
+      const passed = (progress.stars[id] || 0) > 0;
+      let wires = w, controls = { ...st };
+      // Dopo un ricaricamento i fili non ci sono piu': un circuito gia' verificato si mostra con la sua soluzione
+      // e i comandi nella prima posizione che accende la luce.
+      if (passed && !w.length && lv.solution) {
+        wires = lv.solution.map(([a, b, c], n) => ({ id: n + 1, a, b, c }));
+        const ctl = lv.controls || [];
+        for (let m = 0; m < 1 << ctl.length; m++) {
+          const t = {};
+          ctl.forEach((c, j) => (t[c] = (m >> j) & 1));
+          if (analyse(lv, wires, t).lit) { controls = t; break; }
+        }
+      }
+      const a = analyse(lv, wires, controls);
+      return { id, lit: !!a.lit, wired: wires.length, controls, passed, open: i === levelIndex, power: i === levelIndex && power };
     },
 
     // Apre un livello (indice o id). Con { verify: true } e' una prova di salto: senza lezione e senza aiuti.
@@ -221,6 +234,7 @@ export function createSession({ levels, deriveFull, storage = memoryStorage(), i
       const i = indexOf(x);
       if (i < 0 || i >= levels.length) return;
       levelIndex = i;
+      if (levels[i].quadroOnly) mode = 'quadro';
       const wasVerify = playMode === 'verifica';
       playMode = opts.verify ? 'verifica' : 'apprendimento';
       if (wasVerify || (unitByKey[i] && unitByKey[i].phase === 'fault')) dropUnitState();
@@ -241,7 +255,7 @@ export function createSession({ levels, deriveFull, storage = memoryStorage(), i
       this.selectLevel(levelIndex + 1);
     },
     setMode(m) {
-      if (!MODES.includes(m) || m === mode) return;
+      if (!MODES.includes(m) || m === mode || (levels[levelIndex].quadroOnly && m !== 'quadro')) return;
       mode = m;
       const us = unitByKey[levelIndex];
       if (us && us.phase === 'fault') { us.phase = 'done'; us.diag = null; }

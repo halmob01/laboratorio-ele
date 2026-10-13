@@ -447,7 +447,7 @@ a.tool{display:flex;align-items:center;justify-content:center;text-decoration:no
 .hmsg{position:absolute;left:0;right:0;bottom:0;padding:10px 12px;color:#fff;font-size:14px;background:rgba(10,16,24,.6)}
 .htabs{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
 .htab{display:flex;flex-direction:column;align-items:center;gap:2px;padding:8px 6px;border:1.5px solid var(--line);border-radius:10px;background:var(--card);color:var(--ink);text-decoration:none}
-.htab[aria-selected="true"]{border-color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent)}
+.htab[data-sel="true"]{border-color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent)}
 .htab b{font-size:15px}
 .htab small{font:500 12px/1.2 'IBM Plex Mono',monospace;color:var(--ink2)}
 .htab small.st-ok{color:var(--ok)}
@@ -478,6 +478,8 @@ a.tool{display:flex;align-items:center;justify-content:center;text-decoration:no
 }
 @media (prefers-reduced-motion:reduce){.hstage *{transition:none!important}}
 @media (max-width:600px){.hlabel.ctl{display:none!important}}
+.hsoon{display:flex;justify-content:space-between;align-items:baseline;padding:10px 12px;border:1.5px dashed var(--line);border-radius:10px;color:var(--ink2);font-size:14px}
+.hsoon small{font:500 12px 'IBM Plex Mono',monospace}
 </style>
 </head>
 <body>
@@ -1154,15 +1156,30 @@ a.tool{display:flex;align-items:center;justify-content:center;text-decoration:no
         const lv = levelAt(i, "quadro");
         const k = keyOf(i, "quadro");
         const w = wiresByKey[k] || [], st = statesByKey[k] || {};
-        const a = analyse(lv, w, st);
         const id = levels2[i].id;
-        return { id, lit: !!a.lit, wired: w.length, controls: { ...st }, passed: (progress.stars[id] || 0) > 0, open: i === levelIndex, power: i === levelIndex && power };
+        const passed = (progress.stars[id] || 0) > 0;
+        let wires2 = w, controls = { ...st };
+        if (passed && !w.length && lv.solution) {
+          wires2 = lv.solution.map(([a2, b, c2], n) => ({ id: n + 1, a: a2, b, c: c2 }));
+          const ctl = lv.controls || [];
+          for (let m = 0; m < 1 << ctl.length; m++) {
+            const t = {};
+            ctl.forEach((c2, j) => t[c2] = m >> j & 1);
+            if (analyse(lv, wires2, t).lit) {
+              controls = t;
+              break;
+            }
+          }
+        }
+        const a = analyse(lv, wires2, controls);
+        return { id, lit: !!a.lit, wired: wires2.length, controls, passed, open: i === levelIndex, power: i === levelIndex && power };
       },
       // Apre un livello (indice o id). Con { verify: true } e' una prova di salto: senza lezione e senza aiuti.
       selectLevel(x, opts = {}) {
         const i = indexOf(x);
         if (i < 0 || i >= levels2.length) return;
         levelIndex = i;
+        if (levels2[i].quadroOnly) mode = "quadro";
         const wasVerify = playMode === "verifica";
         playMode = opts.verify ? "verifica" : "apprendimento";
         if (wasVerify || unitByKey[i] && unitByKey[i].phase === "fault") dropUnitState();
@@ -1182,7 +1199,7 @@ a.tool{display:flex;align-items:center;justify-content:center;text-decoration:no
         this.selectLevel(levelIndex + 1);
       },
       setMode(m) {
-        if (!MODES.includes(m) || m === mode) return;
+        if (!MODES.includes(m) || m === mode || levels2[levelIndex].quadroOnly && m !== "quadro") return;
         mode = m;
         const us = unitByKey[levelIndex];
         if (us && us.phase === "fault") {
@@ -2172,6 +2189,7 @@ a.tool{display:flex;align-items:center;justify-content:center;text-decoration:no
   var bagno = {
     ...base("c03-interrotto"),
     id: "t01-bagno",
+    quadroOnly: true,
     code: "t01",
     n: 0,
     name: "Bagno",
@@ -2183,6 +2201,7 @@ a.tool{display:flex;align-items:center;justify-content:center;text-decoration:no
   var camera = {
     ...base("c05-deviato"),
     id: "t02-camera",
+    quadroOnly: true,
     code: "t02",
     n: 0,
     name: "Camera",
@@ -2194,6 +2213,7 @@ a.tool{display:flex;align-items:center;justify-content:center;text-decoration:no
   var corridoio = {
     ...base("c06-invertito"),
     id: "t03-corridoio",
+    quadroOnly: true,
     code: "t03",
     n: 0,
     name: "Corridoio",
@@ -2618,17 +2638,20 @@ a.tool{display:flex;align-items:center;justify-content:center;text-decoration:no
     if (!s.result) return "";
     const r = describeEvaluation(s.result, s.level);
     const row = (t, o) => `<div class="row"><span class="mark ${o.status}" aria-hidden="true">${MARK[o.status]}</span><div><b>${t}</b><ul>${o.msgs.map((m) => `<li>${m}</li>`).join("")}</ul></div></div>`;
-    const last = s.levelIndex === s.levelCount - 1;
+    const isT = (id) => /^t\d\d-/.test(id);
+    const nextL = s.levels[s.levelIndex + 1];
+    const toHouse = !!nextL && isT(nextL.id) && !isT(s.level.id);
+    const last = !nextL;
     const xp = s.levels[s.levelIndex].xp;
     const u = s.unit;
     const acts = [];
     if (r.pass) {
       if (u && u.summary.length) acts.push('<button class="btn" data-act="summary">Sintesi</button>');
       if (u && u.hasFault && !u.faultSolved && s.playMode !== "verifica" && s.mode === "quadro") acts.push('<button class="btn" data-act="fault">Sfida guasto</button>');
-      if (s.playMode !== "verifica" && s.mode === "quadro") acts.push('<button class="btn" data-act="full">Sfida: parti dal contatore</button>');
-      acts.push(last ? "" : '<button class="btn primary" id="bNext">Livello successivo</button>');
+      if (s.playMode !== "verifica" && s.mode === "quadro" && !s.level.quadroOnly) acts.push('<button class="btn" data-act="full">Sfida: parti dal contatore</button>');
+      acts.push(last ? "" : toHouse ? '<button class="btn primary" id="bNext" data-href="#/modulo/1">Vai al trilocale</button>' : '<button class="btn primary" id="bNext">Livello successivo</button>');
     }
-    return `<h3>${r.pass ? "Impianto funzionante" : "Controllo del circuito"}</h3><div class="stars" aria-label="${r.stars} stelle su 3">${"\u2605".repeat(r.stars)}<span class="e">${"\u2605".repeat(3 - r.stars)}</span></div>${row("Funziona", r.work)}${row("Colori dei fili", r.color)}${row("Sicurezza", r.safe)}<p class="xpline">Punti di questo livello: <b>${xp} XP</b></p>${r.pass && last ? '<p class="next"><b>Hai completato tutti i livelli.</b></p>' : ""}${acts.length ? `<div class="uact">${acts.join("")}</div>` : ""}`;
+    return `<h3>${r.pass ? "Impianto funzionante" : "Controllo del circuito"}</h3><div class="stars" aria-label="${r.stars} stelle su 3">${"\u2605".repeat(r.stars)}<span class="e">${"\u2605".repeat(3 - r.stars)}</span></div>${row("Funziona", r.work)}${row("Colori dei fili", r.color)}${row("Sicurezza", r.safe)}<p class="xpline">Punti di questo livello: <b>${xp} XP</b></p>${r.pass && last ? '<p class="next"><b>Hai completato tutti i livelli.</b></p>' : r.pass && toHouse ? '<p class="next"><b>Hai completato il Modulo 0.</b></p>' : ""}${acts.length ? `<div class="uact">${acts.join("")}</div>` : ""}`;
   }
 
   // src/content/home.js
@@ -2805,7 +2828,7 @@ a.tool{display:flex;align-items:center;justify-content:center;text-decoration:no
   function continueTarget(s) {
     const open = (l) => l.status !== "completato" && l.status !== "saltato";
     const last = s.levels.find((l) => l.id === s.last);
-    return last && open(last) && last || s.levels.find((l) => open(l) && !l.id.startsWith("t")) || null;
+    return last && open(last) && last || s.levels.find((l) => open(l) && !/^t\d\d-/.test(l.id)) || null;
   }
   function homeHTML(s) {
     const t = continueTarget(s);
@@ -2821,8 +2844,8 @@ a.tool{display:flex;align-items:center;justify-content:center;text-decoration:no
         <ol class="rail">${items}</ol>
       </section>`;
     }).join("");
-    const tri = s.levels.filter((l) => l.id.startsWith("t"));
-    const triDone = tri.filter((l) => l.status === "completato" || l.status === "saltato").length;
+    const tri = s.levels.filter((l) => /^t\d\d-/.test(l.id));
+    const triDone = tri.filter((l) => l.stars > 0).length;
     const trilocale = `<section class="module trimod" aria-label="Modulo 1, Il trilocale">
         <div class="mhead"><div><div class="kick">MODULO 1</div><h2>Il trilocale</h2></div><div class="count">Anteprima \xB7 ${triDone} di ${tri.length} circuiti</div></div>
         <div class="tricard"><p>Una casa vista dall\u2019alto con tre punti luce da cablare: bagno, camera e corridoio. Quando l\u2019impianto funziona, la luce si accende nella stanza.</p><a class="btn lamp" href="#/modulo/1">${triDone ? "Continua nel trilocale" : "Entra nel trilocale"}</a></div>
@@ -2987,13 +3010,13 @@ a.tool{display:flex;align-items:center;justify-content:center;text-decoration:no
       const body = items.map((l) => `<article class="qlv"><h3>${esc(l.title)}</h3><ul class="sum">${l.unit.summary.map((t) => `<li>${esc(t)}</li>`).join("")}</ul></article>`).join("");
       return `<section class="qmod"><div class="kick">${m.tag}</div><h2>${m.title}</h2>${body}</section>`;
     }).join("");
-    const triItems = levelList.filter((l) => l.id.startsWith("t") && l.unit && l.unit.summary);
+    const triItems = levelList.filter((l) => /^t\d\d-/.test(l.id) && l.unit && l.unit.summary);
     const triHTML = triItems.length ? `<section class="qmod"><div class="kick">MODULO 1</div><h2>Il trilocale</h2>${triItems.map((l) => `<article class="qlv"><h3>${esc(l.title)}</h3><ul class="sum">${l.unit.summary.map((t) => `<li>${esc(t)}</li>`).join("")}</ul></article>`).join("")}</section>` : "";
     return `<div class="levelbar"><a class="back" href="#/home">&larr; Mappa</a></div><div class="card quaderno"><div class="qhead"><h1>Quaderno</h1><button class="btn" data-act="print">Stampa</button></div><p class="note">Le sintesi dei livelli, da ripassare o stampare. Sono sempre consultabili, anche per i livelli non ancora giocati.</p>${mods}${triHTML}</div>`;
   }
 
   // src/trilocale/house.js
-  function houseState(session2) {
+  function houseState(session2, on = true) {
     const rooms = {};
     HOUSE.rooms.forEach((r) => {
       if (!r.circuit) {
@@ -3005,7 +3028,7 @@ a.tool{display:flex;align-items:center;justify-content:center;text-decoration:no
         rooms[r.id] = { lit: false, state: "da cablare", controls: {}, circuit: r.circuit };
         return;
       }
-      const lit = p.open ? p.power && p.lit : p.passed && p.lit;
+      const lit = p.open ? p.power && p.lit : on && p.passed && p.lit;
       const state = p.passed ? "funziona" : p.wired > 0 ? "in corso" : "da cablare";
       rooms[r.id] = { lit, state, controls: p.controls, circuit: r.circuit, open: p.open };
     });
@@ -3061,7 +3084,7 @@ a.tool{display:flex;align-items:center;justify-content:center;text-decoration:no
       o += `<g class="pctl" data-circuit="${c2.circuit}" data-ctl="${c2.id}"><rect x="${px(c2.x) - 6}" y="${px(c2.z) - 6}" width="12" height="12" rx="2"/><title>${esc2(c2.label)}</title></g>`;
     });
     const b = HOUSE.breaker;
-    o += `<g class="pbrk"><rect x="${px(b.x) - 9}" y="${px(b.z) - 9}" width="18" height="18" rx="3"/><text x="${px(b.x)}" y="${px(b.z) + 4}" text-anchor="middle">Q</text></g>`;
+    o += `<g class="pbrk" data-breaker="1"><rect x="${px(b.x) - 9}" y="${px(b.z) - 9}" width="18" height="18" rx="3"/><text x="${px(b.x)}" y="${px(b.z) + 4}" text-anchor="middle">Q</text></g>`;
     return o + "</svg>";
   }
 
@@ -3072,6 +3095,24 @@ a.tool{display:flex;align-items:center;justify-content:center;text-decoration:no
     { id: "t02-camera", room: "camera", label: "Camera" },
     { id: "t03-corridoio", room: "corridoio", label: "Corridoio" }
   ];
+  var scriptPromise = null;
+  function loadScript() {
+    if (window.FaseNeutroScene) return Promise.resolve(true);
+    if (!scriptPromise) {
+      scriptPromise = new Promise((resolve) => {
+        const el = document.createElement("script");
+        el.src = "trilocale.js";
+        el.onload = () => resolve(true);
+        el.onerror = () => {
+          el.remove();
+          scriptPromise = null;
+          resolve(false);
+        };
+        document.head.appendChild(el);
+      });
+    }
+    return scriptPromise;
+  }
   function isHouseLevel(id) {
     return /^t\d\d-/.test(id || "");
   }
@@ -3083,13 +3124,15 @@ a.tool{display:flex;align-items:center;justify-content:center;text-decoration:no
     return (pending || CIRCUITS[0]).id;
   }
   function createHouse(host, env) {
-    let scene = null, sceneState = "idle", view = "scene", lastLevel = null, mounted = false;
+    let scene = null, sceneState = "idle", view = "scene", lastLevel = null, mounted = false, mountToken = 0;
+    let lastSnap = null, houseOn = true, prevPower = false;
     let sceneEl = null, planEl = null, tabsEl = null;
     function build() {
       host.innerHTML = `<div class="hstage"><div class="hscene" id="hScene"></div><div class="hplan" id="hPlan" hidden></div>
         <div class="htools"><button class="btn small" data-h="plan" aria-pressed="false">Pianta</button><button class="btn small" data-h="over">Vista d\u2019insieme</button></div>
-        <div class="hmsg" id="hMsg" hidden></div></div>
-      <div class="htabs" role="tablist" aria-label="Circuiti della casa"></div>`;
+        <div class="hmsg" id="hMsg" role="status" hidden></div></div>
+      <nav class="htabs" aria-label="Circuiti della casa"></nav>
+      <div class="hsoon"><b>Collaudo finale</b><small>in arrivo</small></div>`;
       tabsEl = host.querySelector(".htabs");
       sceneEl = host.querySelector("#hScene");
       planEl = host.querySelector("#hPlan");
@@ -3112,28 +3155,26 @@ a.tool{display:flex;align-items:center;justify-content:center;text-decoration:no
           if (hit && hit.circuit) env.go("#/livello/" + hit.circuit);
           return;
         }
-        const c2 = e.target.closest("[data-circuit]");
-        if (c2) {
-          if (c2.dataset.circuit === lastLevel) env.session.toggleControl(c2.dataset.ctl);
-          else env.go("#/livello/" + c2.dataset.circuit);
+        if (e.target.closest("[data-breaker]")) {
+          if (!inLesson()) env.session.toggleBreaker();
+          return;
         }
+        const c2 = e.target.closest("[data-circuit]");
+        if (c2) control(c2.dataset.circuit, c2.dataset.ctl);
       };
     }
     function loadScene() {
       if (sceneState !== "idle") return;
       sceneState = "loading";
-      const done = (ok) => {
-        if (!mounted) {
-          sceneState = "idle";
-          return;
-        }
+      const token = ++mountToken;
+      loadScript().then((ok) => {
+        if (!mounted || token !== mountToken) return;
         const api = ok && window.FaseNeutroScene && window.FaseNeutroScene.createScene(sceneEl, {
           reduced: env.reduced(),
-          onBreaker: () => env.session.toggleBreaker(),
-          onControl: (circuit, id) => {
-            if (circuit === lastLevel) env.session.toggleControl(id);
-            else env.go("#/livello/" + circuit);
+          onBreaker: () => {
+            if (!inLesson()) env.session.toggleBreaker();
           },
+          onControl: (circuit, id) => control(circuit, id),
           onRoom: (room) => {
             const hit = HOUSE.rooms.find((x) => x.id === room);
             if (hit && hit.circuit) env.go("#/livello/" + hit.circuit);
@@ -3142,23 +3183,22 @@ a.tool{display:flex;align-items:center;justify-content:center;text-decoration:no
         if (api) {
           scene = api;
           sceneState = "ready";
-          if (lastLevel) focus(lastLevel, true);
+          if (lastLevel) focus(lastLevel);
         } else {
           sceneState = "failed";
           view = "plan";
         }
         apply();
         refresh();
-      };
-      if (window.FaseNeutroScene) {
-        done(true);
+      });
+    }
+    const inLesson = () => !!(lastSnap && lastSnap.unit && lastSnap.unit.phase === "lesson");
+    function control(circuit, id) {
+      if (circuit !== lastLevel) {
+        env.go("#/livello/" + circuit);
         return;
       }
-      const s = document.createElement("script");
-      s.src = "trilocale.js";
-      s.onload = () => done(true);
-      s.onerror = () => done(false);
-      document.head.appendChild(s);
+      if (!inLesson()) env.session.toggleControl(id);
     }
     function focus(levelId, instant) {
       const c2 = CIRCUITS.find((x) => x.id === levelId);
@@ -3172,19 +3212,18 @@ a.tool{display:flex;align-items:center;justify-content:center;text-decoration:no
       msg.hidden = !(sceneState === "loading" || sceneState === "failed");
       msg.textContent = sceneState === "loading" ? "Caricamento della scena" : "La scena 3D non \xE8 disponibile su questo dispositivo: ecco la pianta.";
       const pb = host.querySelector('[data-h="plan"]');
-      pb.setAttribute("aria-pressed", String(usePlan));
       pb.textContent = usePlan && sceneState === "ready" ? "Scena 3D" : "Pianta";
       pb.hidden = sceneState === "failed";
       host.querySelector('[data-h="over"]').hidden = usePlan;
     }
     function refresh() {
       if (!mounted) return;
-      const hs = houseState(env.session);
+      const hs = houseState(env.session, houseOn);
       if (scene) scene.update(hs);
       planEl.innerHTML = planHTML(hs, { select: lastLevel });
       tabsEl.innerHTML = CIRCUITS.map((c2) => {
         const st = hs.rooms[c2.room].state;
-        return `<a class="htab" role="tab" href="#/livello/${c2.id}" aria-selected="${c2.id === lastLevel}"${c2.id === lastLevel ? ' aria-current="page"' : ""}><b>${esc3(c2.label)}</b><small class="st-${st === "funziona" ? "ok" : st === "in corso" ? "run" : "new"}">${esc3(st)}</small></a>`;
+        return `<a class="htab" href="#/livello/${c2.id}" data-sel="${c2.id === lastLevel}"${c2.id === lastLevel ? ' aria-current="page"' : ""}><b>${esc3(c2.label)}</b><small class="st-${st === "funziona" ? "ok" : st === "in corso" ? "run" : "new"}">${esc3(st)}</small></a>`;
       }).join("");
     }
     return {
@@ -3196,6 +3235,10 @@ a.tool{display:flex;align-items:center;justify-content:center;text-decoration:no
           apply();
         }
         const prev = lastLevel;
+        if (snapshot.power) houseOn = true;
+        else if (prev === snapshot.level.id && prevPower) houseOn = false;
+        prevPower = !!snapshot.power;
+        lastSnap = snapshot;
         lastLevel = snapshot.level.id;
         if (sceneState === "idle") loadScene();
         refresh();
@@ -3214,6 +3257,7 @@ a.tool{display:flex;align-items:center;justify-content:center;text-decoration:no
         mounted = false;
         lastLevel = null;
         view = "scene";
+        mountToken++;
         host.innerHTML = "";
       },
       isMounted: () => mounted
@@ -3421,7 +3465,7 @@ a.tool{display:flex;align-items:center;justify-content:center;text-decoration:no
     $("#unit").innerHTML = unitHTML(S);
     $("#sideLinks").innerHTML = sideLinksHTML(S);
     const doneBefore = (S.levels.find((l) => l.id === S.level.id) || {}).stars > 0;
-    $("#modeBar").hidden = S.playMode === "verifica" || !!S.unit && ph !== "done" && !doneBefore;
+    $("#modeBar").hidden = S.level.quadroOnly || S.playMode === "verifica" || !!S.unit && ph !== "done" && !doneBefore;
     $("#bHint").hidden = $("#bSol").hidden = S.playMode === "verifica";
     $("#bSol").textContent = S.solutionShown ? "Nascondi soluzione" : "Mostra soluzione";
     $("#bSol").setAttribute("aria-pressed", String(S.solutionShown));
@@ -3678,7 +3722,8 @@ a.tool{display:flex;align-items:center;justify-content:center;text-decoration:no
   $("#result").addEventListener("click", (e) => {
     if (e.target.id === "bNext") {
       const n = S.levels[S.levelIndex + 1];
-      if (n) location.hash = "#/livello/" + n.id;
+      if (e.target.dataset.href) location.hash = e.target.dataset.href;
+      else if (n) location.hash = "#/livello/" + n.id;
     }
   });
   function onUnitClick(e) {

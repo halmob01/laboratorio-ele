@@ -54,6 +54,6 @@ export function planHTML(house, ui = {}) {
     o += `<g class="pctl" data-circuit="${c.circuit}" data-ctl="${c.id}"><rect x="${px(c.x) - 6}" y="${px(c.z) - 6}" width="12" height="12" rx="2"/><title>${esc(c.label)}</title></g>`;
   });
   const b = HOUSE.breaker;
-  o += `<g class="pbrk"><rect x="${px(b.x) - 9}" y="${px(b.z) - 9}" width="18" height="18" rx="3"/><text x="${px(b.x)}" y="${px(b.z) + 4}" text-anchor="middle">Q</text></g>`;
+  o += `<g class="pbrk" data-breaker="1"><rect x="${px(b.x) - 9}" y="${px(b.z) - 9}" width="18" height="18" rx="3"/><text x="${px(b.x)}" y="${px(b.z) + 4}" text-anchor="middle">Q</text></g>`;
   return o + '</svg>';
 }

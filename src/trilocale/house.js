@@ -9,15 +9,16 @@ import { HOUSE } from '../content/trilocale.js';
 
 /**
  * @param {{ peek: (id: string) => object | null }} session
+ * @param {boolean} [on]   quadro generale acceso (vale per i circuiti non aperti)
  * @returns {{ rooms: Record<string, {lit: boolean, state: 'da cablare'|'in corso'|'funziona', controls: object, circuit: string|null}> }}
  */
-export function houseState(session) {
+export function houseState(session, on = true) {
   const rooms = {};
   HOUSE.rooms.forEach(r => {
     if (!r.circuit) { rooms[r.id] = { lit: false, state: null, controls: {}, circuit: null }; return; }
     const p = session.peek(r.circuit);
     if (!p) { rooms[r.id] = { lit: false, state: 'da cablare', controls: {}, circuit: r.circuit }; return; }
-    const lit = p.open ? p.power && p.lit : p.passed && p.lit;
+    const lit = p.open ? p.power && p.lit : on && p.passed && p.lit;
     const state = p.passed ? 'funziona' : p.wired > 0 ? 'in corso' : 'da cablare';
     rooms[r.id] = { lit, state, controls: p.controls, circuit: r.circuit, open: p.open };
   });

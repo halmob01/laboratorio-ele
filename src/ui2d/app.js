@@ -168,7 +168,7 @@ function renderLevelScreen() {
   $('#unit').innerHTML = V.unitHTML(S);
   $('#sideLinks').innerHTML = V.sideLinksHTML(S);
   const doneBefore = (S.levels.find(l => l.id === S.level.id) || {}).stars > 0;
-  $('#modeBar').hidden = S.playMode === 'verifica' || (!!S.unit && ph !== 'done' && !doneBefore);
+  $('#modeBar').hidden = S.level.quadroOnly || S.playMode === 'verifica' || (!!S.unit && ph !== 'done' && !doneBefore);
   $('#bHint').hidden = $('#bSol').hidden = S.playMode === 'verifica';
   $('#bSol').textContent = S.solutionShown ? 'Nascondi soluzione' : 'Mostra soluzione';
   $('#bSol').setAttribute('aria-pressed', String(S.solutionShown));
@@ -333,7 +333,7 @@ $('#bCheck').addEventListener('click', () => {
 });
 $('#bFlow').addEventListener('click', () => session.toggleFlow());
 $('#result').addEventListener('click', e => {
-  if (e.target.id === 'bNext') { const n = S.levels[S.levelIndex + 1]; if (n) location.hash = '#/livello/' + n.id; }
+  if (e.target.id === 'bNext') { const n = S.levels[S.levelIndex + 1]; if (e.target.dataset.href) location.hash = e.target.dataset.href; else if (n) location.hash = '#/livello/' + n.id; }
 });
 
 /* ---------- scheda dell'unita' (lezione, previsione, guasto, azioni dopo la verifica) ---------- */

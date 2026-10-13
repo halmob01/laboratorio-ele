@@ -12,6 +12,22 @@ const CIRCUITS = [
   { id: 't03-corridoio', room: 'corridoio', label: 'Corridoio' },
 ];
 
+// Caricamento del pacchetto 3D: una sola volta per pagina, condiviso da tutti i montaggi.
+let scriptPromise = null;
+function loadScript() {
+  if (window.FaseNeutroScene) return Promise.resolve(true);
+  if (!scriptPromise) {
+    scriptPromise = new Promise(resolve => {
+      const el = document.createElement('script');
+      el.src = 'trilocale.js';
+      el.onload = () => resolve(true);
+      el.onerror = () => { el.remove(); scriptPromise = null; resolve(false); };
+      document.head.appendChild(el);
+    });
+  }
+  return scriptPromise;
+}
+
 export function isHouseLevel(id) { return /^t\d\d-/.test(id || ''); }
 
 // Primo circuito da fare (non verificato), altrimenti il primo.
@@ -25,14 +41,16 @@ export function firstCircuit(session) {
  * @param {{session, go:(hash:string)=>void, reduced:()=>boolean}} env
  */
 export function createHouse(host, env) {
-  let scene = null, sceneState = 'idle', view = 'scene', lastLevel = null, mounted = false;
+  let scene = null, sceneState = 'idle', view = 'scene', lastLevel = null, mounted = false, mountToken = 0;
+  let lastSnap = null, houseOn = true, prevPower = false;
   let sceneEl = null, planEl = null, tabsEl = null;
 
   function build() {
     host.innerHTML = `<div class="hstage"><div class="hscene" id="hScene"></div><div class="hplan" id="hPlan" hidden></div>
         <div class="htools"><button class="btn small" data-h="plan" aria-pressed="false">Pianta</button><button class="btn small" data-h="over">Vista d’insieme</button></div>
-        <div class="hmsg" id="hMsg" hidden></div></div>
-      <div class="htabs" role="tablist" aria-label="Circuiti della casa"></div>`;
+        <div class="hmsg" id="hMsg" role="status" hidden></div></div>
+      <nav class="htabs" aria-label="Circuiti della casa"></nav>
+      <div class="hsoon"><b>Collaudo finale</b><small>in arrivo</small></div>`;
     tabsEl = host.querySelector('.htabs');
     sceneEl = host.querySelector('#hScene');
     planEl = host.querySelector('#hPlan');
@@ -45,32 +63,34 @@ export function createHouse(host, env) {
       }
       const r = e.target.closest('[data-room]');
       if (r) { const hit = HOUSE.rooms.find(x => x.id === r.dataset.room); if (hit && hit.circuit) env.go('#/livello/' + hit.circuit); return; }
+      if (e.target.closest('[data-breaker]')) { if (!inLesson()) env.session.toggleBreaker(); return; }
       const c = e.target.closest('[data-circuit]');
-      if (c) { if (c.dataset.circuit === lastLevel) env.session.toggleControl(c.dataset.ctl); else env.go('#/livello/' + c.dataset.circuit); }
+      if (c) control(c.dataset.circuit, c.dataset.ctl);
     };
   }
 
   function loadScene() {
     if (sceneState !== 'idle') return;
     sceneState = 'loading';
-    const done = ok => {
-      if (!mounted) { sceneState = 'idle'; return; }
+    const token = ++mountToken;
+    loadScript().then(ok => {
+      if (!mounted || token !== mountToken) return;      // nel frattempo si e' lasciata la pagina
       const api = ok && window.FaseNeutroScene && window.FaseNeutroScene.createScene(sceneEl, {
         reduced: env.reduced(),
-        onBreaker: () => env.session.toggleBreaker(),
-        onControl: (circuit, id) => { if (circuit === lastLevel) env.session.toggleControl(id); else env.go('#/livello/' + circuit); },
+        onBreaker: () => { if (!inLesson()) env.session.toggleBreaker(); },
+        onControl: (circuit, id) => control(circuit, id),
         onRoom: room => { const hit = HOUSE.rooms.find(x => x.id === room); if (hit && hit.circuit) env.go('#/livello/' + hit.circuit); },
       });
-      if (api) { scene = api; sceneState = 'ready'; if (lastLevel) focus(lastLevel, true); }
+      if (api) { scene = api; sceneState = 'ready'; if (lastLevel) focus(lastLevel); }
       else { sceneState = 'failed'; view = 'plan'; }
       apply(); refresh();
-    };
-    if (window.FaseNeutroScene) { done(true); return; }
-    const s = document.createElement('script');
-    s.src = 'trilocale.js';
-    s.onload = () => done(true);
-    s.onerror = () => done(false);
-    document.head.appendChild(s);
+    });
+  }
+
+  const inLesson = () => !!(lastSnap && lastSnap.unit && lastSnap.unit.phase === 'lesson');
+  function control(circuit, id) {
+    if (circuit !== lastLevel) { env.go('#/livello/' + circuit); return; }
+    if (!inLesson()) env.session.toggleControl(id);
   }
 
   function focus(levelId, instant) {
@@ -86,7 +106,6 @@ export function createHouse(host, env) {
     msg.hidden = !(sceneState === 'loading' || sceneState === 'failed');
     msg.textContent = sceneState === 'loading' ? 'Caricamento della scena' : 'La scena 3D non è disponibile su questo dispositivo: ecco la pianta.';
     const pb = host.querySelector('[data-h="plan"]');
-    pb.setAttribute('aria-pressed', String(usePlan));
     pb.textContent = usePlan && sceneState === 'ready' ? 'Scena 3D' : 'Pianta';
     pb.hidden = sceneState === 'failed';
     host.querySelector('[data-h="over"]').hidden = usePlan;
@@ -94,12 +113,12 @@ export function createHouse(host, env) {
 
   function refresh() {
     if (!mounted) return;
-    const hs = houseState(env.session);
+    const hs = houseState(env.session, houseOn);
     if (scene) scene.update(hs);
     planEl.innerHTML = planHTML(hs, { select: lastLevel });
     tabsEl.innerHTML = CIRCUITS.map(c => {
       const st = hs.rooms[c.room].state;
-      return `<a class="htab" role="tab" href="#/livello/${c.id}" aria-selected="${c.id === lastLevel}"${c.id === lastLevel ? ' aria-current="page"' : ''}><b>${esc(c.label)}</b><small class="st-${st === 'funziona' ? 'ok' : st === 'in corso' ? 'run' : 'new'}">${esc(st)}</small></a>`;
+      return `<a class="htab" href="#/livello/${c.id}" data-sel="${c.id === lastLevel}"${c.id === lastLevel ? ' aria-current="page"' : ''}><b>${esc(c.label)}</b><small class="st-${st === 'funziona' ? 'ok' : st === 'in corso' ? 'run' : 'new'}">${esc(st)}</small></a>`;
     }).join('');
   }
 
@@ -108,6 +127,11 @@ export function createHouse(host, env) {
     sync(snapshot) {
       if (!mounted) { mounted = true; build(); apply(); }
       const prev = lastLevel;
+      // Quadro generale: si spegne solo se lo spegni tu nel circuito aperto.
+      if (snapshot.power) houseOn = true;
+      else if (prev === snapshot.level.id && prevPower) houseOn = false;
+      prevPower = !!snapshot.power;
+      lastSnap = snapshot;
       lastLevel = snapshot.level.id;
       if (sceneState === 'idle') loadScene();
       refresh();
@@ -117,7 +141,7 @@ export function createHouse(host, env) {
     passed() { if (scene && lastLevel) focus(lastLevel); },
     unmount() {
       if (scene) { scene.dispose(); scene = null; }
-      sceneState = 'idle'; mounted = false; lastLevel = null; view = 'scene';
+      sceneState = 'idle'; mounted = false; lastLevel = null; view = 'scene'; mountToken++;
       host.innerHTML = '';
     },
     isMounted: () => mounted,

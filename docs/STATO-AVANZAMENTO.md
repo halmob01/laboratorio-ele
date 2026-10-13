@@ -2,7 +2,7 @@
 
 Piano: `docs/PIANO-AUTOMATICO.md`. Ramo di lavoro: `b3-notte` (il ramo `b2-modello-lezione` e' chiuso e unito in `main`).
 
-**Prossimo compito: gate della fase F (revisione Opus, unione in main), poi D.** E0 rinviato (vedi riga sotto). Piano nuovo in `docs/PIANO-AUTOMATICO.md`.
+**Fase F unita in main. Prossimo compito: D (c04, due lampade in parallelo), poi E.** E0 rinviato (vedi riga sotto). Piano nuovo in `docs/PIANO-AUTOMATICO.md`.
 
 | Data | Compito | Note |
 |---|---|---|
@@ -13,3 +13,4 @@ Piano: `docs/PIANO-AUTOMATICO.md`. Ramo di lavoro: `b3-notte` (il ramo `b2-model
 | 2026-10-13 | Piano della seconda parte della notte (Opus) | E0, F (trilocale 3D), D (c04), E |
 | 2026-10-13 | E0 valutato e rinviato | La scala del banco e' limitata dall'altezza (colonna di 4-5 componenti), non dalla larghezza: una disposizione su due colonne obbligherebbe a fili che si incrociano e non migliora la leggibilita'. Resta un vuoto laterale solo estetico. Da rivedere con Matteo. |
 | 2026-10-13 | F: trilocale (versione 1) | Rotta `#/modulo/1`, scena three.js in `trilocale.js` separato, pianta SVG come ripiego, circuiti t01-t03 come livelli, linguette, quaderno aggiornato. 104 test verdi. Manca: collaudo, multimetro, guasti, sicurezza. |
+| 2026-10-13 | F: gate | Revisione Opus: corretti modalita' contatore sul trilocale, doppio caricamento dello script, stato della casa dopo ricaricamento, quadro generale, 'Livello successivo' da c06, tocchi durante la lezione. Unita in main. |

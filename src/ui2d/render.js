@@ -238,15 +238,18 @@ export function resultHTML(s) {
   if (!s.result) return '';
   const r = describeEvaluation(s.result, s.level);
   const row = (t, o) => `<div class="row"><span class="mark ${o.status}" aria-hidden="true">${MARK[o.status]}</span><div><b>${t}</b><ul>${o.msgs.map(m => `<li>${m}</li>`).join('')}</ul></div></div>`;
-  const last = s.levelIndex === s.levelCount - 1;
+  const isT = id => /^t\d\d-/.test(id);
+  const nextL = s.levels[s.levelIndex + 1];
+  const toHouse = !!nextL && isT(nextL.id) && !isT(s.level.id);
+  const last = !nextL;
   const xp = s.levels[s.levelIndex].xp;
   const u = s.unit;
   const acts = [];
   if (r.pass) {
     if (u && u.summary.length) acts.push('<button class="btn" data-act="summary">Sintesi</button>');
     if (u && u.hasFault && !u.faultSolved && s.playMode !== 'verifica' && s.mode === 'quadro') acts.push('<button class="btn" data-act="fault">Sfida guasto</button>');
-    if (s.playMode !== 'verifica' && s.mode === 'quadro') acts.push('<button class="btn" data-act="full">Sfida: parti dal contatore</button>');
-    acts.push(last ? '' : '<button class="btn primary" id="bNext">Livello successivo</button>');
+    if (s.playMode !== 'verifica' && s.mode === 'quadro' && !s.level.quadroOnly) acts.push('<button class="btn" data-act="full">Sfida: parti dal contatore</button>');
+    acts.push(last ? '' : toHouse ? '<button class="btn primary" id="bNext" data-href="#/modulo/1">Vai al trilocale</button>' : '<button class="btn primary" id="bNext">Livello successivo</button>');
   }
-  return `<h3>${r.pass ? 'Impianto funzionante' : 'Controllo del circuito'}</h3><div class="stars" aria-label="${r.stars} stelle su 3">${'★'.repeat(r.stars)}<span class="e">${'★'.repeat(3 - r.stars)}</span></div>${row('Funziona', r.work)}${row('Colori dei fili', r.color)}${row('Sicurezza', r.safe)}<p class="xpline">Punti di questo livello: <b>${xp} XP</b></p>${r.pass && last ? '<p class="next"><b>Hai completato tutti i livelli.</b></p>' : ''}${acts.length ? `<div class="uact">${acts.join('')}</div>` : ''}`;
+  return `<h3>${r.pass ? 'Impianto funzionante' : 'Controllo del circuito'}</h3><div class="stars" aria-label="${r.stars} stelle su 3">${'★'.repeat(r.stars)}<span class="e">${'★'.repeat(3 - r.stars)}</span></div>${row('Funziona', r.work)}${row('Colori dei fili', r.color)}${row('Sicurezza', r.safe)}<p class="xpline">Punti di questo livello: <b>${xp} XP</b></p>${r.pass && last ? '<p class="next"><b>Hai completato tutti i livelli.</b></p>' : r.pass && toHouse ? '<p class="next"><b>Hai completato il Modulo 0.</b></p>' : ''}${acts.length ? `<div class="uact">${acts.join('')}</div>` : ''}`;
 }
