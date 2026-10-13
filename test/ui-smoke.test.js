@@ -265,6 +265,7 @@ test('si superano tutti i livelli cablando la soluzione (quadro e contatore)', (
 test('c03: si da corrente, la luce si accende e un comando la spegne', () => {
   const { w, d } = openPage({ seen: true });
   go(w, '#/livello/c03-interrotto');
+  click(w, q(d, '[data-unit="skip"]'));
   solve(w, d, lv('c03-interrotto'));
   click(w, q(d, '[data-q]'));
   assert.match(q(d, '#status').textContent, /Quadro acceso/);
@@ -280,6 +281,7 @@ test('c03: si da corrente, la luce si accende e un comando la spegne', () => {
 test('un cortocircuito fa scattare il quadro e toccare i fili con corrente lo spegne', () => {
   const { w, d } = openPage({ seen: true });
   go(w, '#/livello/c03-interrotto');
+  click(w, q(d, '[data-unit="skip"]'));
   wire(w, d, 'Q.F', 'Q.N', 'marrone');
   click(w, q(d, '[data-q]'));
   assert.match(q(d, '#status').textContent, /Quadro scattato/);
@@ -316,6 +318,7 @@ test('suggerimenti, soluzione e verifica di un cablaggio sbagliato (c02)', () =>
 test('c05: la corrente si mostra a richiesta', () => {
   const { w, d } = openPage({ seen: true });
   go(w, '#/livello/c05-deviato');
+  click(w, q(d, '[data-unit="skip"]'));
   assert.ok(!q(d, '#bFlow').hidden);
   solve(w, d, lv('c05-deviato'));
   click(w, q(d, '[data-q]'));
@@ -351,6 +354,7 @@ test('un indirizzo sconosciuto porta alla mappa e il tasto Indietro funziona', (
   const { w, d } = openPage({ seen: true, hash: '#/livello/inesistente' });
   assert.ok(!q(d, '#screen-home').hidden);
   go(w, '#/livello/c03-interrotto');
+  click(w, q(d, '[data-unit="skip"]'));
   assert.ok(q(d, '#screen-home').hidden);
   go(w, '#/home');
   assert.ok(!q(d, '#screen-home').hidden);

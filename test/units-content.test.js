@@ -35,3 +35,24 @@ for (const L of withUnit) {
     });
   }
 }
+
+import { createSession } from '../src/engine/index.js';
+import { deriveFull } from '../src/content/index.js';
+
+for (const L of withUnit.filter(l => l.unit.fault)) {
+  test(`${L.id}: la sfida guasto si risolve dal motore dopo la diagnosi giusta`, () => {
+    const s = createSession({ levels, deriveFull, initialLevel: L.id });
+    s.skipLesson();
+    L.solution.forEach(([a, b, c]) => s.addWire(a, b, c));
+    L.controls.forEach(() => {});
+    assert.equal(s.check().pass, true);
+    s.startFault();
+    assert.equal(s.snapshot().unit.phase, 'fault');
+    assert.equal(s.snapshot().wires.length, L.unit.fault.wires.length);
+    s.answerDiagnosis(L.unit.fault.diagnosis.correct);
+    s.clear();
+    L.solution.forEach(([a, b, c]) => s.addWire(a, b, c));
+    assert.equal(s.check().pass, true);
+    assert.equal(s.snapshot().unit.faultSolved, true);
+  });
+}

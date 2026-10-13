@@ -41,6 +41,7 @@ const ui = () => ({ mobile: MQ.matches, sel: SEL, kwh: KWH });
 function renderPalette() { $('#palette').innerHTML = R.paletteHTML(COL); }
 function setRoomVB() {
   const r = $('#room');
+  r.classList.toggle('full', S.level.room !== 'tavolo' && (S.level.controls || []).length > 0);
   r.setAttribute('viewBox', R.roomViewBox(S.level));
   r.setAttribute('preserveAspectRatio', S.level.room === 'tavolo' ? 'xMidYMid slice' : 'xMidYMin slice');
 }

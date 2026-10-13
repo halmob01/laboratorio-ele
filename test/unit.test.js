@@ -7,6 +7,7 @@ import { levels, deriveFull } from '../src/content/index.js';
 
 const C01 = 'c01-circuito-chiuso';
 const L = levels.find(l => l.id === C01);
+const L3 = levels.find(l => l.id === 'c03-interrotto');
 const make = (storage) => createSession({ levels, deriveFull, initialLevel: C01, storage });
 const row = s => s.snapshot().levels.find(l => l.id === C01);
 
@@ -171,12 +172,13 @@ test('la corrente visibile dipende dal livello e dalla modalita\'', () => {
 });
 
 test('i livelli senza unita\' funzionano come prima', () => {
-  const s = make();
+  const plain = levels.map(l => (l.id === 'c03-interrotto' ? { ...l, unit: undefined } : l));
+  const s = createSession({ levels: plain, deriveFull, initialLevel: 0 });
   s.selectLevel('c03-interrotto');
   const snap = s.snapshot();
   assert.equal(snap.unit, null);
   assert.equal(snap.ghost, null);
-  levels.find(l => l.id === 'c03-interrotto').solution.forEach(([a, b, c]) => s.addWire(a, b, c));
+  L3.solution.forEach(([a, b, c]) => s.addWire(a, b, c));
   assert.equal(s.check().pass, true);
   assert.equal(s.snapshot().levels.find(l => l.id === 'c03-interrotto').xp, 110);
 });

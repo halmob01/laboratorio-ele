@@ -11,7 +11,7 @@ const INT = 'c03-interrotto', PRESA = 'c02-presa';
 
 test('una sessione si gioca interamente dal motore', () => {
   const s = make();
-  s.selectLevel(INT);
+  s.selectLevel(INT); s.skipLesson();
   lv(INT).solution.forEach(([a, b, c]) => s.addWire(a, b, c));
   s.toggleBreaker();
   assert.equal(s.snapshot().power, true);
@@ -27,7 +27,7 @@ test('una sessione si gioca interamente dal motore', () => {
 
 test('il cortocircuito fa scattare la protezione e il messaggio e\' un codice', () => {
   const s = make();
-  s.selectLevel(INT);
+  s.selectLevel(INT); s.skipLesson();
   s.addWire('Q.F', 'Q.N', 'marrone');
   s.toggleBreaker();
   const snap = s.snapshot();
@@ -38,7 +38,7 @@ test('il cortocircuito fa scattare la protezione e il messaggio e\' un codice', 
 
 test('modificare i fili con corrente spegne il quadro; annulla e svuota funzionano', () => {
   const s = make();
-  s.selectLevel(INT);
+  s.selectLevel(INT); s.skipLesson();
   lv(INT).solution.forEach(([a, b, c]) => s.addWire(a, b, c));
   s.toggleBreaker();
   s.undo();
@@ -51,15 +51,15 @@ test('modificare i fili con corrente spegne il quadro; annulla e svuota funziona
 
 test('lo stesso filo due volte lo toglie; i livelli e le modalita\' tengono i fili separati', () => {
   const s = make();
-  s.selectLevel(PRESA);
+  s.selectLevel(PRESA); s.skipLesson();
   s.skipLesson();
   s.addWire('Q.F', 'P.L', 'marrone');
   s.addWire('P.L', 'Q.F', 'marrone');
   assert.equal(s.snapshot().wires.length, 0);
   s.addWire('Q.F', 'P.L', 'marrone');
-  s.selectLevel(INT);
+  s.selectLevel(INT); s.skipLesson();
   assert.equal(s.snapshot().wires.length, 0);
-  s.selectLevel(PRESA);
+  s.selectLevel(PRESA); s.skipLesson();
   assert.equal(s.snapshot().wires.length, 1);
   s.setMode('contatore');
   assert.equal(s.snapshot().wires.length, 0);
@@ -81,7 +81,7 @@ test('i suggerimenti ruotano e si contano; i progressi passano dal deposito indi
 
 test('i listener ricevono un\'istantanea a ogni cambiamento', () => {
   const s = make();
-  s.selectLevel(PRESA);
+  s.selectLevel(PRESA); s.skipLesson();
   s.skipLesson();
   const seen = [];
   const off = s.subscribe(x => seen.push(x.wires.length));

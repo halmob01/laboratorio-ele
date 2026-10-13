@@ -214,4 +214,282 @@ export const UNITS = {
       fixSay: 'Scambia i due fili: la fase va su L e il neutro su N. Poi premi Verifica.',
     },
   },
+  'c03-interrotto': {
+    support: 'passi',
+    lesson: {
+      pages: [
+        {
+          type: 'spiegazione',
+          title: 'Accendere e spegnere con un interruttore',
+          room: 'lit',
+          paras: [
+            'Finora la lampada si accendeva dando corrente dal quadro. In casa si usa un interruttore a parete, vicino alla porta.',
+            'L’interruttore è un punto in cui il filo si può aprire: da chiuso lascia passare la corrente, da aperto la ferma.',
+          ],
+        },
+        {
+          type: 'pezzi',
+          title: 'L’interruttore: due morsetti',
+          focus: ['S'],
+          paras: [
+            'L’interruttore ha due morsetti, 1 e 2. Si mette lungo il filo: la corrente entra da uno ed esce dall’altro, se l’interruttore è chiuso.',
+            'Si comanda toccandolo. In questo livello puoi azionarlo anche sul banco.',
+          ],
+        },
+        {
+          type: 'spiegazione',
+          title: 'Si interrompe la fase, non il neutro',
+          art: 'tensione',
+          paras: [
+            'L’interruttore va sempre sul filo di fase, tra il quadro e la lampada. Il neutro va dal quadro alla lampada senza passare dall’interruttore.',
+            'Il motivo è la sicurezza. Con l’interruttore sulla fase, a luce spenta la lampada non è in tensione e si può cambiare la lampadina senza rischi.',
+            'Con l’interruttore sul neutro la lampada si spegnerebbe lo stesso, ma la fase resterebbe collegata al portalampada: toccando il portalampada si prenderebbe la scossa.',
+          ],
+          warn: 'L’interruttore interrompe sempre la fase. Mai il neutro.',
+        },
+        {
+          type: 'demo',
+          title: 'Guarda come si fa',
+          captions: {
+            wires: [
+              'Filo marrone dalla FASE del quadro al morsetto 1 dell’interruttore.',
+              'Filo marrone dal morsetto 2 dell’interruttore alla lampada.',
+              'Filo blu dal NEUTRO direttamente alla lampada.',
+            ],
+            power: 'Levetta su: l’interruttore è aperto e la lampada è spenta.',
+            controls: ['Interruttore chiuso: il giro è completo e la lampada si accende.'],
+          },
+        },
+        {
+          type: 'previsione',
+          question: 'Se l’interruttore è aperto e il quadro è acceso, quale parte dell’impianto è in tensione?',
+          options: [
+            { id: 'a', text: 'Nessuna: tutto è spento.' },
+            { id: 'b', text: 'Il filo di fase fino all’interruttore.' },
+            { id: 'c', text: 'Anche la lampada.' },
+          ],
+          correct: 'b',
+          why: 'La fase arriva fino all’interruttore e lì si ferma: quel tratto è in tensione. Dopo l’interruttore, fino alla lampada, il filo non è in tensione. Per questo la lampada si può toccare a luce spenta.',
+        },
+        { type: 'sintesi', title: 'Da ricordare' },
+      ],
+    },
+    steps: [
+      { kind: 'wire', from: 'Q.F', to: ['S.a'], color: 'marrone', short: '1 Fase', title: 'Porta la fase all’interruttore', text: 'Dalla FASE del quadro al morsetto 1 dell’interruttore.' },
+      { kind: 'wire', from: 'S.b', to: ['L.A'], color: 'marrone', short: '2 Lampada', title: 'Dall’interruttore alla lampada', text: 'Dal morsetto 2 dell’interruttore a un morsetto della lampada.' },
+      { kind: 'wire', from: 'Q.N', to: ['L.B'], color: 'blu', short: '3 Neutro', title: 'Il neutro va diretto', text: 'Dal NEUTRO del quadro all’altro morsetto della lampada, senza passare dall’interruttore.' },
+      { kind: 'power', short: '4 Levetta', title: 'Dai corrente', text: 'Tocca la levetta del quadro, poi prova l’interruttore.' },
+      { kind: 'verify', short: '5 Verifica', title: 'Controlla l’impianto', text: 'Premi Verifica.' },
+    ],
+    summary: [
+      'L’interruttore si mette sul filo di fase, tra il quadro e il carico.',
+      'Il neutro va direttamente al carico, senza interruttore.',
+      'A luce spenta il tratto dopo l’interruttore non è in tensione.',
+      'Un interruttore sul neutro spegne la luce ma lascia la fase sul portalampada: è un errore pericoloso.',
+    ],
+    fault: {
+      say: 'L’impianto è già cablato e l’interruttore spegne la lampada. Con l’interruttore aperto, guarda dove arriva la tensione.',
+      wires: [['Q.F', 'L.A', 'marrone'], ['Q.N', 'S.a', 'blu'], ['S.b', 'L.B', 'blu']],
+      diagnosis: {
+        question: 'Che cosa non va?',
+        options: [
+          { id: 'a', text: 'L’interruttore è sul neutro invece che sulla fase.' },
+          { id: 'b', text: 'La lampada non è collegata al quadro.' },
+          { id: 'c', text: 'L’interruttore ha i morsetti scambiati.' },
+        ],
+        correct: 'a',
+        why: 'La fase va direttamente alla lampada e l’interruttore interrompe il neutro. A luce spenta il portalampada resta in tensione: è un impianto pericoloso, anche se la lampada si spegne.',
+      },
+      fixSay: 'Sposta l’interruttore sulla fase: la fase deve passare dall’interruttore, il neutro andare diretto alla lampada. Poi premi Verifica.',
+    },
+  },
+  'c05-deviato': {
+    support: 'passi',
+    lesson: {
+      pages: [
+        {
+          type: 'spiegazione',
+          title: 'Accendere e spegnere da due punti',
+          room: 'lit',
+          paras: [
+            'In un corridoio lungo si vuole accendere la luce da una porta e spegnerla dall’altra. Un solo interruttore non basta.',
+            'Servono due deviatori, uno per punto. Con ciascuno si cambia lo stato della luce, qualunque sia la posizione dell’altro.',
+          ],
+        },
+        {
+          type: 'pezzi',
+          title: 'Il deviatore: tre morsetti',
+          focus: ['D1'],
+          paras: [
+            'Il deviatore ha tre morsetti: C (comune), 1 e 2.',
+            'Premendolo, il comune C si collega a 1 oppure a 2. È come un interruttore che invece di aprire il filo lo sposta da una strada all’altra.',
+          ],
+        },
+        {
+          type: 'pezzi',
+          title: 'Due deviatori in coppia',
+          focus: ['D1', 'D2'],
+          paras: [
+            'I due deviatori si collegano con due fili: 1 con 1 e 2 con 2. Sono i fili di collegamento, o fili di corsa.',
+            'Il comune del primo riceve la fase. Il comune del secondo va alla lampada.',
+          ],
+        },
+        {
+          type: 'spiegazione',
+          title: 'Perché la luce cambia da entrambi i punti',
+          paras: [
+            'Ogni deviatore sceglie una delle due strade. La luce è accesa quando i due deviatori scelgono la stessa strada: C1 collegato a 1 e C2 a 1, oppure entrambi a 2.',
+            'Se i deviatori scelgono strade diverse, il giro è interrotto e la luce è spenta. Premere uno qualsiasi dei due cambia la scelta, quindi cambia lo stato della luce.',
+          ],
+          table: { head: ['Deviatore A', 'Deviatore B', 'Luce'], rows: [['1', '1', 'accesa'], ['2', '2', 'accesa'], ['1', '2', 'spenta'], ['2', '1', 'spenta']] },
+        },
+        {
+          type: 'demo',
+          title: 'Guarda come si fa',
+          captions: {
+            wires: [
+              'Filo marrone dalla FASE al comune C del deviatore A.',
+              'Filo nero dal morsetto 1 del deviatore A al morsetto 1 del deviatore B.',
+              'Filo grigio dal morsetto 2 del deviatore A al morsetto 2 del deviatore B.',
+              'Filo marrone dal comune C del deviatore B alla lampada.',
+              'Filo blu dal NEUTRO direttamente alla lampada.',
+            ],
+            power: 'Levetta su: con i deviatori in posizioni diverse la luce è spenta.',
+            controls: ['Deviatore A premuto: i due deviatori scelgono la stessa strada e la lampada si accende.', 'Deviatore B premuto: scelgono strade diverse e la lampada si spegne.'],
+          },
+        },
+        {
+          type: 'previsione',
+          question: 'La luce è accesa. Premo il deviatore A, poi il deviatore B. Come è la luce alla fine?',
+          options: [
+            { id: 'a', text: 'Accesa.' },
+            { id: 'b', text: 'Spenta.' },
+            { id: 'c', text: 'Dipende da quale premo per primo.' },
+          ],
+          correct: 'a',
+          why: 'Ogni pressione cambia lo stato della luce. Due pressioni la riportano com’era: dopo A la luce è spenta, dopo B è di nuovo accesa. L’ordine non conta.',
+        },
+        { type: 'sintesi', title: 'Da ricordare' },
+      ],
+    },
+    steps: [
+      { kind: 'wire', from: 'Q.F', to: ['D1.C'], color: 'marrone', short: '1 Fase', title: 'La fase entra nel primo deviatore', text: 'Dalla FASE del quadro al comune C del deviatore A.' },
+      { kind: 'wire', from: 'D1.1', to: ['D2.1'], color: 'nero', short: '2 Corsa 1', title: 'Primo filo di collegamento', text: 'Dal morsetto 1 del deviatore A al morsetto 1 del deviatore B.' },
+      { kind: 'wire', from: 'D1.2', to: ['D2.2'], color: 'grigio', short: '3 Corsa 2', title: 'Secondo filo di collegamento', text: 'Dal morsetto 2 del deviatore A al morsetto 2 del deviatore B.' },
+      { kind: 'wire', from: 'D2.C', to: ['L.A'], color: 'marrone', short: '4 Lampada', title: 'Dal secondo deviatore alla lampada', text: 'Dal comune C del deviatore B a un morsetto della lampada.' },
+      { kind: 'wire', from: 'Q.N', to: ['L.B'], color: 'blu', short: '5 Neutro', title: 'Il neutro va diretto', text: 'Dal NEUTRO del quadro all’altro morsetto della lampada.' },
+      { kind: 'power', short: '6 Levetta', title: 'Dai corrente', text: 'Tocca la levetta, poi prova i due deviatori.' },
+      { kind: 'verify', short: '7 Verifica', title: 'Controlla l’impianto', text: 'Premi Verifica.' },
+    ],
+    summary: [
+      'Il deviatore ha tre morsetti: C (comune), 1 e 2.',
+      'Due deviatori si collegano 1 con 1 e 2 con 2.',
+      'La fase entra nel comune del primo; il comune del secondo va alla lampada.',
+      'Il neutro va direttamente alla lampada.',
+      'La luce è accesa quando i due deviatori scelgono la stessa strada.',
+    ],
+    fault: {
+      say: 'L’impianto è già cablato, ma la luce si accende solo in certe posizioni dei deviatori. Prova a premerli entrambi.',
+      wires: [['Q.F', 'D1.C', 'marrone'], ['D1.1', 'D2.1', 'nero'], ['D2.C', 'L.A', 'marrone'], ['Q.N', 'L.B', 'blu']],
+      diagnosis: {
+        question: 'Che cosa non va?',
+        options: [
+          { id: 'a', text: 'Manca uno dei due fili di collegamento tra i deviatori.' },
+          { id: 'b', text: 'Manca il neutro alla lampada.' },
+          { id: 'c', text: 'La fase non arriva al primo deviatore.' },
+        ],
+        correct: 'a',
+        why: 'Tra i deviatori c’è un solo filo, 1 con 1. La corrente può passare solo quando i due deviatori scelgono la strada 1. Quando scelgono la strada 2 il giro è interrotto: la luce non si può accendere da tutte le posizioni.',
+      },
+      fixSay: 'Aggiungi il filo mancante tra il morsetto 2 del deviatore A e il morsetto 2 del deviatore B. Poi premi Verifica.',
+    },
+  },
+  'c06-invertito': {
+    support: 'obiettivo',
+    lesson: {
+      pages: [
+        {
+          type: 'spiegazione',
+          title: 'Accendere e spegnere da tre punti',
+          room: 'lit',
+          paras: [
+            'In una stanza con tre porte la luce si deve comandare da tutte e tre. Due deviatori non bastano: serve un terzo punto di comando.',
+            'Il terzo punto si realizza con un invertitore, messo in mezzo ai due fili di collegamento tra i deviatori.',
+          ],
+        },
+        {
+          type: 'pezzi',
+          title: 'L’invertitore: quattro morsetti',
+          focus: ['I'],
+          paras: [
+            'L’invertitore ha quattro morsetti: 1 e 2 in alto, 3 e 4 in basso.',
+            'Premendolo, collega 1 con 3 e 2 con 4, oppure incrocia i collegamenti: 1 con 4 e 2 con 3. Cambia posizione ai due fili, per questo si chiama invertitore.',
+          ],
+        },
+        {
+          type: 'spiegazione',
+          title: 'Perché funziona',
+          paras: [
+            'Tra i due deviatori ci sono due fili di collegamento. L’invertitore li interrompe e li ricollega, dritti o incrociati.',
+            'Incrociare i due fili ha lo stesso effetto che premere uno dei deviatori: la luce cambia stato. Quindi premendo l’invertitore la luce cambia, come con i deviatori.',
+            'Si possono mettere più invertitori in serie: ogni invertitore aggiunge un punto di comando.',
+          ],
+        },
+        {
+          type: 'demo',
+          title: 'Guarda come si fa',
+          captions: {
+            wires: [
+              'Filo marrone dalla FASE al comune C del deviatore A.',
+              'Filo nero dal morsetto 1 del deviatore A al morsetto 1 dell’invertitore.',
+              'Filo grigio dal morsetto 2 del deviatore A al morsetto 2 dell’invertitore.',
+              'Filo nero dal morsetto 3 dell’invertitore al morsetto 1 del deviatore B.',
+              'Filo grigio dal morsetto 4 dell’invertitore al morsetto 2 del deviatore B.',
+              'Filo marrone dal comune C del deviatore B alla lampada.',
+              'Filo blu dal NEUTRO direttamente alla lampada.',
+            ],
+            power: 'Levetta su: la luce è spenta.',
+            controls: ['Deviatore A premuto: la luce cambia.', 'Invertitore premuto: la luce cambia.', 'Deviatore B premuto: la luce cambia.'],
+          },
+        },
+        {
+          type: 'previsione',
+          question: 'Con la luce accesa premo l’invertitore. Che cosa succede?',
+          options: [
+            { id: 'a', text: 'La luce resta accesa.' },
+            { id: 'b', text: 'La luce si spegne.' },
+            { id: 'c', text: 'Il quadro scatta.' },
+          ],
+          correct: 'b',
+          why: 'L’invertitore incrocia i due fili di collegamento e questo cambia lo stato della luce, come premere un deviatore. Si spegne.',
+        },
+        { type: 'sintesi', title: 'Da ricordare' },
+      ],
+    },
+    steps: [
+      { kind: 'wire', from: 'Q.F', to: ['D1.C'], color: 'marrone', short: '1 Fase', title: 'Fase', text: 'Dalla FASE al comune C del deviatore A.' },
+      { kind: 'verify', short: '2 Verifica', title: 'Collega i tre punti di comando', text: 'Collega i deviatori all’invertitore con due fili di collegamento, poi l’invertitore all’altro deviatore. Il comune del secondo va alla lampada, il neutro diretto alla lampada. Poi premi Verifica.' },
+    ],
+    summary: [
+      'L’invertitore ha quattro morsetti: 1 e 2 in alto, 3 e 4 in basso.',
+      'Si mette in mezzo ai due fili di collegamento tra due deviatori.',
+      'Premendolo, collega dritto o incrocia i due fili: la luce cambia stato.',
+      'Con più invertitori in serie si aggiungono altri punti di comando.',
+    ],
+    fault: {
+      say: 'L’impianto è già cablato, ma la luce non si accende da tutte le posizioni. Prova a premere i tre comandi.',
+      wires: [['Q.F', 'D1.C', 'marrone'], ['D1.1', 'I.1', 'nero'], ['D1.2', 'I.2', 'grigio'], ['I.3', 'D2.1', 'nero'], ['D2.C', 'L.A', 'marrone'], ['Q.N', 'L.B', 'blu']],
+      diagnosis: {
+        question: 'Che cosa non va?',
+        options: [
+          { id: 'a', text: 'Manca il filo tra il morsetto 4 dell’invertitore e il deviatore B.' },
+          { id: 'b', text: 'Manca il neutro alla lampada.' },
+          { id: 'c', text: 'La fase non arriva al deviatore A.' },
+        ],
+        correct: 'a',
+        why: 'Uno dei due fili di collegamento a valle dell’invertitore manca: in alcune posizioni il giro è interrotto e la luce non può accendersi.',
+      },
+      fixSay: 'Aggiungi il filo mancante tra il morsetto 4 dell’invertitore e il morsetto 2 del deviatore B. Poi premi Verifica.',
+    },
+  },
 };

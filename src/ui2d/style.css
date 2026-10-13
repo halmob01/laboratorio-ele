@@ -362,7 +362,7 @@ button:disabled{cursor:default}
 .roomcard{padding:0;overflow:hidden}
 .roomhead{display:flex;justify-content:space-between;padding:10px 14px;font:500 13px/1 'IBM Plex Mono',monospace;color:var(--ink2);text-transform:uppercase;letter-spacing:.06em}
 #room{display:block;width:100%;height:auto;aspect-ratio:400/190}
-@media (min-width:920px){#room{aspect-ratio:1040/320}}
+@media (min-width:920px){#room{aspect-ratio:1040/320}#room.full{aspect-ratio:400/190;max-width:760px;margin:0 auto}}
 .status{position:static;border-top:1px solid var(--line);padding:10px 14px}
 .msg{background:none;color:var(--ink2)}
 @media (min-width:920px){
