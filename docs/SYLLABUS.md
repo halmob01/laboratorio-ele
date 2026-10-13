@@ -320,7 +320,7 @@ Prima schermata, senza obbligo di nome per guardarsi intorno.
 | Mappa | Le milestone come sezioni; ogni livello è una scheda con titolo, obiettivo in una riga, stelle e stato |
 | Prove di milestone | Schede distinte, con la pagina 3D come premio |
 | Classifica | Anteprima delle prime righe e collegamento alla classifica intera (da B3) |
-| Strumenti | Legenda dei simboli, glossario dei termini, informativa, accesso docente |
+| Strumenti | Legenda dei simboli e glossario dei termini |
 
 **Stati di una scheda:** nuovo, in corso, completato (con stelle), saltato. Il livello a cui si è arrivati è evidenziato.
 
@@ -354,3 +354,10 @@ Prima schermata, senza obbligo di nome per guardarsi intorno.
 - **Caratteri:** Barlow Condensed per i titoli, IBM Plex Sans per i testi, IBM Plex Mono per morsetti e valori.
 - **La mappa è un circuito:** due fili, fase e neutro, scorrono sul lato della lista; i livelli sono i carichi; quelli completati sono accesi.
 - **Pubblico:** una colonna sul telefono con barra in basso; sul computer lista a sinistra e colonna laterale con Continua, classifica e strumenti.
+
+### 12.5 Parole del sito e piè di pagina
+
+- **"Milestone" non compare nel sito:** è un termine di lavoro. Nel gioco le sezioni si chiamano **Modulo** (Modulo 0 Fondamenta, Modulo 1 Il trilocale, Modulo 2 Civile avanzato, Modulo 3 Industriale) e le prove finali **Prova del modulo**. Nei documenti tecnici resta "milestone".
+- **Piè di pagina solo su computer,** con la mappa del sito: Gioco (mappa dei livelli, classifica, legenda, glossario), Aiuto (Segnala un problema, Scrivici), Informazioni (informativa, accesso docente). Sul telefono non c'è.
+- **Segnala un problema e Scrivici** aprono un messaggio di posta già indirizzato all'indirizzo di contatto del progetto (da indicare), con il livello e la versione del gioco già scritti nell'oggetto. Nessun invio automatico di dati.
+- **Informativa:** non sta nella homepage. Compare in forma breve (una riga) quando si sceglie il nome, e per intero nel piè di pagina.
