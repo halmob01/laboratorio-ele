@@ -303,6 +303,109 @@ export const UNITS = {
       fixSay: 'Sposta l’interruttore sulla fase: la fase passa dall’interruttore con fili marroni, il neutro blu va diretto alla lampada. Poi premi Verifica.',
     },
   },
+  'c04-parallelo': {
+    support: 'passi',
+    lesson: {
+      pages: [
+        {
+          type: 'spiegazione',
+          title: 'Due lampade, un solo interruttore',
+          room: 'lit',
+          paras: [
+            'In una stanza spesso ci sono più lampade che si accendono e si spengono insieme, con lo stesso interruttore.',
+            'In questo livello colleghi due lampade a un solo interruttore. Alla fine le vedrai accendersi tutte e due nella stanza.',
+          ],
+        },
+        {
+          type: 'pezzi',
+          title: 'Due portalampada',
+          focus: ['L1', 'L2'],
+          paras: [
+            'Ogni lampada ha il suo portalampada, con i suoi due morsetti A e B.',
+            'Ogni lampada ha bisogno dei suoi due fili: uno di fase e uno di neutro.',
+          ],
+        },
+        {
+          type: 'spiegazione',
+          title: 'Il parallelo',
+          art: 'parallelo',
+          paras: [
+            'Le lampade sono collegate in parallelo: tutte e due ricevono la fase da un lato e il neutro dall’altro, come se ognuna fosse sola.',
+            'La fase passa dall’interruttore e poi si divide: un filo per ogni lampada. Il neutro arriva dal quadro a tutte e due, senza passare dall’interruttore.',
+            'Per questo se una lampada si brucia l’altra resta accesa: il suo percorso non dipende da quello dell’altra.',
+          ],
+        },
+        {
+          type: 'spiegazione',
+          title: 'L’errore da evitare: la serie',
+          art: 'serie',
+          paras: [
+            'Se si collega la seconda lampada dopo la prima, la corrente le attraversa una dopo l’altra. Si dice che sono in serie.',
+            'In serie ogni lampada riceve solo una parte della tensione: la luce non è quella giusta e se una si brucia si spegne anche l’altra. Nel gioco le lampade in serie non si accendono.',
+          ],
+          warn: 'Ogni lampada deve avere un filo di fase e un filo di neutro. Mai una lampada collegata all’altra.',
+        },
+        {
+          type: 'demo',
+          title: 'Guarda come si fa',
+          captions: {
+            wires: [
+              'Filo marrone dalla FASE del quadro al morsetto 1 dell’interruttore.',
+              'Filo marrone dal morsetto 2 dell’interruttore al morsetto A della lampada 1.',
+              'Un secondo filo marrone dallo stesso morsetto 2 al morsetto A della lampada 2.',
+              'Filo blu dal NEUTRO al morsetto B della lampada 1.',
+              'Un secondo filo blu dal NEUTRO al morsetto B della lampada 2.',
+            ],
+            power: 'Levetta su: l’interruttore è aperto e le lampade sono spente.',
+            controls: ['Interruttore chiuso: tutte e due le lampade si accendono.'],
+          },
+        },
+        {
+          type: 'previsione',
+          question: 'Le due lampade sono in parallelo e una si brucia. Che cosa fa l’altra?',
+          options: [
+            { id: 'a', text: 'Si spegne anche l’altra.' },
+            { id: 'b', text: 'Resta accesa.' },
+            { id: 'c', text: 'Il quadro scatta.' },
+          ],
+          correct: 'b',
+          why: 'Resta accesa. In parallelo ogni lampada ha il suo percorso tra fase e neutro: se uno si interrompe, l’altro non cambia. Una lampada bruciata è un percorso aperto, non un cortocircuito, quindi il quadro non scatta.',
+        },
+        { type: 'sintesi', title: 'Da ricordare' },
+      ],
+    },
+    steps: [
+      { kind: 'wire', from: 'Q.F', to: ['S.a'], color: 'marrone', short: '1 Fase', title: 'Porta la fase all’interruttore', text: 'Dalla FASE del quadro al morsetto 1 dell’interruttore.' },
+      { kind: 'wire', from: 'S.b', to: ['L1.A', 'L1.B'], color: 'marrone', short: '2 Lampada 1', title: 'Dall’interruttore alla prima lampada', text: 'Dal morsetto 2 dell’interruttore a un morsetto della lampada 1.' },
+      { kind: 'wire', from: 'S.b', to: ['L2.A', 'L2.B'], color: 'marrone', short: '3 Lampada 2', title: 'Dall’interruttore alla seconda lampada', text: 'Dallo stesso morsetto 2 a un morsetto della lampada 2. Lo stesso morsetto, due fili.' },
+      { kind: 'wire', from: 'Q.N', to: ['L1.A', 'L1.B'], color: 'blu', short: '4 Neutro 1', title: 'Il neutro alla prima lampada', text: 'Dal NEUTRO al morsetto libero della lampada 1.' },
+      { kind: 'wire', from: 'Q.N', to: ['L2.A', 'L2.B'], color: 'blu', short: '5 Neutro 2', title: 'Il neutro alla seconda lampada', text: 'Dal NEUTRO al morsetto libero della lampada 2.' },
+      { kind: 'power', short: '6 Levetta', title: 'Dai corrente', text: 'Tocca la levetta del quadro, poi prova l’interruttore.' },
+      { kind: 'verify', short: '7 Verifica', title: 'Controlla l’impianto', text: 'Premi Verifica.' },
+    ],
+    summary: [
+      'Più lampade in parallelo: ognuna ha un filo di fase e uno di neutro.',
+      'L’interruttore sta sulla fase, prima che si divida verso le lampade.',
+      'Il neutro va a ogni lampada senza passare dall’interruttore.',
+      'Se una lampada si brucia le altre restano accese.',
+      'In serie, invece, la corrente le attraversa una dopo l’altra: è un errore.',
+    ],
+    fault: {
+      say: 'L’impianto è già cablato, ma le lampade non si accendono. Dai corrente e prova l’interruttore.',
+      wires: [['Q.F', 'S.a', 'marrone'], ['S.b', 'L1.A', 'marrone'], ['L1.B', 'L2.A', 'marrone'], ['L2.B', 'Q.N', 'blu']],
+      diagnosis: {
+        question: 'Che cosa non va?',
+        options: [
+          { id: 'a', text: 'Le lampade sono collegate in serie, una dopo l’altra.' },
+          { id: 'b', text: 'Manca il neutro a tutte e due le lampade.' },
+          { id: 'c', text: 'L’interruttore è sul neutro.' },
+        ],
+        correct: 'a',
+        why: 'Il filo va dalla prima lampada alla seconda: le lampade sono in serie e nessuna delle due è collegata direttamente tra fase e neutro: la corrente deve attraversarle una dopo l’altra. Ogni lampada deve avere il suo filo di fase e il suo filo di neutro.',
+      },
+      fixSay: 'Collega la fase a entrambe le lampade dal morsetto 2 dell’interruttore e il neutro a entrambe, ognuna sul suo morsetto libero. Poi premi Verifica.',
+    },
+  },
   'c05-deviato': {
     support: 'passi',
     lesson: {

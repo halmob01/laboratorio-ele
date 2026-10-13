@@ -16,6 +16,7 @@ function frame(level, wires, power, states, caption, newWire) {
       power,
       trip: false,
       lit: power && an.lit,
+      litLoads: an.litLoads.map(x => power && x),
       potential: tid => potentialOf(an, tid),
       controlStates: { ...states },
       flow: flowOf(level, wires, states),

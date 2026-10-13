@@ -118,6 +118,31 @@ const ART = {
     ),
 };
 
+const lampSym = (x, y, on = true) =>
+  `<circle cx="${x}" cy="${y}" r="28" fill="${on ? LAMP : '#E6E0D2'}" stroke="${INK}" stroke-width="3"/><path d="M${x - 17} ${y - 17} L${x + 17} ${y + 17} M${x + 17} ${y - 17} L${x - 17} ${y + 17}" stroke="${INK}" stroke-width="3" stroke-linecap="round"/>`;
+
+const ART_MORE = {
+  parallelo: () =>
+    svg(
+      line(60, 60, 420, 60, FASE, 6) + line(60, 210, 420, 210, NEUTRO, 6) +
+        line(170, 60, 170, 107, FASE, 6) + line(170, 163, 170, 210, NEUTRO, 6) +
+        line(310, 60, 310, 107, FASE, 6) + line(310, 163, 310, 210, NEUTRO, 6) +
+        lampSym(170, 135) + lampSym(310, 135) +
+        text(60, 44, 'FASE', FASE, 'start') + text(60, 236, 'NEUTRO', NEUTRO, 'start') +
+        text(240, 262, 'ogni lampada ha fase e neutro', INK),
+      'Due lampade collegate in parallelo: ognuna ha un filo di fase in alto e un filo di neutro in basso'
+    ),
+  serie: () =>
+    svg(
+      line(40, 135, 122, 135, FASE, 6) + lampSym(150, 135, false) + line(178, 135, 272, 135, FASE, 6) +
+        lampSym(300, 135, false) + line(328, 135, 440, 135, NEUTRO, 6) +
+        text(40, 112, 'FASE', FASE, 'start') + text(440, 112, 'NEUTRO', NEUTRO, 'end') +
+        text(240, 215, 'una dopo l’altra: errore', INK),
+      'Due lampade in serie: la corrente le attraversa una dopo l’altra'
+    ),
+};
+Object.assign(ART, ART_MORE);
+
 export function artHTML(key) {
   return ART[key] ? ART[key]() : '';
 }

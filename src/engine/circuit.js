@@ -35,6 +35,9 @@ export function connect(level, wires, states) {
   return uf;
 }
 
+// Carichi del livello: una coppia di morsetti, oppure l'elenco `loads` (piu' lampade, in parallelo).
+export const loadsOf = level => level.loads || [level.load];
+
 // Analisi del circuito per un dato stato dei comandi.
 // fault: null | 'corto' (fase su neutro) | 'faseterra' (fase su terra)
 // lit: il carico e' alimentato tra fase e neutro
@@ -46,8 +49,14 @@ export function analyse(level, wires, states) {
   if (F === N) fault = 'corto';
   else if (F === PE) fault = 'faseterra';
   const a = uf.f(level.load[0]), b = uf.f(level.load[1]);
-  const lit = !fault && ((a === F && b === N) || (a === N && b === F));
-  return { uf, F, N, PE, fault, lit, a, b };
+  // Un carico e' acceso se sta tra fase e neutro. `lit` vale se TUTTI i carichi sono accesi;
+  // con un solo carico e' come prima.
+  const litLoads = loadsOf(level).map(([x, y]) => {
+    const p = uf.f(x), q = uf.f(y);
+    return !fault && ((p === F && q === N) || (p === N && q === F));
+  });
+  const lit = litLoads.every(Boolean);
+  return { uf, F, N, PE, fault, lit, anyLit: litLoads.some(Boolean), litLoads, a, b };
 }
 
 // Potenziale di un morsetto: 'F' | 'N' | 'PE' | null (non collegato a una sorgente).

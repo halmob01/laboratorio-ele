@@ -18,7 +18,7 @@
 //   }
 // La funzione non dipende da `power`: la vista decide se mostrare gli stati solo a quadro acceso.
 
-import { analyse, potentialOf, sourceOf } from './circuit.js';
+import { analyse, loadsOf, potentialOf, sourceOf } from './circuit.js';
 import { contactsOf } from './components.js';
 
 const MAX_PATHS = 50000;
@@ -36,7 +36,7 @@ export function flowOf(level, wires, states) {
       edges.push({ a: c.id + '.' + x, b: c.id + '.' + y, kind: 'contact', key: c.id + '.' + x + '-' + y })
     )
   );
-  const loadEdge = { a: level.load[0], b: level.load[1], kind: 'load', key: 'load' };
+  const loadEdges = loadsOf(level).map(([a, b], i) => ({ a, b, kind: 'load', key: 'load' + i }));
 
   // Gradi (senza il carico): servono per i punti in cui la tensione si ferma.
   const degree = {};
@@ -50,15 +50,15 @@ export function flowOf(level, wires, states) {
     out.wires[w.id] = { net: potentialOf(an, w.a), current: false };
   });
 
-  if (an.lit) {
+  if (an.anyLit) {
     // Percorsi semplici dalla fase al neutro che passano per il carico.
-    const all = edges.concat([loadEdge]);
+    const all = edges.concat(loadEdges);
     const adj = {};
     all.forEach((e, i) => {
       (adj[e.a] = adj[e.a] || []).push([e.b, i]);
       (adj[e.b] = adj[e.b] || []).push([e.a, i]);
     });
-    const loadIdx = all.length - 1;
+    const loadIdx = new Set(loadEdges.map((_, i) => edges.length + i));
     const onPath = new Set();
     let count = 0;
     let steps = 0;
@@ -67,7 +67,7 @@ export function flowOf(level, wires, states) {
     const dfs = node => {
       if (count > MAX_PATHS || ++steps > MAX_STEPS) return;
       if (node === sr.N) {
-        if (stack.includes(loadIdx)) {
+        if (stack.some(i => loadIdx.has(i))) {
           count++;
           stack.forEach(i => onPath.add(i));
         }
@@ -92,16 +92,17 @@ export function flowOf(level, wires, states) {
       else if (e.kind === 'contact') out.contacts[e.key] = true;
     });
     out.current = onPath.size > 0;
-  } else {
+  }
+  if (!an.lit) {
     // Dove la tensione si ferma: morsetti in tensione con un solo collegamento.
     const sources = new Set([sr.F, sr.N, sr.PE]);
-    const loads = new Set(level.load);
+    const loads = new Set(loadsOf(level).flat());
     Object.keys(degree).forEach(t => {
       const pot = potentialOf(an, t);
       if ((pot === 'F' || pot === 'N') && degree[t] === 1 && !sources.has(t) && !loads.has(t)) out.deadEnds.push(t);
     });
     // Un morsetto del carico raggiunto da un solo polo e' anch'esso un punto di arrivo.
-    level.load.forEach(t => {
+    loadsOf(level).flat().forEach(t => {
       const pot = potentialOf(an, t);
       if ((pot === 'F' || pot === 'N') && degree[t] === 1) out.deadEnds.push(t);
     });

@@ -61,6 +61,9 @@ export function itemText(item, level) {
     case 'work.noNeutralAtSocket': return 'Alla presa non arriva il neutro.';
     case 'work.wrongSocketTerminals': return 'Fase e neutro arrivano alla presa, ma non ai morsetti giusti.';
     case 'work.neverLit': return level.loadName + ' non si accende mai.';
+    case 'work.loadNeverLit': return 'La lampada ' + item.n + ' non si accende mai.';
+    case 'work.loadsInSeries': return 'Le lampade sono in serie: la corrente le attraversa una dopo l’altra. Ognuna deve avere un filo di fase e uno di neutro, come in parallelo.';
+    case 'work.loadsDiffer': return 'Le due lampade non si accendono insieme: devono seguire lo stesso comando.';
     case 'work.noPhaseAtLoad': return 'Alla lampada non arriva mai la fase.';
     case 'work.noNeutralAtLoad': return 'Alla lampada non arriva il neutro.';
     case 'work.controlNoEffect': return compName(level, item.comp) + ' non comanda la lampada: cambiarlo non cambia niente.';

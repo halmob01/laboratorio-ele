@@ -9,7 +9,7 @@
 //   ogni sezione: { ok, status: 'ok' | 'ko' | 'na', items: [{ code, ...parametri }] }
 //     'na' = non valutabile (la sicurezza si controlla solo se il circuito funziona)
 
-import { analyse, connect, makeUF, sourceOf } from './circuit.js';
+import { analyse, connect, loadsOf, makeUF, sourceOf } from './circuit.js';
 import { contactsOf } from './components.js';
 import { allowedColors } from './wires.js';
 
@@ -21,6 +21,32 @@ function finish(sec) {
   if (sec.ok) sec.status = 'ok';
   else if (sec.items.length && sec.items[0].code === 'safe.skipped') sec.status = 'na';
   else sec.status = 'ko';
+}
+
+// Livelli con piu' carichi (lampade in parallelo): cerca i difetti propri di questo caso.
+// Ritorna true se ne ha trovato almeno uno (e li ha aggiunti al risultato).
+function multiLoadProblem(level, res, add) {
+  const loads = loadsOf(level);
+  // lampade in serie: un morsetto di una lampada e uno di un'altra stanno sullo stesso punto, che non e' ne' fase ne' neutro
+  let series = false;
+  for (let i = 0; i < loads.length; i++) {
+    for (let j = i + 1; j < loads.length; j++) {
+      loads[i].forEach(x => loads[j].forEach(y => {
+        // in serie: restano uniti in ogni stato dei comandi e quel punto non coincide mai con fase o neutro
+        const joined = res.every(r => { const k = r.uf.f(x); return k === r.uf.f(y) && k !== r.F && k !== r.N; });
+        if (!joined) return;
+        // e' una serie solo se i due morsetti liberi arrivano uno alla fase e uno al neutro
+        const ox = loads[i].find(t => t !== x), oy = loads[j].find(t => t !== y);
+        if (res.some(r => { const p = r.uf.f(ox), q = r.uf.f(oy); return (p === r.F && q === r.N) || (p === r.N && q === r.F); })) series = true;
+      }));
+    }
+  }
+  if (series) { add('work', 'work.loadsInSeries'); return true; }
+  const never = [];
+  loads.forEach((_, i) => { if (!res.some(r => r.litLoads[i])) never.push(i + 1); });
+  if (never.length) { never.forEach(n => add('work', 'work.loadNeverLit', { n })); return true; }
+  if (res.some(r => r.anyLit !== r.lit)) { add('work', 'work.loadsDiffer'); return true; }
+  return false;
 }
 
 export function evaluate(level, wires) {
@@ -63,6 +89,8 @@ export function evaluate(level, wires) {
       if (!anyN) add('work', 'work.noNeutralAtSocket');
       if (anyF && anyN) add('work', 'work.wrongSocketTerminals');
     }
+  } else if (loadsOf(level).length > 1 && multiLoadProblem(level, res, add)) {
+    // sono gia' stati aggiunti i motivi (carico mai acceso, lampade in serie, lampade che non vanno insieme)
   } else {
     const anyLit = res.some(r => r.lit);
     if (!anyLit) {
@@ -137,7 +165,7 @@ export function evaluate(level, wires) {
         add('safe', 'safe.socketPolarity');
       }
     } else {
-      const alwaysN = level.load.some(t => res.every(r => r.uf.f(t) === r.N));
+      const alwaysN = loadsOf(level).every(l => l.some(t => res.every(r => r.uf.f(t) === r.N)));
       if (!alwaysN) {
         ok = false;
         add('safe', 'safe.neutralBroken');

@@ -28,3 +28,5 @@ Frasi tecniche delle lezioni di c02, c03, c05, c06 su cui conviene un parere:
 - Pianta: i trattini sui tratti indicano il numero di conduttori (2 = fase e neutro, 3 = per esempio fase, neutro e ritorno). Sono valori provvisori da far controllare al collega di laboratorio, come il percorso delle linee.
 - I circuiti del trilocale hanno solo una lezione breve (rimando alle lezioni del Modulo 0) e niente sfida guasto. Collaudo finale, multimetro, guasti nascosti e procedura di sicurezza non ci sono ancora.
 - Il 3D si carica da un file separato (`trilocale.js`, circa 500 KB) solo quando si apre un circuito del trilocale. Dove WebGL non e' disponibile compare la pianta.
+
+- c04 (parallelo): nel gioco due lampade in serie restano spente; in realta' si accenderebbero debolmente. Frase da far controllare al collega.

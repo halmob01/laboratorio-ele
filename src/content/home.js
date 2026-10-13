@@ -10,7 +10,7 @@ export const MODULES = [
       'c01-circuito-chiuso',
       'c02-presa',
       'c03-interrotto',
-      { soon: true, code: 'c04', title: 'Due lampade', blurb: 'Il parallelo: due carichi, un solo comando.' },
+      'c04-parallelo',
       'c05-deviato',
       'c06-invertito',
     ],
