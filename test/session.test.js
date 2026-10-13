@@ -52,6 +52,7 @@ test('modificare i fili con corrente spegne il quadro; annulla e svuota funziona
 test('lo stesso filo due volte lo toglie; i livelli e le modalita\' tengono i fili separati', () => {
   const s = make();
   s.selectLevel(PRESA);
+  s.skipLesson();
   s.addWire('Q.F', 'P.L', 'marrone');
   s.addWire('P.L', 'Q.F', 'marrone');
   assert.equal(s.snapshot().wires.length, 0);
@@ -81,6 +82,7 @@ test('i suggerimenti ruotano e si contano; i progressi passano dal deposito indi
 test('i listener ricevono un\'istantanea a ogni cambiamento', () => {
   const s = make();
   s.selectLevel(PRESA);
+  s.skipLesson();
   const seen = [];
   const off = s.subscribe(x => seen.push(x.wires.length));
   s.addWire('Q.F', 'P.L', 'marrone');

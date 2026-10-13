@@ -296,14 +296,15 @@ test('un cortocircuito fa scattare il quadro e toccare i fili con corrente lo sp
 test('suggerimenti, soluzione e verifica di un cablaggio sbagliato (c02)', () => {
   const { w, d } = openPage({ seen: true });
   go(w, '#/livello/c02-presa');
+  click(w, q(d, '[data-unit="skip"]'));
   click(w, q(d, '#bHint'));
   assert.match(q(d, '#info').textContent, /Suggerimento 1 di 3/);
   click(w, q(d, '#bHint'));
   assert.match(q(d, '#info').textContent, /Suggerimento 2 di 3/);
   click(w, q(d, '#bSol'));
-  assert.equal(qa(d, '#bench .ghost').length, 3);
+  assert.equal(qa(d, '#bench .ghost').length, 4);   // 3 della soluzione + il tratteggio guidato
   click(w, q(d, '#bSol'));
-  assert.equal(qa(d, '#bench .ghost').length, 0);
+  assert.equal(qa(d, '#bench .ghost').length, 1);
   wire(w, d, 'Q.F', 'P.L', 'blu');
   wire(w, d, 'Q.N', 'P.N', 'blu');
   wire(w, d, 'Q.PE', 'P.PE', 'gv');
@@ -328,6 +329,7 @@ test('c05: la corrente si mostra a richiesta', () => {
 test('i progressi si salvano e tornano alla riapertura', () => {
   const { w, d } = openPage({ seen: true });
   go(w, '#/livello/c02-presa');
+  click(w, q(d, '[data-unit="skip"]'));
   solve(w, d, lv('c02-presa'));
   click(w, q(d, '#bCheck'));
   assert.equal(saved(w).v, 2);
