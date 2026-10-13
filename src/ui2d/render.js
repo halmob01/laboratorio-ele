@@ -5,7 +5,7 @@
 // `comps` sono i componenti del modello con la geometria del layout (vedi layout.js).
 
 import { WIRE_COLORS } from '../engine/index.js';
-import { COLOR_NAMES, describeEvaluation, sessionMessage } from '../content/it.js';
+import { COLOR_NAMES, describeEvaluation, sessionMessage, flowMessage } from '../content/it.js';
 import { WIRE_STYLE } from './palette.js';
 
 /* ---------- geometria dei morsetti e dei fili ---------- */
@@ -28,11 +28,6 @@ export function wirePath(p1, p2) {
 }
 
 /* ---------- livelli e palette ---------- */
-export function levelsHTML(s) {
-  return s.levels
-    .map(l => `<button class="lv" data-lv="${l.index}" aria-current="${l.index === s.levelIndex}"><span>${l.n} · ${l.name}</span><small>${'★'.repeat(l.stars)}${'☆'.repeat(3 - l.stars)}</small></button>`)
-    .join('');
-}
 export function paletteHTML(col) {
   return WIRE_COLORS.map(k => {
     const c = WIRE_STYLE[k];
@@ -156,6 +151,7 @@ function termSVG(c, id, ui) {
 }
 
 export function benchViewBox(comps) {
+  if (!comps.length) return '0 0 400 100';
   const H = Math.max(...comps.map(c => c.y + c.h)) + 22;
   return `10 -28 400 ${H + 28}`;
 }
@@ -175,12 +171,33 @@ export function benchHTML(s, comps, ui) {
   if (s.solutionShown) {
     o += s.level.solution.map(([a, b, col]) => `<path class="ghost" d="${wirePath(termPos(comps, a), termPos(comps, b))}" stroke="${WIRE_STYLE[col].base}"/>`).join('');
   }
+  if (s.guide) {
+    const [ga, gb, gc] = s.guide.wire;
+    o += `<path class="ghost guide" d="${wirePath(termPos(comps, ga), termPos(comps, gb))}" stroke="${WIRE_STYLE[gc].base}"/>`;
+  }
+  // Con la corrente visibile ogni filo ha uno stato: in tensione (alone), percorso da corrente (puntini).
+  const fv = s.flowVisible && s.power;
   s.wires.forEach(w => {
     const d = wirePath(termPos(comps, w.a), termPos(comps, w.b)), q = WIRE_STYLE[w.c];
     const pot = s.potential(w.a);
-    const fl = s.power && pot === 'F' ? 'f' : s.power && pot === 'N' ? 'n' : '';
-    o += `<g data-wire="${w.id}"><path class="w-hit" d="${d}"/><path class="w-edge" d="${d}"/><path class="w-col" d="${d}" stroke="${q.base}"/>${q.dash ? `<path class="w-col dash" d="${d}" stroke="${q.dash}"/>` : ''}${fl ? `<path class="flow ${fl}" d="${d}"/>` : ''}</g>`;
+    const st = s.flow.wires[w.id];
+    let halo = '', fl = '';
+    if (fv) {
+      const k = st.net === 'F' ? 'f' : st.net === 'N' ? 'n' : '';
+      if (k) halo = `<path class="halo-w ${k}" d="${d}"/>`;
+      if (st.current && k) fl = `<path class="flow ${k} cur" d="${d}"/>`;
+    } else {
+      const k = s.power && pot === 'F' ? 'f' : s.power && pot === 'N' ? 'n' : '';
+      if (k) fl = `<path class="flow ${k}" d="${d}"/>`;
+    }
+    o += `<g data-wire="${w.id}">${halo}<path class="w-hit" d="${d}"/><path class="w-edge" d="${d}"/><path class="w-col" d="${d}" stroke="${q.base}"/>${q.dash ? `<path class="w-col dash" d="${d}" stroke="${q.dash}"/>` : ''}${fl}</g>`;
   });
+  if (fv && !s.lit) {
+    s.flow.deadEnds.forEach(t => {
+      const p = termPos(comps, t);
+      o += `<circle class="stop" cx="${p.x}" cy="${p.y}" r="${ui.mobile ? 23 : 19}"/>`;
+    });
+  }
   comps.forEach(c => { Object.keys(c.terms).forEach(id => { o += termSVG(c, id, ui); }); });
   o += `<path id="prev" d=""/>`;
   return o;
@@ -189,7 +206,9 @@ export function benchHTML(s, comps, ui) {
 /* ---------- stato e risultato ---------- */
 export function statusHTML(s) {
   const q = s.power ? ['Quadro acceso', 'ok'] : s.trip ? ['Quadro scattato', 'bad'] : ['Quadro spento', ''];
-  return `<span class="pill ${q[1]}">${q[0]}</span><span class="pill${s.lit ? ' on' : ''}">${s.level.room === 'tavolo' ? 'Lampada' : 'Luce'} ${s.lit ? 'accesa' : 'spenta'}</span><span class="msg" aria-live="polite">${sessionMessage(s.message)}</span>`;
+  let msg = sessionMessage(s.message);
+  if (s.message && s.message.code === 'lampDark' && s.flowVisible) msg += ' ' + flowMessage(s.flow, s.level);
+  return `<span class="pill ${q[1]}">${q[0]}</span><span class="pill${s.lit ? ' on' : ''}">${s.level.room === 'tavolo' ? 'Lampada' : 'Luce'} ${s.lit ? 'accesa' : 'spenta'}</span><span class="msg" aria-live="polite">${msg}</span>`;
 }
 
 const MARK = { ok: '✓', na: '–', ko: '✕' };
@@ -200,5 +219,6 @@ export function resultHTML(s) {
   const r = describeEvaluation(s.result, s.level);
   const row = (t, o) => `<div class="row"><span class="mark ${o.status}" aria-hidden="true">${MARK[o.status]}</span><div><b>${t}</b><ul>${o.msgs.map(m => `<li>${m}</li>`).join('')}</ul></div></div>`;
   const last = s.levelIndex === s.levelCount - 1;
-  return `<h3>${r.pass ? 'Livello superato' : 'Controllo del circuito'}</h3><div class="stars" aria-label="${r.stars} stelle su 3">${'★'.repeat(r.stars)}<span class="e">${'★'.repeat(3 - r.stars)}</span></div>${row('Funziona', r.work)}${row('Colori dei fili', r.color)}${row('Sicurezza', r.safe)}${r.pass ? (last ? `<p class="next"><b>Hai completato tutti i livelli.</b></p>` : `<div class="next"><button class="btn primary" id="bNext" style="margin-left:0">Livello successivo</button></div>`) : ''}`;
+  const xp = s.levels[s.levelIndex].xp;
+  return `<h3>${r.pass ? 'Livello superato' : 'Controllo del circuito'}</h3><div class="stars" aria-label="${r.stars} stelle su 3">${'★'.repeat(r.stars)}<span class="e">${'★'.repeat(3 - r.stars)}</span></div>${row('Funziona', r.work)}${row('Colori dei fili', r.color)}${row('Sicurezza', r.safe)}<p class="xpline">Punti di questo livello: <b>${xp} XP</b></p>${r.pass ? (last ? `<p class="next"><b>Hai completato tutti i livelli.</b></p>` : `<div class="next"><button class="btn primary" id="bNext" style="margin-left:0">Livello successivo</button></div>`) : ''}`;
 }

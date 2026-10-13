@@ -7,13 +7,14 @@ import { levels, deriveFull } from '../src/content/index.js';
 import { composeComps } from '../src/ui2d/layout.js';
 
 const legacy = createRequire(import.meta.url)('./fixtures/legacy-engine.cjs');
+const legacyLevels = levels.filter(l => l.n > 0);
 
 const norm = c => (c === undefined ? null : JSON.parse(JSON.stringify(c)));
 
 for (const mode of ['quadro', 'contatore']) {
   test('la geometria ricomposta coincide con l\'originale (' + mode + ')', () => {
-    levels.forEach((_, i) => {
-      const next = mode === 'contatore' ? deriveFull(levels[i]) : levels[i];
+    legacyLevels.forEach((_, i) => {
+      const next = mode === 'contatore' ? deriveFull(legacyLevels[i]) : legacyLevels[i];
       const old = mode === 'contatore' ? legacy.buildFull(legacy.LEVELS[i]) : legacy.LEVELS[i];
       const comps = composeComps(next);
       assert.equal(comps.length, old.comps.length);

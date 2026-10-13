@@ -3,9 +3,10 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>Laboratorio elettrico</title>
+<title>Fase e Neutro</title>
+<meta name="description" content="Laboratorio di impianti elettrici per chi parte da zero.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Barlow+Condensed:wght@500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
 <style>
 :root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
 html{scroll-padding-top:env(safe-area-inset-top,0px)}
@@ -13,43 +14,51 @@ html{scroll-padding-top:env(safe-area-inset-top,0px)}
 </style>
 </head>
 <body>
+<a class="skip" href="#main">Vai al contenuto</a>
 <div class="wrap">
-  <header class="top">
-    <div class="brand">
-      <svg width="30" height="30" viewBox="0 0 30 30" aria-hidden="true"><rect x="1" y="1" width="28" height="28" rx="7" fill="var(--accent)"/><path d="M17 5 9 17h6l-2 8 8-12h-6z" fill="var(--on-accent)"/></svg>
-      <h1>Laboratorio elettrico</h1>
-    </div>
-    <nav class="levels" id="levels" aria-label="Livelli"></nav>
-  </header>
+  <header class="top" id="appbar"></header>
 
-  <main class="grid">
-    <section class="col left" aria-label="Stanza">
-      <div class="card goal"><div class="kicker" id="kick"></div><h2 id="lvName"></h2><p id="lvGoal"></p></div>
-      <div class="card roomcard">
-        <svg id="room" viewBox="0 0 400 250" preserveAspectRatio="xMidYMid slice" role="img" aria-label="Stanza con la luce da accendere"></svg>
-        <div class="status" id="status"></div>
-      </div>
-      <div class="card info" id="info"></div>
-    </section>
+  <main id="main" tabindex="-1">
+    <section id="screen-home" hidden aria-label="Mappa dei livelli"></section>
 
-    <section class="col" aria-label="Banco di lavoro">
-      <div class="card benchcard">
-        <div class="mode" role="group" aria-label="Punto di partenza"><span class="mlabel">Parti dal</span><button class="chip seg" data-mode="quadro" aria-pressed="true">Quadro</button><button class="chip seg" data-mode="contatore" aria-pressed="false">Contatore</button><span class="mlabel hint">il contatore è la versione completa</span></div>
-        <div class="palette" id="palette" role="group" aria-label="Colore del filo"></div>
-        <p class="tip">Scegli il colore, poi tocca due morsetti per collegarli (o trascina). Tocca un filo per toglierlo. Per provare: dai corrente dal quadro e tocca l’interruttore.</p>
-        <svg id="bench" role="img" aria-label="Banco di lavoro con i componenti da collegare"></svg>
-        <div class="actions">
-          <button class="btn" id="bUndo">Annulla filo</button>
-          <button class="btn" id="bClear">Svuota</button>
-          <button class="btn" id="bHint">Suggerimento</button>
-          <button class="btn" id="bSol" aria-pressed="false">Mostra soluzione</button>
-          <button class="btn primary" id="bCheck">Verifica</button>
-        </div>
+    <section id="screen-level" hidden aria-label="Livello">
+      <div class="levelbar"><a class="back" href="#/home">&larr; Mappa</a><span class="lvtag" id="lvTag"></span></div>
+      <div class="grid">
+        <section class="col left" aria-label="Stanza">
+          <div class="card goal unit" id="unit"></div>
+          <div class="card roomcard">
+            <svg id="room" viewBox="0 0 400 250" preserveAspectRatio="xMidYMid slice" role="img" aria-label="Stanza con la luce da accendere"></svg>
+            <div class="status" id="status"></div>
+          </div>
+          <div class="card info" id="info"></div>
+        </section>
+
+        <section class="col" aria-label="Banco di lavoro">
+          <div class="card benchcard">
+            <div class="mode" id="modeBar" role="group" aria-label="Punto di partenza"><span class="mlabel">Parti dal</span><button class="chip seg" data-mode="quadro" aria-pressed="true">Quadro</button><button class="chip seg" data-mode="contatore" aria-pressed="false">Contatore</button><span class="mlabel hint">il contatore è la versione completa</span></div>
+            <div class="palette" id="palette" role="group" aria-label="Colore del filo"></div>
+            <p class="tip">Scegli il colore, poi tocca due morsetti per collegarli (o trascina). Tocca un filo per toglierlo. Per provare: dai corrente dal quadro e tocca l’interruttore.</p>
+            <svg id="bench" role="img" aria-label="Banco di lavoro con i componenti da collegare"></svg>
+            <div class="flowlegend" id="flowLegend" hidden></div>
+            <div class="actions">
+              <button class="btn" id="bUndo">Annulla filo</button>
+              <button class="btn" id="bClear">Svuota</button>
+              <button class="btn" id="bFlow" aria-pressed="false" hidden>Mostra la corrente</button>
+              <button class="btn" id="bHint">Suggerimento</button>
+              <button class="btn" id="bSol" aria-pressed="false">Mostra soluzione</button>
+              <button class="btn primary" id="bCheck">Verifica</button>
+            </div>
+          </div>
+          <div class="card res" id="result" aria-live="polite"></div>
+        </section>
       </div>
-      <div class="card res" id="result" aria-live="polite"></div>
     </section>
   </main>
+
+  <footer class="sitefooter" id="footer"></footer>
 </div>
+<nav class="tabbar" id="tabbar" aria-label="Navigazione"></nav>
+<div class="overlay" id="overlay" hidden></div>
 <script>
 /*JS*/
 </script>

@@ -5,3 +5,6 @@ export { sourceOf, makeUF, connect, analyse, potentialOf } from './circuit.js';
 export { evaluate } from './evaluate.js';
 export { buildFull } from './full.js';
 export { createSession, MODES } from './session.js';
+export { flowOf } from './flow.js';
+export { migrateProgress, emptyProgress, attemptBase, totalXp, xpOf, rankOf, RANKS, XP } from './progress.js';
+export { cleanName, NAME_MAX } from './profile.js';

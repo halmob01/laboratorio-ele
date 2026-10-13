@@ -116,3 +116,21 @@ export function sessionMessage(msg) {
     default: return '';
   }
 }
+
+// Gradi (identificativi in src/engine/progress.js).
+export const RANK_NAMES = {
+  apprendista: 'Apprendista',
+  aiutante: 'Aiutante',
+  operatore: 'Operatore',
+  installatore: 'Installatore',
+  collaudatore: 'Collaudatore',
+};
+
+export const STATUS_NAMES = { nuovo: 'Nuovo', 'in corso': 'In corso', completato: 'Completato', saltato: 'Saltato' };
+
+// Dove si ferma la tensione, in una frase. Si usa quando il quadro e' acceso e la luce no.
+export function flowMessage(flow, level) {
+  if (!flow || !flow.deadEnds.length) return '';
+  const t = flow.deadEnds[0];
+  return 'La tensione arriva fino a ' + termName(level, t) + ' e lì si ferma.';
+}

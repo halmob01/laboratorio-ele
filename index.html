@@ -3,60 +3,61 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>Laboratorio elettrico</title>
+<title>Fase e Neutro</title>
+<meta name="description" content="Laboratorio di impianti elettrici per chi parte da zero.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Barlow+Condensed:wght@500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
 <style>
 :root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
 html{scroll-padding-top:env(safe-area-inset-top,0px)}
 /* Layout: sinistra la stanza con la luce, destra il banco di lavoro con i componenti da cablare */
 :root{
-  --bg:#EDF1F0; --ink:#17201E; --ink2:#52635F; --card:#FFFFFF; --line:#CDD6D3;
-  --bench:#DCE2DF; --dot:#B3BFBB; --comp:#FAFBFA; --comp-edge:#7C8B86; --sch:#667773;
-  --metal:#C9D0CD; --metal-edge:#5E6C68; --slot:#2F3B38;
-  --accent:#D9480F; --on-accent:#FFFFFF; --ok:#17794A; --bad:#BE2530; --warn:#8F5600;
+  --bg:#F3EFE6; --ink:#1B2230; --ink2:#4A5262; --card:#FBF9F4; --line:#D9D3C5;
+  --bench:#E6E0D2; --dot:#C4BCA8; --comp:#FBF9F4; --comp-edge:#7A7466; --sch:#6B6759;
+  --metal:#CBC6B8; --metal-edge:#625E52; --slot:#2F3B38;
+  --accent:#2563A8; --on-accent:#FFFFFF; --ok:#17794A; --bad:#BE2530; --warn:#8F5600;
+  --fase:#8B4A24; --neutro:#2563A8; --terra:#4C9A2A; --lamp:#F5B800; --quadro:#1E2635;
   --wall:#D3DCE6; --floor:#B99A70; --skirt:#9AA8B6; --shade:#ECE7DA; --bulb-off:#C7CECB;
   --plate:#F4F5F4; --plate-edge:#8A9692; --rkhi:#FFFFFF; --rklo:#B9C2BF;
-  --wire-edge:rgba(18,26,24,.55); --breaker:#EEF0EF; --chip:#E7EDEB; --table:#8A6A48;
+  --wire-edge:rgba(18,26,24,.55); --breaker:#EEF0EF; --chip:#EDE8DB; --table:#8A6A48;
   color-scheme:light;
 }
 @media (prefers-color-scheme: dark){
   :root:not([data-theme="light"]){
-    --bg:#0F1514; --ink:#E6EEEC; --ink2:#9DAEA9; --card:#172120; --line:#2B3735;
-    --bench:#1D2827; --dot:#2D3B38; --comp:#2B3836; --comp-edge:#6F837E; --sch:#9BADA8;
-    --metal:#8F9C98; --metal-edge:#CBD5D2; --slot:#1C2523;
-    --accent:#FF7A33; --on-accent:#1A0D05; --ok:#4CC38A; --bad:#FF6B73; --warn:#E8A33A;
+    --bg:#141A24; --ink:#E9E6DE; --ink2:#AEB4C0; --card:#1E2635; --line:#34405A;
+    --bench:#232C3C; --dot:#34405A; --comp:#2B3548; --comp-edge:#7F8DA6; --sch:#A5B1C6;
+    --metal:#8F9BB0; --metal-edge:#CBD3E2; --slot:#1C2523;
+    --accent:#6EA8E8; --on-accent:#0B1626; --ok:#4CC38A; --bad:#FF6B73; --warn:#E8A33A;
+    --fase:#D9955F; --neutro:#6EA8E8; --terra:#6CC24A; --lamp:#F5B800; --quadro:#0F141D;
     --wall:#2B3543; --floor:#4B4036; --skirt:#3A4655; --shade:#B9B3A4; --bulb-off:#53605D;
     --plate:#C9D0CE; --plate-edge:#6F7C78; --rkhi:#F3F6F5; --rklo:#8E9996;
-    --wire-edge:rgba(235,243,241,.6); --breaker:#D9DEDD; --chip:#223130; --table:#5B4630;
+    --wire-edge:rgba(235,243,241,.6); --breaker:#D9DEDD; --chip:#2A3447; --table:#5B4630;
     color-scheme:dark;
   }
 }
 :root[data-theme="dark"]{
-    --bg:#0F1514; --ink:#E6EEEC; --ink2:#9DAEA9; --card:#172120; --line:#2B3735;
-    --bench:#1D2827; --dot:#2D3B38; --comp:#2B3836; --comp-edge:#6F837E; --sch:#9BADA8;
-    --metal:#8F9C98; --metal-edge:#CBD5D2; --slot:#1C2523;
-    --accent:#FF7A33; --on-accent:#1A0D05; --ok:#4CC38A; --bad:#FF6B73; --warn:#E8A33A;
+    --bg:#141A24; --ink:#E9E6DE; --ink2:#AEB4C0; --card:#1E2635; --line:#34405A;
+    --bench:#232C3C; --dot:#34405A; --comp:#2B3548; --comp-edge:#7F8DA6; --sch:#A5B1C6;
+    --metal:#8F9BB0; --metal-edge:#CBD3E2; --slot:#1C2523;
+    --accent:#6EA8E8; --on-accent:#0B1626; --ok:#4CC38A; --bad:#FF6B73; --warn:#E8A33A;
+    --fase:#D9955F; --neutro:#6EA8E8; --terra:#6CC24A; --lamp:#F5B800; --quadro:#0F141D;
     --wall:#2B3543; --floor:#4B4036; --skirt:#3A4655; --shade:#B9B3A4; --bulb-off:#53605D;
     --plate:#C9D0CE; --plate-edge:#6F7C78; --rkhi:#F3F6F5; --rklo:#8E9996;
-    --wire-edge:rgba(235,243,241,.6); --breaker:#D9DEDD; --chip:#223130; --table:#5B4630;
+    --wire-edge:rgba(235,243,241,.6); --breaker:#D9DEDD; --chip:#2A3447; --table:#5B4630;
     color-scheme:dark;
 }
 *{box-sizing:border-box}
-body{margin:0;background:var(--bg);color:var(--ink);font:400 16px/1.45 'Barlow',system-ui,-apple-system,'Segoe UI',sans-serif;padding-inline:16px;padding-block:14px 40px}
+[hidden]{display:none!important}
+body{margin:0;background:var(--bg);color:var(--ink);font:400 16px/1.45 'IBM Plex Sans',system-ui,-apple-system,'Segoe UI',sans-serif;padding-inline:16px;padding-block:14px 40px}
 .wrap{max-width:1180px;margin:0 auto;display:flex;flex-direction:column;gap:14px}
-h1,h2{font-family:'Barlow Condensed','Barlow',system-ui,sans-serif;font-weight:600;margin:0;letter-spacing:.01em}
+h1,h2{font-family:'Barlow Condensed','IBM Plex Sans',system-ui,sans-serif;font-weight:600;margin:0;letter-spacing:.01em}
 h1{font-size:26px;line-height:1.1}
 h2{font-size:24px;line-height:1.15}
 p{margin:0}
 .top{display:flex;flex-wrap:wrap;gap:10px 18px;align-items:center;justify-content:space-between}
 .brand{display:flex;align-items:center;gap:10px;min-width:0}
 .brand svg{flex:none}
-.levels{display:flex;flex-wrap:wrap;gap:8px}
-.lv{font:500 15px/1.1 'Barlow',system-ui,sans-serif;border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:8px;padding:8px 12px;cursor:pointer;display:flex;flex-direction:column;align-items:flex-start;gap:3px;min-width:92px}
-.lv small{font:500 13px/1 'IBM Plex Mono',ui-monospace,monospace;color:var(--ink2);letter-spacing:.05em}
-.lv[aria-current="true"]{border-color:var(--accent);box-shadow:0 0 0 2px var(--accent) inset}
-.lv:focus-visible,button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.lv:focus-visible,button:focus-visible,a:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .grid{display:grid;grid-template-columns:minmax(0,1fr);gap:14px;align-items:start}
 @media (min-width:920px){.grid{grid-template-columns:minmax(0,1fr) minmax(0,1.05fr)}.left{position:sticky;top:12px}}
 .col{display:flex;flex-direction:column;gap:14px;min-width:0}
@@ -75,17 +76,17 @@ p{margin:0}
 .info p{color:var(--ink2);max-width:62ch}
 .mode{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-bottom:10px;padding-bottom:10px;border-bottom:1px solid var(--line)}
 .mlabel{font:500 13px/1 'IBM Plex Mono',monospace;letter-spacing:.06em;text-transform:uppercase;color:var(--ink2)}
-.mlabel.hint{text-transform:none;letter-spacing:0;font:400 14px/1.2 'Barlow',sans-serif}
+.mlabel.hint{text-transform:none;letter-spacing:0;font:400 14px/1.2 'IBM Plex Sans',sans-serif}
 .led.blink{animation:blink 1.4s steps(2,jump-none) infinite}
 @keyframes blink{50%{opacity:.25}}
 .palette{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:8px}
-.chip{display:flex;align-items:center;gap:8px;font:500 14px/1 'Barlow',sans-serif;background:var(--chip);color:var(--ink);border:1px solid transparent;border-radius:999px;padding:7px 12px 7px 8px;cursor:pointer}
+.chip{display:flex;align-items:center;gap:8px;font:500 14px/1 'IBM Plex Sans',sans-serif;background:var(--chip);color:var(--ink);border:1px solid transparent;border-radius:999px;padding:7px 12px 7px 8px;cursor:pointer}
 .chip[aria-pressed="true"]{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent)}
 .sw{width:30px;height:12px;border-radius:6px;border:1px solid var(--wire-edge);display:block}
 .tip{font-size:14px;color:var(--ink2);margin-bottom:8px}
 #bench{display:block;width:100%;height:auto;border-radius:10px;border:1px solid var(--line);touch-action:pan-y;user-select:none;-webkit-user-select:none}
 .actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
-button.btn{font:500 15px/1 'Barlow',sans-serif;background:var(--card);color:var(--ink);border:1px solid var(--line);border-radius:8px;padding:11px 14px;cursor:pointer}
+button.btn{font:500 15px/1 'IBM Plex Sans',sans-serif;background:var(--card);color:var(--ink);border:1px solid var(--line);border-radius:8px;padding:11px 14px;cursor:pointer}
 button.btn:hover{border-color:var(--comp-edge)}
 button.btn.primary{background:var(--accent);color:var(--on-accent);border-color:var(--accent);font-weight:600;margin-left:auto}
 .res h3{font:600 20px/1.2 'Barlow Condensed',sans-serif;margin:0 0 8px}
@@ -104,7 +105,7 @@ button.btn.primary{background:var(--accent);color:var(--on-accent);border-color:
 .ttl{font:600 13px 'Barlow Condensed',sans-serif;letter-spacing:.1em;text-transform:uppercase;fill:var(--ink2)}
 .lbl{font:500 11px 'IBM Plex Mono',monospace;fill:var(--ink);pointer-events:none}
 .body{fill:var(--comp);stroke:var(--comp-edge);stroke-width:1.5}
-.help{cursor:pointer}.help circle{fill:var(--chip);stroke:var(--comp-edge)}.help text{font:600 12px 'Barlow',sans-serif;fill:var(--ink)}
+.help{cursor:pointer}.help circle{fill:var(--chip);stroke:var(--comp-edge)}.help text{font:600 12px 'IBM Plex Sans',sans-serif;fill:var(--ink)}
 .cl{stroke:var(--sch);stroke-width:2.6;fill:none;stroke-linecap:round}
 .cl.on{stroke:#F59F00}.cl.off{stroke-dasharray:3 5;opacity:.45}
 .ct{fill:var(--comp);stroke:var(--sch);stroke-width:2}
@@ -143,7 +144,7 @@ button.btn.primary{background:var(--accent);color:var(--on-accent);border-color:
 .rk{stroke:var(--plate-edge);stroke-width:1}
 .rk.hi{fill:var(--rkhi)}.rk.lo{fill:var(--rklo)}
 .pl{cursor:pointer}
-.pl text{font:500 12px 'Barlow',sans-serif;fill:#EAF0F8}
+.pl text{font:500 12px 'IBM Plex Sans',sans-serif;fill:#EAF0F8}
 @media (prefers-reduced-motion:reduce){.led.blink,.flow,.term.sel .halo{animation:none}.night,.glowc{transition:none}}
 
 .info .x{display:none}
@@ -155,9 +156,6 @@ button.btn.primary{background:var(--accent);color:var(--on-accent);border-color:
   .top{gap:8px}
   h1{font-size:22px}
   .brand svg{width:26px;height:26px}
-  .levels{flex-wrap:nowrap;overflow-x:auto;width:100%;padding-bottom:4px;margin-inline:-2px;scrollbar-width:none}
-  .levels::-webkit-scrollbar{display:none}
-  .lv{flex:none;min-width:88px;padding:9px 12px}
   .card{padding:12px}
   .goal h2{font-size:21px}
   .goal p{font-size:15px;margin-top:4px}
@@ -187,48 +185,224 @@ button.btn.primary{background:var(--accent);color:var(--on-accent);border-color:
   .res h3{font-size:19px}
   .info{display:none}
   .info.open{display:block;position:fixed;left:16px;right:16px;bottom:calc(14px + env(safe-area-inset-bottom,0px));z-index:30;box-shadow:0 10px 30px rgba(0,0,0,.35);border-color:var(--comp-edge)}
-  .info .x{display:block;float:right;margin:-4px -4px 6px 10px;font:500 14px/1 'Barlow',sans-serif;background:var(--chip);color:var(--ink);border:1px solid var(--line);border-radius:8px;padding:9px 12px;min-height:40px}
+  .info .x{display:block;float:right;margin:-4px -4px 6px 10px;font:500 14px/1 'IBM Plex Sans',sans-serif;background:var(--chip);color:var(--ink);border:1px solid var(--line);border-radius:8px;padding:9px 12px;min-height:40px}
 }
+
+/* ---------- nuova pagina: barra in alto, mappa, introduzione, schede ---------- */
+.skip{position:absolute;left:-999px;top:0;background:var(--ink);color:var(--bg);padding:10px 14px;z-index:100;border-radius:0 0 8px 0}
+.skip:focus{left:0}
+a.btn,button.btn{display:inline-flex;align-items:center;justify-content:center;text-decoration:none;font:500 15px/1 'IBM Plex Sans',sans-serif;background:var(--card);color:var(--ink);border:1px solid var(--line);border-radius:8px;padding:11px 14px;min-height:44px;cursor:pointer}
+a.btn:hover,button.btn:hover{border-color:var(--comp-edge)}
+a.btn.primary,button.btn.primary{background:var(--accent);color:var(--on-accent);border-color:var(--accent);font-weight:600}
+a.btn.lamp{background:var(--lamp);border-color:var(--lamp);color:#1B2230;font-weight:600;font-size:17px;min-height:52px;width:100%}
+a.btn.main{background:var(--accent);border-color:var(--accent);color:var(--on-accent);font-weight:600;flex:1}
+a.btn.ghost{background:transparent;border:1.5px solid var(--ink);color:var(--ink)}
+.unit .btn.primary{margin-left:0}
+button:disabled{cursor:default}
+
+.top{align-items:center;flex-wrap:nowrap;padding-bottom:4px}
+.top .brand{text-decoration:none;color:var(--ink)}
+.wordmark{white-space:nowrap;font:700 24px/1 'Barlow Condensed','IBM Plex Sans',sans-serif;text-transform:uppercase;letter-spacing:.01em}
+.wordmark i{font-style:italic;font-weight:600;text-transform:none;color:var(--fase)}
+.player{flex:0 1 auto;min-width:0;min-height:44px;display:flex;align-items:center;gap:8px;background:transparent;color:var(--ink);border:1.5px solid var(--ink);border-radius:999px;padding:0 14px;font:600 14px/1 'IBM Plex Sans',sans-serif;cursor:pointer;max-width:58vw}
+.player .pname{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+.player .prank{display:none}
+.player .pxp{font:400 13px/1 'IBM Plex Mono',monospace;color:var(--ink2);white-space:nowrap}
+@media (max-width:919px){.wordmark{font-size:21px}.player{max-width:44vw}}
+@media (min-width:920px){.player .prank{display:inline;font-weight:500;color:var(--ink2)}.player .pname::after{content:" ·";color:var(--ink2)}}
+
+/* mappa */
+.homegrid{display:grid;grid-template-columns:minmax(0,1fr);gap:20px;align-items:start}
+@media (min-width:920px){.homegrid{grid-template-columns:minmax(0,1fr) 340px;gap:40px}.homeside{position:sticky;top:12px}.only-narrow{display:none}}
+@media (max-width:919px){.homeside .cont{display:none}}
+.homemain,.homeside{display:flex;flex-direction:column;gap:20px;min-width:0}
+.kick{font:500 12px/1 'IBM Plex Mono',ui-monospace,monospace;letter-spacing:.1em;text-transform:uppercase;color:var(--ink2)}
+.cont{background:var(--quadro);color:#F3EFE6;border-radius:12px;padding:20px;display:flex;flex-direction:column;gap:12px}
+.cont .kick{color:#8CC3F2}
+.cont h2{font:700 34px/1 'Barlow Condensed',sans-serif;text-transform:uppercase}
+.cont p{color:#D8D4CA}
+.mhead{display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:4px 12px;margin-bottom:10px}
+.mhead h2{font:700 32px/1.05 'Barlow Condensed',sans-serif;text-transform:uppercase}
+.count{font:400 12px/1 'IBM Plex Mono',monospace;color:var(--ink2)}
+.rail{list-style:none;margin:0;padding:0 0 0 42px;position:relative;display:flex;flex-direction:column;gap:12px}
+.rail::before{content:"";position:absolute;left:9px;top:16px;bottom:16px;width:12px;background:linear-gradient(90deg,var(--fase) 0 5px,transparent 5px 7px,var(--neutro) 7px 12px)}
+.lvcard{position:relative}
+.node{position:absolute;left:-42px;top:16px;width:28px;height:28px;border-radius:50%;background:var(--card);border:3px solid var(--ink2)}
+.lvcard.cur .node{border-color:var(--lamp)}
+.lvcard[data-status="completato"] .node{background:var(--lamp);border-color:var(--ink)}
+.lvcard[data-status="saltato"] .node{background:var(--terra);border-color:#2F6A17}
+.lvcard.soon .node{border-style:dashed;border-color:#9AA1AE}
+.lvbody{background:var(--card);border:1.5px solid var(--line);border-radius:10px;padding:14px 14px 14px 16px;display:flex;flex-direction:column;gap:10px}
+.lvcard.cur .lvbody{border-color:var(--ink)}
+.lvcard.soon .lvbody{border-style:dashed;background:transparent}
+.lvhead{display:flex;align-items:flex-start;justify-content:space-between;gap:10px}
+.lvhead .code{font:400 12px/1 'IBM Plex Mono',monospace;color:var(--ink2)}
+.lvhead h3{margin:2px 0 0;font:700 24px/1.05 'Barlow Condensed',sans-serif;text-transform:uppercase}
+.lvbody p{font-size:14px;line-height:1.4;color:var(--ink2)}
+.lvact{display:flex;gap:8px;flex-wrap:wrap}
+.starrow{display:flex;gap:4px}
+.pill.st-completato{background:var(--lamp);color:#1B2230}
+.pill.st-saltato{background:#2F6A17;color:#fff}
+.pill.st-in-corso{background:var(--ink);color:var(--bg)}
+.pill.st-soon{background:transparent;border:1px solid var(--line);color:var(--ink2)}
+.pill[class*="st-"]{font-family:'IBM Plex Sans',sans-serif;font-weight:600;font-size:12px;white-space:nowrap;padding:4px 10px;border-radius:999px}
+.upcoming{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px}
+.upc{border:1.5px dashed #9AA1AE;border-radius:10px;padding:14px 16px}
+.uphead{display:flex;justify-content:space-between;gap:8px}
+.soonl{font-size:12px;font-weight:600;color:var(--ink2)}
+.upc h3{margin:4px 0 0;font:700 24px/1.1 'Barlow Condensed',sans-serif;text-transform:uppercase}
+.upc p{font-size:14px;color:var(--ink2);margin-top:4px}
+.tools{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+@media (min-width:920px){.tools{grid-template-columns:1fr}}
+.tool{min-height:52px;background:var(--card);color:var(--ink);border:1.5px solid var(--line);border-radius:10px;padding:8px 12px;font:600 14px/1.2 'IBM Plex Sans',sans-serif;cursor:pointer;text-align:center}
+@media (min-width:920px){.tool{text-align:left;padding:0 16px;min-height:48px;font-size:15px}}
+.tool:disabled{color:var(--ink2);border-style:dashed;background:transparent}
+.tool small{font-weight:500}
+
+/* barra in basso (telefono) e piè di pagina (computer) */
+.tabbar{display:none}
+.sitefooter{display:none}
+@media (max-width:919px){
+  body{padding-bottom:calc(86px + env(safe-area-inset-bottom,0px))}
+  .tabbar{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:4px;position:fixed;left:0;right:0;bottom:0;z-index:20;background:var(--bg);border-top:1.5px solid var(--ink);padding:6px 8px calc(10px + env(safe-area-inset-bottom,0px))}
+  .tab{min-height:52px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;text-decoration:none;color:var(--ink2);font:500 12px/1 'IBM Plex Sans',sans-serif}
+  .tab[aria-current="page"]{color:var(--ink);font-weight:600}
+  .tab.dis{opacity:.5}
+}
+@media (min-width:920px){
+  .sitefooter{display:block;border-top:1.5px solid var(--ink);padding-top:28px;margin-top:24px}
+  .fwrap{display:flex;flex-wrap:wrap;gap:32px 64px;justify-content:space-between}
+  .fabout{flex:1 1 240px;max-width:320px}
+  .fabout p{font-size:14px;color:var(--ink2);margin-top:8px}
+  .fcols{display:flex;flex-wrap:wrap;gap:32px 64px}
+  .fcol{display:flex;flex-direction:column;gap:8px}
+  .ftitle{font:500 12px/1 'IBM Plex Mono',monospace;letter-spacing:.1em;color:var(--ink2);margin-bottom:2px}
+  .fbtn{min-height:44px;display:flex;align-items:center;gap:6px;padding:0 18px;border:1.5px solid var(--ink);background:var(--card);border-radius:8px;font:600 15px/1 'IBM Plex Sans',sans-serif;color:var(--ink);text-decoration:none;cursor:pointer}
+  .fbtn.dis{border-style:dashed;border-color:var(--line);color:var(--ink2);cursor:default}
+  .fbtn small{font-weight:500}
+}
+
+/* livello */
+.levelbar{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:10px}
+.back{min-height:44px;display:inline-flex;align-items:center;font-weight:600;color:var(--ink);text-decoration:none}
+.lvtag{font:400 13px/1 'IBM Plex Mono',monospace;color:var(--ink2);text-align:right}
+.unit .kick{color:var(--accent);margin-bottom:6px}
+.unit h2{font:700 26px/1.1 'Barlow Condensed',sans-serif;text-transform:uppercase}
+.unit p{color:var(--ink2);margin-top:8px;max-width:62ch}
+.unit .note{font-size:14px}
+.lessonart{margin:10px 0 4px;border:1px solid var(--line);border-radius:10px;background:var(--bg);padding:6px}
+.lessonart svg,.introart svg{display:block;width:100%;height:auto}
+.uact{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px}
+.opts{display:flex;flex-direction:column;gap:8px;margin-top:12px}
+.opt{text-align:left;min-height:48px;padding:10px 14px;background:var(--card);color:var(--ink);border:1.5px solid var(--line);border-radius:10px;font:500 16px/1.3 'IBM Plex Sans',sans-serif;cursor:pointer}
+.opt:hover:not(:disabled){border-color:var(--ink)}
+.opt.right{border-color:var(--ok);box-shadow:0 0 0 1px var(--ok) inset}
+.opt.wrong{border-color:var(--bad);box-shadow:0 0 0 1px var(--bad) inset}
+.opt:disabled{color:var(--ink)}
+.fb{border-left:4px solid var(--line);padding-left:12px}
+.fb.ok{border-left-color:var(--ok)}.fb.ko{border-left-color:var(--bad)}
+.guide{margin-top:12px;background:var(--chip);border-radius:10px;padding:12px 14px}
+.guide p{margin-top:4px;color:var(--ink)}
+.xpline{margin-top:6px;font-size:14px;color:var(--ink2)}
+.phase-learn .roomcard,.phase-learn .benchcard,.phase-learn .res{display:none}
+.phase-learn .info{display:none}
+.verify .goal .kick{color:var(--warn)}
+
+/* corrente visibile */
+.halo-w{fill:none;stroke-width:18;stroke-linecap:round;pointer-events:none}
+.halo-w.f{stroke:#E9A15F;stroke-opacity:.5}.halo-w.n{stroke:#8CC3F2;stroke-opacity:.6}
+.flow.cur{stroke-width:3}
+.stop{fill:none;stroke:var(--bad);stroke-width:3;stroke-dasharray:5 5;pointer-events:none;animation:pulse2 1.2s ease-in-out infinite}
+@keyframes pulse2{50%{opacity:.35}}
+.ghost.guide{stroke-width:6;stroke-dasharray:2 9;opacity:1;animation:guidepulse 1.4s ease-in-out infinite}
+@keyframes guidepulse{50%{opacity:.35}}
+.flowlegend{display:flex;flex-wrap:wrap;gap:6px 14px;margin-top:8px;font-size:13px;color:var(--ink2)}
+.flowlegend span{display:inline-flex;align-items:center;gap:6px}
+.lg{display:inline-block;width:26px;height:10px;border-radius:5px;border:1px solid var(--wire-edge)}
+.lg.f{background:#E9A15F}.lg.n{background:#8CC3F2}.lg.c{background:repeating-linear-gradient(90deg,#8B4A24 0 5px,#FFE08A 5px 7px)}
+.lg.s{border:2px dashed var(--bad);background:transparent;width:14px;height:14px;border-radius:50%}
+.art-dots{animation:artflow 1.1s linear infinite}
+@keyframes artflow{to{stroke-dashoffset:-13}}
+.art-glow{animation:artglow 2.4s ease-in-out infinite}
+@keyframes artglow{50%{opacity:.14}}
+@media (prefers-reduced-motion:reduce){.art-dots,.art-glow,.stop,.ghost.guide{animation:none}}
+
+/* finestre */
+.overlay{position:fixed;inset:0;z-index:60;background:rgba(15,20,30,.55);display:flex;align-items:flex-start;justify-content:center;padding:16px;overflow:auto}
+.overlay[hidden]{display:none}
+@media (min-height:42rem){.overlay{align-items:center}}
+.mcard,.introcard{background:var(--card);color:var(--ink);border:1.5px solid var(--ink);border-radius:12px;width:100%;max-width:560px;padding:20px;box-shadow:0 18px 50px rgba(0,0,0,.35)}
+.mtop{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:10px}
+.mtop h2,.namecard h2{font:700 28px/1.05 'Barlow Condensed',sans-serif;text-transform:uppercase}
+.mbody p{margin-top:8px;color:var(--ink2)}
+.legend{list-style:none;margin:12px 0 0;padding:0;display:flex;flex-direction:column;gap:12px}
+.legend li{display:grid;grid-template-columns:90px 1fr;gap:12px;align-items:center}
+.legend b{display:block}.legend span{font-size:14px;color:var(--ink2)}
+.gloss{margin:8px 0 0}.gloss dt{font-weight:600;margin-top:12px}.gloss dd{margin:2px 0 0;color:var(--ink2);font-size:15px}
+.namecard{display:flex;flex-direction:column;gap:10px}
+.namecard p{color:var(--ink2)}
+.namecard label{font-weight:600;font-size:14px}
+.namecard input{min-height:48px;font:500 18px/1 'IBM Plex Sans',sans-serif;padding:0 12px;border:1.5px solid var(--ink);border-radius:8px;background:var(--bg);color:var(--ink)}
+.mact{display:flex;flex-wrap:wrap;gap:8px;margin-top:6px}
+.introcard{max-width:640px;padding:0;overflow:hidden}
+.introart{background:var(--bg);border-bottom:1.5px solid var(--ink);padding:10px}
+.introbody{padding:18px 20px 20px;display:flex;flex-direction:column;gap:12px}
+.introbody .kick{color:var(--accent)}
+.introtext{font-size:18px;line-height:1.5;animation:introin .6s ease both}
+@keyframes introin{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion:reduce){.introtext{animation:none}}
+.dots{display:flex;gap:6px}
+.dots i{width:9px;height:9px;border-radius:50%;background:var(--line)}
+.dots i.done{background:var(--ink2)}.dots i.now{background:var(--accent)}
+.introact{display:flex;flex-wrap:wrap;gap:8px}
 </style>
 </head>
 <body>
+<a class="skip" href="#main">Vai al contenuto</a>
 <div class="wrap">
-  <header class="top">
-    <div class="brand">
-      <svg width="30" height="30" viewBox="0 0 30 30" aria-hidden="true"><rect x="1" y="1" width="28" height="28" rx="7" fill="var(--accent)"/><path d="M17 5 9 17h6l-2 8 8-12h-6z" fill="var(--on-accent)"/></svg>
-      <h1>Laboratorio elettrico</h1>
-    </div>
-    <nav class="levels" id="levels" aria-label="Livelli"></nav>
-  </header>
+  <header class="top" id="appbar"></header>
 
-  <main class="grid">
-    <section class="col left" aria-label="Stanza">
-      <div class="card goal"><div class="kicker" id="kick"></div><h2 id="lvName"></h2><p id="lvGoal"></p></div>
-      <div class="card roomcard">
-        <svg id="room" viewBox="0 0 400 250" preserveAspectRatio="xMidYMid slice" role="img" aria-label="Stanza con la luce da accendere"></svg>
-        <div class="status" id="status"></div>
-      </div>
-      <div class="card info" id="info"></div>
-    </section>
+  <main id="main" tabindex="-1">
+    <section id="screen-home" hidden aria-label="Mappa dei livelli"></section>
 
-    <section class="col" aria-label="Banco di lavoro">
-      <div class="card benchcard">
-        <div class="mode" role="group" aria-label="Punto di partenza"><span class="mlabel">Parti dal</span><button class="chip seg" data-mode="quadro" aria-pressed="true">Quadro</button><button class="chip seg" data-mode="contatore" aria-pressed="false">Contatore</button><span class="mlabel hint">il contatore è la versione completa</span></div>
-        <div class="palette" id="palette" role="group" aria-label="Colore del filo"></div>
-        <p class="tip">Scegli il colore, poi tocca due morsetti per collegarli (o trascina). Tocca un filo per toglierlo. Per provare: dai corrente dal quadro e tocca l’interruttore.</p>
-        <svg id="bench" role="img" aria-label="Banco di lavoro con i componenti da collegare"></svg>
-        <div class="actions">
-          <button class="btn" id="bUndo">Annulla filo</button>
-          <button class="btn" id="bClear">Svuota</button>
-          <button class="btn" id="bHint">Suggerimento</button>
-          <button class="btn" id="bSol" aria-pressed="false">Mostra soluzione</button>
-          <button class="btn primary" id="bCheck">Verifica</button>
-        </div>
+    <section id="screen-level" hidden aria-label="Livello">
+      <div class="levelbar"><a class="back" href="#/home">&larr; Mappa</a><span class="lvtag" id="lvTag"></span></div>
+      <div class="grid">
+        <section class="col left" aria-label="Stanza">
+          <div class="card goal unit" id="unit"></div>
+          <div class="card roomcard">
+            <svg id="room" viewBox="0 0 400 250" preserveAspectRatio="xMidYMid slice" role="img" aria-label="Stanza con la luce da accendere"></svg>
+            <div class="status" id="status"></div>
+          </div>
+          <div class="card info" id="info"></div>
+        </section>
+
+        <section class="col" aria-label="Banco di lavoro">
+          <div class="card benchcard">
+            <div class="mode" id="modeBar" role="group" aria-label="Punto di partenza"><span class="mlabel">Parti dal</span><button class="chip seg" data-mode="quadro" aria-pressed="true">Quadro</button><button class="chip seg" data-mode="contatore" aria-pressed="false">Contatore</button><span class="mlabel hint">il contatore è la versione completa</span></div>
+            <div class="palette" id="palette" role="group" aria-label="Colore del filo"></div>
+            <p class="tip">Scegli il colore, poi tocca due morsetti per collegarli (o trascina). Tocca un filo per toglierlo. Per provare: dai corrente dal quadro e tocca l’interruttore.</p>
+            <svg id="bench" role="img" aria-label="Banco di lavoro con i componenti da collegare"></svg>
+            <div class="flowlegend" id="flowLegend" hidden></div>
+            <div class="actions">
+              <button class="btn" id="bUndo">Annulla filo</button>
+              <button class="btn" id="bClear">Svuota</button>
+              <button class="btn" id="bFlow" aria-pressed="false" hidden>Mostra la corrente</button>
+              <button class="btn" id="bHint">Suggerimento</button>
+              <button class="btn" id="bSol" aria-pressed="false">Mostra soluzione</button>
+              <button class="btn primary" id="bCheck">Verifica</button>
+            </div>
+          </div>
+          <div class="card res" id="result" aria-live="polite"></div>
+        </section>
       </div>
-      <div class="card res" id="result" aria-live="polite"></div>
     </section>
   </main>
+
+  <footer class="sitefooter" id="footer"></footer>
 </div>
+<nav class="tabbar" id="tabbar" aria-label="Navigazione"></nav>
+<div class="overlay" id="overlay" hidden></div>
 <script>
 (() => {
   // src/engine/wires.js
@@ -455,12 +629,12 @@ button.btn.primary{background:var(--accent);color:var(--on-accent);border-color:
 
   // src/engine/full.js
   var NAMES = { F: "FASE", N: "NEUTRO", PE: "TERRA" };
-  function buildFull(base, text) {
+  function buildFull(base, text2) {
     const lv = JSON.parse(JSON.stringify(base));
     const earthThrough = !!base.earth;
     const order = earthThrough ? ["F", "PE", "N"] : ["N", "F", "PE"];
-    const K = { id: "K", type: "cont", ...text.components.K, terms: {} };
-    const Q = { id: "Q", type: "quadro", full: true, ...text.components.Q, terms: {} };
+    const K = { id: "K", type: "cont", ...text2.components.K, terms: {} };
+    const Q = { id: "Q", type: "quadro", full: true, ...text2.components.Q, terms: {} };
     order.forEach((k) => {
       K.terms[k] = { l: NAMES[k], n: NAMES[k] };
       Q.terms[k + "i"] = { l: NAMES[k], n: NAMES[k] + " (ingresso)" };
@@ -475,9 +649,159 @@ button.btn.primary{background:var(--accent);color:var(--on-accent);border-color:
     );
     if (lv.earth) lv.earth = ["K.PE", lv.earth[1]];
     else lv.mustEarth = ["K.PE", "Q.PEi"];
-    lv.hints = [text.hint].concat(base.hints);
-    lv.goal = base.goal + text.goalSuffix;
+    lv.hints = [text2.hint].concat(base.hints);
+    lv.goal = base.goal + text2.goalSuffix;
     return lv;
+  }
+
+  // src/engine/flow.js
+  var MAX_PATHS = 5e4;
+  var MAX_STEPS = 2e5;
+  function flowOf(level, wires, states) {
+    const an = analyse(level, wires, states);
+    const sr = sourceOf(level);
+    const edges = [];
+    wires.forEach((w) => edges.push({ a: w.a, b: w.b, kind: "wire", key: w.id }));
+    level.comps.forEach(
+      (c2) => contactsOf(c2, states && states[c2.id] || 0).forEach(
+        ([x, y]) => edges.push({ a: c2.id + "." + x, b: c2.id + "." + y, kind: "contact", key: c2.id + "." + x + "-" + y })
+      )
+    );
+    const loadEdge = { a: level.load[0], b: level.load[1], kind: "load", key: "load" };
+    const degree = {};
+    edges.forEach((e) => {
+      degree[e.a] = (degree[e.a] || 0) + 1;
+      degree[e.b] = (degree[e.b] || 0) + 1;
+    });
+    const out = { wires: {}, contacts: {}, deadEnds: [], current: false };
+    wires.forEach((w) => {
+      out.wires[w.id] = { net: potentialOf(an, w.a), current: false };
+    });
+    if (an.lit) {
+      const all = edges.concat([loadEdge]);
+      const adj = {};
+      all.forEach((e, i) => {
+        (adj[e.a] = adj[e.a] || []).push([e.b, i]);
+        (adj[e.b] = adj[e.b] || []).push([e.a, i]);
+      });
+      const loadIdx = all.length - 1;
+      const onPath = /* @__PURE__ */ new Set();
+      let count = 0;
+      let steps = 0;
+      const seen = /* @__PURE__ */ new Set();
+      const stack = [];
+      const dfs = (node) => {
+        if (count > MAX_PATHS || ++steps > MAX_STEPS) return;
+        if (node === sr.N) {
+          if (stack.includes(loadIdx)) {
+            count++;
+            stack.forEach((i) => onPath.add(i));
+          }
+          return;
+        }
+        for (const [next, i] of adj[node] || []) {
+          if (seen.has(next)) continue;
+          seen.add(next);
+          stack.push(i);
+          dfs(next);
+          stack.pop();
+          seen.delete(next);
+        }
+      };
+      seen.add(sr.F);
+      dfs(sr.F);
+      onPath.forEach((i) => {
+        const e = all[i];
+        if (e.kind === "wire") out.wires[e.key].current = true;
+        else if (e.kind === "contact") out.contacts[e.key] = true;
+      });
+      out.current = onPath.size > 0;
+    } else {
+      const sources = /* @__PURE__ */ new Set([sr.F, sr.N, sr.PE]);
+      const loads = new Set(level.load);
+      Object.keys(degree).forEach((t) => {
+        const pot = potentialOf(an, t);
+        if ((pot === "F" || pot === "N") && degree[t] === 1 && !sources.has(t) && !loads.has(t)) out.deadEnds.push(t);
+      });
+      level.load.forEach((t) => {
+        const pot = potentialOf(an, t);
+        if ((pot === "F" || pot === "N") && degree[t] === 1) out.deadEnds.push(t);
+      });
+      const rank = (t) => potentialOf(an, t) === "F" ? 0 : 1;
+      out.deadEnds = [...new Set(out.deadEnds)].sort((x, y) => rank(x) - rank(y) || (x < y ? -1 : x > y ? 1 : 0));
+    }
+    return out;
+  }
+
+  // src/engine/progress.js
+  var PROGRESS_VERSION = 2;
+  function emptyProgress() {
+    return { v: PROGRESS_VERSION, stars: {}, best: {}, last: null };
+  }
+  function migrateProgress(data, levels2) {
+    if (!data || typeof data !== "object") return emptyProgress();
+    if (data.v >= PROGRESS_VERSION) {
+      const out2 = emptyProgress();
+      const isObj = (o) => o && typeof o === "object" && !Array.isArray(o);
+      const num = (x, max) => {
+        const n = Math.floor(Number(x));
+        return n >= 0 ? Math.min(n, max) : 0;
+      };
+      if (isObj(data.stars)) Object.keys(data.stars).forEach((k) => {
+        out2.stars[k] = num(data.stars[k], 3);
+      });
+      if (isObj(data.best)) {
+        Object.keys(data.best).forEach((k) => {
+          const r = data.best[k];
+          if (!isObj(r)) return;
+          out2.best[k] = { base: num(r.base, 110), pred: r.pred === true, fault: r.fault === true, skipped: r.skipped === true };
+        });
+      }
+      out2.last = typeof data.last === "string" ? data.last : null;
+      return out2;
+    }
+    const out = emptyProgress();
+    const byN = {};
+    levels2.forEach((l) => {
+      if (l.n > 0) byN[l.n] = l.id;
+    });
+    Object.keys(data).forEach((k) => {
+      const m = /^(\d+)(c?)$/.exec(k);
+      const stars = Number(data[k]);
+      if (!m || !byN[m[1]] || !(stars >= 0 && stars <= 3)) return;
+      out.stars[byN[m[1]] + m[2]] = Math.floor(stars);
+    });
+    return out;
+  }
+  var XP = { work: 40, color: 30, safe: 30, noHint: 10, hintCost: 5, solutionCap: 30, prediction: 10, fault: 20 };
+  function attemptBase(result, usage) {
+    let base = (result.work.ok ? XP.work : 0) + (result.color.ok ? XP.color : 0) + (result.safe.ok ? XP.safe : 0);
+    if (usage.solution) base = Math.min(base, XP.solutionCap);
+    base = Math.max(0, base - XP.hintCost * usage.hints);
+    if (result.pass && !usage.solution && usage.hints === 0) base += XP.noHint;
+    return base;
+  }
+  function xpOf(rec) {
+    if (!rec) return 0;
+    return (rec.base || 0) + (rec.pred ? XP.prediction : 0) + (rec.fault ? XP.fault : 0);
+  }
+  function totalXp(progress) {
+    return Object.keys(progress.best).reduce((sum, k) => sum + xpOf(progress.best[k]), 0);
+  }
+  var RANKS = [
+    { id: "apprendista", min: 0 },
+    { id: "aiutante", min: 100 },
+    { id: "operatore", min: 250 },
+    { id: "installatore", min: 450 },
+    { id: "collaudatore", min: 700 }
+  ];
+  function rankOf(xp) {
+    let i = 0;
+    RANKS.forEach((r, k) => {
+      if (xp >= r.min) i = k;
+    });
+    const next = RANKS[i + 1] || null;
+    return { id: RANKS[i].id, index: i, min: RANKS[i].min, next: next && { id: next.id, min: next.min } };
   }
 
   // src/engine/session.js
@@ -494,15 +818,19 @@ button.btn.primary{background:var(--accent);color:var(--on-accent);border-color:
     const statesByKey = {};
     const resultsByKey = {};
     const usageByKey = {};
+    const unitByKey = {};
     let nextWireId = 1;
-    let progress = {};
+    let progress;
     try {
-      progress = storage2.load() || {};
+      progress = migrateProgress(storage2.load(), levels2);
     } catch (e) {
-      progress = {};
+      progress = migrateProgress(null, levels2);
     }
-    let levelIndex = initialLevel;
+    const indexOf = (x) => typeof x === "number" ? x : levels2.findIndex((l) => l.id === x);
+    let levelIndex = Math.min(levels2.length - 1, Math.max(0, indexOf(initialLevel)));
     let mode = "quadro";
+    let playMode = "apprendimento";
+    let flowOnDemand = false;
     let power = false;
     let trip = false;
     let message = null;
@@ -510,7 +838,7 @@ button.btn.primary{background:var(--accent);color:var(--on-accent);border-color:
     let solutionShown = false;
     const listeners = /* @__PURE__ */ new Set();
     const keyOf = (i = levelIndex, m = mode) => i + "|" + m;
-    const progressKey = (n, m = mode) => n + (m === "contatore" ? "c" : "");
+    const progressKey = (id, m = mode) => id + (m === "contatore" ? "c" : "");
     const levelAt = (i = levelIndex, m = mode) => {
       const k = keyOf(i, m);
       return levelCache[k] || (levelCache[k] = m === "contatore" ? deriveFull2(levels2[i]) : levels2[i]);
@@ -518,15 +846,48 @@ button.btn.primary{background:var(--accent);color:var(--on-accent);border-color:
     const wires = () => wiresByKey[keyOf()] || (wiresByKey[keyOf()] = []);
     const states = () => statesByKey[keyOf()] || (statesByKey[keyOf()] = {});
     const usage = () => usageByKey[keyOf()] || (usageByKey[keyOf()] = { hints: 0, solution: false, checks: 0 });
+    const startPhase = (i = levelIndex) => {
+      const l = levels2[i];
+      const b = progress.best[progressKey(l.id)];
+      const seen = progress.stars[progressKey(l.id)] > 0 || b && b.pred;
+      return l.unit && playMode === "apprendimento" && !seen ? "lesson" : "build";
+    };
+    const unitState = () => unitByKey[levelIndex] || (unitByKey[levelIndex] = { phase: startPhase(), pred: null, diag: null, faultSolved: false });
+    const dropUnitState = () => {
+      delete unitByKey[levelIndex];
+    };
+    const save = () => {
+      try {
+        storage2.save(progress);
+      } catch (e) {
+      }
+    };
+    const record = () => progress.best[progressKey(levelAt().id)] || (progress.best[progressKey(levelAt().id)] = { base: 0, pred: false, fault: false, skipped: false });
+    function guideStep(level, ws, phase) {
+      if (!level.unit || !level.unit.guided || phase !== "build" || playMode !== "apprendimento") return null;
+      const has = ([a, b]) => ws.some((w) => w.a === a && w.b === b || w.a === b && w.b === a);
+      const k = level.unit.guided.findIndex((g) => !has(g.wire));
+      return k < 0 ? null : { index: k, total: level.unit.guided.length, wire: level.unit.guided[k].wire, say: level.unit.guided[k].say };
+    }
+    function flowVisible(level) {
+      if (playMode !== "apprendimento") return false;
+      if (level.flow === "always") return true;
+      if (level.flow === "onDemand") return flowOnDemand;
+      return false;
+    }
     function snapshot() {
       const level = levelAt();
       const analysis = analyse(level, wires(), states());
+      const us = level.unit ? unitState() : null;
+      const total = totalXp(progress);
+      const phase = us ? us.phase : "build";
       return {
         levelKey: keyOf(),
         level,
         levelIndex,
         levelCount: levels2.length,
         mode,
+        playMode,
         wires: wires().slice(),
         controlStates: { ...states() },
         power,
@@ -536,14 +897,28 @@ button.btn.primary{background:var(--accent);color:var(--on-accent);border-color:
         fault: analysis.fault,
         // 'F' | 'N' | 'PE' | null per il morsetto dato (indipendente da power)
         potential: (tid) => potentialOf(analysis, tid),
+        // dove passa la corrente (vedi flow.js); la vista lo mostra solo se flowVisible
+        flow: flowOf(level, wires(), states()),
+        flowVisible: flowVisible(level),
         result: resultsByKey[keyOf()] || null,
         solutionShown,
-        levels: levels2.map((l, i) => ({
-          index: i,
-          n: l.n,
-          name: l.name,
-          stars: progress[progressKey(l.n)] || 0
-        })),
+        unit: us && {
+          phase,
+          pred: us.pred && { ...us.pred },
+          diag: us.diag && { ...us.diag },
+          faultSolved: us.faultSolved,
+          hasFault: !!level.unit.fault
+        },
+        guide: guideStep(level, wires(), phase),
+        levels: levels2.map((l, i) => {
+          const pk = progressKey(l.id);
+          const rec = progress.best[pk];
+          const stars = progress.stars[pk] || 0;
+          const status = rec && rec.skipped && stars >= 3 ? "saltato" : stars >= 3 ? "completato" : stars > 0 || rec ? "in corso" : "nuovo";
+          return { index: i, id: l.id, code: l.code, n: l.n, name: l.name, title: l.title, goal: l.goal, blurb: l.blurb, stars, status, xp: xpOf(rec), hasUnit: !!l.unit };
+        }),
+        last: progress.last,
+        player: { xp: total, rank: rankOf(total) },
         usage: { ...usage() }
       };
     }
@@ -557,6 +932,7 @@ button.btn.primary{background:var(--accent);color:var(--on-accent);border-color:
       message = null;
       hintIndex = -1;
       solutionShown = false;
+      flowOnDemand = false;
     }
     function applyLive() {
       const cur = analyse(levelAt(), wires(), states());
@@ -578,6 +954,10 @@ button.btn.primary{background:var(--accent);color:var(--on-accent);border-color:
         message = null;
       }
     }
+    const inBuildOrFault = () => {
+      const l = levelAt();
+      return !l.unit || !["lesson", "prediction"].includes(unitState().phase);
+    };
     return {
       snapshot,
       subscribe(fn) {
@@ -587,10 +967,24 @@ button.btn.primary{background:var(--accent);color:var(--on-accent);border-color:
       start() {
         emit();
       },
-      selectLevel(i) {
+      // Apre un livello (indice o id). Con { verify: true } e' una prova di salto: senza lezione e senza aiuti.
+      selectLevel(x, opts = {}) {
+        const i = indexOf(x);
         if (i < 0 || i >= levels2.length) return;
         levelIndex = i;
+        const wasVerify = playMode === "verifica";
+        playMode = opts.verify ? "verifica" : "apprendimento";
+        if (wasVerify || unitByKey[i] && unitByKey[i].phase === "fault") dropUnitState();
         resetLevelState();
+        if (opts.verify) {
+          wiresByKey[keyOf()] = [];
+          statesByKey[keyOf()] = {};
+          resultsByKey[keyOf()] = null;
+          usageByKey[keyOf()] = { hints: 0, solution: false, checks: 0 };
+          unitByKey[levelIndex] = { phase: "build", pred: null, diag: null, faultSolved: false };
+        }
+        progress.last = levels2[i].id;
+        save();
         emit();
       },
       nextLevel() {
@@ -599,12 +993,19 @@ button.btn.primary{background:var(--accent);color:var(--on-accent);border-color:
       setMode(m) {
         if (!MODES.includes(m) || m === mode) return;
         mode = m;
+        const us = unitByKey[levelIndex];
+        if (us && us.phase === "fault") {
+          us.phase = "done";
+          us.diag = null;
+        } else if (playMode === "verifica") dropUnitState();
+        playMode = "apprendimento";
         resetLevelState();
         emit();
       },
       // Collega a-b con il colore dato; se il filo esiste gia' lo toglie.
       addWire(a, b, color) {
         if (!a || !b || a === b) return;
+        if (!inBuildOrFault()) return;
         const ws = wires();
         const k = ws.findIndex((w) => w.a === a && w.b === b || w.a === b && w.b === a);
         wiresChanged();
@@ -613,6 +1014,7 @@ button.btn.primary{background:var(--accent);color:var(--on-accent);border-color:
         emit();
       },
       removeWire(id) {
+        if (!inBuildOrFault()) return;
         const ws = wires();
         const k = ws.findIndex((x) => x.id === id);
         if (k < 0) return;
@@ -621,13 +1023,13 @@ button.btn.primary{background:var(--accent);color:var(--on-accent);border-color:
         emit();
       },
       undo() {
-        if (!wires().length) return;
+        if (!wires().length || !inBuildOrFault()) return;
         wiresChanged();
         wires().pop();
         emit();
       },
       clear() {
-        if (!wires().length) return;
+        if (!wires().length || !inBuildOrFault()) return;
         wiresChanged();
         wiresByKey[keyOf()] = [];
         statesByKey[keyOf()] = {};
@@ -656,40 +1058,148 @@ button.btn.primary{background:var(--accent);color:var(--on-accent);border-color:
         applyLive();
         emit();
       },
+      // Livelli con corrente "a richiesta": mostra o nasconde i fili percorsi.
+      toggleFlow() {
+        flowOnDemand = !flowOnDemand;
+        emit();
+      },
       check() {
         const level = levelAt();
         const r = evaluate(level, wires());
         resultsByKey[keyOf()] = r;
-        usage().checks++;
-        const pk = progressKey(level.n);
-        if ((progress[pk] || 0) < r.stars) {
-          progress[pk] = r.stars;
-          try {
-            storage2.save(progress);
-          } catch (e) {
+        const u = usage();
+        u.checks++;
+        const pk = progressKey(level.id);
+        const rec = record();
+        const prevStars = progress.stars[pk] || 0;
+        if (prevStars < r.stars) progress.stars[pk] = r.stars;
+        const inFault = level.unit && unitState().phase === "fault";
+        if (!inFault) rec.base = Math.max(rec.base, attemptBase(r, u));
+        if (r.pass && playMode === "verifica" && prevStars < 3) rec.skipped = true;
+        if (level.unit) {
+          const us = unitState();
+          if (r.pass && us.phase === "build") us.phase = "done";
+          if (r.pass && us.phase === "fault" && us.diag && us.diag.correct && !us.diagWrong) {
+            us.faultSolved = true;
+            rec.fault = true;
+            us.phase = "done";
           }
         }
+        progress.last = level.id;
+        save();
         emit();
         return r;
       },
       // Suggerimento successivo (a rotazione). Non cambia il circuito, quindi non emette.
+      // In verifica non ci sono suggerimenti.
       requestHint() {
+        if (playMode === "verifica") return null;
         const hints = levelAt().hints;
         hintIndex = (hintIndex + 1) % hints.length;
         usage().hints++;
         return { index: hintIndex, total: hints.length, text: hints[hintIndex] };
       },
       toggleSolution() {
+        if (playMode === "verifica") return;
         solutionShown = !solutionShown;
         if (solutionShown) usage().solution = true;
+        emit();
+      },
+      /* ---------- unita' didattica ---------- */
+      // lezione -> previsione -> cablaggio
+      unitNext() {
+        const level = levelAt();
+        if (!level.unit) return;
+        const us = unitState();
+        if (us.phase === "lesson") us.phase = "prediction";
+        else if (us.phase === "prediction" && us.pred) us.phase = "build";
+        emit();
+      },
+      showLesson() {
+        if (!levelAt().unit || playMode === "verifica") return;
+        unitState().phase = "lesson";
+        emit();
+      },
+      answerPrediction(optionId) {
+        const level = levelAt();
+        const us = level.unit && unitState();
+        if (!us || us.phase !== "prediction" || us.pred) return;
+        const correct = level.unit.prediction.correct === optionId;
+        us.pred = { option: optionId, correct };
+        if (correct) {
+          record().pred = true;
+          save();
+        }
+        emit();
+      },
+      // Sfida guasto: si parte da un impianto gia' cablato che non funziona.
+      startFault() {
+        const level = levelAt();
+        const us = level.unit && level.unit.fault && unitState();
+        if (!us || !["done", "fault"].includes(us.phase) || playMode === "verifica" || mode !== "quadro") return;
+        resetLevelState();
+        wiresByKey[keyOf()] = level.unit.fault.wires.map(([a, b, c2]) => ({ id: nextWireId++, a, b, c: c2 }));
+        statesByKey[keyOf()] = {};
+        resultsByKey[keyOf()] = null;
+        us.phase = "fault";
+        us.diag = null;
+        emit();
+      },
+      answerDiagnosis(optionId) {
+        const level = levelAt();
+        const us = level.unit && level.unit.fault && unitState();
+        if (!us || us.phase !== "fault" || us.diag) return;
+        us.diag = { option: optionId, correct: level.unit.fault.diagnosis.correct === optionId };
+        if (!us.diag.correct) us.diagWrong = true;
+        emit();
+      },
+      leaveFault() {
+        const us = levelAt().unit && unitState();
+        if (!us || us.phase !== "fault") return;
+        us.phase = "done";
         emit();
       }
     };
   }
 
+  // src/engine/profile.js
+  var NAME_MAX = 20;
+  function cleanName(raw) {
+    const t = String(raw == null ? "" : raw).replace(/[\u0000-\u001f\u007f-\u009f<>]/g, " ").replace(/[\u200b-\u200f\u202a-\u202e\u2060-\u2064\ufeff]/g, "").replace(/\s+/g, " ").trim().trim();
+    return Array.from(t).slice(0, NAME_MAX).join("").trim();
+  }
+
   // src/content/levels.js
   var LEVELS = [
     {
+      id: "c01-circuito-chiuso",
+      code: "c01",
+      blurb: "Una lampada si accende solo se il giro \xE8 completo.",
+      flow: "always",
+      n: 0,
+      name: "Circuito chiuso",
+      title: "Il circuito chiuso",
+      goal: "Collega la lampada al quadro con due fili: la fase e il neutro. Poi dai corrente con la levetta del quadro.",
+      loadName: "La lampada",
+      comps: [
+        { id: "Q", type: "quadro", short: "Quadro", title: "Quadro elettrico", terms: { N: { l: "NEUTRO" }, F: { l: "FASE" } } },
+        { id: "L", type: "lamp", short: "Lampada", title: "Portalampada", terms: { B: { l: "B" }, A: { l: "A" } } }
+      ],
+      controls: [],
+      load: ["L.A", "L.B"],
+      room: "soffitto",
+      solution: [["Q.F", "L.A", "marrone"], ["Q.N", "L.B", "blu"]],
+      hints: [
+        "La fase (marrone) parte dal morsetto FASE del quadro e arriva a un morsetto della lampada.",
+        "Il neutro (blu) parte dal morsetto NEUTRO del quadro e arriva all\u2019altro morsetto della lampada.",
+        "Servono due fili in tutto, uno per ciascun morsetto della lampada. Poi tocca la levetta del quadro."
+      ]
+    },
+    {
+      id: "c02-presa",
+      code: "c02",
+      blurb: "Fase, neutro e terra: dove vanno e perch\xE9.",
+      flow: "always",
       n: 1,
       name: "Presa",
       title: "La presa di corrente",
@@ -712,6 +1222,10 @@ button.btn.primary{background:var(--accent);color:var(--on-accent);border-color:
       ]
     },
     {
+      id: "c03-interrotto",
+      code: "c03",
+      blurb: "Interrompere la fase, non il neutro.",
+      flow: "always",
       n: 2,
       name: "Interrotto",
       title: "Punto luce interrotto",
@@ -733,6 +1247,10 @@ button.btn.primary{background:var(--accent);color:var(--on-accent);border-color:
       ]
     },
     {
+      id: "c05-deviato",
+      code: "c05",
+      blurb: "Accendere e spegnere da due punti.",
+      flow: "onDemand",
       n: 3,
       name: "Deviato",
       title: "Punto luce deviato",
@@ -755,6 +1273,10 @@ button.btn.primary{background:var(--accent);color:var(--on-accent);border-color:
       ]
     },
     {
+      id: "c06-invertito",
+      code: "c06",
+      blurb: "Comandare la stessa luce da tre punti.",
+      flow: "onDemand",
       n: 4,
       name: "Invertito",
       title: "Punto luce invertito",
@@ -778,6 +1300,51 @@ button.btn.primary{background:var(--accent);color:var(--on-accent);border-color:
       ]
     }
   ];
+
+  // src/content/units.js
+  var UNITS = {
+    "c01-circuito-chiuso": {
+      lesson: {
+        title: "Il circuito chiuso",
+        art: "giro",
+        paras: [
+          "Una lampada si accende quando la corrente pu\xF2 attraversarla. Servono due collegamenti: uno porta la corrente alla lampada, l\u2019altro la riporta indietro.",
+          "Nell\u2019impianto di casa i due fili si chiamano fase e neutro. Per convenzione la fase \xE8 marrone (oppure nera o grigia) e il neutro \xE8 blu.",
+          "Se uno dei due collegamenti manca, il circuito \xE8 aperto: la corrente non circola e la lampada resta spenta.",
+          "Un filo pu\xF2 essere in tensione senza che passi corrente. Sul banco la tensione si vede con un alone, la corrente con i puntini che scorrono."
+        ]
+      },
+      prediction: {
+        question: "Collego solo il filo di fase alla lampada e do corrente. Che cosa succede?",
+        options: [
+          { id: "a", text: "La lampada si accende." },
+          { id: "b", text: "La lampada resta spenta." },
+          { id: "c", text: "Il quadro scatta." }
+        ],
+        correct: "b",
+        why: "La lampada resta spenta. La fase arriva a un morsetto, ma senza il neutro manca il percorso di ritorno: il circuito \xE8 aperto e non passa corrente. Il quadro non scatta, perch\xE9 non c\u2019\xE8 nessun cortocircuito."
+      },
+      guided: [
+        { wire: ["Q.F", "L.A", "marrone"], say: "Scegli il colore marrone, tocca il morsetto FASE del quadro e poi il morsetto A della lampada. Il tratteggio mostra il percorso." }
+      ],
+      afterGuide: "Ora completa il circuito: manca il collegamento di ritorno. Il neutro \xE8 blu.",
+      fault: {
+        say: "L\u2019impianto \xE8 gi\xE0 cablato ma la lampada non si accende. Dai corrente e osserva i fili.",
+        wires: [["Q.F", "L.A", "marrone"], ["Q.F", "L.B", "marrone"]],
+        diagnosis: {
+          question: "Che cosa non va?",
+          options: [
+            { id: "a", text: "Alla lampada non arriva la fase." },
+            { id: "b", text: "Alla lampada non arriva il neutro." },
+            { id: "c", text: "Il quadro \xE8 spento." }
+          ],
+          correct: "b",
+          why: "Entrambi i morsetti della lampada sono collegati alla fase. Senza il neutro la corrente non ha un percorso di ritorno."
+        },
+        fixSay: "Correggi il collegamento: il filo che arriva al morsetto B deve partire dal neutro. Poi premi Verifica."
+      }
+    }
+  };
 
   // src/content/it.js
   var COLOR_NAMES = {
@@ -897,9 +1464,22 @@ button.btn.primary{background:var(--accent);color:var(--on-accent);border-color:
         return "";
     }
   }
+  var RANK_NAMES = {
+    apprendista: "Apprendista",
+    aiutante: "Aiutante",
+    operatore: "Operatore",
+    installatore: "Installatore",
+    collaudatore: "Collaudatore"
+  };
+  var STATUS_NAMES = { nuovo: "Nuovo", "in corso": "In corso", completato: "Completato", saltato: "Saltato" };
+  function flowMessage(flow, level) {
+    if (!flow || !flow.deadEnds.length) return "";
+    const t = flow.deadEnds[0];
+    return "La tensione arriva fino a " + termName(level, t) + " e l\xEC si ferma.";
+  }
 
   // src/content/index.js
-  var levels = LEVELS;
+  var levels = LEVELS.map((l) => UNITS[l.id] ? { ...l, unit: UNITS[l.id] } : l);
   var deriveFull = (base) => buildFull(base, FULL_TEXT);
 
   // src/ui2d/layout.js
@@ -909,14 +1489,21 @@ button.btn.primary{background:var(--accent);color:var(--on-accent);border-color:
     return { x, y, w, h, terms: t, ...extra };
   };
   var BASE = {
-    1: {
+    "c01-circuito-chiuso": {
+      comps: {
+        Q: c(20, 0, 380, 100, { N: [0.12, "b"], F: [0.8, "b"] }),
+        L: c(190, 140, 210, 90, { B: [0.25, "t"], A: [0.75, "t"] })
+      },
+      plates: {}
+    },
+    "c02-presa": {
       comps: {
         Q: c(20, 0, 380, 100, { F: [0.2, "b"], PE: [0.5, "b"], N: [0.8, "b"] }),
         P: c(110, 170, 200, 120, { L: [0.2, "t"], PE: [0.5, "t"], N: [0.8, "t"] })
       },
       plates: {}
     },
-    2: {
+    "c03-interrotto": {
       comps: {
         Q: c(20, 0, 380, 100, { N: [0.12, "b"], F: [0.8, "b"] }),
         S: c(190, 140, 210, 120, { a: [0.5, "t"], b: [0.5, "b"] }),
@@ -924,7 +1511,7 @@ button.btn.primary{background:var(--accent);color:var(--on-accent);border-color:
       },
       plates: { S: { x: 344, y: 122 } }
     },
-    3: {
+    "c05-deviato": {
       comps: {
         Q: c(20, 0, 380, 100, { N: [0.12, "b"], F: [0.8, "b"] }),
         D1: c(190, 140, 210, 115, { C: [0.5, "t"], "1": [0.28, "b"], "2": [0.72, "b"] }),
@@ -933,7 +1520,7 @@ button.btn.primary{background:var(--accent);color:var(--on-accent);border-color:
       },
       plates: { D1: { x: 56, y: 122 }, D2: { x: 344, y: 122 } }
     },
-    4: {
+    "c06-invertito": {
       comps: {
         Q: c(20, 0, 380, 100, { N: [0.12, "b"], F: [0.8, "b"] }),
         D1: c(190, 140, 210, 112, { C: [0.5, "t"], "1": [0.28, "b"], "2": [0.72, "b"] }),
@@ -944,9 +1531,9 @@ button.btn.primary{background:var(--accent);color:var(--on-accent);border-color:
       plates: { D1: { x: 56, y: 122 }, I: { x: 200, y: 122 }, D2: { x: 344, y: 122 } }
     }
   };
-  function fullLayout(n) {
-    const base = BASE[n];
-    const earthThrough = n === 1;
+  function fullLayout(id) {
+    const base = BASE[id];
+    const earthThrough = id === "c02-presa";
     const pos = earthThrough ? { F: 0.08, PE: 0.28, N: 0.48 } : { N: 0.08, F: 0.28, PE: 0.48 };
     const K = { x: 20, y: 0, w: 380, h: 96, terms: {} };
     const Q = { x: 20, y: 140, w: 380, h: 130, bx: 0.78, terms: {} };
@@ -955,14 +1542,14 @@ button.btn.primary{background:var(--accent);color:var(--on-accent);border-color:
       Q.terms[k + "i"] = { f: pos[k], s: "t" };
       if (k !== "PE" || earthThrough) Q.terms[k] = { f: pos[k], s: "b" };
     });
-    const others = Object.keys(base.comps).filter((id) => id !== "Q");
-    const shift = Q.y + Q.h + 44 - Math.min(...others.map((id) => base.comps[id].y));
+    const others = Object.keys(base.comps).filter((id2) => id2 !== "Q");
+    const shift = Q.y + Q.h + 44 - Math.min(...others.map((id2) => base.comps[id2].y));
     const comps2 = { K, Q };
-    others.forEach((id) => comps2[id] = { ...base.comps[id], y: base.comps[id].y + shift });
+    others.forEach((id2) => comps2[id2] = { ...base.comps[id2], y: base.comps[id2].y + shift });
     return { comps: comps2, plates: base.plates };
   }
   function layoutFor(level) {
-    return level.full ? fullLayout(level.n) : BASE[level.n];
+    return level.full ? fullLayout(level.id) : BASE[level.id];
   }
   function composeComps(level) {
     const layout = layoutFor(level);
@@ -1004,9 +1591,6 @@ button.btn.primary{background:var(--accent);color:var(--on-accent);border-color:
     if (p2.s === "b" && p1.s === "t" && p1.y - p2.y > 200) return wirePath(p2, p1);
     const s1 = p1.s === "t" ? -1 : 1, s2 = p2.s === "t" ? -1 : 1, d = Math.max(36, Math.abs(p2.y - p1.y) * 0.45);
     return `M${p1.x} ${p1.y} C${p1.x} ${p1.y + s1 * d} ${p2.x} ${p2.y + s2 * d} ${p2.x} ${p2.y}`;
-  }
-  function levelsHTML(s) {
-    return s.levels.map((l) => `<button class="lv" data-lv="${l.index}" aria-current="${l.index === s.levelIndex}"><span>${l.n} \xB7 ${l.name}</span><small>${"\u2605".repeat(l.stars)}${"\u2606".repeat(3 - l.stars)}</small></button>`).join("");
   }
   function paletteHTML(col) {
     return WIRE_COLORS.map((k) => {
@@ -1137,6 +1721,7 @@ button.btn.primary{background:var(--accent);color:var(--on-accent);border-color:
     return `<g class="term${ui2.sel === tid ? " sel" : ""}" data-term="${tid}" transform="translate(${p.x},${p.y})" role="button" tabindex="0" aria-label="Morsetto ${c2.short} ${t.l}"><circle class="hit" r="${m ? 26 : 20}"/><circle class="halo" r="${m ? 18.5 : 15.5}"/><circle class="screw" r="${m ? 13 : 10.5}"/><line class="slot" x1="${m ? -8 : -6}" y1="0" x2="${m ? 8 : 6}" y2="0" transform="rotate(${rot})"/></g><text class="lbl" x="${lx}" y="${p.y + 4.5}">${t.l}</text>`;
   }
   function benchViewBox(comps2) {
+    if (!comps2.length) return "0 0 400 100";
     const H = Math.max(...comps2.map((c2) => c2.y + c2.h)) + 22;
     return `10 -28 400 ${H + 28}`;
   }
@@ -1154,12 +1739,32 @@ button.btn.primary{background:var(--accent);color:var(--on-accent);border-color:
     if (s.solutionShown) {
       o += s.level.solution.map(([a, b, col]) => `<path class="ghost" d="${wirePath(termPos(comps2, a), termPos(comps2, b))}" stroke="${WIRE_STYLE[col].base}"/>`).join("");
     }
+    if (s.guide) {
+      const [ga, gb, gc] = s.guide.wire;
+      o += `<path class="ghost guide" d="${wirePath(termPos(comps2, ga), termPos(comps2, gb))}" stroke="${WIRE_STYLE[gc].base}"/>`;
+    }
+    const fv = s.flowVisible && s.power;
     s.wires.forEach((w) => {
       const d = wirePath(termPos(comps2, w.a), termPos(comps2, w.b)), q = WIRE_STYLE[w.c];
       const pot = s.potential(w.a);
-      const fl = s.power && pot === "F" ? "f" : s.power && pot === "N" ? "n" : "";
-      o += `<g data-wire="${w.id}"><path class="w-hit" d="${d}"/><path class="w-edge" d="${d}"/><path class="w-col" d="${d}" stroke="${q.base}"/>${q.dash ? `<path class="w-col dash" d="${d}" stroke="${q.dash}"/>` : ""}${fl ? `<path class="flow ${fl}" d="${d}"/>` : ""}</g>`;
+      const st = s.flow.wires[w.id];
+      let halo = "", fl = "";
+      if (fv) {
+        const k = st.net === "F" ? "f" : st.net === "N" ? "n" : "";
+        if (k) halo = `<path class="halo-w ${k}" d="${d}"/>`;
+        if (st.current && k) fl = `<path class="flow ${k} cur" d="${d}"/>`;
+      } else {
+        const k = s.power && pot === "F" ? "f" : s.power && pot === "N" ? "n" : "";
+        if (k) fl = `<path class="flow ${k}" d="${d}"/>`;
+      }
+      o += `<g data-wire="${w.id}">${halo}<path class="w-hit" d="${d}"/><path class="w-edge" d="${d}"/><path class="w-col" d="${d}" stroke="${q.base}"/>${q.dash ? `<path class="w-col dash" d="${d}" stroke="${q.dash}"/>` : ""}${fl}</g>`;
     });
+    if (fv && !s.lit) {
+      s.flow.deadEnds.forEach((t) => {
+        const p = termPos(comps2, t);
+        o += `<circle class="stop" cx="${p.x}" cy="${p.y}" r="${ui2.mobile ? 23 : 19}"/>`;
+      });
+    }
     comps2.forEach((c2) => {
       Object.keys(c2.terms).forEach((id) => {
         o += termSVG(c2, id, ui2);
@@ -1170,7 +1775,9 @@ button.btn.primary{background:var(--accent);color:var(--on-accent);border-color:
   }
   function statusHTML(s) {
     const q = s.power ? ["Quadro acceso", "ok"] : s.trip ? ["Quadro scattato", "bad"] : ["Quadro spento", ""];
-    return `<span class="pill ${q[1]}">${q[0]}</span><span class="pill${s.lit ? " on" : ""}">${s.level.room === "tavolo" ? "Lampada" : "Luce"} ${s.lit ? "accesa" : "spenta"}</span><span class="msg" aria-live="polite">${sessionMessage(s.message)}</span>`;
+    let msg = sessionMessage(s.message);
+    if (s.message && s.message.code === "lampDark" && s.flowVisible) msg += " " + flowMessage(s.flow, s.level);
+    return `<span class="pill ${q[1]}">${q[0]}</span><span class="pill${s.lit ? " on" : ""}">${s.level.room === "tavolo" ? "Lampada" : "Luce"} ${s.lit ? "accesa" : "spenta"}</span><span class="msg" aria-live="polite">${msg}</span>`;
   }
   var MARK = { ok: "\u2713", na: "\u2013", ko: "\u2715" };
   function resultHTML(s) {
@@ -1180,7 +1787,311 @@ button.btn.primary{background:var(--accent);color:var(--on-accent);border-color:
     const r = describeEvaluation(s.result, s.level);
     const row = (t, o) => `<div class="row"><span class="mark ${o.status}" aria-hidden="true">${MARK[o.status]}</span><div><b>${t}</b><ul>${o.msgs.map((m) => `<li>${m}</li>`).join("")}</ul></div></div>`;
     const last = s.levelIndex === s.levelCount - 1;
-    return `<h3>${r.pass ? "Livello superato" : "Controllo del circuito"}</h3><div class="stars" aria-label="${r.stars} stelle su 3">${"\u2605".repeat(r.stars)}<span class="e">${"\u2605".repeat(3 - r.stars)}</span></div>${row("Funziona", r.work)}${row("Colori dei fili", r.color)}${row("Sicurezza", r.safe)}${r.pass ? last ? `<p class="next"><b>Hai completato tutti i livelli.</b></p>` : `<div class="next"><button class="btn primary" id="bNext" style="margin-left:0">Livello successivo</button></div>` : ""}`;
+    const xp = s.levels[s.levelIndex].xp;
+    return `<h3>${r.pass ? "Livello superato" : "Controllo del circuito"}</h3><div class="stars" aria-label="${r.stars} stelle su 3">${"\u2605".repeat(r.stars)}<span class="e">${"\u2605".repeat(3 - r.stars)}</span></div>${row("Funziona", r.work)}${row("Colori dei fili", r.color)}${row("Sicurezza", r.safe)}<p class="xpline">Punti di questo livello: <b>${xp} XP</b></p>${r.pass ? last ? `<p class="next"><b>Hai completato tutti i livelli.</b></p>` : `<div class="next"><button class="btn primary" id="bNext" style="margin-left:0">Livello successivo</button></div>` : ""}`;
+  }
+
+  // src/content/home.js
+  var MODULES = [
+    {
+      tag: "MODULO 0",
+      title: "Fondamenta",
+      levels: [
+        "c01-circuito-chiuso",
+        "c02-presa",
+        "c03-interrotto",
+        { soon: true, code: "c04", title: "Due lampade", blurb: "Il parallelo: due carichi, un solo comando." },
+        "c05-deviato",
+        "c06-invertito"
+      ]
+    }
+  ];
+  var UPCOMING = [
+    { tag: "MODULO 1", title: "Il trilocale", note: "Bagno, camera, corridoio e collaudo in 3D" },
+    { tag: "MODULO 2", title: "Civile avanzato", note: "Rel\xE8, presa comandata, quadro" },
+    { tag: "MODULO 3", title: "Industriale", note: "Trifase, motore, nastro trasportatore" }
+  ];
+  var INTRO = [
+    { art: "lampada", text: ["Una lampada, un interruttore, due fili nel muro. Per farla funzionare serve capire dove passa la corrente."] },
+    { art: "giro", text: ["La corrente circola in un percorso chiuso: esce dalla rete, attraversa la lampada e torna indietro."] },
+    { art: "fili", text: ["I due fili si chiamano fase e neutro. Di norma la fase \xE8 marrone, nera o grigia; il neutro \xE8 blu."] },
+    { art: "chiuso", text: ["Quando il percorso \xE8 completo il circuito \xE8 chiuso e la lampada si accende."] },
+    { art: "aperto", text: ["Se un collegamento manca il circuito \xE8 aperto: non passa corrente e la lampada resta spenta."] },
+    { art: "tensione", text: ["Un filo collegato alla fase \xE8 in tensione anche con la lampada spenta. Per questo sugli impianti veri si lavora a corrente tolta."] },
+    { art: "terra", text: ["Il terzo filo \xE8 la terra, giallo-verde. Non serve al funzionamento: serve alla sicurezza, perch\xE9 porta a terra un eventuale guasto."] },
+    { art: "banco", text: ["In laboratorio cabli circuiti virtuali con le regole di un impianto vero. Il quadro dice se funziona, se i colori sono giusti e se \xE8 sicuro."] }
+  ];
+  var GLOSSARY = [
+    ["Fase", "Il filo che porta la tensione. Colori ammessi: marrone, nero o grigio."],
+    ["Neutro", "Il filo di ritorno della corrente. \xC8 sempre blu."],
+    ["Terra", "Il filo di protezione, giallo-verde. Non porta corrente in funzionamento normale."],
+    ["Morsetto", "La vite che stringe il filo su un componente."],
+    ["Circuito chiuso", "Un percorso completo dalla fase al neutro attraverso il carico: la corrente circola."],
+    ["Circuito aperto", "Un percorso interrotto, per esempio per un filo mancante o un interruttore aperto: non passa corrente."],
+    ["Tensione", "Differenza di potenziale tra due punti, in volt. Un filo pu\xF2 essere in tensione anche senza corrente."],
+    ["Corrente", "Il movimento di cariche nel circuito, in ampere. Passa solo se il circuito \xE8 chiuso."],
+    ["Carico", "Ci\xF2 che consuma energia: una lampada, un motore, un elettrodomestico."],
+    ["Magnetotermico", "L\u2019interruttore automatico del quadro: scatta in caso di sovraccarico o cortocircuito."],
+    ["Cortocircuito", "Collegamento diretto tra fase e neutro senza carico: la corrente cresce di colpo e il magnetotermico scatta."]
+  ];
+  var LEGEND = [
+    { sample: "plain", title: "Filo non collegato", text: "Non arriva a nessuna sorgente." },
+    { sample: "fase", title: "In tensione, fase", text: "Collegato alla fase, ma senza corrente." },
+    { sample: "neutro", title: "In tensione, neutro", text: "Collegato al neutro, ma senza corrente." },
+    { sample: "corrente", title: "Percorso da corrente", text: "Sta su un circuito chiuso con la lampada accesa. I puntini non indicano un verso reale: in alternata la corrente cambia verso di continuo." },
+    { sample: "stop", title: "Qui la tensione si ferma", text: "Il filo arriva fino a questo morsetto e non prosegue." }
+  ];
+  var INFO_PRIVACY = [
+    "Il gioco salva i tuoi progressi e il nome che scegli in questo browser, sul tuo dispositivo.",
+    "In questa versione non viene inviato nulla a nessun server.",
+    "Quando ci sar\xE0 la classifica condivisa, verr\xE0 inviato solo il nome o soprannome che scrivi e i punti. Usa il nome di battesimo o un soprannome, mai il cognome."
+  ];
+  var FOOTER = [
+    { title: "Gioco", items: [
+      { id: "mappa", label: "Mappa dei livelli" },
+      { id: "classifica", label: "Classifica", soon: true },
+      { id: "legenda", label: "Legenda dei simboli" },
+      { id: "glossario", label: "Glossario" }
+    ] },
+    { title: "Aiuto", items: [
+      { id: "segnala", label: "Segnala un problema", mail: "bug" },
+      { id: "scrivici", label: "Scrivici", mail: "info" }
+    ] },
+    { title: "Informazioni", items: [
+      { id: "informativa", label: "Informativa" }
+    ] }
+  ];
+
+  // src/config.js
+  var CONTACT_EMAIL = "";
+  var GAME_VERSION = "0.1";
+
+  // src/ui2d/art.js
+  var INK = "#1B2230";
+  var FASE = "#8B4A24";
+  var FASE_HALO = "#E9A15F";
+  var NEUTRO = "#2563A8";
+  var GV = "#4C9A2A";
+  var LAMP = "#F5B800";
+  var SOFT = "#9AA1AE";
+  var svg = (inner, label) => `<svg viewBox="0 0 480 270" role="img" aria-label="${label}" focusable="false">${inner}</svg>`;
+  var line = (x1, y1, x2, y2, col = INK, w = 5, extra = "") => `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${col}" stroke-width="${w}" stroke-linecap="round" ${extra}/>`;
+  var dots = (d) => `<path class="art-dots" d="${d}" fill="none" stroke="${LAMP}" stroke-width="4" stroke-linecap="round" stroke-dasharray="1 12"/>`;
+  var text = (x, y, t, col = INK, anchor = "middle") => `<text x="${x}" y="${y}" text-anchor="${anchor}" font-family="IBM Plex Mono, monospace" font-size="14" fill="${col}">${t}</text>`;
+  var term = (x, y) => `<circle cx="${x}" cy="${y}" r="7" fill="#FBF9F4" stroke="${INK}" stroke-width="2.5"/>`;
+  function source() {
+    return `<rect x="36" y="76" width="74" height="118" rx="8" fill="#FBF9F4" stroke="${INK}" stroke-width="3"/>` + text(73, 140, "RETE") + term(110, 100) + term(110, 170);
+  }
+  function lamp(on) {
+    const g = on ? `<circle class="art-glow" cx="386" cy="135" r="62" fill="${LAMP}" opacity=".28"/>` : "";
+    return g + `<circle cx="386" cy="135" r="30" fill="${on ? LAMP : "#E6E0D2"}" stroke="${INK}" stroke-width="3"/><path d="M366 115 L406 155 M406 115 L366 155" stroke="${INK}" stroke-width="3" stroke-linecap="round"/>` + term(386, 100) + term(386, 170);
+  }
+  var ART = {
+    lampada: () => svg(
+      `<rect x="30" y="20" width="420" height="230" rx="10" fill="#F3EFE6" stroke="${SOFT}" stroke-width="2"/>` + line(240, 20, 240, 70, INK, 3) + `<path d="M205 100 Q240 50 275 100 Z" fill="#E6E0D2" stroke="${INK}" stroke-width="3"/><circle cx="240" cy="108" r="14" fill="${LAMP}" stroke="${INK}" stroke-width="3"/><rect x="350" y="120" width="44" height="72" rx="8" fill="#FBF9F4" stroke="${INK}" stroke-width="3"/><rect x="361" y="132" width="22" height="22" rx="4" fill="#E6E0D2" stroke="${INK}" stroke-width="2"/><path d="M372 192 V230 H240 V122" fill="none" stroke="${SOFT}" stroke-width="3" stroke-dasharray="6 8"/>`,
+      "Una lampada al soffitto comandata da un interruttore a parete, con i fili nel muro"
+    ),
+    giro: () => svg(
+      source() + lamp(false) + line(110, 100, 386, 100, FASE) + line(110, 170, 386, 170, NEUTRO) + dots("M110 100 H386") + dots("M386 170 H110") + text(248, 84, "fase", FASE) + text(248, 196, "neutro", NEUTRO),
+      "La corrente esce dalla rete, attraversa la lampada e torna indietro"
+    ),
+    fili: () => svg(
+      line(60, 100, 420, 100, FASE, 12) + line(60, 170, 420, 170, NEUTRO, 12) + text(240, 76, "fase: marrone, nero o grigio", FASE) + text(240, 208, "neutro: blu", NEUTRO),
+      "Due fili: la fase marrone e il neutro blu"
+    ),
+    chiuso: () => svg(
+      source() + lamp(true) + line(110, 100, 386, 100, FASE) + line(110, 170, 386, 170, NEUTRO) + dots("M110 100 H386") + dots("M386 170 H110") + text(248, 232, "circuito chiuso: la lampada \xE8 accesa"),
+      "Circuito chiuso con la lampada accesa"
+    ),
+    aperto: () => svg(
+      source() + lamp(false) + line(110, 100, 230, 100, FASE) + line(270, 100, 386, 100, FASE) + line(110, 170, 386, 170, NEUTRO) + `<path d="M232 90 L268 110" stroke="${SOFT}" stroke-width="3" stroke-linecap="round"/>` + text(250, 76, "filo mancante", INK) + text(248, 232, "circuito aperto: la lampada \xE8 spenta"),
+      "Circuito aperto: manca un tratto di filo e la lampada \xE8 spenta"
+    ),
+    tensione: () => svg(
+      source() + lamp(false) + `<line x1="110" y1="100" x2="230" y2="100" stroke="${FASE_HALO}" stroke-opacity=".55" stroke-width="22" stroke-linecap="round"/>` + line(110, 100, 230, 100, FASE) + line(110, 170, 386, 170, NEUTRO) + `<circle cx="230" cy="100" r="13" fill="none" stroke="#BE2530" stroke-width="3" stroke-dasharray="4 4"/>` + text(250, 66, "in tensione, senza corrente", INK) + text(248, 232, "la tensione si ferma dove il filo finisce"),
+      "Un filo di fase in tensione che si ferma, senza corrente"
+    ),
+    terra: () => svg(
+      `<rect x="150" y="70" width="180" height="110" rx="14" fill="#E6E0D2" stroke="${INK}" stroke-width="3"/>` + text(240, 130, "apparecchio") + `<path d="M240 180 V220" stroke="${GV}" stroke-width="7" stroke-linecap="round"/><path d="M240 180 V220" stroke="#E8D500" stroke-width="7" stroke-dasharray="8 8"/>` + line(210, 226, 270, 226, INK, 4) + line(220, 238, 260, 238, INK, 4) + line(230, 250, 250, 250, INK, 4) + text(240, 50, "la terra: giallo-verde"),
+      "La terra, filo giallo-verde, collega la carcassa dell\u2019apparecchio al dispersore"
+    ),
+    banco: () => svg(
+      `<rect x="40" y="40" width="160" height="80" rx="8" fill="#FBF9F4" stroke="${INK}" stroke-width="3"/>` + text(120, 84, "quadro") + term(100, 120) + term(150, 120) + `<rect x="280" y="150" width="160" height="80" rx="8" fill="#FBF9F4" stroke="${INK}" stroke-width="3"/>` + text(360, 196, "lampada") + term(320, 150) + term(400, 150) + `<path d="M100 120 C100 150 320 110 320 150" fill="none" stroke="${FASE}" stroke-width="6" stroke-linecap="round"/><path d="M150 120 C150 160 400 100 400 150" fill="none" stroke="${NEUTRO}" stroke-width="6" stroke-linecap="round"/>`,
+      "Due componenti del banco collegati con un filo marrone e uno blu"
+    )
+  };
+  function artHTML(key) {
+    return ART[key] ? ART[key]() : "";
+  }
+
+  // src/ui2d/screens.js
+  var esc = (t) => String(t).replace(/[&<>"']/g, (c2) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c2]);
+  var STAR = '<svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2l3 6.9 7.4.7-5.6 4.9 1.7 7.3L12 17.9 5.5 21.8l1.7-7.3L1.6 9.6 9 8.9z" fill="#F5B800" stroke="#1B2230" stroke-width="1.5" stroke-linejoin="round"/></svg>';
+  function appbarHTML(s, profile2) {
+    const name = profile2.name ? esc(profile2.name) : "Giocatore";
+    const rank = RANK_NAMES[s.player.rank.id];
+    return `<a class="brand" href="#/home" aria-label="Fase e Neutro, vai alla mappa">
+      <svg width="34" height="34" viewBox="0 0 34 34" aria-hidden="true"><circle cx="17" cy="17" r="17" fill="#1E2635"/><line x1="7" y1="12" x2="27" y2="12" stroke="#E9A15F" stroke-width="4" stroke-linecap="round"/><line x1="7" y1="22" x2="27" y2="22" stroke="#8CC3F2" stroke-width="4" stroke-linecap="round"/></svg>
+      <span class="wordmark">Fase <i>e</i> Neutro</span>
+    </a>
+    <button class="player" id="bPlayer" aria-label="Giocatore ${name}, grado ${rank}, ${s.player.xp} XP. Cambia nome"><span class="pname">${name}</span><span class="prank">${rank}</span><span class="pxp">${s.player.xp} XP</span></button>`;
+  }
+  function levelCard(l, s) {
+    const st = l.status;
+    const pill = `<span class="pill st-${st.replace(" ", "-")}">${STATUS_NAMES[st]}</span>`;
+    const stars = st === "completato" ? `<div class="starrow" role="img" aria-label="${l.stars} stelle su 3">${STAR.repeat(l.stars)}</div>` : "";
+    const main = { nuovo: "Inizia", "in corso": "Continua", completato: "Rigioca", saltato: "Vedi la lezione" }[st];
+    const skip = st === "nuovo" || st === "in corso" ? `<a class="btn ghost" href="#/livello/${l.id}/verifica" aria-label="Gi\xE0 lo so: prova di salto per ${esc(l.title)}">Gi\xE0 lo so</a>` : "";
+    return `<li class="lvcard ${st === "in corso" ? "cur" : ""}" data-status="${st}">
+      <span class="node" aria-hidden="true"></span>
+      <div class="lvbody">
+        <div class="lvhead"><div><div class="code">${l.code}</div><h3>${esc(l.title)}</h3></div>${pill}</div>
+        <p>${esc(l.blurb)}</p>${stars}
+        <div class="lvact"><a class="btn main" href="#/livello/${l.id}">${main}</a>${skip}</div>
+      </div>
+    </li>`;
+  }
+  function soonCard(x) {
+    return `<li class="lvcard soon"><span class="node" aria-hidden="true"></span>
+      <div class="lvbody"><div class="lvhead"><div><div class="code">${x.code}</div><h3>${esc(x.title)}</h3></div><span class="pill st-soon">In arrivo</span></div><p>${esc(x.blurb)}</p></div></li>`;
+  }
+  function continueTarget(s) {
+    const open = (l) => l.status !== "completato" && l.status !== "saltato";
+    const last = s.levels.find((l) => l.id === s.last);
+    return last && open(last) && last || s.levels.find(open) || null;
+  }
+  function homeHTML(s) {
+    const t = continueTarget(s);
+    const byId = {};
+    s.levels.forEach((l) => byId[l.id] = l);
+    const cont = t ? `<section class="cont" aria-label="Continua"><div class="kick">${t.status === "nuovo" ? "COMINCIA DA QUI" : "RIPRENDI DA QUI"}</div><h2>${t.code} \xB7 ${esc(t.title)}</h2><p>${esc(t.blurb)}</p><a class="btn lamp" href="#/livello/${t.id}">${t.status === "nuovo" ? "Inizia" : "Continua"}</a></section>` : `<section class="cont"><div class="kick">COMPLETATO</div><h2>Hai completato i livelli disponibili</h2><p>Altri livelli sono in preparazione.</p></section>`;
+    const mods = MODULES.map((m) => {
+      const have = m.levels.filter((x) => typeof x === "string");
+      const done = have.filter((id) => byId[id] && (byId[id].status === "completato" || byId[id].status === "saltato")).length;
+      const items = m.levels.map((x) => typeof x === "string" ? levelCard(byId[x], s) : soonCard(x)).join("");
+      return `<section class="module" aria-label="${m.tag}, ${m.title}">
+        <div class="mhead"><div><div class="kick">${m.tag}</div><h2>${m.title}</h2></div><div class="count">${done} di ${have.length} completati</div></div>
+        <ol class="rail">${items}</ol>
+      </section>`;
+    }).join("");
+    const up = UPCOMING.map((m) => `<div class="upc"><div class="uphead"><span class="kick">${m.tag}</span><span class="soonl">In arrivo</span></div><h3>${m.title}</h3><p>${m.note}</p></div>`).join("");
+    return `<div class="homegrid">
+      <div class="homemain">${cont.replace('class="cont"', 'class="cont only-narrow"')}${mods}<div class="upcoming">${up}</div></div>
+      <aside class="homeside">${cont}${toolsHTML()}</aside>
+    </div>`;
+  }
+  function toolsHTML() {
+    return `<div class="tools" role="group" aria-label="Strumenti">
+      <button class="tool" data-open="legenda">Legenda dei simboli</button>
+      <button class="tool" data-open="glossario">Glossario</button>
+      <button class="tool" data-open="intro">Rivedi l\u2019introduzione</button>
+      <button class="tool" disabled aria-disabled="true">Area docente <small>in arrivo</small></button>
+    </div>`;
+  }
+  function tabbarHTML(route2, hasLast) {
+    const item = (href, label, icon, cur, disabled) => disabled ? `<span class="tab dis" aria-disabled="true">${icon}${label}</span>` : `<a class="tab" href="${href}" ${cur ? 'aria-current="page"' : ""}>${icon}${label}</a>`;
+    const map = '<svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true"><line x1="3" y1="8" x2="21" y2="8" stroke="#8B4A24" stroke-width="3" stroke-linecap="round"/><line x1="3" y1="16" x2="21" y2="16" stroke="#2563A8" stroke-width="3" stroke-linecap="round"/></svg>';
+    const lv = '<svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8" fill="none" stroke="currentColor" stroke-width="2"/><path d="M8 8l8 8M16 8l-8 8" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>';
+    const cl = '<svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 20V10M12 20V4M19 20v-7" stroke="currentColor" stroke-width="3" stroke-linecap="round" fill="none"/></svg>';
+    return item("#/home", "Mappa", map, route2.name === "home") + item("#/livello/" + (hasLast || ""), "Livello", lv, route2.name === "level", !hasLast) + item("#", "Classifica", cl, false, true);
+  }
+  function footerHTML() {
+    const cols = FOOTER.map((col) => {
+      const items = col.items.filter((it) => !it.mail || CONTACT_EMAIL).map((it) => {
+        if (it.soon) return `<span class="fbtn dis" aria-disabled="true">${it.label} <small>in arrivo</small></span>`;
+        if (it.mail) {
+          const subj = it.mail === "bug" ? "Segnalazione problema - Fase e Neutro " + GAME_VERSION : "Fase e Neutro";
+          return `<a class="fbtn" href="mailto:${esc(CONTACT_EMAIL)}?subject=${encodeURIComponent(subj)}" data-mail="${it.mail}">${it.label}</a>`;
+        }
+        if (it.id === "mappa") return `<a class="fbtn" href="#/home">${it.label}</a>`;
+        return `<button class="fbtn" data-open="${it.id}">${it.label}</button>`;
+      }).join("");
+      return items ? `<nav class="fcol" aria-label="${col.title}"><div class="ftitle">${col.title.toUpperCase()}</div>${items}</nav>` : "";
+    }).join("");
+    return `<div class="fwrap"><div class="fabout"><div class="wordmark">Fase <i>e</i> Neutro</div><p>Laboratorio di impianti elettrici per chi parte da zero.</p></div><div class="fcols">${cols}</div></div>`;
+  }
+  function modalHTML(kind) {
+    let title = "", body = "";
+    if (kind === "legenda") {
+      title = "Legenda dei fili";
+      body = `<p>Sul banco ogni filo ha uno di questi aspetti.</p><ul class="legend">${LEGEND.map((x) => `<li><svg viewBox="0 0 90 26" aria-hidden="true">${legendSample(x.sample)}</svg><div><b>${x.title}</b><span>${x.text}</span></div></li>`).join("")}</ul>`;
+    } else if (kind === "glossario") {
+      title = "Glossario";
+      body = `<dl class="gloss">${GLOSSARY.map(([t, d]) => `<dt>${t}</dt><dd>${d}</dd>`).join("")}</dl>`;
+    } else if (kind === "informativa") {
+      title = "Informativa";
+      body = INFO_PRIVACY.map((p) => `<p>${p}</p>`).join("");
+    }
+    return `<div class="mcard" role="dialog" aria-modal="true" aria-labelledby="mT"><div class="mtop"><h2 id="mT">${title}</h2><button class="btn" data-close="1">Chiudi</button></div><div class="mbody">${body}</div></div>`;
+  }
+  function legendSample(k) {
+    const w = (col, extra = "") => `<line x1="8" y1="13" x2="82" y2="13" stroke="${col}" stroke-width="6" stroke-linecap="round" ${extra}/>`;
+    if (k === "fase") return '<line x1="8" y1="13" x2="82" y2="13" stroke="#E9A15F" stroke-opacity=".55" stroke-width="18" stroke-linecap="round"/>' + w("#8B4A24");
+    if (k === "neutro") return '<line x1="8" y1="13" x2="82" y2="13" stroke="#8CC3F2" stroke-opacity=".7" stroke-width="18" stroke-linecap="round"/>' + w("#2563A8");
+    if (k === "corrente") return w("#8B4A24") + '<line x1="8" y1="13" x2="82" y2="13" stroke="#FFE08A" stroke-width="3" stroke-linecap="round" stroke-dasharray="1 10"/>';
+    if (k === "stop") return w("#8B4A24") + '<circle cx="82" cy="13" r="10" fill="none" stroke="#BE2530" stroke-width="3" stroke-dasharray="4 4"/>';
+    return w("#9AA1AE");
+  }
+  function nameDialogHTML(profile2, first) {
+    return `<form class="mcard namecard" id="nameForm" role="dialog" aria-modal="true" aria-labelledby="nT">
+      <h2 id="nT">${first ? "Come ti chiami?" : "Il tuo nome"}</h2>
+      <p>Scrivi il nome di battesimo o un soprannome, non il cognome. Resta salvato in questo browser.</p>
+      <label for="nameIn">Nome o soprannome (massimo 20 caratteri)</label>
+      <input id="nameIn" name="name" maxlength="20" autocomplete="off" autocapitalize="words" value="${esc(profile2.name || "")}">
+      <div class="mact"><button class="btn primary" type="submit">Salva</button><button class="btn" type="button" data-skipname="1">${first ? "Continua senza nome" : "Annulla"}</button></div>
+    </form>`;
+  }
+  function introHTML(i) {
+    const sc = INTRO[i], last = i === INTRO.length - 1;
+    return `<div class="introcard" role="dialog" aria-modal="true" aria-label="Introduzione">
+      <div class="introart" key="${i}">${artHTML(sc.art)}</div>
+      <div class="introbody">
+        <div class="kick">PER COMINCIARE \xB7 ${i + 1}/${INTRO.length}</div>
+        ${sc.text.map((t) => `<p class="introtext">${t}</p>`).join("")}
+        <div class="dots" aria-hidden="true">${INTRO.map((_, k) => `<i class="${k < i ? "done" : k === i ? "now" : ""}"></i>`).join("")}</div>
+        <div class="introact"><button class="btn primary" data-intro="next">${last ? "Vai alla mappa" : "Avanti"}</button>${last ? "" : '<button class="btn" data-intro="skip">Salta</button>'}</div>
+      </div>
+    </div>`;
+  }
+  var optButtons = (opts, chosen, correctId, action) => `<div class="opts">${opts.map((o) => {
+    const cls = chosen ? o.id === correctId ? "right" : o.id === chosen.option ? "wrong" : "" : "";
+    return `<button class="opt ${cls}" data-${action}="${o.id}" ${chosen ? "disabled" : ""}>${esc(o.text)}</button>`;
+  }).join("")}</div>`;
+  function unitHTML(s) {
+    const L = s.level, u = L.unit, code = L.code;
+    if (s.playMode === "verifica") {
+      return `<div class="kick">${code} \xB7 PROVA DI SALTO</div><h2>${esc(L.title)}</h2><p>${esc(L.goal)}</p><p class="note">Senza suggerimenti e senza soluzione. Se la superi il livello risulta saltato e i punti si contano.</p>`;
+    }
+    if (!u) return `<div class="kick">${code} \xB7 LIVELLO</div><h2>${esc(L.title)}</h2><p>${esc(L.goal)}</p>`;
+    const ph = s.unit.phase;
+    if (ph === "lesson") {
+      return `<div class="kick">${code} \xB7 LEZIONE</div><h2>${esc(u.lesson.title)}</h2>
+      <div class="lessonart">${artHTML(u.lesson.art)}</div>
+      ${u.lesson.paras.map((p) => `<p>${esc(p)}</p>`).join("")}
+      <div class="uact"><button class="btn primary" data-unit="next">Avanti</button></div>`;
+    }
+    if (ph === "prediction") {
+      const p = u.prediction, a = s.unit.pred;
+      return `<div class="kick">${code} \xB7 PREVISIONE</div><h2>${esc(p.question)}</h2>
+      ${optButtons(p.options, a, p.correct, "pred")}
+      ${a ? `<p class="fb ${a.correct ? "ok" : "ko"}"><b>${a.correct ? "Giusto." : "Non proprio."}</b> ${esc(p.why)}</p><div class="uact"><button class="btn primary" data-unit="next">Provalo sul banco</button></div>` : '<p class="note">Scegli una risposta prima di provare.</p>'}`;
+    }
+    if (ph === "fault") {
+      const f = u.fault, d = s.unit.diag;
+      return `<div class="kick">${code} \xB7 SFIDA GUASTO</div><h2>${esc(f.diagnosis.question)}</h2><p>${esc(f.say)}</p>
+      ${optButtons(f.diagnosis.options, d, f.diagnosis.correct, "diag")}
+      ${d ? `<p class="fb ${d.correct ? "ok" : "ko"}"><b>${d.correct ? "Giusto." : "Non proprio."}</b> ${d.correct ? esc(f.diagnosis.why) + " " + esc(f.fixSay) : "Osserva i fili: gli aloni mostrano dove arriva la tensione."}</p>` : ""}
+      <div class="uact"><button class="btn" data-unit="leaveFault">Esci dalla sfida</button></div>`;
+    }
+    if (ph === "done") {
+      const me = s.levels[s.levelIndex];
+      return `<div class="kick">${code} \xB7 COMPLETATO</div><h2>Livello superato</h2><p>${esc(L.title)}: ${me.xp} XP.</p>
+      <div class="uact">${s.unit.hasFault && !s.unit.faultSolved ? '<button class="btn primary" data-unit="startFault">Sfida guasto</button>' : ""}<a class="btn ${s.unit.hasFault && !s.unit.faultSolved ? "" : "primary"}" href="#/home">Torna alla mappa</a><button class="btn" data-unit="lesson">Rivedi la lezione</button></div>`;
+    }
+    let guide = "";
+    if (s.guide) guide = `<div class="guide"><b>Esempio guidato</b><p>${esc(s.guide.say)}</p></div>`;
+    else if (u.afterGuide && !(s.result && s.result.pass)) guide = `<p class="note">${esc(u.afterGuide)}</p>`;
+    return `<div class="kick">${code} \xB7 CABLAGGIO</div><h2>${esc(L.title)}</h2><p>${esc(L.goal)}</p>${guide}<div class="uact"><button class="btn" data-unit="lesson">Rivedi la lezione</button></div>`;
   }
 
   // src/ui2d/app.js
@@ -1192,22 +2103,32 @@ button.btn.primary{background:var(--accent);color:var(--on-accent);border-color:
     } catch (e) {
     }
   };
-  var STORAGE_KEY = "lab-elettrico-1";
-  var storage = {
-    load() {
-      try {
-        return JSON.parse(localStorage.getItem(STORAGE_KEY) || "{}") || {};
-      } catch (e) {
-        return {};
-      }
-    },
-    save(o) {
-      try {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(o));
-      } catch (e) {
-      }
+  var STORAGE_KEY = "fase-e-neutro-1";
+  var OLD_KEY = "lab-elettrico-1";
+  var PROFILE_KEY = "fase-e-neutro-profilo";
+  var read = (k) => {
+    try {
+      return JSON.parse(localStorage.getItem(k) || "null");
+    } catch (e) {
+      return null;
     }
   };
+  var write = (k, o) => {
+    try {
+      localStorage.setItem(k, JSON.stringify(o));
+    } catch (e) {
+    }
+  };
+  var storage = {
+    load() {
+      return read(STORAGE_KEY) || read(OLD_KEY) || {};
+    },
+    save(o) {
+      write(STORAGE_KEY, o);
+    }
+  };
+  var profile = Object.assign({ name: "", introSeen: false, nameAsked: false }, read(PROFILE_KEY) || {});
+  var saveProfile = () => write(PROFILE_KEY, profile);
   var session = createSession({ levels, deriveFull, storage });
   var S = null;
   var comps = [];
@@ -1242,32 +2163,88 @@ button.btn.primary{background:var(--accent);color:var(--on-accent);border-color:
   }
   function showHint() {
     const h = session.requestHint();
+    if (!h) return;
     $("#info").innerHTML = `<button class="x" data-x="1" aria-label="Chiudi">Chiudi</button><h3>Suggerimento ${h.index + 1} di ${h.total}</h3><p>${h.text}</p>`;
     $("#info").classList.add("open");
   }
   function onLevelChange() {
     comps = composeComps(S.level);
     SEL = null;
-    $("#kick").textContent = "Livello " + S.level.n + " di " + S.levelCount + (S.mode === "contatore" ? " \xB7 dal contatore" : "");
-    $("#lvName").textContent = S.level.title;
-    $("#lvGoal").textContent = S.level.goal;
+    $("#lvTag").textContent = S.level.code + " \xB7 " + S.level.name + (S.mode === "contatore" ? " \xB7 dal contatore" : "") + (S.playMode === "verifica" ? " \xB7 prova di salto" : "");
     $("#room").innerHTML = roomHTML(S.level, comps);
     setRoomVB();
     setInfo("morsetto", null, false);
   }
-  session.subscribe((s) => {
-    S = s;
-    if (s.levelKey !== lastKey || rebuild) {
-      lastKey = s.levelKey;
-      rebuild = false;
-      onLevelChange();
-    }
-    $("#bSol").textContent = s.solutionShown ? "Nascondi soluzione" : "Mostra soluzione";
-    $("#bSol").setAttribute("aria-pressed", String(s.solutionShown));
-    $("#levels").innerHTML = levelsHTML(s);
+  function parseRoute() {
+    const m = /^#\/livello\/([^/]+)(\/verifica)?$/.exec(location.hash || "");
+    if (m && levels.some((l) => l.id === m[1])) return { name: "level", id: m[1], verify: !!m[2], key: m[0] };
+    return { name: "home", key: "#/home" };
+  }
+  var route = parseRoute();
+  var routeApplied = null;
+  function renderChrome() {
+    $("#appbar").innerHTML = appbarHTML(S, profile);
+    $("#tabbar").innerHTML = tabbarHTML(route, S.last);
+  }
+  function renderLevelScreen() {
+    const ph = S.unit ? S.unit.phase : "build";
+    const scr = $("#screen-level");
+    scr.className = "phase-" + (ph === "lesson" || ph === "prediction" ? "learn" : "play") + (S.playMode === "verifica" ? " verify" : "");
+    $("#unit").innerHTML = unitHTML(S);
+    $("#modeBar").hidden = S.playMode === "verifica" || !!S.unit && ph !== "build" && ph !== "done";
+    $("#bHint").hidden = $("#bSol").hidden = S.playMode === "verifica";
+    $("#bSol").textContent = S.solutionShown ? "Nascondi soluzione" : "Mostra soluzione";
+    $("#bSol").setAttribute("aria-pressed", String(S.solutionShown));
+    const fl = $("#bFlow");
+    fl.hidden = S.level.flow !== "onDemand" || S.playMode === "verifica";
+    fl.setAttribute("aria-pressed", String(S.flowVisible));
+    fl.textContent = S.flowVisible ? "Nascondi la corrente" : "Mostra la corrente";
+    const lg = $("#flowLegend");
+    lg.hidden = !S.flowVisible;
+    lg.innerHTML = S.flowVisible ? '<span><i class="lg f"></i>in tensione, fase</span><span><i class="lg n"></i>in tensione, neutro</span><span><i class="lg c"></i>percorso da corrente</span><span><i class="lg s"></i>qui la tensione si ferma</span>' : "";
     renderBench();
     renderStatus();
     renderResult();
+  }
+  function render() {
+    if (!S) return;
+    renderChrome();
+    const home = route.name === "home";
+    $("#screen-home").hidden = !home;
+    $("#screen-level").hidden = home;
+    if (home) {
+      $("#screen-home").innerHTML = homeHTML(S);
+      return;
+    }
+    const vk = S.levelKey + "|" + S.playMode;
+    if (vk !== lastKey || rebuild) {
+      lastKey = vk;
+      rebuild = false;
+      onLevelChange();
+    }
+    renderLevelScreen();
+  }
+  function applyRoute() {
+    route = parseRoute();
+    if (routeApplied === route.key) {
+      render();
+      return;
+    }
+    routeApplied = route.key;
+    if (route.name === "level") {
+      rebuild = true;
+      session.selectLevel(route.id, { verify: route.verify });
+    } else {
+      render();
+    }
+    window.scrollTo(0, 0);
+    const m = $("#main");
+    if (m && m.focus) m.focus({ preventScroll: true });
+  }
+  window.addEventListener("hashchange", applyRoute);
+  session.subscribe((s) => {
+    S = s;
+    render();
   });
   function svgPt(e) {
     const b = $("#bench"), pt = b.createSVGPoint();
@@ -1432,6 +2409,7 @@ button.btn.primary{background:var(--accent);color:var(--on-accent);border-color:
     }).observe($(".roomcard"));
   }
   var onMQ = () => {
+    if (route.name !== "level" || !comps.length) return;
     setRoomVB();
     renderBench();
     if (!MQ.matches) $("#info").classList.add("open");
@@ -1444,13 +2422,6 @@ button.btn.primary{background:var(--accent);color:var(--on-accent);border-color:
       renderPalette();
     }
   });
-  $("#levels").addEventListener("click", (e) => {
-    const b = e.target.closest("[data-lv]");
-    if (b) {
-      rebuild = true;
-      session.selectLevel(+b.dataset.lv);
-    }
-  });
   $("#bUndo").addEventListener("click", () => session.undo());
   $("#bClear").addEventListener("click", () => session.clear());
   $("#bHint").addEventListener("click", showHint);
@@ -1459,15 +2430,135 @@ button.btn.primary{background:var(--accent);color:var(--on-accent);border-color:
     session.check();
     $("#result").scrollIntoView({ behavior: "smooth", block: "nearest" });
   });
+  $("#bFlow").addEventListener("click", () => session.toggleFlow());
   $("#result").addEventListener("click", (e) => {
     if (e.target.id === "bNext") {
-      rebuild = true;
-      session.nextLevel();
-      window.scrollTo({ top: 0, behavior: "smooth" });
+      const n = S.levels[S.levelIndex + 1];
+      if (n) location.hash = "#/livello/" + n.id;
     }
   });
+  $("#unit").addEventListener("click", (e) => {
+    const u = e.target.closest("[data-unit]");
+    if (u) {
+      const a = u.dataset.unit;
+      if (a === "next") session.unitNext();
+      else if (a === "lesson") session.showLesson();
+      else if (a === "startFault") session.startFault();
+      else if (a === "leaveFault") session.leaveFault();
+      return;
+    }
+    const p = e.target.closest("[data-pred]");
+    if (p) {
+      session.answerPrediction(p.dataset.pred);
+      return;
+    }
+    const d = e.target.closest("[data-diag]");
+    if (d) session.answerDiagnosis(d.dataset.diag);
+  });
+  var overlay = $("#overlay");
+  var overlayKind = null;
+  var introI = 0;
+  var opener = null;
+  function openOverlay(kind, html) {
+    overlayKind = kind;
+    overlay.innerHTML = html;
+    overlay.hidden = false;
+    document.body.style.overflow = "hidden";
+    const wrap = document.querySelector(".wrap");
+    if (wrap) wrap.inert = true;
+    const f = overlay.querySelector("input,button,a");
+    if (f && f.focus) f.focus({ preventScroll: true });
+  }
+  function closeOverlay() {
+    overlay.hidden = true;
+    overlay.innerHTML = "";
+    overlayKind = null;
+    document.body.style.overflow = "";
+    const wrap = document.querySelector(".wrap");
+    if (wrap) wrap.inert = false;
+    if (opener && opener.focus && document.contains(opener)) opener.focus({ preventScroll: true });
+    opener = null;
+  }
+  function openIntro() {
+    introI = 0;
+    openOverlay("intro", introHTML(0));
+  }
+  function finishIntro() {
+    profile.introSeen = true;
+    saveProfile();
+    closeOverlay();
+    if (!profile.nameAsked) openName(true);
+  }
+  function openName(first) {
+    openOverlay("name", nameDialogHTML(profile, first));
+    overlay.dataset.first = first ? "1" : "";
+  }
+  function openInfo(kind) {
+    openOverlay(kind, modalHTML(kind));
+  }
+  overlay.addEventListener("click", (e) => {
+    const i = e.target.closest("[data-intro]");
+    if (i) {
+      if (i.dataset.intro === "skip" || introI >= INTRO.length - 1) finishIntro();
+      else {
+        introI++;
+        overlay.innerHTML = introHTML(introI);
+        const b = overlay.querySelector("button");
+        if (b) b.focus({ preventScroll: true });
+      }
+      return;
+    }
+    if (e.target.closest("[data-close]")) {
+      closeOverlay();
+      return;
+    }
+    if (e.target.closest("[data-skipname]")) {
+      profile.nameAsked = true;
+      saveProfile();
+      closeOverlay();
+      render();
+    }
+  });
+  overlay.addEventListener("submit", (e) => {
+    if (e.target.id !== "nameForm") return;
+    e.preventDefault();
+    profile.name = cleanName(e.target.elements.name.value);
+    profile.nameAsked = true;
+    saveProfile();
+    closeOverlay();
+    render();
+  });
+  document.addEventListener("keydown", (e) => {
+    if (e.key !== "Escape" || overlay.hidden) return;
+    if (overlayKind === "intro") finishIntro();
+    else {
+      if (overlayKind === "name") {
+        profile.nameAsked = true;
+        saveProfile();
+      }
+      closeOverlay();
+      render();
+    }
+  });
+  document.addEventListener("click", (e) => {
+    const o = e.target.closest("[data-open]");
+    if (o) {
+      opener = o;
+      const k = o.dataset.open;
+      if (k === "intro") openIntro();
+      else openInfo(k);
+      return;
+    }
+    if (e.target.closest("#bPlayer")) {
+      opener = e.target.closest("#bPlayer");
+      openName(false);
+    }
+  });
+  $("#footer").innerHTML = footerHTML();
   renderPalette();
   session.start();
+  applyRoute();
+  if (!profile.introSeen) openIntro();
 })();
 </script>
 </body>

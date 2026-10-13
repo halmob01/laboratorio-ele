@@ -362,3 +362,17 @@ Prima schermata, senza obbligo di nome per guardarsi intorno.
 - **Segnala un problema e Scrivici** aprono un messaggio di posta già indirizzato all'indirizzo di contatto del progetto (da indicare), con il livello e la versione del gioco già scritti nell'oggetto. Nessun invio automatico di dati.
 - **Informativa:** non sta nella homepage. Compare in forma breve (una riga) quando si sceglie il nome, e per intero nel piè di pagina.
 - **Il piè di pagina è un componente a sé,** nel canvas (`Footer`) e nel codice (un modulo della vista con le proprie voci come dato), così si cambia senza toccare homepage e livelli.
+
+## 13. Stato di c0 (branch b1-c01)
+
+Costruito: homepage mobile-first (mappa dei livelli, Continua, strumenti, Area docente non attiva), introduzione "Per cominciare" in 8 schede con "Salta", finestra del nome, livello c01 "circuito chiuso" come unita' completa (lezione, previsione, esempio guidato, cablaggio, sfida guasto), prova di salto ("Gia' lo so"), XP e gradi, migrazione dei vecchi salvataggi.
+
+Scelte di dettaglio:
+- Lessico del sito: "Modulo", "Prova del modulo", "Per cominciare". "Milestone" e "prologo" restano solo termini di lavoro.
+- Tono sobrio, senza slogan.
+- XP: cablaggio 40, colori 30, sicurezza 30; +10 senza aiuti; -5 per aiuto; tetto 30 con soluzione; +10 previsione; +20 sfida guasto (solo se la diagnosi e' giusta al primo tentativo). I gradi e le soglie (0/100/250/450/700) sono provvisori.
+- La sfida guasto non modifica gli XP del cablaggio; e' disponibile solo nel quadro, non dal contatore.
+- Il deposito locale e' validato al caricamento (stelle 0-3, XP entro i limiti).
+- `src/config.js`: `CONTACT_EMAIL` vuoto; "Segnala un problema" e "Scrivici" compaiono solo se valorizzato.
+
+Revisione indipendente (Opus) eseguita su flowOf, sessione, progressi e nome: problemi corretti, test aggiunto.

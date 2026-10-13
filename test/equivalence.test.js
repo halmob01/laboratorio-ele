@@ -11,6 +11,9 @@ import { describeEvaluation } from '../src/content/it.js';
 
 const legacy = createRequire(import.meta.url)('./fixtures/legacy-engine.cjs');
 
+// Il vecchio motore conosce solo i quattro livelli originali (n > 0), nello stesso ordine.
+const legacyLevels = levels.filter(l => l.n > 0);
+
 // Generatore pseudo-casuale con seme fisso: i test sono ripetibili.
 function rng(seed) {
   return () => {
@@ -27,8 +30,8 @@ const MODES = ['quadro', 'contatore'];
 // Livello nuovo e livello originale per (indice, modalita').
 function pair(i, mode) {
   return mode === 'contatore'
-    ? { next: deriveFull(levels[i]), old: legacy.buildFull(legacy.LEVELS[i]) }
-    : { next: levels[i], old: legacy.LEVELS[i] };
+    ? { next: deriveFull(legacyLevels[i]), old: legacy.buildFull(legacy.LEVELS[i]) }
+    : { next: legacyLevels[i], old: legacy.LEVELS[i] };
 }
 
 const termIds = lv => lv.comps.flatMap(c => Object.keys(c.terms).map(t => c.id + '.' + t));
@@ -83,14 +86,15 @@ function strip(lv) {
 
 for (const mode of MODES) {
   test('i dati dei livelli coincidono con gli originali (' + mode + ')', () => {
-    levels.forEach((_, i) => {
+    legacyLevels.forEach((_, i) => {
       const { next, old } = pair(i, mode);
-      assert.deepEqual(JSON.parse(JSON.stringify(next)), strip(old), 'livello ' + (i + 1));
+      const { id, code, flow, blurb, unit, ...rest } = JSON.parse(JSON.stringify(next));
+      assert.deepEqual(rest, strip(old), 'livello ' + (i + 1));
     });
   });
 
   test('analisi del circuito identica per ogni stato dei comandi (' + mode + ')', () => {
-    levels.forEach((_, i) => {
+    legacyLevels.forEach((_, i) => {
       const { next, old } = pair(i, mode);
       const ctl = next.controls;
       wiringCases(next, 100 + i).forEach(c => {
@@ -108,7 +112,7 @@ for (const mode of MODES) {
   });
 
   test('verifica: stesse stelle, stesso esito e stesse frasi (' + mode + ')', () => {
-    levels.forEach((_, i) => {
+    legacyLevels.forEach((_, i) => {
       const { next, old } = pair(i, mode);
       let n = 0;
       wiringCases(next, 200 + i).forEach(c => {
@@ -130,7 +134,7 @@ for (const mode of MODES) {
   });
 
   test('la soluzione di ogni livello prende tre stelle (' + mode + ')', () => {
-    levels.forEach((_, i) => {
+    legacyLevels.forEach((_, i) => {
       const lv = pair(i, mode).next;
       const r = evaluate(lv, toWires(lv.solution));
       assert.equal(r.stars, 3);

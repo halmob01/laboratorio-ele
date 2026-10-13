@@ -14,14 +14,21 @@ const c = (x, y, w, h, terms, extra = {}) => {
 };
 
 const BASE = {
-  1: {
+  'c01-circuito-chiuso': {
+    comps: {
+      Q: c(20, 0, 380, 100, { N: [.12, 'b'], F: [.8, 'b'] }),
+      L: c(190, 140, 210, 90, { B: [.25, 't'], A: [.75, 't'] }),
+    },
+    plates: {},
+  },
+  'c02-presa': {
     comps: {
       Q: c(20, 0, 380, 100, { F: [.2, 'b'], PE: [.5, 'b'], N: [.8, 'b'] }),
       P: c(110, 170, 200, 120, { L: [.2, 't'], PE: [.5, 't'], N: [.8, 't'] }),
     },
     plates: {},
   },
-  2: {
+  'c03-interrotto': {
     comps: {
       Q: c(20, 0, 380, 100, { N: [.12, 'b'], F: [.8, 'b'] }),
       S: c(190, 140, 210, 120, { a: [.5, 't'], b: [.5, 'b'] }),
@@ -29,7 +36,7 @@ const BASE = {
     },
     plates: { S: { x: 344, y: 122 } },
   },
-  3: {
+  'c05-deviato': {
     comps: {
       Q: c(20, 0, 380, 100, { N: [.12, 'b'], F: [.8, 'b'] }),
       D1: c(190, 140, 210, 115, { C: [.5, 't'], '1': [.28, 'b'], '2': [.72, 'b'] }),
@@ -38,7 +45,7 @@ const BASE = {
     },
     plates: { D1: { x: 56, y: 122 }, D2: { x: 344, y: 122 } },
   },
-  4: {
+  'c06-invertito': {
     comps: {
       Q: c(20, 0, 380, 100, { N: [.12, 'b'], F: [.8, 'b'] }),
       D1: c(190, 140, 210, 112, { C: [.5, 't'], '1': [.28, 'b'], '2': [.72, 'b'] }),
@@ -51,9 +58,9 @@ const BASE = {
 };
 
 // Versione "dal contatore": contatore in alto, quadro sotto, il resto spostato piu' in basso.
-function fullLayout(n) {
-  const base = BASE[n];
-  const earthThrough = n === 1;
+function fullLayout(id) {
+  const base = BASE[id];
+  const earthThrough = id === 'c02-presa';
   const pos = earthThrough ? { F: .08, PE: .28, N: .48 } : { N: .08, F: .28, PE: .48 };
   const K = { x: 20, y: 0, w: 380, h: 96, terms: {} };
   const Q = { x: 20, y: 140, w: 380, h: 130, bx: .78, terms: {} };
@@ -70,7 +77,7 @@ function fullLayout(n) {
 }
 
 export function layoutFor(level) {
-  return level.full ? fullLayout(level.n) : BASE[level.n];
+  return level.full ? fullLayout(level.id) : BASE[level.id];
 }
 
 // Componenti del modello con la geometria sopra: x, y, w, h, flip, bx, plate e, per ogni morsetto, f e s.

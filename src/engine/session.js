@@ -3,9 +3,15 @@
 //
 // Nessuna frase qui dentro: i messaggi sono codici ({ code, ...parametri }),
 // il testo si compone in src/content/it.js.
+//
+// Un livello puo' avere un'unita' didattica (level.unit): lezione, previsione, cablaggio (con
+// un esempio guidato), sfida guasto. La sessione tiene la fase corrente; i testi sono nei contenuti.
+// Un livello si puo' anche aprire "in verifica" (prova di salto): niente lezione, niente aiuti.
 
 import { analyse, potentialOf } from './circuit.js';
 import { evaluate } from './evaluate.js';
+import { flowOf } from './flow.js';
+import { attemptBase, migrateProgress, rankOf, totalXp, xpOf } from './progress.js';
 
 function memoryStorage() {
   let data = {};
@@ -13,13 +19,14 @@ function memoryStorage() {
 }
 
 export const MODES = ['quadro', 'contatore'];
+export const PLAY_MODES = ['apprendimento', 'verifica'];
 
 /**
  * @param {object}   cfg
  * @param {object[]} cfg.levels      livelli di base (modello, senza geometria)
  * @param {function} cfg.deriveFull  (livelloBase) => livello "dal contatore"
  * @param {object}   [cfg.storage]   { load(): object, save(object) } per i progressi
- * @param {number}   [cfg.initialLevel]
+ * @param {number|string} [cfg.initialLevel]  indice o id del livello iniziale
  */
 export function createSession({ levels, deriveFull, storage = memoryStorage(), initialLevel = 0 }) {
   const levelCache = {};
@@ -27,12 +34,16 @@ export function createSession({ levels, deriveFull, storage = memoryStorage(), i
   const statesByKey = {};
   const resultsByKey = {};
   const usageByKey = {};
+  const unitByKey = {};
   let nextWireId = 1;
-  let progress = {};
-  try { progress = storage.load() || {}; } catch (e) { progress = {}; }
+  let progress;
+  try { progress = migrateProgress(storage.load(), levels); } catch (e) { progress = migrateProgress(null, levels); }
 
-  let levelIndex = initialLevel;
+  const indexOf = x => (typeof x === 'number' ? x : levels.findIndex(l => l.id === x));
+  let levelIndex = Math.min(levels.length - 1, Math.max(0, indexOf(initialLevel)));
   let mode = 'quadro';
+  let playMode = 'apprendimento';
+  let flowOnDemand = false;
   let power = false;
   let trip = false;
   let message = null;
@@ -41,7 +52,7 @@ export function createSession({ levels, deriveFull, storage = memoryStorage(), i
   const listeners = new Set();
 
   const keyOf = (i = levelIndex, m = mode) => i + '|' + m;
-  const progressKey = (n, m = mode) => n + (m === 'contatore' ? 'c' : '');
+  const progressKey = (id, m = mode) => id + (m === 'contatore' ? 'c' : '');
   const levelAt = (i = levelIndex, m = mode) => {
     const k = keyOf(i, m);
     return levelCache[k] || (levelCache[k] = m === 'contatore' ? deriveFull(levels[i]) : levels[i]);
@@ -49,16 +60,48 @@ export function createSession({ levels, deriveFull, storage = memoryStorage(), i
   const wires = () => wiresByKey[keyOf()] || (wiresByKey[keyOf()] = []);
   const states = () => statesByKey[keyOf()] || (statesByKey[keyOf()] = {});
   const usage = () => usageByKey[keyOf()] || (usageByKey[keyOf()] = { hints: 0, solution: false, checks: 0 });
+  const startPhase = (i = levelIndex) => {
+    const l = levels[i];
+    const b = progress.best[progressKey(l.id)];
+    const seen = progress.stars[progressKey(l.id)] > 0 || (b && b.pred);
+    return l.unit && playMode === 'apprendimento' && !seen ? 'lesson' : 'build';
+  };
+  // La fase dell'unita' vale per il livello, qualunque sia il punto di partenza (quadro o contatore).
+  const unitState = () =>
+    unitByKey[levelIndex] || (unitByKey[levelIndex] = { phase: startPhase(), pred: null, diag: null, faultSolved: false });
+  // Uscendo dalla sfida guasto o da una prova di salto, la fase riparte da capo.
+  const dropUnitState = () => { delete unitByKey[levelIndex]; };
+  const save = () => { try { storage.save(progress); } catch (e) { /* si continua senza salvare */ } };
+  const record = () => progress.best[progressKey(levelAt().id)] || (progress.best[progressKey(levelAt().id)] = { base: 0, pred: false, fault: false, skipped: false });
+
+  // Prossimo passo dell'esempio guidato: il primo filo guidato che non c'e' ancora.
+  function guideStep(level, ws, phase) {
+    if (!level.unit || !level.unit.guided || phase !== 'build' || playMode !== 'apprendimento') return null;
+    const has = ([a, b]) => ws.some(w => (w.a === a && w.b === b) || (w.a === b && w.b === a));
+    const k = level.unit.guided.findIndex(g => !has(g.wire));
+    return k < 0 ? null : { index: k, total: level.unit.guided.length, wire: level.unit.guided[k].wire, say: level.unit.guided[k].say };
+  }
+
+  function flowVisible(level) {
+    if (playMode !== 'apprendimento') return false;
+    if (level.flow === 'always') return true;
+    if (level.flow === 'onDemand') return flowOnDemand;
+    return false;
+  }
 
   function snapshot() {
     const level = levelAt();
     const analysis = analyse(level, wires(), states());
+    const us = level.unit ? unitState() : null;
+    const total = totalXp(progress);
+    const phase = us ? us.phase : 'build';
     return {
       levelKey: keyOf(),
       level,
       levelIndex,
       levelCount: levels.length,
       mode,
+      playMode,
       wires: wires().slice(),
       controlStates: { ...states() },
       power,
@@ -68,14 +111,28 @@ export function createSession({ levels, deriveFull, storage = memoryStorage(), i
       fault: analysis.fault,
       // 'F' | 'N' | 'PE' | null per il morsetto dato (indipendente da power)
       potential: tid => potentialOf(analysis, tid),
+      // dove passa la corrente (vedi flow.js); la vista lo mostra solo se flowVisible
+      flow: flowOf(level, wires(), states()),
+      flowVisible: flowVisible(level),
       result: resultsByKey[keyOf()] || null,
       solutionShown,
-      levels: levels.map((l, i) => ({
-        index: i,
-        n: l.n,
-        name: l.name,
-        stars: progress[progressKey(l.n)] || 0,
-      })),
+      unit: us && {
+        phase,
+        pred: us.pred && { ...us.pred },
+        diag: us.diag && { ...us.diag },
+        faultSolved: us.faultSolved,
+        hasFault: !!level.unit.fault,
+      },
+      guide: guideStep(level, wires(), phase),
+      levels: levels.map((l, i) => {
+        const pk = progressKey(l.id);
+        const rec = progress.best[pk];
+        const stars = progress.stars[pk] || 0;
+        const status = rec && rec.skipped && stars >= 3 ? 'saltato' : stars >= 3 ? 'completato' : (stars > 0 || rec) ? 'in corso' : 'nuovo';
+        return { index: i, id: l.id, code: l.code, n: l.n, name: l.name, title: l.title, goal: l.goal, blurb: l.blurb, stars, status, xp: xpOf(rec), hasUnit: !!l.unit };
+      }),
+      last: progress.last,
+      player: { xp: total, rank: rankOf(total) },
       usage: { ...usage() },
     };
   }
@@ -91,6 +148,7 @@ export function createSession({ levels, deriveFull, storage = memoryStorage(), i
     message = null;
     hintIndex = -1;
     solutionShown = false;
+    flowOnDemand = false;
   }
 
   // Se la corrente e' data e c'e' un guasto, la protezione scatta.
@@ -117,6 +175,11 @@ export function createSession({ levels, deriveFull, storage = memoryStorage(), i
     }
   }
 
+  const inBuildOrFault = () => {
+    const l = levelAt();
+    return !l.unit || !['lesson', 'prediction'].includes(unitState().phase);
+  };
+
   return {
     snapshot,
     subscribe(fn) {
@@ -125,10 +188,25 @@ export function createSession({ levels, deriveFull, storage = memoryStorage(), i
     },
     start() { emit(); },
 
-    selectLevel(i) {
+    // Apre un livello (indice o id). Con { verify: true } e' una prova di salto: senza lezione e senza aiuti.
+    selectLevel(x, opts = {}) {
+      const i = indexOf(x);
       if (i < 0 || i >= levels.length) return;
       levelIndex = i;
+      const wasVerify = playMode === 'verifica';
+      playMode = opts.verify ? 'verifica' : 'apprendimento';
+      if (wasVerify || (unitByKey[i] && unitByKey[i].phase === 'fault')) dropUnitState();
       resetLevelState();
+      if (opts.verify) {
+        // si riparte da zero, anche se il livello era stato cablato prima
+        wiresByKey[keyOf()] = [];
+        statesByKey[keyOf()] = {};
+        resultsByKey[keyOf()] = null;
+        usageByKey[keyOf()] = { hints: 0, solution: false, checks: 0 };
+        unitByKey[levelIndex] = { phase: 'build', pred: null, diag: null, faultSolved: false };
+      }
+      progress.last = levels[i].id;
+      save();
       emit();
     },
     nextLevel() {
@@ -137,6 +215,10 @@ export function createSession({ levels, deriveFull, storage = memoryStorage(), i
     setMode(m) {
       if (!MODES.includes(m) || m === mode) return;
       mode = m;
+      const us = unitByKey[levelIndex];
+      if (us && us.phase === 'fault') { us.phase = 'done'; us.diag = null; }
+      else if (playMode === 'verifica') dropUnitState();
+      playMode = 'apprendimento';
       resetLevelState();
       emit();
     },
@@ -144,6 +226,7 @@ export function createSession({ levels, deriveFull, storage = memoryStorage(), i
     // Collega a-b con il colore dato; se il filo esiste gia' lo toglie.
     addWire(a, b, color) {
       if (!a || !b || a === b) return;
+      if (!inBuildOrFault()) return;
       const ws = wires();
       const k = ws.findIndex(w => (w.a === a && w.b === b) || (w.a === b && w.b === a));
       wiresChanged();
@@ -152,6 +235,7 @@ export function createSession({ levels, deriveFull, storage = memoryStorage(), i
       emit();
     },
     removeWire(id) {
+      if (!inBuildOrFault()) return;
       const ws = wires();
       const k = ws.findIndex(x => x.id === id);
       if (k < 0) return;
@@ -160,13 +244,13 @@ export function createSession({ levels, deriveFull, storage = memoryStorage(), i
       emit();
     },
     undo() {
-      if (!wires().length) return;
+      if (!wires().length || !inBuildOrFault()) return;
       wiresChanged();
       wires().pop();
       emit();
     },
     clear() {
-      if (!wires().length) return;
+      if (!wires().length || !inBuildOrFault()) return;
       wiresChanged();
       wiresByKey[keyOf()] = [];
       statesByKey[keyOf()] = {};
@@ -196,31 +280,108 @@ export function createSession({ levels, deriveFull, storage = memoryStorage(), i
       applyLive();
       emit();
     },
+    // Livelli con corrente "a richiesta": mostra o nasconde i fili percorsi.
+    toggleFlow() {
+      flowOnDemand = !flowOnDemand;
+      emit();
+    },
 
     check() {
       const level = levelAt();
       const r = evaluate(level, wires());
       resultsByKey[keyOf()] = r;
-      usage().checks++;
-      const pk = progressKey(level.n);
-      if ((progress[pk] || 0) < r.stars) {
-        progress[pk] = r.stars;
-        try { storage.save(progress); } catch (e) { /* si continua senza salvare */ }
+      const u = usage();
+      u.checks++;
+      const pk = progressKey(level.id);
+      const rec = record();
+      const prevStars = progress.stars[pk] || 0;
+      if (prevStars < r.stars) progress.stars[pk] = r.stars;
+      const inFault = level.unit && unitState().phase === 'fault';
+      if (!inFault) rec.base = Math.max(rec.base, attemptBase(r, u));
+      if (r.pass && playMode === 'verifica' && prevStars < 3) rec.skipped = true;
+      if (level.unit) {
+        const us = unitState();
+        if (r.pass && us.phase === 'build') us.phase = 'done';
+        if (r.pass && us.phase === 'fault' && us.diag && us.diag.correct && !us.diagWrong) {
+          us.faultSolved = true;
+          rec.fault = true;
+          us.phase = 'done';
+        }
       }
+      progress.last = level.id;
+      save();
       emit();
       return r;
     },
 
     // Suggerimento successivo (a rotazione). Non cambia il circuito, quindi non emette.
+    // In verifica non ci sono suggerimenti.
     requestHint() {
+      if (playMode === 'verifica') return null;
       const hints = levelAt().hints;
       hintIndex = (hintIndex + 1) % hints.length;
       usage().hints++;
       return { index: hintIndex, total: hints.length, text: hints[hintIndex] };
     },
     toggleSolution() {
+      if (playMode === 'verifica') return;
       solutionShown = !solutionShown;
       if (solutionShown) usage().solution = true;
+      emit();
+    },
+
+    /* ---------- unita' didattica ---------- */
+    // lezione -> previsione -> cablaggio
+    unitNext() {
+      const level = levelAt();
+      if (!level.unit) return;
+      const us = unitState();
+      if (us.phase === 'lesson') us.phase = 'prediction';
+      else if (us.phase === 'prediction' && us.pred) us.phase = 'build';
+      emit();
+    },
+    showLesson() {
+      if (!levelAt().unit || playMode === 'verifica') return;
+      unitState().phase = 'lesson';
+      emit();
+    },
+    answerPrediction(optionId) {
+      const level = levelAt();
+      const us = level.unit && unitState();
+      if (!us || us.phase !== 'prediction' || us.pred) return;
+      const correct = level.unit.prediction.correct === optionId;
+      us.pred = { option: optionId, correct };
+      if (correct) {
+        record().pred = true;
+        save();
+      }
+      emit();
+    },
+    // Sfida guasto: si parte da un impianto gia' cablato che non funziona.
+    startFault() {
+      const level = levelAt();
+      const us = level.unit && level.unit.fault && unitState();
+      if (!us || !['done', 'fault'].includes(us.phase) || playMode === 'verifica' || mode !== 'quadro') return;
+      resetLevelState();
+      wiresByKey[keyOf()] = level.unit.fault.wires.map(([a, b, c]) => ({ id: nextWireId++, a, b, c }));
+      statesByKey[keyOf()] = {};
+      resultsByKey[keyOf()] = null;
+      us.phase = 'fault';
+      us.diag = null;
+      emit();
+    },
+    answerDiagnosis(optionId) {
+      const level = levelAt();
+      const us = level.unit && level.unit.fault && unitState();
+      if (!us || us.phase !== 'fault' || us.diag) return;
+      us.diag = { option: optionId, correct: level.unit.fault.diagnosis.correct === optionId };
+      if (!us.diag.correct) us.diagWrong = true;
+      emit();
+    },
+    leaveFault() {
+      const us = levelAt().unit && unitState();
+      if (!us || us.phase !== 'fault') return;
+      us.phase = 'done';
       emit();
     },
   };

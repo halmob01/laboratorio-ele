@@ -4,12 +4,44 @@
 // Componente: { id, type, short, title, where?, terms: { <id>: { l, n? } } }
 //   l = etichetta sul morsetto, n = nome esteso (se diverso dall'etichetta)
 //   where = nome del punto della stanza in cui sta il comando (interruttori e deviatori)
+// Livello: id stabile (non cambia mai, anche se si inseriscono livelli), code = sigla mostrata,
+//   n = numero nel prototipo originale (0 = livello nuovo, senza corrispondente nel vecchio motore),
+//   blurb = una riga per la scheda nella mappa,
+//   flow = corrente visibile: 'always' | 'onDemand' (con un pulsante) | assente (mai).
 // Livello:
 //   controls = componenti che l'allievo puo' azionare, load = morsetti del carico,
 //   room = scena di contorno ('tavolo' | 'soffitto'), solution = [[da, a, colore], ...]
 
 export const LEVELS = [
   {
+    id: 'c01-circuito-chiuso',
+    code: 'c01',
+    blurb: 'Una lampada si accende solo se il giro è completo.',
+    flow: 'always',
+    n: 0,
+    name: 'Circuito chiuso',
+    title: 'Il circuito chiuso',
+    goal: 'Collega la lampada al quadro con due fili: la fase e il neutro. Poi dai corrente con la levetta del quadro.',
+    loadName: 'La lampada',
+    comps: [
+      { id: 'Q', type: 'quadro', short: 'Quadro', title: 'Quadro elettrico', terms: { N: { l: 'NEUTRO' }, F: { l: 'FASE' } } },
+      { id: 'L', type: 'lamp', short: 'Lampada', title: 'Portalampada', terms: { B: { l: 'B' }, A: { l: 'A' } } },
+    ],
+    controls: [],
+    load: ['L.A', 'L.B'],
+    room: 'soffitto',
+    solution: [['Q.F', 'L.A', 'marrone'], ['Q.N', 'L.B', 'blu']],
+    hints: [
+      'La fase (marrone) parte dal morsetto FASE del quadro e arriva a un morsetto della lampada.',
+      'Il neutro (blu) parte dal morsetto NEUTRO del quadro e arriva all’altro morsetto della lampada.',
+      'Servono due fili in tutto, uno per ciascun morsetto della lampada. Poi tocca la levetta del quadro.',
+    ],
+  },
+  {
+    id: 'c02-presa',
+    code: 'c02',
+    blurb: 'Fase, neutro e terra: dove vanno e perché.',
+    flow: 'always',
     n: 1,
     name: 'Presa',
     title: 'La presa di corrente',
@@ -32,6 +64,10 @@ export const LEVELS = [
     ],
   },
   {
+    id: 'c03-interrotto',
+    code: 'c03',
+    blurb: 'Interrompere la fase, non il neutro.',
+    flow: 'always',
     n: 2,
     name: 'Interrotto',
     title: 'Punto luce interrotto',
@@ -53,6 +89,10 @@ export const LEVELS = [
     ],
   },
   {
+    id: 'c05-deviato',
+    code: 'c05',
+    blurb: 'Accendere e spegnere da due punti.',
+    flow: 'onDemand',
     n: 3,
     name: 'Deviato',
     title: 'Punto luce deviato',
@@ -75,6 +115,10 @@ export const LEVELS = [
     ],
   },
   {
+    id: 'c06-invertito',
+    code: 'c06',
+    blurb: 'Comandare la stessa luce da tre punti.',
+    flow: 'onDemand',
     n: 4,
     name: 'Invertito',
     title: 'Punto luce invertito',
