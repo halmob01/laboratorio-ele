@@ -37,6 +37,8 @@ Scritto da Opus per essere eseguito da Sonnet in autonomia, senza domande a Matt
 
 ## 1. Tetto di stanotte e margine
 
+**Stop assoluto alle 05:45 di mercoledì 14 ottobre**: a quell'ora si chiude il compito in corso con un commit (anche `[wip]`), si aggiorna `STATO-AVANZAMENTO.md` e ci si ferma, qualunque sia il punto raggiunto. Dopo il reset settimanale delle 06:00 non si usa utilizzo. L'ora si controlla con `date` prima di iniziare ogni compito.
+
 **Stanotte si fanno solo le fasi A e B.** La fase C si inizia solo se A e B sono chiuse e unite in `main` prima delle 04:00; in quel caso si chiude livello per livello (c02, poi c03, poi c05, poi c06), con un commit e una voce in `STATO-AVANZAMENTO.md` per ciascuno, e alle 05:30 non se ne inizia uno nuovo. Le fasi D ed E **non** si fanno stanotte: aspettano l'approvazione di Matteo.
 
 Perché: il limite della sessione si azzera ogni 5 ore e quello settimanale mercoledì alle 06:00. Il lavoro si interrompe di colpo quando il limite finisce, e quello che non è salvato con un commit può andare perso se l'ambiente viene chiuso. Il margine serve a non lasciare a metà una fase e a lasciare a Matteo utilizzo per la giornata.
