@@ -376,3 +376,7 @@ Scelte di dettaglio:
 - `src/config.js`: `CONTACT_EMAIL` vuoto; "Segnala un problema" e "Scrivici" compaiono solo se valorizzato.
 
 Revisione indipendente (Opus) eseguita su flowOf, sessione, progressi e nome: problemi corretti, test aggiunto.
+
+## 14. Modello di lezione ed esercizio
+
+Approvato il 13 ottobre 2026 per tutti i livelli, non ancora implementato: vedi `docs/LEZIONE-ED-ESERCIZIO.md` e le bozze in `docs/bozze/`. In sintesi: lezione a pagine tipizzate (spiegazione, pezzi, guarda come si fa, previsione, sintesi sempre finale), sempre saltabile; esercizio con passi in alto, banco al centro, stanza grande in fondo; aiuto che si riduce nel corso; Quaderno delle sintesi dalla mappa.
