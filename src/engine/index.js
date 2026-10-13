@@ -6,5 +6,7 @@ export { evaluate } from './evaluate.js';
 export { buildFull } from './full.js';
 export { createSession, MODES } from './session.js';
 export { flowOf } from './flow.js';
+export { stepsState, ghostFor } from './steps.js';
+export { demoFrames } from './demo.js';
 export { migrateProgress, emptyProgress, attemptBase, totalXp, xpOf, rankOf, RANKS, XP } from './progress.js';
 export { cleanName, NAME_MAX } from './profile.js';

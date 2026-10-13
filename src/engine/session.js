@@ -4,13 +4,14 @@
 // Nessuna frase qui dentro: i messaggi sono codici ({ code, ...parametri }),
 // il testo si compone in src/content/it.js.
 //
-// Un livello puo' avere un'unita' didattica (level.unit): lezione, previsione, cablaggio (con
-// un esempio guidato), sfida guasto. La sessione tiene la fase corrente; i testi sono nei contenuti.
+// Un livello puo' avere un'unita' didattica (level.unit): lezione a pagine (la previsione e' una pagina),
+// cablaggio con i passi, sfida guasto. La sessione tiene la fase corrente; i testi sono nei contenuti.
 // Un livello si puo' anche aprire "in verifica" (prova di salto): niente lezione, niente aiuti.
 
 import { analyse, potentialOf } from './circuit.js';
 import { evaluate } from './evaluate.js';
 import { flowOf } from './flow.js';
+import { stepsState, ghostFor } from './steps.js';
 import { attemptBase, migrateProgress, rankOf, totalXp, xpOf } from './progress.js';
 
 function memoryStorage() {
@@ -35,6 +36,7 @@ export function createSession({ levels, deriveFull, storage = memoryStorage(), i
   const resultsByKey = {};
   const usageByKey = {};
   const unitByKey = {};
+  const operatedByKey = {};   // comandi azionati con il quadro acceso, per i passi
   let nextWireId = 1;
   let progress;
   try { progress = migrateProgress(storage.load(), levels); } catch (e) { progress = migrateProgress(null, levels); }
@@ -74,19 +76,27 @@ export function createSession({ levels, deriveFull, storage = memoryStorage(), i
   const save = () => { try { storage.save(progress); } catch (e) { /* si continua senza salvare */ } };
   const record = () => progress.best[progressKey(levelAt().id)] || (progress.best[progressKey(levelAt().id)] = { base: 0, pred: false, fault: false, skipped: false });
 
-  // Prossimo passo dell'esempio guidato: il primo filo guidato che non c'e' ancora.
-  function guideStep(level, ws, phase) {
-    if (!level.unit || !level.unit.guided || phase !== 'build' || playMode !== 'apprendimento') return null;
-    const has = ([a, b]) => ws.some(w => (w.a === a && w.b === b) || (w.a === b && w.b === a));
-    const k = level.unit.guided.findIndex(g => !has(g.wire));
-    return k < 0 ? null : { index: k, total: level.unit.guided.length, wire: level.unit.guided[k].wire, say: level.unit.guided[k].say };
-  }
+  const operated = () => operatedByKey[keyOf()] || (operatedByKey[keyOf()] = []);
+  const currentPage = () => {
+    const l = levelAt();
+    return l.unit && l.unit.lesson.pages[unitState().page || 0];
+  };
 
   function flowVisible(level) {
     if (playMode !== 'apprendimento') return false;
     if (level.flow === 'always') return true;
     if (level.flow === 'onDemand') return flowOnDemand;
     return false;
+  }
+
+  // Passi dell'esercizio e tratteggio: solo in apprendimento, durante il cablaggio.
+  function stepsPart(level, phase) {
+    const u = level.unit;
+    if (!u || !u.steps || playMode !== 'apprendimento' || phase === 'lesson') return { steps: null, ghost: null };
+    const st = stepsState(u.steps, wires(), { power, operated: operated(), result: resultsByKey[keyOf()] || null });
+    const cur = st.current === null ? null : u.steps[st.current];
+    const ghost = phase === 'build' && u.support === 'guidato' && cur ? ghostFor(cur, wires()) : null;
+    return { steps: { list: u.steps, done: st.done, current: st.current }, ghost };
   }
 
   function snapshot() {
@@ -120,12 +130,15 @@ export function createSession({ levels, deriveFull, storage = memoryStorage(), i
         phase,
         page: us.page || 0,
         pages: level.unit.lesson.pages.length,
+        pageData: phase === 'lesson' ? level.unit.lesson.pages[us.page || 0] : null,
         pred: us.pred && { ...us.pred },
         diag: us.diag && { ...us.diag },
         faultSolved: us.faultSolved,
         hasFault: !!level.unit.fault,
+        summary: level.unit.summary || [],
+        support: level.unit.support || 'passi',
       },
-      guide: guideStep(level, wires(), phase),
+      ...stepsPart(level, phase),
       levels: levels.map((l, i) => {
         const pk = progressKey(l.id);
         const rec = progress.best[pk];
@@ -179,7 +192,7 @@ export function createSession({ levels, deriveFull, storage = memoryStorage(), i
 
   const inBuildOrFault = () => {
     const l = levelAt();
-    return !l.unit || !['lesson', 'prediction'].includes(unitState().phase);
+    return !l.unit || unitState().phase !== 'lesson';
   };
 
   return {
@@ -278,6 +291,7 @@ export function createSession({ levels, deriveFull, storage = memoryStorage(), i
     toggleControl(id) {
       const st = states();
       st[id] = st[id] ? 0 : 1;
+      if (power && !operated().includes(id)) operated().push(id);
       message = null;
       applyLive();
       emit();
@@ -333,16 +347,17 @@ export function createSession({ levels, deriveFull, storage = memoryStorage(), i
     },
 
     /* ---------- unita' didattica ---------- */
-    // lezione -> previsione -> cablaggio
+    // Avanti nella lezione: pagina successiva; dall'ultima si passa al cablaggio.
+    // Sulla pagina di previsione si va avanti solo dopo aver risposto.
     unitNext() {
       const level = levelAt();
       if (!level.unit) return;
       const us = unitState();
-      if (us.phase === 'lesson') {
-        if ((us.page || 0) < level.unit.lesson.pages.length - 1) us.page = (us.page || 0) + 1;
-        else us.phase = 'prediction';
-      }
-      else if (us.phase === 'prediction' && us.pred) us.phase = 'build';
+      if (us.phase !== 'lesson') return;
+      const pg = currentPage();
+      if (pg.type === 'previsione' && !us.pred) return;
+      if ((us.page || 0) < level.unit.lesson.pages.length - 1) us.page = (us.page || 0) + 1;
+      else us.phase = 'build';
       emit();
     },
     // Indietro nella lezione: pagina precedente (alla prima non fa nulla).
@@ -350,17 +365,27 @@ export function createSession({ levels, deriveFull, storage = memoryStorage(), i
       const us = levelAt().unit && unitState();
       if (us && us.phase === 'lesson' && us.page > 0) { us.page--; emit(); }
     },
+    // Salta la lezione: si va subito al cablaggio, senza penalita' oltre alla previsione non data.
+    skipLesson() {
+      const us = levelAt().unit && unitState();
+      if (!us || us.phase !== 'lesson') return;
+      us.phase = 'build';
+      emit();
+    },
     showLesson() {
       if (!levelAt().unit || playMode === 'verifica') return;
-      unitState().phase = 'lesson';
-      unitState().page = 0;
+      const us = unitState();
+      us.phase = 'lesson';
+      us.page = 0;
       emit();
     },
     answerPrediction(optionId) {
       const level = levelAt();
       const us = level.unit && unitState();
-      if (!us || us.phase !== 'prediction' || us.pred) return;
-      const correct = level.unit.prediction.correct === optionId;
+      if (!us || us.phase !== 'lesson' || us.pred) return;
+      const pg = currentPage();
+      if (!pg || pg.type !== 'previsione') return;
+      const correct = pg.correct === optionId;
       us.pred = { option: optionId, correct };
       if (correct) {
         record().pred = true;
