@@ -437,6 +437,7 @@ a.tool{display:flex;align-items:center;justify-content:center;text-decoration:no
 .hlabel{position:absolute;left:0;top:0;white-space:nowrap;font:600 11px/1 'IBM Plex Mono',monospace;color:#fff}
 .hlabel.room{text-transform:uppercase;letter-spacing:.06em;opacity:.8;text-shadow:0 1px 2px rgba(0,0,0,.7)}
 .hlabel.ctl{background:rgba(10,16,24,.7);padding:3px 6px;border-radius:6px}
+.hcredit{position:absolute;left:8px;bottom:6px;font:500 10px/1.2 'IBM Plex Sans',sans-serif;color:rgba(255,255,255,.7);pointer-events:none;z-index:2}
 .htools{position:absolute;top:8px;right:8px;display:flex;gap:6px;z-index:2}
 .btn.small{min-height:34px;padding:4px 10px;font-size:13px}
 .hmsg{position:absolute;left:0;right:0;bottom:0;padding:10px 12px;color:#fff;font-size:14px;background:rgba(10,16,24,.6)}

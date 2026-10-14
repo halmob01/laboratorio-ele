@@ -447,6 +447,7 @@ a.tool{display:flex;align-items:center;justify-content:center;text-decoration:no
 .hlabel{position:absolute;left:0;top:0;white-space:nowrap;font:600 11px/1 'IBM Plex Mono',monospace;color:#fff}
 .hlabel.room{text-transform:uppercase;letter-spacing:.06em;opacity:.8;text-shadow:0 1px 2px rgba(0,0,0,.7)}
 .hlabel.ctl{background:rgba(10,16,24,.7);padding:3px 6px;border-radius:6px}
+.hcredit{position:absolute;left:8px;bottom:6px;font:500 10px/1.2 'IBM Plex Sans',sans-serif;color:rgba(255,255,255,.7);pointer-events:none;z-index:2}
 .htools{position:absolute;top:8px;right:8px;display:flex;gap:6px;z-index:2}
 .btn.small{min-height:34px;padding:4px 10px;font-size:13px}
 .hmsg{position:absolute;left:0;right:0;bottom:0;padding:10px 12px;color:#fff;font-size:14px;background:rgba(10,16,24,.6)}
@@ -8273,6 +8274,8 @@ html[lang="it"] .trnote{display:none}
 
   // src/i18n/ar-15.js
   var ar_15_default = {
+    "Tetto": "\u0627\u0644\u0633\u0642\u0641",
+    "Modelli 3D: Wayfair, Darmstadt Graphics Group (CC BY 4.0)": "\u0627\u0644\u0646\u0645\u0627\u0630\u062C \u062B\u0644\u0627\u062B\u064A\u0629 \u0627\u0644\u0623\u0628\u0639\u0627\u062F: Wayfair\u060C Darmstadt Graphics Group (CC BY 4.0)",
     "Alla presa \xE8 collegato un apparecchio e il differenziale \xE8 gi\xE0 scattato. Rialzalo e osserva, poi premi Verifica.": "\u0625\u0644\u0649 \u0627\u0644\u0645\u0642\u0628\u0633 \u0645\u0648\u0635\u0648\u0644 \u062C\u0647\u0627\u0632 \u0648\u0627\u0644\u0642\u0627\u0637\u0639 \u0627\u0644\u062A\u0641\u0627\u0636\u0644\u064A \u0642\u062F \u0641\u0635\u0644 \u0628\u0627\u0644\u0641\u0639\u0644. \u0623\u0639\u062F \u0631\u0641\u0639\u0647 \u0648\u0631\u0627\u0642\u0628\u060C \u062B\u0645 \u0627\u0636\u063A\u0637 \u062A\u062D\u0642\u0642.",
     "Il conteggio parte da capo quando rilasci il pulsante. Ogni pressione d\xE0 un nuovo intervallo pieno: per questo chi sale le scale pu\xF2 premere quando vuole senza restare al buio.": "\u064A\u0628\u062F\u0623 \u0627\u0644\u0639\u062F\u0651 \u0645\u0646 \u062C\u062F\u064A\u062F \u0639\u0646\u062F \u062A\u062D\u0631\u064A\u0631 \u0627\u0644\u0632\u0631. \u0643\u0644 \u0636\u063A\u0637\u0629 \u062A\u0639\u0637\u064A \u0641\u062A\u0631\u0629 \u0643\u0627\u0645\u0644\u0629 \u062C\u062F\u064A\u062F\u0629: \u0644\u0630\u0644\u0643 \u064A\u0645\u0643\u0646 \u0644\u0645\u0646 \u064A\u0635\u0639\u062F \u0627\u0644\u062F\u0631\u062C \u0623\u0646 \u064A\u0636\u063A\u0637 \u0645\u062A\u0649 \u0634\u0627\u0621 \u062F\u0648\u0646 \u0623\u0646 \u064A\u0628\u0642\u0649 \u0641\u064A \u0627\u0644\u0638\u0644\u0627\u0645.",
     "Il neutro di ogni carico deve passare dal differenziale, altrimenti scatta anche senza una vera dispersione.": "\u064A\u062C\u0628 \u0623\u0646 \u064A\u0645\u0631 \u062D\u064A\u0627\u062F \u0643\u0644 \u062D\u0645\u0644 \u0639\u0628\u0631 \u0627\u0644\u0642\u0627\u0637\u0639 \u0627\u0644\u062A\u0641\u0627\u0636\u0644\u064A\u060C \u0648\u0625\u0644\u0627 \u0641\u0635\u0644 \u062D\u062A\u0649 \u062F\u0648\u0646 \u0648\u062C\u0648\u062F \u062A\u0633\u0631\u0628 \u062D\u0642\u064A\u0642\u064A.",
@@ -8446,7 +8449,7 @@ html[lang="it"] .trnote{display:none}
     let sceneEl = null, planEl = null, tabsEl = null;
     function build() {
       host2.innerHTML = `<div class="hstage"><div class="hscene" id="hScene"></div><div class="hplan" id="hPlan" hidden></div>
-        <div class="htools"><button class="btn small" data-h="plan" aria-pressed="false">Pianta</button><button class="btn small" data-h="over">Vista d\u2019insieme</button></div>
+        <div class="htools"><button class="btn small" data-h="plan" aria-pressed="false">Pianta</button><button class="btn small" data-h="over">Vista d\u2019insieme</button><button class="btn small" data-h="roof" aria-pressed="true">Tetto</button></div>
         <div class="hmsg" id="hMsg" role="status" hidden></div></div>
       <nav class="htabs" aria-label="Circuiti della casa"></nav>
       <div class="hsoon"><b>Collaudo finale</b><small>in arrivo</small></div>`;
@@ -8463,6 +8466,11 @@ html[lang="it"] .trnote{display:none}
             view = "scene";
             apply();
             if (scene) scene.overview();
+          } else if (b.dataset.h === "roof" && scene && scene.setRoof) {
+            view = "scene";
+            apply();
+            scene.setRoof(!scene.roof());
+            syncRoof();
           }
           return;
         }
@@ -8492,6 +8500,7 @@ html[lang="it"] .trnote{display:none}
             if (!inLesson()) env.session.toggleBreaker();
           },
           onControl: (circuit, id) => control(circuit, id),
+          onRoof: () => syncRoof(),
           onRoom: (room) => {
             const hit = HOUSE.rooms.find((x) => x.id === room);
             if (hit && hit.circuit) env.go("#/livello/" + hit.circuit);
@@ -8500,6 +8509,7 @@ html[lang="it"] .trnote{display:none}
         if (api) {
           scene = api;
           sceneState = "ready";
+          syncRoof();
           if (lastLevel) focus(lastLevel);
         } else {
           sceneState = "failed";
@@ -8508,6 +8518,10 @@ html[lang="it"] .trnote{display:none}
         apply();
         refresh();
       });
+    }
+    function syncRoof() {
+      const b = host2.querySelector('[data-h="roof"]');
+      if (b && scene && scene.roof) b.setAttribute("aria-pressed", String(scene.roof()));
     }
     const inLesson = () => !!(lastSnap && lastSnap.unit && lastSnap.unit.phase === "lesson");
     function control(circuit, id) {
