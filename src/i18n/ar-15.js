@@ -1,5 +1,7 @@
 // Dizionario arabo, parte 15: testi corretti dopo la revisione dei Moduli 2 e 3.
 export default {
+"Tetto": "السقف",
+"Modelli 3D: Wayfair, Darmstadt Graphics Group (CC BY 4.0)": "النماذج ثلاثية الأبعاد: Wayfair، Darmstadt Graphics Group (CC BY 4.0)",
 "Alla presa è collegato un apparecchio e il differenziale è già scattato. Rialzalo e osserva, poi premi Verifica.": "إلى المقبس موصول جهاز والقاطع التفاضلي قد فصل بالفعل. أعد رفعه وراقب، ثم اضغط تحقق.",
 "Il conteggio parte da capo quando rilasci il pulsante. Ogni pressione dà un nuovo intervallo pieno: per questo chi sale le scale può premere quando vuole senza restare al buio.": "يبدأ العدّ من جديد عند تحرير الزر. كل ضغطة تعطي فترة كاملة جديدة: لذلك يمكن لمن يصعد الدرج أن يضغط متى شاء دون أن يبقى في الظلام.",
 "Il neutro di ogni carico deve passare dal differenziale, altrimenti scatta anche senza una vera dispersione.": "يجب أن يمر حياد كل حمل عبر القاطع التفاضلي، وإلا فصل حتى دون وجود تسرب حقيقي.",

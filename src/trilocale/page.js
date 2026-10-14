@@ -47,7 +47,7 @@ export function createHouse(host, env) {
 
   function build() {
     host.innerHTML = `<div class="hstage"><div class="hscene" id="hScene"></div><div class="hplan" id="hPlan" hidden></div>
-        <div class="htools"><button class="btn small" data-h="plan" aria-pressed="false">Pianta</button><button class="btn small" data-h="over">Vista d’insieme</button></div>
+        <div class="htools"><button class="btn small" data-h="plan" aria-pressed="false">Pianta</button><button class="btn small" data-h="over">Vista d’insieme</button><button class="btn small" data-h="roof" aria-pressed="true">Tetto</button></div>
         <div class="hmsg" id="hMsg" role="status" hidden></div></div>
       <nav class="htabs" aria-label="Circuiti della casa"></nav>
       <div class="hsoon"><b>Collaudo finale</b><small>in arrivo</small></div>`;
@@ -59,6 +59,7 @@ export function createHouse(host, env) {
       if (b) {
         if (b.dataset.h === 'plan') { view = view === 'plan' ? 'scene' : 'plan'; apply(); }
         else if (b.dataset.h === 'over') { view = 'scene'; apply(); if (scene) scene.overview(); }
+        else if (b.dataset.h === 'roof' && scene && scene.setRoof) { view = 'scene'; apply(); scene.setRoof(!scene.roof()); syncRoof(); }
         return;
       }
       const r = e.target.closest('[data-room]');
@@ -79,6 +80,7 @@ export function createHouse(host, env) {
         reduced: env.reduced(),
         onBreaker: () => { if (!inLesson()) env.session.toggleBreaker(); },
         onControl: (circuit, id) => control(circuit, id),
+        onRoof: () => syncRoof(),
         onRoom: room => { const hit = HOUSE.rooms.find(x => x.id === room); if (hit && hit.circuit) env.go('#/livello/' + hit.circuit); },
       });
       if (api) { scene = api; sceneState = 'ready'; if (lastLevel) focus(lastLevel); }
@@ -87,6 +89,11 @@ export function createHouse(host, env) {
     });
   }
 
+  // stato del pulsante Tetto: il tetto c'e' all'apertura e si solleva da solo, poi lo comanda il pulsante
+  function syncRoof() {
+    const b = host.querySelector('[data-h="roof"]');
+    if (b && scene && scene.roof) b.setAttribute('aria-pressed', String(scene.roof()));
+  }
   const inLesson = () => !!(lastSnap && lastSnap.unit && lastSnap.unit.phase === 'lesson');
   function control(circuit, id) {
     if (circuit !== lastLevel) { env.go('#/livello/' + circuit); return; }
