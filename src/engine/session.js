@@ -81,6 +81,13 @@ export function createSession({ levels, deriveFull, storage = memoryStorage(), i
   const save = () => { try { storage.save(progress); } catch (e) { /* si continua senza salvare */ } };
   const record = () => progress.best[progressKey(levelAt().id)] || (progress.best[progressKey(levelAt().id)] = { base: 0, pred: false, fault: false, skipped: false });
 
+  // Portate scelte per i magnetotermici del livello (solo v2): servono alla verifica, che parte da simulazioni nuove.
+  const ratingsOf = (i = levelIndex) => {
+    const sim = simsByKey[keyOf(i, 'quadro')];
+    const out = {};
+    if (sim) levels[i].comps.forEach(c => { if (c.type === 'mt' && sim.parts[c.id] && sim.parts[c.id].in) out[c.id] = sim.parts[c.id].in; });
+    return out;
+  };
   const meterOf = () => meterBy[keyOf()] || (meterBy[keyOf()] = { on: false, mode: 'V', a: null, b: null, last: '' });
   const readMeter = level => {
     const m = meterOf();
@@ -152,7 +159,7 @@ export function createSession({ levels, deriveFull, storage = memoryStorage(), i
   function stepsPart(level, phase) {
     const u = level.unit;
     if (!u || !u.steps || playMode !== 'apprendimento' || phase === 'lesson') return { steps: null, ghost: null };
-    const st = stepsState(u.steps, wires(), { power, operated: operated(), result: resultsByKey[keyOf()] || null, fault: !!analysisOf(level).fault, measured: measuredBy[keyOf()] || [] });
+    const st = stepsState(u.steps, wires(), { power, operated: operated(), result: resultsByKey[keyOf()] || null, fault: !!analysisOf(level).fault, measured: measuredBy[keyOf()] || [], ratings: ratingsOf() });
     const cur = st.current === null ? null : u.steps[st.current];
     const ghost = phase === 'build' && u.support === 'guidato' && cur ? ghostFor(cur, wires()) : null;
     return { steps: { list: u.steps, done: st.done, current: st.current }, ghost };
@@ -291,7 +298,7 @@ export function createSession({ levels, deriveFull, storage = memoryStorage(), i
       if (phase === 'done') {
         const ws = wiresByKey[keyOf(i, 'quadro')] || [];
         if (!(progress.stars[progressKey(l.id, 'quadro')] > 0) || !ws.length) phase = 'build';
-        else result = isV2(levelAt(i, 'quadro')) ? evaluateV2(levelAt(i, 'quadro'), ws, { measured: measuredBy[keyOf(i, 'quadro')] || [] }) : evaluate(levelAt(i, 'quadro'), ws);
+        else result = isV2(levelAt(i, 'quadro')) ? evaluateV2(levelAt(i, 'quadro'), ws, { measured: measuredBy[keyOf(i, 'quadro')] || [], ratings: ratingsOf(i) }) : evaluate(levelAt(i, 'quadro'), ws);
         if (result && !result.pass) { phase = 'build'; result = null; }
       }
       unitByKey[i] = { phase, page, pred, diag: null, faultSolved: false };
@@ -583,6 +590,14 @@ export function createSession({ levels, deriveFull, storage = memoryStorage(), i
       emit();
     },
     // Livelli con corrente "a richiesta": mostra o nasconde i fili percorsi.
+    // Cambia la portata di un magnetotermico che ne ha piu' di una (si passa alla successiva dell'elenco).
+    rateControl(id) {
+      const level = levelAt();
+      if (!v2(level)) return;
+      act(simFor(), 'rate', id);
+      resultsByKey[keyOf()] = null;
+      emit();
+    },
     toggleMeter() { if (!levelAt().meter) return; const m = meterOf(); m.on = !m.on; emit(); },
     setMeterMode(md) { if (!levelAt().meter || !['V', 'R'].includes(md)) return; meterOf().mode = md; emit(); },
     // Il primo morsetto toccato e' il puntale rosso, il secondo il nero, il terzo ricomincia.
@@ -600,7 +615,7 @@ export function createSession({ levels, deriveFull, storage = memoryStorage(), i
 
     check() {
       const level = levelAt();
-      const r = v2(level) ? evaluateV2(level, wires(), { measured: measuredBy[keyOf()] || [] }) : evaluate(level, wires());
+      const r = v2(level) ? evaluateV2(level, wires(), { measured: measuredBy[keyOf()] || [], ratings: ratingsOf() }) : evaluate(level, wires());
       resultsByKey[keyOf()] = r;
       const u = usage();
       u.checks++;

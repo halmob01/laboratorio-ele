@@ -349,3 +349,55 @@ test('polarita della presa: fase e neutro scambiati sulla presa si vedono anche 
   assert.equal(bad.safe.ok, false);
   assert.equal(bad.safe.items[0].code, 'safe.socketPolarity');
 });
+
+/* ---------- sovraccarico e cavo (E1) ---------- */
+
+const MT_LINE = {
+  engine: 2, cable: { prot: 'QM', iz: 15.5, s: 1.5 },
+  comps: [Q1, comp('QM', 'mt', { in: 16, ratings: [10, 16, 20] }), comp('S1', 'sw'), comp('H1', 'lamp', { w: 2000 }), comp('S2', 'sw'), comp('H2', 'lamp', { w: 2000 })],
+};
+const mtWires = W('Q.F QM.1', 'QM.2 S1.a', 'QM.2 S2.a', 'S1.b H1.A', 'S2.b H2.A', 'Q.N QM.N1', 'QM.N2 H1.B', 'QM.N2 H2.B blu');
+
+test('magnetotermico con portata: una stufa da 2000 W (8,7 A) su 10 A non scatta', () => {
+  const s = createSim(MT_LINE, mtWires);
+  act(s, 'rate', 'QM');   // 16 -> 20
+  act(s, 'rate', 'QM');   // 20 -> 10
+  assert.equal(observe(s).parts.QM.in, 10);
+  act(s, 'toggle', 'S1');
+  advance(s, 20);
+  const o = observe(s);
+  assert.deepEqual(o.tripped, []);
+  assert.equal(o.loads.H1, 'on');
+  assert.ok(Math.abs(o.lines.QM.amps - 8.7) < 0.1);
+  assert.equal(o.cable.burnt, false);
+});
+
+test('due stufe su 10 A: 17,4 A sono 1,74 In, scatta dopo qualche secondo e il cavo non fa in tempo a scaldare', () => {
+  const s = createSim(MT_LINE, mtWires);
+  act(s, 'rate', 'QM'); act(s, 'rate', 'QM');
+  act(s, 'toggle', 'S1'); act(s, 'toggle', 'S2');
+  advance(s, 2);
+  assert.deepEqual(observe(s).tripped, [], 'non subito');
+  advance(s, 10);
+  const o = observe(s);
+  assert.deepEqual(o.tripped, ['QM']);
+  assert.equal(o.loads.H1, 'off');
+  assert.equal(o.cable.burnt, false);
+});
+
+test('due stufe su 16 A: 1,09 In non scatta e il cavo da 1,5 mm2 (15,5 A) si surriscalda', () => {
+  const s = createSim(MT_LINE, mtWires);
+  act(s, 'toggle', 'S1'); act(s, 'toggle', 'S2');
+  advance(s, 12);
+  const o = observe(s);
+  assert.deepEqual(o.tripped, []);
+  assert.equal(o.cable.burnt, true);
+});
+
+test('la portata scelta entra nella verifica', () => {
+  const L = { ...MT_LINE, checks: [{ id: 'due', label: 'Due stufe', do: ['toggle S1', 'toggle S2', 'wait 12'], expect: { tripped: ['QM'] } }] };
+  assert.equal(evaluateV2(L, mtWires, { ratings: { QM: 10 } }).work.ok, true);
+  const bad = evaluateV2(L, mtWires, { ratings: { QM: 16 } });
+  assert.equal(bad.work.ok, false);
+  assert.equal(bad.work.items[0].code, 'work.cableBurnt');
+});

@@ -524,3 +524,5 @@ html[lang="it"] .trnote{display:none}
 .meter .mdisp.warn{background:#4a2020;color:#ffd0c8}
 .meter .mdisp .munit{font-size:13px;opacity:.8}
 .meter .msub{margin:2px 0 8px;font-size:13px;line-height:1.35}
+.heatbar{display:inline-block;width:64px;height:8px;border-radius:4px;background:rgba(0,0,0,.12);vertical-align:middle;margin:0 6px;overflow:hidden}
+.heatbar i{display:block;height:100%;background:#E5484D}

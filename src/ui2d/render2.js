@@ -62,6 +62,11 @@ export function schemV2(c, s, L, ui) {
       const [xf, xn] = [w * c.terms['1'].f, w * c.terms.N1.f];
       o += pole(xf, 22, h - 22, part.on, L('1'), L('2')) + pole(xn, 22, h - 22, part.on, L('N1'), L('N2'));
       o += lever(w / 2, mid, part.on, part.tripped);
+      if (c.type === 'mt' && part.in) {
+        const amps = obs.lines && obs.lines[c.id] ? obs.lines[c.id].amps : 0;
+        o += `<g class="tbtn" data-rate="${c.id}" role="button" tabindex="0" aria-label="Portata ${c.short}: ${part.in} ampere. Tocca per cambiarla"><rect x="${w / 2 + 28}" y="${mid - 14}" width="50" height="28" rx="5" fill="#EDE7D4" stroke="var(--comp-edge)" stroke-width="1.4"/><text x="${w / 2 + 53}" y="${mid + 5}" text-anchor="middle" style="font:600 13px 'IBM Plex Mono',monospace;fill:#222">${part.in} A</text></g>`;
+        o += lab(w / 2 + 53, mid + 30, amps ? amps.toFixed(1).replace('.', ',') + ' A' : '0 A');
+      }
       if (c.type === 'rcd') o += `<g class="tbtn" data-test="${c.id}" role="button" tabindex="0" aria-label="Tasto di prova ${c.short}"><rect x="${w / 2 + 28}" y="${mid - 12}" width="30" height="24" rx="5" fill="#EDE7D4" stroke="var(--comp-edge)" stroke-width="1.4"/><text x="${w / 2 + 43}" y="${mid + 5}" text-anchor="middle" style="font:600 12px 'IBM Plex Mono',monospace;fill:#222">T</text></g>`;
       break;
     }

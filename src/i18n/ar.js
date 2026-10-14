@@ -65,6 +65,9 @@ const PAT = [
   [/^Prima di verificare serve ancora una misura con il multimetro: (.+)\.$/, (m, t) => `قبل التحقق ما زال مطلوبًا قياس بجهاز القياس المتعدد: ${t(m[1])}.`],
   [/^Puntale rosso su (.+)\. Tocca il secondo morsetto per il puntale nero\.$/, (m, t) => `المجس الأحمر على ${t(m[1])}. المس المربط الثاني للمجس الأسود.`],
   [/^Rosso su (.+), nero su (.+)\.(?: (.+))?$/, (m, t) => `الأحمر على ${t(m[1])}، والأسود على ${t(m[2])}.${m[3] ? ' ' + t(m[3]) : ''}`],
+  [/^Cavo ([\d,.]+) mm²$/, m => `كابل ${m[1]} مم²`],
+  [/^portata ([\d,.]+) A$/, m => `السعة ${m[1]} أمبير`],
+  [/^Portata (.+): (\d+) ampere\. Tocca per cambiarla$/, (m, t) => `السعة ${t(m[1])}: ${m[2]} أمبير. المس لتغييرها`],
   [/^Protezioni scattate: (.+)\.$/, (m, t) => `حمايات فصلت: ${t(m[1])}.`],
 ];
 

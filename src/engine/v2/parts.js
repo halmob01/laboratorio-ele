@@ -19,7 +19,8 @@ export const PARTS = {
   fungo: { contacts: (c, s) => pole(!s.pressed, [['1', '2']]), init: () => ({ pressed: false }), actions: ['toggle'] },
 
   // protezioni e sezionamento (chiusi all'inizio, salvo `init: 0`)
-  mt: { protect: 'corto', contacts: (c, s) => pole(s.on, [['1', '2'], ['N1', 'N2']]), poles: { F: ['1', '2'], N: ['N1', 'N2'] }, init: c => ({ on: c.init !== 0, tripped: false }), actions: ['toggle'] },
+  // `in` (portata, A) e `ratings` (portate tra cui scegliere) rendono il sovraccarico simulato (E1): vedi sim.js, lineCurrent.
+  mt: { protect: 'corto', contacts: (c, s) => pole(s.on, [['1', '2'], ['N1', 'N2']]), poles: { F: ['1', '2'], N: ['N1', 'N2'] }, init: c => ({ on: c.init !== 0, tripped: false, in: c.in || null, heat: 0 }), actions: ['toggle', 'rate'] },
   mt3: { protect: 'corto', contacts: (c, s) => pole(s.on, [['1', '2'], ['3', '4'], ['5', '6']]), init: c => ({ on: c.init !== 0, tripped: false }), actions: ['toggle'] },
   sez: { contacts: (c, s) => pole(s.on, [['1', '2'], ['3', '4'], ['5', '6']]), init: c => ({ on: c.init !== 0, tripped: false }), actions: ['toggle'] },
   rcd: { protect: 'terra', contacts: (c, s) => pole(s.on, [['1', '2'], ['N1', 'N2']]), poles: { F: ['1', '2'], N: ['N1', 'N2'] }, init: c => ({ on: c.init !== 0, tripped: false }), actions: ['toggle', 'test'] },

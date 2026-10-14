@@ -57,6 +57,11 @@ function wire(w, d, a, b, color) {
 }
 const solve = (w, d, level) => level.solution.forEach(([a, b, c]) => wire(w, d, a, b, c));
 // Le letture del multimetro che il livello pretende, fatte dall'interfaccia: puntali sui morsetti, quadro e comandi come richiesto.
+function rateUI(w, d, level) {
+  Object.entries(level.solutionRatings || {}).forEach(([id, want]) => {
+    for (let i = 0; i < 8 && q(d, `[data-rate="${id}"] text`).textContent !== want + ' A'; i++) click(w, q(d, `[data-rate="${id}"]`));
+  });
+}
 function measureUI(w, d, level) {
   let powered = false;
   const ctl = {};
@@ -273,6 +278,7 @@ test('si superano tutti i livelli cablando la soluzione (quadro e contatore)', (
       solve(w, d, lvl);
       assert.equal(qa(d, '#bench [data-wire]').length, lvl.solution.length, base.id + ' ' + mode);
       measureUI(w, d, lvl);
+      rateUI(w, d, lvl);
       click(w, q(d, '#bCheck'));
       assert.match(q(d, '#result h3').textContent, /Impianto funzionante/, base.id + ' ' + mode);
       assert.equal(qa(d, '#result .row:not(.chk) > .mark.ok').length, 3);

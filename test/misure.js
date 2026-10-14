@@ -15,3 +15,10 @@ export function doMeasures(s, L) {
     s.probe(m.between[0]); s.probe(m.between[1]);
   });
 }
+
+// Portate che la soluzione richiede (level.solutionRatings): si cambia la portata del magnetotermico fino al valore voluto.
+export function doRatings(s, L) {
+  Object.entries(L.solutionRatings || {}).forEach(([id, want]) => {
+    for (let i = 0; i < 8 && s.snapshot().obs.parts[id].in !== want; i++) s.rateControl(id);
+  });
+}

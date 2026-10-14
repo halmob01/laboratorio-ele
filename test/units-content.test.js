@@ -5,10 +5,10 @@ import assert from 'node:assert/strict';
 import { evaluate as evaluateV1, stepsState, demoFrames } from '../src/engine/index.js';
 import { evaluateV2 } from '../src/engine/v2/index.js';
 import { levels } from '../src/content/index.js';
-import { loggedMeasures, doMeasures } from './misure.js';
+import { loggedMeasures, doMeasures, doRatings } from './misure.js';
 
 const withUnit = levels.filter(l => l.unit);
-const evaluate = (L, w) => (L.engine === 2 ? evaluateV2(L, w, { measured: loggedMeasures(L) }) : evaluateV1(L, w));
+const evaluate = (L, w, ratings) => (L.engine === 2 ? evaluateV2(L, w, { measured: loggedMeasures(L), ratings }) : evaluateV1(L, w));
 const W = ws => ws.map(([a, b, c], k) => ({ id: k + 1, a, b, c }));
 
 for (const L of withUnit) {
@@ -27,7 +27,7 @@ for (const L of withUnit) {
   });
 
   test(`${L.id}: i passi si completano con la soluzione`, () => {
-    const st = stepsState(u.steps, W(L.solution), { power: true, operated: new Set(L.controls || []), result: { pass: true }, measured: loggedMeasures(L) });
+    const st = stepsState(u.steps, W(L.solution), { power: true, operated: new Set(L.controls || []), result: { pass: true }, measured: loggedMeasures(L), ratings: L.solutionRatings });
     assert.ok(st.done.every(Boolean), JSON.stringify(st));
     const dp = u.lesson.pages.find(p => p.type === 'demo');
     if (dp) assert.ok(demoFrames(L, dp.captions).length > L.solution.length);
@@ -36,7 +36,7 @@ for (const L of withUnit) {
   if (u.fault) {
     test(`${L.id}: la sfida guasto parte guasta e si ripara`, () => {
       assert.equal(evaluate(L, W(u.fault.wires)).pass, false);
-      assert.equal(evaluate(L, W(L.solution)).pass, true);
+      assert.equal(evaluate(L, W(L.solution), L.solutionRatings).pass, true);
       assert.ok(u.fault.diagnosis.options.some(o => o.id === u.fault.diagnosis.correct));
     });
   }
@@ -50,7 +50,7 @@ for (const L of withUnit.filter(l => l.unit.fault)) {
     const s = createSession({ levels, deriveFull, initialLevel: L.id });
     s.skipLesson();
     L.solution.forEach(([a, b, c]) => s.addWire(a, b, c));
-    doMeasures(s, L);
+    doMeasures(s, L); doRatings(s, L);
     assert.equal(s.check().pass, true);
     s.startFault();
     assert.equal(s.snapshot().unit.phase, 'fault');
@@ -58,7 +58,7 @@ for (const L of withUnit.filter(l => l.unit.fault)) {
     s.answerDiagnosis(L.unit.fault.diagnosis.correct);
     s.clear();
     L.solution.forEach(([a, b, c]) => s.addWire(a, b, c));
-    doMeasures(s, L);
+    doMeasures(s, L); doRatings(s, L);
     assert.equal(s.check().pass, true);
     assert.equal(s.snapshot().unit.faultSolved, true);
   });

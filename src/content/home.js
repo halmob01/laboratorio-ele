@@ -25,6 +25,7 @@ export const MODULES = [
       'c08-rele-impulsi',
       'c09-luce-scale',
       'c10-campanello',
+      'c19-magnetotermico',
       'c11-quadro',
     ],
   },

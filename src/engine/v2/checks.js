@@ -52,6 +52,7 @@ const QUADRO = { corto: 'work.short', faseterra: 'work.phaseToEarth' };
 
 // Primo motivo di fallimento in uno stato osservato, oppure null.
 function blockingOf(o, allowTrip) {
+  if (o.cable && o.cable.burnt) return { code: 'work.cableBurnt' };
   const q = o.faults.find(x => x.code === 'quadro');
   if (q) return { code: QUADRO[q.cause] || 'work.short' };
   const f = o.faults.find(x => BLOCKING[x.code]);
@@ -145,7 +146,13 @@ export function allowedColorsV2(level, role, wire) {
 
 /* ---------- verifica ---------- */
 
+// Le portate scelte dall'allievo (ctx.ratings: { idInterruttore: A }) diventano la portata di partenza delle prove.
+const withRatings = (level, ratings) => (ratings && Object.keys(ratings).length
+  ? { ...level, comps: level.comps.map(c => (ratings[c.id] ? { ...c, in: ratings[c.id] } : c)) }
+  : level);
+
 export function evaluateV2(level, wires, ctx = {}) {
+  level = withRatings(level, ctx.ratings);
   const out = { work: section(), color: section(), safe: section() };
   const add = (sec, code, params) => out[sec].items.push(params ? { code, ...params } : { code });
 

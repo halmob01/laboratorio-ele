@@ -33,6 +33,8 @@ export function createSim(level, wires = []) {
     overload: false,       // sovraccarico simulato (prove del relè termico)
     pos: level.machine ? level.machine.start || 0 : 0,
     kmHistory: [],         // insiemi di contattori chiusi visti durante l'assestamento (interblocco)
+    cableHeat: 0,          // riscaldamento del cavo della linea (level.cable), in secondi di sovracorrente
+    cableBurnt: false,
   };
   settle(sim);
   return sim;
@@ -44,6 +46,7 @@ export function setWires(sim, wires) {
   sim.unstable = false;
   sim.mainTrip = false;
   sim.kmHistory = [];
+  sim.cableHeat = 0; sim.cableBurnt = false;
   settle(sim);
 }
 
@@ -169,6 +172,23 @@ function analyse(sim, open) {
   return { uf, pots, potAt, volt, faults, loads, coils, motors, trafoOn, burntNow };
 }
 
+
+/* ---------- correnti di linea e sovraccarico (E1) ---------- */
+export const OVERLOAD_NO_TRIP = 1.13;   // CEI EN 60898: sotto 1,13 In non scatta
+export const OVERLOAD_TRIP = 1.45;      // sopra 1,45 In scatta (nel gioco in pochi secondi invece di un'ora)
+const V_MAINS = 230;
+
+// Corrente (A) che attraversa la protezione `prot`: somma delle potenze dei carichi accesi che da lei dipendono.
+function lineCurrent(sim, an, prot) {
+  const off = analyse(sim, { [prot]: 'all' });
+  let w = 0;
+  sim.level.comps.forEach(c => {
+    if (!c.w) return;
+    if (an.loads[c.id] === 'on' && off.loads[c.id] !== 'on') w += c.w;
+  });
+  return w / V_MAINS;
+}
+
 /* ---------- protezioni ---------- */
 
 const closedProtections = (sim, kind) =>
@@ -272,8 +292,12 @@ export function act(sim, action, id) {
   else if (action === 'release') s.pressed = false;
   else if (action === 'toggle') {
     if ('pressed' in s && c.type === 'fungo') s.pressed = !s.pressed;
-    else { s.on = !s.on; if (s.on) s.tripped = false; }
+    else { s.on = !s.on; if (s.on) { s.tripped = false; s.heat = 0; } }
     if (s.on && sim.mainTrip && (p.protect || c.type === 'sez')) sim.mainTrip = false;
+  } else if (action === 'rate' && c.type === 'mt' && c.ratings) {
+    const i = c.ratings.indexOf(s.in);
+    s.in = c.ratings[(i + 1) % c.ratings.length];
+    s.heat = 0;
   } else if (action === 'reset' && c.type === 'ft') { s.tripped = false; s.heat = 0; }
   else if (action === 'test' && c.type === 'rcd') {
     if (s.on) {
@@ -315,6 +339,20 @@ export function advance(sim, seconds) {
         if (s.heat >= (c.tripAfter || 3)) s.tripped = true;
       }
     });
+    // magnetotermici con portata: sopra 1,45 In scattano dopo qualche secondo; il cavo della linea scalda se supera la sua portata
+    sim.level.comps.forEach(c => {
+      const s = sim.parts[c.id];
+      if (c.type !== 'mt' || !s.in || !s.on) return;
+      const ratio = lineCurrent(sim, an, c.id) / s.in;
+      s.heat = ratio > OVERLOAD_TRIP ? s.heat + STEP * (ratio > 3 ? 4 : 1) : Math.max(0, s.heat - STEP);
+      if (s.heat >= (c.tripAfter || 3)) { trip(sim, c); s.heat = 0; }
+    });
+    const cab = sim.level.cable;
+    if (cab && sim.parts[cab.prot] && sim.parts[cab.prot].on) {
+      const I = lineCurrent(sim, an, cab.prot);
+      sim.cableHeat = I > cab.iz ? sim.cableHeat + STEP : Math.max(0, sim.cableHeat - STEP);
+      if (sim.cableHeat >= (cab.burnAfter || 6)) sim.cableBurnt = true;
+    } else sim.cableHeat = Math.max(0, sim.cableHeat - STEP);
     const m = sim.level.machine;
     if (m) {
       const dir = an.motors[m.motor];
@@ -327,6 +365,19 @@ export function advance(sim, seconds) {
 }
 
 /* ---------- osservazione ---------- */
+
+// Per ogni magnetotermico con portata: portata, corrente e rapporto (solo per la vista e le prove).
+function lineReport(sim, an) {
+  const out = {};
+  sim.level.comps.forEach(c => {
+    const s = sim.parts[c.id];
+    if (c.type === 'mt' && s && s.in) {
+      const amps = s.on ? lineCurrent(sim, an, c.id) : 0;
+      out[c.id] = { in: s.in, amps, ratio: amps / s.in, heat: s.heat };
+    }
+  });
+  return out;
+}
 
 export function observe(sim) {
   const an = analyse(sim);
@@ -347,6 +398,8 @@ export function observe(sim) {
     potential: term => { const p = an.potAt(term); return p === 'mix' ? null : p; },
     supply: sim.supply && !sim.mainTrip,
     overload: !!sim.overload,
+    lines: lineReport(sim, an),
+    cable: sim.level.cable ? { iz: sim.level.cable.iz, s: sim.level.cable.s, heat: sim.cableHeat, burnAfter: sim.level.cable.burnAfter || 6, burnt: sim.cableBurnt, amps: sim.parts[sim.level.cable.prot] && sim.parts[sim.level.cable.prot].on ? lineCurrent(sim, an, sim.level.cable.prot) : 0 } : null,
   };
 }
 

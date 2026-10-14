@@ -108,6 +108,7 @@ export function itemText(item, level) {
     case 'work.checkMore': return 'E altre ' + item.n + ' prove non superate.';
     case 'work.secondaryMixed': return 'Il secondario del trasformatore è collegato alla rete: la bassa tensione non è più separata dai 230 V.';
     case 'work.unstable': return 'Un relè si apre e si chiude da solo: la sua bobina è alimentata attraverso il suo stesso contatto NC.';
+    case 'work.cableBurnt': return 'Il cavo della linea si è surriscaldato: la corrente ha superato la sua portata e l’interruttore non è scattato. La portata dell’interruttore deve essere minore o uguale a quella del cavo.';
     case 'work.tripped': return 'È scattata una protezione (' + nameOf(level, item.comp) + ').';
     case 'work.burnt': return 'Componente bruciato (' + nameOf(level, item.comp) + '): ha ricevuto una tensione più alta di quella per cui è fatto.';
     case 'work.loadOnEarth': return 'Un carico (' + nameOf(level, item.comp) + ') è collegato tra la fase e la terra: la corrente torna dal filo di protezione. Il ritorno va sul neutro.';

@@ -5,6 +5,7 @@
 //   { kind: 'power' }                                fatto quando il quadro e' acceso
 //   { kind: 'control', id }                          fatto quando il comando e' stato azionato con il quadro acceso
 //   { kind: 'measure', between: [a, b], mode: 'V'|'R', value?, reading?, live? }   fatto quando il multimetro ha letto cio' che si chiede
+//   { kind: 'rate', id, value }                     fatto quando il magnetotermico `id` ha la portata `value` (ctx.ratings)
 //   { kind: 'verify' }                               fatto quando la verifica e' superata
 // I passi sono sequenziali: un passo conta come fatto solo se lo sono anche tutti i precedenti.
 
@@ -42,6 +43,7 @@ export function stepsState(steps, wires, ctx) {
     else if (st.kind === 'power') d = !!ctx.power;
     else if (st.kind === 'control') d = operated.has(st.id);
     else if (st.kind === 'measure') d = (ctx.measured || []).some(m => measureMatches(st, m));
+    else if (st.kind === 'rate') d = !!ctx.ratings && ctx.ratings[st.id] === st.value;
     else if (st.kind === 'verify') d = !!(ctx.result && ctx.result.pass);
     else d = false;
     ok = ok && d;

@@ -273,8 +273,13 @@ export function statusHTML(s) {
     const run = Object.values(o.motors).some(v => v === 'fwd' || v === 'rev') || Object.values(o.loads).some(v => v === 'on');
     const trip = o.tripped.length ? '<span class="pill bad">Protezione scattata</span>' : '';
     const ov = s.level.comps.some(c => c.type === 'ft') ? `<button class="pill pbtn${s.overload ? ' on' : ''}" data-overload="1" aria-pressed="${!!s.overload}">${s.overload ? 'Sovraccarico: attivo' : 'Simula un sovraccarico'}</button>` : '';
+    let cab = '';
+    if (o.cable) {
+      const k = Math.min(1, o.cable.heat / o.cable.burnAfter), bad = o.cable.burnt || o.cable.amps > o.cable.iz;
+      cab = `<span class="pill${bad ? ' bad' : ''}">Cavo ${String(o.cable.s).replace('.', ',')} mm² · portata ${String(o.cable.iz).replace('.', ',')} A · ${o.cable.amps.toFixed(1).replace('.', ',')} A${o.cable.burnt ? ' · surriscaldato' : bad ? ' · sovraccarico' : ''}</span>${k > 0 ? `<span class="heatbar" role="img" aria-label="Riscaldamento del cavo"><i style="width:${Math.round(k * 100)}%"></i></span>` : ''}`;
+    }
     const rw = o.machine && !o.machine.atStart ? '<button class="pill pbtn" data-rewind="1">Riporta il pacco all’inizio</button>' : '';
-    return `<span class="pill ${q2[1]}">${q2[0]}</span><span class="pill${run ? ' on' : ''}">${run ? 'Carico in funzione' : 'Carico fermo'}</span>${trip}${ov}${rw}<span class="msg" aria-live="polite">${msg}</span>`;
+    return `<span class="pill ${q2[1]}">${q2[0]}</span><span class="pill${run ? ' on' : ''}">${run ? 'Carico in funzione' : 'Carico fermo'}</span>${trip}${ov}${cab}${rw}<span class="msg" aria-live="polite">${msg}</span>`;
   }
   const multi = s.litLoads && s.litLoads.length > 1;
   const nOn = multi ? s.litLoads.filter(Boolean).length : 0;

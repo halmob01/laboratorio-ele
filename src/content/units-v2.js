@@ -185,6 +185,109 @@ export const UNITS_V2 = {
     },
   },
 
+  'c19-magnetotermico': {
+    support: 'passi',
+    lesson: {
+      pages: [
+        {
+          type: 'spiegazione',
+          title: 'Quanta corrente passa nel cavo',
+          paras: [
+            'La corrente di un apparecchio si ricava dalla potenza: corrente = potenza diviso tensione. Una stufa da 2000 W a 230 V assorbe circa 8,7 A. Due stufe sulla stessa linea ne assorbono circa 17,4.',
+            'Ogni cavo regge una corrente massima, la portata, che dipende dalla sezione e da come è posato. Un cavo da 1,5 mm² in tubo incassato regge circa 15,5 A (valore del gioco). Se passa di più, si scalda.',
+          ],
+        },
+        {
+          type: 'pezzi',
+          title: 'La portata del magnetotermico',
+          focus: ['QM'],
+          paras: [
+            'Sul magnetotermico c’è un numero: la portata In, in ampere. Sotto 1,13 volte In non scatta mai. Sopra 1,45 volte In scatta (nella realtà in meno di un’ora, nel gioco in pochi secondi). In mezzo, la norma non dice che cosa deve fare.',
+            'Un cortocircuito, invece, lo fa scattare subito.',
+          ],
+        },
+        {
+          type: 'spiegazione',
+          title: 'La regola dei tre numeri',
+          paras: [
+            'Corrente di impiego, portata dell’interruttore, portata del cavo: Ib ≤ In ≤ Iz. L’interruttore deve reggere l’uso normale e deve scattare prima che il cavo si scaldi.',
+            'Un interruttore troppo piccolo scatta senza motivo. Uno troppo grande non protegge il cavo: la corrente supera la portata del cavo ma non quella dell’interruttore, e nessuno se ne accorge finché il cavo non scalda.',
+          ],
+          warn: 'Un interruttore da 16 A su un cavo da 1,5 mm² è uno degli errori più pericolosi: non scatta e il cavo si scalda.',
+        },
+        {
+          type: 'demo',
+          title: 'Guarda come si fa',
+          captions: {
+            wires: [
+              'La fase del quadro entra nel magnetotermico: morsetto 1.',
+              'Dall’uscita 2 del magnetotermico all’interruttore della stufa 1.',
+              'Dalla stessa uscita all’interruttore della stufa 2.',
+              'Dall’interruttore della stufa 1 alla stufa 1.',
+              'Dall’interruttore della stufa 2 alla stufa 2.',
+              'Il neutro del quadro entra nel magnetotermico.',
+              'Il neutro esce e va alla stufa 1.',
+              'Lo stesso neutro va alla stufa 2.',
+            ],
+            power: 'Il quadro è alimentato, le stufe sono spente.',
+            controls: [],
+          },
+        },
+        {
+          type: 'previsione',
+          question: 'Una linea in cavo da 1,5 mm² (portata 15,5 A) ha un magnetotermico da 16 A. Si accendono due stufe: 17,4 A. Che cosa succede?',
+          options: [
+            { id: 'a', text: 'Il magnetotermico scatta subito: 17,4 A sono più di 16 A.' },
+            { id: 'b', text: 'Il magnetotermico non scatta e il cavo si scalda oltre la sua portata.' },
+            { id: 'c', text: 'Il cavo si adatta alla corrente.' },
+          ],
+          correct: 'b',
+          why: '17,4 A sono solo 1,09 volte i 16 A: sotto 1,13 In il magnetotermico non scatta mai. Ma il cavo regge 15,5 A: la corrente è oltre la sua portata e nessuno la interrompe. Con un magnetotermico da 10 A la stessa corrente è 1,74 volte la portata e scatta.',
+        },
+        { type: 'sintesi', title: 'Da ricordare' },
+      ],
+    },
+    steps: [
+      { kind: 'wire', from: 'Q.F', to: ['QM.1'], color: 'marrone', short: '1 Fase', title: 'La fase al magnetotermico', text: 'Dalla FASE del quadro al morsetto 1 del magnetotermico.' },
+      { kind: 'wire', from: 'QM.2', to: ['S1.a'], color: 'marrone', short: '2 Stufa 1', title: 'All’interruttore della stufa 1', text: 'Dal morsetto 2 del magnetotermico al morsetto 1 dell’interruttore della stufa 1.' },
+      { kind: 'wire', from: 'QM.2', to: ['S2.a'], color: 'marrone', short: '3 Stufa 2', title: 'All’interruttore della stufa 2', text: 'Dallo stesso morsetto 2 al morsetto 1 dell’interruttore della stufa 2.' },
+      { kind: 'wire', from: 'S1.b', to: ['H1.A'], color: 'marrone', short: '4 Stufa 1', title: 'Dall’interruttore alla stufa 1', text: 'Dal morsetto 2 dell’interruttore della stufa 1 alla stufa 1.' },
+      { kind: 'wire', from: 'S2.b', to: ['H2.A'], color: 'marrone', short: '5 Stufa 2', title: 'Dall’interruttore alla stufa 2', text: 'Dal morsetto 2 dell’interruttore della stufa 2 alla stufa 2.' },
+      { kind: 'wire', from: 'Q.N', to: ['QM.N1'], color: 'blu', short: '6 Neutro', title: 'Il neutro al magnetotermico', text: 'Dal NEUTRO del quadro al morsetto N in alto del magnetotermico.' },
+      { kind: 'wire', from: 'QM.N2', to: ['H1.B'], color: 'blu', short: '7 Neutro 1', title: 'Il neutro alla stufa 1', text: 'Dal morsetto N in basso del magnetotermico alla stufa 1.' },
+      { kind: 'wire', from: 'QM.N2', to: ['H2.B'], color: 'blu', short: '8 Neutro 2', title: 'Il neutro alla stufa 2', text: 'Dallo stesso morsetto N alla stufa 2.' },
+      { kind: 'rate', id: 'QM', value: 10, short: '9 Portata', title: 'Scegli la portata', text: 'Tocca il numero sul magnetotermico fino a 10 A: il cavo regge 15,5 A e una stufa assorbe 8,7 A.' },
+      { kind: 'control', id: 'S1', short: '10 Una stufa', title: 'Prova una stufa', text: 'Chiudi l’interruttore della stufa 1: resta accesa e il magnetotermico non scatta.' },
+      { kind: 'control', id: 'S2', short: '11 Due stufe', title: 'Prova due stufe', text: 'Chiudi anche l’interruttore della stufa 2 e aspetta qualche secondo: il magnetotermico scatta.' },
+      { kind: 'verify', short: '12 Verifica', title: 'Controlla l’impianto', text: 'Riarma il magnetotermico e premi Verifica.' },
+    ],
+    summary: [
+      'La corrente si ricava dalla potenza: corrente = potenza diviso tensione. Una stufa da 2000 W assorbe circa 8,7 A.',
+      'Il cavo ha una portata: oltre quella si scalda. L’interruttore deve scattare prima.',
+      'Il magnetotermico non scatta sotto 1,13 volte la sua portata e scatta sopra 1,45 volte. Il cortocircuito lo fa scattare subito.',
+      'Regola dei tre numeri: corrente di impiego ≤ portata dell’interruttore ≤ portata del cavo.',
+    ],
+    fault: {
+      say: 'La linea è già cablata e le due stufe funzionano. Accendile tutte e due, aspetta qualche secondo e guarda il cavo.',
+      wires: [
+        ['Q.F', 'QM.1', 'marrone'], ['QM.2', 'S1.a', 'marrone'], ['QM.2', 'S2.a', 'marrone'],
+        ['S1.b', 'H1.A', 'marrone'], ['S2.b', 'H2.A', 'marrone'],
+        ['Q.N', 'QM.N1', 'blu'], ['QM.N2', 'H1.B', 'blu'], ['QM.N2', 'H2.B', 'blu'],
+      ],
+      diagnosis: {
+        question: 'Che cosa non va?',
+        options: [
+          { id: 'a', text: 'Il magnetotermico è troppo grande per il cavo: non scatta e il cavo si scalda.' },
+          { id: 'b', text: 'Il magnetotermico è troppo piccolo: scatta senza motivo.' },
+          { id: 'c', text: 'Le stufe sono collegate in serie.' },
+        ],
+        correct: 'a',
+        why: 'Con due stufe passano 17,4 A: il cavo da 1,5 mm² regge 15,5 A. Il magnetotermico da 16 A non scatta, perché 17,4 A sono sotto 1,13 volte i 16 A, e il cavo si scalda. La portata dell’interruttore deve essere minore o uguale a quella del cavo: 10 A.',
+      },
+      fixSay: 'Porta la portata del magnetotermico a 10 A, poi premi Verifica.',
+    },
+  },
+
   'c07-presa-comandata': {
     support: 'passi',
     lesson: {
