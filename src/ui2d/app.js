@@ -241,34 +241,45 @@ function addWire(a, b) {
   buzz();
 }
 
-let dragging = false, moved = false, downPt = null, reselect = false;
+let dragging = false, moved = false, downPt = null, reselect = false, downTerm = null, prevSel = null;
 const bench = $('#bench');
 function hidePrev() { const p = $('#prev'); if (p) p.setAttribute('d', ''); }
+// Il filo si crea al rilascio, non alla pressione: un dito che tocca un morsetto per scorrere la pagina
+// o che scivola via non deve creare fili per sbaglio (bug su telefono).
 bench.addEventListener('pointerdown', e => {
-  dragging = false;
+  dragging = false; downTerm = null;
   const t = e.target.closest('[data-term]');
   if (!t) return;
   const id = t.dataset.term;
-  if (SEL && SEL !== id) { const a = SEL; clearSel(); addWire(a, id); return; }
+  prevSel = SEL; downTerm = id;
   reselect = (SEL === id);
-  clearSel(); SEL = id; dragging = true; moved = false; downPt = { x: e.clientX, y: e.clientY };
-  t.classList.add('sel');
+  dragging = true; moved = false; downPt = { x: e.clientX, y: e.clientY };
+  if (!SEL) { SEL = id; t.classList.add('sel'); }
 });
 window.addEventListener('pointermove', e => {
   if (!SEL) return;
   if (dragging && downPt && Math.hypot(e.clientX - downPt.x, e.clientY - downPt.y) > 10) moved = true;
   if (e.pointerType !== 'mouse' && !dragging) return;
+  if (dragging && prevSel && prevSel !== downTerm) return;   // tocco su un secondo morsetto: niente anteprima finché non si rilascia
   const p = $('#prev'); if (!p) return;
   const a = R.termPos(comps, SEL), q = svgPt(e);
   p.setAttribute('d', `M${a.x} ${a.y} L${q.x} ${q.y}`);
 });
 window.addEventListener('pointerup', e => {
   if (!dragging) return; dragging = false;
-  const el = document.elementFromPoint(e.clientX, e.clientY);
+  const el = document.elementFromPoint ? document.elementFromPoint(e.clientX, e.clientY) : null;
   const t = el && el.closest ? el.closest('[data-term]') : null;
-  if (SEL && t && t.dataset.term !== SEL) { const a = SEL; clearSel(); addWire(a, t.dataset.term); }
-  else if (SEL && t && t.dataset.term === SEL && reselect && !moved) { clearSel(); }
-  else hidePrev();
+  const up = t ? t.dataset.term : null;
+  if (!moved) {
+    // tocco: completa il filo dal morsetto già scelto, oppure deseleziona toccando di nuovo lo stesso
+    if (prevSel && prevSel !== downTerm) { clearSel(); addWire(prevSel, downTerm); }
+    else if (reselect) clearSel();
+    else hidePrev();
+  } else if (up && SEL && up !== SEL && downTerm === SEL) {
+    // trascinamento da un morsetto a un altro
+    const a = SEL; clearSel(); addWire(a, up);
+  } else hidePrev();
+  downTerm = null;
 });
 window.addEventListener('pointercancel', () => { dragging = false; hidePrev(); });
 bench.addEventListener('click', e => {

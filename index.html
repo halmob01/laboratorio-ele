@@ -118,6 +118,7 @@ button.btn.primary{background:var(--accent);color:var(--on-accent);border-color:
 .hole{fill:var(--slot)}
 .faceplate{fill:var(--plate);stroke:var(--plate-edge);stroke-width:1.2}
 .term{cursor:pointer;touch-action:none}
+.term:focus:not(:focus-visible){outline:none}
 .term .hit{fill:transparent}
 .term .halo{fill:none;stroke:var(--accent);stroke-width:3;opacity:0}
 .term:hover .halo{opacity:.55}
@@ -3779,6 +3780,8 @@ a.tool{display:flex;align-items:center;justify-content:center;text-decoration:no
   var moved = false;
   var downPt = null;
   var reselect = false;
+  var downTerm = null;
+  var prevSel = null;
   var bench = $("#bench");
   function hidePrev() {
     const p = $("#prev");
@@ -3786,27 +3789,26 @@ a.tool{display:flex;align-items:center;justify-content:center;text-decoration:no
   }
   bench.addEventListener("pointerdown", (e) => {
     dragging = false;
+    downTerm = null;
     const t = e.target.closest("[data-term]");
     if (!t) return;
     const id = t.dataset.term;
-    if (SEL && SEL !== id) {
-      const a = SEL;
-      clearSel();
-      addWire(a, id);
-      return;
-    }
+    prevSel = SEL;
+    downTerm = id;
     reselect = SEL === id;
-    clearSel();
-    SEL = id;
     dragging = true;
     moved = false;
     downPt = { x: e.clientX, y: e.clientY };
-    t.classList.add("sel");
+    if (!SEL) {
+      SEL = id;
+      t.classList.add("sel");
+    }
   });
   window.addEventListener("pointermove", (e) => {
     if (!SEL) return;
     if (dragging && downPt && Math.hypot(e.clientX - downPt.x, e.clientY - downPt.y) > 10) moved = true;
     if (e.pointerType !== "mouse" && !dragging) return;
+    if (dragging && prevSel && prevSel !== downTerm) return;
     const p = $("#prev");
     if (!p) return;
     const a = termPos(comps, SEL), q = svgPt(e);
@@ -3815,15 +3817,21 @@ a.tool{display:flex;align-items:center;justify-content:center;text-decoration:no
   window.addEventListener("pointerup", (e) => {
     if (!dragging) return;
     dragging = false;
-    const el = document.elementFromPoint(e.clientX, e.clientY);
+    const el = document.elementFromPoint ? document.elementFromPoint(e.clientX, e.clientY) : null;
     const t = el && el.closest ? el.closest("[data-term]") : null;
-    if (SEL && t && t.dataset.term !== SEL) {
+    const up = t ? t.dataset.term : null;
+    if (!moved) {
+      if (prevSel && prevSel !== downTerm) {
+        clearSel();
+        addWire(prevSel, downTerm);
+      } else if (reselect) clearSel();
+      else hidePrev();
+    } else if (up && SEL && up !== SEL && downTerm === SEL) {
       const a = SEL;
       clearSel();
-      addWire(a, t.dataset.term);
-    } else if (SEL && t && t.dataset.term === SEL && reselect && !moved) {
-      clearSel();
+      addWire(a, up);
     } else hidePrev();
+    downTerm = null;
   });
   window.addEventListener("pointercancel", () => {
     dragging = false;
