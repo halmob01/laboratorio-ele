@@ -288,6 +288,100 @@ export const UNITS_V2 = {
     },
   },
 
+  'c20-differenziale': {
+    support: 'passi',
+    lesson: {
+      pages: [
+        {
+          type: 'spiegazione',
+          title: 'La corrente che non torna',
+          paras: [
+            'In un apparecchio la corrente esce dalla fase e rientra dal neutro: le due correnti sono uguali. Se l’isolante cede, una parte della corrente va a terra, magari passando per una persona che tocca l’involucro. Fase e neutro non sono più uguali.',
+            'Il differenziale confronta continuamente la corrente che esce con quella che rientra. Se la differenza supera la sua soglia, scatta.',
+          ],
+        },
+        {
+          type: 'pezzi',
+          title: 'La soglia di 30 mA',
+          focus: ['D'],
+          paras: [
+            'Nelle case il differenziale ha una soglia di 30 mA. Scatta con una dispersione di 30 mA o più, e per norma non scatta sotto i 15 mA.',
+            'Il magnetotermico non se ne accorge: 30 mA sono pochissimi rispetto ai suoi 10 o 16 ampere. Per questo in casa servono tutti e due.',
+          ],
+          warn: 'Una corrente di 30 mA attraverso il corpo è già pericolosa. Il differenziale serve proprio a interromperla in una frazione di secondo.',
+        },
+        {
+          type: 'spiegazione',
+          title: 'Il neutro deve passare dal differenziale',
+          paras: [
+            'Il differenziale confronta la corrente di fase con quella di neutro, ma solo se passano tutte e due da lui. Se il neutro di un apparecchio viene preso prima del differenziale, la corrente esce dal differenziale e rientra altrove: lui la vede come una dispersione e scatta appena si accende l’apparecchio.',
+          ],
+        },
+        {
+          type: 'demo',
+          title: 'Guarda come si fa',
+          captions: {
+            wires: [
+              'La fase del quadro entra nel differenziale: morsetto 1.',
+              'Il neutro del quadro entra nel differenziale: morsetto N in alto.',
+              'Dall’uscita 2 del differenziale all’interruttore dello scaldabagno.',
+              'Dall’interruttore allo scaldabagno.',
+              'Il neutro esce dal differenziale e va allo scaldabagno.',
+            ],
+            power: 'Il quadro è alimentato, lo scaldabagno è spento.',
+            controls: [],
+          },
+        },
+        {
+          type: 'previsione',
+          question: 'Lo scaldabagno ha una dispersione verso terra di 300 mA. Il magnetotermico della linea è da 16 A e il differenziale da 30 mA. Che cosa succede?',
+          options: [
+            { id: 'a', text: 'Scatta il magnetotermico: 300 mA sono una corrente anomala.' },
+            { id: 'b', text: 'Scatta il differenziale: 300 mA sono molto più della sua soglia.' },
+            { id: 'c', text: 'Non scatta niente: la corrente è troppo piccola per ogni protezione.' },
+          ],
+          correct: 'b',
+          why: 'Il magnetotermico guarda la corrente totale della linea: 0,3 A sono nulla rispetto ai suoi 16 A. Il differenziale confronta fase e neutro: 300 mA di differenza sono dieci volte la sua soglia e lo fanno scattare subito.',
+        },
+        { type: 'sintesi', title: 'Da ricordare' },
+      ],
+    },
+    steps: [
+      { kind: 'wire', from: 'Q.F', to: ['D.1'], color: 'marrone', short: '1 Fase', title: 'La fase al differenziale', text: 'Dalla FASE del quadro al morsetto 1 del differenziale.' },
+      { kind: 'wire', from: 'Q.N', to: ['D.N1'], color: 'blu', short: '2 Neutro', title: 'Il neutro al differenziale', text: 'Dal NEUTRO del quadro al morsetto N in alto del differenziale.' },
+      { kind: 'wire', from: 'D.2', to: ['S.a'], color: 'marrone', short: '3 Interruttore', title: 'All’interruttore', text: 'Dal morsetto 2 del differenziale al morsetto 1 dell’interruttore.' },
+      { kind: 'wire', from: 'S.b', to: ['H.A'], color: 'marrone', short: '4 Scaldabagno', title: 'Allo scaldabagno', text: 'Dal morsetto 2 dell’interruttore allo scaldabagno.' },
+      { kind: 'wire', from: 'D.N2', to: ['H.B'], color: 'blu', short: '5 Neutro', title: 'Il neutro allo scaldabagno', text: 'Dal morsetto N in basso del differenziale allo scaldabagno.' },
+      { kind: 'control', id: 'S', short: '6 Accendi', title: 'Accendi lo scaldabagno', text: 'Chiudi l’interruttore dello scaldabagno.' },
+      { kind: 'control', id: 'G', short: '7 Dispersione', title: 'Provoca la dispersione', text: 'Tocca il pannello dell’isolante: con 10 mA il differenziale non scatta. Poi tocca il valore in mA per portarlo a 300: ora scatta.' },
+      { kind: 'verify', short: '8 Verifica', title: 'Controlla l’impianto', text: 'Riarma il differenziale e premi Verifica.' },
+    ],
+    summary: [
+      'Il differenziale confronta la corrente di fase con quella di neutro: se non sono uguali, scatta.',
+      'In casa la soglia è 30 mA: scatta da 30 mA in su e non scatta sotto i 15 mA.',
+      'Il magnetotermico non sente le dispersioni: servono tutti e due.',
+      'Il neutro dei carichi deve uscire dal differenziale, altrimenti scatta senza guasto.',
+    ],
+    fault: {
+      say: 'Lo scaldabagno è già cablato. Chiudi l’interruttore e guarda che cosa fa il differenziale.',
+      wires: [
+        ['Q.F', 'D.1', 'marrone'], ['Q.N', 'D.N1', 'blu'],
+        ['D.2', 'S.a', 'marrone'], ['S.b', 'H.A', 'marrone'], ['Q.N', 'H.B', 'blu'],
+      ],
+      diagnosis: {
+        question: 'Perché il differenziale scatta appena si accende lo scaldabagno?',
+        options: [
+          { id: 'a', text: 'Il neutro dello scaldabagno è preso dal quadro e non passa dal differenziale.' },
+          { id: 'b', text: 'Lo scaldabagno assorbe troppa corrente.' },
+          { id: 'c', text: 'La fase è collegata al morsetto sbagliato.' },
+        ],
+        correct: 'a',
+        why: 'La corrente esce dal differenziale sulla fase e rientra dal neutro senza passarvi: lui vede una differenza pari a tutta la corrente dello scaldabagno e scatta. Il neutro deve uscire dal morsetto N in basso del differenziale.',
+      },
+      fixSay: 'Sposta il neutro dello scaldabagno sul morsetto N in basso del differenziale, poi premi Verifica.',
+    },
+  },
+
   'c07-presa-comandata': {
     support: 'passi',
     lesson: {

@@ -8,7 +8,7 @@ import { partOf } from './parts.js';
 export const isV2 = level => !!level && level.engine === 2;
 
 // Protezioni che danno la corrente al circuito: con una di queste il quadro non ha la levetta della sessione.
-const MAIN = new Set(['mt', 'mt3', 'sez', 'rcd']);
+const MAIN = new Set(['mt', 'mt3', 'sez', 'rcd', 'gu']);
 export const selfPowered = level => isV2(level) && level.supply !== 'quadro' && (level.supply === 'protezioni' || level.comps.some(c => MAIN.has(c.type)));
 
 // Comandi dell'allievo: tutti i componenti con azioni manuali (toggle o pressione), salvo il termico (riarmo) e il differenziale gestito a parte.

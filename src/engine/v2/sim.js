@@ -169,11 +169,18 @@ function analyse(sim, open) {
       motors[id] = st;
     }
   });
-  return { uf, pots, potAt, volt, faults, loads, coils, motors, trafoOn, burntNow };
+  // dispersioni verso terra: attive se il punto guasto e' in tensione (la corrente scorre fino alla terra)
+  const leaks = [];
+  level.comps.forEach(c => {
+    const s = sim.parts[c.id];
+    if (c.type === 'gu' && s && s.on && isPhase(potAt(c.at))) leaks.push({ id: c.id, mA: s.mA });
+  });
+  return { uf, pots, potAt, volt, faults, loads, coils, motors, trafoOn, burntNow, leaks };
 }
 
 
 /* ---------- correnti di linea e sovraccarico (E1) ---------- */
+export const RCD_TRIP_MA = 30;           // corrente differenziale nominale: il dispositivo scatta entro questo valore
 export const OVERLOAD_NO_TRIP = 1.13;   // CEI EN 60898: sotto 1,13 In non scatta
 export const OVERLOAD_TRIP = 1.45;      // sopra 1,45 In scatta (nel gioco in pochi secondi invece di un'ora)
 const V_MAINS = 230;
@@ -226,6 +233,11 @@ function protect(sim, an) {
       sim.mainTripCause = 'faseterra';
       return true;
     }
+  }
+  // dispersione verso terra: il differenziale scatta da 30 mA in su (sotto i 15 mA non scatta mai); il magnetotermico non se ne accorge
+  if (an.leaks.some(l => l.mA >= RCD_TRIP_MA)) {
+    const c = pick(closedProtections(sim, 'terra'), a => a.leaks.some(l => l.mA >= RCD_TRIP_MA));
+    if (c) { trip(sim, c); return true; }
   }
   // squilibrio: un carico acceso attraversa un solo polo di un differenziale
   for (const r of closedProtections(sim, 'terra')) {
@@ -294,6 +306,8 @@ export function act(sim, action, id) {
     if ('pressed' in s && c.type === 'fungo') s.pressed = !s.pressed;
     else { s.on = !s.on; if (s.on) { s.tripped = false; s.heat = 0; } }
     if (s.on && sim.mainTrip && (p.protect || c.type === 'sez')) sim.mainTrip = false;
+  } else if (action === 'rate' && c.type === 'gu' && c.levels) {
+    s.mA = c.levels[(c.levels.indexOf(s.mA) + 1) % c.levels.length];
   } else if (action === 'rate' && c.type === 'mt' && c.ratings) {
     const i = c.ratings.indexOf(s.in);
     s.in = c.ratings[(i + 1) % c.ratings.length];
@@ -399,6 +413,7 @@ export function observe(sim) {
     supply: sim.supply && !sim.mainTrip,
     overload: !!sim.overload,
     lines: lineReport(sim, an),
+    leaks: an.leaks,
     cable: sim.level.cable ? { iz: sim.level.cable.iz, s: sim.level.cable.s, heat: sim.cableHeat, burnAfter: sim.level.cable.burnAfter || 6, burnt: sim.cableBurnt, amps: sim.parts[sim.level.cable.prot] && sim.parts[sim.level.cable.prot].on ? lineCurrent(sim, an, sim.level.cable.prot) : 0 } : null,
   };
 }

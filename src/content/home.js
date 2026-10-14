@@ -26,6 +26,7 @@ export const MODULES = [
       'c09-luce-scale',
       'c10-campanello',
       'c19-magnetotermico',
+      'c20-differenziale',
       'c11-quadro',
     ],
   },

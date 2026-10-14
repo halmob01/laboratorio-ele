@@ -178,6 +178,15 @@ export function schemV2(c, s, L, ui) {
       o += `<circle cx="${cx}" cy="${cy}" r="14" fill="${on ? '#6FE3A1' : '#B9C8BD'}" stroke="var(--comp-edge)" stroke-width="1.6"/><circle cx="${cx}" cy="${cy}" r="14" fill="none"/>`;
       break;
     }
+    case 'gu': {
+      // guasto d'isolamento: pulsante per provocarlo e valore della corrente dispersa
+      const on = !!part.on, cx = w / 2;
+      o += `<path d="M${cx - 60} 30 L${cx - 40} 56 L${cx - 54} 56 L${cx - 36} 84" fill="none" stroke="${on ? '#C0262D' : 'var(--sch)'}" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>`;
+      o += lab(cx - 24, 102, on ? 'ISOLANTE ROVINATO' : 'ISOLANTE INTEGRO');
+      o += `<g class="tbtn" data-rate="${c.id}" role="button" tabindex="0" aria-label="Corrente dispersa: ${part.mA} milliampere. Tocca per cambiarla"><rect x="${cx + 14}" y="34" width="62" height="28" rx="5" fill="#EDE7D4" stroke="var(--comp-edge)" stroke-width="1.4"/><text x="${cx + 45}" y="53" text-anchor="middle" style="font:600 13px 'IBM Plex Mono',monospace;fill:#222">${part.mA} mA</text></g>`;
+      o += lab(cx + 45, 82, on ? 'verso terra' : 'tocca il pannello');
+      break;
+    }
     case 'lamp': {
       const on = obs.loads[c.id] === 'on', burnt = obs.loads[c.id] === 'burnt';
       const cx = w / 2, cy = 58;
@@ -213,7 +222,7 @@ export function schemV2(c, s, L, ui) {
 }
 
 // Tipi che il disegno v2 gestisce al posto di quelli del motore v1 (sw, dev e inv restano come nel v1).
-export const V2_TYPES = new Set(['quadro', 'mt', 'rcd', 'mt3', 'sez', 'pb', 'pbnc', 'fungo', 'ri', 'rel', 'tmr', 'km', 'ft', 'fc', 'trafo', 'bell', 'spia', 'lamp', 'presa', 'motor3']);
+export const V2_TYPES = new Set(['quadro', 'mt', 'rcd', 'mt3', 'sez', 'pb', 'pbnc', 'fungo', 'ri', 'rel', 'tmr', 'km', 'ft', 'fc', 'trafo', 'bell', 'spia', 'lamp', 'presa', 'motor3', 'gu']);
 
 /* ---------- scena della stanza / della macchina (livelli v2) ---------- */
 const DEV = new Set(['lamp', 'spia', 'bell', 'presa', 'motor3']);

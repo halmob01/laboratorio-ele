@@ -202,7 +202,7 @@ export function benchHTML(s, comps, ui) {
   let o = `<defs><pattern id="pegs" width="16" height="16" patternUnits="userSpaceOnUse"><circle cx="8" cy="8" r="1.4" fill="var(--dot)"/></pattern></defs><rect x="0" y="-28" width="${BW}" height="${H + 28}" fill="var(--bench)"/><rect x="0" y="-28" width="${BW}" height="${H + 28}" fill="url(#pegs)"/>`;
   const dimmed = c => ui.focus && !ui.focus.includes(c.id);
   comps.forEach(c => {
-    const toggles = ['sw', 'dev', 'inv', 'mt', 'mt3', 'sez', 'rcd', 'fungo'].includes(c.type);
+    const toggles = ['sw', 'dev', 'inv', 'mt', 'mt3', 'sez', 'rcd', 'fungo', 'gu'].includes(c.type);
     const hold = c.type === 'pb' || c.type === 'pbnc';
     if (dimmed(c)) o += '<g class="dimmed">';
     o += `<text class="ttl" x="${c.x + 2}" y="${c.y - 9}">${c.title}</text>`;

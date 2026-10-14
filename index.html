@@ -1104,6 +1104,8 @@ html[lang="it"] .trnote{display:none}
     mt3: { protect: "corto", contacts: (c2, s) => pole(s.on, [["1", "2"], ["3", "4"], ["5", "6"]]), init: (c2) => ({ on: c2.init !== 0, tripped: false }), actions: ["toggle"] },
     sez: { contacts: (c2, s) => pole(s.on, [["1", "2"], ["3", "4"], ["5", "6"]]), init: (c2) => ({ on: c2.init !== 0, tripped: false }), actions: ["toggle"] },
     rcd: { protect: "terra", contacts: (c2, s) => pole(s.on, [["1", "2"], ["N1", "N2"]]), poles: { F: ["1", "2"], N: ["N1", "N2"] }, init: (c2) => ({ on: c2.init !== 0, tripped: false }), actions: ["toggle", "test"] },
+    // dispersione verso terra (guasto d'isolamento): non ha morsetti. `at` e' il punto del circuito dove l'isolante cede, `levels` le correnti disperse (mA) tra cui scegliere
+    gu: { contacts: () => [], init: (c2) => ({ on: false, mA: (c2.levels || [30])[0] }), actions: ["toggle", "rate"] },
     // relè e contattori: la bobina e' un carico, il resto sono contatti
     ri: { coil: ["A1", "A2"], contacts: (c2, s) => pole(s.on, [["1", "2"]]), init: () => ({ on: false, coil: false }) },
     // relè con contatto di scambio: 11 comune, 12 chiuso a riposo (NC), 14 chiuso a bobina eccitata (NA)
@@ -1289,8 +1291,14 @@ html[lang="it"] .trnote{display:none}
         motors[id] = st;
       }
     });
-    return { uf, pots, potAt, volt, faults, loads, coils, motors, trafoOn, burntNow };
+    const leaks = [];
+    level.comps.forEach((c2) => {
+      const s = sim.parts[c2.id];
+      if (c2.type === "gu" && s && s.on && isPhase(potAt(c2.at))) leaks.push({ id: c2.id, mA: s.mA });
+    });
+    return { uf, pots, potAt, volt, faults, loads, coils, motors, trafoOn, burntNow, leaks };
   }
+  var RCD_TRIP_MA = 30;
   var OVERLOAD_TRIP = 1.45;
   var V_MAINS = 230;
   function lineCurrent(sim, an, prot) {
@@ -1339,6 +1347,13 @@ html[lang="it"] .trnote{display:none}
         }
         sim.mainTrip = true;
         sim.mainTripCause = "faseterra";
+        return true;
+      }
+    }
+    if (an.leaks.some((l) => l.mA >= RCD_TRIP_MA)) {
+      const c2 = pick(closedProtections(sim, "terra"), (a) => a.leaks.some((l) => l.mA >= RCD_TRIP_MA));
+      if (c2) {
+        trip(sim, c2);
         return true;
       }
     }
@@ -1421,6 +1436,8 @@ html[lang="it"] .trnote{display:none}
         }
       }
       if (s.on && sim.mainTrip && (p.protect || c2.type === "sez")) sim.mainTrip = false;
+    } else if (action === "rate" && c2.type === "gu" && c2.levels) {
+      s.mA = c2.levels[(c2.levels.indexOf(s.mA) + 1) % c2.levels.length];
     } else if (action === "rate" && c2.type === "mt" && c2.ratings) {
       const i = c2.ratings.indexOf(s.in);
       s.in = c2.ratings[(i + 1) % c2.ratings.length];
@@ -1522,6 +1539,7 @@ html[lang="it"] .trnote{display:none}
       supply: sim.supply && !sim.mainTrip,
       overload: !!sim.overload,
       lines: lineReport(sim, an),
+      leaks: an.leaks,
       cable: sim.level.cable ? { iz: sim.level.cable.iz, s: sim.level.cable.s, heat: sim.cableHeat, burnAfter: sim.level.cable.burnAfter || 6, burnt: sim.cableBurnt, amps: sim.parts[sim.level.cable.prot] && sim.parts[sim.level.cable.prot].on ? lineCurrent(sim, an, sim.level.cable.prot) : 0 } : null
     };
   }
@@ -1997,7 +2015,7 @@ html[lang="it"] .trnote{display:none}
 
   // src/engine/v2/view.js
   var isV2 = (level) => !!level && level.engine === 2;
-  var MAIN = /* @__PURE__ */ new Set(["mt", "mt3", "sez", "rcd"]);
+  var MAIN = /* @__PURE__ */ new Set(["mt", "mt3", "sez", "rcd", "gu"]);
   var selfPowered = (level) => isV2(level) && level.supply !== "quadro" && (level.supply === "protezioni" || level.comps.some((c2) => MAIN.has(c2.type)));
   var MANUAL = /* @__PURE__ */ new Set(["sw", "dev", "inv", "pb", "pbnc", "fungo", "mt", "mt3", "sez", "rcd"]);
   var HOLD = /* @__PURE__ */ new Set(["pb", "pbnc"]);
@@ -3772,6 +3790,51 @@ html[lang="it"] .trnote{display:none}
       ]
     },
     {
+      id: "c20-differenziale",
+      code: "c20",
+      n: 0,
+      engine: 2,
+      quadroOnly: true,
+      flow: "onDemand",
+      palette: ["marrone", "blu", "gv"],
+      name: "Il differenziale",
+      title: "Il differenziale",
+      blurb: "La dispersione verso terra e l\u2019interruttore che la sente.",
+      goal: "Collega uno scaldabagno al quadro passando dal differenziale. Poi provoca una dispersione: con 10 mA il differenziale non deve scattare, con 300 mA deve scattare subito. Tocca il valore in mA per cambiarlo.",
+      comps: [
+        QM,
+        C("D", "rcd", "Differenziale", "Interruttore differenziale", { "1": { l: "1" }, N1: { l: "N" }, "2": { l: "2" }, N2: { l: "N" } }),
+        C("S", "sw", "Interruttore", "Interruttore dello scaldabagno", { a: { l: "1" }, b: { l: "2" } }),
+        C("H", "lamp", "Scaldabagno", "Scaldabagno (1500 W)", { B: { l: "B" }, A: { l: "A" } }, { w: 1500 }),
+        C("G", "gu", "Guasto", "Isolante dello scaldabagno", {}, { at: "H.A", levels: [10, 300] })
+      ],
+      controls: ["D", "S", "G"],
+      checks: [
+        { id: "acceso", label: "Chiudi l\u2019interruttore: lo scaldabagno si accende", do: ["toggle S"], expect: { loads: { H: "on" }, tripped: [] } },
+        { id: "piccola", label: "Dispersione di 10 mA: il differenziale non scatta", do: ["toggle S", "toggle G"], expect: { loads: { H: "on" }, tripped: [] } },
+        { id: "grave", label: "Dispersione di 300 mA: il differenziale scatta e lo scaldabagno si spegne", do: ["toggle S", "rate G", "toggle G"], expect: { loads: { H: "off" }, tripped: ["D"] } },
+        { id: "prova", label: "Tasto di prova: il differenziale scatta", do: ["toggle S", "test D"], expect: { loads: { H: "off" }, tripped: ["D"] } }
+      ],
+      demoDo: [
+        { do: ["toggle S"], say: "Interruttore chiuso: lo scaldabagno si accende." },
+        { do: ["toggle G"], say: "Dispersione di 10 mA: troppo piccola, il differenziale non scatta." },
+        { do: ["rate G"], say: "Dispersione di 300 mA: il differenziale scatta e toglie la tensione." }
+      ],
+      safety: { phaseSwitched: ["H"], rcdCovers: ["H"] },
+      solution: [
+        ["Q.F", "D.1", "marrone"],
+        ["Q.N", "D.N1", "blu"],
+        ["D.2", "S.a", "marrone"],
+        ["S.b", "H.A", "marrone"],
+        ["D.N2", "H.B", "blu"]
+      ],
+      hints: [
+        "La fase e il neutro del quadro entrano nel differenziale, in alto (morsetti 1 e N).",
+        "Dall\u2019uscita del differenziale la fase passa dall\u2019interruttore e va allo scaldabagno.",
+        "Anche il neutro dello scaldabagno deve uscire dal differenziale (morsetto N in basso). Se lo prendi direttamente dal quadro, il differenziale vede una corrente che esce e non rientra e scatta da solo."
+      ]
+    },
+    {
       id: "c07-presa-comandata",
       code: "c07",
       n: 0,
@@ -4560,6 +4623,102 @@ html[lang="it"] .trnote{display:none}
           why: "Con due stufe passano 17,4 A: il cavo da 1,5 mm\xB2 regge 15,5 A. Il magnetotermico da 16 A non scatta, perch\xE9 17,4 A sono sotto 1,13 volte i 16 A, e il cavo si scalda. La portata dell\u2019interruttore deve essere minore o uguale a quella del cavo: 10 A."
         },
         fixSay: "Porta la portata del magnetotermico a 10 A, poi premi Verifica."
+      }
+    },
+    "c20-differenziale": {
+      support: "passi",
+      lesson: {
+        pages: [
+          {
+            type: "spiegazione",
+            title: "La corrente che non torna",
+            paras: [
+              "In un apparecchio la corrente esce dalla fase e rientra dal neutro: le due correnti sono uguali. Se l\u2019isolante cede, una parte della corrente va a terra, magari passando per una persona che tocca l\u2019involucro. Fase e neutro non sono pi\xF9 uguali.",
+              "Il differenziale confronta continuamente la corrente che esce con quella che rientra. Se la differenza supera la sua soglia, scatta."
+            ]
+          },
+          {
+            type: "pezzi",
+            title: "La soglia di 30 mA",
+            focus: ["D"],
+            paras: [
+              "Nelle case il differenziale ha una soglia di 30 mA. Scatta con una dispersione di 30 mA o pi\xF9, e per norma non scatta sotto i 15 mA.",
+              "Il magnetotermico non se ne accorge: 30 mA sono pochissimi rispetto ai suoi 10 o 16 ampere. Per questo in casa servono tutti e due."
+            ],
+            warn: "Una corrente di 30 mA attraverso il corpo \xE8 gi\xE0 pericolosa. Il differenziale serve proprio a interromperla in una frazione di secondo."
+          },
+          {
+            type: "spiegazione",
+            title: "Il neutro deve passare dal differenziale",
+            paras: [
+              "Il differenziale confronta la corrente di fase con quella di neutro, ma solo se passano tutte e due da lui. Se il neutro di un apparecchio viene preso prima del differenziale, la corrente esce dal differenziale e rientra altrove: lui la vede come una dispersione e scatta appena si accende l\u2019apparecchio."
+            ]
+          },
+          {
+            type: "demo",
+            title: "Guarda come si fa",
+            captions: {
+              wires: [
+                "La fase del quadro entra nel differenziale: morsetto 1.",
+                "Il neutro del quadro entra nel differenziale: morsetto N in alto.",
+                "Dall\u2019uscita 2 del differenziale all\u2019interruttore dello scaldabagno.",
+                "Dall\u2019interruttore allo scaldabagno.",
+                "Il neutro esce dal differenziale e va allo scaldabagno."
+              ],
+              power: "Il quadro \xE8 alimentato, lo scaldabagno \xE8 spento.",
+              controls: []
+            }
+          },
+          {
+            type: "previsione",
+            question: "Lo scaldabagno ha una dispersione verso terra di 300 mA. Il magnetotermico della linea \xE8 da 16 A e il differenziale da 30 mA. Che cosa succede?",
+            options: [
+              { id: "a", text: "Scatta il magnetotermico: 300 mA sono una corrente anomala." },
+              { id: "b", text: "Scatta il differenziale: 300 mA sono molto pi\xF9 della sua soglia." },
+              { id: "c", text: "Non scatta niente: la corrente \xE8 troppo piccola per ogni protezione." }
+            ],
+            correct: "b",
+            why: "Il magnetotermico guarda la corrente totale della linea: 0,3 A sono nulla rispetto ai suoi 16 A. Il differenziale confronta fase e neutro: 300 mA di differenza sono dieci volte la sua soglia e lo fanno scattare subito."
+          },
+          { type: "sintesi", title: "Da ricordare" }
+        ]
+      },
+      steps: [
+        { kind: "wire", from: "Q.F", to: ["D.1"], color: "marrone", short: "1 Fase", title: "La fase al differenziale", text: "Dalla FASE del quadro al morsetto 1 del differenziale." },
+        { kind: "wire", from: "Q.N", to: ["D.N1"], color: "blu", short: "2 Neutro", title: "Il neutro al differenziale", text: "Dal NEUTRO del quadro al morsetto N in alto del differenziale." },
+        { kind: "wire", from: "D.2", to: ["S.a"], color: "marrone", short: "3 Interruttore", title: "All\u2019interruttore", text: "Dal morsetto 2 del differenziale al morsetto 1 dell\u2019interruttore." },
+        { kind: "wire", from: "S.b", to: ["H.A"], color: "marrone", short: "4 Scaldabagno", title: "Allo scaldabagno", text: "Dal morsetto 2 dell\u2019interruttore allo scaldabagno." },
+        { kind: "wire", from: "D.N2", to: ["H.B"], color: "blu", short: "5 Neutro", title: "Il neutro allo scaldabagno", text: "Dal morsetto N in basso del differenziale allo scaldabagno." },
+        { kind: "control", id: "S", short: "6 Accendi", title: "Accendi lo scaldabagno", text: "Chiudi l\u2019interruttore dello scaldabagno." },
+        { kind: "control", id: "G", short: "7 Dispersione", title: "Provoca la dispersione", text: "Tocca il pannello dell\u2019isolante: con 10 mA il differenziale non scatta. Poi tocca il valore in mA per portarlo a 300: ora scatta." },
+        { kind: "verify", short: "8 Verifica", title: "Controlla l\u2019impianto", text: "Riarma il differenziale e premi Verifica." }
+      ],
+      summary: [
+        "Il differenziale confronta la corrente di fase con quella di neutro: se non sono uguali, scatta.",
+        "In casa la soglia \xE8 30 mA: scatta da 30 mA in su e non scatta sotto i 15 mA.",
+        "Il magnetotermico non sente le dispersioni: servono tutti e due.",
+        "Il neutro dei carichi deve uscire dal differenziale, altrimenti scatta senza guasto."
+      ],
+      fault: {
+        say: "Lo scaldabagno \xE8 gi\xE0 cablato. Chiudi l\u2019interruttore e guarda che cosa fa il differenziale.",
+        wires: [
+          ["Q.F", "D.1", "marrone"],
+          ["Q.N", "D.N1", "blu"],
+          ["D.2", "S.a", "marrone"],
+          ["S.b", "H.A", "marrone"],
+          ["Q.N", "H.B", "blu"]
+        ],
+        diagnosis: {
+          question: "Perch\xE9 il differenziale scatta appena si accende lo scaldabagno?",
+          options: [
+            { id: "a", text: "Il neutro dello scaldabagno \xE8 preso dal quadro e non passa dal differenziale." },
+            { id: "b", text: "Lo scaldabagno assorbe troppa corrente." },
+            { id: "c", text: "La fase \xE8 collegata al morsetto sbagliato." }
+          ],
+          correct: "a",
+          why: "La corrente esce dal differenziale sulla fase e rientra dal neutro senza passarvi: lui vede una differenza pari a tutta la corrente dello scaldabagno e scatta. Il neutro deve uscire dal morsetto N in basso del differenziale."
+        },
+        fixSay: "Sposta il neutro dello scaldabagno sul morsetto N in basso del differenziale, poi premi Verifica."
       }
     },
     "c07-presa-comandata": {
@@ -6105,6 +6264,7 @@ html[lang="it"] .trnote{display:none}
         "c09-luce-scale",
         "c10-campanello",
         "c19-magnetotermico",
+        "c20-differenziale",
         "c11-quadro"
       ]
     },
@@ -6281,6 +6441,7 @@ html[lang="it"] .trnote{display:none}
     fungo: [HALF, 110, ["1"], ["2"]],
     ri: [HALF, 130, ["A1", "A2"], ["1", "2"]],
     tmr: [HALF, 130, ["A1", "A2"], ["1", "2"]],
+    gu: [HALF, 112, [], []],
     rel: [HALF, 150, ["A1", "A2", "11"], ["12", "14"]],
     km: [FULL, 190, ["A1", "1", "3", "5", "13", "21"], ["A2", "2", "4", "6", "14", "22"]],
     ft: [FULL, 150, ["1", "3", "5", "95", "97"], ["2", "4", "6", "96", "98"], 0.3],
@@ -6544,6 +6705,14 @@ html[lang="it"] .trnote{display:none}
         o += `<circle cx="${cx}" cy="${cy}" r="14" fill="${on ? "#6FE3A1" : "#B9C8BD"}" stroke="var(--comp-edge)" stroke-width="1.6"/><circle cx="${cx}" cy="${cy}" r="14" fill="none"/>`;
         break;
       }
+      case "gu": {
+        const on = !!part.on, cx = w / 2;
+        o += `<path d="M${cx - 60} 30 L${cx - 40} 56 L${cx - 54} 56 L${cx - 36} 84" fill="none" stroke="${on ? "#C0262D" : "var(--sch)"}" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>`;
+        o += lab(cx - 24, 102, on ? "ISOLANTE ROVINATO" : "ISOLANTE INTEGRO");
+        o += `<g class="tbtn" data-rate="${c2.id}" role="button" tabindex="0" aria-label="Corrente dispersa: ${part.mA} milliampere. Tocca per cambiarla"><rect x="${cx + 14}" y="34" width="62" height="28" rx="5" fill="#EDE7D4" stroke="var(--comp-edge)" stroke-width="1.4"/><text x="${cx + 45}" y="53" text-anchor="middle" style="font:600 13px 'IBM Plex Mono',monospace;fill:#222">${part.mA} mA</text></g>`;
+        o += lab(cx + 45, 82, on ? "verso terra" : "tocca il pannello");
+        break;
+      }
       case "lamp": {
         const on = obs2.loads[c2.id] === "on", burnt = obs2.loads[c2.id] === "burnt";
         const cx = w / 2, cy = 58;
@@ -6583,7 +6752,7 @@ html[lang="it"] .trnote{display:none}
     }
     return o;
   }
-  var V2_TYPES = /* @__PURE__ */ new Set(["quadro", "mt", "rcd", "mt3", "sez", "pb", "pbnc", "fungo", "ri", "rel", "tmr", "km", "ft", "fc", "trafo", "bell", "spia", "lamp", "presa", "motor3"]);
+  var V2_TYPES = /* @__PURE__ */ new Set(["quadro", "mt", "rcd", "mt3", "sez", "pb", "pbnc", "fungo", "ri", "rel", "tmr", "km", "ft", "fc", "trafo", "bell", "spia", "lamp", "presa", "motor3", "gu"]);
   var DEV = /* @__PURE__ */ new Set(["lamp", "spia", "bell", "presa", "motor3"]);
   var WALLCTL = { sw: "tog", dev: "tog", inv: "tog", pb: "hold", pbnc: "hold", fungo: "mush" };
   function roomV2HTML(level) {
@@ -6882,7 +7051,7 @@ html[lang="it"] .trnote{display:none}
     let o = `<defs><pattern id="pegs" width="16" height="16" patternUnits="userSpaceOnUse"><circle cx="8" cy="8" r="1.4" fill="var(--dot)"/></pattern></defs><rect x="0" y="-28" width="${BW}" height="${H + 28}" fill="var(--bench)"/><rect x="0" y="-28" width="${BW}" height="${H + 28}" fill="url(#pegs)"/>`;
     const dimmed = (c2) => ui2.focus && !ui2.focus.includes(c2.id);
     comps2.forEach((c2) => {
-      const toggles = ["sw", "dev", "inv", "mt", "mt3", "sez", "rcd", "fungo"].includes(c2.type);
+      const toggles = ["sw", "dev", "inv", "mt", "mt3", "sez", "rcd", "fungo", "gu"].includes(c2.type);
       const hold = c2.type === "pb" || c2.type === "pbnc";
       if (dimmed(c2)) o += '<g class="dimmed">';
       o += `<text class="ttl" x="${c2.x + 2}" y="${c2.y - 9}">${c2.title}</text>`;
@@ -9209,7 +9378,75 @@ html[lang="it"] .trnote{display:none}
     "Una stufa": "\u0645\u062F\u0641\u0623\u0629 \u0648\u0627\u062D\u062F\u0629",
     "Portata": "\u0627\u0644\u0633\u0639\u0629",
     "sovraccarico": "\u062D\u0645\u0644 \u0632\u0627\u0626\u062F",
-    "surriscaldato": "\u0633\u062E\u0648\u0646\u0629 \u0632\u0627\u0626\u062F\u0629"
+    "surriscaldato": "\u0633\u062E\u0648\u0646\u0629 \u0632\u0627\u0626\u062F\u0629",
+    "Accendi lo scaldabagno": "\u0634\u063A\u0651\u0644 \u0633\u062E\u0651\u0627\u0646 \u0627\u0644\u0645\u0627\u0621",
+    "Allo scaldabagno": "\u0625\u0644\u0649 \u0633\u062E\u0651\u0627\u0646 \u0627\u0644\u0645\u0627\u0621",
+    "All\u2019interruttore": "\u0625\u0644\u0649 \u0627\u0644\u0645\u0641\u062A\u0627\u062D",
+    "Anche il neutro dello scaldabagno deve uscire dal differenziale (morsetto N in basso). Se lo prendi direttamente dal quadro, il differenziale vede una corrente che esce e non rientra e scatta da solo.": "\u064A\u062C\u0628 \u0623\u0646 \u064A\u062E\u0631\u062C \u062D\u064A\u0627\u062F \u0633\u062E\u0651\u0627\u0646 \u0627\u0644\u0645\u0627\u0621 \u0623\u064A\u0636\u064B\u0627 \u0645\u0646 \u0627\u0644\u0642\u0627\u0637\u0639 \u0627\u0644\u062A\u0641\u0627\u0636\u0644\u064A (\u0627\u0644\u0637\u0631\u0641 N \u0627\u0644\u0633\u0641\u0644\u064A). \u0625\u0630\u0627 \u0623\u062E\u0630\u062A\u0647 \u0645\u0628\u0627\u0634\u0631\u0629 \u0645\u0646 \u0627\u0644\u0644\u0648\u062D\u0629\u060C \u064A\u0631\u0649 \u0627\u0644\u0642\u0627\u0637\u0639 \u0627\u0644\u062A\u0641\u0627\u0636\u0644\u064A \u062A\u064A\u0627\u0631\u064B\u0627 \u064A\u062E\u0631\u062C \u0648\u0644\u0627 \u064A\u0639\u0648\u062F \u0641\u064A\u0641\u0635\u0644 \u0645\u0646 \u062A\u0644\u0642\u0627\u0621 \u0646\u0641\u0633\u0647.",
+    "Chiudi l\u2019interruttore dello scaldabagno.": "\u0623\u063A\u0644\u0642 \u0645\u0641\u062A\u0627\u062D \u0633\u062E\u0651\u0627\u0646 \u0627\u0644\u0645\u0627\u0621.",
+    "Chiudi l\u2019interruttore: lo scaldabagno si accende": "\u0623\u063A\u0644\u0642 \u0627\u0644\u0645\u0641\u062A\u0627\u062D: \u064A\u0634\u062A\u063A\u0644 \u0633\u062E\u0651\u0627\u0646 \u0627\u0644\u0645\u0627\u0621",
+    "Collega uno scaldabagno al quadro passando dal differenziale. Poi provoca una dispersione: con 10 mA il differenziale non deve scattare, con 300 mA deve scattare subito. Tocca il valore in mA per cambiarlo.": "\u0648\u0635\u0651\u0644 \u0633\u062E\u0651\u0627\u0646 \u0645\u0627\u0621 \u0628\u0627\u0644\u0644\u0648\u062D\u0629 \u0639\u0628\u0631 \u0627\u0644\u0642\u0627\u0637\u0639 \u0627\u0644\u062A\u0641\u0627\u0636\u0644\u064A. \u062B\u0645 \u062A\u0633\u0628\u0651\u0628 \u0641\u064A \u062A\u0633\u0631\u0651\u0628: \u0645\u0639 10 \u0645\u0644\u0644\u064A \u0623\u0645\u0628\u064A\u0631 \u064A\u062C\u0628 \u0623\u0644\u0627 \u064A\u0641\u0635\u0644 \u0627\u0644\u0642\u0627\u0637\u0639 \u0627\u0644\u062A\u0641\u0627\u0636\u0644\u064A\u060C \u0648\u0645\u0639 300 \u0645\u0644\u0644\u064A \u0623\u0645\u0628\u064A\u0631 \u064A\u062C\u0628 \u0623\u0646 \u064A\u0641\u0635\u0644 \u0641\u0648\u0631\u064B\u0627. \u0627\u0644\u0645\u0633 \u0627\u0644\u0642\u064A\u0645\u0629 \u0628\u0627\u0644\u0645\u0644\u0644\u064A \u0623\u0645\u0628\u064A\u0631 \u0644\u062A\u063A\u064A\u064A\u0631\u0647\u0627.",
+    "Dal NEUTRO del quadro al morsetto N in alto del differenziale.": "\u0645\u0646 \u0627\u0644\u062D\u064A\u0627\u062F \u0641\u064A \u0627\u0644\u0644\u0648\u062D\u0629 \u0625\u0644\u0649 \u0627\u0644\u0637\u0631\u0641 N \u0627\u0644\u0639\u0644\u0648\u064A \u0641\u064A \u0627\u0644\u0642\u0627\u0637\u0639 \u0627\u0644\u062A\u0641\u0627\u0636\u0644\u064A.",
+    "Dal morsetto 2 del differenziale al morsetto 1 dell\u2019interruttore.": "\u0645\u0646 \u0627\u0644\u0637\u0631\u0641 2 \u0641\u064A \u0627\u0644\u0642\u0627\u0637\u0639 \u0627\u0644\u062A\u0641\u0627\u0636\u0644\u064A \u0625\u0644\u0649 \u0627\u0644\u0637\u0631\u0641 1 \u0641\u064A \u0627\u0644\u0645\u0641\u062A\u0627\u062D.",
+    "Dal morsetto 2 dell\u2019interruttore allo scaldabagno.": "\u0645\u0646 \u0627\u0644\u0637\u0631\u0641 2 \u0641\u064A \u0627\u0644\u0645\u0641\u062A\u0627\u062D \u0625\u0644\u0649 \u0633\u062E\u0651\u0627\u0646 \u0627\u0644\u0645\u0627\u0621.",
+    "Dal morsetto N in basso del differenziale allo scaldabagno.": "\u0645\u0646 \u0627\u0644\u0637\u0631\u0641 N \u0627\u0644\u0633\u0641\u0644\u064A \u0641\u064A \u0627\u0644\u0642\u0627\u0637\u0639 \u0627\u0644\u062A\u0641\u0627\u0636\u0644\u064A \u0625\u0644\u0649 \u0633\u062E\u0651\u0627\u0646 \u0627\u0644\u0645\u0627\u0621.",
+    "Dalla FASE del quadro al morsetto 1 del differenziale.": "\u0645\u0646 \u0627\u0644\u0637\u0648\u0631 \u0641\u064A \u0627\u0644\u0644\u0648\u062D\u0629 \u0625\u0644\u0649 \u0627\u0644\u0637\u0631\u0641 1 \u0641\u064A \u0627\u0644\u0642\u0627\u0637\u0639 \u0627\u0644\u062A\u0641\u0627\u0636\u0644\u064A.",
+    "Dall\u2019interruttore allo scaldabagno.": "\u0645\u0646 \u0627\u0644\u0645\u0641\u062A\u0627\u062D \u0625\u0644\u0649 \u0633\u062E\u0651\u0627\u0646 \u0627\u0644\u0645\u0627\u0621.",
+    "Dall\u2019uscita 2 del differenziale all\u2019interruttore dello scaldabagno.": "\u0645\u0646 \u0627\u0644\u0645\u062E\u0631\u062C 2 \u0641\u064A \u0627\u0644\u0642\u0627\u0637\u0639 \u0627\u0644\u062A\u0641\u0627\u0636\u0644\u064A \u0625\u0644\u0649 \u0645\u0641\u062A\u0627\u062D \u0633\u062E\u0651\u0627\u0646 \u0627\u0644\u0645\u0627\u0621.",
+    "Dall\u2019uscita del differenziale la fase passa dall\u2019interruttore e va allo scaldabagno.": "\u0645\u0646 \u0645\u062E\u0631\u062C \u0627\u0644\u0642\u0627\u0637\u0639 \u0627\u0644\u062A\u0641\u0627\u0636\u0644\u064A \u064A\u0645\u0631\u0651 \u0627\u0644\u0637\u0648\u0631 \u0639\u0628\u0631 \u0627\u0644\u0645\u0641\u062A\u0627\u062D \u0648\u064A\u0630\u0647\u0628 \u0625\u0644\u0649 \u0633\u062E\u0651\u0627\u0646 \u0627\u0644\u0645\u0627\u0621.",
+    "Dispersione di 10 mA: il differenziale non scatta": "\u062A\u0633\u0631\u0651\u0628 10 \u0645\u0644\u0644\u064A \u0623\u0645\u0628\u064A\u0631: \u0644\u0627 \u064A\u0641\u0635\u0644 \u0627\u0644\u0642\u0627\u0637\u0639 \u0627\u0644\u062A\u0641\u0627\u0636\u0644\u064A",
+    "Dispersione di 10 mA: troppo piccola, il differenziale non scatta.": "\u062A\u0633\u0631\u0651\u0628 10 \u0645\u0644\u0644\u064A \u0623\u0645\u0628\u064A\u0631: \u0635\u063A\u064A\u0631 \u062C\u062F\u064B\u0627\u060C \u0644\u0627 \u064A\u0641\u0635\u0644 \u0627\u0644\u0642\u0627\u0637\u0639 \u0627\u0644\u062A\u0641\u0627\u0636\u0644\u064A.",
+    "Dispersione di 300 mA: il differenziale scatta e lo scaldabagno si spegne": "\u062A\u0633\u0631\u0651\u0628 300 \u0645\u0644\u0644\u064A \u0623\u0645\u0628\u064A\u0631: \u064A\u0641\u0635\u0644 \u0627\u0644\u0642\u0627\u0637\u0639 \u0627\u0644\u062A\u0641\u0627\u0636\u0644\u064A \u0648\u064A\u0646\u0637\u0641\u0626 \u0633\u062E\u0651\u0627\u0646 \u0627\u0644\u0645\u0627\u0621",
+    "Dispersione di 300 mA: il differenziale scatta e toglie la tensione.": "\u062A\u0633\u0631\u0651\u0628 300 \u0645\u0644\u0644\u064A \u0623\u0645\u0628\u064A\u0631: \u064A\u0641\u0635\u0644 \u0627\u0644\u0642\u0627\u0637\u0639 \u0627\u0644\u062A\u0641\u0627\u0636\u0644\u064A \u0648\u064A\u0642\u0637\u0639 \u0627\u0644\u062C\u0647\u062F.",
+    "Guasto": "\u0639\u0637\u0644",
+    "Il differenziale confronta continuamente la corrente che esce con quella che rientra. Se la differenza supera la sua soglia, scatta.": "\u064A\u0642\u0627\u0631\u0646 \u0627\u0644\u0642\u0627\u0637\u0639 \u0627\u0644\u062A\u0641\u0627\u0636\u0644\u064A \u0628\u0627\u0633\u062A\u0645\u0631\u0627\u0631 \u0627\u0644\u062A\u064A\u0627\u0631 \u0627\u0644\u062E\u0627\u0631\u062C \u0628\u0627\u0644\u062A\u064A\u0627\u0631 \u0627\u0644\u0639\u0627\u0626\u062F. \u0625\u0630\u0627 \u062A\u062C\u0627\u0648\u0632 \u0627\u0644\u0641\u0631\u0642 \u0639\u062A\u0628\u062A\u0647\u060C \u064A\u0641\u0635\u0644.",
+    "Il differenziale confronta la corrente di fase con quella di neutro, ma solo se passano tutte e due da lui. Se il neutro di un apparecchio viene preso prima del differenziale, la corrente esce dal differenziale e rientra altrove: lui la vede come una dispersione e scatta appena si accende l\u2019apparecchio.": "\u064A\u0642\u0627\u0631\u0646 \u0627\u0644\u0642\u0627\u0637\u0639 \u0627\u0644\u062A\u0641\u0627\u0636\u0644\u064A \u062A\u064A\u0627\u0631 \u0627\u0644\u0637\u0648\u0631 \u0628\u062A\u064A\u0627\u0631 \u0627\u0644\u062D\u064A\u0627\u062F\u060C \u0644\u0643\u0646 \u0641\u0642\u0637 \u0625\u0630\u0627 \u0645\u0631\u0651\u0627 \u0643\u0644\u0627\u0647\u0645\u0627 \u0639\u0628\u0631\u0647. \u0625\u0630\u0627 \u0623\u064F\u062E\u0630 \u062D\u064A\u0627\u062F \u0627\u0644\u062C\u0647\u0627\u0632 \u0642\u0628\u0644 \u0627\u0644\u0642\u0627\u0637\u0639 \u0627\u0644\u062A\u0641\u0627\u0636\u0644\u064A\u060C \u064A\u062E\u0631\u062C \u0627\u0644\u062A\u064A\u0627\u0631 \u0645\u0646 \u0627\u0644\u0642\u0627\u0637\u0639 \u0648\u064A\u0639\u0648\u062F \u0645\u0646 \u0645\u0643\u0627\u0646 \u0622\u062E\u0631: \u0641\u064A\u0631\u0627\u0647 \u062A\u0633\u0631\u0651\u0628\u064B\u0627 \u0648\u064A\u0641\u0635\u0644 \u0628\u0645\u062C\u0631\u062F \u062A\u0634\u063A\u064A\u0644 \u0627\u0644\u062C\u0647\u0627\u0632.",
+    "Il differenziale confronta la corrente di fase con quella di neutro: se non sono uguali, scatta.": "\u064A\u0642\u0627\u0631\u0646 \u0627\u0644\u0642\u0627\u0637\u0639 \u0627\u0644\u062A\u0641\u0627\u0636\u0644\u064A \u062A\u064A\u0627\u0631 \u0627\u0644\u0637\u0648\u0631 \u0628\u062A\u064A\u0627\u0631 \u0627\u0644\u062D\u064A\u0627\u062F: \u0625\u0630\u0627 \u0644\u0645 \u064A\u062A\u0633\u0627\u0648\u064A\u0627\u060C \u064A\u0641\u0635\u0644.",
+    "Il magnetotermico guarda la corrente totale della linea: 0,3 A sono nulla rispetto ai suoi 16 A. Il differenziale confronta fase e neutro: 300 mA di differenza sono dieci volte la sua soglia e lo fanno scattare subito.": "\u064A\u0646\u0638\u0631 \u0627\u0644\u0642\u0627\u0637\u0639 \u0627\u0644\u0645\u063A\u0646\u0627\u0637\u064A\u0633\u064A \u0627\u0644\u062D\u0631\u0627\u0631\u064A \u0625\u0644\u0649 \u0627\u0644\u062A\u064A\u0627\u0631 \u0627\u0644\u0643\u0644\u064A \u0644\u0644\u062E\u0637: 0,3 \u0623\u0645\u0628\u064A\u0631 \u0644\u0627 \u0634\u064A\u0621 \u0645\u0642\u0627\u0631\u0646\u0629 \u0628\u0640 16 \u0623\u0645\u0628\u064A\u0631. \u0623\u0645\u0627 \u0627\u0644\u0642\u0627\u0637\u0639 \u0627\u0644\u062A\u0641\u0627\u0636\u0644\u064A \u0641\u064A\u0642\u0627\u0631\u0646 \u0627\u0644\u0637\u0648\u0631 \u0628\u0627\u0644\u062D\u064A\u0627\u062F: \u0641\u0631\u0642 300 \u0645\u0644\u0644\u064A \u0623\u0645\u0628\u064A\u0631 \u064A\u0633\u0627\u0648\u064A \u0639\u0634\u0631\u0629 \u0623\u0636\u0639\u0627\u0641 \u0639\u062A\u0628\u062A\u0647 \u0648\u064A\u062C\u0639\u0644\u0647 \u064A\u0641\u0635\u0644 \u0641\u0648\u0631\u064B\u0627.",
+    "Il magnetotermico non se ne accorge: 30 mA sono pochissimi rispetto ai suoi 10 o 16 ampere. Per questo in casa servono tutti e due.": "\u0627\u0644\u0642\u0627\u0637\u0639 \u0627\u0644\u0645\u063A\u0646\u0627\u0637\u064A\u0633\u064A \u0627\u0644\u062D\u0631\u0627\u0631\u064A \u0644\u0627 \u064A\u0644\u0627\u062D\u0638 \u0630\u0644\u0643: 30 \u0645\u0644\u0644\u064A \u0623\u0645\u0628\u064A\u0631 \u0642\u0644\u064A\u0644\u0629 \u062C\u062F\u064B\u0627 \u0645\u0642\u0627\u0631\u0646\u0629 \u0628\u0640 10 \u0623\u0648 16 \u0623\u0645\u0628\u064A\u0631. \u0644\u0630\u0644\u0643 \u064A\u0644\u0632\u0645 \u0627\u0644\u0627\u062B\u0646\u0627\u0646 \u0645\u0639\u064B\u0627 \u0641\u064A \u0627\u0644\u0628\u064A\u062A.",
+    "Il magnetotermico non sente le dispersioni: servono tutti e due.": "\u0627\u0644\u0642\u0627\u0637\u0639 \u0627\u0644\u0645\u063A\u0646\u0627\u0637\u064A\u0633\u064A \u0627\u0644\u062D\u0631\u0627\u0631\u064A \u0644\u0627 \u064A\u0634\u0639\u0631 \u0628\u0627\u0644\u062A\u0633\u0631\u0651\u0628: \u064A\u0644\u0632\u0645 \u0627\u0644\u0627\u062B\u0646\u0627\u0646 \u0645\u0639\u064B\u0627.",
+    "Il neutro al differenziale": "\u0627\u0644\u062D\u064A\u0627\u062F \u0625\u0644\u0649 \u0627\u0644\u0642\u0627\u0637\u0639 \u0627\u0644\u062A\u0641\u0627\u0636\u0644\u064A",
+    "Il neutro allo scaldabagno": "\u0627\u0644\u062D\u064A\u0627\u062F \u0625\u0644\u0649 \u0633\u062E\u0651\u0627\u0646 \u0627\u0644\u0645\u0627\u0621",
+    "Il neutro dei carichi deve uscire dal differenziale, altrimenti scatta senza guasto.": "\u064A\u062C\u0628 \u0623\u0646 \u064A\u062E\u0631\u062C \u062D\u064A\u0627\u062F \u0627\u0644\u0623\u062D\u0645\u0627\u0644 \u0645\u0646 \u0627\u0644\u0642\u0627\u0637\u0639 \u0627\u0644\u062A\u0641\u0627\u0636\u0644\u064A\u060C \u0648\u0625\u0644\u0627 \u0641\u0635\u0644 \u062F\u0648\u0646 \u0648\u062C\u0648\u062F \u0639\u0637\u0644.",
+    "Il neutro del quadro entra nel differenziale: morsetto N in alto.": "\u062D\u064A\u0627\u062F \u0627\u0644\u0644\u0648\u062D\u0629 \u064A\u062F\u062E\u0644 \u0627\u0644\u0642\u0627\u0637\u0639 \u0627\u0644\u062A\u0641\u0627\u0636\u0644\u064A: \u0627\u0644\u0637\u0631\u0641 N \u0627\u0644\u0639\u0644\u0648\u064A.",
+    "Il neutro dello scaldabagno \xE8 preso dal quadro e non passa dal differenziale.": "\u062D\u064A\u0627\u062F \u0633\u062E\u0651\u0627\u0646 \u0627\u0644\u0645\u0627\u0621 \u0645\u0623\u062E\u0648\u0630 \u0645\u0646 \u0627\u0644\u0644\u0648\u062D\u0629 \u0648\u0644\u0627 \u064A\u0645\u0631\u0651 \u0639\u0628\u0631 \u0627\u0644\u0642\u0627\u0637\u0639 \u0627\u0644\u062A\u0641\u0627\u0636\u0644\u064A.",
+    "Il neutro deve passare dal differenziale": "\u064A\u062C\u0628 \u0623\u0646 \u064A\u0645\u0631\u0651 \u0627\u0644\u062D\u064A\u0627\u062F \u0639\u0628\u0631 \u0627\u0644\u0642\u0627\u0637\u0639 \u0627\u0644\u062A\u0641\u0627\u0636\u0644\u064A",
+    "Il neutro esce dal differenziale e va allo scaldabagno.": "\u064A\u062E\u0631\u062C \u0627\u0644\u062D\u064A\u0627\u062F \u0645\u0646 \u0627\u0644\u0642\u0627\u0637\u0639 \u0627\u0644\u062A\u0641\u0627\u0636\u0644\u064A \u0648\u064A\u0630\u0647\u0628 \u0625\u0644\u0649 \u0633\u062E\u0651\u0627\u0646 \u0627\u0644\u0645\u0627\u0621.",
+    "Il quadro \xE8 alimentato, lo scaldabagno \xE8 spento.": "\u0627\u0644\u0644\u0648\u062D\u0629 \u0645\u063A\u0630\u0651\u0627\u0629\u060C \u0648\u0633\u062E\u0651\u0627\u0646 \u0627\u0644\u0645\u0627\u0621 \u0645\u0637\u0641\u0623.",
+    "In casa la soglia \xE8 30 mA: scatta da 30 mA in su e non scatta sotto i 15 mA.": "\u0641\u064A \u0627\u0644\u0628\u064A\u062A \u0627\u0644\u0639\u062A\u0628\u0629 30 \u0645\u0644\u0644\u064A \u0623\u0645\u0628\u064A\u0631: \u064A\u0641\u0635\u0644 \u0645\u0646 30 \u0645\u0644\u0644\u064A \u0623\u0645\u0628\u064A\u0631 \u0641\u0645\u0627 \u0641\u0648\u0642 \u0648\u0644\u0627 \u064A\u0641\u0635\u0644 \u062A\u062D\u062A 15 \u0645\u0644\u0644\u064A \u0623\u0645\u0628\u064A\u0631.",
+    "In un apparecchio la corrente esce dalla fase e rientra dal neutro: le due correnti sono uguali. Se l\u2019isolante cede, una parte della corrente va a terra, magari passando per una persona che tocca l\u2019involucro. Fase e neutro non sono pi\xF9 uguali.": "\u0641\u064A \u0627\u0644\u062C\u0647\u0627\u0632 \u064A\u062E\u0631\u062C \u0627\u0644\u062A\u064A\u0627\u0631 \u0645\u0646 \u0627\u0644\u0637\u0648\u0631 \u0648\u064A\u0639\u0648\u062F \u0645\u0646 \u0627\u0644\u062D\u064A\u0627\u062F: \u0627\u0644\u062A\u064A\u0627\u0631\u0627\u0646 \u0645\u062A\u0633\u0627\u0648\u064A\u0627\u0646. \u0625\u0630\u0627 \u062A\u0639\u0637\u0651\u0644 \u0627\u0644\u0639\u0632\u0644\u060C \u064A\u0630\u0647\u0628 \u062C\u0632\u0621 \u0645\u0646 \u0627\u0644\u062A\u064A\u0627\u0631 \u0625\u0644\u0649 \u0627\u0644\u0623\u0631\u0636\u060C \u0648\u0631\u0628\u0645\u0627 \u064A\u0645\u0631\u0651 \u0639\u0628\u0631 \u0634\u062E\u0635 \u064A\u0644\u0645\u0633 \u0627\u0644\u0647\u064A\u0643\u0644. \u0639\u0646\u062F\u0647\u0627 \u0644\u0627 \u064A\u0639\u0648\u062F \u062A\u064A\u0627\u0631 \u0627\u0644\u0637\u0648\u0631 \u0648\u0627\u0644\u062D\u064A\u0627\u062F \u0645\u062A\u0633\u0627\u0648\u064A\u064A\u0646.",
+    "Interruttore chiuso: lo scaldabagno si accende.": "\u0627\u0644\u0645\u0641\u062A\u0627\u062D \u0645\u063A\u0644\u0642: \u064A\u0634\u062A\u063A\u0644 \u0633\u062E\u0651\u0627\u0646 \u0627\u0644\u0645\u0627\u0621.",
+    "Interruttore dello scaldabagno": "\u0645\u0641\u062A\u0627\u062D \u0633\u062E\u0651\u0627\u0646 \u0627\u0644\u0645\u0627\u0621",
+    "Isolante dello scaldabagno": "\u0639\u0632\u0644 \u0633\u062E\u0651\u0627\u0646 \u0627\u0644\u0645\u0627\u0621",
+    "La corrente che non torna": "\u0627\u0644\u062A\u064A\u0627\u0631 \u0627\u0644\u0630\u064A \u0644\u0627 \u064A\u0639\u0648\u062F",
+    "La corrente esce dal differenziale sulla fase e rientra dal neutro senza passarvi: lui vede una differenza pari a tutta la corrente dello scaldabagno e scatta. Il neutro deve uscire dal morsetto N in basso del differenziale.": "\u064A\u062E\u0631\u062C \u0627\u0644\u062A\u064A\u0627\u0631 \u0645\u0646 \u0627\u0644\u0642\u0627\u0637\u0639 \u0627\u0644\u062A\u0641\u0627\u0636\u0644\u064A \u0639\u0628\u0631 \u0627\u0644\u0637\u0648\u0631 \u0648\u064A\u0639\u0648\u062F \u0645\u0646 \u0627\u0644\u062D\u064A\u0627\u062F \u062F\u0648\u0646 \u0623\u0646 \u064A\u0645\u0631\u0651 \u0628\u0647: \u0641\u064A\u0631\u0649 \u0641\u0631\u0642\u064B\u0627 \u064A\u0633\u0627\u0648\u064A \u0643\u0644 \u062A\u064A\u0627\u0631 \u0633\u062E\u0651\u0627\u0646 \u0627\u0644\u0645\u0627\u0621 \u0648\u064A\u0641\u0635\u0644. \u064A\u062C\u0628 \u0623\u0646 \u064A\u062E\u0631\u062C \u0627\u0644\u062D\u064A\u0627\u062F \u0645\u0646 \u0627\u0644\u0637\u0631\u0641 N \u0627\u0644\u0633\u0641\u0644\u064A \u0641\u064A \u0627\u0644\u0642\u0627\u0637\u0639 \u0627\u0644\u062A\u0641\u0627\u0636\u0644\u064A.",
+    "La dispersione verso terra e l\u2019interruttore che la sente.": "\u0627\u0644\u062A\u0633\u0631\u0651\u0628 \u0625\u0644\u0649 \u0627\u0644\u0623\u0631\u0636 \u0648\u0627\u0644\u0642\u0627\u0637\u0639 \u0627\u0644\u0630\u064A \u064A\u0634\u0639\u0631 \u0628\u0647.",
+    "La fase al differenziale": "\u0627\u0644\u0637\u0648\u0631 \u0625\u0644\u0649 \u0627\u0644\u0642\u0627\u0637\u0639 \u0627\u0644\u062A\u0641\u0627\u0636\u0644\u064A",
+    "La fase e il neutro del quadro entrano nel differenziale, in alto (morsetti 1 e N).": "\u0637\u0648\u0631 \u0627\u0644\u0644\u0648\u062D\u0629 \u0648\u062D\u064A\u0627\u062F\u0647\u0627 \u064A\u062F\u062E\u0644\u0627\u0646 \u0627\u0644\u0642\u0627\u0637\u0639 \u0627\u0644\u062A\u0641\u0627\u0636\u0644\u064A \u0645\u0646 \u0627\u0644\u0623\u0639\u0644\u0649 (\u0627\u0644\u0637\u0631\u0641\u0627\u0646 1 \u0648 N).",
+    "La fase \xE8 collegata al morsetto sbagliato.": "\u0627\u0644\u0637\u0648\u0631 \u0645\u0648\u0635\u0648\u0644 \u0628\u0627\u0644\u0637\u0631\u0641 \u0627\u0644\u062E\u0637\u0623.",
+    "La soglia di 30 mA": "\u0639\u062A\u0628\u0629 30 \u0645\u0644\u0644\u064A \u0623\u0645\u0628\u064A\u0631",
+    "Lo scaldabagno assorbe troppa corrente.": "\u0633\u062E\u0651\u0627\u0646 \u0627\u0644\u0645\u0627\u0621 \u064A\u0633\u062D\u0628 \u062A\u064A\u0627\u0631\u064B\u0627 \u0643\u0628\u064A\u0631\u064B\u0627.",
+    "Lo scaldabagno ha una dispersione verso terra di 300 mA. Il magnetotermico della linea \xE8 da 16 A e il differenziale da 30 mA. Che cosa succede?": "\u0633\u062E\u0651\u0627\u0646 \u0627\u0644\u0645\u0627\u0621 \u0641\u064A\u0647 \u062A\u0633\u0631\u0651\u0628 \u0625\u0644\u0649 \u0627\u0644\u0623\u0631\u0636 \u0642\u062F\u0631\u0647 300 \u0645\u0644\u0644\u064A \u0623\u0645\u0628\u064A\u0631. \u0627\u0644\u0642\u0627\u0637\u0639 \u0627\u0644\u0645\u063A\u0646\u0627\u0637\u064A\u0633\u064A \u0627\u0644\u062D\u0631\u0627\u0631\u064A \u0644\u0644\u062E\u0637 16 \u0623\u0645\u0628\u064A\u0631 \u0648\u0627\u0644\u0642\u0627\u0637\u0639 \u0627\u0644\u062A\u0641\u0627\u0636\u0644\u064A 30 \u0645\u0644\u0644\u064A \u0623\u0645\u0628\u064A\u0631. \u0645\u0627\u0630\u0627 \u064A\u062D\u062F\u062B\u061F",
+    "Lo scaldabagno \xE8 gi\xE0 cablato. Chiudi l\u2019interruttore e guarda che cosa fa il differenziale.": "\u0633\u062E\u0651\u0627\u0646 \u0627\u0644\u0645\u0627\u0621 \u0645\u0648\u0635\u0648\u0644 \u0645\u0633\u0628\u0642\u064B\u0627. \u0623\u063A\u0644\u0642 \u0627\u0644\u0645\u0641\u062A\u0627\u062D \u0648\u0627\u0646\u0638\u0631 \u0645\u0627\u0630\u0627 \u064A\u0641\u0639\u0644 \u0627\u0644\u0642\u0627\u0637\u0639 \u0627\u0644\u062A\u0641\u0627\u0636\u0644\u064A.",
+    "Nelle case il differenziale ha una soglia di 30 mA. Scatta con una dispersione di 30 mA o pi\xF9, e per norma non scatta sotto i 15 mA.": "\u0641\u064A \u0627\u0644\u0628\u064A\u0648\u062A \u0639\u062A\u0628\u0629 \u0627\u0644\u0642\u0627\u0637\u0639 \u0627\u0644\u062A\u0641\u0627\u0636\u0644\u064A 30 \u0645\u0644\u0644\u064A \u0623\u0645\u0628\u064A\u0631. \u064A\u0641\u0635\u0644 \u0639\u0646\u062F \u062A\u0633\u0631\u0651\u0628 30 \u0645\u0644\u0644\u064A \u0623\u0645\u0628\u064A\u0631 \u0623\u0648 \u0623\u0643\u062B\u0631\u060C \u0648\u0628\u062D\u0633\u0628 \u0627\u0644\u0645\u0639\u064A\u0627\u0631 \u0644\u0627 \u064A\u0641\u0635\u0644 \u062A\u062D\u062A 15 \u0645\u0644\u0644\u064A \u0623\u0645\u0628\u064A\u0631.",
+    "Non scatta niente: la corrente \xE8 troppo piccola per ogni protezione.": "\u0644\u0627 \u0634\u064A\u0621 \u064A\u0641\u0635\u0644: \u0627\u0644\u062A\u064A\u0627\u0631 \u0635\u063A\u064A\u0631 \u062C\u062F\u064B\u0627 \u0628\u0627\u0644\u0646\u0633\u0628\u0629 \u0644\u0623\u064A \u062D\u0645\u0627\u064A\u0629.",
+    "Perch\xE9 il differenziale scatta appena si accende lo scaldabagno?": "\u0644\u0645\u0627\u0630\u0627 \u064A\u0641\u0635\u0644 \u0627\u0644\u0642\u0627\u0637\u0639 \u0627\u0644\u062A\u0641\u0627\u0636\u0644\u064A \u0628\u0645\u062C\u0631\u062F \u062A\u0634\u063A\u064A\u0644 \u0633\u062E\u0651\u0627\u0646 \u0627\u0644\u0645\u0627\u0621\u061F",
+    "Provoca la dispersione": "\u062A\u0633\u0628\u0651\u0628 \u0641\u064A \u0627\u0644\u062A\u0633\u0631\u0651\u0628",
+    "Riarma il differenziale e premi Verifica.": "\u0623\u0639\u062F \u062A\u0633\u0644\u064A\u062D \u0627\u0644\u0642\u0627\u0637\u0639 \u0627\u0644\u062A\u0641\u0627\u0636\u0644\u064A \u0648\u0627\u0636\u063A\u0637 \u062A\u062D\u0642\u0651\u0642.",
+    "Scaldabagno": "\u0633\u062E\u0651\u0627\u0646 \u0627\u0644\u0645\u0627\u0621",
+    "Scaldabagno (1500 W)": "\u0633\u062E\u0651\u0627\u0646 \u0627\u0644\u0645\u0627\u0621 (1500 \u0648\u0627\u0637)",
+    "Scatta il differenziale: 300 mA sono molto pi\xF9 della sua soglia.": "\u064A\u0641\u0635\u0644 \u0627\u0644\u0642\u0627\u0637\u0639 \u0627\u0644\u062A\u0641\u0627\u0636\u0644\u064A: 300 \u0645\u0644\u0644\u064A \u0623\u0645\u0628\u064A\u0631 \u0623\u0643\u062B\u0631 \u0628\u0643\u062B\u064A\u0631 \u0645\u0646 \u0639\u062A\u0628\u062A\u0647.",
+    "Scatta il magnetotermico: 300 mA sono una corrente anomala.": "\u064A\u0641\u0635\u0644 \u0627\u0644\u0642\u0627\u0637\u0639 \u0627\u0644\u0645\u063A\u0646\u0627\u0637\u064A\u0633\u064A \u0627\u0644\u062D\u0631\u0627\u0631\u064A: 300 \u0645\u0644\u0644\u064A \u0623\u0645\u0628\u064A\u0631 \u062A\u064A\u0627\u0631 \u063A\u064A\u0631 \u0637\u0628\u064A\u0639\u064A.",
+    "Sposta il neutro dello scaldabagno sul morsetto N in basso del differenziale, poi premi Verifica.": "\u0627\u0646\u0642\u0644 \u062D\u064A\u0627\u062F \u0633\u062E\u0651\u0627\u0646 \u0627\u0644\u0645\u0627\u0621 \u0625\u0644\u0649 \u0627\u0644\u0637\u0631\u0641 N \u0627\u0644\u0633\u0641\u0644\u064A \u0641\u064A \u0627\u0644\u0642\u0627\u0637\u0639 \u0627\u0644\u062A\u0641\u0627\u0636\u0644\u064A\u060C \u062B\u0645 \u0627\u0636\u063A\u0637 \u062A\u062D\u0642\u0651\u0642.",
+    "Tasto di prova: il differenziale scatta": "\u0632\u0631 \u0627\u0644\u0627\u062E\u062A\u0628\u0627\u0631: \u064A\u0641\u0635\u0644 \u0627\u0644\u0642\u0627\u0637\u0639 \u0627\u0644\u062A\u0641\u0627\u0636\u0644\u064A",
+    "Tocca il pannello dell\u2019isolante: con 10 mA il differenziale non scatta. Poi tocca il valore in mA per portarlo a 300: ora scatta.": "\u0627\u0644\u0645\u0633 \u0644\u0648\u062D\u0629 \u0627\u0644\u0639\u0632\u0644: \u0645\u0639 10 \u0645\u0644\u0644\u064A \u0623\u0645\u0628\u064A\u0631 \u0644\u0627 \u064A\u0641\u0635\u0644 \u0627\u0644\u0642\u0627\u0637\u0639 \u0627\u0644\u062A\u0641\u0627\u0636\u0644\u064A. \u062B\u0645 \u0627\u0644\u0645\u0633 \u0627\u0644\u0642\u064A\u0645\u0629 \u0628\u0627\u0644\u0645\u0644\u0644\u064A \u0623\u0645\u0628\u064A\u0631 \u0644\u0631\u0641\u0639\u0647\u0627 \u0625\u0644\u0649 300: \u0627\u0644\u0622\u0646 \u064A\u0641\u0635\u0644.",
+    "Una corrente di 30 mA attraverso il corpo \xE8 gi\xE0 pericolosa. Il differenziale serve proprio a interromperla in una frazione di secondo.": "\u062A\u064A\u0627\u0631 30 \u0645\u0644\u0644\u064A \u0623\u0645\u0628\u064A\u0631 \u0639\u0628\u0631 \u0627\u0644\u062C\u0633\u0645 \u062E\u0637\u064A\u0631 \u0623\u0635\u0644\u064B\u0627. \u0648\u0627\u0644\u0642\u0627\u0637\u0639 \u0627\u0644\u062A\u0641\u0627\u0636\u0644\u064A \u0645\u0648\u062C\u0648\u062F \u062A\u062D\u062F\u064A\u062F\u064B\u0627 \u0644\u0642\u0637\u0639\u0647 \u0641\u064A \u062C\u0632\u0621 \u0645\u0646 \u0627\u0644\u062B\u0627\u0646\u064A\u0629.",
+    "Accendi": "\u0634\u063A\u0651\u0644",
+    "Dispersione": "\u062A\u0633\u0631\u0651\u0628",
+    "ISOLANTE INTEGRO": "\u0627\u0644\u0639\u0632\u0644 \u0633\u0644\u064A\u0645",
+    "ISOLANTE ROVINATO": "\u0627\u0644\u0639\u0632\u0644 \u062A\u0627\u0644\u0641",
+    "verso terra": "\u0646\u062D\u0648 \u0627\u0644\u0623\u0631\u0636",
+    "tocca il pannello": "\u0627\u0644\u0645\u0633 \u0627\u0644\u0644\u0648\u062D\u0629"
   };
 
   // src/i18n/ar.js
@@ -9264,6 +9501,7 @@ html[lang="it"] .trnote{display:none}
     [/^Rosso su (.+), nero su (.+)\.(?: (.+))?$/, (m, t) => `\u0627\u0644\u0623\u062D\u0645\u0631 \u0639\u0644\u0649 ${t(m[1])}\u060C \u0648\u0627\u0644\u0623\u0633\u0648\u062F \u0639\u0644\u0649 ${t(m[2])}.${m[3] ? " " + t(m[3]) : ""}`],
     [/^Cavo ([\d,.]+) mm²$/, (m) => `\u0643\u0627\u0628\u0644 ${m[1]} \u0645\u0645\xB2`],
     [/^portata ([\d,.]+) A$/, (m) => `\u0627\u0644\u0633\u0639\u0629 ${m[1]} \u0623\u0645\u0628\u064A\u0631`],
+    [/^Corrente dispersa: (\d+) milliampere\. Tocca per cambiarla$/, (m) => `\u0627\u0644\u062A\u064A\u0627\u0631 \u0627\u0644\u0645\u062A\u0633\u0631\u0651\u0628: ${m[1]} \u0645\u0644\u0644\u064A \u0623\u0645\u0628\u064A\u0631. \u0627\u0644\u0645\u0633 \u0644\u062A\u063A\u064A\u064A\u0631\u0647`],
     [/^Portata (.+): (\d+) ampere\. Tocca per cambiarla$/, (m, t) => `\u0627\u0644\u0633\u0639\u0629 ${t(m[1])}: ${m[2]} \u0623\u0645\u0628\u064A\u0631. \u0627\u0644\u0645\u0633 \u0644\u062A\u063A\u064A\u064A\u0631\u0647\u0627`],
     [/^Protezioni scattate: (.+)\.$/, (m, t) => `\u062D\u0645\u0627\u064A\u0627\u062A \u0641\u0635\u0644\u062A: ${t(m[1])}.`]
   ];

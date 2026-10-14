@@ -111,6 +111,41 @@ export const LEVELS_V2 = [
     ],
   },
   {
+    id: 'c20-differenziale', code: 'c20', n: 0, engine: 2, quadroOnly: true, flow: 'onDemand', palette: ['marrone', 'blu', 'gv'],
+    name: 'Il differenziale', title: 'Il differenziale',
+    blurb: 'La dispersione verso terra e l’interruttore che la sente.',
+    goal: 'Collega uno scaldabagno al quadro passando dal differenziale. Poi provoca una dispersione: con 10 mA il differenziale non deve scattare, con 300 mA deve scattare subito. Tocca il valore in mA per cambiarlo.',
+    comps: [
+      QM,
+      C('D', 'rcd', 'Differenziale', 'Interruttore differenziale', { '1': { l: '1' }, N1: { l: 'N' }, '2': { l: '2' }, N2: { l: 'N' } }),
+      C('S', 'sw', 'Interruttore', 'Interruttore dello scaldabagno', { a: { l: '1' }, b: { l: '2' } }),
+      C('H', 'lamp', 'Scaldabagno', 'Scaldabagno (1500 W)', { B: { l: 'B' }, A: { l: 'A' } }, { w: 1500 }),
+      C('G', 'gu', 'Guasto', 'Isolante dello scaldabagno', {}, { at: 'H.A', levels: [10, 300] }),
+    ],
+    controls: ['D', 'S', 'G'],
+    checks: [
+      { id: 'acceso', label: 'Chiudi l’interruttore: lo scaldabagno si accende', do: ['toggle S'], expect: { loads: { H: 'on' }, tripped: [] } },
+      { id: 'piccola', label: 'Dispersione di 10 mA: il differenziale non scatta', do: ['toggle S', 'toggle G'], expect: { loads: { H: 'on' }, tripped: [] } },
+      { id: 'grave', label: 'Dispersione di 300 mA: il differenziale scatta e lo scaldabagno si spegne', do: ['toggle S', 'rate G', 'toggle G'], expect: { loads: { H: 'off' }, tripped: ['D'] } },
+      { id: 'prova', label: 'Tasto di prova: il differenziale scatta', do: ['toggle S', 'test D'], expect: { loads: { H: 'off' }, tripped: ['D'] } },
+    ],
+    demoDo: [
+      { do: ['toggle S'], say: 'Interruttore chiuso: lo scaldabagno si accende.' },
+      { do: ['toggle G'], say: 'Dispersione di 10 mA: troppo piccola, il differenziale non scatta.' },
+      { do: ['rate G'], say: 'Dispersione di 300 mA: il differenziale scatta e toglie la tensione.' },
+    ],
+    safety: { phaseSwitched: ['H'], rcdCovers: ['H'] },
+    solution: [
+      ['Q.F', 'D.1', 'marrone'], ['Q.N', 'D.N1', 'blu'],
+      ['D.2', 'S.a', 'marrone'], ['S.b', 'H.A', 'marrone'], ['D.N2', 'H.B', 'blu'],
+    ],
+    hints: [
+      'La fase e il neutro del quadro entrano nel differenziale, in alto (morsetti 1 e N).',
+      'Dall’uscita del differenziale la fase passa dall’interruttore e va allo scaldabagno.',
+      'Anche il neutro dello scaldabagno deve uscire dal differenziale (morsetto N in basso). Se lo prendi direttamente dal quadro, il differenziale vede una corrente che esce e non rientra e scatta da solo.',
+    ],
+  },
+  {
     id: 'c07-presa-comandata', code: 'c07', n: 0, engine: 2, quadroOnly: true, flow: 'always',
     name: 'Presa comandata', title: 'La presa comandata',
     blurb: 'Un interruttore accende insieme una presa e una lampada.',
