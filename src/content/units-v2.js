@@ -710,7 +710,7 @@ export const UNITS_V2 = {
               'Filo blu dalla spia al neutro.',
             ],
             power: 'Il nastro è fermo.',
-            controls: ['Arresto: il nastro resta fermo.', 'Marcia: il nastro parte e il pacco avanza.', 'Emergenza premuta: il nastro si ferma subito.'],
+            controls: ['Arresto: il nastro resta fermo.', 'Marcia: il nastro parte.', 'Emergenza premuta: il nastro si ferma subito.'],
           },
         },
         {
@@ -722,7 +722,7 @@ export const UNITS_V2 = {
             { id: 'c', text: 'Scatta il termico.' },
           ],
           correct: 'b',
-          why: 'Quando il fungo si apre, la bobina era già senza corrente e l’autoritenuta si è aperta. Per ripartire serve un nuovo comando di marcia: una macchina non deve ripartire da sola dopo un’emergenza.',
+          why: 'Premendo il fungo il suo contatto si apre: la bobina perde corrente e l’autoritenuta 13-14 si apre. Sbloccando il fungo il contatto si richiude, ma il circuito resta aperto finché non premi Marcia: una macchina non deve ripartire da sola dopo un’emergenza.',
         },
         { type: 'sintesi', title: 'Da ricordare' },
       ],
@@ -823,7 +823,7 @@ export const UNITS_V2 = {
             { id: 'c', text: 'Si spengono subito.' },
           ],
           correct: 'b',
-          why: 'Il fronte di salita della bobina riavvia il conteggio. Ogni pressione dà un nuovo intervallo pieno: per questo chi sale le scale può premere quando vuole senza restare al buio.',
+          why: 'Il conteggio parte da capo quando rilasci il pulsante. Ogni pressione dà un nuovo intervallo pieno: per questo chi sale le scale può premere quando vuole senza restare al buio.',
         },
         { type: 'sintesi', title: 'Da ricordare' },
       ],
@@ -981,7 +981,7 @@ export const UNITS_V2 = {
             'Confronta la corrente che entra dalla fase con quella che torna dal neutro. Se non sono uguali, una parte sta tornando per un’altra strada, per esempio attraverso una persona, e il differenziale scatta.',
             'Per questo il neutro di ogni carico deve passare dal differenziale. Il tasto di prova simula una dispersione: va premuto ogni tanto per controllare che funzioni.',
           ],
-          warn: 'Se un neutro è preso a monte del differenziale, la corrente non torna da dove è andata e il differenziale scatta senza motivo.',
+          warn: 'Se un neutro è preso a monte del differenziale, la corrente non torna da dove è andata e il differenziale scatta anche senza una vera dispersione.',
         },
         {
           type: 'pezzi',
@@ -1037,12 +1037,12 @@ export const UNITS_V2 = {
     summary: [
       'Il differenziale protegge le persone: scatta se la corrente di andata e quella di ritorno sono diverse.',
       'Il magnetotermico protegge i cavi dal sovraccarico e dal cortocircuito.',
-      'Il neutro di ogni carico deve passare dal differenziale, altrimenti scatta senza motivo.',
+      'Il neutro di ogni carico deve passare dal differenziale, altrimenti scatta anche senza una vera dispersione.',
       'Linee separate con magnetotermici separati: se una si guasta, le altre restano alimentate.',
       'Il tasto di prova del differenziale va premuto ogni tanto per controllare che funzioni.',
     ],
     fault: {
-      say: 'Alla presa è collegato un apparecchio e il differenziale scatta appena dai corrente. Rialzalo e osserva, poi premi Verifica.',
+      say: 'Alla presa è collegato un apparecchio e il differenziale è già scattato. Rialzalo e osserva, poi premi Verifica.',
       wires: [
         ['Q.F', 'D.1', 'marrone'], ['Q.N', 'D.N1', 'blu'],
         ['D.2', 'M1.1', 'marrone'], ['D.2', 'M2.1', 'marrone'], ['D.N2', 'M1.N1', 'blu'],

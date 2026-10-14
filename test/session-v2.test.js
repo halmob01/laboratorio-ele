@@ -116,3 +116,14 @@ test('v2: la palette del livello e il lavoro in corso con il rosso si salvano e 
   assert.equal(b.snapshot().wires.length, 1);
   assert.equal(b.snapshot().wires[0].c, 'rosso');
 });
+
+test('v2: un filo nuovo non richiude una protezione aperta o chiusa dall’allievo (livelli con protezioni proprie)', async () => {
+  const { levels, deriveFull } = await import('../src/content/index.js');
+  const s = createSession({ levels, deriveFull, initialLevel: 'c12-motore' });
+  s.skipLesson();
+  s.addWire('Q.L1', 'QM.1', 'marrone');
+  s.toggleControl('QM');
+  assert.equal(s.snapshot().controlStates.QM, 1);
+  s.addWire('Q.L2', 'QM.3', 'nero');
+  assert.equal(s.snapshot().controlStates.QM, 1);
+});

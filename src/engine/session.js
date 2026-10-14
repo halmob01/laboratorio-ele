@@ -14,7 +14,7 @@ import { evaluate } from './evaluate.js';
 import { flowOf } from './flow.js';
 import { stepsState, ghostFor } from './steps.js';
 import { attemptBase, migrateProgress, rankOf, totalXp, xpOf } from './progress.js';
-import { createSim, setSupply, act, advance, rewind as rewindSim, evaluateV2, isV2, selfPowered, viewOf, HOLD } from './v2/index.js';
+import { createSim, setWires as setWires2, setSupply, act, advance, rewind as rewindSim, evaluateV2, isV2, selfPowered, viewOf, HOLD } from './v2/index.js';
 
 function memoryStorage() {
   let data = {};
@@ -84,6 +84,15 @@ export function createSession({ levels, deriveFull, storage = memoryStorage(), i
   // Motore v2: la simulazione si crea alla prima richiesta e si butta a ogni modifica dei fili.
   const v2 = (level = levelAt()) => isV2(level);
   const dropSim = () => { delete simsByKey[keyOf()]; };
+  // Dopo una modifica dei fili: con protezioni proprie la simulazione resta (interruttori e protezioni tengono lo stato), altrimenti si ricrea.
+  const rewireSim = () => {
+    const old = simsByKey[keyOf()], lv = levelAt();
+    dropSim();
+    if (!old || !selfPowered(lv)) return;
+    const sim = simFor();
+    lv.comps.forEach(c => { if (['mt', 'mt3', 'sez', 'rcd', 'sw'].includes(c.type) && old.parts[c.id]) { Object.assign(sim.parts[c.id], JSON.parse(JSON.stringify(old.parts[c.id]))); } });
+    setWires2(sim, wires());
+  };
   function simFor() {
     const k = keyOf();
     if (!simsByKey[k]) {
@@ -330,7 +339,7 @@ export function createSession({ levels, deriveFull, storage = memoryStorage(), i
   // Si modifica il cablaggio: la verifica precedente non vale piu'.
   function wiresChanged() {
     resultsByKey[keyOf()] = null;
-    dropSim();
+    rewireSim();
     if (selfPowered(levelAt())) {
       power = true;
       trip = false;
@@ -347,7 +356,7 @@ export function createSession({ levels, deriveFull, storage = memoryStorage(), i
   }
 
   // Motore v2 con corrente propria: un filo nuovo puo' fare scattare subito il quadro.
-  const afterEdit = () => { if (v2()) { dropSim(); applyLive2(); } };
+  const afterEdit = () => { if (v2()) { rewireSim(); applyLive2(); } };
 
   const inBuildOrFault = () => {
     const l = levelAt();

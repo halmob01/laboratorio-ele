@@ -117,7 +117,7 @@ export const LEVELS_V2 = [
       C('B', 'bell', 'Campanello', 'Campanello 12 V', { '1': { l: '1' }, '2': { l: '2' } }),
     ],
     controls: ['SB'],
-    demoDo: [{ do: ['press SB'], say: 'Pulsante premuto: il trasformatore è alimentato e il campanello suona.' }],
+    demoDo: [{ do: ['press SB'], say: 'Pulsante premuto: il circuito a 12 V si chiude e il campanello suona.' }],
     checks: [
       { id: 'suona', label: 'Premi il pulsante: il campanello suona', do: ['press SB'], expect: { loads: { B: 'on' } } },
       { id: 'fermo', label: 'Senza premere il campanello è silenzioso', do: [], expect: { loads: { B: 'off' } } },

@@ -1,6 +1,7 @@
 // Vista 2D: collega la sessione del motore al DOM (disegno, tocco, tastiera).
 // Le regole del gioco stanno in src/engine/session.js; qui ci sono solo ingressi e uscite grafiche.
 
+import { WIRE_COLORS } from '../engine/index.js';
 import { createSession, cleanName, demoFrames, blankSnap } from '../engine/index.js';
 import { levels, deriveFull } from '../content/index.js';
 import { HELP } from '../content/it.js';
@@ -49,7 +50,8 @@ const ui = () => ({ mobile: MQ.matches, sel: SEL, kwh: KWH });
 /* ---------- disegno ---------- */
 function renderPalette() {
   const lv = S && S.level;
-  if (lv && lv.palette && !lv.palette.includes(COL)) COL = lv.palette[0];
+  const pal = (lv && lv.palette) || WIRE_COLORS;
+  if (lv && !pal.includes(COL)) COL = pal[0];
   $('#palette').innerHTML = R.paletteHTML(COL, lv);
 }
 function setRoomVB() {
@@ -386,7 +388,7 @@ setInterval(() => {
   if (S && (S.lit || (S.litLoads && S.litLoads.some(Boolean)))) { KWH += 0.1; const k = $('#kwh'); if (k) k.textContent = R.kwhText(KWH); }
 }, 700);
 // Orologio del circuito (temporizzatori, protezioni termiche): solo quando serve e la scheda e' visibile.
-setInterval(() => { if (S && S.needsClock && !document.hidden) session.tick(0.5); }, 500);
+setInterval(() => { if (S && S.needsClock && !document.hidden && route.name === 'level') session.tick(0.5); }, 500);
 $('#info').addEventListener('click', e => { if (e.target.closest('[data-x]')) $('#info').classList.remove('open'); });
 if (window.ResizeObserver) {
   new ResizeObserver(() => {

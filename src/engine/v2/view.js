@@ -36,8 +36,7 @@ export function needsClock(level, obs) {
     if (c.type === 'tmr') return s.left > 0;
     if (c.type === 'ft') return !s.tripped && (s.heat > 0 || Object.values(obs.motors).some(m => m === 'hum' || (obs.overload && running(m))));
     return false;
-  }) || (!!level.machine && Object.values(obs.motors).some(running) && obs.machine && !obs.machine.atEnd && !obs.machine.atStart)
-    || (!!level.machine && Object.values(obs.motors).some(running));
+  }) || (!!level.machine && !!obs.machine && Object.values(obs.motors).some(m => (m === 'fwd' && !obs.machine.atEnd) || (m === 'rev' && !obs.machine.atStart)));
 }
 
 // Campi dell'istantanea della sessione per un livello v2.

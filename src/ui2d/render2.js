@@ -230,8 +230,8 @@ export function roomV2HTML(level) {
     o += `<rect x="86" y="128" width="268" height="16" rx="8" fill="#4A4F57" stroke="#2A2D33" stroke-width="2"/>`;
     o += `<circle cx="96" cy="136" r="6" fill="#8C9099"/><circle cx="344" cy="136" r="6" fill="#8C9099"/>`;
     o += `<line x1="52" y1="60" x2="96" y2="130" stroke="#4A4F57" stroke-width="2" stroke-dasharray="3 3" opacity=".5"/>`;
-    o += `<rect id="fcs" class="fcm" x="80" y="108" width="10" height="20" rx="2"/><rect id="fce" class="fcm" x="350" y="108" width="10" height="20" rx="2"/>`;
-    o += `<text x="85" y="104" text-anchor="middle" style="font:600 10px 'IBM Plex Mono',monospace;fill:var(--ink2)">${m.endRev || 'FC1'}</text><text x="355" y="104" text-anchor="middle" style="font:600 10px 'IBM Plex Mono',monospace;fill:var(--ink2)">${m.endFwd || 'FC2'}</text>`;
+    o += (m.endRev ? `<rect id="fcs" class="fcm" x="80" y="108" width="10" height="20" rx="2"/>` : '') + `<rect id="fce" class="fcm" x="350" y="108" width="10" height="20" rx="2"/>`;
+    o += `<text x="85" y="104" text-anchor="middle" style="font:600 10px 'IBM Plex Mono',monospace;fill:var(--ink2)">${m.endRev || ''}</text><text x="355" y="104" text-anchor="middle" style="font:600 10px 'IBM Plex Mono',monospace;fill:var(--ink2)">${m.endFwd || 'FC2'}</text>`;
     o += `<g id="pack"><rect x="0" y="104" width="30" height="24" rx="3" fill="#C98A3E" stroke="#7E5420" stroke-width="2"/><line x1="15" y1="104" x2="15" y2="128" stroke="#7E5420" stroke-width="2"/></g>`;
   }
   // comandi a muro

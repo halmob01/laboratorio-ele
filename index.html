@@ -1141,6 +1141,14 @@ html[lang="it"] .trnote{display:none}
     settle(sim);
     return sim;
   }
+  function setWires(sim, wires) {
+    sim.wires = wires.slice();
+    sim.burnt = {};
+    sim.unstable = false;
+    sim.mainTrip = false;
+    sim.kmHistory = [];
+    settle(sim);
+  }
   function connect2(sim, open = {}) {
     const uf = makeUF();
     sim.wires.forEach((w) => uf.u(w.a, w.b));
@@ -1843,7 +1851,7 @@ html[lang="it"] .trnote{display:none}
       if (c2.type === "tmr") return s.left > 0;
       if (c2.type === "ft") return !s.tripped && (s.heat > 0 || Object.values(obs2.motors).some((m) => m === "hum" || obs2.overload && running(m)));
       return false;
-    }) || !!level.machine && Object.values(obs2.motors).some(running) && obs2.machine && !obs2.machine.atEnd && !obs2.machine.atStart || !!level.machine && Object.values(obs2.motors).some(running);
+    }) || !!level.machine && !!obs2.machine && Object.values(obs2.motors).some((m) => m === "fwd" && !obs2.machine.atEnd || m === "rev" && !obs2.machine.atStart);
   }
   function viewOf(level, sim, power) {
     const obs2 = observe(sim);
@@ -1927,6 +1935,18 @@ html[lang="it"] .trnote{display:none}
     const v2 = (level = levelAt()) => isV2(level);
     const dropSim = () => {
       delete simsByKey[keyOf()];
+    };
+    const rewireSim = () => {
+      const old = simsByKey[keyOf()], lv = levelAt();
+      dropSim();
+      if (!old || !selfPowered(lv)) return;
+      const sim = simFor();
+      lv.comps.forEach((c2) => {
+        if (["mt", "mt3", "sez", "rcd", "sw"].includes(c2.type) && old.parts[c2.id]) {
+          Object.assign(sim.parts[c2.id], JSON.parse(JSON.stringify(old.parts[c2.id])));
+        }
+      });
+      setWires(sim, wires());
     };
     function simFor() {
       const k = keyOf();
@@ -2183,7 +2203,7 @@ html[lang="it"] .trnote{display:none}
     }
     function wiresChanged() {
       resultsByKey[keyOf()] = null;
-      dropSim();
+      rewireSim();
       if (selfPowered(levelAt())) {
         power = true;
         trip2 = false;
@@ -2200,7 +2220,7 @@ html[lang="it"] .trnote{display:none}
     }
     const afterEdit = () => {
       if (v2()) {
-        dropSim();
+        rewireSim();
         applyLive2();
       }
     };
@@ -3540,7 +3560,7 @@ html[lang="it"] .trnote{display:none}
         C("B", "bell", "Campanello", "Campanello 12 V", { "1": { l: "1" }, "2": { l: "2" } })
       ],
       controls: ["SB"],
-      demoDo: [{ do: ["press SB"], say: "Pulsante premuto: il trasformatore \xE8 alimentato e il campanello suona." }],
+      demoDo: [{ do: ["press SB"], say: "Pulsante premuto: il circuito a 12 V si chiude e il campanello suona." }],
       checks: [
         { id: "suona", label: "Premi il pulsante: il campanello suona", do: ["press SB"], expect: { loads: { B: "on" } } },
         { id: "fermo", label: "Senza premere il campanello \xE8 silenzioso", do: [], expect: { loads: { B: "off" } } }
@@ -4676,7 +4696,7 @@ html[lang="it"] .trnote{display:none}
                 "Filo blu dalla spia al neutro."
               ],
               power: "Il nastro \xE8 fermo.",
-              controls: ["Arresto: il nastro resta fermo.", "Marcia: il nastro parte e il pacco avanza.", "Emergenza premuta: il nastro si ferma subito."]
+              controls: ["Arresto: il nastro resta fermo.", "Marcia: il nastro parte.", "Emergenza premuta: il nastro si ferma subito."]
             }
           },
           {
@@ -4688,7 +4708,7 @@ html[lang="it"] .trnote{display:none}
               { id: "c", text: "Scatta il termico." }
             ],
             correct: "b",
-            why: "Quando il fungo si apre, la bobina era gi\xE0 senza corrente e l\u2019autoritenuta si \xE8 aperta. Per ripartire serve un nuovo comando di marcia: una macchina non deve ripartire da sola dopo un\u2019emergenza."
+            why: "Premendo il fungo il suo contatto si apre: la bobina perde corrente e l\u2019autoritenuta 13-14 si apre. Sbloccando il fungo il contatto si richiude, ma il circuito resta aperto finch\xE9 non premi Marcia: una macchina non deve ripartire da sola dopo un\u2019emergenza."
           },
           { type: "sintesi", title: "Da ricordare" }
         ]
@@ -4805,7 +4825,7 @@ html[lang="it"] .trnote{display:none}
               { id: "c", text: "Si spengono subito." }
             ],
             correct: "b",
-            why: "Il fronte di salita della bobina riavvia il conteggio. Ogni pressione d\xE0 un nuovo intervallo pieno: per questo chi sale le scale pu\xF2 premere quando vuole senza restare al buio."
+            why: "Il conteggio parte da capo quando rilasci il pulsante. Ogni pressione d\xE0 un nuovo intervallo pieno: per questo chi sale le scale pu\xF2 premere quando vuole senza restare al buio."
           },
           { type: "sintesi", title: "Da ricordare" }
         ]
@@ -4968,7 +4988,7 @@ html[lang="it"] .trnote{display:none}
               "Confronta la corrente che entra dalla fase con quella che torna dal neutro. Se non sono uguali, una parte sta tornando per un\u2019altra strada, per esempio attraverso una persona, e il differenziale scatta.",
               "Per questo il neutro di ogni carico deve passare dal differenziale. Il tasto di prova simula una dispersione: va premuto ogni tanto per controllare che funzioni."
             ],
-            warn: "Se un neutro \xE8 preso a monte del differenziale, la corrente non torna da dove \xE8 andata e il differenziale scatta senza motivo."
+            warn: "Se un neutro \xE8 preso a monte del differenziale, la corrente non torna da dove \xE8 andata e il differenziale scatta anche senza una vera dispersione."
           },
           {
             type: "pezzi",
@@ -5024,12 +5044,12 @@ html[lang="it"] .trnote{display:none}
       summary: [
         "Il differenziale protegge le persone: scatta se la corrente di andata e quella di ritorno sono diverse.",
         "Il magnetotermico protegge i cavi dal sovraccarico e dal cortocircuito.",
-        "Il neutro di ogni carico deve passare dal differenziale, altrimenti scatta senza motivo.",
+        "Il neutro di ogni carico deve passare dal differenziale, altrimenti scatta anche senza una vera dispersione.",
         "Linee separate con magnetotermici separati: se una si guasta, le altre restano alimentate.",
         "Il tasto di prova del differenziale va premuto ogni tanto per controllare che funzioni."
       ],
       fault: {
-        say: "Alla presa \xE8 collegato un apparecchio e il differenziale scatta appena dai corrente. Rialzalo e osserva, poi premi Verifica.",
+        say: "Alla presa \xE8 collegato un apparecchio e il differenziale \xE8 gi\xE0 scattato. Rialzalo e osserva, poi premi Verifica.",
         wires: [
           ["Q.F", "D.1", "marrone"],
           ["Q.N", "D.N1", "blu"],
@@ -5813,8 +5833,8 @@ html[lang="it"] .trnote{display:none}
       o += `<rect x="86" y="128" width="268" height="16" rx="8" fill="#4A4F57" stroke="#2A2D33" stroke-width="2"/>`;
       o += `<circle cx="96" cy="136" r="6" fill="#8C9099"/><circle cx="344" cy="136" r="6" fill="#8C9099"/>`;
       o += `<line x1="52" y1="60" x2="96" y2="130" stroke="#4A4F57" stroke-width="2" stroke-dasharray="3 3" opacity=".5"/>`;
-      o += `<rect id="fcs" class="fcm" x="80" y="108" width="10" height="20" rx="2"/><rect id="fce" class="fcm" x="350" y="108" width="10" height="20" rx="2"/>`;
-      o += `<text x="85" y="104" text-anchor="middle" style="font:600 10px 'IBM Plex Mono',monospace;fill:var(--ink2)">${m.endRev || "FC1"}</text><text x="355" y="104" text-anchor="middle" style="font:600 10px 'IBM Plex Mono',monospace;fill:var(--ink2)">${m.endFwd || "FC2"}</text>`;
+      o += (m.endRev ? `<rect id="fcs" class="fcm" x="80" y="108" width="10" height="20" rx="2"/>` : "") + `<rect id="fce" class="fcm" x="350" y="108" width="10" height="20" rx="2"/>`;
+      o += `<text x="85" y="104" text-anchor="middle" style="font:600 10px 'IBM Plex Mono',monospace;fill:var(--ink2)">${m.endRev || ""}</text><text x="355" y="104" text-anchor="middle" style="font:600 10px 'IBM Plex Mono',monospace;fill:var(--ink2)">${m.endFwd || "FC2"}</text>`;
       o += `<g id="pack"><rect x="0" y="104" width="30" height="24" rx="3" fill="#C98A3E" stroke="#7E5420" stroke-width="2"/><line x1="15" y1="104" x2="15" y2="128" stroke="#7E5420" stroke-width="2"/></g>`;
     }
     const ctl = (level.controls || []).map((id) => level.comps.find((c2) => c2.id === id)).filter((c2) => c2 && WALLCTL[c2.type]);
@@ -8251,6 +8271,16 @@ html[lang="it"] .trnote{display:none}
     "Pulsante premuto: il circuito a 12 V si chiude e il campanello suona.": "\u0627\u0644\u0632\u0631 \u0645\u0636\u063A\u0648\u0637: \u062A\u0646\u063A\u0644\u0642 \u062F\u0627\u0626\u0631\u0629 12 \u0641\u0648\u0644\u062A \u0648\u064A\u0631\u0646\u0651 \u0627\u0644\u062C\u0631\u0633."
   };
 
+  // src/i18n/ar-15.js
+  var ar_15_default = {
+    "Alla presa \xE8 collegato un apparecchio e il differenziale \xE8 gi\xE0 scattato. Rialzalo e osserva, poi premi Verifica.": "\u0625\u0644\u0649 \u0627\u0644\u0645\u0642\u0628\u0633 \u0645\u0648\u0635\u0648\u0644 \u062C\u0647\u0627\u0632 \u0648\u0627\u0644\u0642\u0627\u0637\u0639 \u0627\u0644\u062A\u0641\u0627\u0636\u0644\u064A \u0642\u062F \u0641\u0635\u0644 \u0628\u0627\u0644\u0641\u0639\u0644. \u0623\u0639\u062F \u0631\u0641\u0639\u0647 \u0648\u0631\u0627\u0642\u0628\u060C \u062B\u0645 \u0627\u0636\u063A\u0637 \u062A\u062D\u0642\u0642.",
+    "Il conteggio parte da capo quando rilasci il pulsante. Ogni pressione d\xE0 un nuovo intervallo pieno: per questo chi sale le scale pu\xF2 premere quando vuole senza restare al buio.": "\u064A\u0628\u062F\u0623 \u0627\u0644\u0639\u062F\u0651 \u0645\u0646 \u062C\u062F\u064A\u062F \u0639\u0646\u062F \u062A\u062D\u0631\u064A\u0631 \u0627\u0644\u0632\u0631. \u0643\u0644 \u0636\u063A\u0637\u0629 \u062A\u0639\u0637\u064A \u0641\u062A\u0631\u0629 \u0643\u0627\u0645\u0644\u0629 \u062C\u062F\u064A\u062F\u0629: \u0644\u0630\u0644\u0643 \u064A\u0645\u0643\u0646 \u0644\u0645\u0646 \u064A\u0635\u0639\u062F \u0627\u0644\u062F\u0631\u062C \u0623\u0646 \u064A\u0636\u063A\u0637 \u0645\u062A\u0649 \u0634\u0627\u0621 \u062F\u0648\u0646 \u0623\u0646 \u064A\u0628\u0642\u0649 \u0641\u064A \u0627\u0644\u0638\u0644\u0627\u0645.",
+    "Il neutro di ogni carico deve passare dal differenziale, altrimenti scatta anche senza una vera dispersione.": "\u064A\u062C\u0628 \u0623\u0646 \u064A\u0645\u0631 \u062D\u064A\u0627\u062F \u0643\u0644 \u062D\u0645\u0644 \u0639\u0628\u0631 \u0627\u0644\u0642\u0627\u0637\u0639 \u0627\u0644\u062A\u0641\u0627\u0636\u0644\u064A\u060C \u0648\u0625\u0644\u0627 \u0641\u0635\u0644 \u062D\u062A\u0649 \u062F\u0648\u0646 \u0648\u062C\u0648\u062F \u062A\u0633\u0631\u0628 \u062D\u0642\u064A\u0642\u064A.",
+    "Marcia: il nastro parte.": "\u0627\u0644\u062A\u0634\u063A\u064A\u0644: \u064A\u0628\u062F\u0623 \u0627\u0644\u0633\u064A\u0631 \u0628\u0627\u0644\u062D\u0631\u0643\u0629.",
+    "Premendo il fungo il suo contatto si apre: la bobina perde corrente e l\u2019autoritenuta 13-14 si apre. Sbloccando il fungo il contatto si richiude, ma il circuito resta aperto finch\xE9 non premi Marcia: una macchina non deve ripartire da sola dopo un\u2019emergenza.": "\u0639\u0646\u062F \u0636\u063A\u0637 \u0632\u0631 \u0627\u0644\u0641\u0637\u0631 \u064A\u0646\u0641\u062A\u062D \u0645\u0644\u0627\u0645\u0633\u0647: \u064A\u0641\u0642\u062F \u0627\u0644\u0645\u0644\u0641 \u0627\u0644\u062A\u064A\u0627\u0631 \u0648\u064A\u0646\u0641\u062A\u062D \u0627\u0644\u062A\u062B\u0628\u064A\u062A \u0627\u0644\u0630\u0627\u062A\u064A 13-14. \u0639\u0646\u062F \u062A\u062D\u0631\u064A\u0631 \u0627\u0644\u0641\u0637\u0631 \u064A\u0639\u0648\u062F \u0627\u0644\u0645\u0644\u0627\u0645\u0633 \u0644\u0644\u0625\u063A\u0644\u0627\u0642\u060C \u0644\u0643\u0646 \u0627\u0644\u062F\u0627\u0626\u0631\u0629 \u062A\u0628\u0642\u0649 \u0645\u0641\u062A\u0648\u062D\u0629 \u062D\u062A\u0649 \u062A\u0636\u063A\u0637 \u0627\u0644\u062A\u0634\u063A\u064A\u0644: \u064A\u062C\u0628 \u0623\u0644\u0627 \u062A\u0639\u064A\u062F \u0627\u0644\u0622\u0644\u0629 \u0627\u0644\u062A\u0634\u063A\u064A\u0644 \u0648\u062D\u062F\u0647\u0627 \u0628\u0639\u062F \u062D\u0627\u0644\u0629 \u0637\u0648\u0627\u0631\u0626.",
+    "Se un neutro \xE8 preso a monte del differenziale, la corrente non torna da dove \xE8 andata e il differenziale scatta anche senza una vera dispersione.": "\u0625\u0630\u0627 \u0623\u064F\u062E\u0630 \u0627\u0644\u062D\u064A\u0627\u062F \u0645\u0646 \u0642\u0628\u0644 \u0627\u0644\u0642\u0627\u0637\u0639 \u0627\u0644\u062A\u0641\u0627\u0636\u0644\u064A\u060C \u0644\u0627 \u064A\u0639\u0648\u062F \u0627\u0644\u062A\u064A\u0627\u0631 \u0645\u0646 \u062D\u064A\u062B \u0630\u0647\u0628 \u0648\u064A\u0641\u0635\u0644 \u0627\u0644\u062A\u0641\u0627\u0636\u0644\u064A \u062D\u062A\u0649 \u062F\u0648\u0646 \u062A\u0633\u0631\u0628 \u062D\u0642\u064A\u0642\u064A."
+  };
+
   // src/i18n/ar.js
   var ROLE = { "del neutro": "\u0627\u0644\u0645\u062D\u0627\u064A\u062F", "di terra": "\u0627\u0644\u0623\u0631\u0636\u064A", "di fase": "\u0627\u0644\u0637\u0648\u0631", "a bassa tensione": "\u0627\u0644\u062C\u0647\u062F \u0627\u0644\u0645\u0646\u062E\u0641\u0636", "di comando": "\u0627\u0644\u062A\u062D\u0643\u0645" };
   var COLORI = { "blu": "\u0623\u0632\u0631\u0642", "giallo-verde": "\u0623\u0635\u0641\u0631-\u0623\u062E\u0636\u0631", "marrone, nero o grigio": "\u0628\u0646\u064A\u064B\u0651\u0627 \u0623\u0648 \u0623\u0633\u0648\u062F \u0623\u0648 \u0631\u0645\u0627\u062F\u064A\u064B\u0651\u0627", "rosso, marrone, nero o grigio": "\u0623\u062D\u0645\u0631 \u0623\u0648 \u0628\u0646\u064A\u064B\u0651\u0627 \u0623\u0648 \u0623\u0633\u0648\u062F \u0623\u0648 \u0631\u0645\u0627\u062F\u064A\u064B\u0651\u0627", "di un colore diverso da blu e giallo-verde": "\u0628\u0644\u0648\u0646 \u0645\u062E\u062A\u0644\u0641 \u0639\u0646 \u0627\u0644\u0623\u0632\u0631\u0642 \u0648\u0627\u0644\u0623\u0635\u0641\u0631-\u0627\u0644\u0623\u062E\u0636\u0631" };
@@ -8300,7 +8330,7 @@ html[lang="it"] .trnote{display:none}
     [/^(.+): (.+); atteso: (.+)\.$/, (m, t) => `${t(m[1])}: ${t(m[2])}\u061B \u0627\u0644\u0645\u062A\u0648\u0642\u0639: ${t(m[3])}.`],
     [/^Protezioni scattate: (.+)\.$/, (m, t) => `\u062D\u0645\u0627\u064A\u0627\u062A \u0641\u0635\u0644\u062A: ${t(m[1])}.`]
   ];
-  registerLang("ar", { ...ar_1_default, ...ar_2_default, ...ar_3_default, ...ar_4_default, ...ar_5_default, ...ar_6_default, ...ar_7_default, ...ar_8_default, ...ar_9_default, ...ar_10_default, ...ar_11_default, ...ar_12_default, ...ar_13_default, ...ar_14_default }, PAT);
+  registerLang("ar", { ...ar_1_default, ...ar_2_default, ...ar_3_default, ...ar_4_default, ...ar_5_default, ...ar_6_default, ...ar_7_default, ...ar_8_default, ...ar_9_default, ...ar_10_default, ...ar_11_default, ...ar_12_default, ...ar_13_default, ...ar_14_default, ...ar_15_default }, PAT);
 
   // src/trilocale/house.js
   function houseState(session2, on = true) {
@@ -8608,7 +8638,8 @@ html[lang="it"] .trnote{display:none}
   var ui = () => ({ mobile: MQ.matches, sel: SEL, kwh: KWH });
   function renderPalette() {
     const lv = S && S.level;
-    if (lv && lv.palette && !lv.palette.includes(COL)) COL = lv.palette[0];
+    const pal = lv && lv.palette || WIRE_COLORS;
+    if (lv && !pal.includes(COL)) COL = pal[0];
     $("#palette").innerHTML = paletteHTML(COL, lv);
   }
   function setRoomVB() {
@@ -9079,7 +9110,7 @@ html[lang="it"] .trnote{display:none}
     }
   }, 700);
   setInterval(() => {
-    if (S && S.needsClock && !document.hidden) session.tick(0.5);
+    if (S && S.needsClock && !document.hidden && route.name === "level") session.tick(0.5);
   }, 500);
   $("#info").addEventListener("click", (e) => {
     if (e.target.closest("[data-x]")) $("#info").classList.remove("open");
