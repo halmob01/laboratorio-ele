@@ -461,20 +461,20 @@ export const UNITS_V2 = {
     fault: {
       say: 'L’impianto è già cablato e la lampada e la presa funzionano. Eppure l’impianto non è a norma. Dai corrente, prova l’interruttore e poi premi Verifica.',
       wires: [
-        ['Q.F', 'S.a', 'marrone'], ['S.b', 'P.N', 'marrone'], ['S.b', 'L.A', 'marrone'],
-        ['Q.N', 'P.L', 'blu'], ['Q.N', 'L.B', 'blu'], ['Q.PE', 'P.PE', 'gv'],
+        ['Q.N', 'S.a', 'blu'], ['S.b', 'P.N', 'blu'], ['S.b', 'L.B', 'blu'],
+        ['Q.F', 'P.L', 'marrone'], ['Q.F', 'L.A', 'marrone'], ['Q.PE', 'P.PE', 'gv'],
       ],
       diagnosis: {
         question: 'Che cosa non va?',
         options: [
-          { id: 'a', text: 'Fase e neutro sono scambiati sulla presa.' },
+          { id: 'a', text: 'L’interruttore interrompe il neutro invece della fase: con l’interruttore aperto la lampada e la presa restano in tensione.' },
           { id: 'b', text: 'Manca il filo di terra alla presa.' },
           { id: 'c', text: 'La lampada è collegata in serie alla presa.' },
         ],
         correct: 'a',
-        why: 'La fase è arrivata sul morsetto N e il neutro sul morsetto L. Gli apparecchi funzionano lo stesso, ma l’impianto non è a regola: chi interviene sulla presa non può sapere quale morsetto è in tensione. La fase va sempre sul morsetto L.',
+        why: 'Con l’interruttore aperto la lampada è spenta, ma la fase arriva ancora ai suoi morsetti: chi cambia la lampadina rischia la scossa. Il comando va sempre sulla fase, mentre il neutro non passa dall’interruttore.',
       },
-      fixSay: 'Scambia i fili sulla presa: la fase al morsetto L e il neutro al morsetto N. Poi premi Verifica.',
+      fixSay: 'Sposta l’interruttore sulla fase: la fase del quadro entra nell’interruttore e da lì va alla presa e alla lampada; il neutro va diretto. Poi premi Verifica.',
     },
   },
 
@@ -1423,24 +1423,25 @@ export const UNITS_V2 = {
       'Il tasto di prova del differenziale va premuto ogni tanto per controllare che funzioni.',
     ],
     fault: {
-      say: 'Alla presa è collegato un apparecchio e il differenziale è già scattato. Rialzalo e osserva, poi premi Verifica.',
+      say: 'Il quadro è cablato bene, ma il differenziale è scattato e non resta armato. Per capire quale linea disperde, apri i due magnetotermici, riarma il differenziale e richiudi una linea alla volta. Poi rispondi.',
       wires: [
         ['Q.F', 'D.1', 'marrone'], ['Q.N', 'D.N1', 'blu'],
-        ['D.2', 'M1.1', 'marrone'], ['D.2', 'M2.1', 'marrone'], ['D.N2', 'M1.N1', 'blu'],
+        ['D.2', 'M1.1', 'marrone'], ['D.2', 'M2.1', 'marrone'], ['D.N2', 'M1.N1', 'blu'], ['D.N2', 'M2.N1', 'blu'],
         ['M1.2', 'S.a', 'marrone'], ['S.b', 'L.A', 'marrone'], ['M1.N2', 'L.B', 'blu'],
-        ['M2.2', 'P.L', 'marrone'], ['Q.N', 'P.N', 'blu'], ['Q.PE', 'P.PE', 'gv'],
+        ['M2.2', 'P.L', 'marrone'], ['M2.N2', 'P.N', 'blu'], ['Q.PE', 'P.PE', 'gv'],
       ],
+      on: ['G'],
       diagnosis: {
-        question: 'Perché il differenziale scatta?',
+        question: 'Il differenziale scatta quando si chiude il magnetotermico delle prese e non quando si chiude quello della luce. Dov’è la dispersione?',
         options: [
-          { id: 'a', text: 'Il neutro della presa è preso a monte del differenziale: la corrente di ritorno non passa da lui.' },
-          { id: 'b', text: 'Il magnetotermico delle prese è troppo piccolo.' },
-          { id: 'c', text: 'La lampada è collegata male.' },
+          { id: 'a', text: 'Sulla linea della luce.' },
+          { id: 'b', text: 'Sulla linea delle prese: un apparecchio collegato alla presa disperde verso terra.' },
+          { id: 'c', text: 'Nel differenziale, che è guasto.' },
         ],
-        correct: 'a',
-        why: 'La fase della presa passa dal differenziale, ma il neutro no. Il differenziale vede una corrente che entra e non esce, la interpreta come dispersione e scatta. Il neutro di ogni carico deve essere preso a valle del differenziale.',
+        correct: 'b',
+        why: 'Si cerca un guasto aprendo le linee e richiudendole una alla volta: il differenziale scatta solo quando si richiude la linea che disperde. Qui è quella delle prese, a cui è collegato un apparecchio con l’isolante rovinato.',
       },
-      fixSay: 'Porta il neutro della presa a valle del differenziale, passando dal magnetotermico delle prese. Poi premi Verifica.',
+      fixSay: 'Scollega l’apparecchio difettoso (tocca il pannello del guasto per spegnerlo), riarma il differenziale e premi Verifica.',
     },
   },
 };

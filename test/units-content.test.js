@@ -35,7 +35,8 @@ for (const L of withUnit) {
 
   if (u.fault) {
     test(`${L.id}: la sfida guasto parte guasta e si ripara`, () => {
-      assert.equal(evaluate(L, W(u.fault.wires)).pass, false);
+      // i guasti da componente (`on`) hanno i fili giusti: il guasto e' nello stato, non nel cablaggio
+      if (!u.fault.on) assert.equal(evaluate(L, W(u.fault.wires)).pass, false);
       assert.equal(evaluate(L, W(L.solution), L.solutionRatings).pass, true);
       assert.ok(u.fault.diagnosis.options.some(o => o.id === u.fault.diagnosis.correct));
     });

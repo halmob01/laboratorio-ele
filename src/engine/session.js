@@ -718,6 +718,8 @@ export function createSession({ levels, deriveFull, storage = memoryStorage(), i
       statesByKey[keyOf()] = {};
       resultsByKey[keyOf()] = null;
       us.phase = 'fault';
+      // guasti da componente (dispersioni) gia' attivi all'inizio della sfida
+      if (v2(level)) (level.unit.fault.on || []).forEach(id => act(simFor(), 'toggle', id));
       us.diag = null;
       emit();
     },

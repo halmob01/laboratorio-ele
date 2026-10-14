@@ -278,13 +278,15 @@ export const LEVELS_V2 = [
       C('S', 'sw', 'Interruttore', 'Interruttore della luce', { a: { l: '1' }, b: { l: '2' } }),
       C('L', 'lamp', 'Lampada', 'Portalampada', { B: { l: 'B' }, A: { l: 'A' } }),
       C('P', 'presa', 'Presa', 'Presa bipasso 10/16 A', { L: { l: 'L' }, PE: { l: 'PE' }, N: { l: 'N' } }),
+      C('G', 'gu', 'Guasto', 'Apparecchio difettoso sulla presa', {}, { at: 'P.L', levels: [300] }),
     ],
-    controls: ['D', 'M1', 'M2', 'S'],
+    controls: ['D', 'M1', 'M2', 'S', 'G'],
     demoDo: [{ do: ['toggle S'], say: 'Interruttore chiuso: la lampada si accende.' }, { do: ['test D'], say: 'Tasto di prova: il differenziale scatta e tutto si spegne.' }],
     checks: [
       { id: 'presa', label: 'La presa è alimentata', do: [], expect: { loads: { P: 'on' } } },
       { id: 'luce', label: 'Chiudi l’interruttore: la lampada si accende', do: ['toggle S'], expect: { loads: { L: 'on' } } },
       { id: 'prova', label: 'Tasto di prova del differenziale: luce e presa si spengono', do: ['toggle S', 'test D'], expect: { loads: { L: 'off', P: 'off' }, tripped: ['D'] } },
+      { id: 'dispersione', label: 'Un apparecchio sulla presa disperde verso terra: scatta il differenziale', do: ['toggle S', 'toggle G'], expect: { loads: { L: 'off', P: 'off' }, tripped: ['D'] } },
     ],
     safety: { earth: [['P.PE', 'Q.PE']], phaseSwitched: ['P', 'L'], pol: ['P.L', 'P.N'], rcdCovers: ['L', 'P'], protectedBy: { L: 'M1', P: 'M2' } },
     solution: [

@@ -64,7 +64,7 @@ Gli identificativi esistenti (c07-c16) restano: i progressi degli allievi sono s
 | 2.6 | Campanello (c10) | bassa tensione separata | esiste | sì |
 | 2.7 | Il magnetotermico (c19) | portata, sezione del cavo, sovraccarico e corto | nuovo | sì |
 | 2.8 | Il differenziale (c20) | dispersione, contatto con una persona, tasto di prova, neutro preso a monte | nuovo; riceve il guasto oggi in c11 | sì |
-| 2.9 | Il quadro dell'appartamento (c11) | contatore, differenziale, due linee; trovare la linea con la dispersione | esiste; da ampliare, guasto nuovo | sì |
+| 2.9 | Il quadro dell'appartamento (c11) | contatore, differenziale, due linee; trovare la linea con la dispersione | esiste; guasto nuovo fatto (linea che disperde); il contatore resta il quadro | sì |
 
 Differenze dal syllabus: multimetro come livello a sé e primo del modulo; c08 e c09 nel percorso esteso; la presa comandata resta con l'interruttore (come negli impianti di casa), il relè si vede in 2.2.
 

@@ -2017,7 +2017,7 @@ html[lang="it"] .trnote{display:none}
   var isV2 = (level) => !!level && level.engine === 2;
   var MAIN = /* @__PURE__ */ new Set(["mt", "mt3", "sez", "rcd", "gu"]);
   var selfPowered = (level) => isV2(level) && level.supply !== "quadro" && (level.supply === "protezioni" || level.comps.some((c2) => MAIN.has(c2.type)));
-  var MANUAL = /* @__PURE__ */ new Set(["sw", "dev", "inv", "pb", "pbnc", "fungo", "mt", "mt3", "sez", "rcd"]);
+  var MANUAL = /* @__PURE__ */ new Set(["sw", "dev", "inv", "pb", "pbnc", "fungo", "mt", "mt3", "sez", "rcd", "gu"]);
   var HOLD = /* @__PURE__ */ new Set(["pb", "pbnc"]);
   function controlStates(level, sim) {
     const st = {};
@@ -2797,6 +2797,7 @@ html[lang="it"] .trnote{display:none}
         statesByKey[keyOf()] = {};
         resultsByKey[keyOf()] = null;
         us.phase = "fault";
+        if (v2(level)) (level.unit.fault.on || []).forEach((id) => act(simFor(), "toggle", id));
         us.diag = null;
         emit();
       },
@@ -4019,14 +4020,16 @@ html[lang="it"] .trnote{display:none}
         C("M2", "mt", "Prese", "Magnetotermico prese", { "1": { l: "1" }, N1: { l: "N" }, "2": { l: "2" }, N2: { l: "N" } }, { rank: 2 }),
         C("S", "sw", "Interruttore", "Interruttore della luce", { a: { l: "1" }, b: { l: "2" } }),
         C("L", "lamp", "Lampada", "Portalampada", { B: { l: "B" }, A: { l: "A" } }),
-        C("P", "presa", "Presa", "Presa bipasso 10/16 A", { L: { l: "L" }, PE: { l: "PE" }, N: { l: "N" } })
+        C("P", "presa", "Presa", "Presa bipasso 10/16 A", { L: { l: "L" }, PE: { l: "PE" }, N: { l: "N" } }),
+        C("G", "gu", "Guasto", "Apparecchio difettoso sulla presa", {}, { at: "P.L", levels: [300] })
       ],
-      controls: ["D", "M1", "M2", "S"],
+      controls: ["D", "M1", "M2", "S", "G"],
       demoDo: [{ do: ["toggle S"], say: "Interruttore chiuso: la lampada si accende." }, { do: ["test D"], say: "Tasto di prova: il differenziale scatta e tutto si spegne." }],
       checks: [
         { id: "presa", label: "La presa \xE8 alimentata", do: [], expect: { loads: { P: "on" } } },
         { id: "luce", label: "Chiudi l\u2019interruttore: la lampada si accende", do: ["toggle S"], expect: { loads: { L: "on" } } },
-        { id: "prova", label: "Tasto di prova del differenziale: luce e presa si spengono", do: ["toggle S", "test D"], expect: { loads: { L: "off", P: "off" }, tripped: ["D"] } }
+        { id: "prova", label: "Tasto di prova del differenziale: luce e presa si spengono", do: ["toggle S", "test D"], expect: { loads: { L: "off", P: "off" }, tripped: ["D"] } },
+        { id: "dispersione", label: "Un apparecchio sulla presa disperde verso terra: scatta il differenziale", do: ["toggle S", "toggle G"], expect: { loads: { L: "off", P: "off" }, tripped: ["D"] } }
       ],
       safety: { earth: [["P.PE", "Q.PE"]], phaseSwitched: ["P", "L"], pol: ["P.L", "P.N"], rcdCovers: ["L", "P"], protectedBy: { L: "M1", P: "M2" } },
       solution: [
@@ -4800,24 +4803,24 @@ html[lang="it"] .trnote{display:none}
       fault: {
         say: "L\u2019impianto \xE8 gi\xE0 cablato e la lampada e la presa funzionano. Eppure l\u2019impianto non \xE8 a norma. Dai corrente, prova l\u2019interruttore e poi premi Verifica.",
         wires: [
-          ["Q.F", "S.a", "marrone"],
-          ["S.b", "P.N", "marrone"],
-          ["S.b", "L.A", "marrone"],
-          ["Q.N", "P.L", "blu"],
-          ["Q.N", "L.B", "blu"],
+          ["Q.N", "S.a", "blu"],
+          ["S.b", "P.N", "blu"],
+          ["S.b", "L.B", "blu"],
+          ["Q.F", "P.L", "marrone"],
+          ["Q.F", "L.A", "marrone"],
           ["Q.PE", "P.PE", "gv"]
         ],
         diagnosis: {
           question: "Che cosa non va?",
           options: [
-            { id: "a", text: "Fase e neutro sono scambiati sulla presa." },
+            { id: "a", text: "L\u2019interruttore interrompe il neutro invece della fase: con l\u2019interruttore aperto la lampada e la presa restano in tensione." },
             { id: "b", text: "Manca il filo di terra alla presa." },
             { id: "c", text: "La lampada \xE8 collegata in serie alla presa." }
           ],
           correct: "a",
-          why: "La fase \xE8 arrivata sul morsetto N e il neutro sul morsetto L. Gli apparecchi funzionano lo stesso, ma l\u2019impianto non \xE8 a regola: chi interviene sulla presa non pu\xF2 sapere quale morsetto \xE8 in tensione. La fase va sempre sul morsetto L."
+          why: "Con l\u2019interruttore aperto la lampada \xE8 spenta, ma la fase arriva ancora ai suoi morsetti: chi cambia la lampadina rischia la scossa. Il comando va sempre sulla fase, mentre il neutro non passa dall\u2019interruttore."
         },
-        fixSay: "Scambia i fili sulla presa: la fase al morsetto L e il neutro al morsetto N. Poi premi Verifica."
+        fixSay: "Sposta l\u2019interruttore sulla fase: la fase del quadro entra nell\u2019interruttore e da l\xEC va alla presa e alla lampada; il neutro va diretto. Poi premi Verifica."
       }
     },
     "c08-rele-impulsi": {
@@ -5860,31 +5863,33 @@ html[lang="it"] .trnote{display:none}
         "Il tasto di prova del differenziale va premuto ogni tanto per controllare che funzioni."
       ],
       fault: {
-        say: "Alla presa \xE8 collegato un apparecchio e il differenziale \xE8 gi\xE0 scattato. Rialzalo e osserva, poi premi Verifica.",
+        say: "Il quadro \xE8 cablato bene, ma il differenziale \xE8 scattato e non resta armato. Per capire quale linea disperde, apri i due magnetotermici, riarma il differenziale e richiudi una linea alla volta. Poi rispondi.",
         wires: [
           ["Q.F", "D.1", "marrone"],
           ["Q.N", "D.N1", "blu"],
           ["D.2", "M1.1", "marrone"],
           ["D.2", "M2.1", "marrone"],
           ["D.N2", "M1.N1", "blu"],
+          ["D.N2", "M2.N1", "blu"],
           ["M1.2", "S.a", "marrone"],
           ["S.b", "L.A", "marrone"],
           ["M1.N2", "L.B", "blu"],
           ["M2.2", "P.L", "marrone"],
-          ["Q.N", "P.N", "blu"],
+          ["M2.N2", "P.N", "blu"],
           ["Q.PE", "P.PE", "gv"]
         ],
+        on: ["G"],
         diagnosis: {
-          question: "Perch\xE9 il differenziale scatta?",
+          question: "Il differenziale scatta quando si chiude il magnetotermico delle prese e non quando si chiude quello della luce. Dov\u2019\xE8 la dispersione?",
           options: [
-            { id: "a", text: "Il neutro della presa \xE8 preso a monte del differenziale: la corrente di ritorno non passa da lui." },
-            { id: "b", text: "Il magnetotermico delle prese \xE8 troppo piccolo." },
-            { id: "c", text: "La lampada \xE8 collegata male." }
+            { id: "a", text: "Sulla linea della luce." },
+            { id: "b", text: "Sulla linea delle prese: un apparecchio collegato alla presa disperde verso terra." },
+            { id: "c", text: "Nel differenziale, che \xE8 guasto." }
           ],
-          correct: "a",
-          why: "La fase della presa passa dal differenziale, ma il neutro no. Il differenziale vede una corrente che entra e non esce, la interpreta come dispersione e scatta. Il neutro di ogni carico deve essere preso a valle del differenziale."
+          correct: "b",
+          why: "Si cerca un guasto aprendo le linee e richiudendole una alla volta: il differenziale scatta solo quando si richiude la linea che disperde. Qui \xE8 quella delle prese, a cui \xE8 collegato un apparecchio con l\u2019isolante rovinato."
         },
-        fixSay: "Porta il neutro della presa a valle del differenziale, passando dal magnetotermico delle prese. Poi premi Verifica."
+        fixSay: "Scollega l\u2019apparecchio difettoso (tocca il pannello del guasto per spegnerlo), riarma il differenziale e premi Verifica."
       }
     }
   };
@@ -9446,7 +9451,19 @@ html[lang="it"] .trnote{display:none}
     "ISOLANTE INTEGRO": "\u0627\u0644\u0639\u0632\u0644 \u0633\u0644\u064A\u0645",
     "ISOLANTE ROVINATO": "\u0627\u0644\u0639\u0632\u0644 \u062A\u0627\u0644\u0641",
     "verso terra": "\u0646\u062D\u0648 \u0627\u0644\u0623\u0631\u0636",
-    "tocca il pannello": "\u0627\u0644\u0645\u0633 \u0627\u0644\u0644\u0648\u062D\u0629"
+    "tocca il pannello": "\u0627\u0644\u0645\u0633 \u0627\u0644\u0644\u0648\u062D\u0629",
+    "Apparecchio difettoso sulla presa": "\u062C\u0647\u0627\u0632 \u0645\u0639\u064A\u0628 \u0639\u0644\u0649 \u0627\u0644\u0645\u0642\u0628\u0633",
+    "Con l\u2019interruttore aperto la lampada \xE8 spenta, ma la fase arriva ancora ai suoi morsetti: chi cambia la lampadina rischia la scossa. Il comando va sempre sulla fase, mentre il neutro non passa dall\u2019interruttore.": "\u0639\u0646\u062F\u0645\u0627 \u064A\u0643\u0648\u0646 \u0627\u0644\u0645\u0641\u062A\u0627\u062D \u0645\u0641\u062A\u0648\u062D\u064B\u0627 \u064A\u0643\u0648\u0646 \u0627\u0644\u0645\u0635\u0628\u0627\u062D \u0645\u0637\u0641\u0623\u064B\u060C \u0644\u0643\u0646 \u0627\u0644\u0637\u0648\u0631 \u0645\u0627 \u0632\u0627\u0644 \u064A\u0635\u0644 \u0625\u0644\u0649 \u0623\u0637\u0631\u0627\u0641\u0647: \u0645\u0646 \u064A\u0628\u062F\u0651\u0644 \u0627\u0644\u0645\u0635\u0628\u0627\u062D \u0645\u0639\u0631\u0651\u0636 \u0644\u0644\u0635\u0639\u0642. \u064A\u0648\u0636\u0639 \u0627\u0644\u0645\u0641\u062A\u0627\u062D \u062F\u0627\u0626\u0645\u064B\u0627 \u0639\u0644\u0649 \u0627\u0644\u0637\u0648\u0631\u060C \u0623\u0645\u0627 \u0627\u0644\u062D\u064A\u0627\u062F \u0641\u0644\u0627 \u064A\u0645\u0631\u0651 \u0639\u0628\u0631 \u0627\u0644\u0645\u0641\u062A\u0627\u062D.",
+    "Il differenziale scatta quando si chiude il magnetotermico delle prese e non quando si chiude quello della luce. Dov\u2019\xE8 la dispersione?": "\u064A\u0641\u0635\u0644 \u0627\u0644\u0642\u0627\u0637\u0639 \u0627\u0644\u062A\u0641\u0627\u0636\u0644\u064A \u0639\u0646\u062F \u0625\u063A\u0644\u0627\u0642 \u0627\u0644\u0642\u0627\u0637\u0639 \u0627\u0644\u0645\u063A\u0646\u0627\u0637\u064A\u0633\u064A \u0627\u0644\u062D\u0631\u0627\u0631\u064A \u0644\u0644\u0645\u0642\u0627\u0628\u0633 \u0648\u0644\u0627 \u064A\u0641\u0635\u0644 \u0639\u0646\u062F \u0625\u063A\u0644\u0627\u0642 \u0642\u0627\u0637\u0639 \u0627\u0644\u0625\u0646\u0627\u0631\u0629. \u0623\u064A\u0646 \u0627\u0644\u062A\u0633\u0631\u0651\u0628\u061F",
+    "Il quadro \xE8 cablato bene, ma il differenziale \xE8 scattato e non resta armato. Per capire quale linea disperde, apri i due magnetotermici, riarma il differenziale e richiudi una linea alla volta. Poi rispondi.": "\u0627\u0644\u0644\u0648\u062D\u0629 \u0645\u0648\u0635\u0648\u0644\u0629 \u062C\u064A\u062F\u064B\u0627\u060C \u0644\u0643\u0646 \u0627\u0644\u0642\u0627\u0637\u0639 \u0627\u0644\u062A\u0641\u0627\u0636\u0644\u064A \u0641\u0635\u0644 \u0648\u0644\u0627 \u064A\u0628\u0642\u0649 \u0645\u0633\u0644\u0651\u062D\u064B\u0627. \u0644\u0645\u0639\u0631\u0641\u0629 \u0623\u064A \u062E\u0637 \u064A\u062A\u0633\u0631\u0651\u0628\u060C \u0627\u0641\u062A\u062D \u0627\u0644\u0642\u0627\u0637\u0639\u064A\u0646 \u0627\u0644\u0645\u063A\u0646\u0627\u0637\u064A\u0633\u064A\u064A\u0646 \u0627\u0644\u062D\u0631\u0627\u0631\u064A\u064A\u0646\u060C \u0648\u0623\u0639\u062F \u062A\u0633\u0644\u064A\u062D \u0627\u0644\u0642\u0627\u0637\u0639 \u0627\u0644\u062A\u0641\u0627\u0636\u0644\u064A\u060C \u062B\u0645 \u0623\u063A\u0644\u0642 \u062E\u0637\u064B\u0627 \u0648\u0627\u062D\u062F\u064B\u0627 \u0641\u064A \u0643\u0644 \u0645\u0631\u0629. \u0628\u0639\u062F\u0647\u0627 \u0623\u062C\u0628.",
+    "L\u2019interruttore interrompe il neutro invece della fase: con l\u2019interruttore aperto la lampada e la presa restano in tensione.": "\u0627\u0644\u0645\u0641\u062A\u0627\u062D \u064A\u0642\u0637\u0639 \u0627\u0644\u062D\u064A\u0627\u062F \u0628\u062F\u0644 \u0627\u0644\u0637\u0648\u0631: \u0639\u0646\u062F\u0645\u0627 \u064A\u0643\u0648\u0646 \u0627\u0644\u0645\u0641\u062A\u0627\u062D \u0645\u0641\u062A\u0648\u062D\u064B\u0627 \u064A\u0628\u0642\u0649 \u0627\u0644\u0645\u0635\u0628\u0627\u062D \u0648\u0627\u0644\u0645\u0642\u0628\u0633 \u062A\u062D\u062A \u0627\u0644\u062C\u0647\u062F.",
+    "Nel differenziale, che \xE8 guasto.": "\u0641\u064A \u0627\u0644\u0642\u0627\u0637\u0639 \u0627\u0644\u062A\u0641\u0627\u0636\u0644\u064A\u060C \u0641\u0647\u0648 \u0645\u0639\u0637\u0651\u0644.",
+    "Scollega l\u2019apparecchio difettoso (tocca il pannello del guasto per spegnerlo), riarma il differenziale e premi Verifica.": "\u0627\u0641\u0635\u0644 \u0627\u0644\u062C\u0647\u0627\u0632 \u0627\u0644\u0645\u0639\u064A\u0628 (\u0627\u0644\u0645\u0633 \u0644\u0648\u062D\u0629 \u0627\u0644\u0639\u0637\u0644 \u0644\u0625\u064A\u0642\u0627\u0641\u0647)\u060C \u0648\u0623\u0639\u062F \u062A\u0633\u0644\u064A\u062D \u0627\u0644\u0642\u0627\u0637\u0639 \u0627\u0644\u062A\u0641\u0627\u0636\u0644\u064A \u0648\u0627\u0636\u063A\u0637 \u062A\u062D\u0642\u0651\u0642.",
+    "Si cerca un guasto aprendo le linee e richiudendole una alla volta: il differenziale scatta solo quando si richiude la linea che disperde. Qui \xE8 quella delle prese, a cui \xE8 collegato un apparecchio con l\u2019isolante rovinato.": "\u064A\u064F\u0628\u062D\u062B \u0639\u0646 \u0627\u0644\u0639\u0637\u0644 \u0628\u0641\u062A\u062D \u0627\u0644\u062E\u0637\u0648\u0637 \u0648\u0625\u063A\u0644\u0627\u0642\u0647\u0627 \u0648\u0627\u062D\u062F\u064B\u0627 \u062A\u0644\u0648 \u0627\u0644\u0622\u062E\u0631: \u0644\u0627 \u064A\u0641\u0635\u0644 \u0627\u0644\u0642\u0627\u0637\u0639 \u0627\u0644\u062A\u0641\u0627\u0636\u0644\u064A \u0625\u0644\u0627 \u0639\u0646\u062F \u0625\u063A\u0644\u0627\u0642 \u0627\u0644\u062E\u0637 \u0627\u0644\u0645\u062A\u0633\u0631\u0651\u0628. \u0647\u0646\u0627 \u0647\u0648 \u062E\u0637 \u0627\u0644\u0645\u0642\u0627\u0628\u0633\u060C \u0627\u0644\u0645\u062A\u0635\u0644 \u0628\u0647 \u062C\u0647\u0627\u0632 \u0639\u0632\u0644\u0647 \u062A\u0627\u0644\u0641.",
+    "Sposta l\u2019interruttore sulla fase: la fase del quadro entra nell\u2019interruttore e da l\xEC va alla presa e alla lampada; il neutro va diretto. Poi premi Verifica.": "\u0627\u0646\u0642\u0644 \u0627\u0644\u0645\u0641\u062A\u0627\u062D \u0625\u0644\u0649 \u0627\u0644\u0637\u0648\u0631: \u064A\u062F\u062E\u0644 \u0637\u0648\u0631 \u0627\u0644\u0644\u0648\u062D\u0629 \u0625\u0644\u0649 \u0627\u0644\u0645\u0641\u062A\u0627\u062D \u0648\u0645\u0646\u0647 \u064A\u0630\u0647\u0628 \u0625\u0644\u0649 \u0627\u0644\u0645\u0642\u0628\u0633 \u0648\u0627\u0644\u0645\u0635\u0628\u0627\u062D\u061B \u0623\u0645\u0627 \u0627\u0644\u062D\u064A\u0627\u062F \u0641\u064A\u0630\u0647\u0628 \u0645\u0628\u0627\u0634\u0631\u0629. \u062B\u0645 \u0627\u0636\u063A\u0637 \u062A\u062D\u0642\u0651\u0642.",
+    "Sulla linea della luce.": "\u0639\u0644\u0649 \u062E\u0637 \u0627\u0644\u0625\u0646\u0627\u0631\u0629.",
+    "Sulla linea delle prese: un apparecchio collegato alla presa disperde verso terra.": "\u0639\u0644\u0649 \u062E\u0637 \u0627\u0644\u0645\u0642\u0627\u0628\u0633: \u062C\u0647\u0627\u0632 \u0645\u0648\u0635\u0648\u0644 \u0628\u0627\u0644\u0645\u0642\u0628\u0633 \u064A\u062A\u0633\u0631\u0651\u0628 \u0646\u062D\u0648 \u0627\u0644\u0623\u0631\u0636.",
+    "Un apparecchio sulla presa disperde verso terra: scatta il differenziale": "\u062C\u0647\u0627\u0632 \u0639\u0644\u0649 \u0627\u0644\u0645\u0642\u0628\u0633 \u064A\u062A\u0633\u0631\u0651\u0628 \u0646\u062D\u0648 \u0627\u0644\u0623\u0631\u0636: \u064A\u0641\u0635\u0644 \u0627\u0644\u0642\u0627\u0637\u0639 \u0627\u0644\u062A\u0641\u0627\u0636\u0644\u064A"
   };
 
   // src/i18n/ar.js
