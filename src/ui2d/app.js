@@ -327,7 +327,7 @@ function holdEnd() {
   const rest = HOLD_MIN - (Date.now() - h.at);
   if (rest > 0) setTimeout(() => session.release(h.id), rest); else session.release(h.id);
 }
-bench.addEventListener('pointerdown', e => {
+document.addEventListener('pointerdown', e => {
   const h = e.target.closest('[data-hold]');
   if (!h) return;
   e.preventDefault();
@@ -336,7 +336,7 @@ bench.addEventListener('pointerdown', e => {
 window.addEventListener('pointerup', holdEnd);
 window.addEventListener('pointercancel', holdEnd);
 window.addEventListener('blur', holdEnd);
-bench.addEventListener('keyup', e => {
+document.addEventListener('keyup', e => {
   if (e.key !== 'Enter' && e.key !== ' ') return;
   if (e.target.closest('[data-hold]')) { e.preventDefault(); holdEnd(); }
 });
@@ -359,6 +359,8 @@ bench.addEventListener('keydown', e => {
 });
 $('#room').addEventListener('click', e => { const c = e.target.closest('[data-ctl]'); if (c) session.toggleControl(c.dataset.ctl); });
 $('#room').addEventListener('keydown', e => {
+  const hd = e.target.closest('[data-hold]');
+  if (hd && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); if (!e.repeat) holdStart(hd.dataset.hold); return; }
   if (e.key === 'Enter' || e.key === ' ') {
     const c = e.target.closest('[data-ctl]');
     if (c) { e.preventDefault(); session.toggleControl(c.dataset.ctl); }

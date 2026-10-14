@@ -194,3 +194,94 @@ export function schemV2(c, s, L, ui) {
 
 // Tipi che il disegno v2 gestisce al posto di quelli del motore v1 (sw, dev e inv restano come nel v1).
 export const V2_TYPES = new Set(['quadro', 'mt', 'rcd', 'mt3', 'sez', 'pb', 'pbnc', 'fungo', 'ri', 'tmr', 'km', 'ft', 'fc', 'trafo', 'bell', 'spia', 'lamp', 'presa', 'motor3']);
+
+/* ---------- scena della stanza / della macchina (livelli v2) ---------- */
+const DEV = new Set(['lamp', 'spia', 'bell', 'presa', 'motor3']);
+const WALLCTL = { sw: 'tog', dev: 'tog', inv: 'tog', pb: 'hold', pbnc: 'hold', fungo: 'hold' };
+
+// Struttura fissa della scena (gli id servono a updateRoomV2, che cambia solo classi e posizioni).
+export function roomV2HTML(level) {
+  const m = level.machine;
+  let o = `<defs><radialGradient id="glow2"><stop offset="0" stop-color="#FFE9A8" stop-opacity=".95"/><stop offset="1" stop-color="#FFD25E" stop-opacity="0"/></radialGradient></defs>`;
+  o += `<rect class="wall" x="0" y="0" width="400" height="196"/><rect class="floor" x="0" y="196" width="400" height="54"/><rect class="skirt" x="0" y="190" width="400" height="8"/>`;
+  const devs = level.comps.filter(c => DEV.has(c.type) && !(m && c.id === m.motor));
+  const n = devs.length + (m ? 0 : 0);
+  devs.forEach((c, i) => {
+    const x = Math.round(400 * (i + .5) / Math.max(1, n)), y = m ? 40 : 66;
+    o += `<g data-dev="${c.id}">`;
+    if (c.type === 'lamp' || c.type === 'spia') {
+      o += `<line x1="${x}" y1="0" x2="${x}" y2="${y - 22}" stroke="var(--ink)" stroke-width="2.5" opacity=".7"/>`;
+      o += `<circle id="gl-${c.id}" class="glowc" cx="${x}" cy="${y}" r="70" fill="url(#glow2)" opacity="0"/>`;
+      o += `<circle id="ld-${c.id}" class="bulb" cx="${x}" cy="${y}" r="${c.type === 'spia' ? 9 : 13}"/>`;
+      if (c.type === 'lamp') o += `<path class="shade" d="M${x - 30} ${y - 10} Q${x} ${y - 50} ${x + 30} ${y - 10} Z"/>`;
+    } else if (c.type === 'bell') {
+      o += `<path id="ld-${c.id}" class="bellb" d="M${x - 18} ${y + 14} Q${x - 18} ${y - 16} ${x} ${y - 16} Q${x + 18} ${y - 16} ${x + 18} ${y + 14} Z" fill="#C8A04A" stroke="#7A5E1C" stroke-width="2"/><circle cx="${x}" cy="${y + 18}" r="4" fill="#7A5E1C"/>`;
+    } else if (c.type === 'presa') {
+      o += `<rect class="plate" x="${x - 26}" y="${y - 22}" width="52" height="44" rx="6"/><circle class="hole" cx="${x - 10}" cy="${y}" r="3.6"/><circle class="hole" cx="${x}" cy="${y}" r="3.2"/><circle class="hole" cx="${x + 10}" cy="${y}" r="3.6"/><circle id="ld-${c.id}" class="led" cx="${x + 18}" cy="${y - 14}" r="3.5"/>`;
+    } else if (c.type === 'motor3') {
+      o += fanSVG(c.id, x, y);
+    }
+    o += `<text x="${x}" y="${y + 40}" text-anchor="middle" style="font:600 11px 'IBM Plex Sans',sans-serif;fill:var(--ink2)">${c.short || c.id}</text></g>`;
+  });
+  if (m) {
+    const mt = level.comps.find(c => c.id === m.motor);
+    o += `<g data-dev="${m.motor}">${fanSVG(m.motor, 44, 60)}<text x="44" y="100" text-anchor="middle" style="font:600 11px 'IBM Plex Sans',sans-serif;fill:var(--ink2)">${mt ? mt.short || mt.id : m.motor}</text></g>`;
+    o += `<rect x="86" y="128" width="268" height="16" rx="8" fill="#4A4F57" stroke="#2A2D33" stroke-width="2"/>`;
+    o += `<circle cx="96" cy="136" r="6" fill="#8C9099"/><circle cx="344" cy="136" r="6" fill="#8C9099"/>`;
+    o += `<line x1="52" y1="60" x2="96" y2="130" stroke="#4A4F57" stroke-width="2" stroke-dasharray="3 3" opacity=".5"/>`;
+    o += `<rect id="fcs" class="fcm" x="80" y="108" width="10" height="20" rx="2"/><rect id="fce" class="fcm" x="350" y="108" width="10" height="20" rx="2"/>`;
+    o += `<text x="85" y="104" text-anchor="middle" style="font:600 10px 'IBM Plex Mono',monospace;fill:var(--ink2)">${m.endRev || 'FC1'}</text><text x="355" y="104" text-anchor="middle" style="font:600 10px 'IBM Plex Mono',monospace;fill:var(--ink2)">${m.endFwd || 'FC2'}</text>`;
+    o += `<g id="pack"><rect x="0" y="104" width="30" height="24" rx="3" fill="#C98A3E" stroke="#7E5420" stroke-width="2"/><line x1="15" y1="104" x2="15" y2="128" stroke="#7E5420" stroke-width="2"/></g>`;
+  }
+  // comandi a muro
+  const ctl = (level.controls || []).map(id => level.comps.find(c => c.id === id)).filter(c => c && WALLCTL[c.type]);
+  ctl.forEach((c, i) => {
+    const x = Math.round(400 * (i + .5) / ctl.length), y = 168;
+    if (WALLCTL[c.type] === 'hold') {
+      const col = c.type === 'pb' ? '#2E9E5B' : '#C0262D';
+      o += `<g class="pl" data-hold="${c.id}" role="button" tabindex="0" aria-label="${c.title || c.short}, tieni premuto" style="touch-action:none"><circle cx="${x}" cy="${y}" r="26" fill="transparent"/><circle class="plate" cx="${x}" cy="${y}" r="20"/><circle id="bt-${c.id}" cx="${x}" cy="${y}" r="13" fill="${col}" stroke="rgba(255,255,255,.45)" stroke-width="2"/><text x="${x}" y="${y + 36}" text-anchor="middle" style="font:600 11px 'IBM Plex Sans',sans-serif;fill:var(--ink2)">${c.short}</text></g>`;
+    } else {
+      o += `<g class="pl" data-ctl="${c.id}" role="button" tabindex="0" aria-label="${c.short}, premi per cambiare"><rect x="${x - 24}" y="${y - 30}" width="48" height="60" fill="transparent"/><rect class="plate" x="${x - 18}" y="${y - 26}" width="36" height="52" rx="6"/><rect id="rt-${c.id}" class="rk hi" x="${x - 12}" y="${y - 20}" width="24" height="20" rx="3"/><rect id="rb-${c.id}" class="rk lo" x="${x - 12}" y="${y}" width="24" height="20" rx="3"/><text x="${x}" y="${y + 42}" text-anchor="middle" style="font:600 11px 'IBM Plex Sans',sans-serif;fill:var(--ink2)">${c.short}</text></g>`;
+    }
+  });
+  return o;
+}
+
+function fanSVG(id, cx, cy) {
+  return `<circle cx="${cx}" cy="${cy}" r="28" fill="#F0EBDD" stroke="var(--comp-edge)" stroke-width="2"/><g id="fan-${id}" class="fan" style="transform-origin:${cx}px ${cy}px"><path d="M${cx} ${cy} L${cx - 6} ${cy - 22} Q${cx} ${cy - 26} ${cx + 6} ${cy - 22} Z M${cx} ${cy} L${cx + 22} ${cy - 6} Q${cx + 26} ${cy} ${cx + 22} ${cy + 6} Z M${cx} ${cy} L${cx + 6} ${cy + 22} Q${cx} ${cy + 26} ${cx - 6} ${cy + 22} Z M${cx} ${cy} L${cx - 22} ${cy + 6} Q${cx - 26} ${cy} ${cx - 22} ${cy - 6} Z" fill="#5B7FA8"/></g><circle cx="${cx}" cy="${cy}" r="4" fill="#2A2D33"/><text id="mt-${id}" x="${cx}" y="${cy + 46}" text-anchor="middle" style="font:500 10px 'IBM Plex Sans',sans-serif;fill:var(--ink2)"></text>`;
+}
+
+export const MOTOR_TXT = { fwd: 'in avanti', rev: 'all’indietro', hum: 'ronza e non parte', off: 'fermo' };
+
+export function updateRoomV2(root, s) {
+  const level = s.level, o = s.obs;
+  if (!o) return;
+  const set = (id, cls) => { const e = root.querySelector('#' + id); if (e) e.setAttribute('class', cls); return e; };
+  level.comps.forEach(c => {
+    const st = o.loads[c.id];
+    if (c.type === 'lamp' || c.type === 'spia') {
+      const on = st === 'on';
+      set('ld-' + c.id, 'bulb' + (on ? ' on' : ''));
+      const g = root.querySelector('#gl-' + c.id); if (g) g.setAttribute('opacity', on ? '1' : '0');
+    } else if (c.type === 'bell') {
+      set('ld-' + c.id, 'bellb' + (st === 'on' ? ' ring' : ''));
+    } else if (c.type === 'presa') {
+      set('ld-' + c.id, 'led' + (st === 'on' ? ' on' : ''));
+    } else if (c.type === 'motor3') {
+      const d = o.motors[c.id] || 'off';
+      set('fan-' + c.id, 'fan' + (d === 'fwd' ? ' fwd' : d === 'rev' ? ' rev' : d === 'hum' ? ' hum' : ''));
+      const t = root.querySelector('#mt-' + c.id); if (t) t.textContent = MOTOR_TXT[d];
+    } else if (WALLCTL[c.type] === 'tog') {
+      const on = s.controlStates[c.id] ? 1 : 0;
+      set('rt-' + c.id, 'rk ' + (on ? 'hi' : 'lo')); set('rb-' + c.id, 'rk ' + (on ? 'lo' : 'hi'));
+    } else if (WALLCTL[c.type] === 'hold') {
+      const b = root.querySelector('#bt-' + c.id); if (b) b.setAttribute('opacity', s.controlStates[c.id] ? '.55' : '1');
+    }
+  });
+  const m = level.machine;
+  if (m && o.machine) {
+    const x = 90 + (o.machine.pos / m.length) * (350 - 90 - 30);
+    const p = root.querySelector('#pack'); if (p) p.setAttribute('transform', `translate(${x} 0)`);
+    set('fcs', 'fcm' + (o.machine.atStart ? ' act' : '')); set('fce', 'fcm' + (o.machine.atEnd ? ' act' : ''));
+  }
+}

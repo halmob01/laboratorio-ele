@@ -8,6 +8,7 @@ import p4 from './ar-4.js';
 import p5 from './ar-5.js';
 import p6 from './ar-6.js';
 import p7 from './ar-7.js';
+import p8 from './ar-8.js';
 
 const ROLE = { 'del neutro': 'المحايد', 'di terra': 'الأرضي', 'di fase': 'الطور', 'a bassa tensione': 'الجهد المنخفض', 'di comando': 'التحكم' };
 const COLORI = { 'blu': 'أزرق', 'giallo-verde': 'أصفر-أخضر', 'marrone, nero o grigio': 'بنيًّا أو أسود أو رماديًّا', 'rosso, marrone, nero o grigio': 'أحمر أو بنيًّا أو أسود أو رماديًّا', 'di un colore diverso da blu e giallo-verde': 'بلون مختلف عن الأزرق والأصفر-الأخضر' };
@@ -55,4 +56,4 @@ const PAT = [
   [/^Protezioni scattate: (.+)\.$/, (m, t) => `حمايات فصلت: ${t(m[1])}.`],
 ];
 
-registerLang('ar', { ...p1, ...p2, ...p3, ...p4, ...p5, ...p6, ...p7 }, PAT);
+registerLang('ar', { ...p1, ...p2, ...p3, ...p4, ...p5, ...p6, ...p7, ...p8 }, PAT);

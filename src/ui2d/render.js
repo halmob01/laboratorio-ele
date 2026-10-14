@@ -7,7 +7,7 @@
 import { WIRE_COLORS } from '../engine/index.js';
 import { COLOR_NAMES, describeEvaluation, sessionMessage, flowMessage } from '../content/it.js';
 import { WIRE_STYLE } from './palette.js';
-import { schemV2, V2_TYPES, isLive } from './render2.js';
+import { schemV2, V2_TYPES, isLive, roomV2HTML, updateRoomV2 } from './render2.js';
 
 /* ---------- geometria dei morsetti e dei fili ---------- */
 export function termPosOf(c, id) {
@@ -39,6 +39,7 @@ export function paletteHTML(col, level) {
 
 /* ---------- stanza ---------- */
 export function roomHTML(level, comps) {
+  if (level.engine === 2) return roomV2HTML(level);
   let s = '';
   s += `<defs><radialGradient id="glow"><stop offset="0" stop-color="#FFE9A8" stop-opacity=".95"/><stop offset=".45" stop-color="#FFD25E" stop-opacity=".38"/><stop offset="1" stop-color="#FFD25E" stop-opacity="0"/></radialGradient></defs>`;
   s += `<rect class="wall" x="0" y="0" width="400" height="196"/><rect class="floor" x="0" y="196" width="400" height="54"/><rect class="skirt" x="0" y="190" width="400" height="8"/>`;
@@ -82,6 +83,7 @@ export function roomHTML(level, comps) {
   return s;
 }
 export function roomViewBox(level) {
+  if (level.engine === 2) return '0 0 400 190';
   return level.room === 'tavolo' ? '0 50 400 190' : '0 0 400 190';
 }
 // La stessa stanza, ferma, per le pagine della lezione: ids con prefisso per non confondersi con quella del livello.
@@ -98,6 +100,7 @@ export function roomStaticHTML(level, comps, lit) {
 }
 // Aggiorna la scena (luce, posizione dei comandi) senza ridisegnarla.
 export function updateRoom(root, s, comps) {
+  if (s.level.engine === 2) { updateRoomV2(root, s); return; }
   const n = root.querySelector('#night'), g = root.querySelector('#glow'), b = root.querySelector('#bulb');
   const lit = s.litLoads && s.litLoads.length > 1 ? s.litLoads.some(Boolean) : s.lit;
   if (n) n.setAttribute('opacity', lit ? '0' : '.66');
@@ -256,6 +259,13 @@ export function statusHTML(s) {
   const q = s.power ? ['Quadro acceso', 'ok'] : s.trip ? ['Quadro scattato', 'bad'] : ['Quadro spento', ''];
   let msg = sessionMessage(s.message);
   if (s.message && s.message.code === 'lampDark' && s.flowVisible) msg += ' ' + flowMessage(s.flow, s.level);
+  if (s.level.engine === 2 && s.obs) {
+    const o = s.obs;
+    const q2 = s.trip ? ['Quadro scattato', 'bad'] : s.selfPowered ? ['Impianto alimentato', 'ok'] : q;
+    const run = Object.values(o.motors).some(v => v === 'fwd' || v === 'rev') || Object.values(o.loads).some(v => v === 'on');
+    const trip = o.tripped.length ? '<span class="pill bad">Protezione scattata</span>' : '';
+    return `<span class="pill ${q2[1]}">${q2[0]}</span><span class="pill${run ? ' on' : ''}">${run ? 'Carico in funzione' : 'Carico fermo'}</span>${trip}<span class="msg" aria-live="polite">${msg}</span>`;
+  }
   const multi = s.litLoads && s.litLoads.length > 1;
   const nOn = multi ? s.litLoads.filter(Boolean).length : 0;
   const lampTxt = multi

@@ -125,10 +125,13 @@ test('la mappa mostra i livelli, Continua (nessun livello in arrivo nel Modulo 0
   const { d, errors } = openPage({ seen: true });
   assert.ok(!q(d, '#screen-home').hidden);
   assert.ok(q(d, '#screen-level').hidden);
-  assert.equal(qa(d, '.rail .lvcard').length, 6);
-  assert.equal(qa(d, '.rail .lvcard.soon').length, 0);
+  const m0 = '.module[aria-label^="MODULO 0"] .rail';
+  assert.equal(qa(d, m0 + ' .lvcard').length, 6);
+  assert.equal(qa(d, m0 + ' .lvcard.soon').length, 0);
+  assert.equal(qa(d, '.module[aria-label^="MODULO 2"] .lvcard.soon').length, 5);
+  assert.equal(qa(d, '.module[aria-label^="MODULO 3"] .lvcard.soon').length, 5);
   assert.match(q(d, '.homemain .cont').textContent, /Il circuito chiuso/);
-  assert.match(q(d, '.rail').textContent, /Due lampade/);
+  assert.match(q(d, m0).textContent, /Due lampade/);
   assert.equal(qa(d, '.rail .lvcard a[href*="verifica"]').length, 6);   // "Già lo so" su ogni livello nuovo
   assert.match(q(d, '.homeside').textContent, /Area docente/);
   assert.equal(q(d, '.homeside button[disabled]').textContent.includes('Area docente'), true);

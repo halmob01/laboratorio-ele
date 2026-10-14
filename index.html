@@ -511,6 +511,15 @@ html[lang="it"] .trnote{display:none}
 .halo-w.b{stroke:#B48CE8;stroke-opacity:.55}.flow.b{stroke:#EBDDFF}
 .tbtn{cursor:pointer}
 .togg.hold:focus-visible{outline:none}
+
+/* scena v2: ventola, campanello, finecorsa */
+.fan.fwd{animation:spin .9s linear infinite}.fan.rev{animation:spin .9s linear infinite reverse}.fan.hum{animation:hum .12s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes hum{0%{transform:rotate(-2deg)}50%{transform:rotate(2deg)}100%{transform:rotate(-2deg)}}
+.fcm{fill:#8C9099;stroke:#2A2D33;stroke-width:1.5}.fcm.act{fill:#F59F00}
+.bellb.ring{animation:ring .25s linear infinite;transform-box:fill-box;transform-origin:50% 0}
+@keyframes ring{0%{transform:rotate(-8deg)}50%{transform:rotate(8deg)}100%{transform:rotate(-8deg)}}
+@media (prefers-reduced-motion:reduce){.fan.fwd,.fan.rev,.fan.hum,.bellb.ring{animation:none}}
 </style>
 </head>
 <body>
@@ -2515,7 +2524,49 @@ html[lang="it"] .trnote{display:none}
       }
     };
   }
+  function demoFramesV2(level, captions) {
+    const wires = level.solution.map(([a, b, c2], i) => ({ id: i + 1, a, b, c: c2 }));
+    const self = selfPowered(level);
+    const snapOf = (sim2, w, power, caption, newWire) => ({
+      caption,
+      newWire,
+      snap: {
+        level,
+        wires: w,
+        power,
+        trip: false,
+        message: null,
+        flowVisible: true,
+        solutionShown: false,
+        guide: null,
+        selfPowered: self,
+        overload: !!sim2.overload,
+        ...viewOf(level, sim2, power)
+      }
+    });
+    const out = [];
+    for (let k = 1; k <= wires.length; k++) {
+      const w = wires.slice(0, k);
+      const sim2 = createSim(level, w);
+      if (!self) setSupply(sim2, false);
+      out.push(snapOf(sim2, w, self, (captions.wires || [])[k - 1] || "", k));
+    }
+    const sim = createSim(level, wires);
+    setSupply(sim, true);
+    out.push(snapOf(sim, wires, true, captions.power || "", null));
+    const steps = level.demoDo || (level.controls || []).map((id, i) => {
+      const c2 = level.comps.find((x) => x.id === id);
+      const hold = c2 && ["pb", "pbnc", "fungo"].includes(c2.type);
+      return { do: [hold ? "press " + id : "toggle " + id], caption: (captions.controls || [])[i] || "" };
+    });
+    steps.forEach((st) => {
+      st.do.forEach((a) => runAction(sim, a));
+      out.push(snapOf(sim, wires, true, st.caption || "", null));
+    });
+    return out;
+  }
   function demoFrames(level, captions = {}) {
+    if (isV2(level)) return demoFramesV2(level, captions);
     const sol = level.solution.map(([a, b, c2], i) => ({ id: i + 1, a, b, c: c2 }));
     const out = [];
     for (let k = 1; k <= sol.length; k++) {
@@ -3698,7 +3749,7 @@ html[lang="it"] .trnote{display:none}
     ri: [HALF, 130, ["A1", "A2"], ["1", "2"]],
     tmr: [HALF, 130, ["A1", "A2"], ["1", "2"]],
     km: [FULL, 190, ["A1", "1", "3", "5", "13", "21"], ["A2", "2", "4", "6", "14", "22"]],
-    ft: [FULL, 150, ["1", "3", "5", "95", "97"], ["2", "4", "6", "96", "98"]],
+    ft: [FULL, 150, ["1", "3", "5", "95", "97"], ["2", "4", "6", "96", "98"], 0.3],
     fc: [HALF, 110, ["1", "3"], ["2", "4"]],
     trafo: [FULL, 150, ["1", "2"], ["3", "4"]],
     bell: [HALF, 110, ["1", "2"], []],
@@ -3710,20 +3761,20 @@ html[lang="it"] .trnote{display:none}
     dev: [HALF, 115, ["C"], ["1", "2"]],
     inv: [HALF, 112, ["1", "2"], ["3", "4"]]
   };
-  var spread = (n) => n === 1 ? [0.5] : n === 2 ? [0.28, 0.72] : n === 3 ? [0.2, 0.5, 0.8] : Array.from({ length: n }, (_, i) => 0.08 + 0.84 * i / (n - 1));
+  var spread = (n, a = 0.1, b = 0.88) => n === 1 ? [0.5] : n === 2 ? [0.28, 0.72] : n === 3 ? [0.2, 0.5, 0.8] : Array.from({ length: n }, (_, i) => a + (b - a) * i / (n - 1));
   function autoLayout(level) {
     const comps2 = {};
     let y = 0, pending = null;
     const make = (c2, x, y0) => {
-      const [w, h, top, bot] = KIND[c2.type] || [FULL, 110, Object.keys(c2.terms), []];
+      const [w, h, top, bot, lead] = KIND[c2.type] || [FULL, 110, Object.keys(c2.terms), []];
       const ids = Object.keys(c2.terms);
       const t = top === null ? [] : ids.filter((i) => (top || []).includes(i) || !(bot || []).includes(i));
       const b = top === null ? ids : ids.filter((i) => (bot || []).includes(i));
       const terms = {};
       const order = (list, ref) => list.slice().sort((p, q) => (ref.indexOf(p) < 0 ? 99 : ref.indexOf(p)) - (ref.indexOf(q) < 0 ? 99 : ref.indexOf(q)));
       const tt = order(t, top || []), bb = order(b, bot || []);
-      spread(tt.length).forEach((f, i) => terms[tt[i]] = { f, s: "t" });
-      spread(bb.length).forEach((f, i) => terms[bb[i]] = { f, s: "b" });
+      spread(tt.length, lead || 0.1).forEach((f, i) => terms[tt[i]] = { f, s: "t" });
+      spread(bb.length, lead || 0.1).forEach((f, i) => terms[bb[i]] = { f, s: "b" });
       return { x, y: y0, w, h, terms };
     };
     const width = (c2) => (KIND[c2.type] || [FULL])[0];
@@ -3845,9 +3896,9 @@ html[lang="it"] .trnote{display:none}
         const t = c2.type === "pb" ? ["3", "4"] : ["1", "2"];
         o += pole2(x, 22, h - 22, closed, L(t[0]), L(t[1]));
         const col = c2.type === "pb" ? "#2E9E5B" : "#C0262D";
-        o += `<circle cx="${x + 38}" cy="${mid}" r="19" fill="${col}" stroke="#1B2230" stroke-width="2" ${part.pressed ? 'opacity=".72"' : ""}/>`;
-        o += `<circle cx="${x + 38}" cy="${mid}" r="${part.pressed ? 10 : 13}" fill="${col}" stroke="rgba(255,255,255,.45)" stroke-width="2"/>`;
-        o += lab(x + 38, mid + 36, part.pressed ? "PREMUTO" : c2.type === "pb" ? "NA" : "NC");
+        o += `<circle cx="${x + 54}" cy="${mid}" r="19" fill="${col}" stroke="#1B2230" stroke-width="2" ${part.pressed ? 'opacity=".72"' : ""}/>`;
+        o += `<circle cx="${x + 54}" cy="${mid}" r="${part.pressed ? 10 : 13}" fill="${col}" stroke="rgba(255,255,255,.45)" stroke-width="2"/>`;
+        o += lab(x + 54, mid + 36, part.pressed ? "PREMUTO" : c2.type === "pb" ? "NA" : "NC");
         break;
       }
       case "fungo": {
@@ -3882,7 +3933,7 @@ html[lang="it"] .trnote{display:none}
         o += poles(c2, top, bot, part.on, L, y1, y2);
         if (has(c2, "13")) o += pole2(w * c2.terms["13"].f, y1, y2, part.on, L("13"), L("14"));
         if (has(c2, "21")) o += pole2(w * c2.terms["21"].f, y1, y2, !part.on, L("21"), L("22"));
-        o += lab(w * 0.5, h - 6, part.on ? "CHIUSO" : "APERTO");
+        o += lab(xc, mid + 22, part.on ? "CHIUSO" : "APERTO");
         break;
       }
       case "ft": {
@@ -3890,10 +3941,10 @@ html[lang="it"] .trnote{display:none}
         o += poles(c2, ["1", "3", "5"], ["2", "4", "6"], true, L);
         if (has(c2, "95")) o += pole2(w * c2.terms["95"].f, 22, h - 22, !part.tripped, L("95"), L("96"));
         if (has(c2, "97")) o += pole2(w * c2.terms["97"].f, 22, h - 22, !!part.tripped, L("97"), L("98"));
-        o += `<rect x="${w * 0.12}" y="${h - 48}" width="${w * 0.3}" height="8" rx="3" fill="rgba(0,0,0,.08)"/><rect x="${w * 0.12}" y="${h - 48}" width="${w * 0.3 * heat}" height="8" rx="3" fill="${heat > 0.66 ? "#E5484D" : "#F59F00"}"/>`;
-        o += lab(w * 0.27, h - 54, "REL\xC8 TERMICO");
-        o += `<g class="tbtn" data-reset="${c2.id}" role="button" tabindex="0" aria-label="Riarmo ${c2.short}"><rect x="${w * 0.12}" y="${mid - 14}" width="${w * 0.3}" height="26" rx="5" fill="#EDE7D4" stroke="var(--comp-edge)" stroke-width="1.4"/><text x="${w * 0.27}" y="${mid + 4}" text-anchor="middle" style="font:600 11px 'IBM Plex Mono',monospace;fill:#222">RESET</text></g>`;
-        o += `<circle class="led ${part.tripped ? "trip" : "on"}" cx="${w * 0.46}" cy="${mid}" r="4"/>`;
+        o += ` <rect x="${w * 0.03}" y="${h - 36}" width="${w * 0.2}" height="8" rx="3" fill="rgba(0,0,0,.08)"/><rect x="${w * 0.03}" y="${h - 36}" width="${w * 0.2 * heat}" height="8" rx="3" fill="${heat > 0.66 ? "#E5484D" : "#F59F00"}"/>`;
+        o += lab(w * 0.13, h - 42, "TERMICO");
+        o += `<g class="tbtn" data-reset="${c2.id}" role="button" tabindex="0" aria-label="Riarmo ${c2.short}"><rect x="${w * 0.03}" y="${mid - 14}" width="${w * 0.2}" height="26" rx="5" fill="#EDE7D4" stroke="var(--comp-edge)" stroke-width="1.4"/><text x="${w * 0.13}" y="${mid + 4}" text-anchor="middle" style="font:600 11px 'IBM Plex Mono',monospace;fill:#222">RESET</text></g>`;
+        o += `<circle class="led ${part.tripped ? "trip" : "on"}" cx="${w * 0.13}" cy="${mid - 26}" r="4"/>`;
         break;
       }
       case "fc": {
@@ -3967,6 +4018,99 @@ html[lang="it"] .trnote{display:none}
     return o;
   }
   var V2_TYPES = /* @__PURE__ */ new Set(["quadro", "mt", "rcd", "mt3", "sez", "pb", "pbnc", "fungo", "ri", "tmr", "km", "ft", "fc", "trafo", "bell", "spia", "lamp", "presa", "motor3"]);
+  var DEV = /* @__PURE__ */ new Set(["lamp", "spia", "bell", "presa", "motor3"]);
+  var WALLCTL = { sw: "tog", dev: "tog", inv: "tog", pb: "hold", pbnc: "hold", fungo: "hold" };
+  function roomV2HTML(level) {
+    const m = level.machine;
+    let o = `<defs><radialGradient id="glow2"><stop offset="0" stop-color="#FFE9A8" stop-opacity=".95"/><stop offset="1" stop-color="#FFD25E" stop-opacity="0"/></radialGradient></defs>`;
+    o += `<rect class="wall" x="0" y="0" width="400" height="196"/><rect class="floor" x="0" y="196" width="400" height="54"/><rect class="skirt" x="0" y="190" width="400" height="8"/>`;
+    const devs = level.comps.filter((c2) => DEV.has(c2.type) && !(m && c2.id === m.motor));
+    const n = devs.length + (m ? 0 : 0);
+    devs.forEach((c2, i) => {
+      const x = Math.round(400 * (i + 0.5) / Math.max(1, n)), y = m ? 40 : 66;
+      o += `<g data-dev="${c2.id}">`;
+      if (c2.type === "lamp" || c2.type === "spia") {
+        o += `<line x1="${x}" y1="0" x2="${x}" y2="${y - 22}" stroke="var(--ink)" stroke-width="2.5" opacity=".7"/>`;
+        o += `<circle id="gl-${c2.id}" class="glowc" cx="${x}" cy="${y}" r="70" fill="url(#glow2)" opacity="0"/>`;
+        o += `<circle id="ld-${c2.id}" class="bulb" cx="${x}" cy="${y}" r="${c2.type === "spia" ? 9 : 13}"/>`;
+        if (c2.type === "lamp") o += `<path class="shade" d="M${x - 30} ${y - 10} Q${x} ${y - 50} ${x + 30} ${y - 10} Z"/>`;
+      } else if (c2.type === "bell") {
+        o += `<path id="ld-${c2.id}" class="bellb" d="M${x - 18} ${y + 14} Q${x - 18} ${y - 16} ${x} ${y - 16} Q${x + 18} ${y - 16} ${x + 18} ${y + 14} Z" fill="#C8A04A" stroke="#7A5E1C" stroke-width="2"/><circle cx="${x}" cy="${y + 18}" r="4" fill="#7A5E1C"/>`;
+      } else if (c2.type === "presa") {
+        o += `<rect class="plate" x="${x - 26}" y="${y - 22}" width="52" height="44" rx="6"/><circle class="hole" cx="${x - 10}" cy="${y}" r="3.6"/><circle class="hole" cx="${x}" cy="${y}" r="3.2"/><circle class="hole" cx="${x + 10}" cy="${y}" r="3.6"/><circle id="ld-${c2.id}" class="led" cx="${x + 18}" cy="${y - 14}" r="3.5"/>`;
+      } else if (c2.type === "motor3") {
+        o += fanSVG(c2.id, x, y);
+      }
+      o += `<text x="${x}" y="${y + 40}" text-anchor="middle" style="font:600 11px 'IBM Plex Sans',sans-serif;fill:var(--ink2)">${c2.short || c2.id}</text></g>`;
+    });
+    if (m) {
+      const mt = level.comps.find((c2) => c2.id === m.motor);
+      o += `<g data-dev="${m.motor}">${fanSVG(m.motor, 44, 60)}<text x="44" y="100" text-anchor="middle" style="font:600 11px 'IBM Plex Sans',sans-serif;fill:var(--ink2)">${mt ? mt.short || mt.id : m.motor}</text></g>`;
+      o += `<rect x="86" y="128" width="268" height="16" rx="8" fill="#4A4F57" stroke="#2A2D33" stroke-width="2"/>`;
+      o += `<circle cx="96" cy="136" r="6" fill="#8C9099"/><circle cx="344" cy="136" r="6" fill="#8C9099"/>`;
+      o += `<line x1="52" y1="60" x2="96" y2="130" stroke="#4A4F57" stroke-width="2" stroke-dasharray="3 3" opacity=".5"/>`;
+      o += `<rect id="fcs" class="fcm" x="80" y="108" width="10" height="20" rx="2"/><rect id="fce" class="fcm" x="350" y="108" width="10" height="20" rx="2"/>`;
+      o += `<text x="85" y="104" text-anchor="middle" style="font:600 10px 'IBM Plex Mono',monospace;fill:var(--ink2)">${m.endRev || "FC1"}</text><text x="355" y="104" text-anchor="middle" style="font:600 10px 'IBM Plex Mono',monospace;fill:var(--ink2)">${m.endFwd || "FC2"}</text>`;
+      o += `<g id="pack"><rect x="0" y="104" width="30" height="24" rx="3" fill="#C98A3E" stroke="#7E5420" stroke-width="2"/><line x1="15" y1="104" x2="15" y2="128" stroke="#7E5420" stroke-width="2"/></g>`;
+    }
+    const ctl = (level.controls || []).map((id) => level.comps.find((c2) => c2.id === id)).filter((c2) => c2 && WALLCTL[c2.type]);
+    ctl.forEach((c2, i) => {
+      const x = Math.round(400 * (i + 0.5) / ctl.length), y = 168;
+      if (WALLCTL[c2.type] === "hold") {
+        const col = c2.type === "pb" ? "#2E9E5B" : "#C0262D";
+        o += `<g class="pl" data-hold="${c2.id}" role="button" tabindex="0" aria-label="${c2.title || c2.short}, tieni premuto" style="touch-action:none"><circle cx="${x}" cy="${y}" r="26" fill="transparent"/><circle class="plate" cx="${x}" cy="${y}" r="20"/><circle id="bt-${c2.id}" cx="${x}" cy="${y}" r="13" fill="${col}" stroke="rgba(255,255,255,.45)" stroke-width="2"/><text x="${x}" y="${y + 36}" text-anchor="middle" style="font:600 11px 'IBM Plex Sans',sans-serif;fill:var(--ink2)">${c2.short}</text></g>`;
+      } else {
+        o += `<g class="pl" data-ctl="${c2.id}" role="button" tabindex="0" aria-label="${c2.short}, premi per cambiare"><rect x="${x - 24}" y="${y - 30}" width="48" height="60" fill="transparent"/><rect class="plate" x="${x - 18}" y="${y - 26}" width="36" height="52" rx="6"/><rect id="rt-${c2.id}" class="rk hi" x="${x - 12}" y="${y - 20}" width="24" height="20" rx="3"/><rect id="rb-${c2.id}" class="rk lo" x="${x - 12}" y="${y}" width="24" height="20" rx="3"/><text x="${x}" y="${y + 42}" text-anchor="middle" style="font:600 11px 'IBM Plex Sans',sans-serif;fill:var(--ink2)">${c2.short}</text></g>`;
+      }
+    });
+    return o;
+  }
+  function fanSVG(id, cx, cy) {
+    return `<circle cx="${cx}" cy="${cy}" r="28" fill="#F0EBDD" stroke="var(--comp-edge)" stroke-width="2"/><g id="fan-${id}" class="fan" style="transform-origin:${cx}px ${cy}px"><path d="M${cx} ${cy} L${cx - 6} ${cy - 22} Q${cx} ${cy - 26} ${cx + 6} ${cy - 22} Z M${cx} ${cy} L${cx + 22} ${cy - 6} Q${cx + 26} ${cy} ${cx + 22} ${cy + 6} Z M${cx} ${cy} L${cx + 6} ${cy + 22} Q${cx} ${cy + 26} ${cx - 6} ${cy + 22} Z M${cx} ${cy} L${cx - 22} ${cy + 6} Q${cx - 26} ${cy} ${cx - 22} ${cy - 6} Z" fill="#5B7FA8"/></g><circle cx="${cx}" cy="${cy}" r="4" fill="#2A2D33"/><text id="mt-${id}" x="${cx}" y="${cy + 46}" text-anchor="middle" style="font:500 10px 'IBM Plex Sans',sans-serif;fill:var(--ink2)"></text>`;
+  }
+  var MOTOR_TXT = { fwd: "in avanti", rev: "all\u2019indietro", hum: "ronza e non parte", off: "fermo" };
+  function updateRoomV2(root, s) {
+    const level = s.level, o = s.obs;
+    if (!o) return;
+    const set = (id, cls) => {
+      const e = root.querySelector("#" + id);
+      if (e) e.setAttribute("class", cls);
+      return e;
+    };
+    level.comps.forEach((c2) => {
+      const st = o.loads[c2.id];
+      if (c2.type === "lamp" || c2.type === "spia") {
+        const on = st === "on";
+        set("ld-" + c2.id, "bulb" + (on ? " on" : ""));
+        const g = root.querySelector("#gl-" + c2.id);
+        if (g) g.setAttribute("opacity", on ? "1" : "0");
+      } else if (c2.type === "bell") {
+        set("ld-" + c2.id, "bellb" + (st === "on" ? " ring" : ""));
+      } else if (c2.type === "presa") {
+        set("ld-" + c2.id, "led" + (st === "on" ? " on" : ""));
+      } else if (c2.type === "motor3") {
+        const d = o.motors[c2.id] || "off";
+        set("fan-" + c2.id, "fan" + (d === "fwd" ? " fwd" : d === "rev" ? " rev" : d === "hum" ? " hum" : ""));
+        const t = root.querySelector("#mt-" + c2.id);
+        if (t) t.textContent = MOTOR_TXT[d];
+      } else if (WALLCTL[c2.type] === "tog") {
+        const on = s.controlStates[c2.id] ? 1 : 0;
+        set("rt-" + c2.id, "rk " + (on ? "hi" : "lo"));
+        set("rb-" + c2.id, "rk " + (on ? "lo" : "hi"));
+      } else if (WALLCTL[c2.type] === "hold") {
+        const b = root.querySelector("#bt-" + c2.id);
+        if (b) b.setAttribute("opacity", s.controlStates[c2.id] ? ".55" : "1");
+      }
+    });
+    const m = level.machine;
+    if (m && o.machine) {
+      const x = 90 + o.machine.pos / m.length * (350 - 90 - 30);
+      const p = root.querySelector("#pack");
+      if (p) p.setAttribute("transform", `translate(${x} 0)`);
+      set("fcs", "fcm" + (o.machine.atStart ? " act" : ""));
+      set("fce", "fcm" + (o.machine.atEnd ? " act" : ""));
+    }
+  }
 
   // src/ui2d/render.js
   function termPosOf(c2, id) {
@@ -3994,6 +4138,7 @@ html[lang="it"] .trnote{display:none}
     }).join("");
   }
   function roomHTML(level, comps2) {
+    if (level.engine === 2) return roomV2HTML(level);
     let s = "";
     s += `<defs><radialGradient id="glow"><stop offset="0" stop-color="#FFE9A8" stop-opacity=".95"/><stop offset=".45" stop-color="#FFD25E" stop-opacity=".38"/><stop offset="1" stop-color="#FFD25E" stop-opacity="0"/></radialGradient></defs>`;
     s += `<rect class="wall" x="0" y="0" width="400" height="196"/><rect class="floor" x="0" y="196" width="400" height="54"/><rect class="skirt" x="0" y="190" width="400" height="8"/>`;
@@ -4039,6 +4184,7 @@ html[lang="it"] .trnote{display:none}
     return s;
   }
   function roomViewBox(level) {
+    if (level.engine === 2) return "0 0 400 190";
     return level.room === "tavolo" ? "0 50 400 190" : "0 0 400 190";
   }
   function roomStaticHTML(level, comps2, lit) {
@@ -4049,6 +4195,10 @@ html[lang="it"] .trnote{display:none}
     return h;
   }
   function updateRoom(root, s, comps2) {
+    if (s.level.engine === 2) {
+      updateRoomV2(root, s);
+      return;
+    }
     const n = root.querySelector("#night"), g = root.querySelector("#glow"), b = root.querySelector("#bulb");
     const lit = s.litLoads && s.litLoads.length > 1 ? s.litLoads.some(Boolean) : s.lit;
     if (n) n.setAttribute("opacity", lit ? "0" : ".66");
@@ -4209,6 +4359,13 @@ html[lang="it"] .trnote{display:none}
     const q = s.power ? ["Quadro acceso", "ok"] : s.trip ? ["Quadro scattato", "bad"] : ["Quadro spento", ""];
     let msg = sessionMessage(s.message);
     if (s.message && s.message.code === "lampDark" && s.flowVisible) msg += " " + flowMessage(s.flow, s.level);
+    if (s.level.engine === 2 && s.obs) {
+      const o = s.obs;
+      const q2 = s.trip ? ["Quadro scattato", "bad"] : s.selfPowered ? ["Impianto alimentato", "ok"] : q;
+      const run = Object.values(o.motors).some((v) => v === "fwd" || v === "rev") || Object.values(o.loads).some((v) => v === "on");
+      const trip2 = o.tripped.length ? '<span class="pill bad">Protezione scattata</span>' : "";
+      return `<span class="pill ${q2[1]}">${q2[0]}</span><span class="pill${run ? " on" : ""}">${run ? "Carico in funzione" : "Carico fermo"}</span>${trip2}<span class="msg" aria-live="polite">${msg}</span>`;
+    }
     const multi = s.litLoads && s.litLoads.length > 1;
     const nOn = multi ? s.litLoads.filter(Boolean).length : 0;
     const lampTxt = multi ? nOn === s.litLoads.length ? "Lampade accese" : nOn ? `Lampade accese: ${nOn} di ${s.litLoads.length}` : "Lampade spente" : `${s.level.room === "tavolo" ? "Lampada" : "Luce"} ${s.lit ? "accesa" : "spenta"}`;
@@ -4248,11 +4405,32 @@ html[lang="it"] .trnote{display:none}
         "c05-deviato",
         "c06-invertito"
       ]
+    },
+    {
+      tag: "MODULO 2",
+      title: "Civile avanzato",
+      levels: [
+        { soon: true, id: "c07-presa-comandata", title: "Presa comandata", blurb: "Un interruttore accende insieme una presa e una lampada." },
+        { soon: true, id: "c08-rele-impulsi", title: "Rel\xE8 ad impulsi", blurb: "Tre pulsanti accendono e spengono la stessa lampada." },
+        { soon: true, id: "c09-luce-scale", title: "Luce scale a tempo", blurb: "La luce si spegne da sola dopo qualche secondo." },
+        { soon: true, id: "c10-campanello", title: "Campanello e trasformatore", blurb: "Un trasformatore abbassa la tensione per il campanello." },
+        { soon: true, id: "c11-quadro", title: "Il quadro di casa", blurb: "Differenziale e magnetotermici su luce e prese." }
+      ]
+    },
+    {
+      tag: "MODULO 3",
+      title: "Industriale",
+      levels: [
+        { soon: true, id: "c12-motore", title: "Il motore trifase", blurb: "Tre fasi, 400 V e il senso di rotazione." },
+        { soon: true, id: "c13-marcia-arresto", title: "Marcia e arresto", blurb: "Contattore, pulsanti e autoritenuta." },
+        { soon: true, id: "c14-termico", title: "Il rel\xE8 termico", blurb: "La protezione del motore dal sovraccarico." },
+        { soon: true, id: "c15-inversione", title: "Inversione di marcia", blurb: "Due contattori e l\u2019interblocco." },
+        { soon: true, id: "c16-nastro", title: "Il nastro trasportatore", blurb: "Emergenza, finecorsa e una macchina completa." }
+      ]
     }
   ];
   var UPCOMING = [
-    { tag: "MODULO 2", title: "Civile avanzato", note: "Rel\xE8, presa comandata, quadro" },
-    { tag: "MODULO 3", title: "Industriale", note: "Trifase, motore, nastro trasportatore" }
+    { tag: "PROVE DEI MODULI", title: "Appartamento e nastro", note: "Un appartamento di notte e un nastro trasportatore, in 3D" }
   ];
   var INTRO = [
     { art: "lampada", text: ["Una lampada, un interruttore, due fili nel muro. Per farla funzionare serve capire dove passa la corrente."] },
@@ -5497,6 +5675,47 @@ html[lang="it"] .trnote{display:none}
     "Segnala un errore di traduzione": "\u0623\u0628\u0644\u063A \u0639\u0646 \u062E\u0637\u0623 \u0641\u064A \u0627\u0644\u062A\u0631\u062C\u0645\u0629"
   };
 
+  // src/i18n/ar-8.js
+  var ar_8_default = {
+    "MODULO 2, Civile avanzato": "\u0627\u0644\u0648\u062D\u062F\u0629 2\u060C \u0627\u0644\u0643\u0647\u0631\u0628\u0627\u0621 \u0627\u0644\u0645\u0646\u0632\u0644\u064A\u0629 \u0627\u0644\u0645\u062A\u0642\u062F\u0645\u0629",
+    "MODULO 3, Industriale": "\u0627\u0644\u0648\u062D\u062F\u0629 3\u060C \u0627\u0644\u0643\u0647\u0631\u0628\u0627\u0621 \u0627\u0644\u0635\u0646\u0627\u0639\u064A\u0629",
+    "MODULO 2": "\u0627\u0644\u0648\u062D\u062F\u0629 2",
+    "MODULO 3": "\u0627\u0644\u0648\u062D\u062F\u0629 3",
+    "Civile avanzato": "\u0627\u0644\u0643\u0647\u0631\u0628\u0627\u0621 \u0627\u0644\u0645\u0646\u0632\u0644\u064A\u0629 \u0627\u0644\u0645\u062A\u0642\u062F\u0645\u0629",
+    "Industriale": "\u0627\u0644\u0643\u0647\u0631\u0628\u0627\u0621 \u0627\u0644\u0635\u0646\u0627\u0639\u064A\u0629",
+    "PROVE DEI MODULI": "\u0627\u062E\u062A\u0628\u0627\u0631\u0627\u062A \u0627\u0644\u0648\u062D\u062F\u0627\u062A",
+    "Appartamento e nastro": "\u0627\u0644\u0634\u0642\u0629 \u0648\u0627\u0644\u0633\u064A\u0631 \u0627\u0644\u0646\u0627\u0642\u0644",
+    "Un appartamento di notte e un nastro trasportatore, in 3D": "\u0634\u0642\u0629 \u0641\u064A \u0627\u0644\u0644\u064A\u0644 \u0648\u0633\u064A\u0631 \u0646\u0627\u0642\u0644\u060C \u0628\u062B\u0644\u0627\u062B\u0629 \u0623\u0628\u0639\u0627\u062F",
+    "Presa comandata": "\u0645\u0623\u062E\u0630 \u0628\u0645\u0641\u062A\u0627\u062D \u062A\u062D\u0643\u0645",
+    "Un interruttore accende insieme una presa e una lampada.": "\u0645\u0641\u062A\u0627\u062D \u0648\u0627\u062D\u062F \u064A\u0634\u063A\u0651\u0644 \u0645\u0623\u062E\u0630\u064B\u0627 \u0648\u0645\u0635\u0628\u0627\u062D\u064B\u0627 \u0645\u0639\u064B\u0627.",
+    "Rel\xE8 ad impulsi": "\u0645\u0631\u062D\u0651\u0644 \u0627\u0644\u0646\u0628\u0636\u0627\u062A",
+    "Tre pulsanti accendono e spengono la stessa lampada.": "\u062B\u0644\u0627\u062B\u0629 \u0623\u0632\u0631\u0627\u0631 \u062A\u0634\u063A\u0651\u0644 \u0627\u0644\u0645\u0635\u0628\u0627\u062D \u0646\u0641\u0633\u0647 \u0648\u062A\u0637\u0641\u0626\u0647.",
+    "Luce scale a tempo": "\u0625\u0636\u0627\u0621\u0629 \u0627\u0644\u062F\u0631\u062C \u0627\u0644\u0645\u0624\u0642\u062A\u0629",
+    "La luce si spegne da sola dopo qualche secondo.": "\u064A\u0646\u0637\u0641\u0626 \u0627\u0644\u0636\u0648\u0621 \u0645\u0646 \u062A\u0644\u0642\u0627\u0621 \u0646\u0641\u0633\u0647 \u0628\u0639\u062F \u0628\u0636\u0639 \u062B\u0648\u0627\u0646\u064D.",
+    "Campanello e trasformatore": "\u0627\u0644\u062C\u0631\u0633 \u0648\u0627\u0644\u0645\u062D\u0648\u0651\u0644",
+    "Un trasformatore abbassa la tensione per il campanello.": "\u0645\u062D\u0648\u0651\u0644 \u064A\u062E\u0641\u0636 \u0627\u0644\u062C\u0647\u062F \u0645\u0646 \u0623\u062C\u0644 \u0627\u0644\u062C\u0631\u0633.",
+    "Il quadro di casa": "\u0644\u0648\u062D\u0629 \u0627\u0644\u0645\u0646\u0632\u0644",
+    "Differenziale e magnetotermici su luce e prese.": "\u0642\u0627\u0637\u0639 \u062A\u0641\u0627\u0636\u0644\u064A \u0648\u0642\u0648\u0627\u0637\u0639 \u0645\u063A\u0646\u0627\u0637\u064A\u0633\u064A\u0629 \u062D\u0631\u0627\u0631\u064A\u0629 \u0639\u0644\u0649 \u0627\u0644\u0625\u0636\u0627\u0621\u0629 \u0648\u0627\u0644\u0645\u0622\u062E\u0630.",
+    "Il motore trifase": "\u0627\u0644\u0645\u062D\u0631\u0643 \u062B\u0644\u0627\u062B\u064A \u0627\u0644\u0637\u0648\u0631",
+    "Tre fasi, 400 V e il senso di rotazione.": "\u062B\u0644\u0627\u062B\u0629 \u0623\u0637\u0648\u0627\u0631 \u0648400 \u0641\u0648\u0644\u062A \u0648\u0627\u062A\u062C\u0627\u0647 \u0627\u0644\u062F\u0648\u0631\u0627\u0646.",
+    "Marcia e arresto": "\u0627\u0644\u062A\u0634\u063A\u064A\u0644 \u0648\u0627\u0644\u0625\u064A\u0642\u0627\u0641",
+    "Contattore, pulsanti e autoritenuta.": "\u0627\u0644\u0643\u0648\u0646\u062A\u0627\u0643\u062A\u0648\u0631 \u0648\u0627\u0644\u0623\u0632\u0631\u0627\u0631 \u0648\u0627\u0644\u062A\u062B\u0628\u064A\u062A \u0627\u0644\u0630\u0627\u062A\u064A.",
+    "Il rel\xE8 termico": "\u0627\u0644\u0645\u0631\u062D\u0651\u0644 \u0627\u0644\u062D\u0631\u0627\u0631\u064A",
+    "La protezione del motore dal sovraccarico.": "\u062D\u0645\u0627\u064A\u0629 \u0627\u0644\u0645\u062D\u0631\u0643 \u0645\u0646 \u0627\u0644\u062D\u0645\u0644 \u0627\u0644\u0632\u0627\u0626\u062F.",
+    "Inversione di marcia": "\u0639\u0643\u0633 \u0627\u062A\u062C\u0627\u0647 \u0627\u0644\u062F\u0648\u0631\u0627\u0646",
+    "Due contattori e l\u2019interblocco.": "\u0643\u0648\u0646\u062A\u0627\u0643\u062A\u0648\u0631\u0627\u0646 \u0648\u0627\u0644\u062A\u0639\u0634\u064A\u0642 \u0627\u0644\u0645\u062A\u0628\u0627\u062F\u0644.",
+    "Il nastro trasportatore": "\u0627\u0644\u0633\u064A\u0631 \u0627\u0644\u0646\u0627\u0642\u0644",
+    "Emergenza, finecorsa e una macchina completa.": "\u0627\u0644\u0637\u0648\u0627\u0631\u0626 \u0648\u0645\u0641\u062A\u0627\u062D \u0646\u0647\u0627\u064A\u0629 \u0627\u0644\u0634\u0648\u0637 \u0648\u0622\u0644\u0629 \u0643\u0627\u0645\u0644\u0629.",
+    "Impianto alimentato": "\u0627\u0644\u062A\u0645\u062F\u064A\u062F \u0645\u063A\u0630\u0651\u0649",
+    "Carico in funzione": "\u0627\u0644\u062D\u0645\u0644 \u064A\u0639\u0645\u0644",
+    "Carico fermo": "\u0627\u0644\u062D\u0645\u0644 \u0645\u062A\u0648\u0642\u0641",
+    "Protezione scattata": "\u0641\u0635\u0644\u062A \u0627\u0644\u062D\u0645\u0627\u064A\u0629",
+    "in avanti": "\u0625\u0644\u0649 \u0627\u0644\u0623\u0645\u0627\u0645",
+    "all\u2019indietro": "\u0625\u0644\u0649 \u0627\u0644\u062E\u0644\u0641",
+    "ronza e non parte": "\u064A\u0626\u0632\u0651 \u0648\u0644\u0627 \u064A\u062F\u0648\u0631",
+    "fermo": "\u0645\u062A\u0648\u0642\u0641"
+  };
+
   // src/i18n/ar.js
   var ROLE = { "del neutro": "\u0627\u0644\u0645\u062D\u0627\u064A\u062F", "di terra": "\u0627\u0644\u0623\u0631\u0636\u064A", "di fase": "\u0627\u0644\u0637\u0648\u0631", "a bassa tensione": "\u0627\u0644\u062C\u0647\u062F \u0627\u0644\u0645\u0646\u062E\u0641\u0636", "di comando": "\u0627\u0644\u062A\u062D\u0643\u0645" };
   var COLORI = { "blu": "\u0623\u0632\u0631\u0642", "giallo-verde": "\u0623\u0635\u0641\u0631-\u0623\u062E\u0636\u0631", "marrone, nero o grigio": "\u0628\u0646\u064A\u064B\u0651\u0627 \u0623\u0648 \u0623\u0633\u0648\u062F \u0623\u0648 \u0631\u0645\u0627\u062F\u064A\u064B\u0651\u0627", "rosso, marrone, nero o grigio": "\u0623\u062D\u0645\u0631 \u0623\u0648 \u0628\u0646\u064A\u064B\u0651\u0627 \u0623\u0648 \u0623\u0633\u0648\u062F \u0623\u0648 \u0631\u0645\u0627\u062F\u064A\u064B\u0651\u0627", "di un colore diverso da blu e giallo-verde": "\u0628\u0644\u0648\u0646 \u0645\u062E\u062A\u0644\u0641 \u0639\u0646 \u0627\u0644\u0623\u0632\u0631\u0642 \u0648\u0627\u0644\u0623\u0635\u0641\u0631-\u0627\u0644\u0623\u062E\u0636\u0631" };
@@ -5544,7 +5763,7 @@ html[lang="it"] .trnote{display:none}
     [/^(.+): (.+); atteso: (.+)\.$/, (m, t) => `${t(m[1])}: ${t(m[2])}\u061B \u0627\u0644\u0645\u062A\u0648\u0642\u0639: ${t(m[3])}.`],
     [/^Protezioni scattate: (.+)\.$/, (m, t) => `\u062D\u0645\u0627\u064A\u0627\u062A \u0641\u0635\u0644\u062A: ${t(m[1])}.`]
   ];
-  registerLang("ar", { ...ar_1_default, ...ar_2_default, ...ar_3_default, ...ar_4_default, ...ar_5_default, ...ar_6_default, ...ar_7_default }, PAT);
+  registerLang("ar", { ...ar_1_default, ...ar_2_default, ...ar_3_default, ...ar_4_default, ...ar_5_default, ...ar_6_default, ...ar_7_default, ...ar_8_default }, PAT);
 
   // src/trilocale/house.js
   function houseState(session2, on = true) {
@@ -6215,7 +6434,7 @@ html[lang="it"] .trnote{display:none}
     if (rest > 0) setTimeout(() => session.release(h.id), rest);
     else session.release(h.id);
   }
-  bench.addEventListener("pointerdown", (e) => {
+  document.addEventListener("pointerdown", (e) => {
     const h = e.target.closest("[data-hold]");
     if (!h) return;
     e.preventDefault();
@@ -6224,7 +6443,7 @@ html[lang="it"] .trnote{display:none}
   window.addEventListener("pointerup", holdEnd);
   window.addEventListener("pointercancel", holdEnd);
   window.addEventListener("blur", holdEnd);
-  bench.addEventListener("keyup", (e) => {
+  document.addEventListener("keyup", (e) => {
     if (e.key !== "Enter" && e.key !== " ") return;
     if (e.target.closest("[data-hold]")) {
       e.preventDefault();
@@ -6278,6 +6497,12 @@ html[lang="it"] .trnote{display:none}
     if (c2) session.toggleControl(c2.dataset.ctl);
   });
   $("#room").addEventListener("keydown", (e) => {
+    const hd = e.target.closest("[data-hold]");
+    if (hd && (e.key === "Enter" || e.key === " ")) {
+      e.preventDefault();
+      if (!e.repeat) holdStart(hd.dataset.hold);
+      return;
+    }
     if (e.key === "Enter" || e.key === " ") {
       const c2 = e.target.closest("[data-ctl]");
       if (c2) {

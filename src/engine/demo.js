@@ -4,6 +4,7 @@
 
 import { analyse, potentialOf } from './circuit.js';
 import { flowOf } from './flow.js';
+import { isV2, selfPowered, viewOf, createSim, setSupply, runAction } from './v2/index.js';
 
 function frame(level, wires, power, states, caption, newWire) {
   const an = analyse(level, wires, states);
@@ -32,7 +33,43 @@ function frame(level, wires, power, states, caption, newWire) {
  * @param {object} level     livello con `solution` e `controls`
  * @param {{wires?:string[], power?:string, controls?:string[]}} captions
  */
+// Motore v2: stessi fotogrammi, ma con la simulazione a stato. `level.demoDo` = [{ do: ['press SB1', 'release SB1'], caption }]
+// elenca le azioni mostrate dopo l'alimentazione; senza, si aziona ciascun comando una volta.
+function demoFramesV2(level, captions) {
+  const wires = level.solution.map(([a, b, c], i) => ({ id: i + 1, a, b, c }));
+  const self = selfPowered(level);
+  const snapOf = (sim, w, power, caption, newWire) => ({
+    caption,
+    newWire,
+    snap: {
+      level, wires: w, power, trip: false, message: null, flowVisible: true, solutionShown: false, guide: null,
+      selfPowered: self, overload: !!sim.overload, ...viewOf(level, sim, power),
+    },
+  });
+  const out = [];
+  for (let k = 1; k <= wires.length; k++) {
+    const w = wires.slice(0, k);
+    const sim = createSim(level, w);
+    if (!self) setSupply(sim, false);
+    out.push(snapOf(sim, w, self, (captions.wires || [])[k - 1] || '', k));
+  }
+  const sim = createSim(level, wires);
+  setSupply(sim, true);
+  out.push(snapOf(sim, wires, true, captions.power || '', null));
+  const steps = level.demoDo || (level.controls || []).map((id, i) => {
+    const c = level.comps.find(x => x.id === id);
+    const hold = c && ['pb', 'pbnc', 'fungo'].includes(c.type);
+    return { do: [hold ? 'press ' + id : 'toggle ' + id], caption: (captions.controls || [])[i] || '' };
+  });
+  steps.forEach(st => {
+    st.do.forEach(a => runAction(sim, a));
+    out.push(snapOf(sim, wires, true, st.caption || '', null));
+  });
+  return out;
+}
+
 export function demoFrames(level, captions = {}) {
+  if (isV2(level)) return demoFramesV2(level, captions);
   const sol = level.solution.map(([a, b, c], i) => ({ id: i + 1, a, b, c }));
   const out = [];
   for (let k = 1; k <= sol.length; k++) {
