@@ -498,3 +498,6 @@ html[dir="rtl"] svg,html[dir="rtl"] .house,html[dir="rtl"] #bench,html[dir="rtl"
 .trnote{margin:14px 0 0;font-size:13px;line-height:1.5;color:var(--ink2)}
 .trnote a{color:inherit}
 html[lang="it"] .trnote{display:none}
+.halo-w.b{stroke:#B48CE8;stroke-opacity:.55}.flow.b{stroke:#EBDDFF}
+.tbtn{cursor:pointer}
+.togg.hold:focus-visible{outline:none}

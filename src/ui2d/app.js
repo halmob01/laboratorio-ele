@@ -304,14 +304,48 @@ bench.addEventListener('click', e => {
   if (t) return;
   const h = e.target.closest('[data-help]'); if (h) { setInfo(h.dataset.help); return; }
   const q = e.target.closest('[data-q]'); if (q) { clearSel(); session.toggleBreaker(); return; }
+  const tp = e.target.closest('[data-test]'); if (tp) { clearSel(); session.testPart(tp.dataset.test); return; }
+  const rp = e.target.closest('[data-reset]'); if (rp) { clearSel(); session.resetPart(rp.dataset.reset); return; }
   const c = e.target.closest('[data-ctl]'); if (c) { clearSel(); session.toggleControl(c.dataset.ctl); return; }
   // Il "click" che il telefono genera dopo il tocco arriva quando il banco e' gia' stato ridisegnato:
   // puo' cadere sul filo appena creato e cancellarlo. Quel filo non si cancella nel primo mezzo secondo.
   const w = e.target.closest('[data-wire]'); if (w) { clearSel(); if (!(w.dataset.wire === lastWireId && Date.now() - lastWireAt < 600)) session.removeWire(+w.dataset.wire); return; }
   clearSel();
 });
+/* ---------- pulsanti a impulso (motore v2): attivi finche' si tengono premuti ---------- */
+// Un tocco breve vale premi e rilascia, con una pressione minima di 250 ms perche' il circuito faccia in tempo a rispondere.
+const HOLD_MIN = 250;
+let held = null;   // { id, at }
+function holdStart(id) {
+  if (held) return;
+  held = { id, at: Date.now() };
+  clearSel(); session.press(id);
+}
+function holdEnd() {
+  if (!held) return;
+  const h = held; held = null;
+  const rest = HOLD_MIN - (Date.now() - h.at);
+  if (rest > 0) setTimeout(() => session.release(h.id), rest); else session.release(h.id);
+}
+bench.addEventListener('pointerdown', e => {
+  const h = e.target.closest('[data-hold]');
+  if (!h) return;
+  e.preventDefault();
+  holdStart(h.dataset.hold);
+});
+window.addEventListener('pointerup', holdEnd);
+window.addEventListener('pointercancel', holdEnd);
+window.addEventListener('blur', holdEnd);
+bench.addEventListener('keyup', e => {
+  if (e.key !== 'Enter' && e.key !== ' ') return;
+  if (e.target.closest('[data-hold]')) { e.preventDefault(); holdEnd(); }
+});
 bench.addEventListener('keydown', e => {
   if (e.key !== 'Enter' && e.key !== ' ') return;
+  const hd = e.target.closest('[data-hold]');
+  if (hd) { e.preventDefault(); if (!e.repeat) holdStart(hd.dataset.hold); return; }
+  const tr_ = e.target.closest('[data-test],[data-reset]');
+  if (tr_) { e.preventDefault(); if (tr_.dataset.test) session.testPart(tr_.dataset.test); else session.resetPart(tr_.dataset.reset); return; }
   const t = e.target.closest('[data-term]');
   if (t) {
     e.preventDefault();
@@ -341,6 +375,8 @@ document.querySelector('.mode').addEventListener('click', e => {
 setInterval(() => {
   if (S && (S.lit || (S.litLoads && S.litLoads.some(Boolean)))) { KWH += 0.1; const k = $('#kwh'); if (k) k.textContent = R.kwhText(KWH); }
 }, 700);
+// Orologio del circuito (temporizzatori, protezioni termiche): solo quando serve e la scheda e' visibile.
+setInterval(() => { if (S && S.needsClock && !document.hidden) session.tick(0.5); }, 500);
 $('#info').addEventListener('click', e => { if (e.target.closest('[data-x]')) $('#info').classList.remove('open'); });
 if (window.ResizeObserver) {
   new ResizeObserver(() => {

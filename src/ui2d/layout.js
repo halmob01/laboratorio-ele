@@ -89,7 +89,65 @@ function fullLayout(id) {
   return { comps, plates: base.plates };
 }
 
+/* ---------- livelli del motore v2: disposizione automatica ---------- */
+// Per ogni tipo: [larghezza, altezza] e quali morsetti stanno in alto (t) e in basso (b). I morsetti non elencati vanno in alto.
+const FULL = 380, HALF = 185;
+const KIND = {
+  quadro: [FULL, 100, null, ['L1', 'L2', 'L3', 'F', 'N', 'PE']],
+  mt: [HALF, 120, ['1', 'N1'], ['2', 'N2']], rcd: [HALF, 120, ['1', 'N1'], ['2', 'N2']],
+  mt3: [FULL, 120, ['1', '3', '5'], ['2', '4', '6']], sez: [FULL, 120, ['1', '3', '5'], ['2', '4', '6']],
+  pb: [HALF, 110, ['3'], ['4']], pbnc: [HALF, 110, ['1'], ['2']], fungo: [HALF, 110, ['1'], ['2']],
+  ri: [HALF, 130, ['A1', 'A2'], ['1', '2']], tmr: [HALF, 130, ['A1', 'A2'], ['1', '2']],
+  km: [FULL, 190, ['A1', '1', '3', '5', '13', '21'], ['A2', '2', '4', '6', '14', '22']],
+  ft: [FULL, 150, ['1', '3', '5', '95', '97'], ['2', '4', '6', '96', '98'], .3],
+  fc: [HALF, 110, ['1', '3'], ['2', '4']], trafo: [FULL, 150, ['1', '2'], ['3', '4']],
+  bell: [HALF, 110, ['1', '2'], []], spia: [HALF, 100, ['X1', 'X2'], []], lamp: [HALF, 100, ['B', 'A'], []],
+  presa: [FULL, 130, ['L', 'PE', 'N'], []], motor3: [FULL, 130, ['U', 'V', 'W', 'PE'], []],
+  sw: [HALF, 120, ['a'], ['b']], dev: [HALF, 115, ['C'], ['1', '2']], inv: [HALF, 112, ['1', '2'], ['3', '4']],
+};
+const spread = (n, a = .1, b = .88) => (n === 1 ? [.5] : n === 2 ? [.28, .72] : n === 3 ? [.2, .5, .8] : Array.from({ length: n }, (_, i) => a + (b - a) * i / (n - 1)));
+
+export function autoLayout(level) {
+  const comps = {};
+  let y = 0, pending = null;
+  const make = (c, x, y0) => {
+    const [w, h, top, bot, lead] = KIND[c.type] || [FULL, 110, Object.keys(c.terms), []];
+    const ids = Object.keys(c.terms);
+    const t = top === null ? [] : ids.filter(i => (top || []).includes(i) || !(bot || []).includes(i));
+    const b = top === null ? ids : ids.filter(i => (bot || []).includes(i));
+    const terms = {};
+    // l'ordine dei morsetti segue la tabella del tipo, per tenerli nella posizione abituale
+    const order = (list, ref) => list.slice().sort((p, q) => (ref.indexOf(p) < 0 ? 99 : ref.indexOf(p)) - (ref.indexOf(q) < 0 ? 99 : ref.indexOf(q)));
+    const tt = order(t, top || []), bb = order(b, bot || []);
+    spread(tt.length, lead || .1).forEach((f, i) => (terms[tt[i]] = { f, s: 't' }));
+    spread(bb.length, lead || .1).forEach((f, i) => (terms[bb[i]] = { f, s: 'b' }));
+    return { x, y: y0, w, h, terms };
+  };
+  const width = c => (KIND[c.type] || [FULL])[0];
+  level.comps.forEach(c => {
+    if (width(c) === HALF) {
+      if (pending) {
+        const g = make(c, 215, pending.y);
+        comps[c.id] = g;
+        y = pending.y + Math.max(pending.h, g.h) + 44;
+        pending = null;
+      } else {
+        const g = make(c, 20, y);
+        comps[c.id] = g;
+        pending = g;
+      }
+    } else {
+      if (pending) { y = pending.y + pending.h + 44; pending = null; }
+      const g = make(c, 20, y);
+      comps[c.id] = g;
+      y += g.h + 44;
+    }
+  });
+  return { comps, plates: {} };
+}
+
 export function layoutFor(level) {
+  if (level.engine === 2) return autoLayout(level);
   return level.full ? fullLayout(level.id) : BASE[level.id];
 }
 

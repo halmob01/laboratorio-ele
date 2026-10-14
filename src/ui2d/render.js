@@ -7,6 +7,7 @@
 import { WIRE_COLORS } from '../engine/index.js';
 import { COLOR_NAMES, describeEvaluation, sessionMessage, flowMessage } from '../content/it.js';
 import { WIRE_STYLE } from './palette.js';
+import { schemV2, V2_TYPES, isLive } from './render2.js';
 
 /* ---------- geometria dei morsetti e dei fili ---------- */
 export function termPosOf(c, id) {
@@ -190,17 +191,21 @@ function litOf(s, c) {
 
 // ui: { mobile, sel, kwh }
 export function benchHTML(s, comps, ui) {
-  const live = id => s.power && s.potential(id) === 'F';
+  const is2 = s.level && s.level.engine === 2;
+  const live = is2 ? id => isLive(s.potential(id)) : id => s.power && s.potential(id) === 'F';
   const H = Math.max(...comps.map(c => c.y + c.h)) + 22;
   let o = `<defs><pattern id="pegs" width="16" height="16" patternUnits="userSpaceOnUse"><circle cx="8" cy="8" r="1.4" fill="var(--dot)"/></pattern></defs><rect x="0" y="-28" width="420" height="${H + 28}" fill="var(--bench)"/><rect x="0" y="-28" width="420" height="${H + 28}" fill="url(#pegs)"/>`;
   const dimmed = c => ui.focus && !ui.focus.includes(c.id);
   comps.forEach(c => {
-    const toggles = c.type === 'sw' || c.type === 'dev' || c.type === 'inv';
+    const toggles = ['sw', 'dev', 'inv', 'mt', 'mt3', 'sez', 'rcd', 'fungo'].includes(c.type);
+    const hold = c.type === 'pb' || c.type === 'pbnc';
     if (dimmed(c)) o += '<g class="dimmed">';
     o += `<text class="ttl" x="${c.x + 2}" y="${c.y - 9}">${c.title}</text>`;
     o += `<g class="help" data-help="${c.type}" role="button" tabindex="0" aria-label="Che cos’è: ${c.title}"><circle cx="${c.x + c.w - 12}" cy="${c.y - 13}" r="19" fill="transparent" stroke="none"/><circle cx="${c.x + c.w - 9}" cy="${c.y - 13}" r="${ui.mobile ? 11 : 9}"/><text x="${c.x + c.w - 9}" y="${c.y - 8.5}" text-anchor="middle">?</text></g>`;
     o += `<rect class="body" x="${c.x}" y="${c.y}" width="${c.w}" height="${c.h}" rx="10"/>`;
-    o += `<g transform="translate(${c.x},${c.y})"${toggles ? ` class="togg" data-ctl="${c.id}" style="cursor:pointer"` : ''}>${toggles ? `<rect x="0" y="0" width="${c.w}" height="${c.h}" rx="10" fill="transparent"/>` : ''}${schem(c, s, live, litOf(s, c), ui)}</g>`;
+    const inner = is2 && V2_TYPES.has(c.type) ? schemV2(c, s, live, ui) : schem(c, s, live, litOf(s, c), ui);
+    const act = toggles ? ` class="togg" data-ctl="${c.id}" style="cursor:pointer"` : hold ? ` class="togg hold" data-hold="${c.id}" style="cursor:pointer;touch-action:none" role="button" tabindex="0" aria-label="${c.title}, tieni premuto"` : '';
+    o += `<g transform="translate(${c.x},${c.y})"${act}>${toggles || hold ? `<rect x="0" y="0" width="${c.w}" height="${c.h}" rx="10" fill="transparent"/>` : ''}${inner}</g>`;
     if (dimmed(c)) o += '</g>';
   });
   if (s.solutionShown) {
@@ -211,18 +216,19 @@ export function benchHTML(s, comps, ui) {
     o += `<path class="ghost guide" d="${wirePath(termPos(comps, ga), termPos(comps, gb))}" stroke="${WIRE_STYLE[gc].base}"/>`;
   }
   // Con la corrente visibile ogni filo ha uno stato: in tensione (alone), percorso da corrente (puntini).
-  const fv = s.flowVisible && s.power;
+  const fv = s.flowVisible && (s.power || is2);
   s.wires.forEach(w => {
     const d = wirePath(termPos(comps, w.a), termPos(comps, w.b)), q = Object.hasOwn(WIRE_STYLE, w.c) ? WIRE_STYLE[w.c] : WIRE_STYLE.nero;
     const pot = s.potential(w.a);
     const st = s.flow.wires[w.id];
     let halo = '', fl = '';
-    if (fv) {
-      const k = st.net === 'F' ? 'f' : st.net === 'N' ? 'n' : '';
+    const netK = n => (n === 'F' || n === 'fase') ? 'f' : (n === 'N' || n === 'neutro') ? 'n' : n === 'bassa' ? 'b' : '';
+    if (fv || (is2 && s.flowVisible)) {
+      const k = netK(st.net);
       if (k) halo = `<path class="halo-w ${k}" d="${d}"/>`;
       if (st.current && k) fl = `<path class="flow ${k} cur" d="${d}"/>`;
     } else {
-      const k = s.power && pot === 'F' ? 'f' : s.power && pot === 'N' ? 'n' : '';
+      const k = is2 ? (isLive(pot) ? (String(pot).includes(':') ? 'b' : 'f') : pot === 'N' ? 'n' : '') : s.power && pot === 'F' ? 'f' : s.power && pot === 'N' ? 'n' : '';
       if (k) fl = `<path class="flow ${k}" d="${d}"/>`;
     }
     o += `<g data-wire="${w.id}"${ui.newWire === w.id ? ' class="newwire"' : ''}>${halo}<path class="w-hit" d="${d}"/><path class="w-edge" d="${d}"/><path class="w-col" d="${d}" stroke="${q.base}"${ui.newWire === w.id ? ' pathLength="100"' : ''}/>${q.dash ? `<path class="w-col dash" d="${d}" stroke="${q.dash}"/>` : ''}${fl}</g>`;

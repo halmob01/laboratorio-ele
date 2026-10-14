@@ -508,6 +508,9 @@ html[dir="rtl"] svg,html[dir="rtl"] .house,html[dir="rtl"] #bench,html[dir="rtl"
 .trnote{margin:14px 0 0;font-size:13px;line-height:1.5;color:var(--ink2)}
 .trnote a{color:inherit}
 html[lang="it"] .trnote{display:none}
+.halo-w.b{stroke:#B48CE8;stroke-opacity:.55}.flow.b{stroke:#EBDDFF}
+.tbtn{cursor:pointer}
+.togg.hold:focus-visible{outline:none}
 </style>
 </head>
 <body>
@@ -570,6 +573,7 @@ html[lang="it"] .trnote{display:none}
 (() => {
   // src/engine/wires.js
   var WIRE_COLORS = ["marrone", "nero", "grigio", "blu", "gv"];
+  var ALL_COLORS = [...WIRE_COLORS, "rosso", "bianco"];
   var PHASE_COLORS = ["marrone", "nero", "grigio"];
   function allowedColors(role) {
     if (role === "neutro") return ["blu"];
@@ -1044,6 +1048,769 @@ html[lang="it"] .trnote{display:none}
     return { id: RANKS[i].id, index: i, min: RANKS[i].min, next: next && { id: next.id, min: next.min } };
   }
 
+  // src/engine/v2/parts.js
+  var v1 = (type) => (c2, s) => COMPONENT_TYPES[type].contacts(c2, s.on ? 1 : 0);
+  var pole = (on, pairs) => on ? pairs : [];
+  var PARTS = {
+    quadro: { contacts: () => [] },
+    cont: { contacts: () => [] },
+    // comandi manuali
+    sw: { contacts: v1("sw"), init: (c2) => ({ on: !!c2.init }), actions: ["toggle"] },
+    dev: { contacts: v1("dev"), init: (c2) => ({ on: !!c2.init }), actions: ["toggle"] },
+    inv: { contacts: v1("inv"), init: (c2) => ({ on: !!c2.init }), actions: ["toggle"] },
+    pb: { contacts: (c2, s) => pole(s.pressed, [["3", "4"]]), init: () => ({ pressed: false }), actions: ["press", "release"] },
+    pbnc: { contacts: (c2, s) => pole(!s.pressed, [["1", "2"]]), init: () => ({ pressed: false }), actions: ["press", "release"] },
+    fungo: { contacts: (c2, s) => pole(!s.pressed, [["1", "2"]]), init: () => ({ pressed: false }), actions: ["toggle"] },
+    // protezioni e sezionamento (chiusi all'inizio, salvo `init: 0`)
+    mt: { protect: "corto", contacts: (c2, s) => pole(s.on, [["1", "2"], ["N1", "N2"]]), poles: { F: ["1", "2"], N: ["N1", "N2"] }, init: (c2) => ({ on: c2.init !== 0, tripped: false }), actions: ["toggle"] },
+    mt3: { protect: "corto", contacts: (c2, s) => pole(s.on, [["1", "2"], ["3", "4"], ["5", "6"]]), init: (c2) => ({ on: c2.init !== 0, tripped: false }), actions: ["toggle"] },
+    sez: { contacts: (c2, s) => pole(s.on, [["1", "2"], ["3", "4"], ["5", "6"]]), init: (c2) => ({ on: c2.init !== 0, tripped: false }), actions: ["toggle"] },
+    rcd: { protect: "terra", contacts: (c2, s) => pole(s.on, [["1", "2"], ["N1", "N2"]]), poles: { F: ["1", "2"], N: ["N1", "N2"] }, init: (c2) => ({ on: c2.init !== 0, tripped: false }), actions: ["toggle", "test"] },
+    // relè e contattori: la bobina e' un carico, il resto sono contatti
+    ri: { coil: ["A1", "A2"], contacts: (c2, s) => pole(s.on, [["1", "2"]]), init: () => ({ on: false, coil: false }) },
+    tmr: { coil: ["A1", "A2"], contacts: (c2, s) => pole(s.left > 0, [["1", "2"]]), init: () => ({ left: 0, coil: false }) },
+    km: {
+      coil: ["A1", "A2"],
+      contacts: (c2, s) => s.on ? [["1", "2"], ["3", "4"], ["5", "6"], ["13", "14"]] : [["21", "22"]],
+      power: [["1", "2"], ["3", "4"], ["5", "6"]],
+      init: () => ({ on: false, coil: false })
+    },
+    ft: {
+      contacts: (c2, s) => [["1", "2"], ["3", "4"], ["5", "6"]].concat(s.tripped ? [["97", "98"]] : [["95", "96"]]),
+      power: [["1", "2"], ["3", "4"], ["5", "6"]],
+      init: () => ({ tripped: false, heat: 0 }),
+      actions: ["reset"]
+    },
+    fc: { contacts: (c2, s) => s.act ? [["3", "4"]] : [["1", "2"]], init: () => ({ act: false }) },
+    // sorgente derivata
+    trafo: { contacts: () => [], primary: ["1", "2"], secondary: ["3", "4"] },
+    // carichi
+    lamp: { load: ["A", "B"], contacts: () => [] },
+    spia: { load: ["X1", "X2"], contacts: () => [] },
+    presa: { load: ["L", "N"], contacts: () => [] },
+    bell: { load: ["1", "2"], volt: 12, contacts: () => [] },
+    motor3: { motor: ["U", "V", "W"], contacts: () => [] }
+  };
+  var POWER_PATH = /* @__PURE__ */ new Set(["mt", "mt3", "sez", "rcd", "km", "ft"]);
+  var partOf = (c2) => PARTS[c2.type] || PARTS.quadro;
+  var loadVolt = (c2) => c2.volt || partOf(c2).volt || 230;
+
+  // src/engine/v2/sim.js
+  var PHASES = ["F", "L1", "L2", "L3"];
+  var isPhase = (p) => PHASES.includes(p);
+  var isTrafo = (p) => typeof p === "string" && p.includes(":");
+  var MAX_ITER = 40;
+  var STEP = 0.5;
+  var sourcesOf = (level) => level.src || { F: "Q.F", N: "Q.N", PE: "Q.PE" };
+  function createSim(level, wires = []) {
+    const parts = {};
+    level.comps.forEach((c2) => {
+      const p = partOf(c2);
+      parts[c2.id] = p.init ? p.init(c2) : {};
+    });
+    const sim = {
+      level,
+      wires: wires.slice(),
+      parts,
+      t: 0,
+      supply: true,
+      // alimentazione dal quadro (la levetta della sessione, se il livello non ha protezioni proprie)
+      mainTrip: false,
+      // corto che nessuna protezione del livello puo' interrompere
+      burnt: {},
+      // carichi bruciati da sovratensione
+      unstable: false,
+      overload: false,
+      // sovraccarico simulato (prove del relè termico)
+      pos: level.machine ? level.machine.start || 0 : 0,
+      kmHistory: []
+      // insiemi di contattori chiusi visti durante l'assestamento (interblocco)
+    };
+    settle(sim);
+    return sim;
+  }
+  function connect2(sim, open = {}) {
+    const uf = makeUF();
+    sim.wires.forEach((w) => uf.u(w.a, w.b));
+    sim.level.comps.forEach((c2) => {
+      const p = partOf(c2);
+      let pairs = p.contacts(c2, sim.parts[c2.id] || {});
+      const o = open[c2.id];
+      if (o === "all") pairs = [];
+      else if (o === "power" && p.power) pairs = pairs.filter(([a]) => !p.power.some(([x]) => x === a));
+      else if (o && p.poles) pairs = pairs.filter(([a]) => !p.poles[o].includes(a));
+      pairs.forEach(([a, b]) => uf.u(c2.id + "." + a, c2.id + "." + b));
+    });
+    return uf;
+  }
+  function voltage(p, q) {
+    if (!p || !q || p === q) return 0;
+    if (isTrafo(p) || isTrafo(q)) {
+      if (!isTrafo(p) || !isTrafo(q)) return 0;
+      const [ta] = p.split(":"), [tb] = q.split(":");
+      return ta === tb ? "sec:" + ta : 0;
+    }
+    if (isPhase(p) && isPhase(q)) return 400;
+    if (isPhase(p) || isPhase(q)) return 230;
+    return 0;
+  }
+  function analyse2(sim, open) {
+    const { level } = sim;
+    const uf = connect2(sim, open);
+    const pots = {};
+    const addPot = (term2, name) => {
+      const k = uf.f(term2);
+      (pots[k] = pots[k] || /* @__PURE__ */ new Set()).add(name);
+    };
+    if (sim.supply && !sim.mainTrip) {
+      Object.entries(sourcesOf(level)).forEach(([name, term2]) => addPot(term2, name));
+    }
+    const potAt = (term2) => {
+      const s = pots[uf.f(term2)];
+      if (!s || s.size !== 1) return s && s.size ? "mix" : null;
+      return [...s][0];
+    };
+    const trafos = level.comps.filter((c2) => c2.type === "trafo");
+    const burntNow = [];
+    const trafoOn = {};
+    trafos.forEach((c2) => {
+      const v = voltage(potAt(c2.id + ".1"), potAt(c2.id + ".2"));
+      trafoOn[c2.id] = v === 230;
+      if (v === 400) burntNow.push(c2.id);
+      if (trafoOn[c2.id] && !sim.burnt[c2.id]) {
+        addPot(c2.id + ".3", c2.id + ":a");
+        addPot(c2.id + ".4", c2.id + ":b");
+      }
+    });
+    const volt = (x, y) => {
+      const p = potAt(x), q = potAt(y);
+      if (p === "mix" || q === "mix") return 0;
+      const v = voltage(p, q);
+      if (typeof v === "string") {
+        const t = level.comps.find((c2) => c2.id === v.slice(4));
+        return t ? t.vout || 12 : 0;
+      }
+      return v;
+    };
+    const faults = [];
+    Object.values(pots).forEach((s) => {
+      if (s.size < 2) return;
+      const a = [...s];
+      const ph = a.filter(isPhase), tr2 = a.filter(isTrafo), mains = a.filter((x) => !isTrafo(x));
+      if (tr2.length && mains.length) faults.push({ code: "secondarioMisto" });
+      else if (ph.length > 1 || ph.length && a.includes("N")) faults.push({ code: "corto" });
+      else if (ph.length && a.includes("PE")) faults.push({ code: "faseterra" });
+      else if (tr2.length > 1) {
+        const ids = new Set(tr2.map((x) => x.split(":")[0]));
+        if (ids.size < tr2.length) faults.push({ code: "corto" });
+        else faults.push({ code: "secondarioMisto" });
+      } else if (a.includes("N") && a.includes("PE")) faults.push({ code: "neutroterra" });
+    });
+    const loads = {}, coils = {}, motors = {};
+    level.comps.forEach((c2) => {
+      const p = partOf(c2);
+      const id = c2.id;
+      if (p.load || p.coil) {
+        const [x, y] = (p.load || p.coil).map((t) => id + "." + t);
+        const v = volt(x, y), vn = loadVolt(c2);
+        let st = "off";
+        if (sim.burnt[id]) st = "burnt";
+        else if (v > vn) st = "burnt";
+        else if (v === vn) st = "on";
+        else if (v > 0) st = "weak";
+        if (p.load) loads[id] = st;
+        else coils[id] = st === "on";
+        const px2 = potAt(x), py = potAt(y);
+        if (v > 0 && (px2 === "PE" || py === "PE")) faults.push({ code: "caricoTerra", comp: id });
+        if (st === "burnt") loads[id] = loads[id] || "burnt";
+      }
+      if (p.motor) {
+        const ph = p.motor.map((t) => potAt(id + "." + t));
+        const idx = ph.map((x) => ["L1", "L2", "L3"].indexOf(x));
+        const distinct = new Set(idx.filter((i) => i >= 0));
+        let st = "off";
+        if (distinct.size === 3) {
+          const cyc = (idx[1] - idx[0] + 3) % 3 === 1 && (idx[2] - idx[1] + 3) % 3 === 1;
+          st = cyc ? "fwd" : "rev";
+        } else if (distinct.size === 2) st = "hum";
+        motors[id] = st;
+      }
+    });
+    return { uf, pots, potAt, volt, faults, loads, coils, motors, trafoOn, burntNow };
+  }
+  var closedProtections = (sim, kind) => sim.level.comps.filter((c2) => partOf(c2).protect && (!kind || partOf(c2).protect === kind) && sim.parts[c2.id].on);
+  var trip = (sim, c2) => {
+    sim.parts[c2.id].on = false;
+    sim.parts[c2.id].tripped = true;
+  };
+  var hasFault = (an, codes) => an.faults.some((f) => codes.includes(f.code));
+  function protect(sim, an) {
+    const rank = (c2) => c2.rank || 1;
+    const pick = (cands, still) => {
+      const ok = cands.filter((c2) => !still(analyse2(sim, { [c2.id]: "all" })));
+      if (!ok.length) return null;
+      return ok.sort((a, b) => rank(b) - rank(a))[0];
+    };
+    if (hasFault(an, ["corto"])) {
+      const c2 = pick(closedProtections(sim, "corto"), (a) => hasFault(a, ["corto"]));
+      if (c2) {
+        trip(sim, c2);
+        return true;
+      }
+      sim.mainTrip = true;
+      sim.mainTripCause = "corto";
+      return true;
+    }
+    if (hasFault(an, ["faseterra", "neutroterra"])) {
+      const c2 = pick(closedProtections(sim, "terra"), (a) => hasFault(a, ["faseterra", "neutroterra"]));
+      if (c2) {
+        trip(sim, c2);
+        return true;
+      }
+      if (hasFault(an, ["faseterra"])) {
+        const m = pick(closedProtections(sim, "corto"), (a) => hasFault(a, ["faseterra"]));
+        if (m) {
+          trip(sim, m);
+          return true;
+        }
+        sim.mainTrip = true;
+        sim.mainTripCause = "faseterra";
+        return true;
+      }
+    }
+    for (const r of closedProtections(sim, "terra")) {
+      const offF = analyse2(sim, { [r.id]: "F" }), offN = analyse2(sim, { [r.id]: "N" });
+      const unbalanced = Object.keys(an.loads).some((id) => an.loads[id] === "on" && offF.loads[id] === "on" !== (offN.loads[id] === "on")) || Object.keys(an.coils).some((id) => an.coils[id] && offF.coils[id] !== offN.coils[id]) || Object.keys(an.motors).some((id) => an.motors[id] !== "off" && offF.motors[id] !== offN.motors[id]);
+      if (unbalanced) {
+        trip(sim, r);
+        return true;
+      }
+    }
+    return false;
+  }
+  function machineSwitches(sim) {
+    const m = sim.level.machine;
+    if (!m) return;
+    if (m.endFwd && sim.parts[m.endFwd]) sim.parts[m.endFwd].act = sim.pos >= m.length;
+    if (m.endRev && sim.parts[m.endRev]) sim.parts[m.endRev].act = sim.pos <= 0;
+  }
+  function settle(sim) {
+    const comps2 = sim.level.comps;
+    for (let it = 0; it < MAX_ITER; it++) {
+      machineSwitches(sim);
+      const an = analyse2(sim);
+      Object.entries(an.loads).forEach(([id, st]) => {
+        if (st === "burnt") sim.burnt[id] = true;
+      });
+      an.burntNow.forEach((id) => sim.burnt[id] = true);
+      if (sim.kmHistory.length > 200) sim.kmHistory.splice(0, sim.kmHistory.length - 200);
+      sim.kmHistory.push(comps2.filter((c2) => c2.type === "km" && sim.parts[c2.id].on).map((c2) => c2.id));
+      if (protect(sim, an)) continue;
+      let changed = false;
+      for (const c2 of comps2) {
+        const p = partOf(c2);
+        if (!p.coil) continue;
+        const s = sim.parts[c2.id];
+        const en = !!an.coils[c2.id];
+        if (c2.type === "km" && s.on !== en) {
+          s.on = en;
+          s.coil = en;
+          changed = true;
+        } else if (c2.type === "ri" && en !== s.coil) {
+          if (en) s.on = !s.on;
+          s.coil = en;
+          changed = true;
+        } else if (c2.type === "tmr") {
+          if (en && s.left !== (c2.time || 60)) {
+            s.left = c2.time || 60;
+            changed = true;
+          }
+          if (en !== s.coil) {
+            s.coil = en;
+            changed = true;
+          }
+        }
+        if (changed) break;
+      }
+      if (!changed) {
+        sim.unstable = false;
+        return;
+      }
+    }
+    sim.unstable = true;
+  }
+  function act(sim, action, id) {
+    const c2 = sim.level.comps.find((x) => x.id === id);
+    if (!c2) throw new Error("componente sconosciuto: " + id);
+    const s = sim.parts[id];
+    const p = partOf(c2);
+    if (!(p.actions || []).includes(action)) throw new Error("azione " + action + " non valida per " + id);
+    if (action === "press") s.pressed = true;
+    else if (action === "release") s.pressed = false;
+    else if (action === "toggle") {
+      if ("pressed" in s && c2.type === "fungo") s.pressed = !s.pressed;
+      else {
+        s.on = !s.on;
+        if (s.on) s.tripped = false;
+      }
+      if (s.on && sim.mainTrip && (p.protect || c2.type === "sez")) sim.mainTrip = false;
+    } else if (action === "reset" && c2.type === "ft") {
+      s.tripped = false;
+      s.heat = 0;
+    } else if (action === "test" && c2.type === "rcd") {
+      if (s.on) {
+        const an = analyse2(sim);
+        if (an.volt(id + ".1", id + ".N1") === 230) trip(sim, c2);
+      }
+    } else throw new Error("azione non valida: " + action);
+    settle(sim);
+  }
+  function setSupply(sim, on) {
+    sim.supply = on;
+    if (on) sim.mainTrip = false;
+    settle(sim);
+  }
+  function advance(sim, seconds) {
+    const n = Math.max(1, Math.round(seconds / STEP));
+    for (let i = 0; i < n; i++) {
+      sim.t += STEP;
+      const an = analyse2(sim);
+      sim.level.comps.forEach((c2) => {
+        const s = sim.parts[c2.id];
+        if (c2.type === "tmr" && !an.coils[c2.id] && s.left > 0) s.left = Math.max(0, s.left - STEP);
+        if (c2.type === "ft" && !s.tripped) {
+          const without = analyse2(sim, { [c2.id]: "power" });
+          const mine = Object.keys(an.motors).filter((mid) => an.motors[mid] !== without.motors[mid]);
+          const hot = mine.some((mid) => an.motors[mid] === "hum" || sim.overload && (an.motors[mid] === "fwd" || an.motors[mid] === "rev"));
+          s.heat = hot ? s.heat + STEP : Math.max(0, s.heat - STEP);
+          if (s.heat >= (c2.tripAfter || 3)) s.tripped = true;
+        }
+      });
+      const m = sim.level.machine;
+      if (m) {
+        const dir = an.motors[m.motor];
+        const v = (m.speed || 1) * STEP;
+        if (dir === "fwd") sim.pos = Math.min(m.length, sim.pos + v);
+        if (dir === "rev") sim.pos = Math.max(0, sim.pos - v);
+      }
+      settle(sim);
+    }
+  }
+  function observe(sim) {
+    const an = analyse2(sim);
+    const faults = an.faults.slice();
+    if (sim.unstable) faults.push({ code: "instabile" });
+    if (sim.mainTrip) faults.push({ code: "quadro", cause: sim.mainTripCause || "corto" });
+    const parts = {};
+    Object.entries(sim.parts).forEach(([k, v]) => parts[k] = { ...v });
+    return {
+      t: sim.t,
+      faults,
+      tripped: sim.level.comps.filter((c2) => sim.parts[c2.id].tripped).map((c2) => c2.id),
+      loads: { ...an.loads, ...Object.fromEntries(Object.keys(sim.burnt).filter((id) => !(id in an.loads)).map((id) => [id, "burnt"])) },
+      motors: an.motors,
+      coils: an.coils,
+      parts,
+      machine: sim.level.machine ? { pos: sim.pos, atStart: sim.pos <= 0, atEnd: sim.pos >= sim.level.machine.length } : null,
+      potential: (term2) => {
+        const p = an.potAt(term2);
+        return p === "mix" ? null : p;
+      },
+      supply: sim.supply && !sim.mainTrip
+    };
+  }
+  function stillOnIfOpen(sim, id, protIds) {
+    const open = {};
+    protIds.forEach((p) => open[p] = "all");
+    const an = analyse2(sim, open);
+    return an.loads[id] === "on" || an.coils[id] === true || an.motors[id] !== void 0 && an.motors[id] !== "off";
+  }
+
+  // src/engine/v2/checks.js
+  var section2 = () => ({ ok: false, status: "ko", items: [] });
+  function finish2(sec) {
+    if (sec.ok) sec.status = "ok";
+    else if (sec.items.length && sec.items[0].code === "safe.skipped") sec.status = "na";
+    else sec.status = "ko";
+  }
+  function runAction(sim, step) {
+    const [a, x] = step.trim().split(/\s+/);
+    if (a === "wait") advance(sim, Number(x));
+    else if (a === "overload") sim.overload = x !== "off";
+    else act(sim, a, x);
+  }
+  function mismatch(obs2, expect) {
+    for (const group of ["motors", "loads", "coils"]) {
+      const want = expect[group];
+      if (!want) continue;
+      for (const [id, v] of Object.entries(want)) {
+        const got = obs2[group][id];
+        if (got !== v) return { comp: id, want: v, got: got === void 0 ? null : got };
+      }
+    }
+    if (expect.tripped) {
+      const got = obs2.tripped.slice().sort().join(",");
+      const want = expect.tripped.slice().sort().join(",");
+      if (got !== want) return { comp: "tripped", want, got };
+    }
+    if (expect.machine) {
+      for (const [k, v] of Object.entries(expect.machine)) {
+        if (obs2.machine[k] !== v) return { comp: "machine." + k, want: v, got: obs2.machine[k] };
+      }
+    }
+    return null;
+  }
+  var BLOCKING = { corto: "work.short", faseterra: "work.phaseToEarth", secondarioMisto: "work.secondaryMixed", instabile: "work.unstable", caricoTerra: "work.loadOnEarth" };
+  var QUADRO = { corto: "work.short", faseterra: "work.phaseToEarth" };
+  function blockingOf(o, allowTrip) {
+    const q = o.faults.find((x) => x.code === "quadro");
+    if (q) return { code: QUADRO[q.cause] || "work.short" };
+    const f = o.faults.find((x) => BLOCKING[x.code]);
+    if (f) return f.comp ? { code: BLOCKING[f.code], comp: f.comp } : { code: BLOCKING[f.code] };
+    const tr2 = o.tripped.find((x) => !allowTrip.has(x));
+    if (tr2) return { code: "work.tripped", comp: tr2 };
+    const burnt = Object.keys(o.loads).find((id) => o.loads[id] === "burnt");
+    if (burnt) return { code: "work.burnt", comp: burnt };
+    return null;
+  }
+  function runCheck(level, wires, check) {
+    const sim = createSim(level, wires);
+    const states = [observe(sim)];
+    const stages = check.steps || [{ do: check.do || [], expect: check.expect || {} }];
+    const allowTrip = /* @__PURE__ */ new Set();
+    const first = blockingOf(states[0], allowTrip);
+    if (first) return { ok: false, sim, states, fail: first };
+    for (const st of stages) {
+      (st.expect && st.expect.tripped || []).forEach((x) => allowTrip.add(x));
+      for (const step of st.do || []) {
+        runAction(sim, step);
+        const o2 = observe(sim);
+        states.push(o2);
+        const f2 = blockingOf(o2, allowTrip);
+        if (f2) return { ok: false, sim, states, fail: f2 };
+      }
+      const o = observe(sim);
+      const f = blockingOf(o, allowTrip);
+      if (f) return { ok: false, sim, states, fail: f };
+      const mm = mismatch(o, st.expect || {});
+      if (mm) return { ok: false, sim, states, fail: { code: "work.checkFail", ...mm } };
+    }
+    return { ok: true, sim, states };
+  }
+  var CTL_TYPES = /* @__PURE__ */ new Set(["pb", "pbnc", "fungo", "spia", "fc", "ri", "tmr"]);
+  function isCtlTerm(level, term2) {
+    const [id, t] = term2.split(".");
+    const c2 = level.comps.find((x) => x.id === id);
+    if (!c2) return false;
+    if (CTL_TYPES.has(c2.type)) return true;
+    if (c2.type === "km") return ["A1", "A2", "13", "14", "21", "22"].includes(t);
+    if (c2.type === "ft") return ["95", "96", "97", "98"].includes(t);
+    return false;
+  }
+  function wireRoles(level, wires) {
+    const uf = makeUF();
+    wires.forEach((w) => uf.u(w.a, w.b));
+    level.comps.forEach((c2) => {
+      const p = partOf(c2);
+      let pairs = [];
+      if (POWER_PATH.has(c2.type)) pairs = p.power || p.contacts(c2, { on: true, tripped: false });
+      if (c2.type === "quadro" && c2.full) pairs = [["Fi", "F"], ["Ni", "N"], ["PEi", "PE"]];
+      pairs.forEach(([a, b]) => uf.u(c2.id + "." + a, c2.id + "." + b));
+    });
+    const roles = {};
+    Object.entries(sourcesOf(level)).forEach(([name, term2]) => {
+      const k = uf.f(term2);
+      const r = name === "N" ? "neutro" : name === "PE" ? "terra" : "fase";
+      if (!roles[k] || r === "fase") roles[k] = r;
+    });
+    level.comps.filter((c2) => c2.type === "trafo").forEach((c2) => {
+      ["3", "4"].forEach((t) => {
+        const k = uf.f(c2.id + "." + t);
+        if (!roles[k]) roles[k] = "bassa";
+      });
+    });
+    const all = makeUF();
+    wires.forEach((w) => all.u(w.a, w.b));
+    const ON = { on: true, pressed: true, left: 1, act: true, tripped: false }, OFF = { on: false, pressed: false, left: 0, act: false, tripped: false };
+    level.comps.forEach((c2) => {
+      const p = partOf(c2);
+      p.contacts(c2, ON).concat(p.contacts(c2, OFF)).forEach(([a, b]) => all.u(c2.id + "." + a, c2.id + "." + b));
+    });
+    const low = /* @__PURE__ */ new Set();
+    level.comps.filter((c2) => c2.type === "trafo").forEach((c2) => ["3", "4"].forEach((t) => low.add(all.f(c2.id + "." + t))));
+    return wires.map((w) => roles[uf.f(w.a)] || (low.has(all.f(w.a)) ? "bassa" : "comando"));
+  }
+  function allowedColorsV2(level, role, wire) {
+    const red = level.controlColor === "rosso" && (isCtlTerm(level, wire.a) || isCtlTerm(level, wire.b)) ? ["rosso"] : [];
+    if (role === "neutro") return ["blu"];
+    if (role === "terra") return ["gv"];
+    if (role === "bassa") return ["marrone", "nero", "grigio", "rosso", "bianco"];
+    return PHASE_COLORS.concat(red);
+  }
+  function evaluateV2(level, wires) {
+    const out = { work: section2(), color: section2(), safe: section2() };
+    const add = (sec, code, params) => out[sec].items.push(params ? { code, ...params } : { code });
+    if (!wires.length) {
+      add("work", "work.noWires");
+      add("color", "color.noWires");
+      add("safe", "safe.skipped");
+      out.stars = 0;
+      out.pass = false;
+      finish2(out.work);
+      finish2(out.color);
+      finish2(out.safe);
+      return out;
+    }
+    const runs = (level.checks || []).map((ch) => ({ ch, r: runCheck(level, wires, ch) }));
+    const failed = runs.filter((x) => !x.r.ok);
+    if (!failed.length) {
+      out.work.ok = true;
+      add("work", "work.allChecksOk", { n: runs.length });
+    } else {
+      const first = failed[0].r.fail;
+      if (first.code !== "work.checkFail" && failed.every((x) => x.r.fail.code === first.code)) add("work", first.code, first.comp ? { comp: first.comp } : void 0);
+      else {
+        failed.slice(0, 3).forEach(({ ch, r }) => add("work", "work.checkFail", { check: ch.id, label: ch.label, cause: r.fail.code, want: r.fail.want, got: r.fail.got, comp: r.fail.comp }));
+        if (failed.length > 3) add("work", "work.checkMore", { n: failed.length - 3 });
+      }
+    }
+    const roles = wireRoles(level, wires);
+    const bad = [];
+    wires.forEach((w, i) => {
+      if (!allowedColorsV2(level, roles[i], w).includes(w.c)) bad.push({ code: "color.wrong", a: w.a, b: w.b, role: roles[i] });
+    });
+    if (!bad.length) {
+      out.color.ok = true;
+      add("color", "color.ok", { earth: !!(level.safety && level.safety.earth) });
+    } else {
+      bad.slice(0, 3).forEach((b) => out.color.items.push(b));
+      if (bad.length > 3) add("color", "color.more", { n: bad.length - 3 });
+    }
+    if (!out.work.ok) add("safe", "safe.skipped");
+    else {
+      const S2 = level.safety || {};
+      const states = runs.flatMap((x) => x.r.states);
+      let ok = true;
+      const fail = (code, params) => {
+        ok = false;
+        add("safe", code, params);
+      };
+      if (S2.phaseSwitched) {
+        const sim = createSim(level, wires);
+        const pots = [observe(sim)].concat(states);
+        const PH3 = ["F", "L1", "L2", "L3"];
+        const broken = S2.phaseSwitched.some((id) => {
+          const c2 = level.comps.find((x) => x.id === id);
+          const p = partOf(c2);
+          const ts = (p.load || p.coil || []).map((t) => id + "." + t);
+          return !pots.every((o) => o.loads[id] === "on" || o.coils[id] === true || !ts.some((t) => PH3.includes(o.potential(t))));
+        });
+        if (broken) fail("safe.neutralBroken");
+      }
+      if (S2.earth) {
+        const uf = makeUF();
+        wires.forEach((w) => uf.u(w.a, w.b));
+        S2.earth.forEach(([x, y]) => {
+          if (uf.f(x) !== uf.f(y)) fail("safe.noEarth", { comp: x.split(".")[0] });
+        });
+      }
+      if (S2.never) {
+        const both = runs.some((x) => x.r.sim.kmHistory.some((on) => S2.never.some((pair) => pair.every((id) => on.includes(id)))));
+        const sim = createSim(level, wires);
+        level.comps.filter((c2) => c2.type === "pb").forEach((c2) => act(sim, "press", c2.id));
+        const both2 = sim.kmHistory.some((on) => S2.never.some((pair) => pair.every((id) => on.includes(id))));
+        if (both || both2) fail("safe.interlock");
+      }
+      if (S2.stopWins) {
+        const sim = createSim(level, wires);
+        act(sim, "press", S2.stopWins);
+        const running2 = (o) => Object.values(o.motors).some((m) => m !== "off") || Object.values(o.coils).some(Boolean);
+        let bad2 = false;
+        level.comps.filter((c2) => c2.type === "pb").forEach((c2) => {
+          act(sim, "press", c2.id);
+          if (running2(observe(sim))) bad2 = true;
+          act(sim, "release", c2.id);
+        });
+        act(sim, "release", S2.stopWins);
+        if (bad2 || running2(observe(sim))) fail("safe.stopNotPriority");
+      }
+      if (S2.emergency) {
+        const sim = createSim(level, wires);
+        const starts = level.comps.filter((c2) => c2.type === "pb");
+        starts.forEach((c2) => {
+          act(sim, "press", c2.id);
+          act(sim, "release", c2.id);
+        });
+        act(sim, "toggle", S2.emergency);
+        starts.forEach((c2) => act(sim, "press", c2.id));
+        let o = observe(sim);
+        if (Object.values(o.motors).some((m) => m !== "off") || Object.values(o.coils).some(Boolean)) fail("safe.emergency");
+        starts.forEach((c2) => act(sim, "release", c2.id));
+        act(sim, "toggle", S2.emergency);
+        o = observe(sim);
+        if (Object.values(o.motors).some((m) => m !== "off")) fail("safe.restartAfterEmergency");
+      }
+      if (S2.rcdCovers) {
+        const rcds = level.comps.filter((c2) => c2.type === "rcd").map((c2) => c2.id);
+        S2.rcdCovers.forEach((id) => {
+          const run = runs.find((x) => {
+            const o = observe(x.r.sim);
+            return o.loads[id] === "on" || o.coils[id];
+          });
+          if (!run || stillOnIfOpen(run.r.sim, id, rcds)) fail("safe.notCovered", { comp: id });
+        });
+      }
+      if (S2.protectedBy) {
+        Object.entries(S2.protectedBy).forEach(([id, prot]) => {
+          const run = runs.find((x) => {
+            const o = observe(x.r.sim);
+            return o.loads[id] === "on" || o.coils[id] || o.motors[id] && o.motors[id] !== "off";
+          });
+          if (!run || stillOnIfOpen(run.r.sim, id, [prot])) fail("safe.notProtected", { comp: id, by: prot });
+        });
+      }
+      if (states.some((o) => o.faults.some((f) => f.code === "neutroterra"))) fail("safe.neutralEarth");
+      if (ok) {
+        out.safe.ok = true;
+        add("safe", "safe.ok", { variant: level.safetyVariant || "v2" });
+      }
+    }
+    out.stars = (out.work.ok ? 1 : 0) + (out.color.ok ? 1 : 0) + (out.safe.ok ? 1 : 0);
+    out.pass = out.stars === 3;
+    finish2(out.work);
+    finish2(out.color);
+    finish2(out.safe);
+    out.checks = runs.map(({ ch, r }) => ({ id: ch.id, label: ch.label, ok: r.ok, fail: r.fail || null }));
+    return out;
+  }
+
+  // src/engine/v2/flow.js
+  var MAX_STEPS2 = 2e5;
+  var PH = ["F", "L1", "L2", "L3"];
+  var netOf = (p) => !p || p === "mix" ? null : PH.includes(p) ? "fase" : p === "N" ? "neutro" : p === "PE" ? "terra" : "bassa";
+  function flowV2(sim) {
+    const { level, wires } = sim;
+    const an = analyse2(sim);
+    const out = { wires: {}, contacts: {}, deadEnds: [], current: false };
+    wires.forEach((w) => out.wires[w.id] = { net: netOf(an.potAt(w.a)), current: false });
+    const edges = [];
+    wires.forEach((w) => edges.push({ a: w.a, b: w.b, kind: "wire", key: w.id }));
+    level.comps.forEach((c2) => {
+      const p = partOf(c2);
+      p.contacts(c2, sim.parts[c2.id] || {}).forEach(([x, y]) => edges.push({ a: c2.id + "." + x, b: c2.id + "." + y, kind: "contact", key: c2.id + "." + x + "-" + y }));
+      const on = p.load && an.loads[c2.id] === "on" || p.coil && an.coils[c2.id];
+      if (on) {
+        const [x, y] = p.load || p.coil;
+        edges.push({ a: c2.id + "." + x, b: c2.id + "." + y, kind: "load" });
+      }
+      if (p.motor && an.motors[c2.id] && an.motors[c2.id] !== "off") {
+        const [u, v, w] = p.motor.map((t) => c2.id + "." + t);
+        [[u, v], [v, w], [w, u]].forEach(([x, y]) => edges.push({ a: x, b: y, kind: "load" }));
+      }
+    });
+    const degree = {};
+    edges.forEach((e) => {
+      if (e.kind !== "load") {
+        degree[e.a] = (degree[e.a] || 0) + 1;
+        degree[e.b] = (degree[e.b] || 0) + 1;
+      }
+    });
+    const src = sourcesOf(level);
+    const starts = [];
+    Object.entries(src).forEach(([name, t]) => {
+      if (name !== "PE") starts.push([t, name]);
+    });
+    level.comps.filter((c2) => c2.type === "trafo" && an.trafoOn[c2.id]).forEach((c2) => {
+      starts.push([c2.id + ".3", c2.id + ":a"]);
+      starts.push([c2.id + ".4", c2.id + ":b"]);
+    });
+    const ends = new Map(starts.map(([t, n]) => [t, n]));
+    if (edges.some((e) => e.kind === "load")) {
+      const adj = {};
+      edges.forEach((e, i) => {
+        (adj[e.a] = adj[e.a] || []).push([e.b, i]);
+        (adj[e.b] = adj[e.b] || []).push([e.a, i]);
+      });
+      const onPath = /* @__PURE__ */ new Set();
+      let steps = 0;
+      starts.forEach(([s0, n0]) => {
+        const seen = /* @__PURE__ */ new Set([s0]), stack = [];
+        const dfs = (node) => {
+          if (++steps > MAX_STEPS2) return;
+          const n = ends.get(node);
+          if (node !== s0 && n && n !== n0) {
+            if (stack.some((i) => edges[i].kind === "load")) stack.forEach((i) => onPath.add(i));
+            return;
+          }
+          for (const [next, i] of adj[node] || []) {
+            if (seen.has(next)) continue;
+            seen.add(next);
+            stack.push(i);
+            dfs(next);
+            stack.pop();
+            seen.delete(next);
+          }
+        };
+        dfs(s0);
+      });
+      onPath.forEach((i) => {
+        const e = edges[i];
+        if (e.kind === "wire") out.wires[e.key].current = true;
+        else if (e.kind === "contact") out.contacts[e.key] = true;
+      });
+      out.current = onPath.size > 0;
+    }
+    const srcTerms = new Set(Object.values(src));
+    Object.keys(degree).forEach((t) => {
+      const net = netOf(an.potAt(t));
+      if ((net === "fase" || net === "neutro" || net === "bassa") && degree[t] === 1 && !srcTerms.has(t) && !ends.has(t)) out.deadEnds.push(t);
+    });
+    out.deadEnds.sort();
+    return out;
+  }
+
+  // src/engine/v2/view.js
+  var isV2 = (level) => !!level && level.engine === 2;
+  var MAIN = /* @__PURE__ */ new Set(["mt", "mt3", "sez", "rcd"]);
+  var selfPowered = (level) => isV2(level) && level.supply !== "quadro" && (level.supply === "protezioni" || level.comps.some((c2) => MAIN.has(c2.type)));
+  var MANUAL = /* @__PURE__ */ new Set(["sw", "dev", "inv", "pb", "pbnc", "fungo", "mt", "mt3", "sez", "rcd"]);
+  var HOLD = /* @__PURE__ */ new Set(["pb", "pbnc"]);
+  function controlStates(level, sim) {
+    const st = {};
+    level.comps.forEach((c2) => {
+      const s = sim.parts[c2.id];
+      if (!s || !MANUAL.has(c2.type)) return;
+      st[c2.id] = (HOLD.has(c2.type) || c2.type === "fungo" ? s.pressed : s.on) ? 1 : 0;
+    });
+    return st;
+  }
+  var running = (m) => m === "fwd" || m === "rev";
+  function needsClock(level, obs2) {
+    return level.comps.some((c2) => {
+      const s = obs2.parts[c2.id];
+      if (!s) return false;
+      if (c2.type === "tmr") return s.left > 0;
+      if (c2.type === "ft") return !s.tripped && (s.heat > 0 || Object.values(obs2.motors).some((m) => m === "hum"));
+      return false;
+    }) || !!level.machine && Object.values(obs2.motors).some(running) && obs2.machine && !obs2.machine.atEnd && !obs2.machine.atStart || !!level.machine && Object.values(obs2.motors).some(running);
+  }
+  function viewOf(level, sim, power) {
+    const obs2 = observe(sim);
+    const anyLoad = Object.values(obs2.loads).some((v) => v === "on");
+    const anyMotor = Object.values(obs2.motors).some(running);
+    const lit = !!(power && (anyLoad || anyMotor));
+    return {
+      obs: obs2,
+      lit,
+      litLoads: [],
+      fault: obs2.faults.length ? obs2.faults[0].code : null,
+      potential: (tid) => obs2.potential(tid),
+      controlStates: controlStates(level, sim),
+      flow: flowV2(sim),
+      needsClock: needsClock(level, obs2)
+    };
+  }
+
   // src/engine/session.js
   function memoryStorage() {
     let data = {};
@@ -1060,6 +1827,7 @@ html[lang="it"] .trnote{display:none}
     const usageByKey = {};
     const unitByKey = {};
     const operatedByKey = {};
+    const simsByKey = {};
     let nextWireId = 1;
     let progress;
     try {
@@ -1073,7 +1841,7 @@ html[lang="it"] .trnote{display:none}
     let playMode = "apprendimento";
     let flowOnDemand = false;
     let power = false;
-    let trip = false;
+    let trip2 = false;
     let message = null;
     let hintIndex = -1;
     let solutionShown = false;
@@ -1105,6 +1873,33 @@ html[lang="it"] .trnote{display:none}
     };
     const record = () => progress.best[progressKey(levelAt().id)] || (progress.best[progressKey(levelAt().id)] = { base: 0, pred: false, fault: false, skipped: false });
     const operated = () => operatedByKey[keyOf()] || (operatedByKey[keyOf()] = []);
+    const v2 = (level = levelAt()) => isV2(level);
+    const dropSim = () => {
+      delete simsByKey[keyOf()];
+    };
+    function simFor() {
+      const k = keyOf();
+      if (!simsByKey[k]) {
+        const sim = createSim(levelAt(), wires());
+        if (sim.supply !== power) setSupply(sim, power);
+        simsByKey[k] = sim;
+      }
+      return simsByKey[k];
+    }
+    function applyLive2() {
+      const sim = simFor();
+      if (sim.mainTrip && power) {
+        const cause = sim.mainTripCause === "faseterra" || sim.mainTripCause === "terra" ? "terra" : "corto";
+        power = false;
+        trip2 = true;
+        message = { code: "trip", fault: cause };
+      }
+    }
+    const analysisOf = (level = levelAt()) => {
+      if (!v2(level)) return analyse(level, wires(), states());
+      const v = viewOf(level, simFor(), power);
+      return { lit: v.lit, litLoads: [], anyLit: v.lit, fault: v.fault, v2: v };
+    };
     const currentPage = () => {
       const l = levelAt();
       return l.unit && l.unit.lesson.pages[unitState().page || 0];
@@ -1118,14 +1913,16 @@ html[lang="it"] .trnote{display:none}
     function stepsPart(level, phase) {
       const u = level.unit;
       if (!u || !u.steps || playMode !== "apprendimento" || phase === "lesson") return { steps: null, ghost: null };
-      const st = stepsState(u.steps, wires(), { power, operated: operated(), result: resultsByKey[keyOf()] || null, fault: !!analyse(level, wires(), states()).fault });
+      const st = stepsState(u.steps, wires(), { power, operated: operated(), result: resultsByKey[keyOf()] || null, fault: !!analysisOf(level).fault });
       const cur = st.current === null ? null : u.steps[st.current];
       const ghost = phase === "build" && u.support === "guidato" && cur ? ghostFor(cur, wires()) : null;
       return { steps: { list: u.steps, done: st.done, current: st.current }, ghost };
     }
     function snapshot() {
       const level = levelAt();
-      const analysis = analyse(level, wires(), states());
+      const is2 = v2(level);
+      const analysis = is2 ? null : analyse(level, wires(), states());
+      const view2 = is2 ? viewOf(level, simFor(), power) : null;
       const us = level.unit ? unitState() : null;
       const total = totalXp(progress);
       const phase = us ? us.phase : "build";
@@ -1137,17 +1934,22 @@ html[lang="it"] .trnote{display:none}
         mode,
         playMode,
         wires: wires().slice(),
-        controlStates: { ...states() },
+        controlStates: is2 ? view2.controlStates : { ...states() },
         power,
-        trip,
+        trip: trip2,
         message,
-        lit: power && analysis.lit,
-        litLoads: analysis.litLoads.map((x) => power && x),
-        fault: analysis.fault,
-        // 'F' | 'N' | 'PE' | null per il morsetto dato (indipendente da power)
-        potential: (tid) => potentialOf(analysis, tid),
+        lit: is2 ? view2.lit : power && analysis.lit,
+        litLoads: is2 ? [] : analysis.litLoads.map((x) => power && x),
+        fault: is2 ? view2.fault : analysis.fault,
+        // 'F' | 'N' | 'PE' | null per il morsetto dato (indipendente da power); in v2 anche 'L1', 'L2', 'L3' e i secondari dei trasformatori
+        potential: is2 ? view2.potential : (tid) => potentialOf(analysis, tid),
         // dove passa la corrente (vedi flow.js); la vista lo mostra solo se flowVisible
-        flow: flowOf(level, wires(), states()),
+        flow: is2 ? view2.flow : flowOf(level, wires(), states()),
+        // solo livelli v2: osservazione (carichi, motori, bobine, protezioni scattate, macchina), orologio, alimentazione propria
+        obs: is2 ? view2.obs : null,
+        needsClock: is2 ? view2.needsClock : false,
+        selfPowered: is2 ? selfPowered(level) : false,
+        overload: is2 ? !!simFor().overload : false,
         flowVisible: flowVisible(level),
         result: resultsByKey[keyOf()] || null,
         solutionShown,
@@ -1225,7 +2027,7 @@ html[lang="it"] .trnote{display:none}
           const seen = /* @__PURE__ */ new Set();
           const ws = [];
           (Array.isArray(e2.wires) ? e2.wires.slice(0, MAX_WORK_WIRES) : []).forEach((x) => {
-            if (!isObj(x) || !known.has(x.a) || !known.has(x.b) || x.a === x.b || !WIRE_COLORS.includes(x.c)) return;
+            if (!isObj(x) || !known.has(x.a) || !known.has(x.b) || x.a === x.b || !ALL_COLORS.includes(x.c)) return;
             const k = [x.a, x.b].sort().join("~");
             if (seen.has(k)) return;
             seen.add(k);
@@ -1254,7 +2056,7 @@ html[lang="it"] .trnote{display:none}
         if (phase === "done") {
           const ws = wiresByKey[keyOf(i, "quadro")] || [];
           if (!(progress.stars[progressKey(l.id, "quadro")] > 0) || !ws.length) phase = "build";
-          else result = evaluate(levelAt(i, "quadro"), ws);
+          else result = isV2(levelAt(i, "quadro")) ? evaluateV2(levelAt(i, "quadro"), ws) : evaluate(levelAt(i, "quadro"), ws);
           if (result && !result.pass) {
             phase = "build";
             result = null;
@@ -1308,33 +2110,49 @@ html[lang="it"] .trnote{display:none}
       listeners2.forEach((f) => f(s));
     };
     function resetLevelState() {
-      power = false;
-      trip = false;
+      dropSim();
+      power = selfPowered(levelAt());
+      trip2 = false;
       message = null;
       hintIndex = -1;
       solutionShown = false;
       flowOnDemand = false;
     }
     function applyLive() {
+      if (v2()) {
+        applyLive2();
+        return;
+      }
       const cur = analyse(levelAt(), wires(), states());
       if (power && cur.fault) {
         power = false;
-        trip = true;
+        trip2 = true;
         message = { code: "trip", fault: cur.fault };
       }
     }
     function wiresChanged() {
       resultsByKey[keyOf()] = null;
-      if (power) {
+      dropSim();
+      if (selfPowered(levelAt())) {
+        power = true;
+        trip2 = false;
+        message = null;
+      } else if (power) {
         power = false;
         message = { code: "editWhileLive" };
-      } else if (trip) {
-        trip = false;
+      } else if (trip2) {
+        trip2 = false;
         message = null;
       } else {
         message = null;
       }
     }
+    const afterEdit = () => {
+      if (v2()) {
+        dropSim();
+        applyLive2();
+      }
+    };
     const inBuildOrFault = () => {
       const l = levelAt();
       return !l.unit || unitState().phase !== "lesson";
@@ -1347,6 +2165,7 @@ html[lang="it"] .trnote{display:none}
       },
       start() {
         restoreWork();
+        power = selfPowered(levelAt());
         emit();
       },
       // Stato di un livello qualsiasi (non solo quello aperto), per chi disegna piu' circuiti insieme (la casa).
@@ -1355,6 +2174,7 @@ html[lang="it"] .trnote{display:none}
         const i = indexOf(x);
         if (i < 0 || i >= levels2.length) return null;
         const lv = levelAt(i, "quadro");
+        if (isV2(lv)) return { id: levels2[i].id, lit: false, wired: (wiresByKey[keyOf(i, "quadro")] || []).length, controls: {}, passed: (progress.stars[levels2[i].id] || 0) > 0, open: i === levelIndex, power: false };
         const k = keyOf(i, "quadro");
         const w = wiresByKey[k] || [], st = statesByKey[k] || {};
         const id = levels2[i].id;
@@ -1421,6 +2241,7 @@ html[lang="it"] .trnote{display:none}
         wiresChanged();
         if (k >= 0) ws.splice(k, 1);
         else ws.push({ id: nextWireId++, a, b, c: color });
+        afterEdit();
         emit();
       },
       removeWire(id) {
@@ -1430,12 +2251,14 @@ html[lang="it"] .trnote{display:none}
         if (k < 0) return;
         wiresChanged();
         ws.splice(k, 1);
+        afterEdit();
         emit();
       },
       undo() {
         if (!wires().length || !inBuildOrFault()) return;
         wiresChanged();
         wires().pop();
+        afterEdit();
         emit();
       },
       clear() {
@@ -1446,12 +2269,26 @@ html[lang="it"] .trnote{display:none}
         emit();
       },
       toggleBreaker() {
+        if (v2()) {
+          if (selfPowered(levelAt())) return;
+          const sim = simFor();
+          power = !power;
+          trip2 = false;
+          message = power ? null : { code: "powerOff" };
+          setSupply(sim, power);
+          if (power) {
+            applyLive2();
+            if (power) message = viewOf(levelAt(), sim, power).lit ? null : { code: "lampDark" };
+          }
+          emit();
+          return;
+        }
         if (power) {
           power = false;
           message = { code: "powerOff" };
         } else {
           power = true;
-          trip = false;
+          trip2 = false;
           message = null;
           applyLive();
           if (power) {
@@ -1462,11 +2299,66 @@ html[lang="it"] .trnote{display:none}
         emit();
       },
       toggleControl(id) {
+        if (v2()) {
+          const c2 = levelAt().comps.find((x) => x.id === id);
+          if (!c2) return;
+          const sim = simFor();
+          if (HOLD.has(c2.type)) {
+            act(sim, "press", id);
+            act(sim, "release", id);
+          } else act(sim, "toggle", id);
+          if (power && !operated().includes(id)) operated().push(id);
+          message = null;
+          applyLive2();
+          emit();
+          return;
+        }
         const st = states();
         st[id] = st[id] ? 0 : 1;
         if (power && !operated().includes(id)) operated().push(id);
         message = null;
         applyLive();
+        emit();
+      },
+      // Motore v2: pulsanti tenuti premuti, riarmo del termico, tasto di prova del differenziale, orologio, sovraccarico simulato.
+      press(id) {
+        this._act("press", id);
+      },
+      release(id) {
+        this._act("release", id);
+      },
+      resetPart(id) {
+        this._act("reset", id);
+      },
+      testPart(id) {
+        this._act("test", id);
+      },
+      _act(action, id) {
+        if (!v2() || !inBuildOrFault()) return;
+        const sim = simFor();
+        const c2 = levelAt().comps.find((x) => x.id === id);
+        if (!c2) return;
+        try {
+          act(sim, action, id);
+        } catch (e) {
+          return;
+        }
+        if (action === "press" && power && !operated().includes(id)) operated().push(id);
+        message = null;
+        applyLive2();
+        emit();
+      },
+      // L'orologio della vista: fa passare il tempo (mezzi secondi) solo quando serve (snapshot().needsClock).
+      tick(seconds = 0.5) {
+        if (!v2()) return;
+        advance(simFor(), seconds);
+        applyLive2();
+        emit();
+      },
+      // Livelli con relè termico: simula un sovraccarico (il motore assorbe troppo) per provare la protezione.
+      setOverload(on) {
+        if (!v2()) return;
+        simFor().overload = !!on;
         emit();
       },
       // Livelli con corrente "a richiesta": mostra o nasconde i fili percorsi.
@@ -1476,7 +2368,7 @@ html[lang="it"] .trnote{display:none}
       },
       check() {
         const level = levelAt();
-        const r = evaluate(level, wires());
+        const r = v2(level) ? evaluateV2(level, wires()) : evaluate(level, wires());
         resultsByKey[keyOf()] = r;
         const u = usage();
         u.checks++;
@@ -2792,7 +3684,75 @@ html[lang="it"] .trnote{display:none}
     others.forEach((id2) => comps2[id2] = { ...base2.comps[id2], y: base2.comps[id2].y + shift });
     return { comps: comps2, plates: base2.plates };
   }
+  var FULL = 380;
+  var HALF = 185;
+  var KIND = {
+    quadro: [FULL, 100, null, ["L1", "L2", "L3", "F", "N", "PE"]],
+    mt: [HALF, 120, ["1", "N1"], ["2", "N2"]],
+    rcd: [HALF, 120, ["1", "N1"], ["2", "N2"]],
+    mt3: [FULL, 120, ["1", "3", "5"], ["2", "4", "6"]],
+    sez: [FULL, 120, ["1", "3", "5"], ["2", "4", "6"]],
+    pb: [HALF, 110, ["3"], ["4"]],
+    pbnc: [HALF, 110, ["1"], ["2"]],
+    fungo: [HALF, 110, ["1"], ["2"]],
+    ri: [HALF, 130, ["A1", "A2"], ["1", "2"]],
+    tmr: [HALF, 130, ["A1", "A2"], ["1", "2"]],
+    km: [FULL, 190, ["A1", "1", "3", "5", "13", "21"], ["A2", "2", "4", "6", "14", "22"]],
+    ft: [FULL, 150, ["1", "3", "5", "95", "97"], ["2", "4", "6", "96", "98"]],
+    fc: [HALF, 110, ["1", "3"], ["2", "4"]],
+    trafo: [FULL, 150, ["1", "2"], ["3", "4"]],
+    bell: [HALF, 110, ["1", "2"], []],
+    spia: [HALF, 100, ["X1", "X2"], []],
+    lamp: [HALF, 100, ["B", "A"], []],
+    presa: [FULL, 130, ["L", "PE", "N"], []],
+    motor3: [FULL, 130, ["U", "V", "W", "PE"], []],
+    sw: [HALF, 120, ["a"], ["b"]],
+    dev: [HALF, 115, ["C"], ["1", "2"]],
+    inv: [HALF, 112, ["1", "2"], ["3", "4"]]
+  };
+  var spread = (n) => n === 1 ? [0.5] : n === 2 ? [0.28, 0.72] : n === 3 ? [0.2, 0.5, 0.8] : Array.from({ length: n }, (_, i) => 0.08 + 0.84 * i / (n - 1));
+  function autoLayout(level) {
+    const comps2 = {};
+    let y = 0, pending = null;
+    const make = (c2, x, y0) => {
+      const [w, h, top, bot] = KIND[c2.type] || [FULL, 110, Object.keys(c2.terms), []];
+      const ids = Object.keys(c2.terms);
+      const t = top === null ? [] : ids.filter((i) => (top || []).includes(i) || !(bot || []).includes(i));
+      const b = top === null ? ids : ids.filter((i) => (bot || []).includes(i));
+      const terms = {};
+      const order = (list, ref) => list.slice().sort((p, q) => (ref.indexOf(p) < 0 ? 99 : ref.indexOf(p)) - (ref.indexOf(q) < 0 ? 99 : ref.indexOf(q)));
+      const tt = order(t, top || []), bb = order(b, bot || []);
+      spread(tt.length).forEach((f, i) => terms[tt[i]] = { f, s: "t" });
+      spread(bb.length).forEach((f, i) => terms[bb[i]] = { f, s: "b" });
+      return { x, y: y0, w, h, terms };
+    };
+    const width = (c2) => (KIND[c2.type] || [FULL])[0];
+    level.comps.forEach((c2) => {
+      if (width(c2) === HALF) {
+        if (pending) {
+          const g = make(c2, 215, pending.y);
+          comps2[c2.id] = g;
+          y = pending.y + Math.max(pending.h, g.h) + 44;
+          pending = null;
+        } else {
+          const g = make(c2, 20, y);
+          comps2[c2.id] = g;
+          pending = g;
+        }
+      } else {
+        if (pending) {
+          y = pending.y + pending.h + 44;
+          pending = null;
+        }
+        const g = make(c2, 20, y);
+        comps2[c2.id] = g;
+        y += g.h + 44;
+      }
+    });
+    return { comps: comps2, plates: {} };
+  }
   function layoutFor(level) {
+    if (level.engine === 2) return autoLayout(level);
     return level.full ? fullLayout(level.id) : BASE[level.id];
   }
   function composeComps(level) {
@@ -2815,8 +3775,198 @@ html[lang="it"] .trnote{display:none}
     nero: { base: "#222222" },
     grigio: { base: "#9AA3A0" },
     blu: { base: "#3D9BE9" },
-    gv: { base: "#E4C400", dash: "#2E8B3D" }
+    gv: { base: "#E4C400", dash: "#2E8B3D" },
+    rosso: { base: "#C0262D" },
+    bianco: { base: "#F2F0EA" }
   };
+
+  // src/ui2d/render2.js
+  var ln = (x1, y1, x2, y2, live, off) => `<line class="cl${live ? " on" : ""}${off ? " off" : ""}" x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}"/>`;
+  var dot = (x, y) => `<circle class="ct" cx="${x}" cy="${y}" r="4"/>`;
+  var lab = (x, y, t, anchor = "middle") => `<text class="lbl" x="${x}" y="${y}" text-anchor="${anchor}" style="font-size:10px;fill:var(--ink2)">${t}</text>`;
+  var PH2 = ["F", "L1", "L2", "L3"];
+  var isLive = (p) => !!p && (PH2.includes(p) || String(p).includes(":"));
+  function pole2(x, y1, y2, closed, l1, l2) {
+    const a = y1 + (y2 - y1) * 0.34, b = y1 + (y2 - y1) * 0.66;
+    return ln(x, y1, x, a, l1) + ln(x, b, x, y2, l2) + dot(x, a) + dot(x, b) + (closed ? ln(x, a, x, b, l1 && l2) : ln(x, a, x + 15, b - 3, false));
+  }
+  function lever(cx, cy, on, tripped) {
+    const ky = on ? cy - 20 : tripped ? cy - 4 : cy + 6;
+    return `<rect class="hs" x="${cx - 22}" y="${cy - 28}" width="44" height="56" rx="5"/><rect class="slotr" x="${cx - 7}" y="${cy - 23}" width="14" height="46" rx="3"/><rect class="knob" x="${cx - 9}" y="${ky}" width="18" height="16" rx="3"/><circle class="led ${tripped ? "trip" : on ? "on" : ""}" cx="${cx + 15}" cy="${cy - 20}" r="3"/>`;
+  }
+  var has = (c2, id) => !!c2.terms[id];
+  var obsOf = (s, id) => s.obs && s.obs.parts && s.obs.parts[id] || {};
+  function poles(c2, tops, bots, closed, L, y1 = 22, y2 = c2.h - 22) {
+    let o = "";
+    tops.forEach((t, i) => {
+      const x = c2.w * c2.terms[t].f, b = bots[i];
+      if (b && has(c2, b)) o += pole2(x, y1, y2, closed, L(t), L(b));
+      else o += ln(x, y1, x, y2, L(t));
+    });
+    return o;
+  }
+  function schemV2(c2, s, L, ui2) {
+    const w = c2.w, h = c2.h, st = s.controlStates[c2.id] ? 1 : 0, part = obsOf(s, c2.id), obs2 = s.obs || { loads: {}, motors: {}, coils: {} };
+    let o = "";
+    const mid = h / 2;
+    switch (c2.type) {
+      case "quadro": {
+        Object.keys(c2.terms).forEach((k) => {
+          const x = w * c2.terms[k].f;
+          o += ln(x, 38, x, h - 22, L(k));
+        });
+        o += `<rect x="12" y="10" width="${w - 24}" height="18" rx="4" fill="var(--breaker)" stroke="var(--comp-edge)"/>`;
+        o += lab(24, 23, c2.terms.L1 ? "RETE 400 V" : "RETE 230 V", "start");
+        if (!s.selfPowered) {
+          const bx = w - 70, ky = s.power ? 8 : s.trip ? 22 : 36;
+          o += `<g class="brk" data-q="1" role="button" tabindex="0" aria-label="Magnetotermico"><rect x="${bx - 30}" y="30" width="60" height="${h - 52}" fill="transparent"/><rect class="hs" x="${bx - 22}" y="34" width="44" height="46" rx="5"/><rect class="slotr" x="${bx - 7}" y="38" width="14" height="38" rx="3"/><rect class="knob" x="${bx - 9}" y="${34 + ky}" width="18" height="14" rx="3" /><circle class="led ${s.power ? "on" : s.trip ? "trip" : ""}" cx="${bx + 15}" cy="40" r="3"/></g>`;
+        } else {
+          o += `<circle class="led ${s.power ? "on" : "trip"}" cx="${w - 24}" cy="19" r="3.4"/>`;
+        }
+        break;
+      }
+      case "mt":
+      case "rcd": {
+        const [xf, xn] = [w * c2.terms["1"].f, w * c2.terms.N1.f];
+        o += pole2(xf, 22, h - 22, part.on, L("1"), L("2")) + pole2(xn, 22, h - 22, part.on, L("N1"), L("N2"));
+        o += lever(w / 2, mid, part.on, part.tripped);
+        if (c2.type === "rcd") o += `<g class="tbtn" data-test="${c2.id}" role="button" tabindex="0" aria-label="Tasto di prova ${c2.short}"><rect x="${w / 2 + 28}" y="${mid - 12}" width="30" height="24" rx="5" fill="#EDE7D4" stroke="var(--comp-edge)" stroke-width="1.4"/><text x="${w / 2 + 43}" y="${mid + 5}" text-anchor="middle" style="font:600 12px 'IBM Plex Mono',monospace;fill:#222">T</text></g>`;
+        break;
+      }
+      case "mt3":
+      case "sez": {
+        o += poles(c2, ["1", "3", "5"], ["2", "4", "6"], part.on, L);
+        o += lever(w / 2, mid, part.on, part.tripped);
+        break;
+      }
+      case "pb":
+      case "pbnc": {
+        const x = w / 2, closed = c2.type === "pb" ? !!part.pressed : !part.pressed;
+        const t = c2.type === "pb" ? ["3", "4"] : ["1", "2"];
+        o += pole2(x, 22, h - 22, closed, L(t[0]), L(t[1]));
+        const col = c2.type === "pb" ? "#2E9E5B" : "#C0262D";
+        o += `<circle cx="${x + 38}" cy="${mid}" r="19" fill="${col}" stroke="#1B2230" stroke-width="2" ${part.pressed ? 'opacity=".72"' : ""}/>`;
+        o += `<circle cx="${x + 38}" cy="${mid}" r="${part.pressed ? 10 : 13}" fill="${col}" stroke="rgba(255,255,255,.45)" stroke-width="2"/>`;
+        o += lab(x + 38, mid + 36, part.pressed ? "PREMUTO" : c2.type === "pb" ? "NA" : "NC");
+        break;
+      }
+      case "fungo": {
+        const x = w / 2, closed = !part.pressed;
+        o += pole2(x, 22, h - 22, closed, L("1"), L("2"));
+        o += `<rect x="${x + 16}" y="${mid - 22}" width="46" height="44" rx="8" fill="#F2C500" stroke="#1B2230" stroke-width="2"/><circle cx="${x + 39}" cy="${mid}" r="${part.pressed ? 13 : 17}" fill="#C0262D" stroke="#1B2230" stroke-width="2"/>`;
+        o += lab(x + 39, mid + 38, part.pressed ? "AZIONATO" : "EMERGENZA");
+        break;
+      }
+      case "ri": {
+        o += `<rect x="${w * 0.3}" y="40" width="${w * 0.4}" height="${h * 0.36}" rx="4" fill="none" stroke="${obs2.coils[c2.id] ? "#F59F00" : "var(--sch)"}" stroke-width="2.6"/>`;
+        o += ln(w * c2.terms.A1.f, 22, w * c2.terms.A1.f, 40, L("A1")) + ln(w * c2.terms.A2.f, 22, w * c2.terms.A2.f, 40, L("A2"));
+        o += lab(w / 2, 40 + h * 0.22, "IMPULSO");
+        o += pole2(w * c2.terms["1"].f, h * 0.56, h - 22, part.on, L("1"), L("2"));
+        break;
+      }
+      case "tmr": {
+        o += `<rect x="${w * 0.3}" y="40" width="${w * 0.4}" height="${h * 0.36}" rx="4" fill="none" stroke="${obs2.coils[c2.id] ? "#F59F00" : "var(--sch)"}" stroke-width="2.6"/>`;
+        o += ln(w * c2.terms.A1.f, 22, w * c2.terms.A1.f, 40, L("A1")) + ln(w * c2.terms.A2.f, 22, w * c2.terms.A2.f, 40, L("A2"));
+        o += lab(w / 2, 40 + h * 0.22, `${c2.time || ""} s`);
+        o += pole2(w * c2.terms["1"].f, h * 0.56, h - 22, part.left > 0, L("1"), L("2"));
+        if (part.left > 0 && c2.time) o += `<rect x="${w * 0.3}" y="${40 + h * 0.36 + 6}" width="${w * 0.4 * (part.left / c2.time)}" height="5" rx="2" fill="#F59F00"/>`;
+        break;
+      }
+      case "km": {
+        const top = ["1", "3", "5"], bot = ["2", "4", "6"];
+        const y1 = 22, y2 = h - 22;
+        const xc = w * c2.terms.A1.f;
+        o += `<rect x="${xc - 22}" y="46" width="44" height="${h - 92}" rx="4" fill="none" stroke="${s.obs && s.obs.coils[c2.id] ? "#F59F00" : "var(--sch)"}" stroke-width="2.6"/>`;
+        o += ln(xc, y1, xc, 46, L("A1")) + ln(xc, h - 46, xc, y2, L("A2"));
+        o += lab(xc, mid + 4, "KM");
+        o += poles(c2, top, bot, part.on, L, y1, y2);
+        if (has(c2, "13")) o += pole2(w * c2.terms["13"].f, y1, y2, part.on, L("13"), L("14"));
+        if (has(c2, "21")) o += pole2(w * c2.terms["21"].f, y1, y2, !part.on, L("21"), L("22"));
+        o += lab(w * 0.5, h - 6, part.on ? "CHIUSO" : "APERTO");
+        break;
+      }
+      case "ft": {
+        const heat = Math.min(1, (part.heat || 0) / (c2.tripAfter || 3));
+        o += poles(c2, ["1", "3", "5"], ["2", "4", "6"], true, L);
+        if (has(c2, "95")) o += pole2(w * c2.terms["95"].f, 22, h - 22, !part.tripped, L("95"), L("96"));
+        if (has(c2, "97")) o += pole2(w * c2.terms["97"].f, 22, h - 22, !!part.tripped, L("97"), L("98"));
+        o += `<rect x="${w * 0.12}" y="${h - 48}" width="${w * 0.3}" height="8" rx="3" fill="rgba(0,0,0,.08)"/><rect x="${w * 0.12}" y="${h - 48}" width="${w * 0.3 * heat}" height="8" rx="3" fill="${heat > 0.66 ? "#E5484D" : "#F59F00"}"/>`;
+        o += lab(w * 0.27, h - 54, "REL\xC8 TERMICO");
+        o += `<g class="tbtn" data-reset="${c2.id}" role="button" tabindex="0" aria-label="Riarmo ${c2.short}"><rect x="${w * 0.12}" y="${mid - 14}" width="${w * 0.3}" height="26" rx="5" fill="#EDE7D4" stroke="var(--comp-edge)" stroke-width="1.4"/><text x="${w * 0.27}" y="${mid + 4}" text-anchor="middle" style="font:600 11px 'IBM Plex Mono',monospace;fill:#222">RESET</text></g>`;
+        o += `<circle class="led ${part.tripped ? "trip" : "on"}" cx="${w * 0.46}" cy="${mid}" r="4"/>`;
+        break;
+      }
+      case "fc": {
+        const act2 = !!part.act;
+        o += pole2(w * c2.terms["1"].f, 22, h - 22, !act2, L("1"), L("2")) + pole2(w * c2.terms["3"].f, 22, h - 22, act2, L("3"), L("4"));
+        o += lab(w / 2, h - 6, act2 ? "PREMUTO DAL PACCO" : "A RIPOSO");
+        break;
+      }
+      case "trafo": {
+        const cx = w / 2;
+        o += ln(w * c2.terms["1"].f, 22, w * c2.terms["1"].f, 52, L("1")) + ln(w * c2.terms["2"].f, 22, w * c2.terms["2"].f, 52, L("2"));
+        o += ln(w * c2.terms["3"].f, h - 52, w * c2.terms["3"].f, h - 22, L("3")) + ln(w * c2.terms["4"].f, h - 52, w * c2.terms["4"].f, h - 22, L("4"));
+        for (let i = 0; i < 4; i++) o += `<path d="M${cx - 34 + i * 17} 52 q8.5 -14 17 0" fill="none" stroke="var(--sch)" stroke-width="2.4"/><path d="M${cx - 34 + i * 17} ${h - 52} q8.5 14 17 0" fill="none" stroke="var(--sch)" stroke-width="2.4"/>`;
+        o += `<line x1="${cx - 38}" y1="${mid - 3}" x2="${cx + 38}" y2="${mid - 3}" stroke="var(--sch)" stroke-width="2"/><line x1="${cx - 38}" y1="${mid + 3}" x2="${cx + 38}" y2="${mid + 3}" stroke="var(--sch)" stroke-width="2"/>`;
+        o += lab(cx, mid + 20, `${c2.vout || 12} V`);
+        break;
+      }
+      case "bell": {
+        const on = obs2.loads[c2.id] === "on", burnt = obs2.loads[c2.id] === "burnt";
+        const cx = w / 2, cy = mid + 6;
+        o += ln(w * c2.terms["1"].f, 22, w * c2.terms["1"].f, cy - 8, L("1")) + ln(w * c2.terms["2"].f, 22, w * c2.terms["2"].f, cy - 8, L("2"));
+        o += `<path d="M${cx - 18} ${cy + 14} Q${cx - 18} ${cy - 18} ${cx} ${cy - 18} Q${cx + 18} ${cy - 18} ${cx + 18} ${cy + 14} Z" fill="${burnt ? "#6B1E1E" : on ? "#FFD25E" : "var(--bulb-off)"}" stroke="var(--comp-edge)" stroke-width="1.6"/><circle cx="${cx}" cy="${cy + 19}" r="4" fill="var(--comp-edge)"/>`;
+        if (on) o += `<path d="M${cx + 26} ${cy - 8} q8 8 0 16 M${cx + 33} ${cy - 14} q13 14 0 28 M${cx - 26} ${cy - 8} q-8 8 0 16 M${cx - 33} ${cy - 14} q-13 14 0 28" fill="none" stroke="#E8A100" stroke-width="2"/>`;
+        if (burnt) o += lab(cx, h - 6, "BRUCIATO");
+        break;
+      }
+      case "spia": {
+        const on = obs2.loads[c2.id] === "on";
+        const cx = w / 2, cy = mid + 4;
+        o += ln(w * c2.terms.X1.f, 22, w * c2.terms.X1.f, cy, L("X1")) + ln(w * c2.terms.X2.f, 22, w * c2.terms.X2.f, cy, L("X2"));
+        o += `<circle cx="${cx}" cy="${cy}" r="14" fill="${on ? "#6FE3A1" : "#B9C8BD"}" stroke="var(--comp-edge)" stroke-width="1.6"/><circle cx="${cx}" cy="${cy}" r="14" fill="none"/>`;
+        break;
+      }
+      case "lamp": {
+        const on = obs2.loads[c2.id] === "on", burnt = obs2.loads[c2.id] === "burnt";
+        const cx = w / 2, cy = 58;
+        o += ln(w * 0.25, 22, w * 0.25, cy, L("B")) + ln(w * 0.25, cy, cx - 16, cy, L("B")) + ln(w * 0.75, 22, w * 0.75, cy, L("A")) + ln(w * 0.75, cy, cx + 16, cy, L("A"));
+        o += `<circle class="bulb${on ? " on" : ""}" cx="${cx}" cy="${cy}" r="16" ${burnt ? 'style="fill:#6B1E1E"' : ""}/><path d="M${cx - 9} ${cy - 9} L${cx + 9} ${cy + 9} M${cx + 9} ${cy - 9} L${cx - 9} ${cy + 9}" stroke="${on ? "#7A4A00" : "var(--sch)"}" stroke-width="2" fill="none"/>`;
+        if (obs2.loads[c2.id] === "weak") o += lab(cx, cy + 34, "TENSIONE TROPPO BASSA");
+        if (burnt) o += lab(cx, cy + 34, "BRUCIATA");
+        break;
+      }
+      case "presa": {
+        const cx = w / 2, hy = 84, on = obs2.loads[c2.id] === "on";
+        o += `<rect class="faceplate" x="${cx - 44}" y="54" width="88" height="46" rx="6"/>`;
+        o += ln(w * c2.terms.L.f, 22, cx - 24, 54, L("L")) + ln(w * c2.terms.PE.f, 22, cx, 54, L("PE")) + ln(w * c2.terms.N.f, 22, cx + 24, 54, L("N"));
+        [-24, 0, 24].forEach((d, i) => {
+          o += `<circle class="hole" cx="${cx + d}" cy="${hy}" r="${i === 1 ? 4 : 5}"/>`;
+        });
+        o += lab(cx, h - 6, on ? "APPARECCHIO ALIMENTATO" : "VISTA DA DIETRO");
+        break;
+      }
+      case "motor3": {
+        const cx = w / 2, cy = mid + 6, dir = obs2.motors[c2.id] || "off";
+        const term2 = ["U", "V", "W"];
+        term2.forEach((t) => {
+          const x = w * c2.terms[t].f;
+          o += ln(x, 22, x, cy - 24, L(t));
+        });
+        o += ln(w * c2.terms.PE.f, 22, w * c2.terms.PE.f, cy - 24, L("PE"));
+        o += `<circle cx="${cx}" cy="${cy}" r="30" fill="${dir === "fwd" || dir === "rev" ? "#E9F4EC" : "#F0EBDD"}" stroke="var(--comp-edge)" stroke-width="2"/><text x="${cx}" y="${cy + 6}" text-anchor="middle" style="font:600 18px 'IBM Plex Mono',monospace;fill:var(--ink)">M</text>`;
+        if (dir === "fwd" || dir === "rev") {
+          o += `<path d="M${cx - 18} ${cy - 24} A24 24 0 0 ${dir === "fwd" ? 1 : 0} ${cx + 18} ${cy - 24}" fill="none" stroke="#2E9E5B" stroke-width="3"/><path d="M${cx + (dir === "fwd" ? 18 : -18)} ${cy - 24} l${dir === "fwd" ? -2 : 2} -8 m${dir === "fwd" ? 2 : -2} 8 l${dir === "fwd" ? -8 : 8} 1" fill="none" stroke="#2E9E5B" stroke-width="3"/>`;
+        }
+        o += lab(cx, h - 8, dir === "fwd" ? "IN AVANTI" : dir === "rev" ? "ALL\u2019INDIETRO" : dir === "hum" ? "RONZA E NON PARTE" : "FERMO");
+        break;
+      }
+      default:
+        break;
+    }
+    return o;
+  }
+  var V2_TYPES = /* @__PURE__ */ new Set(["quadro", "mt", "rcd", "mt3", "sez", "pb", "pbnc", "fungo", "ri", "tmr", "km", "ft", "fc", "trafo", "bell", "spia", "lamp", "presa", "motor3"]);
 
   // src/ui2d/render.js
   function termPosOf(c2, id) {
@@ -2836,8 +3986,8 @@ html[lang="it"] .trnote{display:none}
     const s1 = p1.s === "t" ? -1 : 1, s2 = p2.s === "t" ? -1 : 1, d = Math.max(36, Math.abs(p2.y - p1.y) * 0.45);
     return `M${p1.x} ${p1.y} C${p1.x} ${p1.y + s1 * d} ${p2.x} ${p2.y + s2 * d} ${p2.x} ${p2.y}`;
   }
-  function paletteHTML(col) {
-    return WIRE_COLORS.map((k) => {
+  function paletteHTML(col, level) {
+    return (level && level.palette || WIRE_COLORS).map((k) => {
       const c2 = WIRE_STYLE[k];
       const bg = c2.dash ? `repeating-linear-gradient(90deg,${c2.base} 0 6px,${c2.dash} 6px 12px)` : c2.base;
       return `<button class="chip" data-col="${k}" aria-pressed="${k === col}"><span class="sw" style="background:${bg}"></span>${COLOR_NAMES[k]}</button>`;
@@ -2915,8 +4065,8 @@ html[lang="it"] .trnote{display:none}
     });
   }
   var kwhText = (kwh) => kwh.toFixed(1).padStart(6, "0").replace(".", ",") + " kWh";
-  var ln = (x1, y1, x2, y2, live, off) => `<line class="cl${live ? " on" : ""}${off ? " off" : ""}" x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}"/>`;
-  var dot = (x, y) => `<circle class="ct" cx="${x}" cy="${y}" r="4"/>`;
+  var ln2 = (x1, y1, x2, y2, live, off) => `<line class="cl${live ? " on" : ""}${off ? " off" : ""}" x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}"/>`;
+  var dot2 = (x, y) => `<circle class="ct" cx="${x}" cy="${y}" r="4"/>`;
   function schem(c2, s, live, lit, ui2) {
     const w = c2.w, h = c2.h, L = (t) => live(c2.id + "." + t), st = s.controlStates[c2.id] ? 1 : 0;
     let o = "";
@@ -2928,7 +4078,7 @@ html[lang="it"] .trnote{display:none}
         [["Fi", "F"], ["Ni", "N"], ["PEi", "PE"]].forEach(([i, k]) => {
           if (c2.terms[i] && c2.terms[k]) {
             const x = w * c2.terms[i].f;
-            o += ln(x, 22, x, h - 22, L(i));
+            o += ln2(x, 22, x, h - 22, L(i));
           }
         });
       }
@@ -2939,39 +4089,39 @@ html[lang="it"] .trnote{display:none}
     if (c2.type === "cont") {
       Object.keys(c2.terms).forEach((k) => {
         const x = w * c2.terms[k].f;
-        o += ln(x, 32, x, h - 22, L(k));
+        o += ln2(x, 32, x, h - 22, L(k));
       });
       o += `<text class="lbl" x="${w - 14}" y="17" text-anchor="end" style="font-size:10px;fill:var(--ink2)">DALLA RETE 230 V</text>`;
       o += `<rect x="${w * 0.58}" y="28" width="${w * 0.36}" height="40" rx="5" fill="#16231C" stroke="var(--comp-edge)"/><text id="kwh" x="${w * 0.76}" y="54" text-anchor="middle" style="font:500 15px 'IBM Plex Mono',monospace;fill:#8FE3AE">${kwhText(ui2.kwh)}</text><circle class="led ${s.power ? "on blink" : ""}" cx="${w * 0.58 + 10}" cy="38" r="3"/>`;
     }
     if (c2.type === "sw") {
       const x = w / 2;
-      o += ln(x, 22, x, 52, L("a")) + ln(x, 74, x, h - 22, L("b"));
-      o += dot(x, 52) + dot(x, 74);
-      o += st ? ln(x, 52, x, 74, L("a") && L("b")) : ln(x, 52, x + 16, 66, false);
+      o += ln2(x, 22, x, 52, L("a")) + ln2(x, 74, x, h - 22, L("b"));
+      o += dot2(x, 52) + dot2(x, 74);
+      o += st ? ln2(x, 52, x, 74, L("a") && L("b")) : ln2(x, 52, x + 16, 66, false);
     }
     if (c2.type === "dev") {
       const g = c2.flip ? `transform="translate(0,${h}) scale(1,-1)"` : "";
       const y2 = h - 22;
-      o += `<g ${g}>` + ln(w / 2, 22, w / 2, 46, L("C")) + ln(w * 0.28, 72, w * 0.28, y2, L("1")) + ln(w * 0.72, 72, w * 0.72, y2, L("2")) + dot(w / 2, 46) + dot(w * 0.28, 72) + dot(w * 0.72, 72);
+      o += `<g ${g}>` + ln2(w / 2, 22, w / 2, 46, L("C")) + ln2(w * 0.28, 72, w * 0.28, y2, L("1")) + ln2(w * 0.72, 72, w * 0.72, y2, L("2")) + dot2(w / 2, 46) + dot2(w * 0.28, 72) + dot2(w * 0.72, 72);
       const tx = st ? w * 0.72 : w * 0.28, tl = L("C") && L(st ? "2" : "1");
-      o += ln(w / 2, 46, tx, 72, tl) + `</g>`;
+      o += ln2(w / 2, 46, tx, 72, tl) + `</g>`;
     }
     if (c2.type === "inv") {
       const a = w * 0.28, b = w * 0.72, y1 = 22, y2 = h - 22;
       const straight = !st, t1 = L("1"), t2 = L("2");
-      o += ln(a, y1, a, y2, straight && t1, !straight) + ln(b, y1, b, y2, straight && t2, !straight);
-      o += ln(a, y1, b, y2, !straight && t1, straight) + ln(b, y1, a, y2, !straight && t2, straight);
+      o += ln2(a, y1, a, y2, straight && t1, !straight) + ln2(b, y1, b, y2, straight && t2, !straight);
+      o += ln2(a, y1, b, y2, !straight && t1, straight) + ln2(b, y1, a, y2, !straight && t2, straight);
     }
     if (c2.type === "lamp") {
       const cx = w / 2, cy = 58;
-      o += ln(w * 0.25, 22, w * 0.25, cy, L("B")) + ln(w * 0.25, cy, cx - 16, cy, L("B")) + ln(w * 0.75, 22, w * 0.75, cy, L("A")) + ln(w * 0.75, cy, cx + 16, cy, L("A"));
+      o += ln2(w * 0.25, 22, w * 0.25, cy, L("B")) + ln2(w * 0.25, cy, cx - 16, cy, L("B")) + ln2(w * 0.75, 22, w * 0.75, cy, L("A")) + ln2(w * 0.75, cy, cx + 16, cy, L("A"));
       o += `<circle class="bulb${lit ? " on" : ""}" cx="${cx}" cy="${cy}" r="16"/><path d="M${cx - 9} ${cy - 9} L${cx + 9} ${cy + 9} M${cx + 9} ${cy - 9} L${cx - 9} ${cy + 9}" stroke="${lit ? "#7A4A00" : "var(--sch)"}" stroke-width="2" fill="none"/>`;
     }
     if (c2.type === "presa") {
       const cx = w / 2, hy = 84;
       o += `<rect class="faceplate" x="${cx - 44}" y="54" width="88" height="46" rx="6"/>`;
-      o += ln(w * 0.2, 22, cx - 24, 54, L("L")) + ln(w * 0.5, 22, cx, 54, L("PE")) + ln(w * 0.8, 22, cx + 24, 54, L("N"));
+      o += ln2(w * 0.2, 22, cx - 24, 54, L("L")) + ln2(w * 0.5, 22, cx, 54, L("PE")) + ln2(w * 0.8, 22, cx + 24, 54, L("N"));
       [-24, 0, 24].forEach((d, i) => {
         o += `<circle class="hole" cx="${cx + d}" cy="${hy}" r="${i === 1 ? 4 : 5}"/>`;
       });
@@ -2997,17 +4147,21 @@ html[lang="it"] .trnote{display:none}
     return i >= 0 ? s.litLoads[i] : s.lit;
   }
   function benchHTML(s, comps2, ui2) {
-    const live = (id) => s.power && s.potential(id) === "F";
+    const is2 = s.level && s.level.engine === 2;
+    const live = is2 ? (id) => isLive(s.potential(id)) : (id) => s.power && s.potential(id) === "F";
     const H = Math.max(...comps2.map((c2) => c2.y + c2.h)) + 22;
     let o = `<defs><pattern id="pegs" width="16" height="16" patternUnits="userSpaceOnUse"><circle cx="8" cy="8" r="1.4" fill="var(--dot)"/></pattern></defs><rect x="0" y="-28" width="420" height="${H + 28}" fill="var(--bench)"/><rect x="0" y="-28" width="420" height="${H + 28}" fill="url(#pegs)"/>`;
     const dimmed = (c2) => ui2.focus && !ui2.focus.includes(c2.id);
     comps2.forEach((c2) => {
-      const toggles = c2.type === "sw" || c2.type === "dev" || c2.type === "inv";
+      const toggles = ["sw", "dev", "inv", "mt", "mt3", "sez", "rcd", "fungo"].includes(c2.type);
+      const hold = c2.type === "pb" || c2.type === "pbnc";
       if (dimmed(c2)) o += '<g class="dimmed">';
       o += `<text class="ttl" x="${c2.x + 2}" y="${c2.y - 9}">${c2.title}</text>`;
       o += `<g class="help" data-help="${c2.type}" role="button" tabindex="0" aria-label="Che cos\u2019\xE8: ${c2.title}"><circle cx="${c2.x + c2.w - 12}" cy="${c2.y - 13}" r="19" fill="transparent" stroke="none"/><circle cx="${c2.x + c2.w - 9}" cy="${c2.y - 13}" r="${ui2.mobile ? 11 : 9}"/><text x="${c2.x + c2.w - 9}" y="${c2.y - 8.5}" text-anchor="middle">?</text></g>`;
       o += `<rect class="body" x="${c2.x}" y="${c2.y}" width="${c2.w}" height="${c2.h}" rx="10"/>`;
-      o += `<g transform="translate(${c2.x},${c2.y})"${toggles ? ` class="togg" data-ctl="${c2.id}" style="cursor:pointer"` : ""}>${toggles ? `<rect x="0" y="0" width="${c2.w}" height="${c2.h}" rx="10" fill="transparent"/>` : ""}${schem(c2, s, live, litOf(s, c2), ui2)}</g>`;
+      const inner = is2 && V2_TYPES.has(c2.type) ? schemV2(c2, s, live, ui2) : schem(c2, s, live, litOf(s, c2), ui2);
+      const act2 = toggles ? ` class="togg" data-ctl="${c2.id}" style="cursor:pointer"` : hold ? ` class="togg hold" data-hold="${c2.id}" style="cursor:pointer;touch-action:none" role="button" tabindex="0" aria-label="${c2.title}, tieni premuto"` : "";
+      o += `<g transform="translate(${c2.x},${c2.y})"${act2}>${toggles || hold ? `<rect x="0" y="0" width="${c2.w}" height="${c2.h}" rx="10" fill="transparent"/>` : ""}${inner}</g>`;
       if (dimmed(c2)) o += "</g>";
     });
     if (s.solutionShown) {
@@ -3017,18 +4171,19 @@ html[lang="it"] .trnote{display:none}
       const [ga, gb, gc] = s.ghost;
       o += `<path class="ghost guide" d="${wirePath(termPos(comps2, ga), termPos(comps2, gb))}" stroke="${WIRE_STYLE[gc].base}"/>`;
     }
-    const fv = s.flowVisible && s.power;
+    const fv = s.flowVisible && (s.power || is2);
     s.wires.forEach((w) => {
       const d = wirePath(termPos(comps2, w.a), termPos(comps2, w.b)), q = Object.hasOwn(WIRE_STYLE, w.c) ? WIRE_STYLE[w.c] : WIRE_STYLE.nero;
       const pot = s.potential(w.a);
       const st = s.flow.wires[w.id];
       let halo = "", fl = "";
-      if (fv) {
-        const k = st.net === "F" ? "f" : st.net === "N" ? "n" : "";
+      const netK = (n) => n === "F" || n === "fase" ? "f" : n === "N" || n === "neutro" ? "n" : n === "bassa" ? "b" : "";
+      if (fv || is2 && s.flowVisible) {
+        const k = netK(st.net);
         if (k) halo = `<path class="halo-w ${k}" d="${d}"/>`;
         if (st.current && k) fl = `<path class="flow ${k} cur" d="${d}"/>`;
       } else {
-        const k = s.power && pot === "F" ? "f" : s.power && pot === "N" ? "n" : "";
+        const k = is2 ? isLive(pot) ? String(pot).includes(":") ? "b" : "f" : pot === "N" ? "n" : "" : s.power && pot === "F" ? "f" : s.power && pot === "N" ? "n" : "";
         if (k) fl = `<path class="flow ${k}" d="${d}"/>`;
       }
       o += `<g data-wire="${w.id}"${ui2.newWire === w.id ? ' class="newwire"' : ""}>${halo}<path class="w-hit" d="${d}"/><path class="w-edge" d="${d}"/><path class="w-col" d="${d}" stroke="${q.base}"${ui2.newWire === w.id ? ' pathLength="100"' : ""}/>${q.dash ? `<path class="w-col dash" d="${d}" stroke="${q.dash}"/>` : ""}${fl}</g>`;
@@ -3524,7 +4679,7 @@ html[lang="it"] .trnote{display:none}
     const cls = chosen ? o.id === correctId ? "right" : o.id === chosen.option ? "wrong" : "" : "";
     return `<button class="opt ${cls}" data-${action}="${o.id}" ${chosen && !(retry && !chosen.correct && o.id !== chosen.option) ? "disabled" : ""}>${esc(o.text)}</button>`;
   }).join("")}</div>`;
-  var KIND = { spiegazione: "Spiegazione", pezzi: "I pezzi", demo: "Guarda come si fa", previsione: "Previsione", sintesi: "In sintesi" };
+  var KIND2 = { spiegazione: "Spiegazione", pezzi: "I pezzi", demo: "Guarda come si fa", previsione: "Previsione", sintesi: "In sintesi" };
   function lessonHTML(s, extra = {}) {
     const u = s.unit, pg = u.pageData, last = u.page === u.pages - 1;
     let body = "";
@@ -3550,7 +4705,7 @@ html[lang="it"] .trnote{display:none}
       body += `<ul class="sum">${u.summary.map((t) => `<li>${esc(t)}</li>`).join("")}</ul><p class="note">La trovi anche nel Quaderno, dalla mappa.</p>`;
     }
     const blocked = pg.type === "previsione" && !u.pred;
-    return `<div class="lhead"><div class="kick">Lezione \xB7 ${u.page + 1} di ${u.pages} \xB7 ${KIND[pg.type]}</div><button class="link" data-unit="skip">Salta la lezione</button></div>
+    return `<div class="lhead"><div class="kick">Lezione \xB7 ${u.page + 1} di ${u.pages} \xB7 ${KIND2[pg.type]}</div><button class="link" data-unit="skip">Salta la lezione</button></div>
     <div class="prog" aria-hidden="true">${Array.from({ length: u.pages }, (_, k) => `<b class="${k <= u.page ? "on" : ""}"></b>`).join("")}</div>
     <h2 tabindex="-1">${esc(pg.title || "")}</h2>${body}
     <div class="uact">${u.page > 0 ? '<button class="btn" data-unit="back">Indietro</button>' : ""}<button class="btn primary grow" data-unit="next" ${blocked ? "disabled" : ""}>${last ? "Ora tocca a te" : "Avanti"}</button></div>`;
@@ -4695,7 +5850,9 @@ html[lang="it"] .trnote{display:none}
   var KWH = 42.7;
   var ui = () => ({ mobile: MQ.matches, sel: SEL, kwh: KWH });
   function renderPalette() {
-    $("#palette").innerHTML = paletteHTML(COL);
+    const lv = S && S.level;
+    if (lv && lv.palette && !lv.palette.includes(COL)) COL = lv.palette[0];
+    $("#palette").innerHTML = paletteHTML(COL, lv);
   }
   function setRoomVB() {
     const r = $("#room");
@@ -4730,6 +5887,7 @@ html[lang="it"] .trnote{display:none}
     stopDemo();
     comps = composeComps(S.level);
     SEL = null;
+    renderPalette();
     $("#lvTag").textContent = S.level.name + (S.mode === "contatore" ? " \xB7 dal contatore" : "") + (S.playMode === "verifica" ? " \xB7 prova di salto" : "");
     $("#room").innerHTML = roomHTML(S.level, comps);
     setRoomVB();
@@ -5015,6 +6173,18 @@ html[lang="it"] .trnote{display:none}
       session.toggleBreaker();
       return;
     }
+    const tp = e.target.closest("[data-test]");
+    if (tp) {
+      clearSel();
+      session.testPart(tp.dataset.test);
+      return;
+    }
+    const rp = e.target.closest("[data-reset]");
+    if (rp) {
+      clearSel();
+      session.resetPart(rp.dataset.reset);
+      return;
+    }
     const c2 = e.target.closest("[data-ctl]");
     if (c2) {
       clearSel();
@@ -5029,8 +6199,53 @@ html[lang="it"] .trnote{display:none}
     }
     clearSel();
   });
+  var HOLD_MIN = 250;
+  var held = null;
+  function holdStart(id) {
+    if (held) return;
+    held = { id, at: Date.now() };
+    clearSel();
+    session.press(id);
+  }
+  function holdEnd() {
+    if (!held) return;
+    const h = held;
+    held = null;
+    const rest = HOLD_MIN - (Date.now() - h.at);
+    if (rest > 0) setTimeout(() => session.release(h.id), rest);
+    else session.release(h.id);
+  }
+  bench.addEventListener("pointerdown", (e) => {
+    const h = e.target.closest("[data-hold]");
+    if (!h) return;
+    e.preventDefault();
+    holdStart(h.dataset.hold);
+  });
+  window.addEventListener("pointerup", holdEnd);
+  window.addEventListener("pointercancel", holdEnd);
+  window.addEventListener("blur", holdEnd);
+  bench.addEventListener("keyup", (e) => {
+    if (e.key !== "Enter" && e.key !== " ") return;
+    if (e.target.closest("[data-hold]")) {
+      e.preventDefault();
+      holdEnd();
+    }
+  });
   bench.addEventListener("keydown", (e) => {
     if (e.key !== "Enter" && e.key !== " ") return;
+    const hd = e.target.closest("[data-hold]");
+    if (hd) {
+      e.preventDefault();
+      if (!e.repeat) holdStart(hd.dataset.hold);
+      return;
+    }
+    const tr_ = e.target.closest("[data-test],[data-reset]");
+    if (tr_) {
+      e.preventDefault();
+      if (tr_.dataset.test) session.testPart(tr_.dataset.test);
+      else session.resetPart(tr_.dataset.reset);
+      return;
+    }
     const t = e.target.closest("[data-term]");
     if (t) {
       e.preventDefault();
@@ -5084,6 +6299,9 @@ html[lang="it"] .trnote{display:none}
       if (k) k.textContent = kwhText(KWH);
     }
   }, 700);
+  setInterval(() => {
+    if (S && S.needsClock && !document.hidden) session.tick(0.5);
+  }, 500);
   $("#info").addEventListener("click", (e) => {
     if (e.target.closest("[data-x]")) $("#info").classList.remove("open");
   });
@@ -5139,10 +6357,10 @@ html[lang="it"] .trnote{display:none}
       }
       return;
     }
-    const act = e.target.closest("[data-act]");
-    if (act) {
-      opener = act;
-      const a = act.dataset.act;
+    const act2 = e.target.closest("[data-act]");
+    if (act2) {
+      opener = act2;
+      const a = act2.dataset.act;
       if (a === "summary") openOverlay("summary", summaryHTML(S));
       else if (a === "fault") session.startFault();
       else if (a === "full") {
