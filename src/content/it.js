@@ -7,6 +7,8 @@ export const COLOR_NAMES = {
   grigio: 'Grigio',
   blu: 'Blu',
   gv: 'Giallo-verde',
+  rosso: 'Rosso',
+  bianco: 'Bianco',
 };
 
 // Schede "Che cos'e'" dei componenti, per tipo.
@@ -47,8 +49,18 @@ function compName(level, id) {
   return (c.type === 'dev' ? 'Il ' : 'L’') + t;
 }
 
-const ROLE_OF = { neutro: 'del neutro', terra: 'di terra', fase: 'di fase' };
-const COLOR_NEEDED = { neutro: 'blu', terra: 'giallo-verde', fase: 'marrone, nero o grigio' };
+const ROLE_OF = { neutro: 'del neutro', terra: 'di terra', fase: 'di fase', bassa: 'a bassa tensione', comando: 'di comando' };
+const COLOR_NEEDED = { neutro: 'blu', terra: 'giallo-verde', fase: 'marrone, nero o grigio', bassa: 'di un colore diverso da blu e giallo-verde', comando: 'rosso, marrone, nero o grigio' };
+
+// Motore v2: nome di un componente nei messaggi ("Contattore KM").
+const nameOf = (level, id) => { const c = findComp(level, id); return c ? c.short : id; };
+// Stati osservati, in parole (verifica a prove funzionali).
+const STATE_TEXT = {
+  fwd: 'gira in avanti', rev: 'gira all’indietro', hum: 'ronza e non parte', off: 'è fermo o spento',
+  on: 'è acceso', burnt: 'è bruciato', weak: 'resta spento (tensione troppo bassa)',
+  true: 'è alimentato', false: 'non è alimentato', null: 'non è collegato',
+};
+const stateText = v => STATE_TEXT[String(v)] || String(v);
 
 // Un elemento del risultato (codice + parametri) in una frase.
 export function itemText(item, level) {
@@ -68,6 +80,20 @@ export function itemText(item, level) {
     case 'work.noNeutralAtLoad': return 'Alla lampada non arriva il neutro.';
     case 'work.controlNoEffect': return compName(level, item.comp) + ' non comanda la lampada: cambiarlo non cambia niente.';
     case 'work.controlPartial': return compName(level, item.comp) + ' comanda la lampada solo con alcune posizioni degli altri comandi.';
+    case 'work.allChecksOk': return 'Tutte le prove di funzionamento sono superate (' + item.n + ').';
+    case 'work.checkFail': {
+      const why = item.cause && item.cause !== 'work.checkFail'
+        ? itemText({ code: item.cause, comp: item.comp }, level)
+        : (item.comp === 'tripped' ? 'Protezioni scattate: ' + (item.got || 'nessuna') + '.'
+          : nameOf(level, item.comp) + ': ' + stateText(item.got) + '; atteso: ' + stateText(item.want) + '.');
+      return 'Prova non superata: ' + item.label + '. ' + why;
+    }
+    case 'work.checkMore': return 'E altre ' + item.n + ' prove non superate.';
+    case 'work.secondaryMixed': return 'Il secondario del trasformatore è collegato alla rete: la bassa tensione non è più separata dai 230 V.';
+    case 'work.unstable': return 'Un relè si apre e si chiude da solo: la sua bobina è alimentata attraverso il suo stesso contatto NC.';
+    case 'work.tripped': return 'È scattata una protezione (' + nameOf(level, item.comp) + ').';
+    case 'work.burnt': return 'Componente bruciato (' + nameOf(level, item.comp) + '): ha ricevuto una tensione più alta di quella per cui è fatto.';
+    case 'work.loadOnEarth': return 'Un carico (' + nameOf(level, item.comp) + ') è collegato tra la fase e la terra: la corrente torna dal filo di protezione. Il ritorno va sul neutro.';
     case 'work.allControlsOk': return 'Ogni comando cambia la luce, in qualunque posizione si trovino gli altri.';
 
     case 'color.noWires': return 'Collega prima qualche filo.';
@@ -83,7 +109,16 @@ export function itemText(item, level) {
     case 'safe.socketPolarity': return 'Fase e neutro sono invertiti sulla presa: L deve andare alla fase.';
     case 'safe.neutralBroken': return 'Hai fatto passare il neutro dai comandi. Spenta la luce, i morsetti della lampada restano in tensione. L’interruttore va sulla fase.';
     case 'safe.noPanelEarth': return 'Il quadro non è collegato alla terra: manca il filo giallo-verde che arriva dal contatore.';
+    case 'safe.noEarth': return 'Manca il collegamento a terra (' + nameOf(level, item.comp) + ').';
+    case 'safe.notProtected': return 'Un componente (' + nameOf(level, item.comp) + ') non è a valle della protezione (' + nameOf(level, item.by) + '): in caso di guasto nessuno lo stacca.';
+    case 'safe.interlock': return 'I due contattori possono chiudersi insieme: manca l’interblocco, e le fasi andrebbero in cortocircuito.';
+    case 'safe.stopNotPriority': return 'Tenendo premuto l’arresto, la marcia avvia lo stesso: l’arresto deve prevalere sempre.';
+    case 'safe.emergency': return 'Con il pulsante di emergenza premuto qualcosa resta alimentato: l’emergenza deve fermare tutto.';
+    case 'safe.restartAfterEmergency': return 'Sbloccando l’emergenza la macchina riparte da sola: deve ripartire solo con un nuovo comando di marcia.';
+    case 'safe.notCovered': return 'Un carico (' + nameOf(level, item.comp) + ') non è protetto dal differenziale.';
+    case 'safe.neutralEarth': return 'Neutro e terra sono collegati tra loro: il filo di protezione non deve mai portare corrente.';
     case 'safe.ok':
+      if (item.variant === 'v2') return 'Le regole di sicurezza del livello sono rispettate.';
       return item.variant === 'socket'
         ? 'Terra collegata, fase e neutro al posto giusto.'
         : item.variant === 'full'
