@@ -520,6 +520,7 @@ html[lang="it"] .trnote{display:none}
 .bellb.ring{animation:ring .25s linear infinite;transform-box:fill-box;transform-origin:50% 0}
 @keyframes ring{0%{transform:rotate(-8deg)}50%{transform:rotate(8deg)}100%{transform:rotate(-8deg)}}
 @media (prefers-reduced-motion:reduce){.fan.fwd,.fan.rev,.fan.hum,.bellb.ring{animation:none}}
+.chks{list-style:none;margin:4px 0 0;padding:0}.chks li{font-size:.92em;padding:2px 0}.chks .mark{display:inline-flex;width:18px;height:18px;font-size:.8em}
 </style>
 </head>
 <body>
@@ -1616,6 +1617,12 @@ html[lang="it"] .trnote{display:none}
         });
         if (broken) fail("safe.neutralBroken");
       }
+      if (S2.pol) {
+        const PHS = ["F", "L1", "L2", "L3"];
+        const [l, n] = S2.pol;
+        const swapped = [observe(createSim(level, wires))].concat(states).some((o) => o.potential(l) === "N" || PHS.includes(o.potential(n)));
+        if (swapped) fail("safe.socketPolarity");
+      }
       if (S2.earth) {
         const uf = makeUF();
         wires.forEach((w) => uf.u(w.a, w.b));
@@ -2557,11 +2564,11 @@ html[lang="it"] .trnote{display:none}
     const steps = level.demoDo || (level.controls || []).map((id, i) => {
       const c2 = level.comps.find((x) => x.id === id);
       const hold = c2 && ["pb", "pbnc", "fungo"].includes(c2.type);
-      return { do: [hold ? "press " + id : "toggle " + id], caption: (captions.controls || [])[i] || "" };
+      return { do: hold ? ["press " + id, "release " + id] : ["toggle " + id], say: (captions.controls || [])[i] || "" };
     });
     steps.forEach((st) => {
       st.do.forEach((a) => runAction(sim, a));
-      out.push(snapOf(sim, wires, true, st.caption || "", null));
+      out.push(snapOf(sim, wires, true, st.say || "", null));
     });
     return out;
   }
@@ -2581,6 +2588,11 @@ html[lang="it"] .trnote{display:none}
     return out;
   }
   function blankSnap(level) {
+    if (isV2(level)) {
+      const self = selfPowered(level), sim = createSim(level, []);
+      if (!self) setSupply(sim, false);
+      return { level, wires: [], power: self, trip: false, message: null, flowVisible: false, solutionShown: false, guide: null, selfPowered: self, overload: false, ...viewOf(level, sim, self) };
+    }
     return frame(level, [], false, {}, "", null).snap;
   }
 
@@ -3328,6 +3340,314 @@ html[lang="it"] .trnote{display:none}
     }
   };
 
+  // src/content/levels-v2.js
+  var T = (...ids) => Object.fromEntries(ids.map((i) => [i, { l: i }]));
+  var C = (id, type, short, title, terms, extra = {}) => ({ id, type, short, title, terms: Array.isArray(terms) ? T(...terms) : terms, ...extra });
+  var QM = C("Q", "quadro", "Quadro", "Quadro elettrico", { F: { l: "FASE" }, N: { l: "NEUTRO" }, PE: { l: "TERRA" } });
+  var press = (id) => ["press " + id, "release " + id];
+  var LEVELS_V2 = [
+    {
+      id: "c07-presa-comandata",
+      code: "c07",
+      n: 0,
+      engine: 2,
+      quadroOnly: true,
+      flow: "always",
+      name: "Presa comandata",
+      title: "La presa comandata",
+      blurb: "Un interruttore accende insieme una presa e una lampada.",
+      goal: "Collega l\u2019interruttore, la presa e la lampada: con l\u2019interruttore chiuso devono essere alimentate tutte e due. Alla presa serve anche la terra. Poi dai corrente con la levetta del quadro.",
+      comps: [
+        QM,
+        C("S", "sw", "Interruttore", "Interruttore", { a: { l: "1" }, b: { l: "2" } }, { where: "Ingresso" }),
+        C("P", "presa", "Presa", "Presa bipasso 10/16 A", { L: { l: "L" }, PE: { l: "PE" }, N: { l: "N" } }),
+        C("L", "lamp", "Lampada", "Portalampada", { B: { l: "B" }, A: { l: "A" } })
+      ],
+      controls: ["S"],
+      checks: [
+        { id: "chiuso", label: "Interruttore chiuso: la presa e la lampada sono alimentate", do: ["toggle S"], expect: { loads: { P: "on", L: "on" } } },
+        { id: "aperto", label: "Interruttore aperto: la presa e la lampada sono spente", do: [], expect: { loads: { P: "off", L: "off" } } }
+      ],
+      safety: { earth: [["P.PE", "Q.PE"]], phaseSwitched: ["P", "L"], pol: ["P.L", "P.N"] },
+      solution: [
+        ["Q.F", "S.a", "marrone"],
+        ["S.b", "P.L", "marrone"],
+        ["S.b", "L.A", "marrone"],
+        ["Q.N", "P.N", "blu"],
+        ["Q.N", "L.B", "blu"],
+        ["Q.PE", "P.PE", "gv"]
+      ],
+      hints: [
+        "La fase esce dal quadro e arriva all\u2019interruttore. Dall\u2019interruttore parte verso la presa e verso la lampada.",
+        "Il neutro (blu) va dal quadro direttamente alla presa e alla lampada, senza passare dall\u2019interruttore.",
+        "La presa ha anche il morsetto PE: il filo giallo-verde lo collega alla terra del quadro. Sul morsetto L della presa arriva la fase."
+      ]
+    },
+    {
+      id: "c08-rele-impulsi",
+      code: "c08",
+      n: 0,
+      engine: 2,
+      quadroOnly: true,
+      flow: "always",
+      name: "Rel\xE8 ad impulsi",
+      title: "Il rel\xE8 ad impulsi",
+      blurb: "Tre pulsanti accendono e spengono la stessa lampada.",
+      goal: "Una lampada da accendere e spegnere da tre punti con tre pulsanti uguali. Collega i pulsanti in parallelo alla bobina del rel\xE8 ad impulsi e la lampada al suo contatto. Poi dai corrente.",
+      comps: [
+        QM,
+        C("P1", "pb", "Ingresso", "Pulsante ingresso", { "3": { l: "3" }, "4": { l: "4" } }),
+        C("P2", "pb", "Soggiorno", "Pulsante soggiorno", { "3": { l: "3" }, "4": { l: "4" } }),
+        C("P3", "pb", "Camera", "Pulsante camera", { "3": { l: "3" }, "4": { l: "4" } }),
+        C("K", "ri", "Rel\xE8", "Rel\xE8 ad impulsi", { A1: { l: "A1" }, A2: { l: "A2" }, "1": { l: "1" }, "2": { l: "2" } }),
+        C("L", "lamp", "Lampada", "Portalampada", { B: { l: "B" }, A: { l: "A" } })
+      ],
+      controls: ["P1", "P2", "P3"],
+      checks: [
+        { id: "p1", label: "Premi il pulsante dell\u2019ingresso: la lampada si accende", do: press("P1"), expect: { loads: { L: "on" } } },
+        { id: "p3", label: "Premi quello della camera: la lampada si spegne", steps: [{ do: press("P1"), expect: { loads: { L: "on" } } }, { do: press("P3"), expect: { loads: { L: "off" } } }] },
+        { id: "p2", label: "Premi quello del soggiorno: la lampada si riaccende", steps: [{ do: press("P1").concat(press("P3")), expect: { loads: { L: "off" } } }, { do: press("P2"), expect: { loads: { L: "on" } } }] }
+      ],
+      safety: { phaseSwitched: ["L"] },
+      solution: [
+        ["Q.F", "P1.3", "marrone"],
+        ["P1.3", "P2.3", "marrone"],
+        ["P2.3", "P3.3", "marrone"],
+        ["P1.4", "P2.4", "marrone"],
+        ["P2.4", "P3.4", "marrone"],
+        ["P3.4", "K.A1", "marrone"],
+        ["K.A2", "Q.N", "blu"],
+        ["Q.F", "K.1", "marrone"],
+        ["K.2", "L.A", "marrone"],
+        ["L.B", "Q.N", "blu"]
+      ],
+      hints: [
+        "I tre pulsanti sono in parallelo: i morsetti 3 sono collegati tra loro e alla fase, i morsetti 4 sono collegati tra loro.",
+        "Dai morsetti 4 dei pulsanti un filo va alla bobina del rel\xE8 (A1). L\u2019altro capo della bobina (A2) va al neutro.",
+        "La lampada si collega al contatto del rel\xE8: la fase arriva al morsetto 1, dal morsetto 2 va alla lampada. Il neutro va direttamente alla lampada."
+      ]
+    }
+  ];
+
+  // src/content/units-v2.js
+  var UNITS_V2 = {
+    "c07-presa-comandata": {
+      support: "passi",
+      lesson: {
+        pages: [
+          {
+            type: "spiegazione",
+            title: "Una presa e una luce con un solo comando",
+            paras: [
+              "In molte stanze un solo interruttore comanda pi\xF9 di un carico: per esempio la luce del soffitto e una presa a cui \xE8 collegata una lampada da tavolo.",
+              "Il comando sta sulla fase. A valle dell\u2019interruttore la fase si divide: un filo va alla presa, uno alla lampada. Il neutro, invece, non passa dall\u2019interruttore."
+            ]
+          },
+          {
+            type: "pezzi",
+            title: "La presa: fase, neutro e terra",
+            focus: ["P"],
+            paras: [
+              "La presa ha tre morsetti. L riceve la fase, N il neutro, PE la terra.",
+              "Fase e neutro non si scambiano mai, anche se l\u2019apparecchio funzionerebbe lo stesso: il morsetto L deve essere sulla fase, perch\xE9 le parti metalliche della spina siano sicure."
+            ]
+          },
+          {
+            type: "pezzi",
+            title: "L\u2019interruttore sulla fase",
+            focus: ["S"],
+            paras: [
+              "L\u2019interruttore apre o chiude un solo filo: la fase. Quando \xE8 aperto, presa e lampada non ricevono tensione.",
+              "Il filo che esce dall\u2019interruttore (morsetto 2) alimenta tutti e due i carichi. Lo stesso morsetto, due fili."
+            ]
+          },
+          {
+            type: "demo",
+            title: "Guarda come si fa",
+            captions: {
+              wires: [
+                "Filo marrone dalla FASE del quadro al morsetto 1 dell\u2019interruttore.",
+                "Filo marrone dal morsetto 2 dell\u2019interruttore al morsetto L della presa.",
+                "Un secondo filo marrone dallo stesso morsetto 2 al morsetto A della lampada.",
+                "Filo blu dal NEUTRO al morsetto N della presa.",
+                "Filo blu dal NEUTRO al morsetto B della lampada.",
+                "Filo giallo-verde dalla TERRA del quadro al morsetto PE della presa."
+              ],
+              power: "Levetta su: l\u2019interruttore \xE8 aperto, presa e lampada sono senza tensione.",
+              controls: ["Interruttore chiuso: la presa \xE8 alimentata e la lampada si accende."]
+            }
+          },
+          {
+            type: "previsione",
+            question: "L\u2019interruttore \xE8 aperto. Che cosa succede se inserisco una spina nella presa?",
+            options: [
+              { id: "a", text: "L\u2019apparecchio funziona lo stesso: la presa \xE8 sempre alimentata." },
+              { id: "b", text: "L\u2019apparecchio non funziona: la presa \xE8 comandata dall\u2019interruttore." },
+              { id: "c", text: "Scatta il quadro." }
+            ],
+            correct: "b",
+            why: "In questo circuito l\u2019interruttore interrompe la fase che alimenta anche la presa. Aperto l\u2019interruttore, la presa non ha tensione e l\u2019apparecchio non funziona. Le prese normali, invece, sono collegate direttamente al quadro."
+          },
+          { type: "sintesi", title: "Da ricordare" }
+        ]
+      },
+      steps: [
+        { kind: "wire", from: "Q.F", to: ["S.a"], color: "marrone", short: "1 Fase", title: "Porta la fase all\u2019interruttore", text: "Dalla FASE del quadro al morsetto 1 dell\u2019interruttore." },
+        { kind: "wire", from: "S.b", to: ["P.L"], color: "marrone", short: "2 Presa", title: "Dall\u2019interruttore alla presa", text: "Dal morsetto 2 dell\u2019interruttore al morsetto L della presa." },
+        { kind: "wire", from: "S.b", to: ["L.A"], color: "marrone", short: "3 Lampada", title: "Dall\u2019interruttore alla lampada", text: "Dallo stesso morsetto 2 a un morsetto della lampada." },
+        { kind: "wire", from: "Q.N", to: ["P.N"], color: "blu", short: "4 Neutro presa", title: "Il neutro alla presa", text: "Dal NEUTRO al morsetto N della presa." },
+        { kind: "wire", from: "Q.N", to: ["L.B"], color: "blu", short: "5 Neutro lampada", title: "Il neutro alla lampada", text: "Dal NEUTRO al morsetto libero della lampada." },
+        { kind: "wire", from: "Q.PE", to: ["P.PE"], color: "gv", short: "6 Terra", title: "La terra alla presa", text: "Dalla TERRA del quadro al morsetto PE della presa." },
+        { kind: "power", short: "7 Levetta", title: "Dai corrente", text: "Tocca la levetta del quadro, poi prova l\u2019interruttore." },
+        { kind: "verify", short: "8 Verifica", title: "Controlla l\u2019impianto", text: "Premi Verifica." }
+      ],
+      summary: [
+        "Un solo interruttore pu\xF2 comandare pi\xF9 carichi: sta sulla fase, prima che si divida.",
+        "Il neutro va ai carichi senza passare dall\u2019interruttore.",
+        "La presa ha L (fase), N (neutro) e PE (terra): la terra si collega sempre.",
+        "Fase e neutro sulla presa non si scambiano, anche se l\u2019apparecchio funziona lo stesso."
+      ],
+      fault: {
+        say: "L\u2019impianto \xE8 gi\xE0 cablato e la lampada e la presa funzionano. Eppure l\u2019impianto non \xE8 a norma. Dai corrente, prova l\u2019interruttore e poi premi Verifica.",
+        wires: [
+          ["Q.F", "S.a", "marrone"],
+          ["S.b", "P.N", "marrone"],
+          ["S.b", "L.A", "marrone"],
+          ["Q.N", "P.L", "blu"],
+          ["Q.N", "L.B", "blu"],
+          ["Q.PE", "P.PE", "gv"]
+        ],
+        diagnosis: {
+          question: "Che cosa non va?",
+          options: [
+            { id: "a", text: "Fase e neutro sono scambiati sulla presa." },
+            { id: "b", text: "Manca il filo di terra alla presa." },
+            { id: "c", text: "La lampada \xE8 collegata in serie alla presa." }
+          ],
+          correct: "a",
+          why: "La fase \xE8 arrivata sul morsetto N e il neutro sul morsetto L. Gli apparecchi funzionano lo stesso, ma una parte dell\u2019apparecchio che dovrebbe essere a riposo resta in tensione. La fase va sempre sul morsetto L."
+        },
+        fixSay: "Scambia i fili sulla presa: la fase al morsetto L e il neutro al morsetto N. Poi premi Verifica."
+      }
+    },
+    "c08-rele-impulsi": {
+      support: "passi",
+      lesson: {
+        pages: [
+          {
+            type: "spiegazione",
+            title: "Una luce da tre punti",
+            paras: [
+              "In un lungo corridoio con molte porte serve accendere e spegnere la stessa luce da molti punti. Con i deviatori servirebbe un invertitore in ogni punto in pi\xF9.",
+              "Con il rel\xE8 ad impulsi basta mettere tanti pulsanti quanti ne servono, tutti in parallelo. Ogni pressione cambia lo stato della luce."
+            ]
+          },
+          {
+            type: "pezzi",
+            title: "Il pulsante",
+            focus: ["P1"],
+            paras: [
+              "Il pulsante \xE8 un interruttore che torna a riposo da solo: il contatto \xE8 chiuso finch\xE9 lo tieni premuto, poi si riapre.",
+              "Per questo non ricorda lo stato della luce: lo ricorda il rel\xE8."
+            ]
+          },
+          {
+            type: "pezzi",
+            title: "Il rel\xE8 ad impulsi",
+            focus: ["K"],
+            paras: [
+              "Il rel\xE8 ha due parti separate. La bobina (A1-A2) \xE8 il circuito di comando: a ogni impulso il rel\xE8 cambia stato.",
+              "Il contatto (1-2) \xE8 il circuito della lampada: \xE8 chiuso o aperto, e resta cos\xEC finch\xE9 non arriva un altro impulso."
+            ]
+          },
+          {
+            type: "spiegazione",
+            title: "Pulsanti in parallelo, mai in serie",
+            paras: [
+              "I pulsanti in parallelo: ne basta uno premuto perch\xE9 la bobina riceva l\u2019impulso. In serie servirebbero tutti premuti insieme.",
+              "In parallelo i morsetti 3 sono collegati tra loro e alla fase; i morsetti 4 sono collegati tra loro e alla bobina."
+            ],
+            warn: "Pulsanti in serie: la bobina non riceverebbe mai l\u2019impulso e la lampada non si accenderebbe mai."
+          },
+          {
+            type: "demo",
+            title: "Guarda come si fa",
+            captions: {
+              wires: [
+                "Filo marrone dalla FASE al morsetto 3 del pulsante dell\u2019ingresso.",
+                "Il morsetto 3 del pulsante dell\u2019ingresso al morsetto 3 del pulsante del soggiorno.",
+                "Il morsetto 3 del soggiorno al morsetto 3 del pulsante della camera.",
+                "Il morsetto 4 dell\u2019ingresso al morsetto 4 del soggiorno.",
+                "Il morsetto 4 del soggiorno al morsetto 4 della camera.",
+                "Il morsetto 4 della camera alla bobina del rel\xE8 (A1).",
+                "Filo blu dal NEUTRO alla bobina (A2).",
+                "Filo marrone dalla FASE al contatto del rel\xE8 (morsetto 1).",
+                "Filo marrone dal contatto (morsetto 2) alla lampada.",
+                "Filo blu dal NEUTRO alla lampada."
+              ],
+              power: "Levetta su: il rel\xE8 \xE8 a riposo e la lampada \xE8 spenta.",
+              controls: ["Primo impulso: la lampada si accende.", "Secondo impulso: la lampada si spegne.", "Terzo impulso: la lampada si riaccende."]
+            }
+          },
+          {
+            type: "previsione",
+            question: "La lampada \xE8 accesa. Premo il pulsante e lo lascio andare. Che cosa fa la lampada?",
+            options: [
+              { id: "a", text: "Si spegne e resta spenta." },
+              { id: "b", text: "Si spegne solo finch\xE9 tengo premuto, poi si riaccende." },
+              { id: "c", text: "Resta accesa." }
+            ],
+            correct: "a",
+            why: "Il rel\xE8 ad impulsi cambia stato a ogni pressione e ricorda lo stato anche a pulsante rilasciato. Un impulso acceso, un impulso spento."
+          },
+          { type: "sintesi", title: "Da ricordare" }
+        ]
+      },
+      steps: [
+        { kind: "wire", from: "Q.F", to: ["P1.3"], color: "marrone", short: "1 Fase", title: "La fase ai pulsanti", text: "Dalla FASE del quadro al morsetto 3 del pulsante dell\u2019ingresso." },
+        { kind: "wire", from: "P1.3", to: ["P2.3", "P3.3"], color: "marrone", short: "2 Morsetti 3", title: "I morsetti 3 in parallelo", text: "Collega tra loro i morsetti 3 dei tre pulsanti: servono due fili." },
+        { kind: "wire", from: "P1.4", to: ["P2.4", "P3.4"], color: "marrone", short: "3 Morsetti 4", title: "I morsetti 4 in parallelo", text: "Collega tra loro i morsetti 4 dei tre pulsanti: servono due fili." },
+        { kind: "wire", from: "P3.4", to: ["K.A1"], color: "marrone", short: "4 Bobina", title: "Dai pulsanti alla bobina", text: "Dal morsetto 4 di un pulsante al morsetto A1 del rel\xE8." },
+        { kind: "wire", from: "K.A2", to: ["Q.N"], color: "blu", short: "5 Neutro bobina", title: "Il neutro alla bobina", text: "Dal morsetto A2 del rel\xE8 al NEUTRO." },
+        { kind: "wire", from: "Q.F", to: ["K.1"], color: "marrone", short: "6 Contatto", title: "La fase al contatto", text: "Dalla FASE al morsetto 1 del rel\xE8." },
+        { kind: "wire", from: "K.2", to: ["L.A"], color: "marrone", short: "7 Lampada", title: "Dal contatto alla lampada", text: "Dal morsetto 2 del rel\xE8 a un morsetto della lampada." },
+        { kind: "wire", from: "Q.N", to: ["L.B"], color: "blu", short: "8 Neutro", title: "Il neutro alla lampada", text: "Dal NEUTRO al morsetto libero della lampada." },
+        { kind: "power", short: "9 Levetta", title: "Dai corrente", text: "Tocca la levetta del quadro, poi premi i pulsanti uno alla volta." },
+        { kind: "verify", short: "10 Verifica", title: "Controlla l\u2019impianto", text: "Premi Verifica." }
+      ],
+      summary: [
+        "Il pulsante torna a riposo da solo: non ricorda lo stato della luce.",
+        "Il rel\xE8 ad impulsi cambia stato a ogni impulso sulla bobina e lo mantiene.",
+        "Circuito di comando (bobina) e circuito della lampada (contatto) sono separati.",
+        "I pulsanti si collegano in parallelo: ne basta uno premuto. In serie la lampada non si accende mai."
+      ],
+      fault: {
+        say: "L\u2019impianto \xE8 gi\xE0 cablato, ma premendo i pulsanti la lampada non si accende. Dai corrente e prova.",
+        wires: [
+          ["Q.F", "P1.3", "marrone"],
+          ["P1.4", "P2.3", "marrone"],
+          ["P2.4", "P3.3", "marrone"],
+          ["P3.4", "K.A1", "marrone"],
+          ["K.A2", "Q.N", "blu"],
+          ["Q.F", "K.1", "marrone"],
+          ["K.2", "L.A", "marrone"],
+          ["L.B", "Q.N", "blu"]
+        ],
+        diagnosis: {
+          question: "Che cosa non va?",
+          options: [
+            { id: "a", text: "I pulsanti sono collegati in serie: la bobina non riceve mai l\u2019impulso." },
+            { id: "b", text: "Il rel\xE8 \xE8 collegato al neutro sbagliato." },
+            { id: "c", text: "La lampada non \xE8 collegata al neutro." }
+          ],
+          correct: "a",
+          why: "I pulsanti sono uno dopo l\u2019altro: la fase arriva alla bobina solo se tutti e tre sono premuti insieme, ed \xE8 impossibile da punti diversi della casa. I pulsanti vanno in parallelo."
+        },
+        fixSay: "Ricollega i pulsanti in parallelo: i tre morsetti 3 insieme alla fase, i tre morsetti 4 insieme alla bobina. Poi premi Verifica."
+      }
+    }
+  };
+
   // src/content/it.js
   var COLOR_NAMES = {
     marrone: "Marrone",
@@ -3346,6 +3666,22 @@ html[lang="it"] .trnote{display:none}
     sw: ["L\u2019interruttore", "Ha due morsetti e un contatto che si apre o si chiude. Aperto, la corrente non passa e la lampada si spegne. Si mette sempre sulla fase. Toccalo per cambiarne la posizione."],
     dev: ["Il deviatore", "Ha un morsetto comune (C) e due vie (1 e 2). Il contatto collega C a 1 oppure a 2. Due deviatori insieme comandano la stessa luce da due punti."],
     inv: ["L\u2019invertitore", "Ha quattro morsetti: due in alto (1 e 2) e due in basso (3 e 4). In una posizione collega 1 con 3 e 2 con 4, nell\u2019altra li incrocia. Si mette tra due deviatori per avere un terzo comando."],
+    pb: ["Il pulsante normalmente aperto (NA)", "Ha due morsetti, 3 e 4. A riposo il contatto \xE8 aperto: si chiude solo finch\xE9 lo tieni premuto, poi torna da solo. Per questo non ricorda nulla: serve a dare un impulso."],
+    pbnc: ["Il pulsante normalmente chiuso (NC)", "Ha due morsetti, 1 e 2. A riposo il contatto \xE8 chiuso: si apre solo finch\xE9 lo tieni premuto. Si usa per l\u2019arresto, perch\xE9 un filo staccato ferma la macchina."],
+    fungo: ["Il pulsante di emergenza a fungo", "Ha un contatto normalmente chiuso. Premuto, si apre e resta bloccato: la macchina si ferma e non riparte finch\xE9 non lo sblocchi."],
+    ri: ["Il rel\xE8 ad impulsi", "Ha una bobina (A1 e A2) e un contatto (1 e 2). A ogni impulso sulla bobina il contatto cambia stato e lo mantiene: aperto, chiuso, aperto. Serve a comandare una luce da molti punti."],
+    tmr: ["Il rel\xE8 temporizzato", "Ha una bobina (A1 e A2) e un contatto (1 e 2). Dopo un impulso il contatto resta chiuso per il tempo impostato, poi si riapre da solo."],
+    km: ["Il contattore", "Ha una bobina (A1 e A2) e dei contatti. Con la bobina alimentata si chiudono i tre poli di potenza (1-2, 3-4, 5-6) e il contatto ausiliario normalmente aperto (13-14); si apre quello normalmente chiuso (21-22). Il circuito di comando e quello di potenza sono separati."],
+    ft: ["Il rel\xE8 termico", "Sta in serie al motore e si scalda se il motore assorbe troppa corrente. Dopo un po\u2019 scatta: apre il contatto 95-96 del comando e il motore si ferma. Si riarma a mano con il tasto Reset."],
+    mt: ["L\u2019interruttore magnetotermico", "Protegge la linea da sovraccarico e cortocircuito: scatta da solo. Levetta su: chiuso. Levetta gi\xF9: aperto. Ha un polo per la fase e uno per il neutro."],
+    mt3: ["Il salvamotore magnetotermico trifase", "Protegge il motore e i circuiti collegati dopo di lui. Ha tre poli, uno per fase. Levetta su: chiuso. Scatta in caso di cortocircuito."],
+    sez: ["Il sezionatore", "Apre tutte le fasi insieme per lavorare in sicurezza. Non protegge da sovraccarichi: si apre e si chiude a mano."],
+    rcd: ["L\u2019interruttore differenziale", "Confronta la corrente che va con quella che torna. Se manca una parte, perch\xE9 una corrente passa attraverso una persona o verso terra, scatta. Il tasto T prova che funzioni."],
+    trafo: ["Il trasformatore", "Abbassa la tensione. I morsetti 1 e 2 sono il primario, a 230 V. I morsetti 3 e 4 sono il secondario, a bassa tensione e pi\xF9 sicuro: serve per il campanello."],
+    bell: ["Il campanello", "Funziona a bassa tensione (12 V). Collegato direttamente alla rete a 230 V si brucia: ha bisogno del trasformatore."],
+    spia: ["La spia luminosa", "Si accende quando \xE8 alimentata tra i suoi due morsetti. Segnala, per esempio, che il motore \xE8 in marcia."],
+    motor3: ["Il motore trifase", "Ha tre morsetti per le tre fasi (U, V, W) e il morsetto PE per la terra. Scambiando due fasi cambia il senso di rotazione."],
+    fc: ["Il finecorsa", "Un contatto che si aziona quando la macchina arriva a fine corsa: il contatto normalmente chiuso (1-2) si apre, quello normalmente aperto (3-4) si chiude."],
     lamp: ["Il portalampada", "Ha due morsetti. La lampada si accende solo se da un morsetto arriva la fase e dall\u2019altro il neutro: la corrente deve poter attraversarla."]
   };
   var FULL_TEXT = {
@@ -3655,8 +3991,8 @@ html[lang="it"] .trnote{display:none}
   };
 
   // src/content/index.js
-  var ALL_UNITS = { ...UNITS, ...TRILOCALE_UNITS };
-  var levels = [...LEVELS, ...TRILOCALE_LEVELS].map((l) => ALL_UNITS[l.id] ? { ...l, unit: ALL_UNITS[l.id] } : l);
+  var ALL_UNITS = { ...UNITS, ...UNITS_V2, ...TRILOCALE_UNITS };
+  var levels = [...LEVELS, ...TRILOCALE_LEVELS, ...LEVELS_V2].map((l) => ALL_UNITS[l.id] ? { ...l, unit: ALL_UNITS[l.id] } : l);
   var deriveFull = (base2) => buildFull(base2, FULL_TEXT);
 
   // src/ui2d/layout.js
@@ -3774,7 +4110,8 @@ html[lang="it"] .trnote{display:none}
       const order = (list, ref) => list.slice().sort((p, q) => (ref.indexOf(p) < 0 ? 99 : ref.indexOf(p)) - (ref.indexOf(q) < 0 ? 99 : ref.indexOf(q)));
       const tt = order(t, top || []), bb = order(b, bot || []);
       spread(tt.length, lead || 0.1).forEach((f, i) => terms[tt[i]] = { f, s: "t" });
-      spread(bb.length, lead || 0.1).forEach((f, i) => terms[bb[i]] = { f, s: "b" });
+      const fb = c2.type === "quadro" && !selfPowered(level) && bb.length <= 3 ? [0.12, 0.38, 0.64].slice(0, bb.length) : spread(bb.length, lead || 0.1);
+      fb.forEach((f, i) => terms[bb[i]] = { f, s: "b" });
       return { x, y: y0, w, h, terms };
     };
     const width = (c2) => (KIND[c2.type] || [FULL])[0];
@@ -4024,6 +4361,7 @@ html[lang="it"] .trnote{display:none}
     const m = level.machine;
     let o = `<defs><radialGradient id="glow2"><stop offset="0" stop-color="#FFE9A8" stop-opacity=".95"/><stop offset="1" stop-color="#FFD25E" stop-opacity="0"/></radialGradient></defs>`;
     o += `<rect class="wall" x="0" y="0" width="400" height="196"/><rect class="floor" x="0" y="196" width="400" height="54"/><rect class="skirt" x="0" y="190" width="400" height="8"/>`;
+    if (!m) o += `<rect id="night2" class="night" x="0" y="0" width="400" height="250" opacity=".5"/>`;
     const devs = level.comps.filter((c2) => DEV.has(c2.type) && !(m && c2.id === m.motor));
     const n = devs.length + (m ? 0 : 0);
     devs.forEach((c2, i) => {
@@ -4055,7 +4393,7 @@ html[lang="it"] .trnote{display:none}
     }
     const ctl = (level.controls || []).map((id) => level.comps.find((c2) => c2.id === id)).filter((c2) => c2 && WALLCTL[c2.type]);
     ctl.forEach((c2, i) => {
-      const x = Math.round(400 * (i + 0.5) / ctl.length), y = 168;
+      const x = Math.round(400 * (i + 0.5) / ctl.length), y = 142;
       if (WALLCTL[c2.type] === "hold") {
         const col = c2.type === "pb" ? "#2E9E5B" : "#C0262D";
         o += `<g class="pl" data-hold="${c2.id}" role="button" tabindex="0" aria-label="${c2.title || c2.short}, tieni premuto" style="touch-action:none"><circle cx="${x}" cy="${y}" r="26" fill="transparent"/><circle class="plate" cx="${x}" cy="${y}" r="20"/><circle id="bt-${c2.id}" cx="${x}" cy="${y}" r="13" fill="${col}" stroke="rgba(255,255,255,.45)" stroke-width="2"/><text x="${x}" y="${y + 36}" text-anchor="middle" style="font:600 11px 'IBM Plex Sans',sans-serif;fill:var(--ink2)">${c2.short}</text></g>`;
@@ -4102,6 +4440,8 @@ html[lang="it"] .trnote{display:none}
         if (b) b.setAttribute("opacity", s.controlStates[c2.id] ? ".55" : "1");
       }
     });
+    const nt = root.querySelector("#night2");
+    if (nt) nt.setAttribute("opacity", Object.values(o.loads).some((v) => v === "on") ? "0" : ".5");
     const m = level.machine;
     if (m && o.machine) {
       const x = 90 + o.machine.pos / m.length * (350 - 90 - 30);
@@ -4372,6 +4712,11 @@ html[lang="it"] .trnote{display:none}
     return `<span class="pill ${q[1]}">${q[0]}</span><span class="pill${s.lit || nOn ? " on" : ""}">${lampTxt}</span><span class="msg" aria-live="polite">${msg}</span>`;
   }
   var MARK = { ok: "\u2713", na: "\u2013", ko: "\u2715" };
+  function checksHTML(result) {
+    if (!result.checks || !result.checks.length) return "";
+    const li = (c2) => `<li class="${c2.ok ? "ok" : "ko"}"><span class="mark ${c2.ok ? "ok" : "ko"}" aria-hidden="true">${c2.ok ? MARK.ok : MARK.ko}</span> ${c2.label}</li>`;
+    return `<div class="row chk"><span class="mark na" aria-hidden="true">${MARK.na}</span><div><b>Prove di funzionamento</b><ul class="chks">${result.checks.map(li).join("")}</ul></div></div>`;
+  }
   function resultHTML(s) {
     if (!s.result) return "";
     const r = describeEvaluation(s.result, s.level);
@@ -4389,7 +4734,7 @@ html[lang="it"] .trnote{display:none}
       if (s.playMode !== "verifica" && s.mode === "quadro" && !s.level.quadroOnly) acts.push('<button class="btn" data-act="full">Sfida: parti dal contatore</button>');
       acts.push(last ? "" : toHouse ? '<button class="btn primary" id="bNext" data-href="#/modulo/1">Vai al trilocale</button>' : '<button class="btn primary" id="bNext">Livello successivo</button>');
     }
-    return `<h3>${r.pass ? "Impianto funzionante" : "Controllo del circuito"}</h3><div class="stars" aria-label="${r.stars} stelle su 3">${"\u2605".repeat(r.stars)}<span class="e">${"\u2605".repeat(3 - r.stars)}</span></div>${row("Funziona", r.work)}${row("Colori dei fili", r.color)}${row("Sicurezza", r.safe)}<p class="xpline">Punti di questo livello: <b>${xp} XP</b></p>${r.pass && last ? '<p class="next"><b>Hai completato tutti i livelli.</b></p>' : r.pass && toHouse ? '<p class="next"><b>Hai completato il Modulo 0.</b></p>' : ""}${acts.length ? `<div class="uact">${acts.join("")}</div>` : ""}`;
+    return `<h3>${r.pass ? "Impianto funzionante" : "Controllo del circuito"}</h3><div class="stars" aria-label="${r.stars} stelle su 3">${"\u2605".repeat(r.stars)}<span class="e">${"\u2605".repeat(3 - r.stars)}</span></div>${row("Funziona", r.work)}${checksHTML(s.result)}${row("Colori dei fili", r.color)}${row("Sicurezza", r.safe)}<p class="xpline">Punti di questo livello: <b>${xp} XP</b></p>${r.pass && last ? '<p class="next"><b>Hai completato tutti i livelli.</b></p>' : r.pass && toHouse ? '<p class="next"><b>Hai completato il Modulo 0.</b></p>' : ""}${acts.length ? `<div class="uact">${acts.join("")}</div>` : ""}`;
   }
 
   // src/content/home.js
@@ -4410,8 +4755,8 @@ html[lang="it"] .trnote{display:none}
       tag: "MODULO 2",
       title: "Civile avanzato",
       levels: [
-        { soon: true, id: "c07-presa-comandata", title: "Presa comandata", blurb: "Un interruttore accende insieme una presa e una lampada." },
-        { soon: true, id: "c08-rele-impulsi", title: "Rel\xE8 ad impulsi", blurb: "Tre pulsanti accendono e spengono la stessa lampada." },
+        "c07-presa-comandata",
+        "c08-rele-impulsi",
         { soon: true, id: "c09-luce-scale", title: "Luce scale a tempo", blurb: "La luce si spegne da sola dopo qualche secondo." },
         { soon: true, id: "c10-campanello", title: "Campanello e trasformatore", blurb: "Un trasformatore abbassa la tensione per il campanello." },
         { soon: true, id: "c11-quadro", title: "Il quadro di casa", blurb: "Differenziale e magnetotermici su luce e prese." }
@@ -4749,7 +5094,11 @@ html[lang="it"] .trnote{display:none}
   function continueTarget(s) {
     const open = (l) => l.status !== "completato" && l.status !== "saltato";
     const last = s.levels.find((l) => l.id === s.last);
-    return last && open(last) && last || s.levels.find((l) => open(l) && !/^t\d\d-/.test(l.id)) || null;
+    if (last && open(last)) return last;
+    const m0 = s.levels.find((l) => open(l) && MODULES[0].levels.includes(l.id));
+    if (m0) return m0;
+    if (s.levels.some((l) => /^t\d\d-/.test(l.id) && open(l))) return null;
+    return s.levels.find((l) => open(l) && !/^t\d\d-/.test(l.id)) || null;
   }
   function homeHTML(s) {
     const t = continueTarget(s);
@@ -5713,7 +6062,166 @@ html[lang="it"] .trnote{display:none}
     "in avanti": "\u0625\u0644\u0649 \u0627\u0644\u0623\u0645\u0627\u0645",
     "all\u2019indietro": "\u0625\u0644\u0649 \u0627\u0644\u062E\u0644\u0641",
     "ronza e non parte": "\u064A\u0626\u0632\u0651 \u0648\u0644\u0627 \u064A\u062F\u0648\u0631",
-    "fermo": "\u0645\u062A\u0648\u0642\u0641"
+    "fermo": "\u0645\u062A\u0648\u0642\u0641",
+    "Prove di funzionamento": "\u0627\u062E\u062A\u0628\u0627\u0631\u0627\u062A \u0627\u0644\u062A\u0634\u063A\u064A\u0644"
+  };
+
+  // src/i18n/ar-9.js
+  var ar_9_default = {
+    "Abbassa la tensione. I morsetti 1 e 2 sono il primario, a 230 V. I morsetti 3 e 4 sono il secondario, a bassa tensione e pi\xF9 sicuro: serve per il campanello.": "\u064A\u062E\u0641\u0636 \u0627\u0644\u062C\u0647\u062F. \u0627\u0644\u0645\u0631\u0628\u0637\u0627\u0646 1 \u06482 \u0647\u0645\u0627 \u0627\u0644\u0645\u0644\u0641 \u0627\u0644\u0623\u0648\u0644\u064A\u060C \u0628\u062C\u0647\u062F 230 \u0641\u0648\u0644\u062A. \u0627\u0644\u0645\u0631\u0628\u0637\u0627\u0646 3 \u06484 \u0647\u0645\u0627 \u0627\u0644\u0645\u0644\u0641 \u0627\u0644\u062B\u0627\u0646\u0648\u064A\u060C \u0628\u062C\u0647\u062F \u0645\u0646\u062E\u0641\u0636 \u0648\u0623\u0643\u062B\u0631 \u0623\u0645\u0627\u0646\u064B\u0627: \u064A\u064F\u0633\u062A\u062E\u062F\u0645 \u0644\u0644\u062C\u0631\u0633.",
+    "Apre tutte le fasi insieme per lavorare in sicurezza. Non protegge da sovraccarichi: si apre e si chiude a mano.": "\u064A\u0641\u062A\u062D \u0643\u0644 \u0627\u0644\u0623\u0637\u0648\u0627\u0631 \u0645\u0639\u064B\u0627 \u0644\u0644\u0639\u0645\u0644 \u0628\u0623\u0645\u0627\u0646. \u0644\u0627 \u064A\u062D\u0645\u064A \u0645\u0646 \u0627\u0644\u062D\u0645\u0644 \u0627\u0644\u0632\u0627\u0626\u062F: \u064A\u064F\u0641\u062A\u062D \u0648\u064A\u064F\u063A\u0644\u0642 \u064A\u062F\u0648\u064A\u064B\u0627.",
+    "Bobina": "\u0627\u0644\u0645\u0644\u0641",
+    "Contatto": "\u0627\u0644\u0645\u0644\u0627\u0645\u0633",
+    "Circuito di comando (bobina) e circuito della lampada (contatto) sono separati.": "\u062F\u0627\u0626\u0631\u0629 \u0627\u0644\u062A\u062D\u0643\u0645 (\u0627\u0644\u0645\u0644\u0641) \u0648\u062F\u0627\u0626\u0631\u0629 \u0627\u0644\u0645\u0635\u0628\u0627\u062D (\u0627\u0644\u0645\u0644\u0627\u0645\u0633) \u0645\u0646\u0641\u0635\u0644\u062A\u0627\u0646.",
+    "Collega l\u2019interruttore, la presa e la lampada: con l\u2019interruttore chiuso devono essere alimentate tutte e due. Alla presa serve anche la terra. Poi dai corrente con la levetta del quadro.": "\u0635\u0650\u0644 \u0627\u0644\u0645\u0641\u062A\u0627\u062D \u0648\u0627\u0644\u0645\u0623\u062E\u0630 \u0648\u0627\u0644\u0645\u0635\u0628\u0627\u062D: \u0639\u0646\u062F \u0625\u063A\u0644\u0627\u0642 \u0627\u0644\u0645\u0641\u062A\u0627\u062D \u064A\u062C\u0628 \u0623\u0646 \u064A\u062A\u063A\u0630\u0649 \u0627\u0644\u0627\u062B\u0646\u0627\u0646 \u0645\u0639\u064B\u0627. \u0627\u0644\u0645\u0623\u062E\u0630 \u064A\u062D\u062A\u0627\u062C \u0623\u064A\u0636\u064B\u0627 \u0625\u0644\u0649 \u0627\u0644\u0623\u0631\u0636\u064A. \u062B\u0645 \u0634\u063A\u0651\u0644 \u0627\u0644\u062A\u064A\u0627\u0631 \u0628\u0630\u0631\u0627\u0639 \u0627\u0644\u0644\u0648\u062D\u0629.",
+    "Collega tra loro i morsetti 3 dei tre pulsanti: servono due fili.": "\u0635\u0650\u0644 \u0627\u0644\u0645\u0631\u0627\u0628\u0637 3 \u0644\u0644\u0623\u0632\u0631\u0627\u0631 \u0627\u0644\u062B\u0644\u0627\u062B\u0629 \u0628\u0628\u0639\u0636\u0647\u0627: \u062A\u062D\u062A\u0627\u062C \u0625\u0644\u0649 \u0633\u0644\u0643\u064A\u0646.",
+    "Collega tra loro i morsetti 4 dei tre pulsanti: servono due fili.": "\u0635\u0650\u0644 \u0627\u0644\u0645\u0631\u0627\u0628\u0637 4 \u0644\u0644\u0623\u0632\u0631\u0627\u0631 \u0627\u0644\u062B\u0644\u0627\u062B\u0629 \u0628\u0628\u0639\u0636\u0647\u0627: \u062A\u062D\u062A\u0627\u062C \u0625\u0644\u0649 \u0633\u0644\u0643\u064A\u0646.",
+    "Con il rel\xE8 ad impulsi basta mettere tanti pulsanti quanti ne servono, tutti in parallelo. Ogni pressione cambia lo stato della luce.": "\u0645\u0639 \u0645\u0631\u062D\u0651\u0644 \u0627\u0644\u0646\u0628\u0636\u0627\u062A \u064A\u0643\u0641\u064A \u062A\u0631\u0643\u064A\u0628 \u0623\u064A \u0639\u062F\u062F \u0645\u0646 \u0627\u0644\u0623\u0632\u0631\u0627\u0631 \u062A\u062D\u062A\u0627\u062C\u0647\u060C \u0643\u0644\u0647\u0627 \u0639\u0644\u0649 \u0627\u0644\u062A\u0648\u0627\u0632\u064A. \u0643\u0644 \u0636\u063A\u0637\u0629 \u062A\u063A\u064A\u0651\u0631 \u062D\u0627\u0644\u0629 \u0627\u0644\u0636\u0648\u0621.",
+    "Confronta la corrente che va con quella che torna. Se manca una parte, perch\xE9 una corrente passa attraverso una persona o verso terra, scatta. Il tasto T prova che funzioni.": "\u064A\u0642\u0627\u0631\u0646 \u0627\u0644\u062A\u064A\u0627\u0631 \u0627\u0644\u0630\u0627\u0647\u0628 \u0628\u0627\u0644\u062A\u064A\u0627\u0631 \u0627\u0644\u0639\u0627\u0626\u062F. \u0625\u0630\u0627 \u0646\u0642\u0635 \u062C\u0632\u0621 \u0645\u0646\u0647\u060C \u0644\u0623\u0646 \u062A\u064A\u0627\u0631\u064B\u0627 \u064A\u0645\u0631 \u0639\u0628\u0631 \u0634\u062E\u0635 \u0623\u0648 \u0646\u062D\u0648 \u0627\u0644\u0623\u0631\u0636\u060C \u064A\u0641\u0635\u0644. \u0632\u0631 T \u064A\u062E\u062A\u0628\u0631 \u0623\u0646\u0647 \u064A\u0639\u0645\u0644.",
+    "Dai morsetti 4 dei pulsanti un filo va alla bobina del rel\xE8 (A1). L\u2019altro capo della bobina (A2) va al neutro.": "\u0645\u0646 \u0627\u0644\u0645\u0631\u0627\u0628\u0637 4 \u0644\u0644\u0623\u0632\u0631\u0627\u0631 \u064A\u0630\u0647\u0628 \u0633\u0644\u0643 \u0625\u0644\u0649 \u0645\u0644\u0641 \u0627\u0644\u0645\u0631\u062D\u0651\u0644 (A1). \u0627\u0644\u0637\u0631\u0641 \u0627\u0644\u0622\u062E\u0631 \u0644\u0644\u0645\u0644\u0641 (A2) \u064A\u0630\u0647\u0628 \u0625\u0644\u0649 \u0627\u0644\u0645\u062D\u0627\u064A\u062F.",
+    "Dai pulsanti alla bobina": "\u0645\u0646 \u0627\u0644\u0623\u0632\u0631\u0627\u0631 \u0625\u0644\u0649 \u0627\u0644\u0645\u0644\u0641",
+    "Dal NEUTRO al morsetto N della presa.": "\u0645\u0646 \u0627\u0644\u0645\u062D\u0627\u064A\u062F \u0625\u0644\u0649 \u0627\u0644\u0645\u0631\u0628\u0637 N \u0641\u064A \u0627\u0644\u0645\u0623\u062E\u0630.",
+    "Dal NEUTRO al morsetto libero della lampada.": "\u0645\u0646 \u0627\u0644\u0645\u062D\u0627\u064A\u062F \u0625\u0644\u0649 \u0627\u0644\u0645\u0631\u0628\u0637 \u0627\u0644\u062D\u0631 \u0641\u064A \u0627\u0644\u0645\u0635\u0628\u0627\u062D.",
+    "Dal contatto alla lampada": "\u0645\u0646 \u0627\u0644\u0645\u0644\u0627\u0645\u0633 \u0625\u0644\u0649 \u0627\u0644\u0645\u0635\u0628\u0627\u062D",
+    "Dal morsetto 2 del rel\xE8 a un morsetto della lampada.": "\u0645\u0646 \u0627\u0644\u0645\u0631\u0628\u0637 2 \u0641\u064A \u0627\u0644\u0645\u0631\u062D\u0651\u0644 \u0625\u0644\u0649 \u0623\u062D\u062F \u0645\u0631\u0628\u0637\u064A \u0627\u0644\u0645\u0635\u0628\u0627\u062D.",
+    "Dal morsetto 2 dell\u2019interruttore al morsetto L della presa.": "\u0645\u0646 \u0627\u0644\u0645\u0631\u0628\u0637 2 \u0641\u064A \u0627\u0644\u0645\u0641\u062A\u0627\u062D \u0625\u0644\u0649 \u0627\u0644\u0645\u0631\u0628\u0637 L \u0641\u064A \u0627\u0644\u0645\u0623\u062E\u0630.",
+    "Dal morsetto 4 di un pulsante al morsetto A1 del rel\xE8.": "\u0645\u0646 \u0627\u0644\u0645\u0631\u0628\u0637 4 \u0641\u064A \u0623\u062D\u062F \u0627\u0644\u0623\u0632\u0631\u0627\u0631 \u0625\u0644\u0649 \u0627\u0644\u0645\u0631\u0628\u0637 A1 \u0641\u064A \u0627\u0644\u0645\u0631\u062D\u0651\u0644.",
+    "Dal morsetto A2 del rel\xE8 al NEUTRO.": "\u0645\u0646 \u0627\u0644\u0645\u0631\u0628\u0637 A2 \u0641\u064A \u0627\u0644\u0645\u0631\u062D\u0651\u0644 \u0625\u0644\u0649 \u0627\u0644\u0645\u062D\u0627\u064A\u062F.",
+    "Dalla FASE al morsetto 1 del rel\xE8.": "\u0645\u0646 \u0627\u0644\u0637\u0648\u0631 \u0625\u0644\u0649 \u0627\u0644\u0645\u0631\u0628\u0637 1 \u0641\u064A \u0627\u0644\u0645\u0631\u062D\u0651\u0644.",
+    "Dalla FASE del quadro al morsetto 3 del pulsante dell\u2019ingresso.": "\u0645\u0646 \u0637\u0648\u0631 \u0627\u0644\u0644\u0648\u062D\u0629 \u0625\u0644\u0649 \u0627\u0644\u0645\u0631\u0628\u0637 3 \u0641\u064A \u0632\u0631 \u0627\u0644\u0645\u062F\u062E\u0644.",
+    "Dalla TERRA del quadro al morsetto PE della presa.": "\u0645\u0646 \u0623\u0631\u0636\u064A \u0627\u0644\u0644\u0648\u062D\u0629 \u0625\u0644\u0649 \u0627\u0644\u0645\u0631\u0628\u0637 PE \u0641\u064A \u0627\u0644\u0645\u0623\u062E\u0630.",
+    "Dallo stesso morsetto 2 a un morsetto della lampada.": "\u0645\u0646 \u0627\u0644\u0645\u0631\u0628\u0637 2 \u0646\u0641\u0633\u0647 \u0625\u0644\u0649 \u0623\u062D\u062F \u0645\u0631\u0628\u0637\u064A \u0627\u0644\u0645\u0635\u0628\u0627\u062D.",
+    "Dall\u2019interruttore alla presa": "\u0645\u0646 \u0627\u0644\u0645\u0641\u062A\u0627\u062D \u0625\u0644\u0649 \u0627\u0644\u0645\u0623\u062E\u0630",
+    "Fase e neutro non si scambiano mai, anche se l\u2019apparecchio funzionerebbe lo stesso: il morsetto L deve essere sulla fase, perch\xE9 le parti metalliche della spina siano sicure.": "\u0644\u0627 \u064A\u064F\u0628\u062F\u064E\u0651\u0644 \u0627\u0644\u0637\u0648\u0631 \u0648\u0627\u0644\u0645\u062D\u0627\u064A\u062F \u0623\u0628\u062F\u064B\u0627\u060C \u062D\u062A\u0649 \u0644\u0648 \u0639\u0645\u0644 \u0627\u0644\u062C\u0647\u0627\u0632: \u064A\u062C\u0628 \u0623\u0646 \u064A\u0643\u0648\u0646 \u0627\u0644\u0645\u0631\u0628\u0637 L \u0639\u0644\u0649 \u0627\u0644\u0637\u0648\u0631\u060C \u0644\u0643\u064A \u062A\u0643\u0648\u0646 \u0627\u0644\u0623\u062C\u0632\u0627\u0621 \u0627\u0644\u0645\u0639\u062F\u0646\u064A\u0629 \u0641\u064A \u0627\u0644\u0642\u0627\u0628\u0633 \u0622\u0645\u0646\u0629.",
+    "Fase e neutro sulla presa non si scambiano, anche se l\u2019apparecchio funziona lo stesso.": "\u0644\u0627 \u064A\u064F\u0628\u062F\u064E\u0651\u0644 \u0627\u0644\u0637\u0648\u0631 \u0648\u0627\u0644\u0645\u062D\u0627\u064A\u062F \u0641\u064A \u0627\u0644\u0645\u0623\u062E\u0630\u060C \u062D\u062A\u0649 \u0644\u0648 \u0639\u0645\u0644 \u0627\u0644\u062C\u0647\u0627\u0632.",
+    "Filo blu dal NEUTRO al morsetto B della lampada.": "\u0633\u0644\u0643 \u0623\u0632\u0631\u0642 \u0645\u0646 \u0627\u0644\u0645\u062D\u0627\u064A\u062F \u0625\u0644\u0649 \u0627\u0644\u0645\u0631\u0628\u0637 B \u0641\u064A \u0627\u0644\u0645\u0635\u0628\u0627\u062D.",
+    "Filo blu dal NEUTRO al morsetto N della presa.": "\u0633\u0644\u0643 \u0623\u0632\u0631\u0642 \u0645\u0646 \u0627\u0644\u0645\u062D\u0627\u064A\u062F \u0625\u0644\u0649 \u0627\u0644\u0645\u0631\u0628\u0637 N \u0641\u064A \u0627\u0644\u0645\u0623\u062E\u0630.",
+    "Filo blu dal NEUTRO alla bobina (A2).": "\u0633\u0644\u0643 \u0623\u0632\u0631\u0642 \u0645\u0646 \u0627\u0644\u0645\u062D\u0627\u064A\u062F \u0625\u0644\u0649 \u0627\u0644\u0645\u0644\u0641 (A2).",
+    "Filo blu dal NEUTRO alla lampada.": "\u0633\u0644\u0643 \u0623\u0632\u0631\u0642 \u0645\u0646 \u0627\u0644\u0645\u062D\u0627\u064A\u062F \u0625\u0644\u0649 \u0627\u0644\u0645\u0635\u0628\u0627\u062D.",
+    "Filo giallo-verde dalla TERRA del quadro al morsetto PE della presa.": "\u0633\u0644\u0643 \u0623\u0635\u0641\u0631 \u0648\u0623\u062E\u0636\u0631 \u0645\u0646 \u0623\u0631\u0636\u064A \u0627\u0644\u0644\u0648\u062D\u0629 \u0625\u0644\u0649 \u0627\u0644\u0645\u0631\u0628\u0637 PE \u0641\u064A \u0627\u0644\u0645\u0623\u062E\u0630.",
+    "Filo marrone dal contatto (morsetto 2) alla lampada.": "\u0633\u0644\u0643 \u0628\u0646\u064A \u0645\u0646 \u0627\u0644\u0645\u0644\u0627\u0645\u0633 (\u0627\u0644\u0645\u0631\u0628\u0637 2) \u0625\u0644\u0649 \u0627\u0644\u0645\u0635\u0628\u0627\u062D.",
+    "Filo marrone dal morsetto 2 dell\u2019interruttore al morsetto L della presa.": "\u0633\u0644\u0643 \u0628\u0646\u064A \u0645\u0646 \u0627\u0644\u0645\u0631\u0628\u0637 2 \u0641\u064A \u0627\u0644\u0645\u0641\u062A\u0627\u062D \u0625\u0644\u0649 \u0627\u0644\u0645\u0631\u0628\u0637 L \u0641\u064A \u0627\u0644\u0645\u0623\u062E\u0630.",
+    "Filo marrone dalla FASE al contatto del rel\xE8 (morsetto 1).": "\u0633\u0644\u0643 \u0628\u0646\u064A \u0645\u0646 \u0627\u0644\u0637\u0648\u0631 \u0625\u0644\u0649 \u0645\u0644\u0627\u0645\u0633 \u0627\u0644\u0645\u0631\u062D\u0651\u0644 (\u0627\u0644\u0645\u0631\u0628\u0637 1).",
+    "Filo marrone dalla FASE al morsetto 3 del pulsante dell\u2019ingresso.": "\u0633\u0644\u0643 \u0628\u0646\u064A \u0645\u0646 \u0627\u0644\u0637\u0648\u0631 \u0625\u0644\u0649 \u0627\u0644\u0645\u0631\u0628\u0637 3 \u0641\u064A \u0632\u0631 \u0627\u0644\u0645\u062F\u062E\u0644.",
+    "I morsetti 3 in parallelo": "\u0627\u0644\u0645\u0631\u0627\u0628\u0637 3 \u0639\u0644\u0649 \u0627\u0644\u062A\u0648\u0627\u0632\u064A",
+    "I morsetti 4 in parallelo": "\u0627\u0644\u0645\u0631\u0627\u0628\u0637 4 \u0639\u0644\u0649 \u0627\u0644\u062A\u0648\u0627\u0632\u064A",
+    "I pulsanti in parallelo: ne basta uno premuto perch\xE9 la bobina riceva l\u2019impulso. In serie servirebbero tutti premuti insieme.": "\u0627\u0644\u0623\u0632\u0631\u0627\u0631 \u0639\u0644\u0649 \u0627\u0644\u062A\u0648\u0627\u0632\u064A: \u064A\u0643\u0641\u064A \u0636\u063A\u0637 \u0632\u0631 \u0648\u0627\u062D\u062F \u0644\u064A\u0635\u0644 \u0627\u0644\u0646\u0628\u0636 \u0625\u0644\u0649 \u0627\u0644\u0645\u0644\u0641. \u0639\u0644\u0649 \u0627\u0644\u062A\u0633\u0644\u0633\u0644 \u064A\u062C\u0628 \u0636\u063A\u0637\u0647\u0627 \u0643\u0644\u0647\u0627 \u0645\u0639\u064B\u0627.",
+    "I pulsanti si collegano in parallelo: ne basta uno premuto. In serie la lampada non si accende mai.": "\u062A\u064F\u0648\u0635\u064E\u0644 \u0627\u0644\u0623\u0632\u0631\u0627\u0631 \u0639\u0644\u0649 \u0627\u0644\u062A\u0648\u0627\u0632\u064A: \u064A\u0643\u0641\u064A \u0636\u063A\u0637 \u0648\u0627\u062D\u062F \u0645\u0646\u0647\u0627. \u0639\u0644\u0649 \u0627\u0644\u062A\u0633\u0644\u0633\u0644 \u0644\u0627 \u064A\u0636\u064A\u0621 \u0627\u0644\u0645\u0635\u0628\u0627\u062D \u0623\u0628\u062F\u064B\u0627.",
+    "I pulsanti sono collegati in serie: la bobina non riceve mai l\u2019impulso.": "\u0627\u0644\u0623\u0632\u0631\u0627\u0631 \u0645\u0648\u0635\u0648\u0644\u0629 \u0639\u0644\u0649 \u0627\u0644\u062A\u0633\u0644\u0633\u0644: \u0644\u0627 \u064A\u0635\u0644 \u0627\u0644\u0646\u0628\u0636 \u0625\u0644\u0649 \u0627\u0644\u0645\u0644\u0641 \u0623\u0628\u062F\u064B\u0627.",
+    "I pulsanti sono uno dopo l\u2019altro: la fase arriva alla bobina solo se tutti e tre sono premuti insieme, ed \xE8 impossibile da punti diversi della casa. I pulsanti vanno in parallelo.": "\u0627\u0644\u0623\u0632\u0631\u0627\u0631 \u0648\u0627\u062D\u062F \u0628\u0639\u062F \u0627\u0644\u0622\u062E\u0631: \u0644\u0627 \u064A\u0635\u0644 \u0627\u0644\u0637\u0648\u0631 \u0625\u0644\u0649 \u0627\u0644\u0645\u0644\u0641 \u0625\u0644\u0627 \u0625\u0630\u0627 \u0636\u064F\u063A\u0637\u062A \u0627\u0644\u062B\u0644\u0627\u062B\u0629 \u0645\u0639\u064B\u0627\u060C \u0648\u0647\u0630\u0627 \u0645\u0633\u062A\u062D\u064A\u0644 \u0645\u0646 \u0646\u0642\u0627\u0637 \u0645\u062E\u062A\u0644\u0641\u0629 \u0641\u064A \u0627\u0644\u0645\u0646\u0632\u0644. \u064A\u062C\u0628 \u0623\u0646 \u062A\u0643\u0648\u0646 \u0627\u0644\u0623\u0632\u0631\u0627\u0631 \u0639\u0644\u0649 \u0627\u0644\u062A\u0648\u0627\u0632\u064A.",
+    "I tre pulsanti sono in parallelo: i morsetti 3 sono collegati tra loro e alla fase, i morsetti 4 sono collegati tra loro.": "\u0627\u0644\u0623\u0632\u0631\u0627\u0631 \u0627\u0644\u062B\u0644\u0627\u062B\u0629 \u0639\u0644\u0649 \u0627\u0644\u062A\u0648\u0627\u0632\u064A: \u0627\u0644\u0645\u0631\u0627\u0628\u0637 3 \u0645\u0648\u0635\u0648\u0644\u0629 \u0628\u0628\u0639\u0636\u0647\u0627 \u0648\u0628\u0627\u0644\u0637\u0648\u0631\u060C \u0648\u0627\u0644\u0645\u0631\u0627\u0628\u0637 4 \u0645\u0648\u0635\u0648\u0644\u0629 \u0628\u0628\u0639\u0636\u0647\u0627.",
+    "IMPULSO": "\u0646\u0628\u0636\u0629",
+    "Il campanello": "\u0627\u0644\u062C\u0631\u0633",
+    "Il comando sta sulla fase. A valle dell\u2019interruttore la fase si divide: un filo va alla presa, uno alla lampada. Il neutro, invece, non passa dall\u2019interruttore.": "\u0627\u0644\u062A\u062D\u0643\u0645 \u064A\u0643\u0648\u0646 \u0639\u0644\u0649 \u0627\u0644\u0637\u0648\u0631. \u0628\u0639\u062F \u0627\u0644\u0645\u0641\u062A\u0627\u062D \u064A\u0646\u0642\u0633\u0645 \u0627\u0644\u0637\u0648\u0631: \u0633\u0644\u0643 \u0625\u0644\u0649 \u0627\u0644\u0645\u0623\u062E\u0630 \u0648\u0633\u0644\u0643 \u0625\u0644\u0649 \u0627\u0644\u0645\u0635\u0628\u0627\u062D. \u0623\u0645\u0627 \u0627\u0644\u0645\u062D\u0627\u064A\u062F \u0641\u0644\u0627 \u064A\u0645\u0631 \u0639\u0628\u0631 \u0627\u0644\u0645\u0641\u062A\u0627\u062D.",
+    "Il contatto (1-2) \xE8 il circuito della lampada: \xE8 chiuso o aperto, e resta cos\xEC finch\xE9 non arriva un altro impulso.": "\u0627\u0644\u0645\u0644\u0627\u0645\u0633 (1-2) \u0647\u0648 \u062F\u0627\u0626\u0631\u0629 \u0627\u0644\u0645\u0635\u0628\u0627\u062D: \u064A\u0643\u0648\u0646 \u0645\u063A\u0644\u0642\u064B\u0627 \u0623\u0648 \u0645\u0641\u062A\u0648\u062D\u064B\u0627\u060C \u0648\u064A\u0628\u0642\u0649 \u0643\u0630\u0644\u0643 \u062D\u062A\u0649 \u062A\u0635\u0644 \u0646\u0628\u0636\u0629 \u0623\u062E\u0631\u0649.",
+    "Il contattore": "\u0627\u0644\u0643\u0648\u0646\u062A\u0627\u0643\u062A\u0648\u0631",
+    "Il filo che esce dall\u2019interruttore (morsetto 2) alimenta tutti e due i carichi. Lo stesso morsetto, due fili.": "\u0627\u0644\u0633\u0644\u0643 \u0627\u0644\u062E\u0627\u0631\u062C \u0645\u0646 \u0627\u0644\u0645\u0641\u062A\u0627\u062D (\u0627\u0644\u0645\u0631\u0628\u0637 2) \u064A\u063A\u0630\u064A \u0627\u0644\u062D\u0645\u0644\u064A\u0646 \u0645\u0639\u064B\u0627. \u0627\u0644\u0645\u0631\u0628\u0637 \u0646\u0641\u0633\u0647\u060C \u0633\u0644\u0643\u0627\u0646.",
+    "Il finecorsa": "\u0645\u0641\u062A\u0627\u062D \u0646\u0647\u0627\u064A\u0629 \u0627\u0644\u0634\u0648\u0637",
+    "Il morsetto 3 del pulsante dell\u2019ingresso al morsetto 3 del pulsante del soggiorno.": "\u0645\u0646 \u0627\u0644\u0645\u0631\u0628\u0637 3 \u0641\u064A \u0632\u0631 \u0627\u0644\u0645\u062F\u062E\u0644 \u0625\u0644\u0649 \u0627\u0644\u0645\u0631\u0628\u0637 3 \u0641\u064A \u0632\u0631 \u063A\u0631\u0641\u0629 \u0627\u0644\u062C\u0644\u0648\u0633.",
+    "Il morsetto 3 del soggiorno al morsetto 3 del pulsante della camera.": "\u0645\u0646 \u0627\u0644\u0645\u0631\u0628\u0637 3 \u0641\u064A \u0632\u0631 \u0627\u0644\u062C\u0644\u0648\u0633 \u0625\u0644\u0649 \u0627\u0644\u0645\u0631\u0628\u0637 3 \u0641\u064A \u0632\u0631 \u063A\u0631\u0641\u0629 \u0627\u0644\u0646\u0648\u0645.",
+    "Il morsetto 4 del soggiorno al morsetto 4 della camera.": "\u0645\u0646 \u0627\u0644\u0645\u0631\u0628\u0637 4 \u0641\u064A \u0632\u0631 \u0627\u0644\u062C\u0644\u0648\u0633 \u0625\u0644\u0649 \u0627\u0644\u0645\u0631\u0628\u0637 4 \u0641\u064A \u0632\u0631 \u063A\u0631\u0641\u0629 \u0627\u0644\u0646\u0648\u0645.",
+    "Il morsetto 4 della camera alla bobina del rel\xE8 (A1).": "\u0645\u0646 \u0627\u0644\u0645\u0631\u0628\u0637 4 \u0641\u064A \u0632\u0631 \u063A\u0631\u0641\u0629 \u0627\u0644\u0646\u0648\u0645 \u0625\u0644\u0649 \u0645\u0644\u0641 \u0627\u0644\u0645\u0631\u062D\u0651\u0644 (A1).",
+    "Il morsetto 4 dell\u2019ingresso al morsetto 4 del soggiorno.": "\u0645\u0646 \u0627\u0644\u0645\u0631\u0628\u0637 4 \u0641\u064A \u0632\u0631 \u0627\u0644\u0645\u062F\u062E\u0644 \u0625\u0644\u0649 \u0627\u0644\u0645\u0631\u0628\u0637 4 \u0641\u064A \u0632\u0631 \u0627\u0644\u062C\u0644\u0648\u0633.",
+    "Il neutro (blu) va dal quadro direttamente alla presa e alla lampada, senza passare dall\u2019interruttore.": "\u0627\u0644\u0645\u062D\u0627\u064A\u062F (\u0627\u0644\u0623\u0632\u0631\u0642) \u064A\u0630\u0647\u0628 \u0645\u0646 \u0627\u0644\u0644\u0648\u062D\u0629 \u0645\u0628\u0627\u0634\u0631\u0629 \u0625\u0644\u0649 \u0627\u0644\u0645\u0623\u062E\u0630 \u0648\u0627\u0644\u0645\u0635\u0628\u0627\u062D\u060C \u062F\u0648\u0646 \u0627\u0644\u0645\u0631\u0648\u0631 \u0639\u0628\u0631 \u0627\u0644\u0645\u0641\u062A\u0627\u062D.",
+    "Il neutro alla bobina": "\u0627\u0644\u0645\u062D\u0627\u064A\u062F \u0625\u0644\u0649 \u0627\u0644\u0645\u0644\u0641",
+    "Il neutro alla lampada": "\u0627\u0644\u0645\u062D\u0627\u064A\u062F \u0625\u0644\u0649 \u0627\u0644\u0645\u0635\u0628\u0627\u062D",
+    "Il neutro alla presa": "\u0627\u0644\u0645\u062D\u0627\u064A\u062F \u0625\u0644\u0649 \u0627\u0644\u0645\u0623\u062E\u0630",
+    "Il neutro va ai carichi senza passare dall\u2019interruttore.": "\u064A\u0630\u0647\u0628 \u0627\u0644\u0645\u062D\u0627\u064A\u062F \u0625\u0644\u0649 \u0627\u0644\u0623\u062D\u0645\u0627\u0644 \u062F\u0648\u0646 \u0627\u0644\u0645\u0631\u0648\u0631 \u0639\u0628\u0631 \u0627\u0644\u0645\u0641\u062A\u0627\u062D.",
+    "Il pulsante": "\u0627\u0644\u0632\u0631",
+    "Il pulsante di emergenza a fungo": "\u0632\u0631 \u0627\u0644\u0637\u0648\u0627\u0631\u0626 \u0627\u0644\u0641\u0637\u0631\u064A",
+    "Il pulsante normalmente aperto (NA)": "\u0627\u0644\u0632\u0631 \u0627\u0644\u0645\u0641\u062A\u0648\u062D \u0639\u0627\u062F\u0629\u064B (NA)",
+    "Il pulsante normalmente chiuso (NC)": "\u0627\u0644\u0632\u0631 \u0627\u0644\u0645\u063A\u0644\u0642 \u0639\u0627\u062F\u0629\u064B (NC)",
+    "Il pulsante torna a riposo da solo: non ricorda lo stato della luce.": "\u064A\u0639\u0648\u062F \u0627\u0644\u0632\u0631 \u0625\u0644\u0649 \u0648\u0636\u0639 \u0627\u0644\u0631\u0627\u062D\u0629 \u0645\u0646 \u062A\u0644\u0642\u0627\u0621 \u0646\u0641\u0633\u0647: \u0644\u0627 \u064A\u062A\u0630\u0643\u0631 \u062D\u0627\u0644\u0629 \u0627\u0644\u0636\u0648\u0621.",
+    "Il pulsante \xE8 un interruttore che torna a riposo da solo: il contatto \xE8 chiuso finch\xE9 lo tieni premuto, poi si riapre.": "\u0627\u0644\u0632\u0631 \u0645\u0641\u062A\u0627\u062D \u064A\u0639\u0648\u062F \u0625\u0644\u0649 \u0648\u0636\u0639 \u0627\u0644\u0631\u0627\u062D\u0629 \u0645\u0646 \u062A\u0644\u0642\u0627\u0621 \u0646\u0641\u0633\u0647: \u064A\u0628\u0642\u0649 \u0627\u0644\u0645\u0644\u0627\u0645\u0633 \u0645\u063A\u0644\u0642\u064B\u0627 \u0645\u0627 \u062F\u0645\u062A \u062A\u0636\u063A\u0637 \u0639\u0644\u064A\u0647\u060C \u062B\u0645 \u064A\u0646\u0641\u062A\u062D \u0645\u0646 \u062C\u062F\u064A\u062F.",
+    "Il rel\xE8 ad impulsi": "\u0645\u0631\u062D\u0651\u0644 \u0627\u0644\u0646\u0628\u0636\u0627\u062A",
+    "Il rel\xE8 ad impulsi cambia stato a ogni impulso sulla bobina e lo mantiene.": "\u064A\u063A\u064A\u0651\u0631 \u0645\u0631\u062D\u0651\u0644 \u0627\u0644\u0646\u0628\u0636\u0627\u062A \u062D\u0627\u0644\u062A\u0647 \u0639\u0646\u062F \u0643\u0644 \u0646\u0628\u0636\u0629 \u0639\u0644\u0649 \u0627\u0644\u0645\u0644\u0641 \u0648\u064A\u062D\u062A\u0641\u0638 \u0628\u0647\u0627.",
+    "Il rel\xE8 ad impulsi cambia stato a ogni pressione e ricorda lo stato anche a pulsante rilasciato. Un impulso acceso, un impulso spento.": "\u064A\u063A\u064A\u0651\u0631 \u0645\u0631\u062D\u0651\u0644 \u0627\u0644\u0646\u0628\u0636\u0627\u062A \u062D\u0627\u0644\u062A\u0647 \u0639\u0646\u062F \u0643\u0644 \u0636\u063A\u0637\u0629 \u0648\u064A\u062A\u0630\u0643\u0631 \u0627\u0644\u062D\u0627\u0644\u0629 \u062D\u062A\u0649 \u0628\u0639\u062F \u062A\u062D\u0631\u064A\u0631 \u0627\u0644\u0632\u0631. \u0646\u0628\u0636\u0629 \u0644\u0644\u062A\u0634\u063A\u064A\u0644\u060C \u0648\u0646\u0628\u0636\u0629 \u0644\u0644\u0625\u0637\u0641\u0627\u0621.",
+    "Il rel\xE8 ha due parti separate. La bobina (A1-A2) \xE8 il circuito di comando: a ogni impulso il rel\xE8 cambia stato.": "\u0644\u0644\u0645\u0631\u062D\u0651\u0644 \u062C\u0632\u0621\u0627\u0646 \u0645\u0646\u0641\u0635\u0644\u0627\u0646. \u0627\u0644\u0645\u0644\u0641 (A1-A2) \u0647\u0648 \u062F\u0627\u0626\u0631\u0629 \u0627\u0644\u062A\u062D\u0643\u0645: \u0639\u0646\u062F \u0643\u0644 \u0646\u0628\u0636\u0629 \u064A\u063A\u064A\u0651\u0631 \u0627\u0644\u0645\u0631\u062D\u0651\u0644 \u062D\u0627\u0644\u062A\u0647.",
+    "Il rel\xE8 temporizzato": "\u0627\u0644\u0645\u0631\u062D\u0651\u0644 \u0627\u0644\u0632\u0645\u0646\u064A",
+    "Il rel\xE8 \xE8 collegato al neutro sbagliato.": "\u0627\u0644\u0645\u0631\u062D\u0651\u0644 \u0645\u0648\u0635\u0648\u0644 \u0628\u0627\u0644\u0645\u062D\u0627\u064A\u062F \u0627\u0644\u062E\u0637\u0623.",
+    "Il salvamotore magnetotermico trifase": "\u0642\u0627\u0637\u0639 \u062D\u0645\u0627\u064A\u0629 \u0627\u0644\u0645\u062D\u0631\u0643 \u0627\u0644\u0645\u063A\u0646\u0627\u0637\u064A\u0633\u064A \u0627\u0644\u062D\u0631\u0627\u0631\u064A \u062B\u0644\u0627\u062B\u064A \u0627\u0644\u0637\u0648\u0631",
+    "Il sezionatore": "\u0645\u0641\u062A\u0627\u062D \u0627\u0644\u0639\u0632\u0644",
+    "Il trasformatore": "\u0627\u0644\u0645\u062D\u0648\u0651\u0644",
+    "In molte stanze un solo interruttore comanda pi\xF9 di un carico: per esempio la luce del soffitto e una presa a cui \xE8 collegata una lampada da tavolo.": "\u0641\u064A \u0643\u062B\u064A\u0631 \u0645\u0646 \u0627\u0644\u063A\u0631\u0641 \u064A\u062A\u062D\u0643\u0645 \u0645\u0641\u062A\u0627\u062D \u0648\u0627\u062D\u062F \u0641\u064A \u0623\u0643\u062B\u0631 \u0645\u0646 \u062D\u0645\u0644: \u0645\u062B\u0644\u064B\u0627 \u0636\u0648\u0621 \u0627\u0644\u0633\u0642\u0641 \u0648\u0645\u0623\u062E\u0630 \u0645\u0648\u0635\u0648\u0644 \u0628\u0647 \u0645\u0635\u0628\u0627\u062D \u0637\u0627\u0648\u0644\u0629.",
+    "In parallelo i morsetti 3 sono collegati tra loro e alla fase; i morsetti 4 sono collegati tra loro e alla bobina.": "\u0639\u0644\u0649 \u0627\u0644\u062A\u0648\u0627\u0632\u064A \u062A\u0643\u0648\u0646 \u0627\u0644\u0645\u0631\u0627\u0628\u0637 3 \u0645\u0648\u0635\u0648\u0644\u0629 \u0628\u0628\u0639\u0636\u0647\u0627 \u0648\u0628\u0627\u0644\u0637\u0648\u0631\u061B \u0648\u0627\u0644\u0645\u0631\u0627\u0628\u0637 4 \u0645\u0648\u0635\u0648\u0644\u0629 \u0628\u0628\u0639\u0636\u0647\u0627 \u0648\u0628\u0627\u0644\u0645\u0644\u0641.",
+    "In questo circuito l\u2019interruttore interrompe la fase che alimenta anche la presa. Aperto l\u2019interruttore, la presa non ha tensione e l\u2019apparecchio non funziona. Le prese normali, invece, sono collegate direttamente al quadro.": "\u0641\u064A \u0647\u0630\u0647 \u0627\u0644\u062F\u0627\u0626\u0631\u0629 \u064A\u0642\u0637\u0639 \u0627\u0644\u0645\u0641\u062A\u0627\u062D \u0627\u0644\u0637\u0648\u0631 \u0627\u0644\u0630\u064A \u064A\u063A\u0630\u064A \u0627\u0644\u0645\u0623\u062E\u0630 \u0623\u064A\u0636\u064B\u0627. \u0639\u0646\u062F \u0641\u062A\u062D \u0627\u0644\u0645\u0641\u062A\u0627\u062D \u0644\u0627 \u064A\u0643\u0648\u0646 \u0641\u064A \u0627\u0644\u0645\u0623\u062E\u0630 \u062C\u0647\u062F \u0648\u0644\u0627 \u064A\u0639\u0645\u0644 \u0627\u0644\u062C\u0647\u0627\u0632. \u0623\u0645\u0627 \u0627\u0644\u0645\u0622\u062E\u0630 \u0627\u0644\u0639\u0627\u062F\u064A\u0629 \u0641\u0647\u064A \u0645\u0648\u0635\u0648\u0644\u0629 \u0645\u0628\u0627\u0634\u0631\u0629 \u0628\u0627\u0644\u0644\u0648\u062D\u0629.",
+    "In un lungo corridoio con molte porte serve accendere e spegnere la stessa luce da molti punti. Con i deviatori servirebbe un invertitore in ogni punto in pi\xF9.": "\u0641\u064A \u0645\u0645\u0631 \u0637\u0648\u064A\u0644 \u0630\u064A \u0623\u0628\u0648\u0627\u0628 \u0643\u062B\u064A\u0631\u0629 \u0646\u062D\u062A\u0627\u062C \u0625\u0644\u0649 \u062A\u0634\u063A\u064A\u0644 \u0627\u0644\u0636\u0648\u0621 \u0646\u0641\u0633\u0647 \u0648\u0625\u0637\u0641\u0627\u0626\u0647 \u0645\u0646 \u0646\u0642\u0627\u0637 \u0643\u062B\u064A\u0631\u0629. \u0645\u0639 \u0627\u0644\u0645\u0641\u0627\u062A\u064A\u062D \u062B\u0646\u0627\u0626\u064A\u0629 \u0627\u0644\u0627\u062A\u062C\u0627\u0647 \u0646\u062D\u062A\u0627\u062C \u0625\u0644\u0649 \u0645\u0641\u062A\u0627\u062D \u062A\u0642\u0627\u0637\u0639 \u0639\u0646\u062F \u0643\u0644 \u0646\u0642\u0637\u0629 \u0625\u0636\u0627\u0641\u064A\u0629.",
+    "Interruttore aperto: la presa e la lampada sono spente": "\u0627\u0644\u0645\u0641\u062A\u0627\u062D \u0645\u0641\u062A\u0648\u062D: \u0627\u0644\u0645\u0623\u062E\u0630 \u0648\u0627\u0644\u0645\u0635\u0628\u0627\u062D \u0645\u0637\u0641\u0622\u0646",
+    "Interruttore chiuso: la presa e la lampada sono alimentate": "\u0627\u0644\u0645\u0641\u062A\u0627\u062D \u0645\u063A\u0644\u0642: \u0627\u0644\u0645\u0623\u062E\u0630 \u0648\u0627\u0644\u0645\u0635\u0628\u0627\u062D \u0645\u063A\u0630\u0651\u064A\u0627\u0646",
+    "Interruttore chiuso: la presa \xE8 alimentata e la lampada si accende.": "\u0627\u0644\u0645\u0641\u062A\u0627\u062D \u0645\u063A\u0644\u0642: \u0627\u0644\u0645\u0623\u062E\u0630 \u0645\u063A\u0630\u0651\u0649 \u0648\u0627\u0644\u0645\u0635\u0628\u0627\u062D \u064A\u0636\u064A\u0621.",
+    "La fase ai pulsanti": "\u0627\u0644\u0637\u0648\u0631 \u0625\u0644\u0649 \u0627\u0644\u0623\u0632\u0631\u0627\u0631",
+    "La fase al contatto": "\u0627\u0644\u0637\u0648\u0631 \u0625\u0644\u0649 \u0627\u0644\u0645\u0644\u0627\u0645\u0633",
+    "La fase esce dal quadro e arriva all\u2019interruttore. Dall\u2019interruttore parte verso la presa e verso la lampada.": "\u064A\u062E\u0631\u062C \u0627\u0644\u0637\u0648\u0631 \u0645\u0646 \u0627\u0644\u0644\u0648\u062D\u0629 \u0648\u064A\u0635\u0644 \u0625\u0644\u0649 \u0627\u0644\u0645\u0641\u062A\u0627\u062D. \u0648\u0645\u0646 \u0627\u0644\u0645\u0641\u062A\u0627\u062D \u064A\u0630\u0647\u0628 \u0625\u0644\u0649 \u0627\u0644\u0645\u0623\u062E\u0630 \u0648\u0625\u0644\u0649 \u0627\u0644\u0645\u0635\u0628\u0627\u062D.",
+    "La fase \xE8 arrivata sul morsetto N e il neutro sul morsetto L. Gli apparecchi funzionano lo stesso, ma una parte dell\u2019apparecchio che dovrebbe essere a riposo resta in tensione. La fase va sempre sul morsetto L.": "\u0648\u0635\u0644 \u0627\u0644\u0637\u0648\u0631 \u0625\u0644\u0649 \u0627\u0644\u0645\u0631\u0628\u0637 N \u0648\u0627\u0644\u0645\u062D\u0627\u064A\u062F \u0625\u0644\u0649 \u0627\u0644\u0645\u0631\u0628\u0637 L. \u062A\u0639\u0645\u0644 \u0627\u0644\u0623\u062C\u0647\u0632\u0629 \u0645\u0639 \u0630\u0644\u0643\u060C \u0644\u0643\u0646 \u062C\u0632\u0621\u064B\u0627 \u0645\u0646 \u0627\u0644\u062C\u0647\u0627\u0632 \u064A\u0641\u062A\u0631\u0636 \u0623\u0646 \u064A\u0643\u0648\u0646 \u0641\u064A \u0648\u0636\u0639 \u0627\u0644\u0631\u0627\u062D\u0629 \u064A\u0628\u0642\u0649 \u062A\u062D\u062A \u0627\u0644\u062C\u0647\u062F. \u0627\u0644\u0637\u0648\u0631 \u064A\u0630\u0647\u0628 \u062F\u0627\u0626\u0645\u064B\u0627 \u0625\u0644\u0649 \u0627\u0644\u0645\u0631\u0628\u0637 L.",
+    "La lampada non \xE8 collegata al neutro.": "\u0627\u0644\u0645\u0635\u0628\u0627\u062D \u063A\u064A\u0631 \u0645\u0648\u0635\u0648\u0644 \u0628\u0627\u0644\u0645\u062D\u0627\u064A\u062F.",
+    "La lampada si collega al contatto del rel\xE8: la fase arriva al morsetto 1, dal morsetto 2 va alla lampada. Il neutro va direttamente alla lampada.": "\u064A\u064F\u0648\u0635\u064E\u0644 \u0627\u0644\u0645\u0635\u0628\u0627\u062D \u0628\u0645\u0644\u0627\u0645\u0633 \u0627\u0644\u0645\u0631\u062D\u0651\u0644: \u064A\u0635\u0644 \u0627\u0644\u0637\u0648\u0631 \u0625\u0644\u0649 \u0627\u0644\u0645\u0631\u0628\u0637 1\u060C \u0648\u0645\u0646 \u0627\u0644\u0645\u0631\u0628\u0637 2 \u064A\u0630\u0647\u0628 \u0625\u0644\u0649 \u0627\u0644\u0645\u0635\u0628\u0627\u062D. \u0648\u0627\u0644\u0645\u062D\u0627\u064A\u062F \u064A\u0630\u0647\u0628 \u0645\u0628\u0627\u0634\u0631\u0629 \u0625\u0644\u0649 \u0627\u0644\u0645\u0635\u0628\u0627\u062D.",
+    "La lampada \xE8 accesa. Premo il pulsante e lo lascio andare. Che cosa fa la lampada?": "\u0627\u0644\u0645\u0635\u0628\u0627\u062D \u0645\u0636\u0627\u0621. \u0623\u0636\u063A\u0637 \u0627\u0644\u0632\u0631 \u062B\u0645 \u0623\u062A\u0631\u0643\u0647. \u0645\u0627\u0630\u0627 \u064A\u0641\u0639\u0644 \u0627\u0644\u0645\u0635\u0628\u0627\u062D\u061F",
+    "La lampada \xE8 collegata in serie alla presa.": "\u0627\u0644\u0645\u0635\u0628\u0627\u062D \u0645\u0648\u0635\u0648\u0644 \u0639\u0644\u0649 \u0627\u0644\u062A\u0633\u0644\u0633\u0644 \u0645\u0639 \u0627\u0644\u0645\u0623\u062E\u0630.",
+    "La presa comandata": "\u0627\u0644\u0645\u0623\u062E\u0630 \u0628\u0645\u0641\u062A\u0627\u062D \u062A\u062D\u0643\u0645",
+    "La presa ha L (fase), N (neutro) e PE (terra): la terra si collega sempre.": "\u0644\u0644\u0645\u0623\u062E\u0630 L (\u0627\u0644\u0637\u0648\u0631) \u0648N (\u0627\u0644\u0645\u062D\u0627\u064A\u062F) \u0648PE (\u0627\u0644\u0623\u0631\u0636\u064A): \u064A\u064F\u0648\u0635\u064E\u0644 \u0627\u0644\u0623\u0631\u0636\u064A \u062F\u0627\u0626\u0645\u064B\u0627.",
+    "La presa ha anche il morsetto PE: il filo giallo-verde lo collega alla terra del quadro. Sul morsetto L della presa arriva la fase.": "\u0644\u0644\u0645\u0623\u062E\u0630 \u0623\u064A\u0636\u064B\u0627 \u0627\u0644\u0645\u0631\u0628\u0637 PE: \u0627\u0644\u0633\u0644\u0643 \u0627\u0644\u0623\u0635\u0641\u0631 \u0648\u0627\u0644\u0623\u062E\u0636\u0631 \u064A\u0648\u0635\u0644\u0647 \u0628\u0623\u0631\u0636\u064A \u0627\u0644\u0644\u0648\u062D\u0629. \u0648\u0639\u0644\u0649 \u0627\u0644\u0645\u0631\u0628\u0637 L \u0641\u064A \u0627\u0644\u0645\u0623\u062E\u0630 \u064A\u0635\u0644 \u0627\u0644\u0637\u0648\u0631.",
+    "La presa ha tre morsetti. L riceve la fase, N il neutro, PE la terra.": "\u0644\u0644\u0645\u0623\u062E\u0630 \u062B\u0644\u0627\u062B\u0629 \u0645\u0631\u0627\u0628\u0637. L \u064A\u0633\u062A\u0642\u0628\u0644 \u0627\u0644\u0637\u0648\u0631\u060C \u0648N \u0627\u0644\u0645\u062D\u0627\u064A\u062F\u060C \u0648PE \u0627\u0644\u0623\u0631\u0636\u064A.",
+    "La presa: fase, neutro e terra": "\u0627\u0644\u0645\u0623\u062E\u0630: \u0627\u0644\u0637\u0648\u0631 \u0648\u0627\u0644\u0645\u062D\u0627\u064A\u062F \u0648\u0627\u0644\u0623\u0631\u0636\u064A",
+    "La spia luminosa": "\u0627\u0644\u0644\u0645\u0628\u0629 \u0627\u0644\u0625\u0634\u0627\u0631\u064A\u0629",
+    "La terra alla presa": "\u0627\u0644\u0623\u0631\u0636\u064A \u0625\u0644\u0649 \u0627\u0644\u0645\u0623\u062E\u0630",
+    "Per questo non ricorda lo stato della luce: lo ricorda il rel\xE8.": "\u0644\u0630\u0644\u0643 \u0644\u0627 \u064A\u062A\u0630\u0643\u0631 \u062D\u0627\u0644\u0629 \u0627\u0644\u0636\u0648\u0621: \u0627\u0644\u0645\u0631\u062D\u0651\u0644 \u0647\u0648 \u0645\u0646 \u064A\u062A\u0630\u0643\u0631\u0647\u0627.",
+    "Premi il pulsante dell\u2019ingresso: la lampada si accende": "\u0627\u0636\u063A\u0637 \u0632\u0631 \u0627\u0644\u0645\u062F\u062E\u0644: \u064A\u0636\u064A\u0621 \u0627\u0644\u0645\u0635\u0628\u0627\u062D",
+    "Premi quello del soggiorno: la lampada si riaccende": "\u0627\u0636\u063A\u0637 \u0632\u0631 \u063A\u0631\u0641\u0629 \u0627\u0644\u062C\u0644\u0648\u0633: \u064A\u0636\u064A\u0621 \u0627\u0644\u0645\u0635\u0628\u0627\u062D \u0645\u0646 \u062C\u062F\u064A\u062F",
+    "Premi quello della camera: la lampada si spegne": "\u0627\u0636\u063A\u0637 \u0632\u0631 \u063A\u0631\u0641\u0629 \u0627\u0644\u0646\u0648\u0645: \u064A\u0646\u0637\u0641\u0626 \u0627\u0644\u0645\u0635\u0628\u0627\u062D",
+    "Primo impulso: la lampada si accende.": "\u0627\u0644\u0646\u0628\u0636\u0629 \u0627\u0644\u0623\u0648\u0644\u0649: \u064A\u0636\u064A\u0621 \u0627\u0644\u0645\u0635\u0628\u0627\u062D.",
+    "Protegge il motore e i circuiti collegati dopo di lui. Ha tre poli, uno per fase. Levetta su: chiuso. Scatta in caso di cortocircuito.": "\u064A\u062D\u0645\u064A \u0627\u0644\u0645\u062D\u0631\u0643 \u0648\u0627\u0644\u062F\u0648\u0627\u0626\u0631 \u0627\u0644\u0645\u0648\u0635\u0648\u0644\u0629 \u0628\u0639\u062F\u0647. \u0644\u0647 \u062B\u0644\u0627\u062B\u0629 \u0623\u0642\u0637\u0627\u0628\u060C \u0648\u0627\u062D\u062F \u0644\u0643\u0644 \u0637\u0648\u0631. \u0627\u0644\u0630\u0631\u0627\u0639 \u0644\u0644\u0623\u0639\u0644\u0649: \u0645\u063A\u0644\u0642. \u064A\u0641\u0635\u0644 \u0639\u0646\u062F \u062D\u062F\u0648\u062B \u0642\u0635\u0631 \u0641\u064A \u0627\u0644\u062F\u0627\u0626\u0631\u0629.",
+    "Protegge la linea da sovraccarico e cortocircuito: scatta da solo. Levetta su: chiuso. Levetta gi\xF9: aperto. Ha un polo per la fase e uno per il neutro.": "\u064A\u062D\u0645\u064A \u0627\u0644\u062E\u0637 \u0645\u0646 \u0627\u0644\u062D\u0645\u0644 \u0627\u0644\u0632\u0627\u0626\u062F \u0648\u0642\u0635\u0631 \u0627\u0644\u062F\u0627\u0626\u0631\u0629: \u064A\u0641\u0635\u0644 \u0645\u0646 \u062A\u0644\u0642\u0627\u0621 \u0646\u0641\u0633\u0647. \u0627\u0644\u0630\u0631\u0627\u0639 \u0644\u0644\u0623\u0639\u0644\u0649: \u0645\u063A\u0644\u0642. \u0627\u0644\u0630\u0631\u0627\u0639 \u0644\u0644\u0623\u0633\u0641\u0644: \u0645\u0641\u062A\u0648\u062D. \u0644\u0647 \u0642\u0637\u0628 \u0644\u0644\u0637\u0648\u0631 \u0648\u0642\u0637\u0628 \u0644\u0644\u0645\u062D\u0627\u064A\u062F.",
+    "Pulsante camera": "\u0632\u0631 \u063A\u0631\u0641\u0629 \u0627\u0644\u0646\u0648\u0645",
+    "Pulsante camera, tieni premuto": "\u0632\u0631 \u063A\u0631\u0641\u0629 \u0627\u0644\u0646\u0648\u0645\u060C \u0627\u0633\u062A\u0645\u0631 \u0641\u064A \u0627\u0644\u0636\u063A\u0637",
+    "Pulsante ingresso": "\u0632\u0631 \u0627\u0644\u0645\u062F\u062E\u0644",
+    "Pulsante ingresso, tieni premuto": "\u0632\u0631 \u0627\u0644\u0645\u062F\u062E\u0644\u060C \u0627\u0633\u062A\u0645\u0631 \u0641\u064A \u0627\u0644\u0636\u063A\u0637",
+    "Pulsante soggiorno": "\u0632\u0631 \u063A\u0631\u0641\u0629 \u0627\u0644\u062C\u0644\u0648\u0633",
+    "Pulsante soggiorno, tieni premuto": "\u0632\u0631 \u063A\u0631\u0641\u0629 \u0627\u0644\u062C\u0644\u0648\u0633\u060C \u0627\u0633\u062A\u0645\u0631 \u0641\u064A \u0627\u0644\u0636\u063A\u0637",
+    "Pulsanti in parallelo, mai in serie": "\u0627\u0644\u0623\u0632\u0631\u0627\u0631 \u0639\u0644\u0649 \u0627\u0644\u062A\u0648\u0627\u0632\u064A\u060C \u0644\u0627 \u0639\u0644\u0649 \u0627\u0644\u062A\u0633\u0644\u0633\u0644 \u0623\u0628\u062F\u064B\u0627",
+    "Pulsanti in serie: la bobina non riceverebbe mai l\u2019impulso e la lampada non si accenderebbe mai.": "\u0627\u0644\u0623\u0632\u0631\u0627\u0631 \u0639\u0644\u0649 \u0627\u0644\u062A\u0633\u0644\u0633\u0644: \u0644\u0646 \u064A\u0635\u0644 \u0627\u0644\u0646\u0628\u0636 \u0625\u0644\u0649 \u0627\u0644\u0645\u0644\u0641 \u0623\u0628\u062F\u064B\u0627 \u0648\u0644\u0646 \u064A\u0636\u064A\u0621 \u0627\u0644\u0645\u0635\u0628\u0627\u062D \u0623\u0628\u062F\u064B\u0627.",
+    "RETE 230 V": "\u0627\u0644\u0634\u0628\u0643\u0629 230 \u0641\u0648\u0644\u062A",
+    "Rel\xE8": "\u0627\u0644\u0645\u0631\u062D\u0651\u0644",
+    "Ricollega i pulsanti in parallelo: i tre morsetti 3 insieme alla fase, i tre morsetti 4 insieme alla bobina. Poi premi Verifica.": "\u0623\u0639\u062F \u062A\u0648\u0635\u064A\u0644 \u0627\u0644\u0623\u0632\u0631\u0627\u0631 \u0639\u0644\u0649 \u0627\u0644\u062A\u0648\u0627\u0632\u064A: \u0627\u0644\u0645\u0631\u0627\u0628\u0637 3 \u0627\u0644\u062B\u0644\u0627\u062B\u0629 \u0645\u0639\u064B\u0627 \u0628\u0627\u0644\u0637\u0648\u0631\u060C \u0648\u0627\u0644\u0645\u0631\u0627\u0628\u0637 4 \u0627\u0644\u062B\u0644\u0627\u062B\u0629 \u0645\u0639\u064B\u0627 \u0628\u0627\u0644\u0645\u0644\u0641. \u062B\u0645 \u0627\u0636\u063A\u0637 \u062A\u062D\u0642\u0642.",
+    "Scambia i fili sulla presa: la fase al morsetto L e il neutro al morsetto N. Poi premi Verifica.": "\u0628\u062F\u0651\u0644 \u0627\u0644\u0633\u0644\u0643\u064A\u0646 \u0639\u0644\u0649 \u0627\u0644\u0645\u0623\u062E\u0630: \u0627\u0644\u0637\u0648\u0631 \u0625\u0644\u0649 \u0627\u0644\u0645\u0631\u0628\u0637 L \u0648\u0627\u0644\u0645\u062D\u0627\u064A\u062F \u0625\u0644\u0649 \u0627\u0644\u0645\u0631\u0628\u0637 N. \u062B\u0645 \u0627\u0636\u063A\u0637 \u062A\u062D\u0642\u0642.",
+    "Scatta il quadro.": "\u062A\u0641\u0635\u0644 \u0627\u0644\u0644\u0648\u062D\u0629.",
+    "Secondo impulso: la lampada si spegne.": "\u0627\u0644\u0646\u0628\u0636\u0629 \u0627\u0644\u062B\u0627\u0646\u064A\u0629: \u064A\u0646\u0637\u0641\u0626 \u0627\u0644\u0645\u0635\u0628\u0627\u062D.",
+    "Si accende quando \xE8 alimentata tra i suoi due morsetti. Segnala, per esempio, che il motore \xE8 in marcia.": "\u062A\u0636\u064A\u0621 \u0639\u0646\u062F\u0645\u0627 \u062A\u062A\u063A\u0630\u0649 \u0628\u064A\u0646 \u0645\u0631\u0628\u0637\u064A\u0647\u0627. \u062A\u062F\u0644 \u0645\u062B\u0644\u064B\u0627 \u0639\u0644\u0649 \u0623\u0646 \u0627\u0644\u0645\u062D\u0631\u0643 \u064A\u0639\u0645\u0644.",
+    "Si spegne e resta spenta.": "\u062A\u0646\u0637\u0641\u0626 \u0648\u062A\u0628\u0642\u0649 \u0645\u0637\u0641\u0623\u0629.",
+    "Si spegne solo finch\xE9 tengo premuto, poi si riaccende.": "\u062A\u0646\u0637\u0641\u0626 \u0641\u0642\u0637 \u0645\u0627 \u062F\u0645\u062A \u0623\u0636\u063A\u0637\u060C \u062B\u0645 \u062A\u0636\u064A\u0621 \u0645\u0646 \u062C\u062F\u064A\u062F.",
+    "Sta in serie al motore e si scalda se il motore assorbe troppa corrente. Dopo un po\u2019 scatta: apre il contatto 95-96 del comando e il motore si ferma. Si riarma a mano con il tasto Reset.": "\u064A\u0643\u0648\u0646 \u0639\u0644\u0649 \u0627\u0644\u062A\u0633\u0644\u0633\u0644 \u0645\u0639 \u0627\u0644\u0645\u062D\u0631\u0643 \u0648\u064A\u0633\u062E\u0646 \u0625\u0630\u0627 \u0633\u062D\u0628 \u0627\u0644\u0645\u062D\u0631\u0643 \u062A\u064A\u0627\u0631\u064B\u0627 \u0632\u0627\u0626\u062F\u064B\u0627. \u0628\u0639\u062F \u0642\u0644\u064A\u0644 \u064A\u0641\u0635\u0644: \u064A\u0641\u062A\u062D \u0627\u0644\u0645\u0644\u0627\u0645\u0633 95-96 \u0641\u064A \u062F\u0627\u0626\u0631\u0629 \u0627\u0644\u062A\u062D\u0643\u0645 \u0641\u064A\u062A\u0648\u0642\u0641 \u0627\u0644\u0645\u062D\u0631\u0643. \u064A\u064F\u0639\u0627\u062F \u062A\u0633\u0644\u064A\u062D\u0647 \u064A\u062F\u0648\u064A\u064B\u0627 \u0628\u0632\u0631 Reset.",
+    "Terzo impulso: la lampada si riaccende.": "\u0627\u0644\u0646\u0628\u0636\u0629 \u0627\u0644\u062B\u0627\u0644\u062B\u0629: \u064A\u0636\u064A\u0621 \u0627\u0644\u0645\u0635\u0628\u0627\u062D \u0645\u0646 \u062C\u062F\u064A\u062F.",
+    "Tocca la levetta del quadro, poi premi i pulsanti uno alla volta.": "\u0627\u0644\u0645\u0633 \u0630\u0631\u0627\u0639 \u0627\u0644\u0644\u0648\u062D\u0629\u060C \u062B\u0645 \u0627\u0636\u063A\u0637 \u0627\u0644\u0623\u0632\u0631\u0627\u0631 \u0648\u0627\u062D\u062F\u064B\u0627 \u062A\u0644\u0648 \u0627\u0644\u0622\u062E\u0631.",
+    "Un contatto che si aziona quando la macchina arriva a fine corsa: il contatto normalmente chiuso (1-2) si apre, quello normalmente aperto (3-4) si chiude.": "\u0645\u0644\u0627\u0645\u0633 \u064A\u0639\u0645\u0644 \u0639\u0646\u062F\u0645\u0627 \u062A\u0635\u0644 \u0627\u0644\u0622\u0644\u0629 \u0625\u0644\u0649 \u0646\u0647\u0627\u064A\u0629 \u0627\u0644\u0634\u0648\u0637: \u0627\u0644\u0645\u0644\u0627\u0645\u0633 \u0627\u0644\u0645\u063A\u0644\u0642 \u0639\u0627\u062F\u0629\u064B (1-2) \u064A\u0646\u0641\u062A\u062D\u060C \u0648\u0627\u0644\u0645\u0641\u062A\u0648\u062D \u0639\u0627\u062F\u0629\u064B (3-4) \u064A\u0646\u063A\u0644\u0642.",
+    "Un secondo filo marrone dallo stesso morsetto 2 al morsetto A della lampada.": "\u0633\u0644\u0643 \u0628\u0646\u064A \u062B\u0627\u0646\u064D \u0645\u0646 \u0627\u0644\u0645\u0631\u0628\u0637 2 \u0646\u0641\u0633\u0647 \u0625\u0644\u0649 \u0627\u0644\u0645\u0631\u0628\u0637 A \u0641\u064A \u0627\u0644\u0645\u0635\u0628\u0627\u062D.",
+    "Un solo interruttore pu\xF2 comandare pi\xF9 carichi: sta sulla fase, prima che si divida.": "\u064A\u0645\u0643\u0646 \u0644\u0645\u0641\u062A\u0627\u062D \u0648\u0627\u062D\u062F \u0623\u0646 \u064A\u062A\u062D\u0643\u0645 \u0641\u064A \u0639\u062F\u0629 \u0623\u062D\u0645\u0627\u0644: \u064A\u0643\u0648\u0646 \u0639\u0644\u0649 \u0627\u0644\u0637\u0648\u0631 \u0642\u0628\u0644 \u0623\u0646 \u064A\u0646\u0642\u0633\u0645.",
+    "Una lampada da accendere e spegnere da tre punti con tre pulsanti uguali. Collega i pulsanti in parallelo alla bobina del rel\xE8 ad impulsi e la lampada al suo contatto. Poi dai corrente.": "\u0645\u0635\u0628\u0627\u062D \u064A\u064F\u0634\u063A\u064E\u0651\u0644 \u0648\u064A\u064F\u0637\u0641\u0623 \u0645\u0646 \u062B\u0644\u0627\u062B \u0646\u0642\u0627\u0637 \u0628\u062B\u0644\u0627\u062B\u0629 \u0623\u0632\u0631\u0627\u0631 \u0645\u062A\u0645\u0627\u062B\u0644\u0629. \u0635\u0650\u0644 \u0627\u0644\u0623\u0632\u0631\u0627\u0631 \u0639\u0644\u0649 \u0627\u0644\u062A\u0648\u0627\u0632\u064A \u0628\u0645\u0644\u0641 \u0645\u0631\u062D\u0651\u0644 \u0627\u0644\u0646\u0628\u0636\u0627\u062A \u0648\u0635\u0650\u0644 \u0627\u0644\u0645\u0635\u0628\u0627\u062D \u0628\u0645\u0644\u0627\u0645\u0633\u0647. \u062B\u0645 \u0634\u063A\u0651\u0644 \u0627\u0644\u062A\u064A\u0627\u0631.",
+    "Una luce da tre punti": "\u0636\u0648\u0621 \u0645\u0646 \u062B\u0644\u0627\u062B \u0646\u0642\u0627\u0637",
+    "Una presa e una luce con un solo comando": "\u0645\u0623\u062E\u0630 \u0648\u0636\u0648\u0621 \u0628\u0645\u0641\u062A\u0627\u062D \u0648\u0627\u062D\u062F",
+    "Ha due morsetti, 1 e 2. A riposo il contatto \xE8 chiuso: si apre solo finch\xE9 lo tieni premuto. Si usa per l\u2019arresto, perch\xE9 un filo staccato ferma la macchina.": "\u0644\u0647 \u0645\u0631\u0628\u0637\u0627\u0646\u060C 1 \u06482. \u0641\u064A \u0648\u0636\u0639 \u0627\u0644\u0631\u0627\u062D\u0629 \u064A\u0643\u0648\u0646 \u0627\u0644\u0645\u0644\u0627\u0645\u0633 \u0645\u063A\u0644\u0642\u064B\u0627: \u064A\u0646\u0641\u062A\u062D \u0641\u0642\u0637 \u0645\u0627 \u062F\u0645\u062A \u062A\u0636\u063A\u0637 \u0639\u0644\u064A\u0647. \u064A\u064F\u0633\u062A\u062E\u062F\u0645 \u0644\u0644\u0625\u064A\u0642\u0627\u0641\u060C \u0644\u0623\u0646 \u0627\u0644\u0633\u0644\u0643 \u0627\u0644\u0645\u0641\u0635\u0648\u0644 \u064A\u0648\u0642\u0641 \u0627\u0644\u0622\u0644\u0629.",
+    "Ha due morsetti, 3 e 4. A riposo il contatto \xE8 aperto: si chiude solo finch\xE9 lo tieni premuto, poi torna da solo. Per questo non ricorda nulla: serve a dare un impulso.": "\u0644\u0647 \u0645\u0631\u0628\u0637\u0627\u0646\u060C 3 \u06484. \u0641\u064A \u0648\u0636\u0639 \u0627\u0644\u0631\u0627\u062D\u0629 \u064A\u0643\u0648\u0646 \u0627\u0644\u0645\u0644\u0627\u0645\u0633 \u0645\u0641\u062A\u0648\u062D\u064B\u0627: \u064A\u0646\u063A\u0644\u0642 \u0641\u0642\u0637 \u0645\u0627 \u062F\u0645\u062A \u062A\u0636\u063A\u0637 \u0639\u0644\u064A\u0647\u060C \u062B\u0645 \u064A\u0639\u0648\u062F \u0645\u0646 \u062A\u0644\u0642\u0627\u0621 \u0646\u0641\u0633\u0647. \u0644\u0630\u0644\u0643 \u0644\u0627 \u064A\u062A\u0630\u0643\u0631 \u0634\u064A\u0626\u064B\u0627: \u064A\u064F\u0633\u062A\u062E\u062F\u0645 \u0644\u0625\u0639\u0637\u0627\u0621 \u0646\u0628\u0636\u0629.",
+    "Ha tre morsetti per le tre fasi (U, V, W) e il morsetto PE per la terra. Scambiando due fasi cambia il senso di rotazione.": "\u0644\u0647 \u062B\u0644\u0627\u062B\u0629 \u0645\u0631\u0627\u0628\u0637 \u0644\u0644\u0623\u0637\u0648\u0627\u0631 \u0627\u0644\u062B\u0644\u0627\u062B\u0629 (U \u0648V \u0648W) \u0648\u0627\u0644\u0645\u0631\u0628\u0637 PE \u0644\u0644\u0623\u0631\u0636\u064A. \u062A\u0628\u062F\u064A\u0644 \u0637\u0648\u0631\u064A\u0646 \u064A\u063A\u064A\u0651\u0631 \u0627\u062A\u062C\u0627\u0647 \u0627\u0644\u062F\u0648\u0631\u0627\u0646.",
+    "Ha un contatto normalmente chiuso. Premuto, si apre e resta bloccato: la macchina si ferma e non riparte finch\xE9 non lo sblocchi.": "\u0644\u0647 \u0645\u0644\u0627\u0645\u0633 \u0645\u063A\u0644\u0642 \u0639\u0627\u062F\u0629\u064B. \u0639\u0646\u062F \u0627\u0644\u0636\u063A\u0637 \u064A\u0646\u0641\u062A\u062D \u0648\u064A\u0628\u0642\u0649 \u0645\u062B\u0628\u0651\u062A\u064B\u0627: \u062A\u062A\u0648\u0642\u0641 \u0627\u0644\u0622\u0644\u0629 \u0648\u0644\u0627 \u062A\u0639\u0645\u0644 \u0645\u0646 \u062C\u062F\u064A\u062F \u062D\u062A\u0649 \u062A\u062D\u0631\u0631\u0647.",
+    "Ha una bobina (A1 e A2) e dei contatti. Con la bobina alimentata si chiudono i tre poli di potenza (1-2, 3-4, 5-6) e il contatto ausiliario normalmente aperto (13-14); si apre quello normalmente chiuso (21-22). Il circuito di comando e quello di potenza sono separati.": "\u0644\u0647 \u0645\u0644\u0641 (A1 \u0648A2) \u0648\u0645\u0644\u0627\u0645\u0633\u0627\u062A. \u0639\u0646\u062F \u062A\u063A\u0630\u064A\u0629 \u0627\u0644\u0645\u0644\u0641 \u062A\u0646\u063A\u0644\u0642 \u0623\u0642\u0637\u0627\u0628 \u0627\u0644\u0642\u062F\u0631\u0629 \u0627\u0644\u062B\u0644\u0627\u062B\u0629 (1-2 \u06483-4 \u06485-6) \u0648\u0627\u0644\u0645\u0644\u0627\u0645\u0633 \u0627\u0644\u0645\u0633\u0627\u0639\u062F \u0627\u0644\u0645\u0641\u062A\u0648\u062D \u0639\u0627\u062F\u0629\u064B (13-14)\u061B \u0648\u064A\u0646\u0641\u062A\u062D \u0627\u0644\u0645\u063A\u0644\u0642 \u0639\u0627\u062F\u0629\u064B (21-22). \u062F\u0627\u0626\u0631\u0629 \u0627\u0644\u062A\u062D\u0643\u0645 \u0648\u062F\u0627\u0626\u0631\u0629 \u0627\u0644\u0642\u062F\u0631\u0629 \u0645\u0646\u0641\u0635\u0644\u062A\u0627\u0646.",
+    "Ha una bobina (A1 e A2) e un contatto (1 e 2). A ogni impulso sulla bobina il contatto cambia stato e lo mantiene: aperto, chiuso, aperto. Serve a comandare una luce da molti punti.": "\u0644\u0647 \u0645\u0644\u0641 (A1 \u0648A2) \u0648\u0645\u0644\u0627\u0645\u0633 (1 \u06482). \u0639\u0646\u062F \u0643\u0644 \u0646\u0628\u0636\u0629 \u0639\u0644\u0649 \u0627\u0644\u0645\u0644\u0641 \u064A\u063A\u064A\u0651\u0631 \u0627\u0644\u0645\u0644\u0627\u0645\u0633 \u062D\u0627\u0644\u062A\u0647 \u0648\u064A\u062D\u062A\u0641\u0638 \u0628\u0647\u0627: \u0645\u0641\u062A\u0648\u062D\u060C \u0645\u063A\u0644\u0642\u060C \u0645\u0641\u062A\u0648\u062D. \u064A\u064F\u0633\u062A\u062E\u062F\u0645 \u0644\u0644\u062A\u062D\u0643\u0645 \u0641\u064A \u0636\u0648\u0621 \u0645\u0646 \u0646\u0642\u0627\u0637 \u0643\u062B\u064A\u0631\u0629.",
+    "Ha una bobina (A1 e A2) e un contatto (1 e 2). Dopo un impulso il contatto resta chiuso per il tempo impostato, poi si riapre da solo.": "\u0644\u0647 \u0645\u0644\u0641 (A1 \u0648A2) \u0648\u0645\u0644\u0627\u0645\u0633 (1 \u06482). \u0628\u0639\u062F \u0646\u0628\u0636\u0629 \u064A\u0628\u0642\u0649 \u0627\u0644\u0645\u0644\u0627\u0645\u0633 \u0645\u063A\u0644\u0642\u064B\u0627 \u0644\u0644\u0645\u062F\u0629 \u0627\u0644\u0645\u0636\u0628\u0648\u0637\u0629\u060C \u062B\u0645 \u064A\u0646\u0641\u062A\u062D \u0645\u0646 \u062A\u0644\u0642\u0627\u0621 \u0646\u0641\u0633\u0647.",
+    "Funziona a bassa tensione (12 V). Collegato direttamente alla rete a 230 V si brucia: ha bisogno del trasformatore.": "\u064A\u0639\u0645\u0644 \u0628\u062C\u0647\u062F \u0645\u0646\u062E\u0641\u0636 (12 \u0641\u0648\u0644\u062A). \u0625\u0630\u0627 \u0648\u064F\u0635\u0644 \u0645\u0628\u0627\u0634\u0631\u0629 \u0628\u0627\u0644\u0634\u0628\u0643\u0629 230 \u0641\u0648\u0644\u062A \u064A\u062D\u062A\u0631\u0642: \u064A\u062D\u062A\u0627\u062C \u0625\u0644\u0649 \u0645\u062D\u0648\u0651\u0644.",
+    "L\u2019interruttore differenziale": "\u0627\u0644\u0642\u0627\u0637\u0639 \u0627\u0644\u062A\u0641\u0627\u0636\u0644\u064A",
+    "L\u2019interruttore magnetotermico": "\u0627\u0644\u0642\u0627\u0637\u0639 \u0627\u0644\u0645\u063A\u0646\u0627\u0637\u064A\u0633\u064A \u0627\u0644\u062D\u0631\u0627\u0631\u064A",
+    "Manca il filo di terra alla presa.": "\u0633\u0644\u0643 \u0627\u0644\u0623\u0631\u0636\u064A \u0645\u0641\u0642\u0648\u062F \u0641\u064A \u0627\u0644\u0645\u0623\u062E\u0630.",
+    "Morsetti 3": "\u0627\u0644\u0645\u0631\u0627\u0628\u0637 3",
+    "Morsetti 4": "\u0627\u0644\u0645\u0631\u0627\u0628\u0637 4",
+    "Neutro bobina": "\u0645\u062D\u0627\u064A\u062F \u0627\u0644\u0645\u0644\u0641",
+    "Neutro lampada": "\u0645\u062D\u0627\u064A\u062F \u0627\u0644\u0645\u0635\u0628\u0627\u062D",
+    "Neutro presa": "\u0645\u062D\u0627\u064A\u062F \u0627\u0644\u0645\u0623\u062E\u0630",
+    "Levetta su: il rel\xE8 \xE8 a riposo e la lampada \xE8 spenta.": "\u0627\u0644\u0630\u0631\u0627\u0639 \u0644\u0644\u0623\u0639\u0644\u0649: \u0627\u0644\u0645\u0631\u062D\u0651\u0644 \u0641\u064A \u0648\u0636\u0639 \u0627\u0644\u0631\u0627\u062D\u0629 \u0648\u0627\u0644\u0645\u0635\u0628\u0627\u062D \u0645\u0637\u0641\u0623.",
+    "Levetta su: l\u2019interruttore \xE8 aperto, presa e lampada sono senza tensione.": "\u0627\u0644\u0630\u0631\u0627\u0639 \u0644\u0644\u0623\u0639\u0644\u0649: \u0627\u0644\u0645\u0641\u062A\u0627\u062D \u0645\u0641\u062A\u0648\u062D\u060C \u0648\u0627\u0644\u0645\u0623\u062E\u0630 \u0648\u0627\u0644\u0645\u0635\u0628\u0627\u062D \u0628\u0644\u0627 \u062C\u0647\u062F.",
+    "L\u2019apparecchio funziona lo stesso: la presa \xE8 sempre alimentata.": "\u064A\u0639\u0645\u0644 \u0627\u0644\u062C\u0647\u0627\u0632 \u0645\u0639 \u0630\u0644\u0643: \u0627\u0644\u0645\u0623\u062E\u0630 \u0645\u063A\u0630\u0651\u0649 \u062F\u0627\u0626\u0645\u064B\u0627.",
+    "L\u2019apparecchio non funziona: la presa \xE8 comandata dall\u2019interruttore.": "\u0644\u0627 \u064A\u0639\u0645\u0644 \u0627\u0644\u062C\u0647\u0627\u0632: \u0627\u0644\u0645\u0623\u062E\u0630 \u064A\u062A\u062D\u0643\u0645 \u0641\u064A\u0647 \u0627\u0644\u0645\u0641\u062A\u0627\u062D.",
+    "L\u2019impianto \xE8 gi\xE0 cablato e la lampada e la presa funzionano. Eppure l\u2019impianto non \xE8 a norma. Dai corrente, prova l\u2019interruttore e poi premi Verifica.": "\u0627\u0644\u062A\u0645\u062F\u064A\u062F \u0645\u0648\u0635\u0648\u0644 \u0645\u0633\u0628\u0642\u064B\u0627 \u0648\u0627\u0644\u0645\u0635\u0628\u0627\u062D \u0648\u0627\u0644\u0645\u0623\u062E\u0630 \u064A\u0639\u0645\u0644\u0627\u0646. \u0648\u0645\u0639 \u0630\u0644\u0643 \u0627\u0644\u062A\u0645\u062F\u064A\u062F \u063A\u064A\u0631 \u0645\u0637\u0627\u0628\u0642 \u0644\u0644\u0645\u0639\u0627\u064A\u064A\u0631. \u0634\u063A\u0651\u0644 \u0627\u0644\u062A\u064A\u0627\u0631 \u0648\u062C\u0631\u0651\u0628 \u0627\u0644\u0645\u0641\u062A\u0627\u062D \u062B\u0645 \u0627\u0636\u063A\u0637 \u062A\u062D\u0642\u0642.",
+    "L\u2019impianto \xE8 gi\xE0 cablato, ma premendo i pulsanti la lampada non si accende. Dai corrente e prova.": "\u0627\u0644\u062A\u0645\u062F\u064A\u062F \u0645\u0648\u0635\u0648\u0644 \u0645\u0633\u0628\u0642\u064B\u0627\u060C \u0644\u0643\u0646 \u0627\u0644\u0645\u0635\u0628\u0627\u062D \u0644\u0627 \u064A\u0636\u064A\u0621 \u0639\u0646\u062F \u0627\u0644\u0636\u063A\u0637 \u0639\u0644\u0649 \u0627\u0644\u0623\u0632\u0631\u0627\u0631. \u0634\u063A\u0651\u0644 \u0627\u0644\u062A\u064A\u0627\u0631 \u0648\u062C\u0631\u0651\u0628.",
+    "L\u2019interruttore apre o chiude un solo filo: la fase. Quando \xE8 aperto, presa e lampada non ricevono tensione.": "\u064A\u0641\u062A\u062D \u0627\u0644\u0645\u0641\u062A\u0627\u062D \u0623\u0648 \u064A\u063A\u0644\u0642 \u0633\u0644\u0643\u064B\u0627 \u0648\u0627\u062D\u062F\u064B\u0627: \u0627\u0644\u0637\u0648\u0631. \u0639\u0646\u062F\u0645\u0627 \u064A\u0643\u0648\u0646 \u0645\u0641\u062A\u0648\u062D\u064B\u0627 \u0644\u0627 \u064A\u0635\u0644 \u0627\u0644\u062C\u0647\u062F \u0625\u0644\u0649 \u0627\u0644\u0645\u0623\u062E\u0630 \u0648\u0627\u0644\u0645\u0635\u0628\u0627\u062D.",
+    "L\u2019interruttore sulla fase": "\u0627\u0644\u0645\u0641\u062A\u0627\u062D \u0639\u0644\u0649 \u0627\u0644\u0637\u0648\u0631",
+    "L\u2019interruttore \xE8 aperto. Che cosa succede se inserisco una spina nella presa?": "\u0627\u0644\u0645\u0641\u062A\u0627\u062D \u0645\u0641\u062A\u0648\u062D. \u0645\u0627\u0630\u0627 \u064A\u062D\u062F\u062B \u0625\u0630\u0627 \u0623\u062F\u062E\u0644\u062A \u0642\u0627\u0628\u0633\u064B\u0627 \u0641\u064A \u0627\u0644\u0645\u0623\u062E\u0630\u061F"
   };
 
   // src/i18n/ar.js
@@ -5763,7 +6271,7 @@ html[lang="it"] .trnote{display:none}
     [/^(.+): (.+); atteso: (.+)\.$/, (m, t) => `${t(m[1])}: ${t(m[2])}\u061B \u0627\u0644\u0645\u062A\u0648\u0642\u0639: ${t(m[3])}.`],
     [/^Protezioni scattate: (.+)\.$/, (m, t) => `\u062D\u0645\u0627\u064A\u0627\u062A \u0641\u0635\u0644\u062A: ${t(m[1])}.`]
   ];
-  registerLang("ar", { ...ar_1_default, ...ar_2_default, ...ar_3_default, ...ar_4_default, ...ar_5_default, ...ar_6_default, ...ar_7_default, ...ar_8_default }, PAT);
+  registerLang("ar", { ...ar_1_default, ...ar_2_default, ...ar_3_default, ...ar_4_default, ...ar_5_default, ...ar_6_default, ...ar_7_default, ...ar_8_default, ...ar_9_default }, PAT);
 
   // src/trilocale/house.js
   function houseState(session2, on = true) {

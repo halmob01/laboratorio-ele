@@ -59,11 +59,11 @@ function demoFramesV2(level, captions) {
   const steps = level.demoDo || (level.controls || []).map((id, i) => {
     const c = level.comps.find(x => x.id === id);
     const hold = c && ['pb', 'pbnc', 'fungo'].includes(c.type);
-    return { do: [hold ? 'press ' + id : 'toggle ' + id], caption: (captions.controls || [])[i] || '' };
+    return { do: hold ? ['press ' + id, 'release ' + id] : ['toggle ' + id], say: (captions.controls || [])[i] || '' };
   });
   steps.forEach(st => {
     st.do.forEach(a => runAction(sim, a));
-    out.push(snapOf(sim, wires, true, st.caption || '', null));
+    out.push(snapOf(sim, wires, true, st.say || '', null));
   });
   return out;
 }
@@ -87,5 +87,10 @@ export function demoFrames(level, captions = {}) {
 
 /** Istantanea "vuota" (nessun filo, quadro spento) per disegnare il banco in una pagina di lezione. */
 export function blankSnap(level) {
+  if (isV2(level)) {
+    const self = selfPowered(level), sim = createSim(level, []);
+    if (!self) setSupply(sim, false);
+    return { level, wires: [], power: self, trip: false, message: null, flowVisible: false, solutionShown: false, guide: null, selfPowered: self, overload: false, ...viewOf(level, sim, self) };
+  }
   return frame(level, [], false, {}, '', null).snap;
 }

@@ -510,3 +510,4 @@ html[lang="it"] .trnote{display:none}
 .bellb.ring{animation:ring .25s linear infinite;transform-box:fill-box;transform-origin:50% 0}
 @keyframes ring{0%{transform:rotate(-8deg)}50%{transform:rotate(8deg)}100%{transform:rotate(-8deg)}}
 @media (prefers-reduced-motion:reduce){.fan.fwd,.fan.rev,.fan.hum,.bellb.ring{animation:none}}
+.chks{list-style:none;margin:4px 0 0;padding:0}.chks li{font-size:.92em;padding:2px 0}.chks .mark{display:inline-flex;width:18px;height:18px;font-size:.8em}

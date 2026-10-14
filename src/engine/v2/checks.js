@@ -203,6 +203,13 @@ export function evaluateV2(level, wires) {
       });
       if (broken) fail('safe.neutralBroken');
     }
+    if (S.pol) {
+      // presa: il morsetto L non e' mai sul neutro e il morsetto N non e' mai sulla fase
+      const PHS = ['F', 'L1', 'L2', 'L3'];
+      const [l, n] = S.pol;
+      const swapped = [observe(createSim(level, wires))].concat(states).some(o => o.potential(l) === 'N' || PHS.includes(o.potential(n)));
+      if (swapped) fail('safe.socketPolarity');
+    }
     if (S.earth) {
       const uf = makeUF();
       wires.forEach(w => uf.u(w.a, w.b));

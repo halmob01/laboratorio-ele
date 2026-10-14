@@ -36,7 +36,7 @@ for (const mode of ['quadro', 'contatore']) {
 
 test('ogni morsetto dei livelli ha una posizione nel layout', () => {
   levels.forEach(l => {
-    [l, deriveFull(l)].forEach(lv => {
+    (l.quadroOnly ? [l] : [l, deriveFull(l)]).forEach(lv => {
       composeComps(lv).forEach(c =>
         Object.keys(c.terms).forEach(t => {
           assert.ok(typeof c.terms[t].f === 'number' && ['t', 'b'].includes(c.terms[t].s), c.id + '.' + t);

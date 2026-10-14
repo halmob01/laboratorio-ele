@@ -13,6 +13,7 @@ const c = (x, y, w, h, terms, extra = {}) => {
   return { x, y, w, h, terms: t, ...extra };
 };
 
+import { selfPowered } from '../engine/v2/index.js';
 import { TRILOCALE_LAYOUT_OF } from '../content/trilocale.js';
 
 const BASE_ = {
@@ -120,7 +121,8 @@ export function autoLayout(level) {
     const order = (list, ref) => list.slice().sort((p, q) => (ref.indexOf(p) < 0 ? 99 : ref.indexOf(p)) - (ref.indexOf(q) < 0 ? 99 : ref.indexOf(q)));
     const tt = order(t, top || []), bb = order(b, bot || []);
     spread(tt.length, lead || .1).forEach((f, i) => (terms[tt[i]] = { f, s: 't' }));
-    spread(bb.length, lead || .1).forEach((f, i) => (terms[bb[i]] = { f, s: 'b' }));
+    const fb = c.type === 'quadro' && !selfPowered(level) && bb.length <= 3 ? [.12, .38, .64].slice(0, bb.length) : spread(bb.length, lead || .1);   // a destra resta la levetta
+    fb.forEach((f, i) => (terms[bb[i]] = { f, s: 'b' }));
     return { x, y: y0, w, h, terms };
   };
   const width = c => (KIND[c.type] || [FULL])[0];

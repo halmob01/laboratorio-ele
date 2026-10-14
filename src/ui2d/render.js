@@ -275,6 +275,12 @@ export function statusHTML(s) {
 }
 
 const MARK = { ok: '✓', na: '–', ko: '✕' };
+// Elenco delle prove di funzionamento (livelli v2): una riga per prova, con esito.
+function checksHTML(result) {
+  if (!result.checks || !result.checks.length) return '';
+  const li = c => `<li class="${c.ok ? 'ok' : 'ko'}"><span class="mark ${c.ok ? 'ok' : 'ko'}" aria-hidden="true">${c.ok ? MARK.ok : MARK.ko}</span> ${c.label}</li>`;
+  return `<div class="row chk"><span class="mark na" aria-hidden="true">${MARK.na}</span><div><b>Prove di funzionamento</b><ul class="chks">${result.checks.map(li).join('')}</ul></div></div>`;
+}
 export function resultHTML(s) {
   if (!s.result) return '';
   const r = describeEvaluation(s.result, s.level);
@@ -292,5 +298,5 @@ export function resultHTML(s) {
     if (s.playMode !== 'verifica' && s.mode === 'quadro' && !s.level.quadroOnly) acts.push('<button class="btn" data-act="full">Sfida: parti dal contatore</button>');
     acts.push(last ? '' : toHouse ? '<button class="btn primary" id="bNext" data-href="#/modulo/1">Vai al trilocale</button>' : '<button class="btn primary" id="bNext">Livello successivo</button>');
   }
-  return `<h3>${r.pass ? 'Impianto funzionante' : 'Controllo del circuito'}</h3><div class="stars" aria-label="${r.stars} stelle su 3">${'★'.repeat(r.stars)}<span class="e">${'★'.repeat(3 - r.stars)}</span></div>${row('Funziona', r.work)}${row('Colori dei fili', r.color)}${row('Sicurezza', r.safe)}<p class="xpline">Punti di questo livello: <b>${xp} XP</b></p>${r.pass && last ? '<p class="next"><b>Hai completato tutti i livelli.</b></p>' : r.pass && toHouse ? '<p class="next"><b>Hai completato il Modulo 0.</b></p>' : ''}${acts.length ? `<div class="uact">${acts.join('')}</div>` : ''}`;
+  return `<h3>${r.pass ? 'Impianto funzionante' : 'Controllo del circuito'}</h3><div class="stars" aria-label="${r.stars} stelle su 3">${'★'.repeat(r.stars)}<span class="e">${'★'.repeat(3 - r.stars)}</span></div>${row('Funziona', r.work)}${checksHTML(s.result)}${row('Colori dei fili', r.color)}${row('Sicurezza', r.safe)}<p class="xpline">Punti di questo livello: <b>${xp} XP</b></p>${r.pass && last ? '<p class="next"><b>Hai completato tutti i livelli.</b></p>' : r.pass && toHouse ? '<p class="next"><b>Hai completato il Modulo 0.</b></p>' : ''}${acts.length ? `<div class="uact">${acts.join('')}</div>` : ''}`;
 }

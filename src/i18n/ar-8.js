@@ -37,4 +37,5 @@ export default {
 "all’indietro": "إلى الخلف",
 "ronza e non parte": "يئزّ ولا يدور",
 "fermo": "متوقف",
+"Prove di funzionamento": "اختبارات التشغيل",
 };

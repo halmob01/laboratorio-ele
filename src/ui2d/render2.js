@@ -204,6 +204,7 @@ export function roomV2HTML(level) {
   const m = level.machine;
   let o = `<defs><radialGradient id="glow2"><stop offset="0" stop-color="#FFE9A8" stop-opacity=".95"/><stop offset="1" stop-color="#FFD25E" stop-opacity="0"/></radialGradient></defs>`;
   o += `<rect class="wall" x="0" y="0" width="400" height="196"/><rect class="floor" x="0" y="196" width="400" height="54"/><rect class="skirt" x="0" y="190" width="400" height="8"/>`;
+  if (!m) o += `<rect id="night2" class="night" x="0" y="0" width="400" height="250" opacity=".5"/>`;
   const devs = level.comps.filter(c => DEV.has(c.type) && !(m && c.id === m.motor));
   const n = devs.length + (m ? 0 : 0);
   devs.forEach((c, i) => {
@@ -236,7 +237,7 @@ export function roomV2HTML(level) {
   // comandi a muro
   const ctl = (level.controls || []).map(id => level.comps.find(c => c.id === id)).filter(c => c && WALLCTL[c.type]);
   ctl.forEach((c, i) => {
-    const x = Math.round(400 * (i + .5) / ctl.length), y = 168;
+    const x = Math.round(400 * (i + .5) / ctl.length), y = 142;
     if (WALLCTL[c.type] === 'hold') {
       const col = c.type === 'pb' ? '#2E9E5B' : '#C0262D';
       o += `<g class="pl" data-hold="${c.id}" role="button" tabindex="0" aria-label="${c.title || c.short}, tieni premuto" style="touch-action:none"><circle cx="${x}" cy="${y}" r="26" fill="transparent"/><circle class="plate" cx="${x}" cy="${y}" r="20"/><circle id="bt-${c.id}" cx="${x}" cy="${y}" r="13" fill="${col}" stroke="rgba(255,255,255,.45)" stroke-width="2"/><text x="${x}" y="${y + 36}" text-anchor="middle" style="font:600 11px 'IBM Plex Sans',sans-serif;fill:var(--ink2)">${c.short}</text></g>`;
@@ -278,6 +279,8 @@ export function updateRoomV2(root, s) {
       const b = root.querySelector('#bt-' + c.id); if (b) b.setAttribute('opacity', s.controlStates[c.id] ? '.55' : '1');
     }
   });
+  const nt = root.querySelector('#night2');
+  if (nt) nt.setAttribute('opacity', Object.values(o.loads).some(v => v === 'on') ? '0' : '.5');
   const m = level.machine;
   if (m && o.machine) {
     const x = 90 + (o.machine.pos / m.length) * (350 - 90 - 30);
