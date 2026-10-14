@@ -7,6 +7,7 @@
 import { WIRE_COLORS } from '../engine/index.js';
 import { COLOR_NAMES, describeEvaluation, sessionMessage, flowMessage } from '../content/it.js';
 import { WIRE_STYLE } from './palette.js';
+import { schemV2, V2_TYPES, isLive, roomV2HTML, updateRoomV2 } from './render2.js';
 
 /* ---------- geometria dei morsetti e dei fili ---------- */
 export function termPosOf(c, id) {
@@ -28,8 +29,8 @@ export function wirePath(p1, p2) {
 }
 
 /* ---------- livelli e palette ---------- */
-export function paletteHTML(col) {
-  return WIRE_COLORS.map(k => {
+export function paletteHTML(col, level) {
+  return ((level && level.palette) || WIRE_COLORS).map(k => {
     const c = WIRE_STYLE[k];
     const bg = c.dash ? `repeating-linear-gradient(90deg,${c.base} 0 6px,${c.dash} 6px 12px)` : c.base;
     return `<button class="chip" data-col="${k}" aria-pressed="${k === col}"><span class="sw" style="background:${bg}"></span>${COLOR_NAMES[k]}</button>`;
@@ -38,6 +39,7 @@ export function paletteHTML(col) {
 
 /* ---------- stanza ---------- */
 export function roomHTML(level, comps) {
+  if (level.engine === 2) return roomV2HTML(level);
   let s = '';
   s += `<defs><radialGradient id="glow"><stop offset="0" stop-color="#FFE9A8" stop-opacity=".95"/><stop offset=".45" stop-color="#FFD25E" stop-opacity=".38"/><stop offset="1" stop-color="#FFD25E" stop-opacity="0"/></radialGradient></defs>`;
   s += `<rect class="wall" x="0" y="0" width="400" height="196"/><rect class="floor" x="0" y="196" width="400" height="54"/><rect class="skirt" x="0" y="190" width="400" height="8"/>`;
@@ -81,6 +83,7 @@ export function roomHTML(level, comps) {
   return s;
 }
 export function roomViewBox(level) {
+  if (level.engine === 2) return '0 0 400 190';
   return level.room === 'tavolo' ? '0 50 400 190' : '0 0 400 190';
 }
 // La stessa stanza, ferma, per le pagine della lezione: ids con prefisso per non confondersi con quella del livello.
@@ -97,6 +100,7 @@ export function roomStaticHTML(level, comps, lit) {
 }
 // Aggiorna la scena (luce, posizione dei comandi) senza ridisegnarla.
 export function updateRoom(root, s, comps) {
+  if (s.level.engine === 2) { updateRoomV2(root, s); return; }
   const n = root.querySelector('#night'), g = root.querySelector('#glow'), b = root.querySelector('#bulb');
   const lit = s.litLoads && s.litLoads.length > 1 ? s.litLoads.some(Boolean) : s.lit;
   if (n) n.setAttribute('opacity', lit ? '0' : '.66');
@@ -177,7 +181,8 @@ function termSVG(c, id, ui) {
 export function benchViewBox(comps) {
   if (!comps.length) return '0 0 400 100';
   const H = Math.max(...comps.map(c => c.y + c.h)) + 22;
-  return `10 -28 400 ${H + 28}`;
+  const W = Math.max(400, Math.max(...comps.map(c => c.x + c.w)) + 0);
+  return `10 -28 ${W} ${H + 28}`;
 }
 
 // La lampada del banco e' accesa? Con piu' carichi si guarda quella del componente.
@@ -190,17 +195,22 @@ function litOf(s, c) {
 
 // ui: { mobile, sel, kwh }
 export function benchHTML(s, comps, ui) {
-  const live = id => s.power && s.potential(id) === 'F';
+  const is2 = s.level && s.level.engine === 2;
+  const live = is2 ? id => isLive(s.potential(id)) : id => s.power && s.potential(id) === 'F';
   const H = Math.max(...comps.map(c => c.y + c.h)) + 22;
-  let o = `<defs><pattern id="pegs" width="16" height="16" patternUnits="userSpaceOnUse"><circle cx="8" cy="8" r="1.4" fill="var(--dot)"/></pattern></defs><rect x="0" y="-28" width="420" height="${H + 28}" fill="var(--bench)"/><rect x="0" y="-28" width="420" height="${H + 28}" fill="url(#pegs)"/>`;
+  const BW = Math.max(420, Math.max(...comps.map(c => c.x + c.w)) + 10);
+  let o = `<defs><pattern id="pegs" width="16" height="16" patternUnits="userSpaceOnUse"><circle cx="8" cy="8" r="1.4" fill="var(--dot)"/></pattern></defs><rect x="0" y="-28" width="${BW}" height="${H + 28}" fill="var(--bench)"/><rect x="0" y="-28" width="${BW}" height="${H + 28}" fill="url(#pegs)"/>`;
   const dimmed = c => ui.focus && !ui.focus.includes(c.id);
   comps.forEach(c => {
-    const toggles = c.type === 'sw' || c.type === 'dev' || c.type === 'inv';
+    const toggles = ['sw', 'dev', 'inv', 'mt', 'mt3', 'sez', 'rcd', 'fungo'].includes(c.type);
+    const hold = c.type === 'pb' || c.type === 'pbnc';
     if (dimmed(c)) o += '<g class="dimmed">';
     o += `<text class="ttl" x="${c.x + 2}" y="${c.y - 9}">${c.title}</text>`;
     o += `<g class="help" data-help="${c.type}" role="button" tabindex="0" aria-label="Che cos’è: ${c.title}"><circle cx="${c.x + c.w - 12}" cy="${c.y - 13}" r="19" fill="transparent" stroke="none"/><circle cx="${c.x + c.w - 9}" cy="${c.y - 13}" r="${ui.mobile ? 11 : 9}"/><text x="${c.x + c.w - 9}" y="${c.y - 8.5}" text-anchor="middle">?</text></g>`;
     o += `<rect class="body" x="${c.x}" y="${c.y}" width="${c.w}" height="${c.h}" rx="10"/>`;
-    o += `<g transform="translate(${c.x},${c.y})"${toggles ? ` class="togg" data-ctl="${c.id}" style="cursor:pointer"` : ''}>${toggles ? `<rect x="0" y="0" width="${c.w}" height="${c.h}" rx="10" fill="transparent"/>` : ''}${schem(c, s, live, litOf(s, c), ui)}</g>`;
+    const inner = is2 && V2_TYPES.has(c.type) ? schemV2(c, s, live, ui) : schem(c, s, live, litOf(s, c), ui);
+    const act = toggles ? ` class="togg" data-ctl="${c.id}" style="cursor:pointer"` : hold ? ` class="togg hold" data-hold="${c.id}" style="cursor:pointer;touch-action:none" role="button" tabindex="0" aria-label="${c.title}, tieni premuto"` : '';
+    o += `<g transform="translate(${c.x},${c.y})"${act}>${toggles || hold ? `<rect x="0" y="0" width="${c.w}" height="${c.h}" rx="10" fill="transparent"/>` : ''}${inner}</g>`;
     if (dimmed(c)) o += '</g>';
   });
   if (s.solutionShown) {
@@ -211,18 +221,19 @@ export function benchHTML(s, comps, ui) {
     o += `<path class="ghost guide" d="${wirePath(termPos(comps, ga), termPos(comps, gb))}" stroke="${WIRE_STYLE[gc].base}"/>`;
   }
   // Con la corrente visibile ogni filo ha uno stato: in tensione (alone), percorso da corrente (puntini).
-  const fv = s.flowVisible && s.power;
+  const fv = s.flowVisible && (s.power || is2);
   s.wires.forEach(w => {
     const d = wirePath(termPos(comps, w.a), termPos(comps, w.b)), q = Object.hasOwn(WIRE_STYLE, w.c) ? WIRE_STYLE[w.c] : WIRE_STYLE.nero;
     const pot = s.potential(w.a);
     const st = s.flow.wires[w.id];
     let halo = '', fl = '';
-    if (fv) {
-      const k = st.net === 'F' ? 'f' : st.net === 'N' ? 'n' : '';
+    const netK = n => (n === 'F' || n === 'fase') ? 'f' : (n === 'N' || n === 'neutro') ? 'n' : n === 'bassa' ? 'b' : '';
+    if (fv || (is2 && s.flowVisible)) {
+      const k = netK(st.net);
       if (k) halo = `<path class="halo-w ${k}" d="${d}"/>`;
       if (st.current && k) fl = `<path class="flow ${k} cur" d="${d}"/>`;
     } else {
-      const k = s.power && pot === 'F' ? 'f' : s.power && pot === 'N' ? 'n' : '';
+      const k = is2 ? (isLive(pot) ? (String(pot).includes(':') ? 'b' : 'f') : pot === 'N' ? 'n' : '') : s.power && pot === 'F' ? 'f' : s.power && pot === 'N' ? 'n' : '';
       if (k) fl = `<path class="flow ${k}" d="${d}"/>`;
     }
     o += `<g data-wire="${w.id}"${ui.newWire === w.id ? ' class="newwire"' : ''}>${halo}<path class="w-hit" d="${d}"/><path class="w-edge" d="${d}"/><path class="w-col" d="${d}" stroke="${q.base}"${ui.newWire === w.id ? ' pathLength="100"' : ''}/>${q.dash ? `<path class="w-col dash" d="${d}" stroke="${q.dash}"/>` : ''}${fl}</g>`;
@@ -233,6 +244,12 @@ export function benchHTML(s, comps, ui) {
       o += `<circle class="stop" cx="${p.x}" cy="${p.y}" r="${ui.mobile ? 23 : 19}"/>`;
     });
   }
+  // La levetta del quadro resta cliccabile anche quando un filo le passa sopra.
+  comps.forEach(c => {
+    if (c.type !== 'quadro' || (is2 && s.selfPowered)) return;
+    const bx = is2 ? c.w - 70 : c.w * (c.bx || .5), y0 = is2 ? 30 : 6, hh = is2 ? c.h - 52 : 52;
+    o += `<g transform="translate(${c.x},${c.y})"><rect data-q="1" role="presentation" x="${bx - 30}" y="${y0}" width="60" height="${hh}" fill="transparent" style="cursor:pointer"/></g>`;
+  });
   comps.forEach(c => {
     const dim = ui.focus && !ui.focus.includes(c.id), ring = ui.focus && ui.focus.includes(c.id);
     Object.keys(c.terms).forEach(id => {
@@ -250,6 +267,15 @@ export function statusHTML(s) {
   const q = s.power ? ['Quadro acceso', 'ok'] : s.trip ? ['Quadro scattato', 'bad'] : ['Quadro spento', ''];
   let msg = sessionMessage(s.message);
   if (s.message && s.message.code === 'lampDark' && s.flowVisible) msg += ' ' + flowMessage(s.flow, s.level);
+  if (s.level.engine === 2 && s.obs) {
+    const o = s.obs;
+    const q2 = s.trip ? ['Quadro scattato', 'bad'] : s.selfPowered ? ['Impianto alimentato', 'ok'] : q;
+    const run = Object.values(o.motors).some(v => v === 'fwd' || v === 'rev') || Object.values(o.loads).some(v => v === 'on');
+    const trip = o.tripped.length ? '<span class="pill bad">Protezione scattata</span>' : '';
+    const ov = s.level.comps.some(c => c.type === 'ft') ? `<button class="pill pbtn${s.overload ? ' on' : ''}" data-overload="1" aria-pressed="${!!s.overload}">${s.overload ? 'Sovraccarico: attivo' : 'Simula un sovraccarico'}</button>` : '';
+    const rw = o.machine && !o.machine.atStart ? '<button class="pill pbtn" data-rewind="1">Riporta il pacco all’inizio</button>' : '';
+    return `<span class="pill ${q2[1]}">${q2[0]}</span><span class="pill${run ? ' on' : ''}">${run ? 'Carico in funzione' : 'Carico fermo'}</span>${trip}${ov}${rw}<span class="msg" aria-live="polite">${msg}</span>`;
+  }
   const multi = s.litLoads && s.litLoads.length > 1;
   const nOn = multi ? s.litLoads.filter(Boolean).length : 0;
   const lampTxt = multi
@@ -259,6 +285,12 @@ export function statusHTML(s) {
 }
 
 const MARK = { ok: '✓', na: '–', ko: '✕' };
+// Elenco delle prove di funzionamento (livelli v2): una riga per prova, con esito.
+function checksHTML(result) {
+  if (!result.checks || !result.checks.length) return '';
+  const li = c => `<li class="${c.ok ? 'ok' : 'ko'}"><span class="mark ${c.ok ? 'ok' : 'ko'}" aria-hidden="true">${c.ok ? MARK.ok : MARK.ko}</span> ${c.label}</li>`;
+  return `<div class="row chk"><span class="mark na" aria-hidden="true">${MARK.na}</span><div><b>Prove di funzionamento</b><ul class="chks">${result.checks.map(li).join('')}</ul></div></div>`;
+}
 export function resultHTML(s) {
   if (!s.result) return '';
   const r = describeEvaluation(s.result, s.level);
@@ -276,5 +308,5 @@ export function resultHTML(s) {
     if (s.playMode !== 'verifica' && s.mode === 'quadro' && !s.level.quadroOnly) acts.push('<button class="btn" data-act="full">Sfida: parti dal contatore</button>');
     acts.push(last ? '' : toHouse ? '<button class="btn primary" id="bNext" data-href="#/modulo/1">Vai al trilocale</button>' : '<button class="btn primary" id="bNext">Livello successivo</button>');
   }
-  return `<h3>${r.pass ? 'Impianto funzionante' : 'Controllo del circuito'}</h3><div class="stars" aria-label="${r.stars} stelle su 3">${'★'.repeat(r.stars)}<span class="e">${'★'.repeat(3 - r.stars)}</span></div>${row('Funziona', r.work)}${row('Colori dei fili', r.color)}${row('Sicurezza', r.safe)}<p class="xpline">Punti di questo livello: <b>${xp} XP</b></p>${r.pass && last ? '<p class="next"><b>Hai completato tutti i livelli.</b></p>' : r.pass && toHouse ? '<p class="next"><b>Hai completato il Modulo 0.</b></p>' : ''}${acts.length ? `<div class="uact">${acts.join('')}</div>` : ''}`;
+  return `<h3>${r.pass ? 'Impianto funzionante' : 'Controllo del circuito'}</h3><div class="stars" aria-label="${r.stars} stelle su 3">${'★'.repeat(r.stars)}<span class="e">${'★'.repeat(3 - r.stars)}</span></div>${row('Funziona', r.work)}${checksHTML(s.result)}${row('Colori dei fili', r.color)}${row('Sicurezza', r.safe)}<p class="xpline">Punti di questo livello: <b>${xp} XP</b></p>${r.pass && last ? '<p class="next"><b>Hai completato tutti i livelli.</b></p>' : r.pass && toHouse ? '<p class="next"><b>Hai completato il Modulo 0.</b></p>' : ''}${acts.length ? `<div class="uact">${acts.join('')}</div>` : ''}`;
 }

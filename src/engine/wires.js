@@ -2,6 +2,8 @@
 // I valori esadecimali e i nomi in italiano non stanno qui: sono compito della vista e dei contenuti.
 
 export const WIRE_COLORS = ['marrone', 'nero', 'grigio', 'blu', 'gv'];
+// Tutti i colori noti: rosso (comando in alternata, Modulo 3) e bianco (bassa tensione) compaiono solo nei livelli che li dichiarano in `palette`.
+export const ALL_COLORS = [...WIRE_COLORS, 'rosso', 'bianco'];
 
 // Colori ammessi per un filo di fase (nel trifase si useranno tutti e tre).
 export const PHASE_COLORS = ['marrone', 'nero', 'grigio'];

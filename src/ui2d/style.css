@@ -498,3 +498,18 @@ html[dir="rtl"] svg,html[dir="rtl"] .house,html[dir="rtl"] #bench,html[dir="rtl"
 .trnote{margin:14px 0 0;font-size:13px;line-height:1.5;color:var(--ink2)}
 .trnote a{color:inherit}
 html[lang="it"] .trnote{display:none}
+.halo-w.b{stroke:#B48CE8;stroke-opacity:.55}.flow.b{stroke:#EBDDFF}
+.tbtn{cursor:pointer}
+.togg.hold:focus-visible{outline:none}
+
+/* scena v2: ventola, campanello, finecorsa */
+.fan.fwd{animation:spin .9s linear infinite}.fan.rev{animation:spin .9s linear infinite reverse}.fan.hum{animation:hum .12s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes hum{0%{transform:rotate(-2deg)}50%{transform:rotate(2deg)}100%{transform:rotate(-2deg)}}
+.fcm{fill:#8C9099;stroke:#2A2D33;stroke-width:1.5}.fcm.act{fill:#F59F00}
+.bellb.ring{animation:ring .25s linear infinite;transform-box:fill-box;transform-origin:50% 0}
+@keyframes ring{0%{transform:rotate(-8deg)}50%{transform:rotate(8deg)}100%{transform:rotate(-8deg)}}
+@media (prefers-reduced-motion:reduce){.fan.fwd,.fan.rev,.fan.hum,.bellb.ring{animation:none}}
+.chks{list-style:none;margin:4px 0 0;padding:0}.chks li{font-size:.92em;padding:2px 0}.chks .mark{display:inline-flex;width:18px;height:18px;font-size:.8em}
+.pbtn{cursor:pointer;font:inherit;border:1px solid var(--line)}.pbtn.on{background:#F59F00;color:#1B2230;border-color:#C27F00}
+.pbtn{min-height:40px}

@@ -48,11 +48,11 @@ test('tratteggio: il primo morsetto di arrivo ancora libero', () => {
 test('dimostrazione: un fotogramma per filo, poi la corrente, e la luce si accende', () => {
   levels.filter(l => l.solution).forEach(l => {
     const f = demoFrames(l, {});
-    const base = l.solution.length + 1 + (l.controls || []).length;
+    const base = l.solution.length + 1 + (l.demoDo ? l.demoDo.length : (l.controls || []).length);
     assert.equal(f.length, base, l.id);
     assert.equal(f[0].snap.wires.length, 1);
     assert.equal(f[l.solution.length - 1].snap.wires.length, l.solution.length);
-    assert.equal(f[l.solution.length - 1].snap.power, false);
+    if (l.engine !== 2 || !f[0].snap.selfPowered) assert.equal(f[l.solution.length - 1].snap.power, false);   // con le protezioni proprie l'alimentazione e' sempre data
     assert.equal(f[l.solution.length].snap.power, true);
     // in almeno un fotogramma la luce e' accesa (con i comandi azionati la luce puo' anche spegnersi)
     assert.ok(f.some(x => x.snap.lit), l.id);

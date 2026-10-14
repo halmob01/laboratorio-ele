@@ -9,11 +9,12 @@
 // Un livello si puo' anche aprire "in verifica" (prova di salto): niente lezione, niente aiuti.
 
 import { analyse, potentialOf } from './circuit.js';
-import { WIRE_COLORS } from './wires.js';
+import { ALL_COLORS } from './wires.js';
 import { evaluate } from './evaluate.js';
 import { flowOf } from './flow.js';
 import { stepsState, ghostFor } from './steps.js';
 import { attemptBase, migrateProgress, rankOf, totalXp, xpOf } from './progress.js';
+import { createSim, setWires as setWires2, setSupply, act, advance, rewind as rewindSim, evaluateV2, isV2, selfPowered, viewOf, HOLD } from './v2/index.js';
 
 function memoryStorage() {
   let data = {};
@@ -38,6 +39,7 @@ export function createSession({ levels, deriveFull, storage = memoryStorage(), i
   const usageByKey = {};
   const unitByKey = {};
   const operatedByKey = {};   // comandi azionati con il quadro acceso, per i passi
+  const simsByKey = {};       // motore v2: simulazione con stato (pulsanti, relè, tempo), una per livello e modalita'
   let nextWireId = 1;
   let progress;
   try { progress = migrateProgress(storage.load(), levels); } catch (e) { progress = migrateProgress(null, levels); }
@@ -78,6 +80,44 @@ export function createSession({ levels, deriveFull, storage = memoryStorage(), i
   const record = () => progress.best[progressKey(levelAt().id)] || (progress.best[progressKey(levelAt().id)] = { base: 0, pred: false, fault: false, skipped: false });
 
   const operated = () => operatedByKey[keyOf()] || (operatedByKey[keyOf()] = []);
+
+  // Motore v2: la simulazione si crea alla prima richiesta e si butta a ogni modifica dei fili.
+  const v2 = (level = levelAt()) => isV2(level);
+  const dropSim = () => { delete simsByKey[keyOf()]; };
+  // Dopo una modifica dei fili: con protezioni proprie la simulazione resta (interruttori e protezioni tengono lo stato), altrimenti si ricrea.
+  const rewireSim = () => {
+    const old = simsByKey[keyOf()], lv = levelAt();
+    dropSim();
+    if (!old || !selfPowered(lv)) return;
+    const sim = simFor();
+    lv.comps.forEach(c => { if (['mt', 'mt3', 'sez', 'rcd', 'sw'].includes(c.type) && old.parts[c.id]) { Object.assign(sim.parts[c.id], JSON.parse(JSON.stringify(old.parts[c.id]))); } });
+    setWires2(sim, wires());
+  };
+  function simFor() {
+    const k = keyOf();
+    if (!simsByKey[k]) {
+      const sim = createSim(levelAt(), wires());
+      if (sim.supply !== power) setSupply(sim, power);
+      simsByKey[k] = sim;
+    }
+    return simsByKey[k];
+  }
+  // Dopo ogni azione: se il quadro e' scattato per un guasto senza protezione, la corrente cade.
+  function applyLive2() {
+    const sim = simFor();
+    if (sim.mainTrip && power) {
+      const cause = sim.mainTripCause === 'faseterra' || sim.mainTripCause === 'terra' ? 'terra' : 'corto';
+      power = false;
+      trip = true;
+      message = { code: 'trip', fault: cause };
+    }
+  }
+  // v1 e v2 danno al resto della sessione la stessa forma di analisi.
+  const analysisOf = (level = levelAt()) => {
+    if (!v2(level)) return analyse(level, wires(), states());
+    const v = viewOf(level, simFor(), power);
+    return { lit: v.lit, litLoads: [], anyLit: v.lit, fault: v.fault, v2: v };
+  };
   const currentPage = () => {
     const l = levelAt();
     return l.unit && l.unit.lesson.pages[unitState().page || 0];
@@ -94,7 +134,7 @@ export function createSession({ levels, deriveFull, storage = memoryStorage(), i
   function stepsPart(level, phase) {
     const u = level.unit;
     if (!u || !u.steps || playMode !== 'apprendimento' || phase === 'lesson') return { steps: null, ghost: null };
-    const st = stepsState(u.steps, wires(), { power, operated: operated(), result: resultsByKey[keyOf()] || null, fault: !!analyse(level, wires(), states()).fault });
+    const st = stepsState(u.steps, wires(), { power, operated: operated(), result: resultsByKey[keyOf()] || null, fault: !!analysisOf(level).fault });
     const cur = st.current === null ? null : u.steps[st.current];
     const ghost = phase === 'build' && u.support === 'guidato' && cur ? ghostFor(cur, wires()) : null;
     return { steps: { list: u.steps, done: st.done, current: st.current }, ghost };
@@ -102,7 +142,9 @@ export function createSession({ levels, deriveFull, storage = memoryStorage(), i
 
   function snapshot() {
     const level = levelAt();
-    const analysis = analyse(level, wires(), states());
+    const is2 = v2(level);
+    const analysis = is2 ? null : analyse(level, wires(), states());
+    const view2 = is2 ? viewOf(level, simFor(), power) : null;
     const us = level.unit ? unitState() : null;
     const total = totalXp(progress);
     const phase = us ? us.phase : 'build';
@@ -114,17 +156,22 @@ export function createSession({ levels, deriveFull, storage = memoryStorage(), i
       mode,
       playMode,
       wires: wires().slice(),
-      controlStates: { ...states() },
+      controlStates: is2 ? view2.controlStates : { ...states() },
       power,
       trip,
       message,
-      lit: power && analysis.lit,
-      litLoads: analysis.litLoads.map(x => power && x),
-      fault: analysis.fault,
-      // 'F' | 'N' | 'PE' | null per il morsetto dato (indipendente da power)
-      potential: tid => potentialOf(analysis, tid),
+      lit: is2 ? view2.lit : power && analysis.lit,
+      litLoads: is2 ? [] : analysis.litLoads.map(x => power && x),
+      fault: is2 ? view2.fault : analysis.fault,
+      // 'F' | 'N' | 'PE' | null per il morsetto dato (indipendente da power); in v2 anche 'L1', 'L2', 'L3' e i secondari dei trasformatori
+      potential: is2 ? view2.potential : tid => potentialOf(analysis, tid),
       // dove passa la corrente (vedi flow.js); la vista lo mostra solo se flowVisible
-      flow: flowOf(level, wires(), states()),
+      flow: is2 ? view2.flow : flowOf(level, wires(), states()),
+      // solo livelli v2: osservazione (carichi, motori, bobine, protezioni scattate, macchina), orologio, alimentazione propria
+      obs: is2 ? view2.obs : null,
+      needsClock: is2 ? view2.needsClock : false,
+      selfPowered: is2 ? selfPowered(level) : false,
+      overload: is2 ? !!simFor().overload : false,
       flowVisible: flowVisible(level),
       result: resultsByKey[keyOf()] || null,
       solutionShown,
@@ -196,7 +243,7 @@ export function createSession({ levels, deriveFull, storage = memoryStorage(), i
         const seen = new Set();
         const ws = [];
         (Array.isArray(e.wires) ? e.wires.slice(0, MAX_WORK_WIRES) : []).forEach(x => {
-          if (!isObj(x) || !known.has(x.a) || !known.has(x.b) || x.a === x.b || !WIRE_COLORS.includes(x.c)) return;
+          if (!isObj(x) || !known.has(x.a) || !known.has(x.b) || x.a === x.b || !ALL_COLORS.includes(x.c)) return;
           const k = [x.a, x.b].sort().join('~');
           if (seen.has(k)) return;
           seen.add(k);
@@ -224,7 +271,7 @@ export function createSession({ levels, deriveFull, storage = memoryStorage(), i
       if (phase === 'done') {
         const ws = wiresByKey[keyOf(i, 'quadro')] || [];
         if (!(progress.stars[progressKey(l.id, 'quadro')] > 0) || !ws.length) phase = 'build';
-        else result = evaluate(levelAt(i, 'quadro'), ws);
+        else result = isV2(levelAt(i, 'quadro')) ? evaluateV2(levelAt(i, 'quadro'), ws) : evaluate(levelAt(i, 'quadro'), ws);
         if (result && !result.pass) { phase = 'build'; result = null; }
       }
       unitByKey[i] = { phase, page, pred, diag: null, faultSolved: false };
@@ -269,7 +316,8 @@ export function createSession({ levels, deriveFull, storage = memoryStorage(), i
   };
 
   function resetLevelState() {
-    power = false;
+    dropSim();
+    power = selfPowered(levelAt());
     trip = false;
     message = null;
     hintIndex = -1;
@@ -279,6 +327,7 @@ export function createSession({ levels, deriveFull, storage = memoryStorage(), i
 
   // Se la corrente e' data e c'e' un guasto, la protezione scatta.
   function applyLive() {
+    if (v2()) { applyLive2(); return; }
     const cur = analyse(levelAt(), wires(), states());
     if (power && cur.fault) {
       power = false;
@@ -290,7 +339,12 @@ export function createSession({ levels, deriveFull, storage = memoryStorage(), i
   // Si modifica il cablaggio: la verifica precedente non vale piu'.
   function wiresChanged() {
     resultsByKey[keyOf()] = null;
-    if (power) {
+    rewireSim();
+    if (selfPowered(levelAt())) {
+      power = true;
+      trip = false;
+      message = null;
+    } else if (power) {
       power = false;
       message = { code: 'editWhileLive' };
     } else if (trip) {
@@ -300,6 +354,9 @@ export function createSession({ levels, deriveFull, storage = memoryStorage(), i
       message = null;
     }
   }
+
+  // Motore v2 con corrente propria: un filo nuovo puo' fare scattare subito il quadro.
+  const afterEdit = () => { if (v2()) { rewireSim(); applyLive2(); } };
 
   const inBuildOrFault = () => {
     const l = levelAt();
@@ -312,7 +369,7 @@ export function createSession({ levels, deriveFull, storage = memoryStorage(), i
       listeners.add(fn);
       return () => listeners.delete(fn);
     },
-    start() { restoreWork(); emit(); },
+    start() { restoreWork(); power = selfPowered(levelAt()); emit(); },
 
     // Stato di un livello qualsiasi (non solo quello aperto), per chi disegna piu' circuiti insieme (la casa).
     // `lit`: la lampada si accende con i fili e i comandi attuali, ignorando il quadro; `power` vale solo per il livello aperto.
@@ -320,6 +377,7 @@ export function createSession({ levels, deriveFull, storage = memoryStorage(), i
       const i = indexOf(x);
       if (i < 0 || i >= levels.length) return null;
       const lv = levelAt(i, 'quadro');
+      if (isV2(lv)) return { id: levels[i].id, lit: false, wired: (wiresByKey[keyOf(i, 'quadro')] || []).length, controls: {}, passed: (progress.stars[levels[i].id] || 0) > 0, open: i === levelIndex, power: false };
       const k = keyOf(i, 'quadro');
       const w = wiresByKey[k] || [], st = statesByKey[k] || {};
       const id = levels[i].id;
@@ -389,6 +447,7 @@ export function createSession({ levels, deriveFull, storage = memoryStorage(), i
       wiresChanged();
       if (k >= 0) ws.splice(k, 1);
       else ws.push({ id: nextWireId++, a, b, c: color });
+      afterEdit();
       emit();
     },
     removeWire(id) {
@@ -398,12 +457,14 @@ export function createSession({ levels, deriveFull, storage = memoryStorage(), i
       if (k < 0) return;
       wiresChanged();
       ws.splice(k, 1);
+      afterEdit();
       emit();
     },
     undo() {
       if (!wires().length || !inBuildOrFault()) return;
       wiresChanged();
       wires().pop();
+      afterEdit();
       emit();
     },
     clear() {
@@ -415,6 +476,20 @@ export function createSession({ levels, deriveFull, storage = memoryStorage(), i
     },
 
     toggleBreaker() {
+      if (v2()) {
+        if (selfPowered(levelAt())) return;
+        const sim = simFor();
+        power = !power;
+        trip = false;
+        message = power ? null : { code: 'powerOff' };
+        setSupply(sim, power);
+        if (power) {
+          applyLive2();
+          if (power) message = viewOf(levelAt(), sim, power).lit ? null : { code: 'lampDark' };
+        }
+        emit();
+        return;
+      }
       if (power) {
         power = false;
         message = { code: 'powerOff' };
@@ -431,11 +506,59 @@ export function createSession({ levels, deriveFull, storage = memoryStorage(), i
       emit();
     },
     toggleControl(id) {
+      if (v2()) {
+        const c = levelAt().comps.find(x => x.id === id);
+        if (!c) return;
+        const sim = simFor();
+        if (HOLD.has(c.type)) { act(sim, 'press', id); act(sim, 'release', id); }   // da tastiera un comando a impulso vale premi e rilascia
+        else act(sim, 'toggle', id);
+        if (power && !operated().includes(id)) operated().push(id);
+        message = null;
+        applyLive2();
+        emit();
+        return;
+      }
       const st = states();
       st[id] = st[id] ? 0 : 1;
       if (power && !operated().includes(id)) operated().push(id);
       message = null;
       applyLive();
+      emit();
+    },
+    // Motore v2: pulsanti tenuti premuti, riarmo del termico, tasto di prova del differenziale, orologio, sovraccarico simulato.
+    press(id) { this._act('press', id); },
+    release(id) { this._act('release', id); },
+    resetPart(id) { this._act('reset', id); },
+    testPart(id) { this._act('test', id); },
+    _act(action, id) {
+      if (!v2() || !inBuildOrFault()) return;
+      const sim = simFor();
+      const c = levelAt().comps.find(x => x.id === id);
+      if (!c) return;
+      try { act(sim, action, id); } catch (e) { return; }   // azione non prevista per quel componente
+      if (action === 'press' && power && !operated().includes(id)) operated().push(id);
+      message = null;
+      applyLive2();
+      emit();
+    },
+    // L'orologio della vista: fa passare il tempo (mezzi secondi) solo quando serve (snapshot().needsClock).
+    tick(seconds = 0.5) {
+      if (!v2()) return;
+      advance(simFor(), seconds);
+      applyLive2();
+      emit();
+    },
+    // Livelli con relè termico: simula un sovraccarico (il motore assorbe troppo) per provare la protezione.
+    setOverload(on) {
+      if (!v2()) return;
+      simFor().overload = !!on;
+      emit();
+    },
+    // Livelli con una macchina (nastro): riporta il pacco all'inizio.
+    rewind() {
+      if (!v2()) return;
+      rewindSim(simFor());
+      applyLive2();
       emit();
     },
     // Livelli con corrente "a richiesta": mostra o nasconde i fili percorsi.
@@ -446,7 +569,7 @@ export function createSession({ levels, deriveFull, storage = memoryStorage(), i
 
     check() {
       const level = levelAt();
-      const r = evaluate(level, wires());
+      const r = v2(level) ? evaluateV2(level, wires()) : evaluate(level, wires());
       resultsByKey[keyOf()] = r;
       const u = usage();
       u.checks++;

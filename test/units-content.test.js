@@ -2,10 +2,12 @@
 
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { evaluate, stepsState, demoFrames } from '../src/engine/index.js';
+import { evaluate as evaluateV1, stepsState, demoFrames } from '../src/engine/index.js';
+import { evaluateV2 } from '../src/engine/v2/index.js';
 import { levels } from '../src/content/index.js';
 
 const withUnit = levels.filter(l => l.unit);
+const evaluate = (L, w) => (L.engine === 2 ? evaluateV2(L, w) : evaluateV1(L, w));
 const W = ws => ws.map(([a, b, c], k) => ({ id: k + 1, a, b, c }));
 
 for (const L of withUnit) {

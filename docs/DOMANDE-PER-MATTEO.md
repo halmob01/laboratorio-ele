@@ -40,3 +40,14 @@ Da far controllare al collega di laboratorio:
 - Sezioni e protezioni per le linee di casa: 1,5 mm² con 10 A per la luce, 2,5 mm² con 16 A per le prese.
 - Nel gioco il differenziale scatta anche se il neutro di una linea è preso a monte e la fase a valle (squilibrio), e se neutro e terra sono uniti a valle.
 - Il relè termico scatta dopo circa 3 secondi di fase mancante o sovraccarico (tempo accorciato per il gioco).
+- c14 (relè termico) ha la guida a passi invece del solo obiettivo, per distinguere il nuovo componente dai livelli precedenti; c15 e c16 hanno solo l'obiettivo, come da piano.
+- c09: il tempo del temporizzatore è 20 s e nelle prove si simula con 'wait' (nel gioco i secondi sono reali). Valore da verificare: nelle scale reali si usa 30-120 s.
+- c10: nel gioco il campanello da 12 V si brucia a 230 V; è una semplificazione (in realtà molti campanelli a 230 V esistono).
+- c11: il circuito di c11 usa differenziale e due magnetotermici di linea, senza generale; nel quadro di una casa reale c'è anche il generale e il differenziale ha spesso corrente nominale e sensibilità (30 mA) da dichiarare.
+
+## Moduli 2 e 3: punti da far controllare
+
+- c14 usa il formato "passi" invece del solo obiettivo previsto dal piano: la sequenza (potenza, contatto 95, contatto 96, marcia) rende il relè termico piu' leggibile.
+- Salvamotore e relè termico insieme (c14, c16): un salvamotore magnetotermico ha gia' lo sganciatore termico. Nel gioco il salvamotore funge da protezione di linea e il termico sta con il contattore. Va bene cosi' o conviene chiamarlo "interruttore magnetico"?
+- c10: il pulsante sul primario del trasformatore e' accettato (3 stelle) come quello sul secondario. Elettricamente funziona; didatticamente si chiede il secondario. Serve una regola in piu'?
+- Valori tecnici (tempo 20 s, 12 V, tripAfter 3 s, tempi del nastro): far controllare al collega.

@@ -291,6 +291,13 @@ export function setSupply(sim, on) {
   settle(sim);
 }
 
+// Riporta la macchina (il pacco del nastro) all'inizio della corsa.
+export function rewind(sim) {
+  if (!sim.level.machine) return;
+  sim.pos = sim.level.machine.start || 0;
+  settle(sim);
+}
+
 export function advance(sim, seconds) {
   const n = Math.max(1, Math.round(seconds / STEP));
   for (let i = 0; i < n; i++) {
@@ -339,6 +346,7 @@ export function observe(sim) {
     machine: sim.level.machine ? { pos: sim.pos, atStart: sim.pos <= 0, atEnd: sim.pos >= sim.level.machine.length } : null,
     potential: term => { const p = an.potAt(term); return p === 'mix' ? null : p; },
     supply: sim.supply && !sim.mainTrip,
+    overload: !!sim.overload,
   };
 }
 

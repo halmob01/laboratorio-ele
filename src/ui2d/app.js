@@ -1,10 +1,13 @@
 // Vista 2D: collega la sessione del motore al DOM (disegno, tocco, tastiera).
 // Le regole del gioco stanno in src/engine/session.js; qui ci sono solo ingressi e uscite grafiche.
 
+import { WIRE_COLORS } from '../engine/index.js';
 import { createSession, cleanName, demoFrames, blankSnap } from '../engine/index.js';
 import { levels, deriveFull } from '../content/index.js';
 import { HELP } from '../content/it.js';
 import { composeComps } from './layout.js';
+// Su computer i livelli con molti componenti si dispongono su due colonne, per dare scala al banco.
+const colsFor = lv => (!MQ.matches && lv.engine === 2 && lv.comps.length >= 5 ? 2 : 1);
 import * as R from './render.js';
 import * as V from './screens.js';
 import { INTRO } from '../content/home.js';
@@ -45,7 +48,12 @@ let KWH = 42.7;         // contatore, solo estetico
 const ui = () => ({ mobile: MQ.matches, sel: SEL, kwh: KWH });
 
 /* ---------- disegno ---------- */
-function renderPalette() { $('#palette').innerHTML = R.paletteHTML(COL); }
+function renderPalette() {
+  const lv = S && S.level;
+  const pal = (lv && lv.palette) || WIRE_COLORS;
+  if (lv && !pal.includes(COL)) COL = pal[0];
+  $('#palette').innerHTML = R.paletteHTML(COL, lv);
+}
 function setRoomVB() {
   const r = $('#room');
   r.classList.toggle('full', S.level.room !== 'tavolo' && (S.level.controls || []).length > 0);
@@ -76,8 +84,9 @@ function showHint() {
 
 function onLevelChange() {
   stopDemo();
-  comps = composeComps(S.level);
+  comps = composeComps(S.level, colsFor(S.level));
   SEL = null;
+  renderPalette();
   $('#lvTag').textContent = S.level.name + (S.mode === 'contatore' ? ' · dal contatore' : '') + (S.playMode === 'verifica' ? ' · prova di salto' : '');
   $('#room').innerHTML = R.roomHTML(S.level, comps);
   setRoomVB();
@@ -299,14 +308,52 @@ bench.addEventListener('click', e => {
   if (t) return;
   const h = e.target.closest('[data-help]'); if (h) { setInfo(h.dataset.help); return; }
   const q = e.target.closest('[data-q]'); if (q) { clearSel(); session.toggleBreaker(); return; }
+  const tp = e.target.closest('[data-test]'); if (tp) { clearSel(); session.testPart(tp.dataset.test); return; }
+  const rp = e.target.closest('[data-reset]'); if (rp) { clearSel(); session.resetPart(rp.dataset.reset); return; }
   const c = e.target.closest('[data-ctl]'); if (c) { clearSel(); session.toggleControl(c.dataset.ctl); return; }
   // Il "click" che il telefono genera dopo il tocco arriva quando il banco e' gia' stato ridisegnato:
   // puo' cadere sul filo appena creato e cancellarlo. Quel filo non si cancella nel primo mezzo secondo.
   const w = e.target.closest('[data-wire]'); if (w) { clearSel(); if (!(w.dataset.wire === lastWireId && Date.now() - lastWireAt < 600)) session.removeWire(+w.dataset.wire); return; }
   clearSel();
 });
+/* ---------- pulsanti a impulso (motore v2): attivi finche' si tengono premuti ---------- */
+// Un tocco breve vale premi e rilascia, con una pressione minima di 250 ms perche' il circuito faccia in tempo a rispondere.
+const HOLD_MIN = 250;
+let held = null;   // { id, at }
+let pendingRelease = null;   // { id, timer }: rilascio ritardato di un tocco breve
+function holdStart(id) {
+  if (held) return;
+  if (pendingRelease) { clearTimeout(pendingRelease.timer); session.release(pendingRelease.id); pendingRelease = null; }
+  held = { id, at: Date.now() };
+  clearSel(); session.press(id);
+}
+function holdEnd() {
+  if (!held) return;
+  const h = held; held = null;
+  const rest = HOLD_MIN - (Date.now() - h.at);
+  if (rest > 0) {
+    pendingRelease = { id: h.id, timer: setTimeout(() => { pendingRelease = null; session.release(h.id); }, rest) };
+  } else session.release(h.id);
+}
+document.addEventListener('pointerdown', e => {
+  const h = e.target.closest('[data-hold]');
+  if (!h) return;
+  e.preventDefault();
+  holdStart(h.dataset.hold);
+});
+window.addEventListener('pointerup', holdEnd);
+window.addEventListener('pointercancel', holdEnd);
+window.addEventListener('blur', holdEnd);
+document.addEventListener('keyup', e => {
+  if (e.key !== 'Enter' && e.key !== ' ') return;
+  if (e.target.closest('[data-hold]')) { e.preventDefault(); holdEnd(); }
+});
 bench.addEventListener('keydown', e => {
   if (e.key !== 'Enter' && e.key !== ' ') return;
+  const hd = e.target.closest('[data-hold]');
+  if (hd) { e.preventDefault(); if (!e.repeat) holdStart(hd.dataset.hold); return; }
+  const tr_ = e.target.closest('[data-test],[data-reset]');
+  if (tr_) { e.preventDefault(); if (tr_.dataset.test) session.testPart(tr_.dataset.test); else session.resetPart(tr_.dataset.reset); return; }
   const t = e.target.closest('[data-term]');
   if (t) {
     e.preventDefault();
@@ -318,8 +365,12 @@ bench.addEventListener('keydown', e => {
   const q = e.target.closest('[data-q]'); if (q) { e.preventDefault(); session.toggleBreaker(); return; }
   const h = e.target.closest('[data-help]'); if (h) { e.preventDefault(); setInfo(h.dataset.help); }
 });
+document.addEventListener('click', e => { if (e.target.closest('[data-overload]')) session.setOverload(!S.overload); });
+document.addEventListener('click', e => { if (e.target.closest('[data-rewind]')) session.rewind(); });
 $('#room').addEventListener('click', e => { const c = e.target.closest('[data-ctl]'); if (c) session.toggleControl(c.dataset.ctl); });
 $('#room').addEventListener('keydown', e => {
+  const hd = e.target.closest('[data-hold]');
+  if (hd && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); if (!e.repeat) holdStart(hd.dataset.hold); return; }
   if (e.key === 'Enter' || e.key === ' ') {
     const c = e.target.closest('[data-ctl]');
     if (c) { e.preventDefault(); session.toggleControl(c.dataset.ctl); }
@@ -336,13 +387,15 @@ document.querySelector('.mode').addEventListener('click', e => {
 setInterval(() => {
   if (S && (S.lit || (S.litLoads && S.litLoads.some(Boolean)))) { KWH += 0.1; const k = $('#kwh'); if (k) k.textContent = R.kwhText(KWH); }
 }, 700);
+// Orologio del circuito (temporizzatori, protezioni termiche): solo quando serve e la scheda e' visibile.
+setInterval(() => { if (S && S.needsClock && !document.hidden && route.name === 'level') session.tick(0.5); }, 500);
 $('#info').addEventListener('click', e => { if (e.target.closest('[data-x]')) $('#info').classList.remove('open'); });
 if (window.ResizeObserver) {
   new ResizeObserver(() => {
     document.documentElement.style.setProperty('--roomH', Math.ceil($('.roomcard').getBoundingClientRect().height) + 8 + 'px');
   }).observe($('.roomcard'));
 }
-const onMQ = () => { if (route.name !== 'level' || !comps.length) return; setRoomVB(); renderBench(); if (!MQ.matches) $('#info').classList.add('open'); };
+const onMQ = () => { if (route.name !== 'level' || !comps.length) return; comps = composeComps(S.level, colsFor(S.level)); setRoomVB(); renderBench(); if (!MQ.matches) $('#info').classList.add('open'); };
 if (MQ.addEventListener) MQ.addEventListener('change', onMQ);
 $('#palette').addEventListener('click', e => { const b = e.target.closest('[data-col]'); if (b) { COL = b.dataset.col; renderPalette(); } });
 $('#bUndo').addEventListener('click', () => session.undo());

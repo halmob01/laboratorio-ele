@@ -60,7 +60,12 @@ function soonCard(x) {
 export function continueTarget(s) {
   const open = l => l.status !== 'completato' && l.status !== 'saltato';
   const last = s.levels.find(l => l.id === s.last);
-  return (last && open(last) && last) || s.levels.find(l => open(l) && !/^t\d\d-/.test(l.id)) || null;
+  if (last && open(last)) return last;
+  const m0 = s.levels.find(l => open(l) && MODULES[0].levels.includes(l.id));
+  if (m0) return m0;
+  // finito il Modulo 0 si propone il trilocale; chi lo ha completato o saltato prosegue con i moduli successivi
+  if (s.levels.some(l => /^t\d\d-/.test(l.id) && open(l))) return null;
+  return s.levels.find(l => open(l) && !/^t\d\d-/.test(l.id)) || null;
 }
 
 export function homeHTML(s) {

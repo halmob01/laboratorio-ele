@@ -15,12 +15,33 @@ export const MODULES = [
       'c06-invertito',
     ],
   },
+  {
+    tag: 'MODULO 2',
+    title: 'Civile avanzato',
+    levels: [
+      'c07-presa-comandata',
+      'c08-rele-impulsi',
+      'c09-luce-scale',
+      'c10-campanello',
+      'c11-quadro',
+    ],
+  },
+  {
+    tag: 'MODULO 3',
+    title: 'Industriale',
+    levels: [
+      'c12-motore',
+      'c13-marcia-arresto',
+      'c14-termico',
+      'c15-inversione',
+      'c16-nastro',
+    ],
+  },
 ];
 
-// Moduli ancora da costruire, mostrati in fondo alla mappa.
+// Prove dei moduli ancora da costruire, mostrate in fondo alla mappa.
 export const UPCOMING = [
-  { tag: 'MODULO 2', title: 'Civile avanzato', note: 'Relè, presa comandata, quadro' },
-  { tag: 'MODULO 3', title: 'Industriale', note: 'Trifase, motore, nastro trasportatore' },
+  { tag: 'PROVE DEI MODULI', title: 'Appartamento e nastro', note: 'Un appartamento di notte e un nastro trasportatore, in 3D' },
 ];
 
 // Introduzione animata: una scena per voce. `art` e' la chiave del disegno (src/ui2d/art.js).

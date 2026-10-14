@@ -125,11 +125,14 @@ test('la mappa mostra i livelli, Continua (nessun livello in arrivo nel Modulo 0
   const { d, errors } = openPage({ seen: true });
   assert.ok(!q(d, '#screen-home').hidden);
   assert.ok(q(d, '#screen-level').hidden);
-  assert.equal(qa(d, '.rail .lvcard').length, 6);
-  assert.equal(qa(d, '.rail .lvcard.soon').length, 0);
+  const m0 = '.module[aria-label^="MODULO 0"] .rail';
+  assert.equal(qa(d, m0 + ' .lvcard').length, 6);
+  assert.equal(qa(d, m0 + ' .lvcard.soon').length, 0);
+  assert.equal(qa(d, '.module[aria-label^="MODULO 2"] .lvcard.soon').length, 0);
+  assert.equal(qa(d, '.module[aria-label^="MODULO 3"] .lvcard.soon').length, 0);
   assert.match(q(d, '.homemain .cont').textContent, /Il circuito chiuso/);
-  assert.match(q(d, '.rail').textContent, /Due lampade/);
-  assert.equal(qa(d, '.rail .lvcard a[href*="verifica"]').length, 6);   // "Già lo so" su ogni livello nuovo
+  assert.match(q(d, m0).textContent, /Due lampade/);
+  assert.equal(qa(d, m0 + ' .lvcard a[href*="verifica"]').length, 6);   // "Già lo so" su ogni livello nuovo
   assert.match(q(d, '.homeside').textContent, /Area docente/);
   assert.equal(q(d, '.homeside button[disabled]').textContent.includes('Area docente'), true);
   assert.deepEqual(errors, []);
@@ -257,7 +260,7 @@ test('si superano tutti i livelli cablando la soluzione (quadro e contatore)', (
       assert.equal(qa(d, '#bench [data-wire]').length, lvl.solution.length, base.id + ' ' + mode);
       click(w, q(d, '#bCheck'));
       assert.match(q(d, '#result h3').textContent, /Impianto funzionante/, base.id + ' ' + mode);
-      assert.equal(qa(d, '#result .mark.ok').length, 3);
+      assert.equal(qa(d, '#result .row:not(.chk) > .mark.ok').length, 3);
       click(w, q(d, '[data-mode="quadro"]'));
     });
     assert.deepEqual(errors, [], mode);

@@ -335,3 +335,17 @@ test('corrente visibile v2: in marcia sono percorsi potenza e comando; a motore 
   assert.equal(f.wires[by('M.PE', 'Q.PE')].current, false);
   assert.equal(f.wires[by('KM.2', 'M.U')].net, 'fase');
 });
+
+test('polarita della presa: fase e neutro scambiati sulla presa si vedono anche se tutto funziona', () => {
+  const L = {
+    engine: 2, comps: [comp('Q', 'quadro'), comp('P', 'presa')],
+    checks: [{ id: 'on', label: 'x', do: [], expect: { loads: { P: 'on' } } }],
+    safety: { pol: ['P.L', 'P.N'], earth: [['P.PE', 'Q.PE']] },
+  };
+  const ok = evaluateV2(L, W('Q.F P.L', 'Q.N P.N blu', 'Q.PE P.PE gv'));
+  assert.equal(ok.pass, true);
+  const bad = evaluateV2(L, W('Q.F P.N', 'Q.N P.L blu', 'Q.PE P.PE gv'));
+  assert.equal(bad.work.ok, true);
+  assert.equal(bad.safe.ok, false);
+  assert.equal(bad.safe.items[0].code, 'safe.socketPolarity');
+});
