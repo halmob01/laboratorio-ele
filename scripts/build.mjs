@@ -14,7 +14,7 @@ const result = await build({
   format: 'iife',
   target: 'es2020',
   write: false,
-  legalComments: 'none',
+  legalComments: 'eof',
 });
 
 const js = result.outputFiles[0].text.replace(/<\/script/gi, '<\\/script');
@@ -35,7 +35,7 @@ const scene = await build({
   target: 'es2020',
   minify: true,
   write: false,
-  legalComments: 'none',
+  legalComments: 'eof',
 });
 await writeFile(join(root, 'trilocale.js'), scene.outputFiles[0].text);
 console.log('trilocale.js scritto (' + Math.round(scene.outputFiles[0].text.length / 1024) + ' KB)');

@@ -233,8 +233,7 @@ export function createScene(container, cb) {
     roofG.position.y = top + (1 - roofK) * 3.2;
     roofG.visible = roofK > 0.01;
     M.roof.opacity = M.fascia.opacity = Math.min(1, roofK * 1.6);
-    M.roof.transparent = M.fascia.transparent = roofK < 0.999;
-    M.roof.depthWrite = M.fascia.depthWrite = roofK > 0.6;
+    M.roof.depthWrite = M.fascia.depthWrite = roofK > 0.99;
     labelLayer.style.opacity = String(Math.max(0, 1 - roofK * 2));
   }
 
@@ -252,7 +251,7 @@ export function createScene(container, cb) {
   addLabel(bk.label, bk.x + 0.55, WALL_H + 0.25, bk.z, 'ctl');
 
   // ---- post-elaborazione: alone delle lampade, occlusione ambientale, colore ----
-  const rt = new THREE.WebGLRenderTarget(1, 1, { type: THREE.HalfFloatType, samples: lite ? 2 : 4 });
+  const rt = new THREE.WebGLRenderTarget(1, 1, { type: (renderer.extensions.has('EXT_color_buffer_half_float') || renderer.extensions.has('EXT_color_buffer_float')) ? THREE.HalfFloatType : THREE.UnsignedByteType, samples: lite ? 2 : 4 });
   const composer = new EffectComposer(renderer, rt);
   composer.addPass(new RenderPass(scene, camera));
   let gtao = null;
@@ -325,6 +324,7 @@ export function createScene(container, cb) {
   let roofAnim = null;
   function setRoof(on, ms = 1400) {
     roofOn = !!on;
+    if (cb.onRoof) cb.onRoof(roofOn);
     if (roofAnim) anims.delete(roofAnim);
     const from = roofK, to = roofOn ? 1 : 0;
     if (cb.reduced) { roofK = to; applyRoof(); redraw(); return; }
@@ -400,7 +400,8 @@ export function createScene(container, cb) {
     r.target = to;
     if (cb.reduced) { lampLevel(r, to); return; }
     const from = r.level;
-    animate(on ? 420 : 260, k => {
+    if (r.anim) anims.delete(r.anim);
+    r.anim = animate(on ? 420 : 260, k => {
       const flick = on && k < 0.5 ? (Math.sin(k * 60) > 0.2 ? 1 : 0.35) : 1;
       lampLevel(r, (from + (to - from) * smooth(k)) * flick);
     });
@@ -446,7 +447,7 @@ export function createScene(container, cb) {
         if (o2.material) (Array.isArray(o2.material) ? o2.material : [o2.material]).forEach(m => { Object.values(m).forEach(v => v && v.isTexture && v.dispose()); m.dispose(); });
       });
       if (scene.environment) scene.environment.dispose();
-      composer.dispose(); rt.dispose();
+      if (gtao) gtao.dispose(); bloom.dispose(); composer.dispose(); rt.dispose();
       renderer.dispose();
       if (renderer.forceContextLoss) renderer.forceContextLoss();
       renderer.domElement.remove();

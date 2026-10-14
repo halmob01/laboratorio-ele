@@ -83,7 +83,7 @@ export function createHouse(host, env) {
         onRoof: () => syncRoof(),
         onRoom: room => { const hit = HOUSE.rooms.find(x => x.id === room); if (hit && hit.circuit) env.go('#/livello/' + hit.circuit); },
       });
-      if (api) { scene = api; sceneState = 'ready'; if (lastLevel) focus(lastLevel); }
+      if (api) { scene = api; sceneState = 'ready'; syncRoof(); if (lastLevel) focus(lastLevel); }
       else { sceneState = 'failed'; view = 'plan'; }
       apply(); refresh();
     });
