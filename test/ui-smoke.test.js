@@ -55,7 +55,11 @@ function wire(w, d, a, b, color) {
   tap(w, term(d, a));
   tap(w, term(d, b));
 }
-const solve = (w, d, level) => level.solution.forEach(([a, b, c]) => wire(w, d, a, b, c));
+// Lavoro fuori tensione: se il livello lo chiede, il sezionamento (che parte chiuso) si apre prima di cablare.
+const solve = (w, d, level) => {
+  ((level.safety && level.safety.deadWork) || []).forEach(id => { const c = level.comps.find(x => x.id === id); if (c.init !== 0) click(w, q(d, `[data-ctl="${id}"]`)); });
+  level.solution.forEach(([a, b, c]) => wire(w, d, a, b, c));
+};
 // Le letture del multimetro che il livello pretende, fatte dall'interfaccia: puntali sui morsetti, quadro e comandi come richiesto.
 function rateUI(w, d, level) {
   Object.entries(level.solutionRatings || {}).forEach(([id, want]) => {

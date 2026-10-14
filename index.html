@@ -1839,6 +1839,7 @@ html[lang="it"] .trnote{display:none}
           if (uf.f(x) !== uf.f(y)) fail("safe.noEarth", { comp: x.split(".")[0] });
         });
       }
+      if (S2.deadWork && (ctx.liveEdits || []).length) fail("safe.liveWork", { comp: S2.deadWork[0] });
       if (S2.never) {
         const both = runs.some((x) => x.r.sim.kmHistory.some((on) => S2.never.some((pair) => pair.every((id) => on.includes(id)))));
         const sim = createSim(level, wires);
@@ -2079,6 +2080,7 @@ html[lang="it"] .trnote{display:none}
     const usageByKey = {};
     const unitByKey = {};
     const meterBy = {};
+    const liveEditsBy = {};
     const measuredBy = {};
     const operatedByKey = {};
     const simsByKey = {};
@@ -2294,10 +2296,12 @@ html[lang="it"] .trnote{display:none}
         if (rs[c2.id] && rs[c2.id] !== c2.in) rt[c2.id] = rs[c2.id];
       });
       const ms = (measuredBy[keyOf()] || []).slice(0, 100);
-      if (ws.length || Object.keys(st).length || Object.keys(rt).length || ms.length) {
+      const lv_ = (liveEditsBy[keyOf()] || []).slice(0, 20);
+      if (ws.length || Object.keys(st).length || Object.keys(rt).length || ms.length || lv_.length) {
         const e = { wires: ws, states: st };
         if (Object.keys(rt).length) e.ratings = rt;
         if (ms.length) e.measured = ms;
+        if (lv_.length) e.live = lv_;
         work.w[workKeyOf(levelIndex, mode)] = e;
       } else delete work.w[workKeyOf(levelIndex, mode)];
       if (u && l.unit) {
@@ -2366,7 +2370,14 @@ html[lang="it"] .trnote{display:none}
               entry.measured = ms.map((x) => ({ ...x }));
             }
           }
-          if (ws.length || Object.keys(st).length || entry.ratings || entry.measured) work.w[workKeyOf(i, m)] = entry;
+          if (Array.isArray(e2.live)) {
+            const lv2 = e2.live.slice(0, 20).filter((x) => typeof x === "string" && known.has(x));
+            if (lv2.length) {
+              liveEditsBy[keyOf(i, m)] = lv2;
+              entry.live = lv2.slice();
+            }
+          }
+          if (ws.length || Object.keys(st).length || entry.ratings || entry.measured || entry.live) work.w[workKeyOf(i, m)] = entry;
         });
         const e = isObj(data.u) ? data.u[l.id] : null;
         if (!isObj(e) || !l.unit || !["lesson", "build", "done"].includes(e.phase)) return;
@@ -2383,7 +2394,7 @@ html[lang="it"] .trnote{display:none}
         if (phase === "done") {
           const ws = wiresByKey[keyOf(i, "quadro")] || [];
           if (!(progress.stars[progressKey(l.id, "quadro")] > 0) || !ws.length) phase = "build";
-          else result = isV2(levelAt(i, "quadro")) ? evaluateV2(levelAt(i, "quadro"), ws, { measured: measuredBy[keyOf(i, "quadro")] || [], ratings: ratingsOf(i) }) : evaluate(levelAt(i, "quadro"), ws);
+          else result = isV2(levelAt(i, "quadro")) ? evaluateV2(levelAt(i, "quadro"), ws, { measured: measuredBy[keyOf(i, "quadro")] || [], ratings: ratingsOf(i), liveEdits: liveEditsBy[keyOf(i, "quadro")] || [] }) : evaluate(levelAt(i, "quadro"), ws);
           if (result && !result.pass) {
             phase = "build";
             result = null;
@@ -2459,6 +2470,31 @@ html[lang="it"] .trnote{display:none}
         trip2 = true;
         message = { code: "trip", fault: cur.fault };
       }
+    }
+    function noteLive(terms) {
+      const lv = levelAt();
+      if (!v2(lv) || !lv.safety || !lv.safety.deadWork || !power) return;
+      const sim = simFor();
+      const mk = () => {
+        const s2 = createSim(lv, wires());
+        lv.comps.forEach((c2) => {
+          if (sim.parts[c2.id] && s2.parts[c2.id]) Object.assign(s2.parts[c2.id], JSON.parse(JSON.stringify(sim.parts[c2.id])));
+        });
+        if (sim.supply !== s2.supply) setSupply(s2, sim.supply);
+        settle(s2);
+        return s2;
+      };
+      const now = observe(mk());
+      const dead = mk();
+      lv.safety.deadWork.forEach((id) => {
+        if (dead.parts[id] && dead.parts[id].on) act(dead, "toggle", id);
+      });
+      const off = observe(dead);
+      const PH3 = ["F", "L1", "L2", "L3"];
+      const list = liveEditsBy[keyOf()] || (liveEditsBy[keyOf()] = []);
+      terms.forEach((t) => {
+        if (PH3.includes(now.potential(t)) && !PH3.includes(off.potential(t)) && !list.includes(t) && list.length < 20) list.push(t);
+      });
     }
     function wiresChanged() {
       resultsByKey[keyOf()] = null;
@@ -2570,6 +2606,7 @@ html[lang="it"] .trnote{display:none}
         if (!inBuildOrFault()) return;
         const ws = wires();
         const k = ws.findIndex((w) => w.a === a && w.b === b || w.a === b && w.b === a);
+        noteLive([a, b]);
         wiresChanged();
         if (k >= 0) ws.splice(k, 1);
         else ws.push({ id: nextWireId++, a, b, c: color });
@@ -2581,6 +2618,7 @@ html[lang="it"] .trnote{display:none}
         const ws = wires();
         const k = ws.findIndex((x) => x.id === id);
         if (k < 0) return;
+        noteLive([ws[k].a, ws[k].b]);
         wiresChanged();
         ws.splice(k, 1);
         afterEdit();
@@ -2588,6 +2626,10 @@ html[lang="it"] .trnote{display:none}
       },
       undo() {
         if (!wires().length || !inBuildOrFault()) return;
+        {
+          const w = wires()[wires().length - 1];
+          noteLive([w.a, w.b]);
+        }
         wiresChanged();
         wires().pop();
         afterEdit();
@@ -2596,6 +2638,7 @@ html[lang="it"] .trnote{display:none}
       clear() {
         if (!wires().length || !inBuildOrFault()) return;
         wiresChanged();
+        delete liveEditsBy[keyOf()];
         wiresByKey[keyOf()] = [];
         statesByKey[keyOf()] = {};
         emit();
@@ -2743,7 +2786,7 @@ html[lang="it"] .trnote{display:none}
       check() {
         const level = levelAt();
         const faultOn = v2(level) && level.unit && level.unit.fault && unitState().phase === "fault" ? (level.unit.fault.on || []).filter((id) => simFor().parts[id] && simFor().parts[id].on) : [];
-        const r = v2(level) ? evaluateV2(level, wires(), { measured: measuredBy[keyOf()] || [], ratings: ratingsOf(), faultOn }) : evaluate(level, wires());
+        const r = v2(level) ? evaluateV2(level, wires(), { measured: measuredBy[keyOf()] || [], ratings: ratingsOf(), faultOn, liveEdits: liveEditsBy[keyOf()] || [] }) : evaluate(level, wires());
         resultsByKey[keyOf()] = r;
         const u = usage();
         u.checks++;
@@ -2842,6 +2885,7 @@ html[lang="it"] .trnote{display:none}
         if (us.phase === "done") us.before = { wires: (wiresByKey[keyOf()] || []).slice(), states: { ...statesByKey[keyOf()] || {} }, result: resultsByKey[keyOf()] || null, measured: (measuredBy[keyOf()] || []).slice(), ratings: ratingsOf() };
         resetLevelState();
         delete measuredBy[keyOf()];
+        delete liveEditsBy[keyOf()];
         wiresByKey[keyOf()] = level.unit.fault.wires.map(([a, b, c2]) => ({ id: nextWireId++, a, b, c: c2 }));
         statesByKey[keyOf()] = {};
         resultsByKey[keyOf()] = null;
@@ -4102,6 +4146,83 @@ html[lang="it"] .trnote{display:none}
       ]
     },
     {
+      id: "c21-tre-fasi",
+      code: "c21",
+      n: 0,
+      ...IND,
+      flow: "onDemand",
+      meter: true,
+      name: "Le tre fasi",
+      title: "Le tre fasi",
+      blurb: "Tre fasi e neutro: 230 V da una fase al neutro, 400 V tra due fasi.",
+      goal: "Il quadro \xE8 trifase: L1, L2, L3 pi\xF9 il neutro. Collega una lampada da 230 V tra la fase L1 e il neutro. Poi misura con il multimetro la tensione tra L1 e il neutro e quella tra L1 e L2.",
+      comps: [
+        Q3,
+        C("L", "lamp", "Lampada", "Lampada da 230 V", { B: { l: "B" }, A: { l: "A" } })
+      ],
+      controls: [],
+      checks: [
+        { id: "acceso", label: "La lampada, tra L1 e il neutro, \xE8 accesa", do: [], expect: { loads: { L: "on" } } }
+      ],
+      measures: [
+        { between: ["Q.L1", "Q.N"], mode: "V", value: 230, live: true, label: "tensione tra la fase L1 e il neutro" },
+        { between: ["Q.L1", "Q.L2"], mode: "V", value: 400, live: true, label: "tensione tra le fasi L1 e L2" }
+      ],
+      safety: {},
+      solution: [["Q.L1", "L.A", "marrone"], ["Q.N", "L.B", "blu"]],
+      hints: [
+        "La lampada \xE8 da 230 V: va tra una fase e il neutro, non tra due fasi.",
+        "La fase L1 (marrone) va a un morsetto della lampada, il neutro (blu) all\u2019altro.",
+        "Per misurare, tocca Multimetro, poi i due morsetti del quadro: il primo \xE8 il puntale rosso, il secondo il nero."
+      ]
+    },
+    {
+      id: "c22-teleruttore",
+      code: "c22",
+      n: 0,
+      ...IND,
+      flow: "onDemand",
+      name: "Il teleruttore",
+      title: "Il teleruttore",
+      blurb: "Un pulsante a 230 V comanda la potenza a 400 V.",
+      goal: "Il motore trifase passa dal salvamotore e dal teleruttore KM. La bobina di KM, a 230 V, si comanda con un pulsante: finch\xE9 lo tieni premuto il teleruttore chiude i tre contatti di potenza e il motore gira, quando lo rilasci si ferma. Il circuito di comando va in rosso.",
+      comps: [
+        Q3,
+        C("QM", "mt3", "Salvamotore", "Salvamotore magnetotermico", T(...T6), { init: 0 }),
+        C("KM", "km", "Teleruttore", "Teleruttore KM", T("A1", "A2", ...T6, "13", "14")),
+        C("SB1", "pb", "Marcia", "Pulsante di marcia (NA)", T("3", "4")),
+        C("M", "motor3", "Motore", "Motore trifase", T("U", "V", "W", "PE"))
+      ],
+      controls: ["QM", "SB1"],
+      demoDo: [{ do: ["toggle QM", "press SB1"], say: "Salvamotore chiuso e pulsante premuto: il teleruttore chiude e il motore gira." }],
+      checks: [
+        { id: "premuto", label: "Chiudi il salvamotore e tieni premuto Marcia: il motore gira", do: ["toggle QM", "press SB1"], expect: { motors: { M: "fwd" } } },
+        { id: "rilasciato", label: "Rilascia Marcia: il motore si ferma", steps: [{ do: ["toggle QM", "press SB1"], expect: { motors: { M: "fwd" } } }, { do: ["release SB1"], expect: { motors: { M: "off" } } }] },
+        { id: "fermo", label: "Senza comandi il motore \xE8 fermo", do: ["toggle QM"], expect: { motors: { M: "off" } } }
+      ],
+      safety: { deadWork: ["QM"], earth: [["M.PE", "Q.PE"]], coilReturn: ["KM"], protectedBy: { M: "QM", KM: "QM" } },
+      solution: [
+        ["Q.L1", "QM.1", "marrone"],
+        ["Q.L2", "QM.3", "nero"],
+        ["Q.L3", "QM.5", "grigio"],
+        ["QM.2", "KM.1", "marrone"],
+        ["QM.4", "KM.3", "nero"],
+        ["QM.6", "KM.5", "grigio"],
+        ["KM.2", "M.U", "marrone"],
+        ["KM.4", "M.V", "nero"],
+        ["KM.6", "M.W", "grigio"],
+        ["M.PE", "Q.PE", "gv"],
+        ["QM.2", "SB1.3", "rosso"],
+        ["SB1.4", "KM.A1", "rosso"],
+        ["KM.A2", "Q.N", "blu"]
+      ],
+      hints: [
+        "Potenza: le tre fasi passano dal salvamotore (1-2, 3-4, 5-6), dai tre contatti di potenza del teleruttore e arrivano a U, V, W del motore. Poi la terra del motore.",
+        "Comando: una fase presa a valle del salvamotore va al pulsante di marcia (morsetto 3), dal morsetto 4 alla bobina A1. L\u2019altro capo della bobina, A2, va al neutro.",
+        "La bobina \xE8 da 230 V: tra una fase e il neutro. Tra due fasi riceverebbe 400 V e si brucerebbe. Si cabla con il salvamotore aperto."
+      ]
+    },
+    {
       id: "c12-motore",
       code: "c12",
       n: 0,
@@ -4121,7 +4242,7 @@ html[lang="it"] .trnote{display:none}
         { id: "gira", label: "Chiudi il salvamotore: il motore gira in avanti", do: ["toggle QM"], expect: { motors: { M: "fwd" } } },
         { id: "fermo", label: "Con il salvamotore aperto il motore \xE8 fermo", do: [], expect: { motors: { M: "off" } } }
       ],
-      safety: { earth: [["M.PE", "Q.PE"]], protectedBy: { M: "QM" } },
+      safety: { deadWork: ["QM"], earth: [["M.PE", "Q.PE"]], protectedBy: { M: "QM" } },
       solution: [
         ["Q.L1", "QM.1", "marrone"],
         ["Q.L2", "QM.3", "nero"],
@@ -4162,7 +4283,7 @@ html[lang="it"] .trnote{display:none}
         { id: "arresto", label: "Premi Arresto: il motore si ferma e la spia si spegne", steps: [{ do: press("SB1"), expect: { motors: { M: "fwd" } } }, { do: press("SB0"), expect: { motors: { M: "off" }, loads: { H: "off" } } }] },
         { id: "fermo", label: "Senza comandi il motore \xE8 fermo", do: [], expect: { motors: { M: "off" } } }
       ],
-      safety: { earth: [["M.PE", "Q.PE"]], stopWins: "SB0", coilReturn: ["KM"], protectedBy: { M: "QM", KM: "QM" } },
+      safety: { deadWork: ["QM"], earth: [["M.PE", "Q.PE"]], stopWins: "SB0", coilReturn: ["KM"], protectedBy: { M: "QM", KM: "QM" } },
       solution: [
         ["Q.L1", "QM.1", "marrone"],
         ["Q.L2", "QM.3", "nero"],
@@ -4215,7 +4336,7 @@ html[lang="it"] .trnote{display:none}
         { id: "arresto", label: "Premi Arresto: il motore si ferma", steps: [{ do: press("SB1"), expect: { motors: { M: "fwd" } } }, { do: press("SB0"), expect: { motors: { M: "off" } } }] },
         { id: "sovraccarico", label: "Con un sovraccarico il termico scatta e il motore si ferma", steps: [{ do: press("SB1"), expect: { motors: { M: "fwd" } } }, { do: ["overload on", "wait 5"], expect: { motors: { M: "off" }, tripped: ["FR"] } }] }
       ],
-      safety: { earth: [["M.PE", "Q.PE"]], stopWins: "SB0", coilReturn: ["KM"], protectedBy: { M: "QM", KM: "QM" } },
+      safety: { deadWork: ["QM"], earth: [["M.PE", "Q.PE"]], stopWins: "SB0", coilReturn: ["KM"], protectedBy: { M: "QM", KM: "QM" } },
       solution: [
         ["Q.L1", "QM.1", "marrone"],
         ["Q.L2", "QM.3", "nero"],
@@ -4278,7 +4399,7 @@ html[lang="it"] .trnote{display:none}
         { id: "indietro", label: "Premi Indietro e rilascia: il motore gira all\u2019indietro", do: press("SB2"), expect: { motors: { M: "rev" } } },
         { id: "arresto", label: "Premi Arresto: il motore si ferma", steps: [{ do: press("SB2"), expect: { motors: { M: "rev" } } }, { do: press("SB0"), expect: { motors: { M: "off" } } }] }
       ],
-      safety: { never: [["KM1", "KM2"]], coilReturn: ["KM1", "KM2"], stopWins: "SB0", earth: [["M.PE", "Q.PE"]], protectedBy: { M: "QM", KM1: "QM", KM2: "QM" } },
+      safety: { deadWork: ["QM"], never: [["KM1", "KM2"]], coilReturn: ["KM1", "KM2"], stopWins: "SB0", earth: [["M.PE", "Q.PE"]], protectedBy: { M: "QM", KM1: "QM", KM2: "QM" } },
       solution: [
         ["Q.L1", "QM.1", "marrone"],
         ["Q.L2", "QM.3", "nero"],
@@ -4346,7 +4467,7 @@ html[lang="it"] .trnote{display:none}
         { id: "arresto", label: "Premi Arresto: il nastro si ferma", steps: [{ do: press("SB1"), expect: { motors: { M: "fwd" } } }, { do: press("SB0"), expect: { motors: { M: "off" } } }] },
         { id: "emergenza", label: "Premi il fungo di emergenza: il nastro si ferma", steps: [{ do: press("SB1"), expect: { motors: { M: "fwd" } } }, { do: ["toggle SBE"], expect: { motors: { M: "off" } } }] }
       ],
-      safety: { earth: [["M.PE", "Q.PE"]], stopWins: "SB0", emergency: "SBE", coilReturn: ["KM"], protectedBy: { M: "QM", KM: "QM" } },
+      safety: { deadWork: ["QM"], earth: [["M.PE", "Q.PE"]], stopWins: "SB0", emergency: "SBE", coilReturn: ["KM"], protectedBy: { M: "QM", KM: "QM" } },
       solution: [
         ["Q.L1", "QM.1", "marrone"],
         ["Q.L2", "QM.3", "nero"],
@@ -4988,6 +5109,197 @@ html[lang="it"] .trnote{display:none}
         fixSay: "Ricollega i pulsanti in parallelo: i tre morsetti 3 insieme alla fase, i tre morsetti 4 insieme alla bobina. Poi premi Verifica."
       }
     },
+    "c21-tre-fasi": {
+      support: "passi",
+      lesson: {
+        pages: [
+          {
+            type: "spiegazione",
+            title: "Da una fase a tre fasi",
+            paras: [
+              "Un impianto industriale arriva con quattro conduttori attivi: tre fasi, L1, L2, L3, e il neutro. Ogni fase ha 230 V rispetto al neutro, come la fase di casa.",
+              "Tra due fasi la tensione \xE8 400 V. Non \xE8 la somma di 230 pi\xF9 230, perch\xE9 le tre tensioni sono sfasate di un terzo di giro una dall\u2019altra: tra due fasi si misurano 400 V, circa 1,73 volte 230."
+            ]
+          },
+          {
+            type: "spiegazione",
+            title: "Perch\xE9 tre fasi",
+            paras: [
+              "Con tre fasi sfasate un motore ha sempre una spinta che lo fa girare, e a parit\xE0 di potenza servono cavi pi\xF9 sottili. Per questo le macchine usano il trifase.",
+              "Nel gioco le tre fasi hanno tre colori: marrone, nero e grigio. Il neutro resta blu e la terra giallo-verde."
+            ],
+            warn: "Una lampada da 230 V collegata tra due fasi riceve 400 V e si brucia."
+          },
+          {
+            type: "demo",
+            title: "Guarda come si fa",
+            captions: {
+              wires: [
+                "La fase L1 va a un morsetto della lampada.",
+                "Il neutro va all\u2019altro morsetto: 230 V, la lampada si accende."
+              ],
+              power: "Il quadro \xE8 alimentato: la lampada si accende.",
+              controls: []
+            }
+          },
+          {
+            type: "previsione",
+            question: "Una lampada da 230 V viene collegata tra la fase L1 e la fase L2. Che cosa succede?",
+            options: [
+              { id: "a", text: "Si accende normalmente." },
+              { id: "b", text: "Si accende molto pi\xF9 debole." },
+              { id: "c", text: "Riceve 400 V e si brucia." }
+            ],
+            correct: "c",
+            why: "Tra due fasi ci sono 400 V, quasi il doppio di quello che la lampada sopporta. Una lampada da 230 V va sempre tra una fase e il neutro."
+          },
+          { type: "sintesi", title: "Da ricordare" }
+        ]
+      },
+      steps: [
+        { kind: "wire", from: "Q.L1", to: ["L.A", "L.B"], color: "marrone", short: "1 Fase", title: "La fase alla lampada", text: "Dalla fase L1 del quadro a un morsetto della lampada." },
+        { kind: "wire", from: "Q.N", to: ["L.A", "L.B"], color: "blu", short: "2 Neutro", title: "Il neutro alla lampada", text: "Dal NEUTRO del quadro all\u2019altro morsetto della lampada." },
+        { kind: "measure", between: ["Q.L1", "Q.N"], mode: "V", value: 230, live: true, short: "3 Fase-neutro", title: "Misura 230 V", text: "Dai corrente con la levetta del quadro, tocca Multimetro, poi L1 (rosso) e NEUTRO (nero): leggi 230 V." },
+        { kind: "measure", between: ["Q.L1", "Q.L2"], mode: "V", value: 400, live: true, short: "4 Fase-fase", title: "Misura 400 V", text: "Metti i puntali su L1 e su L2: leggi 400 V." },
+        { kind: "verify", short: "5 Verifica", title: "Controlla l\u2019impianto", text: "Premi Verifica." }
+      ],
+      summary: [
+        "Un impianto trifase ha tre fasi, L1, L2, L3, pi\xF9 il neutro.",
+        "Tra una fase e il neutro ci sono 230 V; tra due fasi ce ne sono 400.",
+        "Un carico da 230 V va tra una fase e il neutro, mai tra due fasi.",
+        "Le tre fasi hanno tre colori diversi: marrone, nero, grigio."
+      ],
+      fault: {
+        say: "La lampada \xE8 gi\xE0 collegata e non si accende pi\xF9. Guarda dove sono collegati i suoi morsetti e misura.",
+        wires: [["Q.L1", "L.A", "marrone"], ["Q.L2", "L.B", "nero"]],
+        diagnosis: {
+          question: "Perch\xE9 la lampada si \xE8 bruciata?",
+          options: [
+            { id: "a", text: "\xC8 collegata tra due fasi e riceve 400 V." },
+            { id: "b", text: "Manca il filo di terra." },
+            { id: "c", text: "Il neutro \xE8 troppo lungo." }
+          ],
+          correct: "a",
+          why: "I suoi due morsetti sono su L1 e L2: tra due fasi ci sono 400 V, e la lampada \xE8 da 230 V. Va collegata tra una fase e il neutro."
+        },
+        fixSay: "Sposta uno dei due fili sul neutro: la lampada deve stare tra L1 e il neutro. Poi premi Verifica."
+      }
+    },
+    "c22-teleruttore": {
+      support: "passi",
+      lesson: {
+        pages: [
+          {
+            type: "spiegazione",
+            title: "Un comando piccolo per una potenza grande",
+            paras: [
+              "Un motore trifase assorbe molta corrente a 400 V: un pulsante non la regge e sarebbe pericoloso tenerla in mano. Il teleruttore (o contattore) separa le due parti.",
+              "Ha una bobina, che si comanda con un pulsante a 230 V, e tre contatti di potenza. Quando la bobina \xE8 alimentata, i tre contatti chiudono e il motore riceve le tre fasi."
+            ]
+          },
+          {
+            type: "pezzi",
+            title: "La bobina e i contatti",
+            focus: ["KM"],
+            paras: [
+              "I morsetti A1 e A2 sono la bobina: va collegata tra una fase e il neutro, 230 V. Tra due fasi riceverebbe 400 V e si brucerebbe.",
+              "I morsetti 1-2, 3-4, 5-6 sono i tre contatti di potenza. Il morsetto 13-14 \xE8 un contatto ausiliario, che servir\xE0 nel prossimo livello."
+            ],
+            warn: "Il circuito di comando e quello di potenza sono separati: i fili del comando si disegnano in rosso."
+          },
+          {
+            type: "spiegazione",
+            title: "Si lavora senza tensione",
+            paras: [
+              "Da questo livello l\u2019impianto ha un sezionamento, il salvamotore. Prima di collegare qualunque filo lo si apre, poi si cabla, e solo alla fine lo si chiude per provare.",
+              "Collegare fili con il sezionamento chiuso, cio\xE8 con i morsetti in tensione, \xE8 pericoloso: nel gioco vale una stella di sicurezza in meno."
+            ],
+            warn: "Il lato di ingresso del salvamotore resta sempre in tensione: collegarvi i fili del quadro \xE8 normale, quello che conta \xE8 tenere aperto il sezionamento."
+          },
+          {
+            type: "demo",
+            title: "Guarda come si fa",
+            captions: {
+              wires: [
+                "La fase L1 entra nel salvamotore, morsetto 1.",
+                "La fase L2 entra nel salvamotore, morsetto 3.",
+                "La fase L3 entra nel salvamotore, morsetto 5.",
+                "Dal salvamotore al primo contatto di potenza del teleruttore.",
+                "Dal salvamotore al secondo contatto di potenza.",
+                "Dal salvamotore al terzo contatto di potenza.",
+                "Dal teleruttore al morsetto U del motore.",
+                "Dal teleruttore al morsetto V del motore.",
+                "Dal teleruttore al morsetto W del motore.",
+                "La terra del quadro al motore.",
+                "Il comando: una fase a valle del salvamotore va al pulsante.",
+                "Dal pulsante alla bobina A1.",
+                "La bobina A2 va al neutro."
+              ],
+              power: "Il salvamotore \xE8 aperto: tutto a valle \xE8 senza tensione.",
+              controls: ["Salvamotore chiuso e pulsante premuto: il teleruttore chiude e il motore gira."]
+            }
+          },
+          {
+            type: "previsione",
+            question: "La bobina di un teleruttore da 230 V viene collegata tra due fasi (400 V). Che cosa succede?",
+            options: [
+              { id: "a", text: "Il teleruttore chiude e funziona normalmente." },
+              { id: "b", text: "La bobina riceve troppa tensione e si brucia." },
+              { id: "c", text: "Il teleruttore non chiude, ma non si rovina." }
+            ],
+            correct: "b",
+            why: "La bobina \xE8 fatta per 230 V. Con 400 V assorbe molta pi\xF9 corrente e si brucia. Va collegata tra una fase e il neutro."
+          },
+          { type: "sintesi", title: "Da ricordare" }
+        ]
+      },
+      steps: [
+        { kind: "wire", from: "Q.L1", to: ["QM.1"], color: "marrone", short: "1 Linea", title: "Le fasi al salvamotore", text: "Con il salvamotore aperto, porta L1, L2 e L3 ai morsetti in alto del salvamotore: 1, 3 e 5." },
+        { kind: "wire", from: "QM.2", to: ["KM.1"], color: "marrone", short: "2 Contatti", title: "Ai contatti di potenza", text: "Dai morsetti 2, 4, 6 del salvamotore ai morsetti 1, 3, 5 del teleruttore." },
+        { kind: "wire", from: "KM.2", to: ["M.U"], color: "marrone", short: "3 Motore", title: "Al motore", text: "Dai morsetti 2, 4, 6 del teleruttore ai morsetti U, V, W del motore." },
+        { kind: "wire", from: "M.PE", to: ["Q.PE"], color: "gv", short: "4 Terra", title: "La terra del motore", text: "Dal morsetto PE del motore alla terra del quadro." },
+        { kind: "wire", from: "QM.2", to: ["SB1.3"], color: "rosso", short: "5 Comando", title: "Il comando al pulsante", text: "Una fase a valle del salvamotore (morsetto 2) al morsetto 3 del pulsante, in rosso." },
+        { kind: "wire", from: "SB1.4", to: ["KM.A1"], color: "rosso", short: "6 Bobina", title: "Dal pulsante alla bobina", text: "Dal morsetto 4 del pulsante al morsetto A1 della bobina." },
+        { kind: "wire", from: "KM.A2", to: ["Q.N"], color: "blu", short: "7 Neutro", title: "La bobina al neutro", text: "Dal morsetto A2 della bobina al neutro." },
+        { kind: "control", id: "SB1", short: "8 Prova", title: "Prova il comando", text: "Chiudi il salvamotore e tieni premuto Marcia: il motore gira. Rilascia: si ferma." },
+        { kind: "verify", short: "9 Verifica", title: "Controlla l\u2019impianto", text: "Premi Verifica." }
+      ],
+      summary: [
+        "Il teleruttore separa il comando a 230 V dalla potenza a 400 V.",
+        "La bobina (A1-A2) va tra una fase e il neutro; i contatti 1-2, 3-4, 5-6 portano la potenza al motore.",
+        "Senza autoritenuta il motore gira solo finch\xE9 si tiene premuto il pulsante.",
+        "Si cabla con il sezionamento aperto: collegare fili in tensione \xE8 pericoloso."
+      ],
+      fault: {
+        say: "Il teleruttore \xE8 gi\xE0 cablato, ma tenendo premuto il pulsante il motore non parte. Guarda dove \xE8 collegata la bobina.",
+        wires: [
+          ["Q.L1", "QM.1", "marrone"],
+          ["Q.L2", "QM.3", "nero"],
+          ["Q.L3", "QM.5", "grigio"],
+          ["QM.2", "KM.1", "marrone"],
+          ["QM.4", "KM.3", "nero"],
+          ["QM.6", "KM.5", "grigio"],
+          ["KM.2", "M.U", "marrone"],
+          ["KM.4", "M.V", "nero"],
+          ["KM.6", "M.W", "grigio"],
+          ["M.PE", "Q.PE", "gv"],
+          ["QM.2", "SB1.3", "rosso"],
+          ["SB1.4", "KM.A1", "rosso"],
+          ["KM.A2", "QM.4", "rosso"]
+        ],
+        diagnosis: {
+          question: "Perch\xE9 il motore non parte?",
+          options: [
+            { id: "a", text: "La bobina \xE8 collegata tra due fasi: riceve 400 V e si \xE8 bruciata." },
+            { id: "b", text: "Il motore non ha la terra." },
+            { id: "c", text: "Il pulsante \xE8 un contatto normalmente chiuso." }
+          ],
+          correct: "a",
+          why: "Il morsetto A2 della bobina \xE8 su una fase invece che sul neutro: la bobina \xE8 tra due fasi, 400 V, e si brucia. L\u2019altro capo della bobina va al neutro."
+        },
+        fixSay: "Porta A2 della bobina al neutro, con il salvamotore aperto. Poi premi Verifica."
+      }
+    },
     "c12-motore": {
       support: "passi",
       lesson: {
@@ -5044,6 +5356,15 @@ html[lang="it"] .trnote{display:none}
               power: "Il salvamotore \xE8 aperto: il motore \xE8 fermo.",
               controls: ["Salvamotore chiuso: le tre fasi arrivano al motore e il motore gira in avanti."]
             }
+          },
+          {
+            type: "spiegazione",
+            title: "Il salvamotore e il lavoro senza tensione",
+            paras: [
+              "Il salvamotore parte aperto: lascialo aperto mentre colleghi i fili, e chiudilo solo alla fine per provare. Collegare fili con i morsetti in tensione \xE8 pericoloso, e nel gioco vale una stella di sicurezza in meno.",
+              "Se il motore riceve solo due delle tre fasi non gira: ronza e si scalda. Anche per questo il salvamotore interrompe tutte e tre le fasi insieme."
+            ],
+            warn: "Il lato di ingresso del salvamotore resta in tensione anche da aperto: il quadro \xE8 a monte."
           },
           {
             type: "previsione",
@@ -6113,6 +6434,8 @@ html[lang="it"] .trnote{display:none}
         return "Sbloccando l\u2019emergenza la macchina riparte da sola: deve ripartire solo con un nuovo comando di marcia.";
       case "safe.notCovered":
         return "Un carico (" + nameOf(level, item.comp) + ") non \xE8 protetto dal differenziale.";
+      case "safe.liveWork":
+        return "Hai cambiato i fili mentre il sezionamento (" + nameOf(level, item.comp) + ") era chiuso e i morsetti erano in tensione. Prima si apre il sezionamento, si verifica che non ci sia tensione, poi si cabla.";
       case "safe.neutralEarth":
         return "Neutro e terra sono collegati tra loro: il filo di protezione non deve mai portare corrente.";
       case "safe.ok":
@@ -6328,7 +6651,9 @@ html[lang="it"] .trnote{display:none}
       tag: "MODULO 3",
       title: "Industriale",
       levels: [
+        "c21-tre-fasi",
         "c12-motore",
+        "c22-teleruttore",
         "c13-marcia-arresto",
         "c14-termico",
         "c15-inversione",
@@ -9515,7 +9840,125 @@ html[lang="it"] .trnote{display:none}
     "Sulla linea della luce.": "\u0639\u0644\u0649 \u062E\u0637 \u0627\u0644\u0625\u0646\u0627\u0631\u0629.",
     "Sulla linea delle prese: un apparecchio collegato alla presa disperde verso terra.": "\u0639\u0644\u0649 \u062E\u0637 \u0627\u0644\u0645\u0642\u0627\u0628\u0633: \u062C\u0647\u0627\u0632 \u0645\u0648\u0635\u0648\u0644 \u0628\u0627\u0644\u0645\u0642\u0628\u0633 \u064A\u062A\u0633\u0631\u0651\u0628 \u0646\u062D\u0648 \u0627\u0644\u0623\u0631\u0636.",
     "Un apparecchio sulla presa disperde verso terra: scatta il differenziale": "\u062C\u0647\u0627\u0632 \u0639\u0644\u0649 \u0627\u0644\u0645\u0642\u0628\u0633 \u064A\u062A\u0633\u0631\u0651\u0628 \u0646\u062D\u0648 \u0627\u0644\u0623\u0631\u0636: \u064A\u0641\u0635\u0644 \u0627\u0644\u0642\u0627\u0637\u0639 \u0627\u0644\u062A\u0641\u0627\u0636\u0644\u064A",
-    "Il guasto \xE8 ancora attivo: scollega l\u2019apparecchio difettoso (tocca il pannello del guasto) prima di verificare.": "\u0627\u0644\u0639\u0637\u0644 \u0645\u0627 \u0632\u0627\u0644 \u0641\u0639\u0651\u0627\u0644\u064B\u0627: \u0627\u0641\u0635\u0644 \u0627\u0644\u062C\u0647\u0627\u0632 \u0627\u0644\u0645\u0639\u064A\u0628 (\u0627\u0644\u0645\u0633 \u0644\u0648\u062D\u0629 \u0627\u0644\u0639\u0637\u0644) \u0642\u0628\u0644 \u0627\u0644\u062A\u062D\u0642\u0642."
+    "Il guasto \xE8 ancora attivo: scollega l\u2019apparecchio difettoso (tocca il pannello del guasto) prima di verificare.": "\u0627\u0644\u0639\u0637\u0644 \u0645\u0627 \u0632\u0627\u0644 \u0641\u0639\u0651\u0627\u0644\u064B\u0627: \u0627\u0641\u0635\u0644 \u0627\u0644\u062C\u0647\u0627\u0632 \u0627\u0644\u0645\u0639\u064A\u0628 (\u0627\u0644\u0645\u0633 \u0644\u0648\u062D\u0629 \u0627\u0644\u0639\u0637\u0644) \u0642\u0628\u0644 \u0627\u0644\u062A\u062D\u0642\u0642.",
+    "Ai contatti di potenza": "\u0625\u0644\u0649 \u0645\u0644\u0627\u0645\u0633\u0627\u062A \u0627\u0644\u0642\u062F\u0631\u0629",
+    "Al motore": "\u0625\u0644\u0649 \u0627\u0644\u0645\u062D\u0631\u0643",
+    "Chiudi il salvamotore e tieni premuto Marcia: il motore gira": "\u0623\u063A\u0644\u0642 \u0642\u0627\u0637\u0639 \u062D\u0645\u0627\u064A\u0629 \u0627\u0644\u0645\u062D\u0631\u0643 \u0648\u0623\u0628\u0642\u0650 \u0632\u0631 \u0627\u0644\u062A\u0634\u063A\u064A\u0644 \u0645\u0636\u063A\u0648\u0637\u064B\u0627: \u064A\u062F\u0648\u0631 \u0627\u0644\u0645\u062D\u0631\u0643",
+    "Chiudi il salvamotore e tieni premuto Marcia: il motore gira. Rilascia: si ferma.": "\u0623\u063A\u0644\u0642 \u0642\u0627\u0637\u0639 \u062D\u0645\u0627\u064A\u0629 \u0627\u0644\u0645\u062D\u0631\u0643 \u0648\u0623\u0628\u0642\u0650 \u0632\u0631 \u0627\u0644\u062A\u0634\u063A\u064A\u0644 \u0645\u0636\u063A\u0648\u0637\u064B\u0627: \u064A\u062F\u0648\u0631 \u0627\u0644\u0645\u062D\u0631\u0643. \u0623\u0641\u0644\u062A \u0627\u0644\u0632\u0631: \u064A\u062A\u0648\u0642\u0641.",
+    "Collegare fili con il sezionamento chiuso, cio\xE8 con i morsetti in tensione, \xE8 pericoloso: nel gioco vale una stella di sicurezza in meno.": "\u062A\u0648\u0635\u064A\u0644 \u0627\u0644\u0623\u0633\u0644\u0627\u0643 \u0648\u0627\u0644\u0642\u0627\u0637\u0639 \u0645\u063A\u0644\u0642\u060C \u0623\u064A \u0648\u0627\u0644\u0623\u0637\u0631\u0627\u0641 \u062A\u062D\u062A \u0627\u0644\u062C\u0647\u062F\u060C \u0623\u0645\u0631 \u062E\u0637\u064A\u0631: \u0641\u064A \u0627\u0644\u0644\u0639\u0628\u0629 \u064A\u0643\u0644\u0651\u0641\u0643 \u0646\u062C\u0645\u0629 \u0623\u0645\u0627\u0646.",
+    "Comando: una fase presa a valle del salvamotore va al pulsante di marcia (morsetto 3), dal morsetto 4 alla bobina A1. L\u2019altro capo della bobina, A2, va al neutro.": "\u0627\u0644\u062A\u062D\u0643\u0645: \u0637\u0648\u0631 \u0645\u0623\u062E\u0648\u0630 \u0628\u0639\u062F \u0642\u0627\u0637\u0639 \u062D\u0645\u0627\u064A\u0629 \u0627\u0644\u0645\u062D\u0631\u0643 \u064A\u0630\u0647\u0628 \u0625\u0644\u0649 \u0632\u0631 \u0627\u0644\u062A\u0634\u063A\u064A\u0644 (\u0627\u0644\u0637\u0631\u0641 3)\u060C \u0648\u0645\u0646 \u0627\u0644\u0637\u0631\u0641 4 \u0625\u0644\u0649 \u0627\u0644\u0645\u0644\u0641 A1. \u0627\u0644\u0637\u0631\u0641 \u0627\u0644\u0622\u062E\u0631 \u0644\u0644\u0645\u0644\u0641\u060C A2\u060C \u064A\u0630\u0647\u0628 \u0625\u0644\u0649 \u0627\u0644\u062D\u064A\u0627\u062F.",
+    "Con il salvamotore aperto, porta L1, L2 e L3 ai morsetti in alto del salvamotore: 1, 3 e 5.": "\u0648\u0627\u0644\u0642\u0627\u0637\u0639 \u0645\u0641\u062A\u0648\u062D\u060C \u0623\u0648\u0635\u0644 L1 \u0648L2 \u0648L3 \u0628\u0627\u0644\u0623\u0637\u0631\u0627\u0641 \u0627\u0644\u0639\u0644\u0648\u064A\u0629 \u0644\u0644\u0642\u0627\u0637\u0639: 1 \u06483 \u06485.",
+    "Con tre fasi sfasate un motore ha sempre una spinta che lo fa girare, e a parit\xE0 di potenza servono cavi pi\xF9 sottili. Per questo le macchine usano il trifase.": "\u0645\u0639 \u062B\u0644\u0627\u062B\u0629 \u0623\u0637\u0648\u0627\u0631 \u0645\u062A\u0628\u0627\u0639\u062F\u0629 \u0627\u0644\u0632\u0627\u0648\u064A\u0629 \u064A\u062D\u0635\u0644 \u0627\u0644\u0645\u062D\u0631\u0643 \u062F\u0627\u0626\u0645\u064B\u0627 \u0639\u0644\u0649 \u062F\u0641\u0639 \u064A\u062C\u0639\u0644\u0647 \u064A\u062F\u0648\u0631\u060C \u0648\u0644\u0646\u0641\u0633 \u0627\u0644\u0642\u062F\u0631\u0629 \u062A\u0643\u0641\u064A \u0643\u0627\u0628\u0644\u0627\u062A \u0623\u0631\u0641\u0639. \u0644\u0647\u0630\u0627 \u062A\u0633\u062A\u062E\u062F\u0645 \u0627\u0644\u0622\u0644\u0627\u062A \u0627\u0644\u062B\u0644\u0627\u062B\u064A \u0627\u0644\u0637\u0648\u0631.",
+    "Da questo livello l\u2019impianto ha un sezionamento, il salvamotore. Prima di collegare qualunque filo lo si apre, poi si cabla, e solo alla fine lo si chiude per provare.": "\u0645\u0646\u0630 \u0647\u0630\u0627 \u0627\u0644\u0645\u0633\u062A\u0648\u0649 \u0635\u0627\u0631 \u0641\u064A \u0627\u0644\u0645\u0646\u0634\u0623\u0629 \u062C\u0647\u0627\u0632 \u0641\u0635\u0644\u060C \u0647\u0648 \u0642\u0627\u0637\u0639 \u062D\u0645\u0627\u064A\u0629 \u0627\u0644\u0645\u062D\u0631\u0643. \u0642\u0628\u0644 \u062A\u0648\u0635\u064A\u0644 \u0623\u064A \u0633\u0644\u0643 \u064A\u064F\u0641\u062A\u062D\u060C \u062B\u0645 \u062A\u064F\u0648\u0635\u064E\u0651\u0644 \u0627\u0644\u0623\u0633\u0644\u0627\u0643\u060C \u0648\u0641\u064A \u0627\u0644\u0646\u0647\u0627\u064A\u0629 \u0641\u0642\u0637 \u064A\u064F\u063A\u0644\u0642 \u0644\u0644\u062A\u062C\u0631\u0628\u0629.",
+    "Da una fase a tre fasi": "\u0645\u0646 \u0637\u0648\u0631 \u0648\u0627\u062D\u062F \u0625\u0644\u0649 \u062B\u0644\u0627\u062B\u0629 \u0623\u0637\u0648\u0627\u0631",
+    "Dai morsetti 2, 4, 6 del salvamotore ai morsetti 1, 3, 5 del teleruttore.": "\u0645\u0646 \u0627\u0644\u0623\u0637\u0631\u0627\u0641 2 \u06484 \u06486 \u0641\u064A \u0642\u0627\u0637\u0639 \u062D\u0645\u0627\u064A\u0629 \u0627\u0644\u0645\u062D\u0631\u0643 \u0625\u0644\u0649 \u0627\u0644\u0623\u0637\u0631\u0627\u0641 1 \u06483 \u06485 \u0641\u064A \u0627\u0644\u0643\u0648\u0646\u062A\u0627\u0643\u062A\u0648\u0631.",
+    "Dai morsetti 2, 4, 6 del teleruttore ai morsetti U, V, W del motore.": "\u0645\u0646 \u0627\u0644\u0623\u0637\u0631\u0627\u0641 2 \u06484 \u06486 \u0641\u064A \u0627\u0644\u0643\u0648\u0646\u062A\u0627\u0643\u062A\u0648\u0631 \u0625\u0644\u0649 \u0627\u0644\u0637\u0631\u0641\u064A\u0646 U \u0648V \u0648W \u0641\u064A \u0627\u0644\u0645\u062D\u0631\u0643.",
+    "Dal morsetto 4 del pulsante al morsetto A1 della bobina.": "\u0645\u0646 \u0627\u0644\u0637\u0631\u0641 4 \u0641\u064A \u0627\u0644\u0632\u0631 \u0625\u0644\u0649 \u0627\u0644\u0637\u0631\u0641 A1 \u0641\u064A \u0627\u0644\u0645\u0644\u0641.",
+    "Dal morsetto A2 della bobina al neutro.": "\u0645\u0646 \u0627\u0644\u0637\u0631\u0641 A2 \u0641\u064A \u0627\u0644\u0645\u0644\u0641 \u0625\u0644\u0649 \u0627\u0644\u062D\u064A\u0627\u062F.",
+    "Dal pulsante alla bobina": "\u0645\u0646 \u0627\u0644\u0632\u0631 \u0625\u0644\u0649 \u0627\u0644\u0645\u0644\u0641",
+    "Dal pulsante alla bobina A1.": "\u0645\u0646 \u0627\u0644\u0632\u0631 \u0625\u0644\u0649 \u0627\u0644\u0645\u0644\u0641 A1.",
+    "Dal salvamotore al primo contatto di potenza del teleruttore.": "\u0645\u0646 \u0642\u0627\u0637\u0639 \u062D\u0645\u0627\u064A\u0629 \u0627\u0644\u0645\u062D\u0631\u0643 \u0625\u0644\u0649 \u0623\u0648\u0644 \u0645\u0644\u0627\u0645\u0633 \u0642\u062F\u0631\u0629 \u0641\u064A \u0627\u0644\u0643\u0648\u0646\u062A\u0627\u0643\u062A\u0648\u0631.",
+    "Dal salvamotore al secondo contatto di potenza.": "\u0645\u0646 \u0642\u0627\u0637\u0639 \u062D\u0645\u0627\u064A\u0629 \u0627\u0644\u0645\u062D\u0631\u0643 \u0625\u0644\u0649 \u062B\u0627\u0646\u064A \u0645\u0644\u0627\u0645\u0633 \u0642\u062F\u0631\u0629.",
+    "Dal salvamotore al terzo contatto di potenza.": "\u0645\u0646 \u0642\u0627\u0637\u0639 \u062D\u0645\u0627\u064A\u0629 \u0627\u0644\u0645\u062D\u0631\u0643 \u0625\u0644\u0649 \u062B\u0627\u0644\u062B \u0645\u0644\u0627\u0645\u0633 \u0642\u062F\u0631\u0629.",
+    "Dal teleruttore al morsetto U del motore.": "\u0645\u0646 \u0627\u0644\u0643\u0648\u0646\u062A\u0627\u0643\u062A\u0648\u0631 \u0625\u0644\u0649 \u0627\u0644\u0637\u0631\u0641 U \u0641\u064A \u0627\u0644\u0645\u062D\u0631\u0643.",
+    "Dal teleruttore al morsetto V del motore.": "\u0645\u0646 \u0627\u0644\u0643\u0648\u0646\u062A\u0627\u0643\u062A\u0648\u0631 \u0625\u0644\u0649 \u0627\u0644\u0637\u0631\u0641 V \u0641\u064A \u0627\u0644\u0645\u062D\u0631\u0643.",
+    "Dal teleruttore al morsetto W del motore.": "\u0645\u0646 \u0627\u0644\u0643\u0648\u0646\u062A\u0627\u0643\u062A\u0648\u0631 \u0625\u0644\u0649 \u0627\u0644\u0637\u0631\u0641 W \u0641\u064A \u0627\u0644\u0645\u062D\u0631\u0643.",
+    "Dalla fase L1 del quadro a un morsetto della lampada.": "\u0645\u0646 \u0627\u0644\u0637\u0648\u0631 L1 \u0641\u064A \u0627\u0644\u0644\u0648\u062D\u0629 \u0625\u0644\u0649 \u0623\u062D\u062F \u0637\u0631\u0641\u064A \u0627\u0644\u0645\u0635\u0628\u0627\u062D.",
+    "Ha una bobina, che si comanda con un pulsante a 230 V, e tre contatti di potenza. Quando la bobina \xE8 alimentata, i tre contatti chiudono e il motore riceve le tre fasi.": "\u0641\u064A\u0647 \u0645\u0644\u0641 \u064A\u064F\u062A\u062D\u0643\u064E\u0651\u0645 \u0628\u0647 \u0628\u0632\u0631 \u0639\u0644\u0649 230 \u0641\u0648\u0644\u062A\u060C \u0648\u062B\u0644\u0627\u062B\u0629 \u0645\u0644\u0627\u0645\u0633\u0627\u062A \u0642\u062F\u0631\u0629. \u0639\u0646\u062F\u0645\u0627 \u064A\u062A\u063A\u0630\u0651\u0649 \u0627\u0644\u0645\u0644\u0641 \u062A\u064F\u063A\u0644\u0642 \u0627\u0644\u0645\u0644\u0627\u0645\u0633\u0627\u062A \u0627\u0644\u062B\u0644\u0627\u062B\u0629 \u0648\u064A\u062D\u0635\u0644 \u0627\u0644\u0645\u062D\u0631\u0643 \u0639\u0644\u0649 \u0627\u0644\u0623\u0637\u0648\u0627\u0631 \u0627\u0644\u062B\u0644\u0627\u062B\u0629.",
+    "I morsetti 1-2, 3-4, 5-6 sono i tre contatti di potenza. Il morsetto 13-14 \xE8 un contatto ausiliario, che servir\xE0 nel prossimo livello.": "\u0627\u0644\u0623\u0637\u0631\u0627\u0641 1-2 \u06483-4 \u06485-6 \u0647\u064A \u0645\u0644\u0627\u0645\u0633\u0627\u062A \u0627\u0644\u0642\u062F\u0631\u0629 \u0627\u0644\u062B\u0644\u0627\u062B\u0629. \u0623\u0645\u0627 \u0627\u0644\u0637\u0631\u0641\u0627\u0646 13-14 \u0641\u0647\u0645\u0627 \u0645\u0644\u0627\u0645\u0633 \u0645\u0633\u0627\u0639\u062F \u0633\u064A\u0644\u0632\u0645 \u0641\u064A \u0627\u0644\u0645\u0633\u062A\u0648\u0649 \u0627\u0644\u062A\u0627\u0644\u064A.",
+    "I morsetti A1 e A2 sono la bobina: va collegata tra una fase e il neutro, 230 V. Tra due fasi riceverebbe 400 V e si brucerebbe.": "\u0627\u0644\u0637\u0631\u0641\u0627\u0646 A1 \u0648A2 \u0647\u0645\u0627 \u0627\u0644\u0645\u0644\u0641: \u064A\u064F\u0648\u0635\u064E\u0651\u0644 \u0628\u064A\u0646 \u0637\u0648\u0631 \u0648\u0627\u0644\u062D\u064A\u0627\u062F\u060C 230 \u0641\u0648\u0644\u062A. \u0628\u064A\u0646 \u0637\u0648\u0631\u064A\u0646 \u0633\u064A\u062A\u0644\u0642\u0649 400 \u0641\u0648\u0644\u062A \u0648\u064A\u062D\u062A\u0631\u0642.",
+    "I suoi due morsetti sono su L1 e L2: tra due fasi ci sono 400 V, e la lampada \xE8 da 230 V. Va collegata tra una fase e il neutro.": "\u0637\u0631\u0641\u0627\u0647 \u0639\u0644\u0649 L1 \u0648L2: \u0628\u064A\u0646 \u0637\u0648\u0631\u064A\u0646 \u064A\u0648\u062C\u062F 400 \u0641\u0648\u0644\u062A\u060C \u0648\u0627\u0644\u0645\u0635\u0628\u0627\u062D \u0645\u0635\u0645\u064E\u0651\u0645 \u0644\u0640 230 \u0641\u0648\u0644\u062A. \u064A\u062C\u0628 \u062A\u0648\u0635\u064A\u0644\u0647 \u0628\u064A\u0646 \u0637\u0648\u0631 \u0648\u0627\u0644\u062D\u064A\u0627\u062F.",
+    "Il circuito di comando e quello di potenza sono separati: i fili del comando si disegnano in rosso.": "\u062F\u0627\u0626\u0631\u0629 \u0627\u0644\u062A\u062D\u0643\u0645 \u0648\u062F\u0627\u0626\u0631\u0629 \u0627\u0644\u0642\u062F\u0631\u0629 \u0645\u0646\u0641\u0635\u0644\u062A\u0627\u0646: \u0623\u0633\u0644\u0627\u0643 \u0627\u0644\u062A\u062D\u0643\u0645 \u062A\u064F\u0631\u0633\u0645 \u0628\u0627\u0644\u0623\u062D\u0645\u0631.",
+    "Il comando al pulsante": "\u0627\u0644\u062A\u062D\u0643\u0645 \u0625\u0644\u0649 \u0627\u0644\u0632\u0631",
+    "Il comando: una fase a valle del salvamotore va al pulsante.": "\u0627\u0644\u062A\u062D\u0643\u0645: \u0637\u0648\u0631 \u0628\u0639\u062F \u0642\u0627\u0637\u0639 \u062D\u0645\u0627\u064A\u0629 \u0627\u0644\u0645\u062D\u0631\u0643 \u064A\u0630\u0647\u0628 \u0625\u0644\u0649 \u0627\u0644\u0632\u0631.",
+    "Il lato di ingresso del salvamotore resta in tensione anche da aperto: il quadro \xE8 a monte.": "\u062C\u0647\u0629 \u062F\u062E\u0644 \u0642\u0627\u0637\u0639 \u062D\u0645\u0627\u064A\u0629 \u0627\u0644\u0645\u062D\u0631\u0643 \u062A\u0628\u0642\u0649 \u062A\u062D\u062A \u0627\u0644\u062C\u0647\u062F \u062D\u062A\u0649 \u0648\u0647\u0648 \u0645\u0641\u062A\u0648\u062D: \u0627\u0644\u0644\u0648\u062D\u0629 \u0642\u0628\u0644\u0647.",
+    "Il lato di ingresso del salvamotore resta sempre in tensione: collegarvi i fili del quadro \xE8 normale, quello che conta \xE8 tenere aperto il sezionamento.": "\u062C\u0647\u0629 \u062F\u062E\u0644 \u0642\u0627\u0637\u0639 \u062D\u0645\u0627\u064A\u0629 \u0627\u0644\u0645\u062D\u0631\u0643 \u062A\u0628\u0642\u0649 \u062F\u0627\u0626\u0645\u064B\u0627 \u062A\u062D\u062A \u0627\u0644\u062C\u0647\u062F: \u062A\u0648\u0635\u064A\u0644 \u0623\u0633\u0644\u0627\u0643 \u0627\u0644\u0644\u0648\u062D\u0629 \u0628\u0647\u0627 \u0623\u0645\u0631 \u0639\u0627\u062F\u064A\u060C \u0648\u0627\u0644\u0645\u0647\u0645 \u0625\u0628\u0642\u0627\u0621 \u062C\u0647\u0627\u0632 \u0627\u0644\u0641\u0635\u0644 \u0645\u0641\u062A\u0648\u062D\u064B\u0627.",
+    "Il morsetto A2 della bobina \xE8 su una fase invece che sul neutro: la bobina \xE8 tra due fasi, 400 V, e si brucia. L\u2019altro capo della bobina va al neutro.": "\u0627\u0644\u0637\u0631\u0641 A2 \u0644\u0644\u0645\u0644\u0641 \u0639\u0644\u0649 \u0637\u0648\u0631 \u0628\u062F\u0644 \u0627\u0644\u062D\u064A\u0627\u062F: \u0627\u0644\u0645\u0644\u0641 \u0628\u064A\u0646 \u0637\u0648\u0631\u064A\u0646\u060C 400 \u0641\u0648\u0644\u062A\u060C \u0641\u064A\u062D\u062A\u0631\u0642. \u0627\u0644\u0637\u0631\u0641 \u0627\u0644\u0622\u062E\u0631 \u0644\u0644\u0645\u0644\u0641 \u064A\u0630\u0647\u0628 \u0625\u0644\u0649 \u0627\u0644\u062D\u064A\u0627\u062F.",
+    "Il motore non ha la terra.": "\u0627\u0644\u0645\u062D\u0631\u0643 \u0628\u0644\u0627 \u062A\u0623\u0631\u064A\u0636.",
+    "Il motore trifase passa dal salvamotore e dal teleruttore KM. La bobina di KM, a 230 V, si comanda con un pulsante: finch\xE9 lo tieni premuto il teleruttore chiude i tre contatti di potenza e il motore gira, quando lo rilasci si ferma. Il circuito di comando va in rosso.": "\u0627\u0644\u0645\u062D\u0631\u0643 \u0627\u0644\u062B\u0644\u0627\u062B\u064A \u0627\u0644\u0637\u0648\u0631 \u064A\u0645\u0631\u0651 \u0639\u0628\u0631 \u0642\u0627\u0637\u0639 \u062D\u0645\u0627\u064A\u0629 \u0627\u0644\u0645\u062D\u0631\u0643 \u0648\u0627\u0644\u0643\u0648\u0646\u062A\u0627\u0643\u062A\u0648\u0631 KM. \u0645\u0644\u0641 KM\u060C \u0639\u0644\u0649 230 \u0641\u0648\u0644\u062A\u060C \u064A\u064F\u062A\u062D\u0643\u064E\u0651\u0645 \u0628\u0647 \u0628\u0632\u0631: \u0645\u0627 \u062F\u0645\u062A \u062A\u0636\u063A\u0637\u0647 \u064A\u063A\u0644\u0642 \u0627\u0644\u0643\u0648\u0646\u062A\u0627\u0643\u062A\u0648\u0631 \u0645\u0644\u0627\u0645\u0633\u0627\u062A \u0627\u0644\u0642\u062F\u0631\u0629 \u0627\u0644\u062B\u0644\u0627\u062B\u0629 \u0648\u064A\u062F\u0648\u0631 \u0627\u0644\u0645\u062D\u0631\u0643\u060C \u0648\u0639\u0646\u062F\u0645\u0627 \u062A\u0641\u0644\u062A\u0647 \u064A\u062A\u0648\u0642\u0641. \u062F\u0627\u0626\u0631\u0629 \u0627\u0644\u062A\u062D\u0643\u0645 \u0628\u0627\u0644\u0623\u062D\u0645\u0631.",
+    "Il neutro va all\u2019altro morsetto: 230 V, la lampada si accende.": "\u0627\u0644\u062D\u064A\u0627\u062F \u064A\u0630\u0647\u0628 \u0625\u0644\u0649 \u0627\u0644\u0637\u0631\u0641 \u0627\u0644\u0622\u062E\u0631: 230 \u0641\u0648\u0644\u062A\u060C \u0641\u064A\u0636\u064A\u0621 \u0627\u0644\u0645\u0635\u0628\u0627\u062D.",
+    "Il neutro \xE8 troppo lungo.": "\u0627\u0644\u062D\u064A\u0627\u062F \u0637\u0648\u064A\u0644 \u062C\u062F\u064B\u0627.",
+    "Il pulsante \xE8 un contatto normalmente chiuso.": "\u0627\u0644\u0632\u0631 \u0645\u0644\u0627\u0645\u0633 \u0645\u063A\u0644\u0642 \u0641\u064A \u0627\u0644\u0648\u0636\u0639 \u0627\u0644\u0637\u0628\u064A\u0639\u064A.",
+    "Il quadro \xE8 alimentato: la lampada si accende.": "\u0627\u0644\u0644\u0648\u062D\u0629 \u0645\u063A\u0630\u0651\u0627\u0629: \u064A\u0636\u064A\u0621 \u0627\u0644\u0645\u0635\u0628\u0627\u062D.",
+    "Il quadro \xE8 trifase: L1, L2, L3 pi\xF9 il neutro. Collega una lampada da 230 V tra la fase L1 e il neutro. Poi misura con il multimetro la tensione tra L1 e il neutro e quella tra L1 e L2.": "\u0627\u0644\u0644\u0648\u062D\u0629 \u062B\u0644\u0627\u062B\u064A\u0629 \u0627\u0644\u0637\u0648\u0631: L1 \u0648L2 \u0648L3 \u0645\u0639 \u0627\u0644\u062D\u064A\u0627\u062F. \u0648\u0635\u0651\u0644 \u0645\u0635\u0628\u0627\u062D\u064B\u0627 230 \u0641\u0648\u0644\u062A \u0628\u064A\u0646 \u0627\u0644\u0637\u0648\u0631 L1 \u0648\u0627\u0644\u062D\u064A\u0627\u062F. \u062B\u0645 \u0642\u0650\u0633 \u0628\u0627\u0644\u0645\u062A\u0639\u062F\u062F \u0627\u0644\u062C\u0647\u062F \u0628\u064A\u0646 L1 \u0648\u0627\u0644\u062D\u064A\u0627\u062F\u060C \u0648\u0628\u064A\u0646 L1 \u0648L2.",
+    "Il salvamotore e il lavoro senza tensione": "\u0642\u0627\u0637\u0639 \u062D\u0645\u0627\u064A\u0629 \u0627\u0644\u0645\u062D\u0631\u0643 \u0648\u0627\u0644\u0639\u0645\u0644 \u062F\u0648\u0646 \u062C\u0647\u062F",
+    "Il salvamotore parte aperto: lascialo aperto mentre colleghi i fili, e chiudilo solo alla fine per provare. Collegare fili con i morsetti in tensione \xE8 pericoloso, e nel gioco vale una stella di sicurezza in meno.": "\u0642\u0627\u0637\u0639 \u062D\u0645\u0627\u064A\u0629 \u0627\u0644\u0645\u062D\u0631\u0643 \u064A\u0628\u062F\u0623 \u0645\u0641\u062A\u0648\u062D\u064B\u0627: \u0627\u062A\u0631\u0643\u0647 \u0645\u0641\u062A\u0648\u062D\u064B\u0627 \u0623\u062B\u0646\u0627\u0621 \u062A\u0648\u0635\u064A\u0644 \u0627\u0644\u0623\u0633\u0644\u0627\u0643\u060C \u0648\u0623\u063A\u0644\u0642\u0647 \u0641\u064A \u0627\u0644\u0646\u0647\u0627\u064A\u0629 \u0641\u0642\u0637 \u0644\u0644\u062A\u062C\u0631\u0628\u0629. \u062A\u0648\u0635\u064A\u0644 \u0627\u0644\u0623\u0633\u0644\u0627\u0643 \u0648\u0627\u0644\u0623\u0637\u0631\u0627\u0641 \u062A\u062D\u062A \u0627\u0644\u062C\u0647\u062F \u062E\u0637\u064A\u0631\u060C \u0648\u0641\u064A \u0627\u0644\u0644\u0639\u0628\u0629 \u064A\u0643\u0644\u0651\u0641\u0643 \u0646\u062C\u0645\u0629 \u0623\u0645\u0627\u0646.",
+    "Il salvamotore \xE8 aperto: tutto a valle \xE8 senza tensione.": "\u0642\u0627\u0637\u0639 \u062D\u0645\u0627\u064A\u0629 \u0627\u0644\u0645\u062D\u0631\u0643 \u0645\u0641\u062A\u0648\u062D: \u0643\u0644 \u0645\u0627 \u0628\u0639\u062F\u0647 \u0628\u0644\u0627 \u062C\u0647\u062F.",
+    "Il teleruttore": "\u0627\u0644\u0643\u0648\u0646\u062A\u0627\u0643\u062A\u0648\u0631",
+    "Il teleruttore chiude e funziona normalmente.": "\u064A\u063A\u0644\u0642 \u0627\u0644\u0643\u0648\u0646\u062A\u0627\u0643\u062A\u0648\u0631 \u0648\u064A\u0639\u0645\u0644 \u0628\u0634\u0643\u0644 \u0637\u0628\u064A\u0639\u064A.",
+    "Il teleruttore non chiude, ma non si rovina.": "\u0644\u0627 \u064A\u063A\u0644\u0642 \u0627\u0644\u0643\u0648\u0646\u062A\u0627\u0643\u062A\u0648\u0631 \u0644\u0643\u0646\u0647 \u0644\u0627 \u064A\u062A\u0636\u0631\u0631.",
+    "Il teleruttore separa il comando a 230 V dalla potenza a 400 V.": "\u0627\u0644\u0643\u0648\u0646\u062A\u0627\u0643\u062A\u0648\u0631 \u064A\u0641\u0635\u0644 \u0627\u0644\u062A\u062D\u0643\u0645 \u0639\u0644\u0649 230 \u0641\u0648\u0644\u062A \u0639\u0646 \u0627\u0644\u0642\u062F\u0631\u0629 \u0639\u0644\u0649 400 \u0641\u0648\u0644\u062A.",
+    "Il teleruttore \xE8 gi\xE0 cablato, ma tenendo premuto il pulsante il motore non parte. Guarda dove \xE8 collegata la bobina.": "\u0627\u0644\u0643\u0648\u0646\u062A\u0627\u0643\u062A\u0648\u0631 \u0645\u0648\u0635\u0648\u0644 \u0645\u0633\u0628\u0642\u064B\u0627\u060C \u0644\u0643\u0646 \u0627\u0644\u0645\u062D\u0631\u0643 \u0644\u0627 \u064A\u062F\u0648\u0631 \u0639\u0646\u062F \u0636\u063A\u0637 \u0627\u0644\u0632\u0631. \u0627\u0646\u0638\u0631 \u0623\u064A\u0646 \u0648\u064F\u0635\u0644 \u0627\u0644\u0645\u0644\u0641.",
+    "La bobina (A1-A2) va tra una fase e il neutro; i contatti 1-2, 3-4, 5-6 portano la potenza al motore.": "\u0627\u0644\u0645\u0644\u0641 (A1-A2) \u064A\u064F\u0648\u0635\u064E\u0651\u0644 \u0628\u064A\u0646 \u0637\u0648\u0631 \u0648\u0627\u0644\u062D\u064A\u0627\u062F\u061B \u0648\u0627\u0644\u0645\u0644\u0627\u0645\u0633\u0627\u062A 1-2 \u06483-4 \u06485-6 \u062A\u0646\u0642\u0644 \u0627\u0644\u0642\u062F\u0631\u0629 \u0625\u0644\u0649 \u0627\u0644\u0645\u062D\u0631\u0643.",
+    "La bobina A2 va al neutro.": "\u0627\u0644\u0645\u0644\u0641 A2 \u064A\u0630\u0647\u0628 \u0625\u0644\u0649 \u0627\u0644\u062D\u064A\u0627\u062F.",
+    "La bobina al neutro": "\u0627\u0644\u0645\u0644\u0641 \u0625\u0644\u0649 \u0627\u0644\u062D\u064A\u0627\u062F",
+    "La bobina di un teleruttore da 230 V viene collegata tra due fasi (400 V). Che cosa succede?": "\u0648\u064F\u0635\u0644 \u0645\u0644\u0641 \u0643\u0648\u0646\u062A\u0627\u0643\u062A\u0648\u0631 230 \u0641\u0648\u0644\u062A \u0628\u064A\u0646 \u0637\u0648\u0631\u064A\u0646 (400 \u0641\u0648\u0644\u062A). \u0645\u0627\u0630\u0627 \u064A\u062D\u062F\u062B\u061F",
+    "La bobina e i contatti": "\u0627\u0644\u0645\u0644\u0641 \u0648\u0627\u0644\u0645\u0644\u0627\u0645\u0633\u0627\u062A",
+    "La bobina riceve troppa tensione e si brucia.": "\u064A\u062A\u0644\u0642\u0649 \u0627\u0644\u0645\u0644\u0641 \u062C\u0647\u062F\u064B\u0627 \u0632\u0627\u0626\u062F\u064B\u0627 \u0648\u064A\u062D\u062A\u0631\u0642.",
+    "La bobina \xE8 collegata tra due fasi: riceve 400 V e si \xE8 bruciata.": "\u0627\u0644\u0645\u0644\u0641 \u0645\u0648\u0635\u0648\u0644 \u0628\u064A\u0646 \u0637\u0648\u0631\u064A\u0646: \u064A\u062A\u0644\u0642\u0649 400 \u0641\u0648\u0644\u062A \u0648\u0642\u062F \u0627\u062D\u062A\u0631\u0642.",
+    "La bobina \xE8 da 230 V: tra una fase e il neutro. Tra due fasi riceverebbe 400 V e si brucerebbe. Si cabla con il salvamotore aperto.": "\u0627\u0644\u0645\u0644\u0641 230 \u0641\u0648\u0644\u062A: \u0628\u064A\u0646 \u0637\u0648\u0631 \u0648\u0627\u0644\u062D\u064A\u0627\u062F. \u0628\u064A\u0646 \u0637\u0648\u0631\u064A\u0646 \u0633\u064A\u062A\u0644\u0642\u0649 400 \u0641\u0648\u0644\u062A \u0648\u064A\u062D\u062A\u0631\u0642. \u062A\u064F\u0648\u0635\u064E\u0651\u0644 \u0627\u0644\u0623\u0633\u0644\u0627\u0643 \u0648\u0627\u0644\u0642\u0627\u0637\u0639 \u0645\u0641\u062A\u0648\u062D.",
+    "La bobina \xE8 fatta per 230 V. Con 400 V assorbe molta pi\xF9 corrente e si brucia. Va collegata tra una fase e il neutro.": "\u0627\u0644\u0645\u0644\u0641 \u0645\u0635\u0645\u064E\u0651\u0645 \u0644\u0640 230 \u0641\u0648\u0644\u062A. \u0645\u0639 400 \u0641\u0648\u0644\u062A \u064A\u0633\u062D\u0628 \u062A\u064A\u0627\u0631\u064B\u0627 \u0623\u0643\u0628\u0631 \u0628\u0643\u062B\u064A\u0631 \u0648\u064A\u062D\u062A\u0631\u0642. \u064A\u062C\u0628 \u062A\u0648\u0635\u064A\u0644\u0647 \u0628\u064A\u0646 \u0637\u0648\u0631 \u0648\u0627\u0644\u062D\u064A\u0627\u062F.",
+    "La fase L1 (marrone) va a un morsetto della lampada, il neutro (blu) all\u2019altro.": "\u0627\u0644\u0637\u0648\u0631 L1 (\u0628\u0646\u064A) \u064A\u0630\u0647\u0628 \u0625\u0644\u0649 \u0623\u062D\u062F \u0637\u0631\u0641\u064A \u0627\u0644\u0645\u0635\u0628\u0627\u062D\u060C \u0648\u0627\u0644\u062D\u064A\u0627\u062F (\u0623\u0632\u0631\u0642) \u0625\u0644\u0649 \u0627\u0644\u0637\u0631\u0641 \u0627\u0644\u0622\u062E\u0631.",
+    "La fase L1 entra nel salvamotore, morsetto 1.": "\u0627\u0644\u0637\u0648\u0631 L1 \u064A\u062F\u062E\u0644 \u0642\u0627\u0637\u0639 \u062D\u0645\u0627\u064A\u0629 \u0627\u0644\u0645\u062D\u0631\u0643\u060C \u0627\u0644\u0637\u0631\u0641 1.",
+    "La fase L1 va a un morsetto della lampada.": "\u0627\u0644\u0637\u0648\u0631 L1 \u064A\u0630\u0647\u0628 \u0625\u0644\u0649 \u0623\u062D\u062F \u0637\u0631\u0641\u064A \u0627\u0644\u0645\u0635\u0628\u0627\u062D.",
+    "La fase L2 entra nel salvamotore, morsetto 3.": "\u0627\u0644\u0637\u0648\u0631 L2 \u064A\u062F\u062E\u0644 \u0642\u0627\u0637\u0639 \u062D\u0645\u0627\u064A\u0629 \u0627\u0644\u0645\u062D\u0631\u0643\u060C \u0627\u0644\u0637\u0631\u0641 3.",
+    "La fase L3 entra nel salvamotore, morsetto 5.": "\u0627\u0644\u0637\u0648\u0631 L3 \u064A\u062F\u062E\u0644 \u0642\u0627\u0637\u0639 \u062D\u0645\u0627\u064A\u0629 \u0627\u0644\u0645\u062D\u0631\u0643\u060C \u0627\u0644\u0637\u0631\u0641 5.",
+    "La fase alla lampada": "\u0627\u0644\u0637\u0648\u0631 \u0625\u0644\u0649 \u0627\u0644\u0645\u0635\u0628\u0627\u062D",
+    "La lampada \xE8 da 230 V: va tra una fase e il neutro, non tra due fasi.": "\u0627\u0644\u0645\u0635\u0628\u0627\u062D 230 \u0641\u0648\u0644\u062A: \u064A\u064F\u0648\u0635\u064E\u0651\u0644 \u0628\u064A\u0646 \u0637\u0648\u0631 \u0648\u0627\u0644\u062D\u064A\u0627\u062F\u060C \u0644\u0627 \u0628\u064A\u0646 \u0637\u0648\u0631\u064A\u0646.",
+    "La lampada \xE8 gi\xE0 collegata e non si accende pi\xF9. Guarda dove sono collegati i suoi morsetti e misura.": "\u0627\u0644\u0645\u0635\u0628\u0627\u062D \u0645\u0648\u0635\u0648\u0644 \u0645\u0633\u0628\u0642\u064B\u0627 \u0648\u0644\u0645 \u064A\u0639\u062F \u064A\u0636\u064A\u0621. \u0627\u0646\u0638\u0631 \u0623\u064A\u0646 \u0648\u064F\u0635\u0644 \u0637\u0631\u0641\u0627\u0647 \u0648\u0642\u0650\u0633.",
+    "La lampada, tra L1 e il neutro, \xE8 accesa": "\u0627\u0644\u0645\u0635\u0628\u0627\u062D\u060C \u0628\u064A\u0646 L1 \u0648\u0627\u0644\u062D\u064A\u0627\u062F\u060C \u0645\u0636\u0627\u0621",
+    "La terra del motore": "\u062A\u0623\u0631\u064A\u0636 \u0627\u0644\u0645\u062D\u0631\u0643",
+    "La terra del quadro al motore.": "\u062A\u0623\u0631\u064A\u0636 \u0627\u0644\u0644\u0648\u062D\u0629 \u0625\u0644\u0649 \u0627\u0644\u0645\u062D\u0631\u0643.",
+    "Lampada da 230 V": "\u0645\u0635\u0628\u0627\u062D 230 \u0641\u0648\u0644\u062A",
+    "Le fasi al salvamotore": "\u0627\u0644\u0623\u0637\u0648\u0627\u0631 \u0625\u0644\u0649 \u0642\u0627\u0637\u0639 \u062D\u0645\u0627\u064A\u0629 \u0627\u0644\u0645\u062D\u0631\u0643",
+    "Le tre fasi": "\u0627\u0644\u0623\u0637\u0648\u0627\u0631 \u0627\u0644\u062B\u0644\u0627\u062B\u0629",
+    "Le tre fasi hanno tre colori diversi: marrone, nero, grigio.": "\u0644\u0644\u0623\u0637\u0648\u0627\u0631 \u0627\u0644\u062B\u0644\u0627\u062B\u0629 \u062B\u0644\u0627\u062B\u0629 \u0623\u0644\u0648\u0627\u0646 \u0645\u062E\u062A\u0644\u0641\u0629: \u0628\u0646\u064A \u0648\u0623\u0633\u0648\u062F \u0648\u0631\u0645\u0627\u062F\u064A.",
+    "Metti i puntali su L1 e su L2: leggi 400 V.": "\u0636\u0639 \u0627\u0644\u0645\u0633\u0628\u0627\u0631\u064A\u0646 \u0639\u0644\u0649 L1 \u0648\u0639\u0644\u0649 L2: \u062A\u0642\u0631\u0623 400 \u0641\u0648\u0644\u062A.",
+    "Misura 230 V": "\u0642\u0650\u0633 230 \u0641\u0648\u0644\u062A",
+    "Misura 400 V": "\u0642\u0650\u0633 400 \u0641\u0648\u0644\u062A",
+    "Nel gioco le tre fasi hanno tre colori: marrone, nero e grigio. Il neutro resta blu e la terra giallo-verde.": "\u0641\u064A \u0627\u0644\u0644\u0639\u0628\u0629 \u0644\u0644\u0623\u0637\u0648\u0627\u0631 \u0627\u0644\u062B\u0644\u0627\u062B\u0629 \u062B\u0644\u0627\u062B\u0629 \u0623\u0644\u0648\u0627\u0646: \u0628\u0646\u064A \u0648\u0623\u0633\u0648\u062F \u0648\u0631\u0645\u0627\u062F\u064A. \u0648\u064A\u0628\u0642\u0649 \u0627\u0644\u062D\u064A\u0627\u062F \u0623\u0632\u0631\u0642 \u0648\u0627\u0644\u062A\u0623\u0631\u064A\u0636 \u0623\u0635\u0641\u0631 \u0648\u0623\u062E\u0636\u0631.",
+    "Per misurare, tocca Multimetro, poi i due morsetti del quadro: il primo \xE8 il puntale rosso, il secondo il nero.": "\u0644\u0644\u0642\u064A\u0627\u0633\u060C \u0627\u0644\u0645\u0633 \u0627\u0644\u0645\u062A\u0639\u062F\u062F \u0627\u0644\u0642\u064A\u0627\u0633 \u062B\u0645 \u0637\u0631\u0641\u064A \u0627\u0644\u0644\u0648\u062D\u0629: \u0627\u0644\u0623\u0648\u0644 \u0647\u0648 \u0627\u0644\u0645\u0633\u0628\u0627\u0631 \u0627\u0644\u0623\u062D\u0645\u0631 \u0648\u0627\u0644\u062B\u0627\u0646\u064A \u0627\u0644\u0623\u0633\u0648\u062F.",
+    "Perch\xE9 il motore non parte?": "\u0644\u0645\u0627\u0630\u0627 \u0644\u0627 \u064A\u062F\u0648\u0631 \u0627\u0644\u0645\u062D\u0631\u0643\u061F",
+    "Perch\xE9 la lampada si \xE8 bruciata?": "\u0644\u0645\u0627\u0630\u0627 \u0627\u062D\u062A\u0631\u0642 \u0627\u0644\u0645\u0635\u0628\u0627\u062D\u061F",
+    "Perch\xE9 tre fasi": "\u0644\u0645\u0627\u0630\u0627 \u062B\u0644\u0627\u062B\u0629 \u0623\u0637\u0648\u0627\u0631",
+    "Porta A2 della bobina al neutro, con il salvamotore aperto. Poi premi Verifica.": "\u0627\u0646\u0642\u0644 A2 \u0641\u064A \u0627\u0644\u0645\u0644\u0641 \u0625\u0644\u0649 \u0627\u0644\u062D\u064A\u0627\u062F \u0648\u0627\u0644\u0642\u0627\u0637\u0639 \u0645\u0641\u062A\u0648\u062D. \u062B\u0645 \u0627\u0636\u063A\u0637 \u062A\u062D\u0642\u0651\u0642.",
+    "Potenza: le tre fasi passano dal salvamotore (1-2, 3-4, 5-6), dai tre contatti di potenza del teleruttore e arrivano a U, V, W del motore. Poi la terra del motore.": "\u0627\u0644\u0642\u062F\u0631\u0629: \u0627\u0644\u0623\u0637\u0648\u0627\u0631 \u0627\u0644\u062B\u0644\u0627\u062B\u0629 \u062A\u0645\u0631\u0651 \u0639\u0628\u0631 \u0642\u0627\u0637\u0639 \u062D\u0645\u0627\u064A\u0629 \u0627\u0644\u0645\u062D\u0631\u0643 (1-2 \u06483-4 \u06485-6)\u060C \u062B\u0645 \u0639\u0628\u0631 \u0645\u0644\u0627\u0645\u0633\u0627\u062A \u0627\u0644\u0642\u062F\u0631\u0629 \u0627\u0644\u062B\u0644\u0627\u062B\u0629 \u0641\u064A \u0627\u0644\u0643\u0648\u0646\u062A\u0627\u0643\u062A\u0648\u0631\u060C \u0648\u062A\u0635\u0644 \u0625\u0644\u0649 U \u0648V \u0648W \u0641\u064A \u0627\u0644\u0645\u062D\u0631\u0643. \u062B\u0645 \u062A\u0623\u0631\u064A\u0636 \u0627\u0644\u0645\u062D\u0631\u0643.",
+    "Prova il comando": "\u062C\u0631\u0651\u0628 \u0627\u0644\u062A\u062D\u0643\u0645",
+    "Riceve 400 V e si brucia.": "\u064A\u062A\u0644\u0642\u0649 400 \u0641\u0648\u0644\u062A \u0648\u064A\u062D\u062A\u0631\u0642.",
+    "Rilascia Marcia: il motore si ferma": "\u0623\u0641\u0644\u062A \u0632\u0631 \u0627\u0644\u062A\u0634\u063A\u064A\u0644: \u064A\u062A\u0648\u0642\u0641 \u0627\u0644\u0645\u062D\u0631\u0643",
+    "Salvamotore chiuso e pulsante premuto: il teleruttore chiude e il motore gira.": "\u0642\u0627\u0637\u0639 \u062D\u0645\u0627\u064A\u0629 \u0627\u0644\u0645\u062D\u0631\u0643 \u0645\u063A\u0644\u0642 \u0648\u0627\u0644\u0632\u0631 \u0645\u0636\u063A\u0648\u0637: \u064A\u063A\u0644\u0642 \u0627\u0644\u0643\u0648\u0646\u062A\u0627\u0643\u062A\u0648\u0631 \u0648\u064A\u062F\u0648\u0631 \u0627\u0644\u0645\u062D\u0631\u0643.",
+    "Se il motore riceve solo due delle tre fasi non gira: ronza e si scalda. Anche per questo il salvamotore interrompe tutte e tre le fasi insieme.": "\u0625\u0630\u0627 \u062A\u0644\u0642\u0651\u0649 \u0627\u0644\u0645\u062D\u0631\u0643 \u0637\u0648\u0631\u064A\u0646 \u0641\u0642\u0637 \u0645\u0646 \u0627\u0644\u062B\u0644\u0627\u062B\u0629 \u0641\u0644\u0627 \u064A\u062F\u0648\u0631: \u064A\u0637\u0646\u0651 \u0648\u064A\u0633\u062E\u0646. \u0648\u0644\u0647\u0630\u0627 \u0623\u064A\u0636\u064B\u0627 \u064A\u0642\u0637\u0639 \u0642\u0627\u0637\u0639 \u062D\u0645\u0627\u064A\u0629 \u0627\u0644\u0645\u062D\u0631\u0643 \u0627\u0644\u0623\u0637\u0648\u0627\u0631 \u0627\u0644\u062B\u0644\u0627\u062B\u0629 \u0645\u0639\u064B\u0627.",
+    "Senza autoritenuta il motore gira solo finch\xE9 si tiene premuto il pulsante.": "\u0628\u062F\u0648\u0646 \u0627\u0644\u062A\u062B\u0628\u064A\u062A \u0627\u0644\u0630\u0627\u062A\u064A \u064A\u062F\u0648\u0631 \u0627\u0644\u0645\u062D\u0631\u0643 \u0641\u0642\u0637 \u0645\u0627 \u062F\u0627\u0645 \u0627\u0644\u0632\u0631 \u0645\u0636\u063A\u0648\u0637\u064B\u0627.",
+    "Si accende molto pi\xF9 debole.": "\u064A\u0636\u064A\u0621 \u0628\u0634\u0643\u0644 \u0623\u0636\u0639\u0641 \u0628\u0643\u062B\u064A\u0631.",
+    "Si accende normalmente.": "\u064A\u0636\u064A\u0621 \u0628\u0634\u0643\u0644 \u0637\u0628\u064A\u0639\u064A.",
+    "Si cabla con il sezionamento aperto: collegare fili in tensione \xE8 pericoloso.": "\u062A\u064F\u0648\u0635\u064E\u0651\u0644 \u0627\u0644\u0623\u0633\u0644\u0627\u0643 \u0648\u062C\u0647\u0627\u0632 \u0627\u0644\u0641\u0635\u0644 \u0645\u0641\u062A\u0648\u062D: \u062A\u0648\u0635\u064A\u0644 \u0623\u0633\u0644\u0627\u0643 \u062A\u062D\u062A \u0627\u0644\u062C\u0647\u062F \u062E\u0637\u064A\u0631.",
+    "Si lavora senza tensione": "\u0646\u0639\u0645\u0644 \u062F\u0648\u0646 \u062C\u0647\u062F",
+    "Sposta uno dei due fili sul neutro: la lampada deve stare tra L1 e il neutro. Poi premi Verifica.": "\u0627\u0646\u0642\u0644 \u0623\u062D\u062F \u0627\u0644\u0633\u0644\u0643\u064A\u0646 \u0625\u0644\u0649 \u0627\u0644\u062D\u064A\u0627\u062F: \u064A\u062C\u0628 \u0623\u0646 \u064A\u0643\u0648\u0646 \u0627\u0644\u0645\u0635\u0628\u0627\u062D \u0628\u064A\u0646 L1 \u0648\u0627\u0644\u062D\u064A\u0627\u062F. \u062B\u0645 \u0627\u0636\u063A\u0637 \u062A\u062D\u0642\u0651\u0642.",
+    "Teleruttore": "\u0643\u0648\u0646\u062A\u0627\u0643\u062A\u0648\u0631",
+    "Teleruttore KM": "\u0627\u0644\u0643\u0648\u0646\u062A\u0627\u0643\u062A\u0648\u0631 KM",
+    "Dai corrente con la levetta del quadro, tocca Multimetro, poi L1 (rosso) e NEUTRO (nero): leggi 230 V.": "\u0634\u063A\u0651\u0644 \u0627\u0644\u062A\u064A\u0627\u0631 \u0628\u0645\u0641\u062A\u0627\u062D \u0627\u0644\u0644\u0648\u062D\u0629\u060C \u062B\u0645 \u0627\u0644\u0645\u0633 \u0627\u0644\u0645\u062A\u0639\u062F\u062F \u0627\u0644\u0642\u064A\u0627\u0633\u060C \u062B\u0645 L1 (\u0623\u062D\u0645\u0631) \u0648\u0627\u0644\u062D\u064A\u0627\u062F (\u0623\u0633\u0648\u062F): \u062A\u0642\u0631\u0623 230 \u0641\u0648\u0644\u062A.",
+    "Tra due fasi ci sono 400 V, quasi il doppio di quello che la lampada sopporta. Una lampada da 230 V va sempre tra una fase e il neutro.": "\u0628\u064A\u0646 \u0637\u0648\u0631\u064A\u0646 \u064A\u0648\u062C\u062F 400 \u0641\u0648\u0644\u062A\u060C \u0623\u064A \u062A\u0642\u0631\u064A\u0628\u064B\u0627 \u0636\u0639\u0641 \u0645\u0627 \u064A\u062A\u062D\u0645\u0644\u0647 \u0627\u0644\u0645\u0635\u0628\u0627\u062D. \u0645\u0635\u0628\u0627\u062D 230 \u0641\u0648\u0644\u062A \u064A\u064F\u0648\u0635\u064E\u0651\u0644 \u062F\u0627\u0626\u0645\u064B\u0627 \u0628\u064A\u0646 \u0637\u0648\u0631 \u0648\u0627\u0644\u062D\u064A\u0627\u062F.",
+    "Tra due fasi la tensione \xE8 400 V. Non \xE8 la somma di 230 pi\xF9 230, perch\xE9 le tre tensioni sono sfasate di un terzo di giro una dall\u2019altra: tra due fasi si misurano 400 V, circa 1,73 volte 230.": "\u0627\u0644\u062C\u0647\u062F \u0628\u064A\u0646 \u0637\u0648\u0631\u064A\u0646 \u0647\u0648 400 \u0641\u0648\u0644\u062A. \u0648\u0647\u0648 \u0644\u064A\u0633 \u0645\u062C\u0645\u0648\u0639 230 + 230\u060C \u0644\u0623\u0646 \u0627\u0644\u062C\u0647\u0648\u062F \u0627\u0644\u062B\u0644\u0627\u062B\u0629 \u0645\u062A\u0628\u0627\u0639\u062F\u0629 \u0628\u062B\u0644\u062B \u062F\u0648\u0631\u0629 \u0639\u0646 \u0628\u0639\u0636\u0647\u0627: \u0628\u064A\u0646 \u0637\u0648\u0631\u064A\u0646 \u0646\u0642\u064A\u0633 400 \u0641\u0648\u0644\u062A\u060C \u0623\u064A \u0646\u062D\u0648 1,73 \u0645\u0631\u0629 230.",
+    "Tra una fase e il neutro ci sono 230 V; tra due fasi ce ne sono 400.": "\u0628\u064A\u0646 \u0637\u0648\u0631 \u0648\u0627\u0644\u062D\u064A\u0627\u062F 230 \u0641\u0648\u0644\u062A\u061B \u0648\u0628\u064A\u0646 \u0637\u0648\u0631\u064A\u0646 400 \u0641\u0648\u0644\u062A.",
+    "Tre fasi e neutro: 230 V da una fase al neutro, 400 V tra due fasi.": "\u062B\u0644\u0627\u062B\u0629 \u0623\u0637\u0648\u0627\u0631 \u0648\u062D\u064A\u0627\u062F: 230 \u0641\u0648\u0644\u062A \u0645\u0646 \u0627\u0644\u0637\u0648\u0631 \u0625\u0644\u0649 \u0627\u0644\u062D\u064A\u0627\u062F\u060C \u0648400 \u0641\u0648\u0644\u062A \u0628\u064A\u0646 \u0637\u0648\u0631\u064A\u0646.",
+    "Un carico da 230 V va tra una fase e il neutro, mai tra due fasi.": "\u0627\u0644\u062D\u0645\u0644 230 \u0641\u0648\u0644\u062A \u064A\u064F\u0648\u0635\u064E\u0651\u0644 \u0628\u064A\u0646 \u0637\u0648\u0631 \u0648\u0627\u0644\u062D\u064A\u0627\u062F\u060C \u0644\u0627 \u0628\u064A\u0646 \u0637\u0648\u0631\u064A\u0646 \u0623\u0628\u062F\u064B\u0627.",
+    "Un comando piccolo per una potenza grande": "\u062A\u062D\u0643\u0645 \u0635\u063A\u064A\u0631 \u0644\u0642\u062F\u0631\u0629 \u0643\u0628\u064A\u0631\u0629",
+    "Un impianto industriale arriva con quattro conduttori attivi: tre fasi, L1, L2, L3, e il neutro. Ogni fase ha 230 V rispetto al neutro, come la fase di casa.": "\u062A\u0635\u0644 \u0627\u0644\u0645\u0646\u0634\u0623\u0629 \u0627\u0644\u0635\u0646\u0627\u0639\u064A\u0629 \u0628\u0623\u0631\u0628\u0639\u0629 \u0645\u0648\u0635\u0644\u0627\u062A \u0641\u0639\u0651\u0627\u0644\u0629: \u062B\u0644\u0627\u062B\u0629 \u0623\u0637\u0648\u0627\u0631 L1 \u0648L2 \u0648L3 \u0648\u0627\u0644\u062D\u064A\u0627\u062F. \u0644\u0643\u0644 \u0637\u0648\u0631 230 \u0641\u0648\u0644\u062A \u0628\u0627\u0644\u0646\u0633\u0628\u0629 \u0625\u0644\u0649 \u0627\u0644\u062D\u064A\u0627\u062F\u060C \u0645\u062B\u0644 \u0637\u0648\u0631 \u0627\u0644\u0628\u064A\u062A.",
+    "Un impianto trifase ha tre fasi, L1, L2, L3, pi\xF9 il neutro.": "\u0627\u0644\u0645\u0646\u0634\u0623\u0629 \u0627\u0644\u062B\u0644\u0627\u062B\u064A\u0629 \u0627\u0644\u0637\u0648\u0631 \u0641\u064A\u0647\u0627 \u062B\u0644\u0627\u062B\u0629 \u0623\u0637\u0648\u0627\u0631 L1 \u0648L2 \u0648L3 \u0645\u0639 \u0627\u0644\u062D\u064A\u0627\u062F.",
+    "Un motore trifase assorbe molta corrente a 400 V: un pulsante non la regge e sarebbe pericoloso tenerla in mano. Il teleruttore (o contattore) separa le due parti.": "\u0627\u0644\u0645\u062D\u0631\u0643 \u0627\u0644\u062B\u0644\u0627\u062B\u064A \u0627\u0644\u0637\u0648\u0631 \u064A\u0633\u062D\u0628 \u062A\u064A\u0627\u0631\u064B\u0627 \u0643\u0628\u064A\u0631\u064B\u0627 \u0639\u0644\u0649 400 \u0641\u0648\u0644\u062A: \u0627\u0644\u0632\u0631 \u0644\u0627 \u064A\u062A\u062D\u0645\u0644\u0647 \u0648\u0645\u0646 \u0627\u0644\u062E\u0637\u0631 \u0627\u0644\u0625\u0645\u0633\u0627\u0643 \u0628\u0647. \u0627\u0644\u0643\u0648\u0646\u062A\u0627\u0643\u062A\u0648\u0631 \u064A\u0641\u0635\u0644 \u0627\u0644\u062C\u0632\u0623\u064A\u0646.",
+    "Un pulsante a 230 V comanda la potenza a 400 V.": "\u0632\u0631 \u0639\u0644\u0649 230 \u0641\u0648\u0644\u062A \u064A\u062A\u062D\u0643\u0645 \u0628\u0627\u0644\u0642\u062F\u0631\u0629 \u0639\u0644\u0649 400 \u0641\u0648\u0644\u062A.",
+    "Una fase a valle del salvamotore (morsetto 2) al morsetto 3 del pulsante, in rosso.": "\u0637\u0648\u0631 \u0628\u0639\u062F \u0642\u0627\u0637\u0639 \u062D\u0645\u0627\u064A\u0629 \u0627\u0644\u0645\u062D\u0631\u0643 (\u0627\u0644\u0637\u0631\u0641 2) \u0625\u0644\u0649 \u0627\u0644\u0637\u0631\u0641 3 \u0641\u064A \u0627\u0644\u0632\u0631\u060C \u0628\u0627\u0644\u0623\u062D\u0645\u0631.",
+    "Una lampada da 230 V collegata tra due fasi riceve 400 V e si brucia.": "\u0645\u0635\u0628\u0627\u062D 230 \u0641\u0648\u0644\u062A \u0645\u0648\u0635\u0648\u0644 \u0628\u064A\u0646 \u0637\u0648\u0631\u064A\u0646 \u064A\u062A\u0644\u0642\u0649 400 \u0641\u0648\u0644\u062A \u0648\u064A\u062D\u062A\u0631\u0642.",
+    "Una lampada da 230 V viene collegata tra la fase L1 e la fase L2. Che cosa succede?": "\u0648\u064F\u0635\u0644 \u0645\u0635\u0628\u0627\u062D 230 \u0641\u0648\u0644\u062A \u0628\u064A\u0646 \u0627\u0644\u0637\u0648\u0631 L1 \u0648\u0627\u0644\u0637\u0648\u0631 L2. \u0645\u0627\u0630\u0627 \u064A\u062D\u062F\u062B\u061F",
+    "tensione tra la fase L1 e il neutro": "\u0627\u0644\u062C\u0647\u062F \u0628\u064A\u0646 \u0627\u0644\u0637\u0648\u0631 L1 \u0648\u0627\u0644\u062D\u064A\u0627\u062F",
+    "tensione tra le fasi L1 e L2": "\u0627\u0644\u062C\u0647\u062F \u0628\u064A\u0646 \u0627\u0644\u0637\u0648\u0631\u064A\u0646 L1 \u0648L2",
+    "\xC8 collegata tra due fasi e riceve 400 V.": "\u0645\u0648\u0635\u0648\u0644 \u0628\u064A\u0646 \u0637\u0648\u0631\u064A\u0646 \u0648\u064A\u062A\u0644\u0642\u0649 400 \u0641\u0648\u0644\u062A.",
+    "Contatti": "\u0627\u0644\u0645\u0644\u0627\u0645\u0633\u0627\u062A",
+    "Fase-fase": "\u0637\u0648\u0631-\u0637\u0648\u0631",
+    "Fase-neutro": "\u0637\u0648\u0631-\u062D\u064A\u0627\u062F",
+    "Hai cambiato i fili mentre il sezionamento (Salvamotore) era chiuso e i morsetti erano in tensione. Prima si apre il sezionamento, si verifica che non ci sia tensione, poi si cabla.": "\u063A\u064A\u0651\u0631\u062A \u0627\u0644\u0623\u0633\u0644\u0627\u0643 \u0628\u064A\u0646\u0645\u0627 \u062C\u0647\u0627\u0632 \u0627\u0644\u0641\u0635\u0644 (\u0642\u0627\u0637\u0639 \u062D\u0645\u0627\u064A\u0629 \u0627\u0644\u0645\u062D\u0631\u0643) \u0645\u063A\u0644\u0642 \u0648\u0627\u0644\u0623\u0637\u0631\u0627\u0641 \u062A\u062D\u062A \u0627\u0644\u062C\u0647\u062F. \u0623\u0648\u0644\u064B\u0627 \u064A\u064F\u0641\u062A\u062D \u062C\u0647\u0627\u0632 \u0627\u0644\u0641\u0635\u0644\u060C \u062B\u0645 \u064A\u064F\u062A\u062D\u0642\u0642 \u0645\u0646 \u063A\u064A\u0627\u0628 \u0627\u0644\u062C\u0647\u062F\u060C \u062B\u0645 \u062A\u064F\u0648\u0635\u064E\u0651\u0644 \u0627\u0644\u0623\u0633\u0644\u0627\u0643.",
+    "Linea": "\u0627\u0644\u062E\u0637",
+    "Prova": "\u062A\u062C\u0631\u0628\u0629"
   };
 
   // src/i18n/ar.js

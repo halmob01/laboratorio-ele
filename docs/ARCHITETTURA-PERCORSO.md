@@ -79,7 +79,7 @@ Differenze dal syllabus: multimetro come livello a sé e primo del modulo; c08 e
 | 3.5 | Il relè termico (c14) | 95-96 nel comando, riarmo | esiste | sì |
 | 3.6 | Il nastro (c16) | finecorsa, quadro su una macchina | esiste | sì |
 
-Il lavoro fuori tensione richiede di toccare i livelli esistenti di M3: oggi in c13-c16 il salvamotore parte chiuso, quindi il banco è in tensione dall'inizio. Riceveranno `init: 0` o un sezionatore. È l'unica eccezione alla regola "i livelli esistenti non cambiano".
+Il lavoro fuori tensione (fatto in P2) non ha toccato i livelli esistenti: c12-c16 e c22 dichiarano `safety.deadWork: ['QM']` e la sessione registra i fili toccati mentre erano in tensione per colpa del salvamotore chiuso. In c13-c16 il salvamotore resta chiuso all'inizio, e l'allievo deve aprirlo prima di cablare.
 
 ### Modulo 4, Automazione
 

@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 import { evaluate as evaluateV1, stepsState, demoFrames } from '../src/engine/index.js';
 import { evaluateV2 } from '../src/engine/v2/index.js';
 import { levels } from '../src/content/index.js';
-import { loggedMeasures, doMeasures, doRatings } from './misure.js';
+import { loggedMeasures, doMeasures, doRatings, openIsolators } from './misure.js';
 
 const withUnit = levels.filter(l => l.unit);
 const evaluate = (L, w, ratings) => (L.engine === 2 ? evaluateV2(L, w, { measured: loggedMeasures(L), ratings }) : evaluateV1(L, w));
@@ -50,6 +50,7 @@ for (const L of withUnit.filter(l => l.unit.fault)) {
   test(`${L.id}: la sfida guasto si risolve dal motore dopo la diagnosi giusta`, () => {
     const s = createSession({ levels, deriveFull, initialLevel: L.id });
     s.skipLesson();
+    openIsolators(s, L);
     L.solution.forEach(([a, b, c]) => s.addWire(a, b, c));
     doMeasures(s, L); doRatings(s, L);
     assert.equal(s.check().pass, true);
@@ -58,6 +59,7 @@ for (const L of withUnit.filter(l => l.unit.fault)) {
     assert.equal(s.snapshot().wires.length, L.unit.fault.wires.length);
     s.answerDiagnosis(L.unit.fault.diagnosis.correct);
     s.clear();
+    openIsolators(s, L);
     L.solution.forEach(([a, b, c]) => s.addWire(a, b, c));
     doMeasures(s, L); doRatings(s, L);
     if (L.unit.fault.on) {

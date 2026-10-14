@@ -302,6 +302,63 @@ export const LEVELS_V2 = [
     ],
   },
   {
+    id: 'c21-tre-fasi', code: 'c21', n: 0, ...IND, flow: 'onDemand', meter: true,
+    name: 'Le tre fasi', title: 'Le tre fasi',
+    blurb: 'Tre fasi e neutro: 230 V da una fase al neutro, 400 V tra due fasi.',
+    goal: 'Il quadro è trifase: L1, L2, L3 più il neutro. Collega una lampada da 230 V tra la fase L1 e il neutro. Poi misura con il multimetro la tensione tra L1 e il neutro e quella tra L1 e L2.',
+    comps: [
+      Q3,
+      C('L', 'lamp', 'Lampada', 'Lampada da 230 V', { B: { l: 'B' }, A: { l: 'A' } }),
+    ],
+    controls: [],
+    checks: [
+      { id: 'acceso', label: 'La lampada, tra L1 e il neutro, è accesa', do: [], expect: { loads: { L: 'on' } } },
+    ],
+    measures: [
+      { between: ['Q.L1', 'Q.N'], mode: 'V', value: 230, live: true, label: 'tensione tra la fase L1 e il neutro' },
+      { between: ['Q.L1', 'Q.L2'], mode: 'V', value: 400, live: true, label: 'tensione tra le fasi L1 e L2' },
+    ],
+    safety: {},
+    solution: [['Q.L1', 'L.A', 'marrone'], ['Q.N', 'L.B', 'blu']],
+    hints: [
+      'La lampada è da 230 V: va tra una fase e il neutro, non tra due fasi.',
+      'La fase L1 (marrone) va a un morsetto della lampada, il neutro (blu) all’altro.',
+      'Per misurare, tocca Multimetro, poi i due morsetti del quadro: il primo è il puntale rosso, il secondo il nero.',
+    ],
+  },
+  {
+    id: 'c22-teleruttore', code: 'c22', n: 0, ...IND, flow: 'onDemand',
+    name: 'Il teleruttore', title: 'Il teleruttore',
+    blurb: 'Un pulsante a 230 V comanda la potenza a 400 V.',
+    goal: 'Il motore trifase passa dal salvamotore e dal teleruttore KM. La bobina di KM, a 230 V, si comanda con un pulsante: finché lo tieni premuto il teleruttore chiude i tre contatti di potenza e il motore gira, quando lo rilasci si ferma. Il circuito di comando va in rosso.',
+    comps: [
+      Q3,
+      C('QM', 'mt3', 'Salvamotore', 'Salvamotore magnetotermico', T(...T6), { init: 0 }),
+      C('KM', 'km', 'Teleruttore', 'Teleruttore KM', T('A1', 'A2', ...T6, '13', '14')),
+      C('SB1', 'pb', 'Marcia', 'Pulsante di marcia (NA)', T('3', '4')),
+      C('M', 'motor3', 'Motore', 'Motore trifase', T('U', 'V', 'W', 'PE')),
+    ],
+    controls: ['QM', 'SB1'],
+    demoDo: [{ do: ['toggle QM', 'press SB1'], say: 'Salvamotore chiuso e pulsante premuto: il teleruttore chiude e il motore gira.' }],
+    checks: [
+      { id: 'premuto', label: 'Chiudi il salvamotore e tieni premuto Marcia: il motore gira', do: ['toggle QM', 'press SB1'], expect: { motors: { M: 'fwd' } } },
+      { id: 'rilasciato', label: 'Rilascia Marcia: il motore si ferma', steps: [{ do: ['toggle QM', 'press SB1'], expect: { motors: { M: 'fwd' } } }, { do: ['release SB1'], expect: { motors: { M: 'off' } } }] },
+      { id: 'fermo', label: 'Senza comandi il motore è fermo', do: ['toggle QM'], expect: { motors: { M: 'off' } } },
+    ],
+    safety: { deadWork: ['QM'], earth: [['M.PE', 'Q.PE']], coilReturn: ['KM'], protectedBy: { M: 'QM', KM: 'QM' } },
+    solution: [
+      ['Q.L1', 'QM.1', 'marrone'], ['Q.L2', 'QM.3', 'nero'], ['Q.L3', 'QM.5', 'grigio'],
+      ['QM.2', 'KM.1', 'marrone'], ['QM.4', 'KM.3', 'nero'], ['QM.6', 'KM.5', 'grigio'],
+      ['KM.2', 'M.U', 'marrone'], ['KM.4', 'M.V', 'nero'], ['KM.6', 'M.W', 'grigio'], ['M.PE', 'Q.PE', 'gv'],
+      ['QM.2', 'SB1.3', 'rosso'], ['SB1.4', 'KM.A1', 'rosso'], ['KM.A2', 'Q.N', 'blu'],
+    ],
+    hints: [
+      'Potenza: le tre fasi passano dal salvamotore (1-2, 3-4, 5-6), dai tre contatti di potenza del teleruttore e arrivano a U, V, W del motore. Poi la terra del motore.',
+      'Comando: una fase presa a valle del salvamotore va al pulsante di marcia (morsetto 3), dal morsetto 4 alla bobina A1. L’altro capo della bobina, A2, va al neutro.',
+      'La bobina è da 230 V: tra una fase e il neutro. Tra due fasi riceverebbe 400 V e si brucerebbe. Si cabla con il salvamotore aperto.',
+    ],
+  },
+  {
     id: 'c12-motore', code: 'c12', n: 0, ...IND, flow: 'onDemand',
     name: 'Motore trifase', title: 'Il motore trifase',
     blurb: 'Tre fasi, 400 V e il senso di rotazione.',
@@ -316,7 +373,7 @@ export const LEVELS_V2 = [
       { id: 'gira', label: 'Chiudi il salvamotore: il motore gira in avanti', do: ['toggle QM'], expect: { motors: { M: 'fwd' } } },
       { id: 'fermo', label: 'Con il salvamotore aperto il motore è fermo', do: [], expect: { motors: { M: 'off' } } },
     ],
-    safety: { earth: [['M.PE', 'Q.PE']], protectedBy: { M: 'QM' } },
+    safety: { deadWork: ['QM'], earth: [['M.PE', 'Q.PE']], protectedBy: { M: 'QM' } },
     solution: [
       ['Q.L1', 'QM.1', 'marrone'], ['Q.L2', 'QM.3', 'nero'], ['Q.L3', 'QM.5', 'grigio'],
       ['QM.2', 'M.U', 'marrone'], ['QM.4', 'M.V', 'nero'], ['QM.6', 'M.W', 'grigio'], ['Q.PE', 'M.PE', 'gv'],
@@ -347,7 +404,7 @@ export const LEVELS_V2 = [
       { id: 'arresto', label: 'Premi Arresto: il motore si ferma e la spia si spegne', steps: [{ do: press('SB1'), expect: { motors: { M: 'fwd' } } }, { do: press('SB0'), expect: { motors: { M: 'off' }, loads: { H: 'off' } } }] },
       { id: 'fermo', label: 'Senza comandi il motore è fermo', do: [], expect: { motors: { M: 'off' } } },
     ],
-    safety: { earth: [['M.PE', 'Q.PE']], stopWins: 'SB0', coilReturn: ['KM'], protectedBy: { M: 'QM', KM: 'QM' } },
+    safety: { deadWork: ['QM'], earth: [['M.PE', 'Q.PE']], stopWins: 'SB0', coilReturn: ['KM'], protectedBy: { M: 'QM', KM: 'QM' } },
     solution: [
       ['Q.L1', 'QM.1', 'marrone'], ['Q.L2', 'QM.3', 'nero'], ['Q.L3', 'QM.5', 'grigio'],
       ['QM.2', 'KM.1', 'marrone'], ['QM.4', 'KM.3', 'nero'], ['QM.6', 'KM.5', 'grigio'],
@@ -382,7 +439,7 @@ export const LEVELS_V2 = [
       { id: 'arresto', label: 'Premi Arresto: il motore si ferma', steps: [{ do: press('SB1'), expect: { motors: { M: 'fwd' } } }, { do: press('SB0'), expect: { motors: { M: 'off' } } }] },
       { id: 'sovraccarico', label: 'Con un sovraccarico il termico scatta e il motore si ferma', steps: [{ do: press('SB1'), expect: { motors: { M: 'fwd' } } }, { do: ['overload on', 'wait 5'], expect: { motors: { M: 'off' }, tripped: ['FR'] } }] },
     ],
-    safety: { earth: [['M.PE', 'Q.PE']], stopWins: 'SB0', coilReturn: ['KM'], protectedBy: { M: 'QM', KM: 'QM' } },
+    safety: { deadWork: ['QM'], earth: [['M.PE', 'Q.PE']], stopWins: 'SB0', coilReturn: ['KM'], protectedBy: { M: 'QM', KM: 'QM' } },
     solution: [
       ['Q.L1', 'QM.1', 'marrone'], ['Q.L2', 'QM.3', 'nero'], ['Q.L3', 'QM.5', 'grigio'],
       ['QM.2', 'KM.1', 'marrone'], ['QM.4', 'KM.3', 'nero'], ['QM.6', 'KM.5', 'grigio'],
@@ -424,7 +481,7 @@ export const LEVELS_V2 = [
       { id: 'indietro', label: 'Premi Indietro e rilascia: il motore gira all’indietro', do: press('SB2'), expect: { motors: { M: 'rev' } } },
       { id: 'arresto', label: 'Premi Arresto: il motore si ferma', steps: [{ do: press('SB2'), expect: { motors: { M: 'rev' } } }, { do: press('SB0'), expect: { motors: { M: 'off' } } }] },
     ],
-    safety: { never: [['KM1', 'KM2']], coilReturn: ['KM1', 'KM2'], stopWins: 'SB0', earth: [['M.PE', 'Q.PE']], protectedBy: { M: 'QM', KM1: 'QM', KM2: 'QM' } },
+    safety: { deadWork: ['QM'], never: [['KM1', 'KM2']], coilReturn: ['KM1', 'KM2'], stopWins: 'SB0', earth: [['M.PE', 'Q.PE']], protectedBy: { M: 'QM', KM1: 'QM', KM2: 'QM' } },
     solution: [
       ['Q.L1', 'QM.1', 'marrone'], ['Q.L2', 'QM.3', 'nero'], ['Q.L3', 'QM.5', 'grigio'],
       ['QM.2', 'KM1.1', 'marrone'], ['QM.4', 'KM1.3', 'nero'], ['QM.6', 'KM1.5', 'grigio'],
@@ -467,7 +524,7 @@ export const LEVELS_V2 = [
       { id: 'arresto', label: 'Premi Arresto: il nastro si ferma', steps: [{ do: press('SB1'), expect: { motors: { M: 'fwd' } } }, { do: press('SB0'), expect: { motors: { M: 'off' } } }] },
       { id: 'emergenza', label: 'Premi il fungo di emergenza: il nastro si ferma', steps: [{ do: press('SB1'), expect: { motors: { M: 'fwd' } } }, { do: ['toggle SBE'], expect: { motors: { M: 'off' } } }] },
     ],
-    safety: { earth: [['M.PE', 'Q.PE']], stopWins: 'SB0', emergency: 'SBE', coilReturn: ['KM'], protectedBy: { M: 'QM', KM: 'QM' } },
+    safety: { deadWork: ['QM'], earth: [['M.PE', 'Q.PE']], stopWins: 'SB0', emergency: 'SBE', coilReturn: ['KM'], protectedBy: { M: 'QM', KM: 'QM' } },
     solution: [
       ['Q.L1', 'QM.1', 'marrone'], ['Q.L2', 'QM.3', 'nero'], ['Q.L3', 'QM.5', 'grigio'],
       ['QM.2', 'KM.1', 'marrone'], ['QM.4', 'KM.3', 'nero'], ['QM.6', 'KM.5', 'grigio'],

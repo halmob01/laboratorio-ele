@@ -589,6 +589,190 @@ export const UNITS_V2 = {
     },
   },
 
+  'c21-tre-fasi': {
+    support: 'passi',
+    lesson: {
+      pages: [
+        {
+          type: 'spiegazione',
+          title: 'Da una fase a tre fasi',
+          paras: [
+            'Un impianto industriale arriva con quattro conduttori attivi: tre fasi, L1, L2, L3, e il neutro. Ogni fase ha 230 V rispetto al neutro, come la fase di casa.',
+            'Tra due fasi la tensione è 400 V. Non è la somma di 230 più 230, perché le tre tensioni sono sfasate di un terzo di giro una dall’altra: tra due fasi si misurano 400 V, circa 1,73 volte 230.',
+          ],
+        },
+        {
+          type: 'spiegazione',
+          title: 'Perché tre fasi',
+          paras: [
+            'Con tre fasi sfasate un motore ha sempre una spinta che lo fa girare, e a parità di potenza servono cavi più sottili. Per questo le macchine usano il trifase.',
+            'Nel gioco le tre fasi hanno tre colori: marrone, nero e grigio. Il neutro resta blu e la terra giallo-verde.',
+          ],
+          warn: 'Una lampada da 230 V collegata tra due fasi riceve 400 V e si brucia.',
+        },
+        {
+          type: 'demo',
+          title: 'Guarda come si fa',
+          captions: {
+            wires: [
+              'La fase L1 va a un morsetto della lampada.',
+              'Il neutro va all’altro morsetto: 230 V, la lampada si accende.',
+            ],
+            power: 'Il quadro è alimentato: la lampada si accende.',
+            controls: [],
+          },
+        },
+        {
+          type: 'previsione',
+          question: 'Una lampada da 230 V viene collegata tra la fase L1 e la fase L2. Che cosa succede?',
+          options: [
+            { id: 'a', text: 'Si accende normalmente.' },
+            { id: 'b', text: 'Si accende molto più debole.' },
+            { id: 'c', text: 'Riceve 400 V e si brucia.' },
+          ],
+          correct: 'c',
+          why: 'Tra due fasi ci sono 400 V, quasi il doppio di quello che la lampada sopporta. Una lampada da 230 V va sempre tra una fase e il neutro.',
+        },
+        { type: 'sintesi', title: 'Da ricordare' },
+      ],
+    },
+    steps: [
+      { kind: 'wire', from: 'Q.L1', to: ['L.A', 'L.B'], color: 'marrone', short: '1 Fase', title: 'La fase alla lampada', text: 'Dalla fase L1 del quadro a un morsetto della lampada.' },
+      { kind: 'wire', from: 'Q.N', to: ['L.A', 'L.B'], color: 'blu', short: '2 Neutro', title: 'Il neutro alla lampada', text: 'Dal NEUTRO del quadro all’altro morsetto della lampada.' },
+      { kind: 'measure', between: ['Q.L1', 'Q.N'], mode: 'V', value: 230, live: true, short: '3 Fase-neutro', title: 'Misura 230 V', text: 'Dai corrente con la levetta del quadro, tocca Multimetro, poi L1 (rosso) e NEUTRO (nero): leggi 230 V.' },
+      { kind: 'measure', between: ['Q.L1', 'Q.L2'], mode: 'V', value: 400, live: true, short: '4 Fase-fase', title: 'Misura 400 V', text: 'Metti i puntali su L1 e su L2: leggi 400 V.' },
+      { kind: 'verify', short: '5 Verifica', title: 'Controlla l’impianto', text: 'Premi Verifica.' },
+    ],
+    summary: [
+      'Un impianto trifase ha tre fasi, L1, L2, L3, più il neutro.',
+      'Tra una fase e il neutro ci sono 230 V; tra due fasi ce ne sono 400.',
+      'Un carico da 230 V va tra una fase e il neutro, mai tra due fasi.',
+      'Le tre fasi hanno tre colori diversi: marrone, nero, grigio.',
+    ],
+    fault: {
+      say: 'La lampada è già collegata e non si accende più. Guarda dove sono collegati i suoi morsetti e misura.',
+      wires: [['Q.L1', 'L.A', 'marrone'], ['Q.L2', 'L.B', 'nero']],
+      diagnosis: {
+        question: 'Perché la lampada si è bruciata?',
+        options: [
+          { id: 'a', text: 'È collegata tra due fasi e riceve 400 V.' },
+          { id: 'b', text: 'Manca il filo di terra.' },
+          { id: 'c', text: 'Il neutro è troppo lungo.' },
+        ],
+        correct: 'a',
+        why: 'I suoi due morsetti sono su L1 e L2: tra due fasi ci sono 400 V, e la lampada è da 230 V. Va collegata tra una fase e il neutro.',
+      },
+      fixSay: 'Sposta uno dei due fili sul neutro: la lampada deve stare tra L1 e il neutro. Poi premi Verifica.',
+    },
+  },
+
+  'c22-teleruttore': {
+    support: 'passi',
+    lesson: {
+      pages: [
+        {
+          type: 'spiegazione',
+          title: 'Un comando piccolo per una potenza grande',
+          paras: [
+            'Un motore trifase assorbe molta corrente a 400 V: un pulsante non la regge e sarebbe pericoloso tenerla in mano. Il teleruttore (o contattore) separa le due parti.',
+            'Ha una bobina, che si comanda con un pulsante a 230 V, e tre contatti di potenza. Quando la bobina è alimentata, i tre contatti chiudono e il motore riceve le tre fasi.',
+          ],
+        },
+        {
+          type: 'pezzi',
+          title: 'La bobina e i contatti',
+          focus: ['KM'],
+          paras: [
+            'I morsetti A1 e A2 sono la bobina: va collegata tra una fase e il neutro, 230 V. Tra due fasi riceverebbe 400 V e si brucerebbe.',
+            'I morsetti 1-2, 3-4, 5-6 sono i tre contatti di potenza. Il morsetto 13-14 è un contatto ausiliario, che servirà nel prossimo livello.',
+          ],
+          warn: 'Il circuito di comando e quello di potenza sono separati: i fili del comando si disegnano in rosso.',
+        },
+        {
+          type: 'spiegazione',
+          title: 'Si lavora senza tensione',
+          paras: [
+            'Da questo livello l’impianto ha un sezionamento, il salvamotore. Prima di collegare qualunque filo lo si apre, poi si cabla, e solo alla fine lo si chiude per provare.',
+            'Collegare fili con il sezionamento chiuso, cioè con i morsetti in tensione, è pericoloso: nel gioco vale una stella di sicurezza in meno.',
+          ],
+          warn: 'Il lato di ingresso del salvamotore resta sempre in tensione: collegarvi i fili del quadro è normale, quello che conta è tenere aperto il sezionamento.',
+        },
+        {
+          type: 'demo',
+          title: 'Guarda come si fa',
+          captions: {
+            wires: [
+              'La fase L1 entra nel salvamotore, morsetto 1.',
+              'La fase L2 entra nel salvamotore, morsetto 3.',
+              'La fase L3 entra nel salvamotore, morsetto 5.',
+              'Dal salvamotore al primo contatto di potenza del teleruttore.',
+              'Dal salvamotore al secondo contatto di potenza.',
+              'Dal salvamotore al terzo contatto di potenza.',
+              'Dal teleruttore al morsetto U del motore.',
+              'Dal teleruttore al morsetto V del motore.',
+              'Dal teleruttore al morsetto W del motore.',
+              'La terra del quadro al motore.',
+              'Il comando: una fase a valle del salvamotore va al pulsante.',
+              'Dal pulsante alla bobina A1.',
+              'La bobina A2 va al neutro.',
+            ],
+            power: 'Il salvamotore è aperto: tutto a valle è senza tensione.',
+            controls: ['Salvamotore chiuso e pulsante premuto: il teleruttore chiude e il motore gira.'],
+          },
+        },
+        {
+          type: 'previsione',
+          question: 'La bobina di un teleruttore da 230 V viene collegata tra due fasi (400 V). Che cosa succede?',
+          options: [
+            { id: 'a', text: 'Il teleruttore chiude e funziona normalmente.' },
+            { id: 'b', text: 'La bobina riceve troppa tensione e si brucia.' },
+            { id: 'c', text: 'Il teleruttore non chiude, ma non si rovina.' },
+          ],
+          correct: 'b',
+          why: 'La bobina è fatta per 230 V. Con 400 V assorbe molta più corrente e si brucia. Va collegata tra una fase e il neutro.',
+        },
+        { type: 'sintesi', title: 'Da ricordare' },
+      ],
+    },
+    steps: [
+      { kind: 'wire', from: 'Q.L1', to: ['QM.1'], color: 'marrone', short: '1 Linea', title: 'Le fasi al salvamotore', text: 'Con il salvamotore aperto, porta L1, L2 e L3 ai morsetti in alto del salvamotore: 1, 3 e 5.' },
+      { kind: 'wire', from: 'QM.2', to: ['KM.1'], color: 'marrone', short: '2 Contatti', title: 'Ai contatti di potenza', text: 'Dai morsetti 2, 4, 6 del salvamotore ai morsetti 1, 3, 5 del teleruttore.' },
+      { kind: 'wire', from: 'KM.2', to: ['M.U'], color: 'marrone', short: '3 Motore', title: 'Al motore', text: 'Dai morsetti 2, 4, 6 del teleruttore ai morsetti U, V, W del motore.' },
+      { kind: 'wire', from: 'M.PE', to: ['Q.PE'], color: 'gv', short: '4 Terra', title: 'La terra del motore', text: 'Dal morsetto PE del motore alla terra del quadro.' },
+      { kind: 'wire', from: 'QM.2', to: ['SB1.3'], color: 'rosso', short: '5 Comando', title: 'Il comando al pulsante', text: 'Una fase a valle del salvamotore (morsetto 2) al morsetto 3 del pulsante, in rosso.' },
+      { kind: 'wire', from: 'SB1.4', to: ['KM.A1'], color: 'rosso', short: '6 Bobina', title: 'Dal pulsante alla bobina', text: 'Dal morsetto 4 del pulsante al morsetto A1 della bobina.' },
+      { kind: 'wire', from: 'KM.A2', to: ['Q.N'], color: 'blu', short: '7 Neutro', title: 'La bobina al neutro', text: 'Dal morsetto A2 della bobina al neutro.' },
+      { kind: 'control', id: 'SB1', short: '8 Prova', title: 'Prova il comando', text: 'Chiudi il salvamotore e tieni premuto Marcia: il motore gira. Rilascia: si ferma.' },
+      { kind: 'verify', short: '9 Verifica', title: 'Controlla l’impianto', text: 'Premi Verifica.' },
+    ],
+    summary: [
+      'Il teleruttore separa il comando a 230 V dalla potenza a 400 V.',
+      'La bobina (A1-A2) va tra una fase e il neutro; i contatti 1-2, 3-4, 5-6 portano la potenza al motore.',
+      'Senza autoritenuta il motore gira solo finché si tiene premuto il pulsante.',
+      'Si cabla con il sezionamento aperto: collegare fili in tensione è pericoloso.',
+    ],
+    fault: {
+      say: 'Il teleruttore è già cablato, ma tenendo premuto il pulsante il motore non parte. Guarda dove è collegata la bobina.',
+      wires: [
+        ['Q.L1', 'QM.1', 'marrone'], ['Q.L2', 'QM.3', 'nero'], ['Q.L3', 'QM.5', 'grigio'],
+        ['QM.2', 'KM.1', 'marrone'], ['QM.4', 'KM.3', 'nero'], ['QM.6', 'KM.5', 'grigio'],
+        ['KM.2', 'M.U', 'marrone'], ['KM.4', 'M.V', 'nero'], ['KM.6', 'M.W', 'grigio'], ['M.PE', 'Q.PE', 'gv'],
+        ['QM.2', 'SB1.3', 'rosso'], ['SB1.4', 'KM.A1', 'rosso'], ['KM.A2', 'QM.4', 'rosso'],
+      ],
+      diagnosis: {
+        question: 'Perché il motore non parte?',
+        options: [
+          { id: 'a', text: 'La bobina è collegata tra due fasi: riceve 400 V e si è bruciata.' },
+          { id: 'b', text: 'Il motore non ha la terra.' },
+          { id: 'c', text: 'Il pulsante è un contatto normalmente chiuso.' },
+        ],
+        correct: 'a',
+        why: 'Il morsetto A2 della bobina è su una fase invece che sul neutro: la bobina è tra due fasi, 400 V, e si brucia. L’altro capo della bobina va al neutro.',
+      },
+      fixSay: 'Porta A2 della bobina al neutro, con il salvamotore aperto. Poi premi Verifica.',
+    },
+  },
+
   'c12-motore': {
     support: 'passi',
     lesson: {
@@ -645,6 +829,15 @@ export const UNITS_V2 = {
             power: 'Il salvamotore è aperto: il motore è fermo.',
             controls: ['Salvamotore chiuso: le tre fasi arrivano al motore e il motore gira in avanti.'],
           },
+        },
+        {
+          type: 'spiegazione',
+          title: 'Il salvamotore e il lavoro senza tensione',
+          paras: [
+            'Il salvamotore parte aperto: lascialo aperto mentre colleghi i fili, e chiudilo solo alla fine per provare. Collegare fili con i morsetti in tensione è pericoloso, e nel gioco vale una stella di sicurezza in meno.',
+            'Se il motore riceve solo due delle tre fasi non gira: ronza e si scalda. Anche per questo il salvamotore interrompe tutte e tre le fasi insieme.',
+          ],
+          warn: 'Il lato di ingresso del salvamotore resta in tensione anche da aperto: il quadro è a monte.',
         },
         {
           type: 'previsione',

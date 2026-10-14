@@ -22,3 +22,8 @@ export function doRatings(s, L) {
     for (let i = 0; i < 8 && s.snapshot().obs.parts[id].in !== want; i++) s.rateControl(id);
   });
 }
+
+// Lavoro fuori tensione: prima di cablare si apre il sezionamento (se e' chiuso).
+export function openIsolators(s, L) {
+  ((L.safety && L.safety.deadWork) || []).forEach(id => { if (s.snapshot().controlStates[id] === 1) s.toggleControl(id); });
+}

@@ -446,3 +446,33 @@ test('c17: le letture del multimetro non sopravvivono a una modifica dei fili', 
   L.solution.forEach(([a, b, c]) => s.addWire(a, b, c));
   assert.equal(s.check().pass, false);
 });
+
+test('lavoro fuori tensione: cablare con il salvamotore chiuso toglie la stella di sicurezza', () => {
+  const mk = () => { const s = _cs({ levels: _lv, deriveFull: _df, initialLevel: 'c13-marcia-arresto' }); s.skipLesson(); return s; };
+  const L = _lv.find(l => l.id === 'c13-marcia-arresto');
+  const live = mk();                                  // il salvamotore parte chiuso: i morsetti a valle sono in tensione
+  L.solution.forEach(([a, b, c]) => live.addWire(a, b, c));
+  const r1 = live.check();
+  assert.equal(r1.pass, false);
+  assert.ok(r1.safe.items.some(i => i.code === 'safe.liveWork'));
+  const dead = mk();                                  // aprendo prima il salvamotore si lavora senza tensione
+  dead.toggleControl('QM');
+  L.solution.forEach(([a, b, c]) => dead.addWire(a, b, c));
+  assert.equal(dead.check().pass, true);
+});
+
+test('lavoro fuori tensione: il lato di linea del sezionamento non conta, il lato di carico si', () => {
+  const L = _lv.find(l => l.id === 'c13-marcia-arresto');
+  const run = closeBefore => {
+    const s = _cs({ levels: _lv, deriveFull: _df, initialLevel: 'c13-marcia-arresto' }); s.skipLesson();
+    s.toggleControl('QM');                            // aperto
+    const rest = L.solution.filter(([a]) => !['Q.L1', 'Q.L2', 'Q.L3'].includes(a));
+    ['Q.L1', 'Q.L2', 'Q.L3'].forEach(q => { const w = L.solution.find(x => x[0] === q); s.addWire(...w); });   // lato di linea: nessun problema
+    if (closeBefore) s.toggleControl('QM');
+    rest.forEach(w => s.addWire(...w));
+    if (!closeBefore) s.toggleControl('QM');
+    return s.check();
+  };
+  assert.equal(run(false).pass, true);
+  assert.ok(run(true).safe.items.some(i => i.code === 'safe.liveWork'));
+});

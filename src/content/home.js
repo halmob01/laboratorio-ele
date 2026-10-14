@@ -34,7 +34,9 @@ export const MODULES = [
     tag: 'MODULO 3',
     title: 'Industriale',
     levels: [
+      'c21-tre-fasi',
       'c12-motore',
+      'c22-teleruttore',
       'c13-marcia-arresto',
       'c14-termico',
       'c15-inversione',

@@ -137,6 +137,7 @@ export function itemText(item, level) {
     case 'safe.emergency': return 'Con il pulsante di emergenza premuto qualcosa resta alimentato: l’emergenza deve fermare tutto.';
     case 'safe.restartAfterEmergency': return 'Sbloccando l’emergenza la macchina riparte da sola: deve ripartire solo con un nuovo comando di marcia.';
     case 'safe.notCovered': return 'Un carico (' + nameOf(level, item.comp) + ') non è protetto dal differenziale.';
+    case 'safe.liveWork': return 'Hai cambiato i fili mentre il sezionamento (' + nameOf(level, item.comp) + ') era chiuso e i morsetti erano in tensione. Prima si apre il sezionamento, si verifica che non ci sia tensione, poi si cabla.';
     case 'safe.neutralEarth': return 'Neutro e terra sono collegati tra loro: il filo di protezione non deve mai portare corrente.';
     case 'safe.ok':
       if (item.variant === 'v2') return 'Le regole di sicurezza del livello sono rispettate.';
