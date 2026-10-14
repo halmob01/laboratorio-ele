@@ -115,6 +115,13 @@ export function itemText(item, level) {
     case 'work.loadOnEarth': return 'Un carico (' + nameOf(level, item.comp) + ') è collegato tra la fase e la terra: la corrente torna dal filo di protezione. Il ritorno va sul neutro.';
     case 'work.allControlsOk': return 'Ogni comando cambia la luce, in qualunque posizione si trovino gli altri.';
 
+    case 'prova.allDone': return 'Tutti i traguardi della prova sono raggiunti (' + item.n + ').';
+    case 'prova.goalMissing': return 'Manca ancora: ' + item.label + (item.n > 1 ? ' (restano ' + item.n + ' traguardi).' : '.');
+    case 'color.given': return 'I cavi sono già posati a norma: in questa prova non si cabla.';
+    case 'safe.provaOk': return 'Hai lavorato in sicurezza: nessuna regola violata durante la prova.';
+    case 'safe.provaLive': return 'Hai staccato una spina (' + nameOf(level, item.comp) + ') con la linea in tensione. Prima si apre il magnetotermico. Premi Ricomincia per riprovare.';
+    case 'safe.provaOverload': return 'Hai riarmato il relè termico con il sovraccarico ancora attivo. Prima si toglie la causa, poi si riarma. Premi Ricomincia per riprovare.';
+
     case 'color.noWires': return 'Collega prima qualche filo.';
     case 'color.wrong':
       return 'Il filo ' + termName(level, item.a) + ' → ' + termName(level, item.b) + ' è un filo ' + ROLE_OF[item.role] + ': deve essere ' + COLOR_NEEDED[item.role] + '.';

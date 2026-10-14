@@ -14,6 +14,7 @@ import { INTRO } from '../content/home.js';
 import { setLang, detect, onLang } from '../i18n/index.js';
 import '../i18n/ar.js';
 import { createHouse, isHouseLevel, firstCircuit } from '../trilocale/page.js';
+import { createProvaPage, isProveLevel } from '../prove3d/page.js';
 
 const $ = s => document.querySelector(s);
 const MQ = window.matchMedia('(max-width:919px)');
@@ -39,6 +40,7 @@ const session = createSession({ levels, deriveFull, storage });
 /* ---------- stato della sola vista ---------- */
 let S = null;           // ultima istantanea della sessione
 const house = createHouse(document.querySelector('#house'), { session, go: h => { location.hash = h; }, reduced: () => REDUCED.matches });
+const prova = createProvaPage(document.querySelector('#house'), { session, reduced: () => REDUCED.matches, onState: st => { const sc = document.querySelector('#screen-level'); if (sc) sc.classList.toggle('no3d', st === 'failed'); } });
 let comps = [];         // componenti con geometria per il livello corrente
 let lastKey = null;
 let rebuild = false;    // forza il ridisegno della scena anche se il livello non cambia
@@ -172,10 +174,16 @@ function renderLevelScreen() {
   const ph = S.unit ? S.unit.phase : 'build';
   const inLesson = !!S.unit && ph === 'lesson' && S.playMode === 'apprendimento';
   const scr = $('#screen-level');
-  const hl = isHouseLevel(S.level.id);
-  scr.className = 'phase-' + (inLesson ? 'learn' : 'play') + (S.playMode === 'verifica' ? ' verify' : '') + (hl ? ' with-house' : '');
-  $('#house').hidden = !hl;
-  if (hl) house.sync(S); else if (house.isMounted()) house.unmount();
+  const hl = isHouseLevel(S.level.id), pl = isProveLevel(S.level.id);
+  scr.className = 'phase-' + (inLesson ? 'learn' : 'play') + (S.playMode === 'verifica' ? ' verify' : '') + (hl || pl ? ' with-house' : '') + (pl ? ' prova' : '') + (pl && prova.state() === 'failed' ? ' no3d' : '');
+  $('#house').hidden = !(hl || pl);
+  if (hl) { if (prova.isMounted()) prova.unmount(); house.sync(S); }
+  else if (pl) { if (house.isMounted()) house.unmount(); prova.sync(S); }
+  else { if (house.isMounted()) house.unmount(); if (prova.isMounted()) prova.unmount(); }
+  // prove dei moduli: l'impianto e' gia' cablato, niente fili da togliere ne' soluzione da mostrare; si puo' ricominciare
+  $('#bUndo').hidden = $('#bClear').hidden = pl;
+  $('#bReset').hidden = !pl;
+  $('#palette').hidden = pl;
   $('#lesson').hidden = !inLesson;
   $('#work').hidden = inLesson;
   if (inLesson) { renderLesson(); return; }
@@ -188,6 +196,7 @@ function renderLevelScreen() {
   const doneBefore = (S.levels.find(l => l.id === S.level.id) || {}).stars > 0;
   $('#modeBar').hidden = S.level.quadroOnly || S.playMode === 'verifica' || (!!S.unit && ph !== 'done' && !doneBefore);
   $('#bHint').hidden = $('#bSol').hidden = S.playMode === 'verifica';
+  if (pl) $('#bSol').hidden = true;
   $('#bSol').textContent = S.solutionShown ? 'Nascondi soluzione' : 'Mostra soluzione';
   $('#bSol').setAttribute('aria-pressed', String(S.solutionShown));
   const fl = $('#bFlow');
@@ -215,7 +224,7 @@ function render() {
   $('#screen-home').hidden = !home;
   $('#screen-quaderno').hidden = !qd;
   $('#screen-level').hidden = home || qd;
-  if (home || qd) house.unmount();
+  if (home || qd) { house.unmount(); prova.unmount(); }
   if (qd) { stopDemo(); demo.page = -1; $('#screen-quaderno').innerHTML = V.quadernoHTML(S, levels); return; }
   if (home) {
     stopDemo(); demo.page = -1;
@@ -386,6 +395,7 @@ bench.addEventListener('keydown', e => {
 });
 document.addEventListener('click', e => { if (e.target.closest('[data-overload]')) session.setOverload(!S.overload); });
 document.addEventListener('click', e => { if (e.target.closest('[data-rewind]')) session.rewind(); });
+document.addEventListener('click', e => { if (e.target.closest('#bReset')) session.resetProva(); });
 $('#room').addEventListener('click', e => { const c = e.target.closest('[data-ctl]'); if (c) session.toggleControl(c.dataset.ctl); });
 $('#room').addEventListener('keydown', e => {
   const hd = e.target.closest('[data-hold]');

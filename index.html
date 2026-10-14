@@ -473,6 +473,7 @@ a.tool{display:flex;align-items:center;justify-content:center;text-decoration:no
 .pbrk rect{fill:#2F3A46}
 .pbrk text{fill:#fff;font:700 12px sans-serif}
 .with-house .roomcard{display:none}
+.with-house.no3d .roomcard{display:block}
 .trimod .tricard{display:flex;flex-direction:column;gap:12px;align-items:flex-start;background:var(--card);border:1.5px solid var(--line);border-radius:12px;padding:16px}
 .trimod .tricard p{margin:0;color:var(--ink2)}
 @media (min-width:920px){
@@ -567,6 +568,7 @@ html[lang="it"] .trnote{display:none}
               <div class="actions">
                 <button class="btn" id="bUndo">Annulla</button>
                 <button class="btn" id="bClear">Annulla tutto</button>
+                <button class="btn" id="bReset" hidden>Ricomincia</button>
                 <button class="btn" id="bFlow" aria-pressed="false" hidden>Mostra la corrente</button>
                 <button class="btn" id="bMeter" aria-pressed="false" hidden>Multimetro</button>
                 <button class="btn" id="bHint">Suggerimento</button>
@@ -993,6 +995,7 @@ html[lang="it"] .trnote{display:none}
       if (st.kind === "wire") d = !ctx.fault && wireDone(st, wires);
       else if (st.kind === "power") d = !!ctx.power;
       else if (st.kind === "control") d = operated.has(st.id);
+      else if (st.kind === "goal") d = !!(ctx.goals && ctx.goals[st.id]);
       else if (st.kind === "measure") d = (ctx.measured || []).some((m) => measureMatches(st, m));
       else if (st.kind === "rate") d = !!ctx.ratings && ctx.ratings[st.id] === st.value;
       else if (st.kind === "verify") d = !!(ctx.result && ctx.result.pass);
@@ -1105,7 +1108,7 @@ html[lang="it"] .trnote{display:none}
     sez: { contacts: (c2, s) => pole(s.on, [["1", "2"], ["3", "4"], ["5", "6"]]), init: (c2) => ({ on: c2.init !== 0, tripped: false }), actions: ["toggle"] },
     rcd: { protect: "terra", contacts: (c2, s) => pole(s.on, [["1", "2"], ["N1", "N2"]]), poles: { F: ["1", "2"], N: ["N1", "N2"] }, init: (c2) => ({ on: c2.init !== 0, tripped: false }), actions: ["toggle", "test"] },
     // dispersione verso terra (guasto d'isolamento): non ha morsetti. `at` e' il punto del circuito dove l'isolante cede, `levels` le correnti disperse (mA) tra cui scegliere
-    gu: { contacts: () => [], init: (c2) => ({ on: false, mA: (c2.levels || [30])[0] }), actions: ["toggle", "rate"] },
+    gu: { contacts: () => [], init: (c2) => ({ on: !!c2.init, mA: (c2.levels || [30])[0] }), actions: ["toggle", "rate"] },
     // relè e contattori: la bobina e' un carico, il resto sono contatti
     ri: { coil: ["A1", "A2"], contacts: (c2, s) => pole(s.on, [["1", "2"]]), init: () => ({ on: false, coil: false }) },
     // relè con contatto di scambio: 11 comune, 12 chiuso a riposo (NC), 14 chiuso a bobina eccitata (NA)
@@ -2068,6 +2071,79 @@ html[lang="it"] .trnote{display:none}
     };
   }
 
+  // src/engine/v2/prova.js
+  var isProva = (level) => !!level && !!level.prova;
+  var givenWires = (level) => (level.given || []).map(([a, b, c2]) => ({ a, b, c: c2 }));
+  function holds(when, obs2, sim) {
+    if (!when) return true;
+    for (const group of ["loads", "motors", "coils"]) {
+      for (const [id, v] of Object.entries(when[group] || {})) if (obs2[group][id] !== v) return false;
+    }
+    const on = (id) => !!(sim.parts[id] && sim.parts[id].on);
+    if ((when.open || []).some(on)) return false;
+    if ((when.closed || []).some((id) => !on(id))) return false;
+    if ((when.tripped || []).some((id) => !obs2.tripped.includes(id))) return false;
+    if ((when.notTripped || []).some((id) => obs2.tripped.includes(id))) return false;
+    for (const [k, v] of Object.entries(when.machine || {})) if (!obs2.machine || obs2.machine[k] !== v) return false;
+    if (when.overload !== void 0 && !!sim.overload !== when.overload) return false;
+    return true;
+  }
+  var newLog = () => ({ done: {}, violations: [] });
+  function track(level, log, obs2, sim, measured = []) {
+    const goals = level.prova.goals;
+    let moved2 = true;
+    while (moved2) {
+      moved2 = false;
+      goals.forEach((g) => {
+        if (log.done[g.id] || g.now) return;
+        if (g.after && !log.done[g.after]) return;
+        if (!holds(g.when, obs2, sim)) return;
+        if (g.measure && !measured.some((m) => measureMatches(g.measure, m))) return;
+        log.done[g.id] = true;
+        moved2 = true;
+      });
+    }
+  }
+  function guard(level, log, action, partId, obs2, sim) {
+    (level.prova.guards || []).forEach((g) => {
+      if (g.part !== partId || g.on !== action) return;
+      if (holds(g.require, obs2, sim)) return;
+      if (!log.violations.some((v) => v.id === g.id)) log.violations.push({ id: g.id, code: g.code, comp: g.part });
+    });
+  }
+  function goalsState(level, log, obs2, sim) {
+    return level.prova.goals.map((g) => ({
+      id: g.id,
+      label: g.label,
+      done: g.now ? !!(g.after ? log.done[g.after] : true) && holds(g.when, obs2, sim) : !!log.done[g.id]
+    }));
+  }
+  function evaluateProva(level, log, obs2, sim) {
+    const goals = goalsState(level, log, obs2, sim);
+    const missing = goals.filter((g) => !g.done);
+    const sec = (ok) => ({ ok, status: ok ? "ok" : "ko", items: [] });
+    const out = { work: sec(!missing.length), color: sec(true), safe: sec(false) };
+    if (!missing.length) out.work.items.push({ code: "prova.allDone", n: goals.length });
+    else {
+      out.work.items.push({ code: "prova.goalMissing", label: missing[0].label, n: missing.length });
+    }
+    out.color.items.push({ code: "color.given" });
+    if (!missing.length) {
+      if (!log.violations.length) {
+        out.safe.ok = true;
+        out.safe.status = "ok";
+        out.safe.items.push({ code: "safe.provaOk" });
+      } else log.violations.slice(0, 3).forEach((v) => out.safe.items.push({ code: v.code, comp: v.comp }));
+    } else {
+      out.safe.status = "na";
+      out.safe.items.push({ code: "safe.skipped" });
+    }
+    out.stars = (out.work.ok ? 1 : 0) + 1 + (out.safe.ok ? 1 : 0);
+    out.pass = out.stars === 3;
+    out.checks = goals.map((g) => ({ id: g.id, label: g.label, ok: g.done, fail: null }));
+    return out;
+  }
+
   // src/engine/session.js
   function memoryStorage() {
     let data = {};
@@ -2112,7 +2188,10 @@ html[lang="it"] .trnote{display:none}
       const k = keyOf(i, m);
       return levelCache[k] || (levelCache[k] = m === "contatore" ? deriveFull2(levels2[i]) : levels2[i]);
     };
-    const wires = () => wiresByKey[keyOf()] || (wiresByKey[keyOf()] = []);
+    const initialWires = () => isProva(levelAt()) ? givenWires(levelAt()).map((w) => ({ id: nextWireId++, ...w })) : [];
+    const wires = () => wiresByKey[keyOf()] || (wiresByKey[keyOf()] = initialWires());
+    const provaBy = {};
+    const provaLog = () => provaBy[keyOf()] || (provaBy[keyOf()] = newLog());
     const states = () => statesByKey[keyOf()] || (statesByKey[keyOf()] = {});
     const usage = () => usageByKey[keyOf()] || (usageByKey[keyOf()] = { hints: 0, solution: false, checks: 0 });
     const startPhase = (i = levelIndex) => {
@@ -2236,7 +2315,7 @@ html[lang="it"] .trnote{display:none}
     function stepsPart(level, phase) {
       const u = level.unit;
       if (!u || !u.steps || playMode !== "apprendimento" || phase === "lesson") return { steps: null, ghost: null };
-      const st = stepsState(u.steps, wires(), { power, operated: operated(), result: resultsByKey[keyOf()] || null, fault: !!analysisOf(level).fault, measured: measuredBy[keyOf()] || [], ratings: ratingsOf() });
+      const st = stepsState(u.steps, wires(), { goals: isProva(level) ? provaLog().done : null, power, operated: operated(), result: resultsByKey[keyOf()] || null, fault: !!analysisOf(level).fault, measured: measuredBy[keyOf()] || [], ratings: ratingsOf() });
       const cur = st.current === null ? null : u.steps[st.current];
       const ghost = phase === "build" && u.support === "guidato" && cur ? ghostFor(cur, wires()) : null;
       return { steps: { list: u.steps, done: st.done, current: st.current }, ghost };
@@ -2275,6 +2354,8 @@ html[lang="it"] .trnote{display:none}
         overload: is2 ? !!simFor().overload : false,
         // multimetro: solo nei livelli che lo dichiarano (`meter: true`)
         meter: is2 && level.meter ? { on: meterOf().on, mode: meterOf().mode, a: meterOf().a, b: meterOf().b, reading: readMeter(level) } : null,
+        // prove dei moduli: traguardi raggiunti e regole di sicurezza violate
+        prova: isProva(level) ? { goals: goalsState(level, provaLog(), view2.obs, simFor()), violations: provaLog().violations.map((v) => ({ ...v })) } : null,
         flowVisible: flowVisible(level),
         result: resultsByKey[keyOf()] || null,
         solutionShown,
@@ -2312,7 +2393,7 @@ html[lang="it"] .trnote{display:none}
       const l = levels2[levelIndex];
       const u = unitByKey[levelIndex];
       if (u && u.phase === "fault") return;
-      const ws = (wiresByKey[keyOf()] || []).map((x) => ({ id: x.id, a: x.a, b: x.b, c: x.c }));
+      const ws = isProva(l) ? [] : (wiresByKey[keyOf()] || []).map((x) => ({ id: x.id, a: x.a, b: x.b, c: x.c }));
       const st = { ...statesByKey[keyOf()] || {} };
       const rt = {};
       const rs = mode === "quadro" ? ratingsOf() : {};
@@ -2360,7 +2441,7 @@ html[lang="it"] .trnote{display:none}
       levels2.forEach((l, i) => {
         MODES.forEach((m) => {
           const e2 = isObj(data.w) ? data.w[workKeyOf(i, m)] : null;
-          if (!isObj(e2) || m === "contatore" && l.quadroOnly) return;
+          if (!isObj(e2) || m === "contatore" && l.quadroOnly || isProva(l)) return;
           const lv = levelAt(i, m);
           const known = new Set(lv.comps.flatMap((c2) => Object.keys(c2.terms).map((t) => c2.id + "." + t)));
           const seen = /* @__PURE__ */ new Set();
@@ -2490,8 +2571,21 @@ html[lang="it"] .trnote{display:none}
       else delete unitByKey[levelIndex];
       delete verifyStash[levelIndex];
     }
+    function trackNow() {
+      const lv = levelAt();
+      if (!v2(lv) || !isProva(lv)) return;
+      const sim = simFor();
+      track(lv, provaLog(), observe(sim), sim, measuredBy[keyOf()] || []);
+    }
+    function guardNow(action, id) {
+      const lv = levelAt();
+      if (!v2(lv) || !isProva(lv)) return;
+      const sim = simFor();
+      guard(lv, provaLog(), action, id, observe(sim), sim);
+    }
     const emit = () => {
       logMeter();
+      trackNow();
       const s = snapshot();
       saveWork();
       listeners2.forEach((f) => f(s));
@@ -2654,6 +2748,7 @@ html[lang="it"] .trnote{display:none}
       // Collega a-b con il colore dato; se il filo esiste gia' lo toglie.
       addWire(a, b, color) {
         if (!a || !b || a === b) return;
+        if (isProva(levelAt())) return;
         if (!inBuildOrFault()) return;
         const ws = wires();
         const k = ws.findIndex((w) => w.a === a && w.b === b || w.a === b && w.b === a);
@@ -2666,6 +2761,7 @@ html[lang="it"] .trnote{display:none}
         emit();
       },
       removeWire(id) {
+        if (isProva(levelAt())) return;
         if (!inBuildOrFault()) return;
         const ws = wires();
         const k = ws.findIndex((x) => x.id === id);
@@ -2678,6 +2774,7 @@ html[lang="it"] .trnote{display:none}
         emit();
       },
       undo() {
+        if (isProva(levelAt())) return;
         if (!wires().length || !inBuildOrFault()) return;
         const lw = wires()[wires().length - 1];
         const fresh = noteLive([lw.a, lw.b]);
@@ -2688,6 +2785,7 @@ html[lang="it"] .trnote{display:none}
         emit();
       },
       clear() {
+        if (isProva(levelAt())) return;
         if (!inBuildOrFault()) return;
         if (!wires().length) {
           delete liveEditsBy[keyOf()];
@@ -2734,6 +2832,7 @@ html[lang="it"] .trnote{display:none}
           const c2 = levelAt().comps.find((x) => x.id === id);
           if (!c2) return;
           const sim = simFor();
+          guardNow(HOLD.has(c2.type) ? "press" : "toggle", id);
           if (HOLD.has(c2.type)) {
             act(sim, "press", id);
             act(sim, "release", id);
@@ -2769,6 +2868,7 @@ html[lang="it"] .trnote{display:none}
         const sim = simFor();
         const c2 = levelAt().comps.find((x) => x.id === id);
         if (!c2) return;
+        guardNow(action, id);
         try {
           act(sim, action, id);
         } catch (e) {
@@ -2789,6 +2889,7 @@ html[lang="it"] .trnote{display:none}
       // Livelli con relè termico: simula un sovraccarico (il motore assorbe troppo) per provare la protezione.
       setOverload(on) {
         if (!v2()) return;
+        guardNow(on ? "overload" : "overloadOff", "*");
         simFor().overload = !!on;
         emit();
       },
@@ -2835,6 +2936,21 @@ html[lang="it"] .trnote{display:none}
         m.last = "";
         emit();
       },
+      // Prove dei moduli: si ricomincia da capo (l'impianto resta com'e', cambiano comandi, traguardi e misure).
+      resetProva() {
+        if (!isProva(levelAt())) return;
+        const k = keyOf();
+        delete provaBy[k];
+        delete measuredBy[k];
+        delete operatedByKey[k];
+        delete resultsByKey[k];
+        if (meterBy[k]) {
+          meterBy[k].a = meterBy[k].b = null;
+          meterBy[k].last = "";
+        }
+        resetLevelState();
+        emit();
+      },
       toggleFlow() {
         flowOnDemand = !flowOnDemand;
         emit();
@@ -2842,7 +2958,7 @@ html[lang="it"] .trnote{display:none}
       check() {
         const level = levelAt();
         const faultOn = v2(level) && level.unit && level.unit.fault && unitState().phase === "fault" ? (level.unit.fault.on || []).filter((id) => simFor().parts[id] && simFor().parts[id].on) : [];
-        const r = v2(level) ? evaluateV2(level, wires(), { measured: measuredBy[keyOf()] || [], ratings: ratingsOf(), faultOn, liveEdits: liveEditsBy[keyOf()] || [] }) : evaluate(level, wires());
+        const r = isProva(level) ? evaluateProva(level, provaLog(), observe(simFor()), simFor()) : v2(level) ? evaluateV2(level, wires(), { measured: measuredBy[keyOf()] || [], ratings: ratingsOf(), faultOn, liveEdits: liveEditsBy[keyOf()] || [] }) : evaluate(level, wires());
         resultsByKey[keyOf()] = r;
         const u = usage();
         u.checks++;
@@ -6468,6 +6584,18 @@ html[lang="it"] .trnote{display:none}
         return "Un carico (" + nameOf(level, item.comp) + ") \xE8 collegato tra la fase e la terra: la corrente torna dal filo di protezione. Il ritorno va sul neutro.";
       case "work.allControlsOk":
         return "Ogni comando cambia la luce, in qualunque posizione si trovino gli altri.";
+      case "prova.allDone":
+        return "Tutti i traguardi della prova sono raggiunti (" + item.n + ").";
+      case "prova.goalMissing":
+        return "Manca ancora: " + item.label + (item.n > 1 ? " (restano " + item.n + " traguardi)." : ".");
+      case "color.given":
+        return "I cavi sono gi\xE0 posati a norma: in questa prova non si cabla.";
+      case "safe.provaOk":
+        return "Hai lavorato in sicurezza: nessuna regola violata durante la prova.";
+      case "safe.provaLive":
+        return "Hai staccato una spina (" + nameOf(level, item.comp) + ") con la linea in tensione. Prima si apre il magnetotermico. Premi Ricomincia per riprovare.";
+      case "safe.provaOverload":
+        return "Hai riarmato il rel\xE8 termico con il sovraccarico ancora attivo. Prima si toglie la causa, poi si riarma. Premi Ricomincia per riprovare.";
       case "color.noWires":
         return "Collega prima qualche filo.";
       case "color.wrong":
@@ -6692,6 +6820,175 @@ html[lang="it"] .trnote{display:none}
     }
   };
 
+  // src/content/prove.js
+  var T2 = (...ids) => Object.fromEntries(ids.map((i) => [i, { l: i }]));
+  var C2 = (id, type, short, title, terms, extra = {}) => ({ id, type, short, title, terms: Array.isArray(terms) ? T2(...terms) : terms, ...extra });
+  var QM2 = C2("Q", "quadro", "Quadro", "Quadro elettrico", { F: { l: "FASE" }, N: { l: "NEUTRO" }, PE: { l: "TERRA" } });
+  var POLI = { "1": { l: "1" }, N1: { l: "N" }, "2": { l: "2" }, N2: { l: "N" } };
+  var SPINA = { a: { l: "1" }, b: { l: "2" } };
+  var PRESA = { L: { l: "L" }, PE: { l: "PE" }, N: { l: "N" } };
+  var notte = {
+    id: "p01-notte",
+    code: "p01",
+    n: 0,
+    engine: 2,
+    quadroOnly: true,
+    flow: "onDemand",
+    meter: true,
+    palette: ["marrone", "blu", "gv"],
+    name: "L\u2019appartamento di notte",
+    title: "L\u2019appartamento di notte",
+    blurb: "Il differenziale \xE8 scattato e la casa \xE8 al buio: trova la linea e l\u2019apparecchio.",
+    goal: "\xC8 notte e in casa \xE8 saltato tutto: il differenziale \xE8 scattato. Trova la linea con il guasto con i magnetotermici e il multimetro, scollega l\u2019apparecchio difettoso e riporta la luce nel resto della casa.",
+    comps: [
+      QM2,
+      C2("D", "rcd", "Differenziale", "Interruttore differenziale", POLI),
+      C2("M1", "mt", "Luci", "Magnetotermico luci", POLI, { rank: 2 }),
+      C2("M2", "mt", "Prese", "Magnetotermico prese", POLI, { rank: 2 }),
+      C2("M3", "mt", "Cucina", "Magnetotermico cucina", POLI, { rank: 2 }),
+      C2("L1", "lamp", "Soggiorno", "Lampada del soggiorno", { B: { l: "B" }, A: { l: "A" } }),
+      C2("L2", "lamp", "Camera", "Lampada della camera", { B: { l: "B" }, A: { l: "A" } }),
+      C2("P", "presa", "Presa TV", "Presa del soggiorno", PRESA),
+      C2("SL", "sw", "Spina lavatrice", "Spina della lavatrice", SPINA, { init: 1 }),
+      C2("LAV", "presa", "Lavatrice", "Lavatrice", PRESA),
+      C2("SF", "sw", "Spina forno", "Spina del forno", SPINA, { init: 1 }),
+      C2("FOR", "presa", "Forno", "Forno", PRESA),
+      C2("G", "gu", "Guasto", "Isolamento difettoso dell\u2019apparecchio", {}, { at: "LAV.L", levels: [300], init: 1, hidden: true })
+    ],
+    controls: ["D", "M1", "M2", "M3", "SL", "SF"],
+    given: [
+      ["Q.F", "D.1", "marrone"],
+      ["Q.N", "D.N1", "blu"],
+      ["D.2", "M1.1", "marrone"],
+      ["D.2", "M2.1", "marrone"],
+      ["D.2", "M3.1", "marrone"],
+      ["D.N2", "M1.N1", "blu"],
+      ["D.N2", "M2.N1", "blu"],
+      ["D.N2", "M3.N1", "blu"],
+      ["M1.2", "L1.A", "marrone"],
+      ["M1.2", "L2.A", "marrone"],
+      ["M1.N2", "L1.B", "blu"],
+      ["M1.N2", "L2.B", "blu"],
+      ["M2.2", "P.L", "marrone"],
+      ["M2.N2", "P.N", "blu"],
+      ["M3.2", "SL.a", "marrone"],
+      ["SL.b", "LAV.L", "marrone"],
+      ["M3.2", "SF.a", "marrone"],
+      ["SF.b", "FOR.L", "marrone"],
+      ["M3.N2", "LAV.N", "blu"],
+      ["M3.N2", "FOR.N", "blu"],
+      ["Q.PE", "P.PE", "gv"],
+      ["Q.PE", "LAV.PE", "gv"],
+      ["Q.PE", "FOR.PE", "gv"]
+    ],
+    prova: {
+      goals: [
+        { id: "isola", label: "Apri i tre magnetotermici: nessuna linea \xE8 pi\xF9 alimentata", when: { open: ["M1", "M2", "M3"] } },
+        { id: "riarma", label: "Riarma il differenziale", when: { closed: ["D"], notTripped: ["D"] }, after: "isola" },
+        { id: "individua", label: "Chiudi una linea alla volta: quella con il guasto fa scattare il differenziale", when: { tripped: ["D"], closed: ["M3"] }, after: "riarma" },
+        { id: "misura", label: "Con la linea aperta misura 0 V ai morsetti d\u2019uscita del suo magnetotermico", when: { open: ["M3"] }, measure: { between: ["M3.2", "M3.N2"], mode: "V", value: 0 }, after: "individua" },
+        { id: "ripristina", label: "Scollega l\u2019apparecchio difettoso e rimetti tutto in funzione", now: true, after: "misura", when: { closed: ["D", "M1", "M2", "M3", "SF"], open: ["SL"], notTripped: ["D", "M1", "M2", "M3"], loads: { L1: "on", L2: "on", P: "on", FOR: "on", LAV: "off" } } }
+      ],
+      guards: [
+        { id: "spinaLavatrice", on: "toggle", part: "SL", require: { open: ["M3"] }, code: "safe.provaLive" },
+        { id: "spinaForno", on: "toggle", part: "SF", require: { open: ["M3"] }, code: "safe.provaLive" }
+      ]
+    },
+    hints: [
+      "Apri i tre magnetotermici e riarma il differenziale: senza carico non ha nessun motivo di scattare.",
+      "Chiudi le linee una alla volta. Quando il differenziale scatta, l\u2019ultima linea chiusa \xE8 quella con il guasto.",
+      "Sulla linea della cucina ci sono due apparecchi. Apri il magnetotermico, stacca le due spine, poi richiudi e rimetti una spina alla volta."
+    ]
+  };
+  var c16 = LEVELS_V2.find((l) => l.id === "c16-nastro");
+  var officina = {
+    ...c16,
+    id: "p02-officina",
+    code: "p02",
+    n: 0,
+    name: "L\u2019officina",
+    title: "L\u2019officina",
+    blurb: "Il nastro \xE8 gi\xE0 cablato: collaudalo a vista, dalla marcia al finecorsa.",
+    goal: "Il nastro dell\u2019officina \xE8 montato e cablato. Collaudalo: marcia, arresto, intervento del rel\xE8 termico, ripartenza e finecorsa.",
+    checks: void 0,
+    safety: void 0,
+    solution: void 0,
+    solutionRatings: void 0,
+    given: c16.solution,
+    prova: {
+      goals: [
+        { id: "marcia", label: "Premi Marcia: il nastro parte e la spia si accende", when: { motors: { M: "fwd" }, loads: { H: "on" } } },
+        { id: "arresto", label: "Premi Arresto: il nastro si ferma prima della fine", when: { motors: { M: "off" }, machine: { atEnd: false } }, after: "marcia" },
+        { id: "sovraccarico", label: "Riparti e simula un sovraccarico: il rel\xE8 termico scatta e ferma il nastro", when: { tripped: ["FR"], motors: { M: "off" } }, after: "arresto" },
+        { id: "riarmo", label: "Togli il sovraccarico e riarma il rel\xE8 termico", when: { overload: false, notTripped: ["FR"] }, after: "sovraccarico" },
+        { id: "riparti", label: "Premi di nuovo Marcia: il nastro riparte", when: { motors: { M: "fwd" } }, after: "riarmo" },
+        { id: "fine", label: "Lascia arrivare il pacco in fondo: il finecorsa ferma il nastro", when: { machine: { atEnd: true }, motors: { M: "off" } }, after: "riparti" }
+      ],
+      guards: [
+        { id: "riarmoSottoCarico", on: "reset", part: "FR", require: { overload: false }, code: "safe.provaOverload" }
+      ]
+    },
+    hints: [
+      "Il nastro si comanda con i pulsanti: Marcia lo avvia, Arresto lo ferma.",
+      "Il sovraccarico si simula con il pulsante accanto al quadro, a nastro in marcia. Dopo alcuni secondi il rel\xE8 termico scatta.",
+      "Prima di riarmare il termico togli il sovraccarico. Se il pacco \xE8 gi\xE0 in fondo, riportalo all\u2019inizio per ripartire."
+    ]
+  };
+  delete officina.checks;
+  delete officina.safety;
+  delete officina.solution;
+  delete officina.solutionRatings;
+  var PROVE_LEVELS = [notte, officina];
+  var intro2 = (title, ...paras) => ({ type: "spiegazione", title, paras });
+  var G = (id, short, title, text2) => ({ kind: "goal", id, short, title, text: text2 });
+  var PROVE_UNITS = {
+    "p01-notte": {
+      support: "passi",
+      lesson: { pages: [
+        intro2("Una notte senza luce", "In casa \xE8 saltato tutto: il differenziale \xE8 scattato e l\u2019appartamento \xE8 al buio. Il quadro \xE8 gi\xE0 cablato, a te tocca trovare il guasto.", "Il differenziale scatta quando una corrente trova una strada verso terra. Il guasto sta su una sola linea: i magnetotermici servono a escluderle una alla volta."),
+        intro2("Il metodo", "Prima si toglie tensione a tutte le linee, poi si riarma il differenziale e si richiudono le linee una per volta. La linea che lo fa scattare \xE8 quella con il guasto.", "Sulla linea difettosa ci sono pi\xF9 apparecchi: si stacca la spina di tutti e si rimettono uno alla volta. Prima di toccare una spina, la linea va aperta e controllata con il multimetro."),
+        { type: "sintesi", title: "Da ricordare" }
+      ] },
+      steps: [
+        G("isola", "1 Apri", "Apri i tre magnetotermici", "Tocca i tre magnetotermici del quadro, o toccali nella casa."),
+        G("riarma", "2 Riarma", "Riarma il differenziale", "Con le linee aperte il differenziale non ha motivo di scattare."),
+        G("individua", "3 Cerca", "Trova la linea con il guasto", "Chiudi una linea alla volta. Quella che fa scattare il differenziale ha il guasto."),
+        G("misura", "4 Misura", "Controlla che non ci sia tensione", "Apri il magnetotermico della linea e misura 0 V tra i suoi morsetti d\u2019uscita, fase e neutro."),
+        G("ripristina", "5 Ripristina", "Scollega l\u2019apparecchio difettoso", "Con la linea aperta stacca le spine, poi rimettine una alla volta. Alla fine tutto funziona, tranne l\u2019apparecchio guasto."),
+        { kind: "verify", short: "6 Verifica", title: "Controlla l\u2019impianto", text: "Premi Verifica." }
+      ],
+      summary: [
+        "Il differenziale scatta per una corrente verso terra: il guasto sta in una sola linea.",
+        "Per trovarla si aprono i magnetotermici e si richiudono uno alla volta.",
+        "Prima di staccare una spina o di toccare l\u2019impianto, si apre la linea e si misura 0 V.",
+        "Un apparecchio difettoso resta scollegato finch\xE9 non viene riparato."
+      ]
+    },
+    "p02-officina": {
+      support: "passi",
+      lesson: { pages: [
+        intro2("Il collaudo del nastro", "In officina il nastro trasportatore \xE8 montato e cablato. Prima di consegnarlo si collauda: si prova a vista che ogni funzione faccia quello che deve.", "Hai gi\xE0 cablato questo impianto nei livelli del Modulo 3. Qui lo vedi al lavoro, con il pacco che corre sul nastro."),
+        intro2("Le quattro prove", "Marcia e arresto: il nastro parte e si ferma con i pulsanti. Termico: con un sovraccarico il rel\xE8 scatta e ferma il motore. Finecorsa: a fine nastro il motore si ferma da solo.", "Dopo l\u2019intervento del termico si toglie la causa e si riarma, mai il contrario."),
+        { type: "sintesi", title: "Da ricordare" }
+      ] },
+      steps: [
+        G("marcia", "1 Marcia", "Avvia il nastro", "Premi Marcia: il motore parte e la spia si accende."),
+        G("arresto", "2 Arresto", "Ferma il nastro", "Premi Arresto prima che il pacco arrivi in fondo."),
+        G("sovraccarico", "3 Termico", "Simula un sovraccarico", "Riparti, poi attiva il sovraccarico: dopo alcuni secondi il rel\xE8 termico scatta."),
+        G("riarmo", "4 Riarmo", "Togli la causa e riarma", "Disattiva il sovraccarico, poi riarma il rel\xE8 termico."),
+        G("riparti", "5 Riparti", "Riavvia il nastro", "Premi di nuovo Marcia. Se il pacco \xE8 in fondo, riportalo all\u2019inizio."),
+        G("fine", "6 Finecorsa", "Aspetta la fine corsa", "Il pacco arriva in fondo e il finecorsa ferma il motore."),
+        { kind: "verify", short: "7 Verifica", title: "Controlla il collaudo", text: "Premi Verifica." }
+      ],
+      summary: [
+        "Un collaudo prova ogni funzione: marcia, arresto, protezione e fine corsa.",
+        "Il rel\xE8 termico scatta per un sovraccarico prolungato e ferma il motore.",
+        "Dopo un intervento si toglie la causa e poi si riarma la protezione.",
+        "A fine corsa il finecorsa ferma il nastro senza bisogno del pulsante."
+      ]
+    }
+  };
+
   // src/content/home.js
   var MODULES = [
     {
@@ -6718,7 +7015,8 @@ html[lang="it"] .trnote{display:none}
         "c10-campanello",
         "c19-magnetotermico",
         "c20-differenziale",
-        "c11-quadro"
+        "c11-quadro",
+        "p01-notte"
       ]
     },
     {
@@ -6731,13 +7029,12 @@ html[lang="it"] .trnote{display:none}
         "c13-marcia-arresto",
         "c14-termico",
         "c15-inversione",
-        "c16-nastro"
+        "c16-nastro",
+        "p02-officina"
       ]
     }
   ];
-  var UPCOMING = [
-    { tag: "PROVE DEI MODULI", title: "Appartamento e nastro", note: "Un appartamento di notte e un nastro trasportatore, in 3D" }
-  ];
+  var UPCOMING = [];
   var INTRO = [
     { art: "lampada", text: ["Una lampada, un interruttore, due fili nel muro. Per farla funzionare serve capire dove passa la corrente."] },
     { art: "giro", text: ["La corrente circola in un percorso chiuso: esce dalla rete, attraversa la lampada e torna indietro."] },
@@ -6792,9 +7089,9 @@ html[lang="it"] .trnote{display:none}
   ];
 
   // src/content/index.js
-  var ALL_UNITS = { ...UNITS, ...UNITS_V2, ...TRILOCALE_UNITS };
+  var ALL_UNITS = { ...UNITS, ...UNITS_V2, ...TRILOCALE_UNITS, ...PROVE_UNITS };
   var withUnit = (l) => ALL_UNITS[l.id] ? { ...l, unit: ALL_UNITS[l.id] } : l;
-  var pool = [...LEVELS, ...TRILOCALE_LEVELS, ...LEVELS_V2];
+  var pool = [...LEVELS, ...TRILOCALE_LEVELS, ...LEVELS_V2, ...PROVE_LEVELS];
   var order = [
     ...MODULES[0].levels,
     ...TRILOCALE_LEVELS.map((l) => l.id),
@@ -6970,8 +7267,9 @@ html[lang="it"] .trnote{display:none}
     return level.full ? fullLayout(level.id) : BASE[level.id];
   }
   function composeComps(level, cols = 1) {
-    const layout = layoutFor(level, cols);
-    return level.comps.map((c2) => {
+    const lv = level.comps.some((c2) => c2.hidden) ? { ...level, comps: level.comps.filter((c2) => !c2.hidden) } : level;
+    const layout = layoutFor(lv, cols);
+    return lv.comps.map((c2) => {
       const g = layout.comps[c2.id];
       const terms = {};
       Object.keys(c2.terms).forEach((k) => terms[k] = { ...c2.terms[k], f: g.terms[k].f, s: g.terms[k].s });
@@ -10042,6 +10340,107 @@ html[lang="it"] .trnote{display:none}
     "BOBINA BRUCIATA": "\u0627\u0644\u0645\u0644\u0641 \u0645\u062D\u062A\u0631\u0642"
   };
 
+  // src/i18n/ar-16.js
+  var ar_16_default = {
+    "L\u2019appartamento di notte": "\u0627\u0644\u0634\u0642\u0629 \u0641\u064A \u0627\u0644\u0644\u064A\u0644",
+    "L\u2019officina": "\u0627\u0644\u0648\u0631\u0634\u0629",
+    "Il differenziale \xE8 scattato e la casa \xE8 al buio: trova la linea e l\u2019apparecchio.": "\u0641\u0635\u0644 \u0627\u0644\u0642\u0627\u0637\u0639 \u0627\u0644\u062A\u0641\u0627\u0636\u0644\u064A \u0648\u0627\u0644\u0628\u064A\u062A \u0641\u064A \u0627\u0644\u0638\u0644\u0627\u0645: \u0627\u0639\u062B\u0631 \u0639\u0644\u0649 \u0627\u0644\u062E\u0637 \u0648\u0627\u0644\u062C\u0647\u0627\u0632.",
+    "Il nastro \xE8 gi\xE0 cablato: collaudalo a vista, dalla marcia al finecorsa.": "\u0627\u0644\u0633\u064A\u0631 \u0645\u0648\u0635\u0648\u0644 \u0628\u0627\u0644\u0623\u0633\u0644\u0627\u0643 \u0645\u0633\u0628\u0642\u064B\u0627: \u0627\u062E\u062A\u0628\u0631\u0647 \u0628\u0627\u0644\u0646\u0638\u0631\u060C \u0645\u0646 \u0627\u0644\u062A\u0634\u063A\u064A\u0644 \u0625\u0644\u0649 \u0645\u0641\u062A\u0627\u062D \u0646\u0647\u0627\u064A\u0629 \u0627\u0644\u0634\u0648\u0637.",
+    "\xC8 notte e in casa \xE8 saltato tutto: il differenziale \xE8 scattato. Trova la linea con il guasto con i magnetotermici e il multimetro, scollega l\u2019apparecchio difettoso e riporta la luce nel resto della casa.": "\u0625\u0646\u0647 \u0627\u0644\u0644\u064A\u0644 \u0648\u0627\u0646\u0642\u0637\u0639 \u0643\u0644 \u0634\u064A\u0621 \u0641\u064A \u0627\u0644\u0628\u064A\u062A: \u0641\u0635\u0644 \u0627\u0644\u0642\u0627\u0637\u0639 \u0627\u0644\u062A\u0641\u0627\u0636\u0644\u064A. \u0627\u0639\u062B\u0631 \u0639\u0644\u0649 \u0627\u0644\u062E\u0637 \u0627\u0644\u0645\u0639\u0637\u0648\u0628 \u0628\u0627\u0644\u0642\u0648\u0627\u0637\u0639 \u0627\u0644\u0645\u063A\u0646\u0627\u0637\u064A\u0633\u064A\u0629 \u0627\u0644\u062D\u0631\u0627\u0631\u064A\u0629 \u0648\u062C\u0647\u0627\u0632 \u0627\u0644\u0642\u064A\u0627\u0633 \u0627\u0644\u0645\u062A\u0639\u062F\u062F\u060C \u0648\u0627\u0641\u0635\u0644 \u0627\u0644\u062C\u0647\u0627\u0632 \u0627\u0644\u0645\u0639\u064A\u0628 \u0648\u0623\u0639\u062F \u0627\u0644\u0646\u0648\u0631 \u0625\u0644\u0649 \u0628\u0642\u064A\u0629 \u0627\u0644\u0628\u064A\u062A.",
+    "Il nastro dell\u2019officina \xE8 montato e cablato. Collaudalo: marcia, arresto, intervento del rel\xE8 termico, ripartenza e finecorsa.": "\u0633\u064A\u0631 \u0627\u0644\u0648\u0631\u0634\u0629 \u0645\u0631\u0643\u0651\u0628 \u0648\u0645\u0648\u0635\u0648\u0644 \u0628\u0627\u0644\u0623\u0633\u0644\u0627\u0643. \u0627\u062E\u062A\u0628\u0631\u0647: \u0627\u0644\u062A\u0634\u063A\u064A\u0644\u060C \u0627\u0644\u0625\u064A\u0642\u0627\u0641\u060C \u062A\u062F\u062E\u0651\u0644 \u0627\u0644\u0645\u0631\u062D\u0651\u0644 \u0627\u0644\u062D\u0631\u0627\u0631\u064A\u060C \u0625\u0639\u0627\u062F\u0629 \u0627\u0644\u062A\u0634\u063A\u064A\u0644 \u0648\u0645\u0641\u062A\u0627\u062D \u0646\u0647\u0627\u064A\u0629 \u0627\u0644\u0634\u0648\u0637.",
+    "Magnetotermico luci": "\u0627\u0644\u0642\u0627\u0637\u0639 \u0627\u0644\u0645\u063A\u0646\u0627\u0637\u064A\u0633\u064A \u0627\u0644\u062D\u0631\u0627\u0631\u064A \u0644\u0644\u0625\u0646\u0627\u0631\u0629",
+    "Magnetotermico cucina": "\u0627\u0644\u0642\u0627\u0637\u0639 \u0627\u0644\u0645\u063A\u0646\u0627\u0637\u064A\u0633\u064A \u0627\u0644\u062D\u0631\u0627\u0631\u064A \u0644\u0644\u0645\u0637\u0628\u062E",
+    "Luci": "\u0627\u0644\u0625\u0646\u0627\u0631\u0629",
+    "Presa TV": "\u0645\u0642\u0628\u0633 \u0627\u0644\u062A\u0644\u0641\u0627\u0632",
+    "Presa del soggiorno": "\u0645\u0642\u0628\u0633 \u063A\u0631\u0641\u0629 \u0627\u0644\u062C\u0644\u0648\u0633",
+    "Lampada del soggiorno": "\u0645\u0635\u0628\u0627\u062D \u063A\u0631\u0641\u0629 \u0627\u0644\u062C\u0644\u0648\u0633",
+    "Spina lavatrice": "\u0642\u0627\u0628\u0633 \u0627\u0644\u063A\u0633\u0627\u0644\u0629",
+    "Spina della lavatrice": "\u0642\u0627\u0628\u0633 \u0627\u0644\u063A\u0633\u0627\u0644\u0629",
+    "Spina forno": "\u0642\u0627\u0628\u0633 \u0627\u0644\u0641\u0631\u0646",
+    "Spina del forno": "\u0642\u0627\u0628\u0633 \u0627\u0644\u0641\u0631\u0646",
+    "Lavatrice": "\u0627\u0644\u063A\u0633\u0627\u0644\u0629",
+    "Forno": "\u0627\u0644\u0641\u0631\u0646",
+    "Isolamento difettoso dell\u2019apparecchio": "\u0639\u0632\u0644 \u0627\u0644\u062C\u0647\u0627\u0632 \u0645\u0639\u064A\u0628",
+    "FOR.L": "FOR.L",
+    "FOR.N": "FOR.N",
+    "FOR.PE": "FOR.PE",
+    "LAV.L": "LAV.L",
+    "LAV.N": "LAV.N",
+    "LAV.PE": "LAV.PE",
+    "Una notte senza luce": "\u0644\u064A\u0644\u0629 \u0628\u0644\u0627 \u0646\u0648\u0631",
+    "In casa \xE8 saltato tutto: il differenziale \xE8 scattato e l\u2019appartamento \xE8 al buio. Il quadro \xE8 gi\xE0 cablato, a te tocca trovare il guasto.": "\u0627\u0646\u0642\u0637\u0639 \u0643\u0644 \u0634\u064A\u0621 \u0641\u064A \u0627\u0644\u0628\u064A\u062A: \u0641\u0635\u0644 \u0627\u0644\u0642\u0627\u0637\u0639 \u0627\u0644\u062A\u0641\u0627\u0636\u0644\u064A \u0648\u0627\u0644\u0634\u0642\u0629 \u0641\u064A \u0627\u0644\u0638\u0644\u0627\u0645. \u0627\u0644\u0644\u0648\u062D\u0629 \u0645\u0648\u0635\u0648\u0644\u0629 \u0645\u0633\u0628\u0642\u064B\u0627\u060C \u0648\u0645\u0647\u0645\u062A\u0643 \u0623\u0646 \u062A\u062C\u062F \u0627\u0644\u0639\u0637\u0644.",
+    "Il differenziale scatta quando una corrente trova una strada verso terra. Il guasto sta su una sola linea: i magnetotermici servono a escluderle una alla volta.": "\u064A\u0641\u0635\u0644 \u0627\u0644\u0642\u0627\u0637\u0639 \u0627\u0644\u062A\u0641\u0627\u0636\u0644\u064A \u0639\u0646\u062F\u0645\u0627 \u064A\u062C\u062F \u062A\u064A\u0627\u0631 \u0637\u0631\u064A\u0642\u064B\u0627 \u0646\u062D\u0648 \u0627\u0644\u0623\u0631\u0636. \u0627\u0644\u0639\u0637\u0644 \u0641\u064A \u062E\u0637 \u0648\u0627\u062D\u062F \u0641\u0642\u0637: \u062A\u064F\u0633\u062A\u0639\u0645\u0644 \u0627\u0644\u0642\u0648\u0627\u0637\u0639 \u0627\u0644\u0645\u063A\u0646\u0627\u0637\u064A\u0633\u064A\u0629 \u0627\u0644\u062D\u0631\u0627\u0631\u064A\u0629 \u0644\u0627\u0633\u062A\u0628\u0639\u0627\u062F \u0627\u0644\u062E\u0637\u0648\u0637 \u0648\u0627\u062D\u062F\u064B\u0627 \u0628\u0639\u062F \u0627\u0644\u0622\u062E\u0631.",
+    "Il metodo": "\u0627\u0644\u0637\u0631\u064A\u0642\u0629",
+    "Prima si toglie tensione a tutte le linee, poi si riarma il differenziale e si richiudono le linee una per volta. La linea che lo fa scattare \xE8 quella con il guasto.": "\u0623\u0648\u0644\u064B\u0627 \u064A\u064F\u0642\u0637\u0639 \u0627\u0644\u062C\u0647\u062F \u0639\u0646 \u0643\u0644 \u0627\u0644\u062E\u0637\u0648\u0637\u060C \u062B\u0645 \u064A\u064F\u0639\u0627\u062F \u062A\u0633\u0644\u064A\u062D \u0627\u0644\u0642\u0627\u0637\u0639 \u0627\u0644\u062A\u0641\u0627\u0636\u0644\u064A \u0648\u062A\u064F\u063A\u0644\u0642 \u0627\u0644\u062E\u0637\u0648\u0637 \u0648\u0627\u062D\u062F\u064B\u0627 \u0628\u0639\u062F \u0627\u0644\u0622\u062E\u0631. \u0627\u0644\u062E\u0637 \u0627\u0644\u0630\u064A \u064A\u062C\u0639\u0644\u0647 \u064A\u0641\u0635\u0644 \u0647\u0648 \u0627\u0644\u062E\u0637 \u0627\u0644\u0645\u0639\u0637\u0648\u0628.",
+    "Sulla linea difettosa ci sono pi\xF9 apparecchi: si stacca la spina di tutti e si rimettono uno alla volta. Prima di toccare una spina, la linea va aperta e controllata con il multimetro.": "\u0639\u0644\u0649 \u0627\u0644\u062E\u0637 \u0627\u0644\u0645\u0639\u0637\u0648\u0628 \u0639\u062F\u0629 \u0623\u062C\u0647\u0632\u0629: \u062A\u064F\u0646\u0632\u0639 \u0642\u0648\u0627\u0628\u0633 \u0627\u0644\u062C\u0645\u064A\u0639 \u0648\u062A\u064F\u0639\u0627\u062F \u0648\u0627\u062D\u062F\u064B\u0627 \u0628\u0639\u062F \u0627\u0644\u0622\u062E\u0631. \u0642\u0628\u0644 \u0644\u0645\u0633 \u0623\u064A \u0642\u0627\u0628\u0633 \u064A\u062C\u0628 \u0641\u062A\u062D \u0627\u0644\u062E\u0637 \u0648\u0641\u062D\u0635\u0647 \u0628\u062C\u0647\u0627\u0632 \u0627\u0644\u0642\u064A\u0627\u0633 \u0627\u0644\u0645\u062A\u0639\u062F\u062F.",
+    "Apri i tre magnetotermici": "\u0627\u0641\u062A\u062D \u0627\u0644\u0642\u0648\u0627\u0637\u0639 \u0627\u0644\u0645\u063A\u0646\u0627\u0637\u064A\u0633\u064A\u0629 \u0627\u0644\u062D\u0631\u0627\u0631\u064A\u0629 \u0627\u0644\u062B\u0644\u0627\u062B\u0629",
+    "Tocca i tre magnetotermici del quadro, o toccali nella casa.": "\u0627\u0644\u0645\u0633 \u0627\u0644\u0642\u0648\u0627\u0637\u0639 \u0627\u0644\u0645\u063A\u0646\u0627\u0637\u064A\u0633\u064A\u0629 \u0627\u0644\u062D\u0631\u0627\u0631\u064A\u0629 \u0627\u0644\u062B\u0644\u0627\u062B\u0629 \u0641\u064A \u0627\u0644\u0644\u0648\u062D\u0629\u060C \u0623\u0648 \u0627\u0644\u0645\u0633\u0647\u0627 \u0641\u064A \u0627\u0644\u0628\u064A\u062A.",
+    "Riarma il differenziale": "\u0623\u0639\u062F \u062A\u0633\u0644\u064A\u062D \u0627\u0644\u0642\u0627\u0637\u0639 \u0627\u0644\u062A\u0641\u0627\u0636\u0644\u064A",
+    "Con le linee aperte il differenziale non ha motivo di scattare.": "\u0648\u0627\u0644\u062E\u0637\u0648\u0637 \u0645\u0641\u062A\u0648\u062D\u0629 \u0644\u0627 \u064A\u0648\u062C\u062F \u0633\u0628\u0628 \u0644\u0641\u0635\u0644 \u0627\u0644\u0642\u0627\u0637\u0639 \u0627\u0644\u062A\u0641\u0627\u0636\u0644\u064A.",
+    "Trova la linea con il guasto": "\u0627\u0639\u062B\u0631 \u0639\u0644\u0649 \u0627\u0644\u062E\u0637 \u0627\u0644\u0645\u0639\u0637\u0648\u0628",
+    "Chiudi una linea alla volta. Quella che fa scattare il differenziale ha il guasto.": "\u0623\u063A\u0644\u0642 \u062E\u0637\u064B\u0627 \u0648\u0627\u062D\u062F\u064B\u0627 \u0641\u064A \u0643\u0644 \u0645\u0631\u0629. \u0627\u0644\u062E\u0637 \u0627\u0644\u0630\u064A \u064A\u062C\u0639\u0644 \u0627\u0644\u0642\u0627\u0637\u0639 \u0627\u0644\u062A\u0641\u0627\u0636\u0644\u064A \u064A\u0641\u0635\u0644 \u0647\u0648 \u0627\u0644\u0645\u0639\u0637\u0648\u0628.",
+    "Controlla che non ci sia tensione": "\u062A\u0623\u0643\u062F \u0645\u0646 \u0639\u062F\u0645 \u0648\u062C\u0648\u062F \u062C\u0647\u062F",
+    "Apri il magnetotermico della linea e misura 0 V tra i suoi morsetti d\u2019uscita, fase e neutro.": "\u0627\u0641\u062A\u062D \u0627\u0644\u0642\u0627\u0637\u0639 \u0627\u0644\u0645\u063A\u0646\u0627\u0637\u064A\u0633\u064A \u0627\u0644\u062D\u0631\u0627\u0631\u064A \u0644\u0644\u062E\u0637 \u0648\u0642\u0650\u0633 0 \u0641\u0648\u0644\u062A \u0628\u064A\u0646 \u0645\u0631\u0628\u0637\u064A \u062E\u0631\u062C\u0647\u060C \u0627\u0644\u0637\u0648\u0631 \u0648\u0627\u0644\u0645\u062D\u0627\u064A\u062F.",
+    "Scollega l\u2019apparecchio difettoso": "\u0627\u0641\u0635\u0644 \u0627\u0644\u062C\u0647\u0627\u0632 \u0627\u0644\u0645\u0639\u064A\u0628",
+    "Con la linea aperta stacca le spine, poi rimettine una alla volta. Alla fine tutto funziona, tranne l\u2019apparecchio guasto.": "\u0648\u0627\u0644\u062E\u0637 \u0645\u0641\u062A\u0648\u062D \u0627\u0646\u0632\u0639 \u0627\u0644\u0642\u0648\u0627\u0628\u0633\u060C \u062B\u0645 \u0623\u0639\u062F \u0648\u0627\u062D\u062F\u064B\u0627 \u0641\u064A \u0643\u0644 \u0645\u0631\u0629. \u0641\u064A \u0627\u0644\u0646\u0647\u0627\u064A\u0629 \u064A\u0639\u0645\u0644 \u0643\u0644 \u0634\u064A\u0621 \u0645\u0627 \u0639\u062F\u0627 \u0627\u0644\u062C\u0647\u0627\u0632 \u0627\u0644\u0645\u0639\u0637\u0648\u0628.",
+    "Controlla l\u2019impianto": "\u0627\u0641\u062D\u0635 \u0627\u0644\u062A\u0645\u062F\u064A\u062F",
+    "Il differenziale scatta per una corrente verso terra: il guasto sta in una sola linea.": "\u064A\u0641\u0635\u0644 \u0627\u0644\u0642\u0627\u0637\u0639 \u0627\u0644\u062A\u0641\u0627\u0636\u0644\u064A \u0628\u0633\u0628\u0628 \u062A\u064A\u0627\u0631 \u0646\u062D\u0648 \u0627\u0644\u0623\u0631\u0636: \u0627\u0644\u0639\u0637\u0644 \u0641\u064A \u062E\u0637 \u0648\u0627\u062D\u062F \u0641\u0642\u0637.",
+    "Per trovarla si aprono i magnetotermici e si richiudono uno alla volta.": "\u0644\u0644\u0639\u062B\u0648\u0631 \u0639\u0644\u064A\u0647 \u062A\u064F\u0641\u062A\u062D \u0627\u0644\u0642\u0648\u0627\u0637\u0639 \u0627\u0644\u0645\u063A\u0646\u0627\u0637\u064A\u0633\u064A\u0629 \u0627\u0644\u062D\u0631\u0627\u0631\u064A\u0629 \u0648\u062A\u064F\u063A\u0644\u0642 \u0648\u0627\u062D\u062F\u064B\u0627 \u0628\u0639\u062F \u0627\u0644\u0622\u062E\u0631.",
+    "Prima di staccare una spina o di toccare l\u2019impianto, si apre la linea e si misura 0 V.": "\u0642\u0628\u0644 \u0646\u0632\u0639 \u0642\u0627\u0628\u0633 \u0623\u0648 \u0644\u0645\u0633 \u0627\u0644\u062A\u0645\u062F\u064A\u062F \u064A\u064F\u0641\u062A\u062D \u0627\u0644\u062E\u0637 \u0648\u064A\u064F\u0642\u0627\u0633 0 \u0641\u0648\u0644\u062A.",
+    "Un apparecchio difettoso resta scollegato finch\xE9 non viene riparato.": "\u064A\u0628\u0642\u0649 \u0627\u0644\u062C\u0647\u0627\u0632 \u0627\u0644\u0645\u0639\u064A\u0628 \u0645\u0641\u0635\u0648\u0644\u064B\u0627 \u0625\u0644\u0649 \u0623\u0646 \u064A\u064F\u0635\u0644\u064E\u0651\u062D.",
+    "Apri i tre magnetotermici e riarma il differenziale: senza carico non ha nessun motivo di scattare.": "\u0627\u0641\u062A\u062D \u0627\u0644\u0642\u0648\u0627\u0637\u0639 \u0627\u0644\u0645\u063A\u0646\u0627\u0637\u064A\u0633\u064A\u0629 \u0627\u0644\u062D\u0631\u0627\u0631\u064A\u0629 \u0627\u0644\u062B\u0644\u0627\u062B\u0629 \u0648\u0623\u0639\u062F \u062A\u0633\u0644\u064A\u062D \u0627\u0644\u0642\u0627\u0637\u0639 \u0627\u0644\u062A\u0641\u0627\u0636\u0644\u064A: \u0628\u0644\u0627 \u062D\u0645\u0644 \u0644\u0627 \u064A\u0648\u062C\u062F \u0633\u0628\u0628 \u0644\u0641\u0635\u0644\u0647.",
+    "Chiudi le linee una alla volta. Quando il differenziale scatta, l\u2019ultima linea chiusa \xE8 quella con il guasto.": "\u0623\u063A\u0644\u0642 \u0627\u0644\u062E\u0637\u0648\u0637 \u0648\u0627\u062D\u062F\u064B\u0627 \u0628\u0639\u062F \u0627\u0644\u0622\u062E\u0631. \u0639\u0646\u062F\u0645\u0627 \u064A\u0641\u0635\u0644 \u0627\u0644\u0642\u0627\u0637\u0639 \u0627\u0644\u062A\u0641\u0627\u0636\u0644\u064A \u064A\u0643\u0648\u0646 \u0622\u062E\u0631 \u062E\u0637 \u0623\u064F\u063A\u0644\u0642 \u0647\u0648 \u0627\u0644\u0645\u0639\u0637\u0648\u0628.",
+    "Sulla linea della cucina ci sono due apparecchi. Apri il magnetotermico, stacca le due spine, poi richiudi e rimetti una spina alla volta.": "\u0639\u0644\u0649 \u062E\u0637 \u0627\u0644\u0645\u0637\u0628\u062E \u062C\u0647\u0627\u0632\u0627\u0646. \u0627\u0641\u062A\u062D \u0627\u0644\u0642\u0627\u0637\u0639 \u0627\u0644\u0645\u063A\u0646\u0627\u0637\u064A\u0633\u064A \u0627\u0644\u062D\u0631\u0627\u0631\u064A \u0648\u0627\u0646\u0632\u0639 \u0627\u0644\u0642\u0627\u0628\u0633\u064A\u0646\u060C \u062B\u0645 \u0623\u063A\u0644\u0642 \u0648\u0623\u0639\u062F \u0642\u0627\u0628\u0633\u064B\u0627 \u0648\u0627\u062D\u062F\u064B\u0627 \u0641\u064A \u0643\u0644 \u0645\u0631\u0629.",
+    "Apri i tre magnetotermici: nessuna linea \xE8 pi\xF9 alimentata": "\u0627\u0641\u062A\u062D \u0627\u0644\u0642\u0648\u0627\u0637\u0639 \u0627\u0644\u0645\u063A\u0646\u0627\u0637\u064A\u0633\u064A\u0629 \u0627\u0644\u062D\u0631\u0627\u0631\u064A\u0629 \u0627\u0644\u062B\u0644\u0627\u062B\u0629: \u0644\u0627 \u064A\u0628\u0642\u0649 \u0623\u064A \u062E\u0637 \u0645\u063A\u0630\u0651\u0649",
+    "Chiudi una linea alla volta: quella con il guasto fa scattare il differenziale": "\u0623\u063A\u0644\u0642 \u062E\u0637\u064B\u0627 \u0648\u0627\u062D\u062F\u064B\u0627 \u0641\u064A \u0643\u0644 \u0645\u0631\u0629: \u0627\u0644\u062E\u0637 \u0627\u0644\u0645\u0639\u0637\u0648\u0628 \u064A\u062C\u0639\u0644 \u0627\u0644\u0642\u0627\u0637\u0639 \u0627\u0644\u062A\u0641\u0627\u0636\u0644\u064A \u064A\u0641\u0635\u0644",
+    "Con la linea aperta misura 0 V ai morsetti d\u2019uscita del suo magnetotermico": "\u0648\u0627\u0644\u062E\u0637 \u0645\u0641\u062A\u0648\u062D \u0642\u0650\u0633 0 \u0641\u0648\u0644\u062A \u0639\u0646\u062F \u0645\u0631\u0628\u0637\u064A \u062E\u0631\u062C \u0642\u0627\u0637\u0639\u0647 \u0627\u0644\u0645\u063A\u0646\u0627\u0637\u064A\u0633\u064A \u0627\u0644\u062D\u0631\u0627\u0631\u064A",
+    "Scollega l\u2019apparecchio difettoso e rimetti tutto in funzione": "\u0627\u0641\u0635\u0644 \u0627\u0644\u062C\u0647\u0627\u0632 \u0627\u0644\u0645\u0639\u064A\u0628 \u0648\u0623\u0639\u062F \u0643\u0644 \u0634\u064A\u0621 \u0625\u0644\u0649 \u0627\u0644\u0639\u0645\u0644",
+    "Il collaudo del nastro": "\u0627\u062E\u062A\u0628\u0627\u0631 \u0627\u0644\u0633\u064A\u0631",
+    "In officina il nastro trasportatore \xE8 montato e cablato. Prima di consegnarlo si collauda: si prova a vista che ogni funzione faccia quello che deve.": "\u0641\u064A \u0627\u0644\u0648\u0631\u0634\u0629 \u0627\u0644\u0633\u064A\u0631 \u0627\u0644\u0646\u0627\u0642\u0644 \u0645\u0631\u0643\u0651\u0628 \u0648\u0645\u0648\u0635\u0648\u0644 \u0628\u0627\u0644\u0623\u0633\u0644\u0627\u0643. \u0642\u0628\u0644 \u062A\u0633\u0644\u064A\u0645\u0647 \u064A\u064F\u062E\u062A\u0628\u0631: \u062A\u064F\u062C\u0631\u064E\u0651\u0628 \u0628\u0627\u0644\u0646\u0638\u0631 \u0643\u0644 \u0648\u0638\u064A\u0641\u0629 \u0644\u062A\u0624\u062F\u064A \u0645\u0627 \u064A\u062C\u0628.",
+    "Hai gi\xE0 cablato questo impianto nei livelli del Modulo 3. Qui lo vedi al lavoro, con il pacco che corre sul nastro.": "\u0633\u0628\u0642 \u0623\u0646 \u0648\u0635\u0651\u0644\u062A \u0623\u0633\u0644\u0627\u0643 \u0647\u0630\u0627 \u0627\u0644\u062A\u0645\u062F\u064A\u062F \u0641\u064A \u0645\u0633\u062A\u0648\u064A\u0627\u062A \u0627\u0644\u0648\u062D\u062F\u0629 3. \u0647\u0646\u0627 \u062A\u0631\u0627\u0647 \u064A\u0639\u0645\u0644\u060C \u0648\u0627\u0644\u0637\u0631\u062F \u064A\u0633\u064A\u0631 \u0639\u0644\u0649 \u0627\u0644\u0633\u064A\u0631.",
+    "Le quattro prove": "\u0627\u0644\u0627\u062E\u062A\u0628\u0627\u0631\u0627\u062A \u0627\u0644\u0623\u0631\u0628\u0639\u0629",
+    "Marcia e arresto: il nastro parte e si ferma con i pulsanti. Termico: con un sovraccarico il rel\xE8 scatta e ferma il motore. Finecorsa: a fine nastro il motore si ferma da solo.": "\u0627\u0644\u062A\u0634\u063A\u064A\u0644 \u0648\u0627\u0644\u0625\u064A\u0642\u0627\u0641: \u064A\u0628\u062F\u0623 \u0627\u0644\u0633\u064A\u0631 \u0648\u064A\u062A\u0648\u0642\u0641 \u0628\u0627\u0644\u0623\u0632\u0631\u0627\u0631. \u0627\u0644\u062D\u0631\u0627\u0631\u064A: \u0639\u0646\u062F \u0627\u0644\u062D\u0645\u0644 \u0627\u0644\u0632\u0627\u0626\u062F \u064A\u0641\u0635\u0644 \u0627\u0644\u0645\u0631\u062D\u0651\u0644 \u0648\u064A\u0648\u0642\u0641 \u0627\u0644\u0645\u062D\u0631\u0643. \u0646\u0647\u0627\u064A\u0629 \u0627\u0644\u0634\u0648\u0637: \u0641\u064A \u0646\u0647\u0627\u064A\u0629 \u0627\u0644\u0633\u064A\u0631 \u064A\u062A\u0648\u0642\u0641 \u0627\u0644\u0645\u062D\u0631\u0643 \u0648\u062D\u062F\u0647.",
+    "Dopo l\u2019intervento del termico si toglie la causa e si riarma, mai il contrario.": "\u0628\u0639\u062F \u062A\u062F\u062E\u0651\u0644 \u0627\u0644\u0645\u0631\u062D\u0651\u0644 \u0627\u0644\u062D\u0631\u0627\u0631\u064A \u064A\u064F\u0632\u0627\u0644 \u0627\u0644\u0633\u0628\u0628 \u062B\u0645 \u064A\u064F\u0639\u0627\u062F \u0627\u0644\u062A\u0633\u0644\u064A\u062D\u060C \u0648\u0644\u064A\u0633 \u0627\u0644\u0639\u0643\u0633 \u0623\u0628\u062F\u064B\u0627.",
+    "Avvia il nastro": "\u0634\u063A\u0651\u0644 \u0627\u0644\u0633\u064A\u0631",
+    "Premi Marcia: il motore parte e la spia si accende.": "\u0627\u0636\u063A\u0637 \u0627\u0644\u062A\u0634\u063A\u064A\u0644: \u064A\u062F\u0648\u0631 \u0627\u0644\u0645\u062D\u0631\u0643 \u0648\u064A\u0636\u064A\u0621 \u0627\u0644\u0645\u0624\u0634\u0631.",
+    "Ferma il nastro": "\u0623\u0648\u0642\u0641 \u0627\u0644\u0633\u064A\u0631",
+    "Premi Arresto prima che il pacco arrivi in fondo.": "\u0627\u0636\u063A\u0637 \u0627\u0644\u0625\u064A\u0642\u0627\u0641 \u0642\u0628\u0644 \u0623\u0646 \u064A\u0635\u0644 \u0627\u0644\u0637\u0631\u062F \u0625\u0644\u0649 \u0627\u0644\u0646\u0647\u0627\u064A\u0629.",
+    "Simula un sovraccarico": "\u062D\u0627\u0643\u0650 \u062D\u0645\u0644\u064B\u0627 \u0632\u0627\u0626\u062F\u064B\u0627",
+    "Riparti, poi attiva il sovraccarico: dopo alcuni secondi il rel\xE8 termico scatta.": "\u0623\u0639\u062F \u0627\u0644\u062A\u0634\u063A\u064A\u0644 \u062B\u0645 \u0641\u0639\u0651\u0644 \u0627\u0644\u062D\u0645\u0644 \u0627\u0644\u0632\u0627\u0626\u062F: \u0628\u0639\u062F \u0628\u0636\u0639 \u062B\u0648\u0627\u0646\u064D \u064A\u0641\u0635\u0644 \u0627\u0644\u0645\u0631\u062D\u0651\u0644 \u0627\u0644\u062D\u0631\u0627\u0631\u064A.",
+    "Togli la causa e riarma": "\u0623\u0632\u0644 \u0627\u0644\u0633\u0628\u0628 \u0648\u0623\u0639\u062F \u0627\u0644\u062A\u0633\u0644\u064A\u062D",
+    "Disattiva il sovraccarico, poi riarma il rel\xE8 termico.": "\u0639\u0637\u0651\u0644 \u0627\u0644\u062D\u0645\u0644 \u0627\u0644\u0632\u0627\u0626\u062F \u062B\u0645 \u0623\u0639\u062F \u062A\u0633\u0644\u064A\u062D \u0627\u0644\u0645\u0631\u062D\u0651\u0644 \u0627\u0644\u062D\u0631\u0627\u0631\u064A.",
+    "Riavvia il nastro": "\u0623\u0639\u062F \u062A\u0634\u063A\u064A\u0644 \u0627\u0644\u0633\u064A\u0631",
+    "Premi di nuovo Marcia. Se il pacco \xE8 in fondo, riportalo all\u2019inizio.": "\u0627\u0636\u063A\u0637 \u0627\u0644\u062A\u0634\u063A\u064A\u0644 \u0645\u0631\u0629 \u0623\u062E\u0631\u0649. \u0625\u0646 \u0643\u0627\u0646 \u0627\u0644\u0637\u0631\u062F \u0641\u064A \u0627\u0644\u0646\u0647\u0627\u064A\u0629 \u0641\u0623\u0639\u062F\u0647 \u0625\u0644\u0649 \u0627\u0644\u0628\u062F\u0627\u064A\u0629.",
+    "Aspetta la fine corsa": "\u0627\u0646\u062A\u0638\u0631 \u0646\u0647\u0627\u064A\u0629 \u0627\u0644\u0634\u0648\u0637",
+    "Il pacco arriva in fondo e il finecorsa ferma il motore.": "\u064A\u0635\u0644 \u0627\u0644\u0637\u0631\u062F \u0625\u0644\u0649 \u0627\u0644\u0646\u0647\u0627\u064A\u0629 \u0648\u064A\u0648\u0642\u0641 \u0645\u0641\u062A\u0627\u062D \u0646\u0647\u0627\u064A\u0629 \u0627\u0644\u0634\u0648\u0637 \u0627\u0644\u0645\u062D\u0631\u0643.",
+    "Controlla il collaudo": "\u0627\u0641\u062D\u0635 \u0627\u0644\u0627\u062E\u062A\u0628\u0627\u0631",
+    "Un collaudo prova ogni funzione: marcia, arresto, protezione e fine corsa.": "\u064A\u062C\u0631\u0651\u0628 \u0627\u0644\u0627\u062E\u062A\u0628\u0627\u0631 \u0643\u0644 \u0648\u0638\u064A\u0641\u0629: \u0627\u0644\u062A\u0634\u063A\u064A\u0644 \u0648\u0627\u0644\u0625\u064A\u0642\u0627\u0641 \u0648\u0627\u0644\u062D\u0645\u0627\u064A\u0629 \u0648\u0646\u0647\u0627\u064A\u0629 \u0627\u0644\u0634\u0648\u0637.",
+    "Il rel\xE8 termico scatta per un sovraccarico prolungato e ferma il motore.": "\u064A\u0641\u0635\u0644 \u0627\u0644\u0645\u0631\u062D\u0651\u0644 \u0627\u0644\u062D\u0631\u0627\u0631\u064A \u0639\u0646\u062F \u062D\u0645\u0644 \u0632\u0627\u0626\u062F \u0645\u0637\u0648\u0651\u0644 \u0648\u064A\u0648\u0642\u0641 \u0627\u0644\u0645\u062D\u0631\u0643.",
+    "Dopo un intervento si toglie la causa e poi si riarma la protezione.": "\u0628\u0639\u062F \u0627\u0644\u062A\u062F\u062E\u0651\u0644 \u064A\u064F\u0632\u0627\u0644 \u0627\u0644\u0633\u0628\u0628 \u062B\u0645 \u062A\u064F\u0639\u0627\u062F \u062A\u0633\u0644\u064A\u062D \u0627\u0644\u062D\u0645\u0627\u064A\u0629.",
+    "A fine corsa il finecorsa ferma il nastro senza bisogno del pulsante.": "\u0639\u0646\u062F \u0646\u0647\u0627\u064A\u0629 \u0627\u0644\u0634\u0648\u0637 \u064A\u0648\u0642\u0641 \u0645\u0641\u062A\u0627\u062D \u0646\u0647\u0627\u064A\u0629 \u0627\u0644\u0634\u0648\u0637 \u0627\u0644\u0633\u064A\u0631 \u062F\u0648\u0646 \u062D\u0627\u062C\u0629 \u0625\u0644\u0649 \u0627\u0644\u0632\u0631.",
+    "Premi Marcia: il nastro parte e la spia si accende": "\u0627\u0636\u063A\u0637 \u0627\u0644\u062A\u0634\u063A\u064A\u0644: \u064A\u0628\u062F\u0623 \u0627\u0644\u0633\u064A\u0631 \u0648\u064A\u0636\u064A\u0621 \u0627\u0644\u0645\u0624\u0634\u0631",
+    "Premi Arresto: il nastro si ferma prima della fine": "\u0627\u0636\u063A\u0637 \u0627\u0644\u0625\u064A\u0642\u0627\u0641: \u064A\u062A\u0648\u0642\u0641 \u0627\u0644\u0633\u064A\u0631 \u0642\u0628\u0644 \u0627\u0644\u0646\u0647\u0627\u064A\u0629",
+    "Riparti e simula un sovraccarico: il rel\xE8 termico scatta e ferma il nastro": "\u0623\u0639\u062F \u0627\u0644\u062A\u0634\u063A\u064A\u0644 \u0648\u062D\u0627\u0643\u0650 \u062D\u0645\u0644\u064B\u0627 \u0632\u0627\u0626\u062F\u064B\u0627: \u064A\u0641\u0635\u0644 \u0627\u0644\u0645\u0631\u062D\u0651\u0644 \u0627\u0644\u062D\u0631\u0627\u0631\u064A \u0648\u064A\u0648\u0642\u0641 \u0627\u0644\u0633\u064A\u0631",
+    "Togli il sovraccarico e riarma il rel\xE8 termico": "\u0623\u0632\u0644 \u0627\u0644\u062D\u0645\u0644 \u0627\u0644\u0632\u0627\u0626\u062F \u0648\u0623\u0639\u062F \u062A\u0633\u0644\u064A\u062D \u0627\u0644\u0645\u0631\u062D\u0651\u0644 \u0627\u0644\u062D\u0631\u0627\u0631\u064A",
+    "Premi di nuovo Marcia: il nastro riparte": "\u0627\u0636\u063A\u0637 \u0627\u0644\u062A\u0634\u063A\u064A\u0644 \u0645\u0631\u0629 \u0623\u062E\u0631\u0649: \u064A\u0639\u0648\u062F \u0627\u0644\u0633\u064A\u0631 \u0625\u0644\u0649 \u0627\u0644\u0639\u0645\u0644",
+    "Lascia arrivare il pacco in fondo: il finecorsa ferma il nastro": "\u0627\u062A\u0631\u0643 \u0627\u0644\u0637\u0631\u062F \u064A\u0635\u0644 \u0625\u0644\u0649 \u0627\u0644\u0646\u0647\u0627\u064A\u0629: \u064A\u0648\u0642\u0641 \u0645\u0641\u062A\u0627\u062D \u0646\u0647\u0627\u064A\u0629 \u0627\u0644\u0634\u0648\u0637 \u0627\u0644\u0633\u064A\u0631",
+    "Il nastro si comanda con i pulsanti: Marcia lo avvia, Arresto lo ferma.": "\u064A\u064F\u062A\u062D\u0643\u0645 \u0628\u0627\u0644\u0633\u064A\u0631 \u0628\u0627\u0644\u0623\u0632\u0631\u0627\u0631: \u0627\u0644\u062A\u0634\u063A\u064A\u0644 \u064A\u0628\u062F\u0623\u0647 \u0648\u0627\u0644\u0625\u064A\u0642\u0627\u0641 \u064A\u0648\u0642\u0641\u0647.",
+    "Il sovraccarico si simula con il pulsante accanto al quadro, a nastro in marcia. Dopo alcuni secondi il rel\xE8 termico scatta.": "\u064A\u064F\u062D\u0627\u0643\u0649 \u0627\u0644\u062D\u0645\u0644 \u0627\u0644\u0632\u0627\u0626\u062F \u0628\u0627\u0644\u0632\u0631 \u0627\u0644\u0645\u062C\u0627\u0648\u0631 \u0644\u0644\u0648\u062D\u0629 \u0648\u0627\u0644\u0633\u064A\u0631 \u0641\u064A \u062D\u0627\u0644\u0629 \u062A\u0634\u063A\u064A\u0644. \u0628\u0639\u062F \u0628\u0636\u0639 \u062B\u0648\u0627\u0646\u064D \u064A\u0641\u0635\u0644 \u0627\u0644\u0645\u0631\u062D\u0651\u0644 \u0627\u0644\u062D\u0631\u0627\u0631\u064A.",
+    "Prima di riarmare il termico togli il sovraccarico. Se il pacco \xE8 gi\xE0 in fondo, riportalo all\u2019inizio per ripartire.": "\u0642\u0628\u0644 \u0625\u0639\u0627\u062F\u0629 \u062A\u0633\u0644\u064A\u062D \u0627\u0644\u0645\u0631\u062D\u0651\u0644 \u0627\u0644\u062D\u0631\u0627\u0631\u064A \u0623\u0632\u0644 \u0627\u0644\u062D\u0645\u0644 \u0627\u0644\u0632\u0627\u0626\u062F. \u0625\u0646 \u0643\u0627\u0646 \u0627\u0644\u0637\u0631\u062F \u0641\u064A \u0627\u0644\u0646\u0647\u0627\u064A\u0629 \u0623\u0639\u062F\u0647 \u0625\u0644\u0649 \u0627\u0644\u0628\u062F\u0627\u064A\u0629 \u0644\u064A\u0639\u0648\u062F \u0627\u0644\u062A\u0634\u063A\u064A\u0644.",
+    "I cavi sono gi\xE0 posati a norma: in questa prova non si cabla.": "\u0627\u0644\u0623\u0633\u0644\u0627\u0643 \u0645\u0648\u0635\u0648\u0644\u0629 \u0645\u0633\u0628\u0642\u064B\u0627 \u0648\u0641\u0642 \u0627\u0644\u0645\u0639\u064A\u0627\u0631: \u0641\u064A \u0647\u0630\u0627 \u0627\u0644\u0627\u062E\u062A\u0628\u0627\u0631 \u0644\u0627 \u062A\u0648\u0635\u064A\u0644 \u0623\u0633\u0644\u0627\u0643.",
+    "Hai lavorato in sicurezza: nessuna regola violata durante la prova.": "\u0639\u0645\u0644\u062A\u064E \u0628\u0623\u0645\u0627\u0646: \u0644\u0645 \u062A\u064F\u062E\u0627\u0644\u064E\u0641 \u0623\u064A \u0642\u0627\u0639\u062F\u0629 \u0623\u062B\u0646\u0627\u0621 \u0627\u0644\u0627\u062E\u062A\u0628\u0627\u0631.",
+    "Hai riarmato il rel\xE8 termico con il sovraccarico ancora attivo. Prima si toglie la causa, poi si riarma. Premi Ricomincia per riprovare.": "\u0623\u0639\u062F\u062A\u064E \u062A\u0633\u0644\u064A\u062D \u0627\u0644\u0645\u0631\u062D\u0651\u0644 \u0627\u0644\u062D\u0631\u0627\u0631\u064A \u0648\u0627\u0644\u062D\u0645\u0644 \u0627\u0644\u0632\u0627\u0626\u062F \u0645\u0627 \u0632\u0627\u0644 \u0641\u0639\u0651\u0627\u0644\u064B\u0627. \u0623\u0648\u0644\u064B\u0627 \u064A\u064F\u0632\u0627\u0644 \u0627\u0644\u0633\u0628\u0628 \u062B\u0645 \u064A\u064F\u0639\u0627\u062F \u0627\u0644\u062A\u0633\u0644\u064A\u062D. \u0627\u0636\u063A\u0637 \u0627\u0628\u062F\u0623 \u0645\u0646 \u062C\u062F\u064A\u062F \u0644\u062A\u0639\u064A\u062F \u0627\u0644\u0645\u062D\u0627\u0648\u0644\u0629.",
+    "Apri": "\u0627\u0641\u062A\u062D",
+    "Cerca": "\u0627\u0628\u062D\u062B",
+    "La scena 3D non \xE8 disponibile su questo dispositivo: lavora sullo schema e sulla stanza.": "\u0627\u0644\u0645\u0634\u0647\u062F \u062B\u0644\u0627\u062B\u064A \u0627\u0644\u0623\u0628\u0639\u0627\u062F \u063A\u064A\u0631 \u0645\u062A\u0627\u062D \u0639\u0644\u0649 \u0647\u0630\u0627 \u0627\u0644\u062C\u0647\u0627\u0632: \u0627\u0639\u0645\u0644 \u0639\u0644\u0649 \u0627\u0644\u0645\u062E\u0637\u0637 \u0648\u0639\u0644\u0649 \u0627\u0644\u063A\u0631\u0641\u0629.",
+    "Misura": "\u0642\u0650\u0633",
+    "Riarma": "\u0623\u0639\u062F \u0627\u0644\u062A\u0633\u0644\u064A\u062D",
+    "Riarmo": "\u0625\u0639\u0627\u062F\u0629 \u0627\u0644\u062A\u0633\u0644\u064A\u062D",
+    "Ricomincia": "\u0627\u0628\u062F\u0623 \u0645\u0646 \u062C\u062F\u064A\u062F",
+    "Riparti": "\u0623\u0639\u062F \u0627\u0644\u062A\u0634\u063A\u064A\u0644",
+    "Ripristina": "\u0623\u0639\u062F \u0627\u0644\u062A\u0634\u063A\u064A\u0644"
+  };
+
   // src/i18n/ar.js
   var ROLE = { "del neutro": "\u0627\u0644\u0645\u062D\u0627\u064A\u062F", "di terra": "\u0627\u0644\u0623\u0631\u0636\u064A", "di fase": "\u0627\u0644\u0637\u0648\u0631", "a bassa tensione": "\u0627\u0644\u062C\u0647\u062F \u0627\u0644\u0645\u0646\u062E\u0641\u0636", "di comando": "\u0627\u0644\u062A\u062D\u0643\u0645" };
   var COLORI = { "blu": "\u0623\u0632\u0631\u0642", "giallo-verde": "\u0623\u0635\u0641\u0631-\u0623\u062E\u0636\u0631", "marrone, nero o grigio": "\u0628\u0646\u064A\u064B\u0651\u0627 \u0623\u0648 \u0623\u0633\u0648\u062F \u0623\u0648 \u0631\u0645\u0627\u062F\u064A\u064B\u0651\u0627", "rosso, marrone, nero o grigio": "\u0623\u062D\u0645\u0631 \u0623\u0648 \u0628\u0646\u064A\u064B\u0651\u0627 \u0623\u0648 \u0623\u0633\u0648\u062F \u0623\u0648 \u0631\u0645\u0627\u062F\u064A\u064B\u0651\u0627", "di un colore diverso da blu e giallo-verde": "\u0628\u0644\u0648\u0646 \u0645\u062E\u062A\u0644\u0641 \u0639\u0646 \u0627\u0644\u0623\u0632\u0631\u0642 \u0648\u0627\u0644\u0623\u0635\u0641\u0631-\u0627\u0644\u0623\u062E\u0636\u0631" };
@@ -10089,6 +10488,9 @@ html[lang="it"] .trnote{display:none}
     [/^Un componente \((.+)\) non è a valle della protezione \((.+)\): in caso di guasto nessuno lo stacca\.$/, (m, t) => `\u0645\u0643\u0648\u0651\u0646 (${t(m[1])}) \u0644\u064A\u0633 \u0628\u0639\u062F \u0627\u0644\u062D\u0645\u0627\u064A\u0629 (${t(m[2])}): \u0641\u064A \u062D\u0627\u0644 \u0627\u0644\u0639\u0637\u0644 \u0644\u0627 \u064A\u0641\u0635\u0644\u0647 \u0623\u062D\u062F.`],
     [/^Prova non superata: (.+?)\. (.+)$/, (m, t) => `\u0627\u062E\u062A\u0628\u0627\u0631 \u0644\u0645 \u064A\u064F\u062C\u062A\u0632: ${t(m[1])}. ${t(m[2])}`],
     [/^(.+): (.+); atteso: (.+)\.$/, (m, t) => `${t(m[1])}: ${t(m[2])}\u061B \u0627\u0644\u0645\u062A\u0648\u0642\u0639: ${t(m[3])}.`],
+    [/^Tutti i traguardi della prova sono raggiunti \((\d+)\)\.$/, (m) => `\u062A\u062D\u0642\u0642\u062A \u0643\u0644 \u0623\u0647\u062F\u0627\u0641 \u0627\u0644\u0627\u062E\u062A\u0628\u0627\u0631 (${iso(m[1])}).`],
+    [/^Manca ancora: (.+?)(?: \(restano (\d+) traguardi\))?\.$/, (m, t) => `\u0645\u0627 \u0632\u0627\u0644 \u064A\u0646\u0642\u0635: ${t(m[1])}${m[2] ? ` (\u062A\u0628\u0642\u0651\u0649 ${iso(m[2])} \u0623\u0647\u062F\u0627\u0641)` : ""}.`],
+    [/^Hai staccato una spina \((.+)\) con la linea in tensione\. Prima si apre il magnetotermico\. Premi Ricomincia per riprovare\.$/, (m, t) => `\u0646\u0632\u0639\u062A\u064E \u0642\u0627\u0628\u0633\u064B\u0627 (${t(m[1])}) \u0648\u0627\u0644\u062E\u0637 \u062A\u062D\u062A \u0627\u0644\u062C\u0647\u062F. \u0623\u0648\u0644\u064B\u0627 \u064A\u064F\u0641\u062A\u062D \u0627\u0644\u0642\u0627\u0637\u0639 \u0627\u0644\u0645\u063A\u0646\u0627\u0637\u064A\u0633\u064A \u0627\u0644\u062D\u0631\u0627\u0631\u064A. \u0627\u0636\u063A\u0637 \u0627\u0628\u062F\u0623 \u0645\u0646 \u062C\u062F\u064A\u062F \u0644\u062A\u0639\u064A\u062F \u0627\u0644\u0645\u062D\u0627\u0648\u0644\u0629.`],
     [/^Prima di verificare serve ancora una misura con il multimetro: (.+)\.$/, (m, t) => `\u0642\u0628\u0644 \u0627\u0644\u062A\u062D\u0642\u0642 \u0645\u0627 \u0632\u0627\u0644 \u0645\u0637\u0644\u0648\u0628\u064B\u0627 \u0642\u064A\u0627\u0633 \u0628\u062C\u0647\u0627\u0632 \u0627\u0644\u0642\u064A\u0627\u0633 \u0627\u0644\u0645\u062A\u0639\u062F\u062F: ${t(m[1])}.`],
     [/^Puntale rosso su (.+)\. Tocca il secondo morsetto per il puntale nero\.$/, (m, t) => `\u0627\u0644\u0645\u062C\u0633 \u0627\u0644\u0623\u062D\u0645\u0631 \u0639\u0644\u0649 ${t(m[1])}. \u0627\u0644\u0645\u0633 \u0627\u0644\u0645\u0631\u0628\u0637 \u0627\u0644\u062B\u0627\u0646\u064A \u0644\u0644\u0645\u062C\u0633 \u0627\u0644\u0623\u0633\u0648\u062F.`],
     [/^Rosso su (.+), nero su (.+)\.(?: (.+))?$/, (m, t) => `\u0627\u0644\u0623\u062D\u0645\u0631 \u0639\u0644\u0649 ${t(m[1])}\u060C \u0648\u0627\u0644\u0623\u0633\u0648\u062F \u0639\u0644\u0649 ${t(m[2])}.${m[3] ? " " + t(m[3]) : ""}`],
@@ -10098,7 +10500,7 @@ html[lang="it"] .trnote{display:none}
     [/^Portata (.+): (\d+) ampere\. Tocca per cambiarla$/, (m, t) => `\u0627\u0644\u0633\u0639\u0629 ${t(m[1])}: ${m[2]} \u0623\u0645\u0628\u064A\u0631. \u0627\u0644\u0645\u0633 \u0644\u062A\u063A\u064A\u064A\u0631\u0647\u0627`],
     [/^Protezioni scattate: (.+)\.$/, (m, t) => `\u062D\u0645\u0627\u064A\u0627\u062A \u0641\u0635\u0644\u062A: ${t(m[1])}.`]
   ];
-  registerLang("ar", { ...ar_1_default, ...ar_2_default, ...ar_3_default, ...ar_4_default, ...ar_5_default, ...ar_6_default, ...ar_7_default, ...ar_8_default, ...ar_9_default, ...ar_10_default, ...ar_11_default, ...ar_12_default, ...ar_13_default, ...ar_14_default, ...ar_15_default }, PAT);
+  registerLang("ar", { ...ar_1_default, ...ar_2_default, ...ar_3_default, ...ar_4_default, ...ar_5_default, ...ar_6_default, ...ar_7_default, ...ar_8_default, ...ar_9_default, ...ar_10_default, ...ar_11_default, ...ar_12_default, ...ar_13_default, ...ar_14_default, ...ar_15_default, ...ar_16_default }, PAT);
 
   // src/trilocale/house.js
   function houseState(session2, on = true) {
@@ -10360,6 +10762,126 @@ html[lang="it"] .trnote{display:none}
     };
   }
 
+  // src/prove3d/page.js
+  var TOOLS = {
+    "p01-notte": [["over", "Vista d\u2019insieme"], ["quadro", "Quadro"], ["cucina", "Cucina"]],
+    "p02-officina": [["over", "Vista d\u2019insieme"], ["quadro", "Quadro"]]
+  };
+  var isProveLevel = (id) => /^p\d\d-/.test(id || "");
+  var scriptPromise2 = null;
+  function loadScript2() {
+    if (window.FaseNeutroProve) return Promise.resolve(true);
+    if (!scriptPromise2) {
+      scriptPromise2 = new Promise((resolve) => {
+        const el = document.createElement("script");
+        el.src = "prove3d.js";
+        el.onload = () => resolve(true);
+        el.onerror = () => {
+          el.remove();
+          scriptPromise2 = null;
+          resolve(false);
+        };
+        document.head.appendChild(el);
+      });
+    }
+    return scriptPromise2;
+  }
+  function createProvaPage(host2, env) {
+    let scene = null, state = "idle", levelId = null, mounted = false, token = 0, last = null;
+    let sceneEl = null;
+    const inLesson = () => !!(last && last.unit && last.unit.phase === "lesson");
+    const setState = (s) => {
+      state = s;
+      if (env.onState) env.onState(s);
+    };
+    function build() {
+      const tools = (TOOLS[levelId] || []).map(([k, t]) => `<button class="btn small" data-p="${k}">${t}</button>`).join("");
+      host2.innerHTML = `<div class="hstage"><div class="hscene" id="pScene"></div><div class="htools">${tools}</div><div class="hmsg" id="pMsg" role="status" hidden></div></div>`;
+      sceneEl = host2.querySelector("#pScene");
+      host2.onclick = (e) => {
+        const b = e.target.closest("[data-p]");
+        if (!b || !scene) return;
+        if (b.dataset.p === "over") scene.overview();
+        else scene.focus(b.dataset.p);
+      };
+    }
+    function message() {
+      const m = host2.querySelector("#pMsg");
+      if (!m) return;
+      m.hidden = !(state === "loading" || state === "failed");
+      m.textContent = state === "loading" ? "Caricamento della scena" : "La scena 3D non \xE8 disponibile su questo dispositivo: lavora sullo schema e sulla stanza.";
+      if (sceneEl) sceneEl.hidden = state === "failed";
+    }
+    function load() {
+      if (state !== "idle") return;
+      setState("loading");
+      const my = ++token;
+      const s = env.session;
+      loadScript2().then((ok) => {
+        if (!mounted || my !== token) return;
+        const api = ok && window.FaseNeutroProve && window.FaseNeutroProve.createProva(sceneEl, levelId, {
+          reduced: env.reduced(),
+          onControl: (id) => {
+            if (!inLesson()) s.toggleControl(id);
+          },
+          onPress: (id) => {
+            if (!inLesson()) s.press(id);
+          },
+          onRelease: (id) => {
+            if (!inLesson()) s.release(id);
+          },
+          onReset: (id) => {
+            if (!inLesson()) s.resetPart(id);
+          },
+          onOverload: () => {
+            if (!inLesson() && last) s.setOverload(!last.overload);
+          },
+          onRewind: () => {
+            if (!inLesson()) s.rewind();
+          }
+        });
+        if (api) {
+          scene = api;
+          setState("ready");
+          if (last) scene.update(last);
+        } else setState("failed");
+        message();
+      });
+    }
+    return {
+      // Chiamata a ogni ridisegno della pagina con la prova aperta.
+      sync(snapshot) {
+        if (mounted && levelId !== snapshot.level.id) this.unmount();
+        if (!mounted) {
+          mounted = true;
+          levelId = snapshot.level.id;
+          build();
+          message();
+        }
+        last = snapshot;
+        if (state === "idle") load();
+        if (scene) scene.update(snapshot);
+      },
+      unmount() {
+        if (scene) {
+          scene.dispose();
+          scene = null;
+        }
+        const was = state;
+        state = "idle";
+        mounted = false;
+        levelId = null;
+        last = null;
+        token++;
+        host2.onclick = null;
+        host2.innerHTML = "";
+        if (was !== "idle" && env.onState) env.onState("idle");
+      },
+      isMounted: () => mounted,
+      state: () => state
+    };
+  }
+
   // src/ui2d/app.js
   var colsFor = (lv) => !MQ.matches && lv.engine === 2 && lv.comps.length >= 5 ? 2 : 1;
   var $ = (s) => document.querySelector(s);
@@ -10408,6 +10930,10 @@ html[lang="it"] .trnote{display:none}
   var house = createHouse(document.querySelector("#house"), { session, go: (h) => {
     location.hash = h;
   }, reduced: () => REDUCED.matches });
+  var prova = createProvaPage(document.querySelector("#house"), { session, reduced: () => REDUCED.matches, onState: (st) => {
+    const sc = document.querySelector("#screen-level");
+    if (sc) sc.classList.toggle("no3d", st === "failed");
+  } });
   var comps = [];
   var lastKey = null;
   var rebuild = false;
@@ -10558,11 +11084,22 @@ html[lang="it"] .trnote{display:none}
     const ph = S.unit ? S.unit.phase : "build";
     const inLesson = !!S.unit && ph === "lesson" && S.playMode === "apprendimento";
     const scr = $("#screen-level");
-    const hl = isHouseLevel(S.level.id);
-    scr.className = "phase-" + (inLesson ? "learn" : "play") + (S.playMode === "verifica" ? " verify" : "") + (hl ? " with-house" : "");
-    $("#house").hidden = !hl;
-    if (hl) house.sync(S);
-    else if (house.isMounted()) house.unmount();
+    const hl = isHouseLevel(S.level.id), pl = isProveLevel(S.level.id);
+    scr.className = "phase-" + (inLesson ? "learn" : "play") + (S.playMode === "verifica" ? " verify" : "") + (hl || pl ? " with-house" : "") + (pl ? " prova" : "") + (pl && prova.state() === "failed" ? " no3d" : "");
+    $("#house").hidden = !(hl || pl);
+    if (hl) {
+      if (prova.isMounted()) prova.unmount();
+      house.sync(S);
+    } else if (pl) {
+      if (house.isMounted()) house.unmount();
+      prova.sync(S);
+    } else {
+      if (house.isMounted()) house.unmount();
+      if (prova.isMounted()) prova.unmount();
+    }
+    $("#bUndo").hidden = $("#bClear").hidden = pl;
+    $("#bReset").hidden = !pl;
+    $("#palette").hidden = pl;
     $("#lesson").hidden = !inLesson;
     $("#work").hidden = inLesson;
     if (inLesson) {
@@ -10578,6 +11115,7 @@ html[lang="it"] .trnote{display:none}
     const doneBefore = (S.levels.find((l) => l.id === S.level.id) || {}).stars > 0;
     $("#modeBar").hidden = S.level.quadroOnly || S.playMode === "verifica" || !!S.unit && ph !== "done" && !doneBefore;
     $("#bHint").hidden = $("#bSol").hidden = S.playMode === "verifica";
+    if (pl) $("#bSol").hidden = true;
     $("#bSol").textContent = S.solutionShown ? "Nascondi soluzione" : "Mostra soluzione";
     $("#bSol").setAttribute("aria-pressed", String(S.solutionShown));
     const fl = $("#bFlow");
@@ -10604,7 +11142,10 @@ html[lang="it"] .trnote{display:none}
     $("#screen-home").hidden = !home;
     $("#screen-quaderno").hidden = !qd;
     $("#screen-level").hidden = home || qd;
-    if (home || qd) house.unmount();
+    if (home || qd) {
+      house.unmount();
+      prova.unmount();
+    }
     if (qd) {
       stopDemo();
       demo.page = -1;
@@ -10886,6 +11427,9 @@ html[lang="it"] .trnote{display:none}
   });
   document.addEventListener("click", (e) => {
     if (e.target.closest("[data-rewind]")) session.rewind();
+  });
+  document.addEventListener("click", (e) => {
+    if (e.target.closest("#bReset")) session.resetProva();
   });
   $("#room").addEventListener("click", (e) => {
     const c2 = e.target.closest("[data-ctl]");

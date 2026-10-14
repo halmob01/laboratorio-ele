@@ -28,6 +28,7 @@ export const MODULES = [
       'c19-magnetotermico',
       'c20-differenziale',
       'c11-quadro',
+      'p01-notte',
     ],
   },
   {
@@ -41,14 +42,13 @@ export const MODULES = [
       'c14-termico',
       'c15-inversione',
       'c16-nastro',
+      'p02-officina',
     ],
   },
 ];
 
-// Prove dei moduli ancora da costruire, mostrate in fondo alla mappa.
-export const UPCOMING = [
-  { tag: 'PROVE DEI MODULI', title: 'Appartamento e nastro', note: 'Un appartamento di notte e un nastro trasportatore, in 3D' },
-];
+// Prove dei moduli ancora da costruire, mostrate in fondo alla mappa (vuoto: le prove 3D di M2 e M3 sono pronte).
+export const UPCOMING = [];
 
 // Introduzione animata: una scena per voce. `art` e' la chiave del disegno (src/ui2d/art.js).
 export const INTRO = [

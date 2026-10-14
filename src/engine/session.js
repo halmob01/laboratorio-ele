@@ -14,7 +14,7 @@ import { evaluate } from './evaluate.js';
 import { flowOf } from './flow.js';
 import { stepsState, ghostFor } from './steps.js';
 import { attemptBase, migrateProgress, rankOf, totalXp, xpOf } from './progress.js';
-import { createSim, observe, settle as settleSim, measure as measureSim, setWires as setWires2, setSupply, act, advance, rewind as rewindSim, evaluateV2, isV2, selfPowered, viewOf, HOLD } from './v2/index.js';
+import { createSim, observe, settle as settleSim, measure as measureSim, setWires as setWires2, setSupply, act, advance, rewind as rewindSim, evaluateV2, isV2, selfPowered, viewOf, HOLD, isProva, givenWires, newLog, track as trackProva, guard as guardProva, goalsState, evaluateProva } from './v2/index.js';
 
 function memoryStorage() {
   let data = {};
@@ -65,7 +65,11 @@ export function createSession({ levels, deriveFull, storage = memoryStorage(), i
     const k = keyOf(i, m);
     return levelCache[k] || (levelCache[k] = m === 'contatore' ? deriveFull(levels[i]) : levels[i]);
   };
-  const wires = () => wiresByKey[keyOf()] || (wiresByKey[keyOf()] = []);
+  // Prove dei moduli: l'impianto e' gia' cablato e non si modifica (level.given).
+  const initialWires = () => (isProva(levelAt()) ? givenWires(levelAt()).map(w => ({ id: nextWireId++, ...w })) : []);
+  const wires = () => wiresByKey[keyOf()] || (wiresByKey[keyOf()] = initialWires());
+  const provaBy = {};         // prove dei moduli: registro dei traguardi e delle regole violate, per livello
+  const provaLog = () => provaBy[keyOf()] || (provaBy[keyOf()] = newLog());
   const states = () => statesByKey[keyOf()] || (statesByKey[keyOf()] = {});
   const usage = () => usageByKey[keyOf()] || (usageByKey[keyOf()] = { hints: 0, solution: false, checks: 0 });
   const startPhase = (i = levelIndex) => {
@@ -176,7 +180,7 @@ export function createSession({ levels, deriveFull, storage = memoryStorage(), i
   function stepsPart(level, phase) {
     const u = level.unit;
     if (!u || !u.steps || playMode !== 'apprendimento' || phase === 'lesson') return { steps: null, ghost: null };
-    const st = stepsState(u.steps, wires(), { power, operated: operated(), result: resultsByKey[keyOf()] || null, fault: !!analysisOf(level).fault, measured: measuredBy[keyOf()] || [], ratings: ratingsOf() });
+    const st = stepsState(u.steps, wires(), { goals: isProva(level) ? provaLog().done : null, power, operated: operated(), result: resultsByKey[keyOf()] || null, fault: !!analysisOf(level).fault, measured: measuredBy[keyOf()] || [], ratings: ratingsOf() });
     const cur = st.current === null ? null : u.steps[st.current];
     const ghost = phase === 'build' && u.support === 'guidato' && cur ? ghostFor(cur, wires()) : null;
     return { steps: { list: u.steps, done: st.done, current: st.current }, ghost };
@@ -216,6 +220,8 @@ export function createSession({ levels, deriveFull, storage = memoryStorage(), i
       overload: is2 ? !!simFor().overload : false,
       // multimetro: solo nei livelli che lo dichiarano (`meter: true`)
       meter: is2 && level.meter ? { on: meterOf().on, mode: meterOf().mode, a: meterOf().a, b: meterOf().b, reading: readMeter(level) } : null,
+      // prove dei moduli: traguardi raggiunti e regole di sicurezza violate
+      prova: isProva(level) ? { goals: goalsState(level, provaLog(), view2.obs, simFor()), violations: provaLog().violations.map(v => ({ ...v })) } : null,
       flowVisible: flowVisible(level),
       result: resultsByKey[keyOf()] || null,
       solutionShown,
@@ -258,7 +264,7 @@ export function createSession({ levels, deriveFull, storage = memoryStorage(), i
     const l = levels[levelIndex];
     const u = unitByKey[levelIndex];
     if (u && u.phase === 'fault') return;
-    const ws = (wiresByKey[keyOf()] || []).map(x => ({ id: x.id, a: x.a, b: x.b, c: x.c }));
+    const ws = isProva(l) ? [] : (wiresByKey[keyOf()] || []).map(x => ({ id: x.id, a: x.a, b: x.b, c: x.c }));
     const st = { ...(statesByKey[keyOf()] || {}) };
     const rt = {};
     const rs = mode === 'quadro' ? ratingsOf() : {};
@@ -293,7 +299,7 @@ export function createSession({ levels, deriveFull, storage = memoryStorage(), i
     levels.forEach((l, i) => {
       MODES.forEach(m => {
         const e = isObj(data.w) ? data.w[workKeyOf(i, m)] : null;
-        if (!isObj(e) || (m === 'contatore' && l.quadroOnly)) return;
+        if (!isObj(e) || (m === 'contatore' && l.quadroOnly) || isProva(l)) return;
         const lv = levelAt(i, m);
         const known = new Set(lv.comps.flatMap(c => Object.keys(c.terms).map(t => c.id + '.' + t)));
         const seen = new Set();
@@ -392,8 +398,22 @@ export function createSession({ levels, deriveFull, storage = memoryStorage(), i
     delete verifyStash[levelIndex];
   }
 
+  // Prove dei moduli: dopo ogni azione si segnano i traguardi raggiunti; prima di un'azione si controllano le regole di sicurezza.
+  function trackNow() {
+    const lv = levelAt();
+    if (!v2(lv) || !isProva(lv)) return;
+    const sim = simFor();
+    trackProva(lv, provaLog(), observe(sim), sim, measuredBy[keyOf()] || []);
+  }
+  function guardNow(action, id) {
+    const lv = levelAt();
+    if (!v2(lv) || !isProva(lv)) return;
+    const sim = simFor();
+    guardProva(lv, provaLog(), action, id, observe(sim), sim);
+  }
   const emit = () => {
     logMeter();
+    trackNow();
     const s = snapshot();
     saveWork();
     listeners.forEach(f => f(s));
@@ -552,6 +572,7 @@ export function createSession({ levels, deriveFull, storage = memoryStorage(), i
     // Collega a-b con il colore dato; se il filo esiste gia' lo toglie.
     addWire(a, b, color) {
       if (!a || !b || a === b) return;
+      if (isProva(levelAt())) return;
       if (!inBuildOrFault()) return;
       const ws = wires();
       const k = ws.findIndex(w => (w.a === a && w.b === b) || (w.a === b && w.b === a));
@@ -564,6 +585,7 @@ export function createSession({ levels, deriveFull, storage = memoryStorage(), i
       emit();
     },
     removeWire(id) {
+      if (isProva(levelAt())) return;
       if (!inBuildOrFault()) return;
       const ws = wires();
       const k = ws.findIndex(x => x.id === id);
@@ -576,6 +598,7 @@ export function createSession({ levels, deriveFull, storage = memoryStorage(), i
       emit();
     },
     undo() {
+      if (isProva(levelAt())) return;
       if (!wires().length || !inBuildOrFault()) return;
       const lw = wires()[wires().length - 1];
       const fresh = noteLive([lw.a, lw.b]);
@@ -586,6 +609,7 @@ export function createSession({ levels, deriveFull, storage = memoryStorage(), i
       emit();
     },
     clear() {
+      if (isProva(levelAt())) return;
       if (!inBuildOrFault()) return;
       if (!wires().length) { delete liveEditsBy[keyOf()]; return; }
       wiresChanged();
@@ -630,6 +654,7 @@ export function createSession({ levels, deriveFull, storage = memoryStorage(), i
         const c = levelAt().comps.find(x => x.id === id);
         if (!c) return;
         const sim = simFor();
+        guardNow(HOLD.has(c.type) ? 'press' : 'toggle', id);
         if (HOLD.has(c.type)) { act(sim, 'press', id); act(sim, 'release', id); }   // da tastiera un comando a impulso vale premi e rilascia
         else act(sim, 'toggle', id);
         if (power && !operated().includes(id)) operated().push(id);
@@ -655,6 +680,7 @@ export function createSession({ levels, deriveFull, storage = memoryStorage(), i
       const sim = simFor();
       const c = levelAt().comps.find(x => x.id === id);
       if (!c) return;
+      guardNow(action, id);
       try { act(sim, action, id); } catch (e) { return; }   // azione non prevista per quel componente
       if (action === 'press' && power && !operated().includes(id)) operated().push(id);
       message = null;
@@ -671,6 +697,7 @@ export function createSession({ levels, deriveFull, storage = memoryStorage(), i
     // Livelli con relè termico: simula un sovraccarico (il motore assorbe troppo) per provare la protezione.
     setOverload(on) {
       if (!v2()) return;
+      guardNow(on ? 'overload' : 'overloadOff', '*');
       simFor().overload = !!on;
       emit();
     },
@@ -700,6 +727,15 @@ export function createSession({ levels, deriveFull, storage = memoryStorage(), i
       emit();
     },
     clearProbes() { const m = meterOf(); m.a = m.b = null; m.last = ''; emit(); },
+    // Prove dei moduli: si ricomincia da capo (l'impianto resta com'e', cambiano comandi, traguardi e misure).
+    resetProva() {
+      if (!isProva(levelAt())) return;
+      const k = keyOf();
+      delete provaBy[k]; delete measuredBy[k]; delete operatedByKey[k]; delete resultsByKey[k];
+      if (meterBy[k]) { meterBy[k].a = meterBy[k].b = null; meterBy[k].last = ''; }
+      resetLevelState();
+      emit();
+    },
     toggleFlow() {
       flowOnDemand = !flowOnDemand;
       emit();
@@ -709,7 +745,7 @@ export function createSession({ levels, deriveFull, storage = memoryStorage(), i
       const level = levelAt();
       // nella sfida guasto i guasti da componente ancora attivi (dispersioni) vanno tolti prima di verificare
       const faultOn = v2(level) && level.unit && level.unit.fault && unitState().phase === 'fault' ? (level.unit.fault.on || []).filter(id => simFor().parts[id] && simFor().parts[id].on) : [];
-      const r = v2(level) ? evaluateV2(level, wires(), { measured: measuredBy[keyOf()] || [], ratings: ratingsOf(), faultOn, liveEdits: liveEditsBy[keyOf()] || [] }) : evaluate(level, wires());
+      const r = isProva(level) ? evaluateProva(level, provaLog(), observe(simFor()), simFor()) : v2(level) ? evaluateV2(level, wires(), { measured: measuredBy[keyOf()] || [], ratings: ratingsOf(), faultOn, liveEdits: liveEditsBy[keyOf()] || [] }) : evaluate(level, wires());
       resultsByKey[keyOf()] = r;
       const u = usage();
       u.checks++;

@@ -26,7 +26,7 @@ export const PARTS = {
   rcd: { protect: 'terra', contacts: (c, s) => pole(s.on, [['1', '2'], ['N1', 'N2']]), poles: { F: ['1', '2'], N: ['N1', 'N2'] }, init: c => ({ on: c.init !== 0, tripped: false }), actions: ['toggle', 'test'] },
 
   // dispersione verso terra (guasto d'isolamento): non ha morsetti. `at` e' il punto del circuito dove l'isolante cede, `levels` le correnti disperse (mA) tra cui scegliere
-  gu: { contacts: () => [], init: c => ({ on: false, mA: (c.levels || [30])[0] }), actions: ['toggle', 'rate'] },
+  gu: { contacts: () => [], init: c => ({ on: !!c.init, mA: (c.levels || [30])[0] }), actions: ['toggle', 'rate'] },
 
   // relè e contattori: la bobina e' un carico, il resto sono contatti
   ri: { coil: ['A1', 'A2'], contacts: (c, s) => pole(s.on, [['1', '2']]), init: () => ({ on: false, coil: false }) },

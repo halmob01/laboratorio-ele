@@ -5,12 +5,13 @@ import { UNITS_V2 } from './units-v2.js';
 import { FULL_TEXT } from './it.js';
 import { buildFull } from '../engine/full.js';
 import { TRILOCALE_LEVELS, TRILOCALE_UNITS } from './trilocale.js';
+import { PROVE_LEVELS, PROVE_UNITS } from './prove.js';
 import { MODULES } from './home.js';
 
 // Il livello e la sua unità didattica (se c'è) viaggiano insieme.
-const ALL_UNITS = { ...UNITS, ...UNITS_V2, ...TRILOCALE_UNITS };
+const ALL_UNITS = { ...UNITS, ...UNITS_V2, ...TRILOCALE_UNITS, ...PROVE_UNITS };
 const withUnit = l => (ALL_UNITS[l.id] ? { ...l, unit: ALL_UNITS[l.id] } : l);
-const pool = [...LEVELS, ...TRILOCALE_LEVELS, ...LEVELS_V2];
+const pool = [...LEVELS, ...TRILOCALE_LEVELS, ...LEVELS_V2, ...PROVE_LEVELS];
 
 // L'ordine di gioco ("Livello successivo", "Continua") e' quello di MODULES in home.js: il Modulo 0, poi il trilocale
 // (Modulo 1), poi gli altri moduli. I livelli che non compaiono in MODULES restano in coda, nell'ordine in cui sono definiti.

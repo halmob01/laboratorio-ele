@@ -42,6 +42,7 @@ export function stepsState(steps, wires, ctx) {
     if (st.kind === 'wire') d = !ctx.fault && wireDone(st, wires);   // con un cortocircuito i passi di cablaggio non risultano fatti
     else if (st.kind === 'power') d = !!ctx.power;
     else if (st.kind === 'control') d = operated.has(st.id);
+    else if (st.kind === 'goal') d = !!(ctx.goals && ctx.goals[st.id]);
     else if (st.kind === 'measure') d = (ctx.measured || []).some(m => measureMatches(st, m));
     else if (st.kind === 'rate') d = !!ctx.ratings && ctx.ratings[st.id] === st.value;
     else if (st.kind === 'verify') d = !!(ctx.result && ctx.result.pass);

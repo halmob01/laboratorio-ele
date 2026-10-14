@@ -273,7 +273,7 @@ test('«Già lo so»: prova di salto senza aiuti, poi il livello risulta saltato
 test('si superano tutti i livelli cablando la soluzione (quadro e contatore)', () => {
   for (const mode of ['quadro', 'contatore']) {
     const { w, d, errors } = openPage({ seen: true });
-    levels.filter(l => !(l.quadroOnly && mode === 'contatore')).forEach(base => {
+    levels.filter(l => !l.prova && !(l.quadroOnly && mode === 'contatore')).forEach(base => {
       go(w, '#/livello/' + base.id);
       if (base.unit) lessonAll(w, d);
       if (mode === 'contatore') click(w, q(d, '[data-mode="contatore"]'));

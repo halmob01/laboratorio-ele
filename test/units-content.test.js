@@ -7,7 +7,7 @@ import { evaluateV2 } from '../src/engine/v2/index.js';
 import { levels } from '../src/content/index.js';
 import { loggedMeasures, doMeasures, doRatings, openIsolators } from './misure.js';
 
-const withUnit = levels.filter(l => l.unit);
+const withUnit = levels.filter(l => l.unit && !l.prova);   // le prove dei moduli hanno i loro test (test/prove.test.js)
 const evaluate = (L, w, ratings) => (L.engine === 2 ? evaluateV2(L, w, { measured: loggedMeasures(L), ratings }) : evaluateV1(L, w));
 const W = ws => ws.map(([a, b, c], k) => ({ id: k + 1, a, b, c }));
 

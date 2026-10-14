@@ -168,8 +168,10 @@ export function layoutFor(level, cols = 1) {
 // Componenti del modello con la geometria sopra: x, y, w, h, flip, bx, plate e, per ogni morsetto, f e s.
 // Per il disegno e' piu' comodo avere tutto in un oggetto solo.
 export function composeComps(level, cols = 1) {
-  const layout = layoutFor(level, cols);
-  return level.comps.map(c => {
+  // i pezzi nascosti (il guasto delle prove dei moduli) esistono nel motore ma non si disegnano ne' occupano posto
+  const lv = level.comps.some(c => c.hidden) ? { ...level, comps: level.comps.filter(c => !c.hidden) } : level;
+  const layout = layoutFor(lv, cols);
+  return lv.comps.map(c => {
     const g = layout.comps[c.id];
     const terms = {};
     Object.keys(c.terms).forEach(k => (terms[k] = { ...c.terms[k], f: g.terms[k].f, s: g.terms[k].s }));
