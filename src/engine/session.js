@@ -89,6 +89,14 @@ export function createSession({ levels, deriveFull, storage = memoryStorage(), i
     if (sim) levels[i].comps.forEach(c => { if (c.type === 'mt' && sim.parts[c.id] && sim.parts[c.id].in) out[c.id] = sim.parts[c.id].in; });
     return out;
   };
+  // Stato dei sezionamenti del lavoro fuori tensione (livelli con safety.deadWork), se diverso da quello di partenza.
+  const isoOf = (i = levelIndex) => {
+    const lv = levels[i], k = keyOf(i, 'quadro');
+    const out = { ...(isoSaved[k] || {}) };
+    const sim = simsByKey[k];
+    if (sim && lv.safety && lv.safety.deadWork) lv.safety.deadWork.forEach(id => { const c = lv.comps.find(x => x.id === id); if (sim.parts[id] && !!sim.parts[id].on !== (c.init !== 0)) out[id] = sim.parts[id].on ? 1 : 0; else delete out[id]; });
+    return out;
+  };
   const meterOf = () => meterBy[keyOf()] || (meterBy[keyOf()] = { on: false, mode: 'V', a: null, b: null, last: '' });
   const readMeter = level => {
     const m = meterOf();
@@ -105,6 +113,7 @@ export function createSession({ levels, deriveFull, storage = memoryStorage(), i
     m.last = k;
     (measuredBy[keyOf()] = measuredBy[keyOf()] || []).push({ a: m.a, b: m.b, mode: m.mode, kind: r.kind, value: r.value === undefined ? null : r.value, ohm: r.ohm || null, live: !!power });
   }
+  const isoSaved = {};       // stato (1 chiuso, 0 aperto) dei sezionamenti del lavoro fuori tensione, ricaricato dal lavoro salvato
   const ratingsSaved = {};   // portate scelte e ricaricate dal lavoro salvato, applicate alla prima simulazione
   const operated = () => operatedByKey[keyOf()] || (operatedByKey[keyOf()] = []);
 
@@ -126,6 +135,9 @@ export function createSession({ levels, deriveFull, storage = memoryStorage(), i
       const sim = createSim(levelAt(), wires());
       const sr = ratingsSaved[k];
       delete ratingsSaved[k];
+      const iso = isoSaved[k];
+      delete isoSaved[k];
+      if (iso) { levelAt().comps.forEach(c => { if (iso[c.id] !== undefined && sim.parts[c.id] && 'on' in sim.parts[c.id]) sim.parts[c.id].on = !!iso[c.id]; }); settleSim(sim); }
       if (sr) levelAt().comps.forEach(c => { if (c.type === 'mt' && c.ratings && c.ratings.includes(sr[c.id]) && sim.parts[c.id]) { sim.parts[c.id].in = sr[c.id]; } });
       if (sim.supply !== power) setSupply(sim, power);
       simsByKey[k] = sim;
@@ -253,11 +265,13 @@ export function createSession({ levels, deriveFull, storage = memoryStorage(), i
     l.comps.forEach(c => { if (rs[c.id] && rs[c.id] !== c.in) rt[c.id] = rs[c.id]; });
     const ms = (measuredBy[keyOf()] || []).slice(0, 100);
     const lv_ = (liveEditsBy[keyOf()] || []).slice(0, 20);
-    if (ws.length || Object.keys(st).length || Object.keys(rt).length || ms.length || lv_.length) {
+    const iso_ = mode === 'quadro' ? isoOf() : {};
+    if (ws.length || Object.keys(st).length || Object.keys(rt).length || ms.length || lv_.length || Object.keys(iso_).length) {
       const e = { wires: ws, states: st };
       if (Object.keys(rt).length) e.ratings = rt;
       if (ms.length) e.measured = ms;
       if (lv_.length) e.live = lv_;
+      if (Object.keys(iso_).length) e.iso = iso_;
       work.w[workKeyOf(levelIndex, mode)] = e;
     } else delete work.w[workKeyOf(levelIndex, mode)];
     if (u && l.unit) {
@@ -306,11 +320,16 @@ export function createSession({ levels, deriveFull, storage = memoryStorage(), i
             .map(x => ({ a: x.a, b: x.b, mode: x.mode, kind: x.kind, value: typeof x.value === 'number' ? x.value : null, ohm: typeof x.ohm === 'number' ? x.ohm : null, live: !!x.live }));
           if (ms.length) { measuredBy[keyOf(i, m)] = ms; entry.measured = ms.map(x => ({ ...x })); }
         }
+        if (isObj(e.iso) && lv.safety && lv.safety.deadWork) {
+          const io = {};
+          lv.safety.deadWork.forEach(id => { if (e.iso[id] === 0 || e.iso[id] === 1) io[id] = e.iso[id]; });
+          if (Object.keys(io).length) { isoSaved[keyOf(i, m)] = io; entry.iso = { ...io }; }
+        }
         if (Array.isArray(e.live)) {
           const lv2 = e.live.slice(0, 20).filter(x => typeof x === 'string' && known.has(x));
           if (lv2.length) { liveEditsBy[keyOf(i, m)] = lv2; entry.live = lv2.slice(); }
         }
-        if (ws.length || Object.keys(st).length || entry.ratings || entry.measured || entry.live) work.w[workKeyOf(i, m)] = entry;
+        if (ws.length || Object.keys(st).length || entry.ratings || entry.measured || entry.live || entry.iso) work.w[workKeyOf(i, m)] = entry;
       });
       const e = isObj(data.u) ? data.u[l.id] : null;
       if (!isObj(e) || !l.unit || !['lesson', 'build', 'done'].includes(e.phase)) return;
@@ -357,12 +376,17 @@ export function createSession({ levels, deriveFull, storage = memoryStorage(), i
   const verifyStash = {};
   function stashForVerify() {
     const k = keyOf();
-    verifyStash[levelIndex] = { key: k, wires: (wiresByKey[k] || []).slice(), states: { ...(statesByKey[k] || {}) }, result: resultsByKey[k] || null, usage: usageByKey[k] || null, unit: unitByKey[levelIndex] || null };
+    verifyStash[levelIndex] = { key: k, wires: (wiresByKey[k] || []).slice(), states: { ...(statesByKey[k] || {}) }, result: resultsByKey[k] || null, usage: usageByKey[k] || null, unit: unitByKey[levelIndex] || null, measured: (measuredBy[k] || []).slice(), live: (liveEditsBy[k] || []).slice(), ratings: ratingsOf(), iso: isoOf() };
+    delete measuredBy[k]; delete liveEditsBy[k]; delete ratingsSaved[k]; delete isoSaved[k];
   }
   function unstashFromVerify() {
     const st = verifyStash[levelIndex];
     if (!st) { dropUnitState(); return; }
     wiresByKey[st.key] = st.wires; statesByKey[st.key] = st.states; resultsByKey[st.key] = st.result;
+    measuredBy[st.key] = st.measured; liveEditsBy[st.key] = st.live;
+    delete ratingsSaved[st.key]; delete isoSaved[st.key];
+    if (Object.keys(st.ratings).length) ratingsSaved[st.key] = st.ratings;
+    if (Object.keys(st.iso).length) isoSaved[st.key] = st.iso;
     if (st.usage) usageByKey[st.key] = st.usage; else delete usageByKey[st.key];
     if (st.unit) unitByKey[levelIndex] = st.unit; else delete unitByKey[levelIndex];
     delete verifyStash[levelIndex];
@@ -400,7 +424,7 @@ export function createSession({ levels, deriveFull, storage = memoryStorage(), i
   // si registra. Il lato di linea del sezionamento non conta: resta in tensione anche a sezionamento aperto.
   function noteLive(terms) {
     const lv = levelAt();
-    if (!v2(lv) || !lv.safety || !lv.safety.deadWork || !power) return;
+    if (!v2(lv) || !lv.safety || !lv.safety.deadWork || !power) return false;
     // due simulazioni sui fili di adesso (quella della sessione puo' ancora avere i fili di prima): gli interruttori restano come li ha lasciati l'allievo
     const sim = simFor();
     const mk = () => {
@@ -416,7 +440,9 @@ export function createSession({ levels, deriveFull, storage = memoryStorage(), i
     const off = observe(dead);
     const PH = ['F', 'L1', 'L2', 'L3'];
     const list = liveEditsBy[keyOf()] || (liveEditsBy[keyOf()] = []);
-    terms.forEach(t => { if (PH.includes(now.potential(t)) && !PH.includes(off.potential(t)) && !list.includes(t) && list.length < 20) list.push(t); });
+    let fresh = false;
+    terms.forEach(t => { if (PH.includes(now.potential(t)) && !PH.includes(off.potential(t)) && !list.includes(t) && list.length < 20) { list.push(t); fresh = true; } });
+    return fresh;
   }
 
   // Si modifica il cablaggio: la verifica precedente non vale piu'.
@@ -494,10 +520,10 @@ export function createSession({ levels, deriveFull, storage = memoryStorage(), i
       levelIndex = i;
       if (levels[i].quadroOnly) mode = 'quadro';
       playMode = opts.verify ? 'verifica' : 'apprendimento';
+      if (opts.verify) stashForVerify();   // prima di resetLevelState: legge ancora la simulazione viva
       resetLevelState();
       if (opts.verify) {
         // si riparte da zero, anche se il livello era stato cablato prima
-        stashForVerify();
         wiresByKey[keyOf()] = [];
         statesByKey[keyOf()] = {};
         resultsByKey[keyOf()] = null;
@@ -529,11 +555,12 @@ export function createSession({ levels, deriveFull, storage = memoryStorage(), i
       if (!inBuildOrFault()) return;
       const ws = wires();
       const k = ws.findIndex(w => (w.a === a && w.b === b) || (w.a === b && w.b === a));
-      noteLive([a, b]);
+      const fresh = noteLive([a, b]);
       wiresChanged();
       if (k >= 0) ws.splice(k, 1);
       else ws.push({ id: nextWireId++, a, b, c: color });
       afterEdit();
+      if (fresh) message = { code: 'liveWorkNow' };
       emit();
     },
     removeWire(id) {
@@ -541,22 +568,26 @@ export function createSession({ levels, deriveFull, storage = memoryStorage(), i
       const ws = wires();
       const k = ws.findIndex(x => x.id === id);
       if (k < 0) return;
-      noteLive([ws[k].a, ws[k].b]);
+      const fresh = noteLive([ws[k].a, ws[k].b]);
       wiresChanged();
       ws.splice(k, 1);
       afterEdit();
+      if (fresh) message = { code: 'liveWorkNow' };
       emit();
     },
     undo() {
       if (!wires().length || !inBuildOrFault()) return;
-      { const w = wires()[wires().length - 1]; noteLive([w.a, w.b]); }
+      const lw = wires()[wires().length - 1];
+      const fresh = noteLive([lw.a, lw.b]);
       wiresChanged();
       wires().pop();
       afterEdit();
+      if (fresh) message = { code: 'liveWorkNow' };
       emit();
     },
     clear() {
-      if (!wires().length || !inBuildOrFault()) return;
+      if (!inBuildOrFault()) return;
+      if (!wires().length) { delete liveEditsBy[keyOf()]; return; }
       wiresChanged();
       delete liveEditsBy[keyOf()];   // si ricomincia da capo
       wiresByKey[keyOf()] = [];
@@ -785,6 +816,8 @@ export function createSession({ levels, deriveFull, storage = memoryStorage(), i
       us.phase = 'fault';
       // guasti da componente (dispersioni) gia' attivi all'inizio della sfida
       if (v2(level)) (level.unit.fault.on || []).forEach(id => act(simFor(), 'toggle', id));
+      // sezionamenti che la sfida apre in partenza (si ripara senza tensione)
+      if (v2(level)) (level.unit.fault.open || []).forEach(id => { const s0 = simFor().parts[id]; if (s0 && s0.on) act(simFor(), 'toggle', id); });
       us.diag = null;
       emit();
     },

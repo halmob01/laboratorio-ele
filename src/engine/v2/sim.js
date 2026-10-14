@@ -151,7 +151,7 @@ function analyse(sim, open) {
       else if (v === vn) st = 'on';
       else if (v > 0) st = 'weak';
       if (p.load) loads[id] = st;
-      else coils[id] = st === 'on';
+      else { coils[id] = st === 'on'; if (st === 'burnt') burntNow.push(id); }   // una bobina sotto sovratensione si brucia
       // un carico tra una fase e la terra si accende, ma la corrente torna dalla terra: e' un guasto
       const px = potAt(x), py = potAt(y);
       if (v > 0 && (px === 'PE' || py === 'PE')) faults.push({ code: 'caricoTerra', comp: id });
@@ -416,6 +416,7 @@ export function observe(sim) {
     overload: !!sim.overload,
     lines: lineReport(sim, an),
     leaks: an.leaks,
+    burnt: { ...sim.burnt },
     cable: sim.level.cable ? { iz: sim.level.cable.iz, s: sim.level.cable.s, heat: sim.cableHeat, burnAfter: sim.level.cable.burnAfter || 6, burnt: sim.cableBurnt, amps: sim.parts[sim.level.cable.prot] && sim.parts[sim.level.cable.prot].on ? lineCurrent(sim, an, sim.level.cable.prot) : 0 } : null,
   };
 }

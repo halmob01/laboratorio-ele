@@ -137,7 +137,7 @@ export function itemText(item, level) {
     case 'safe.emergency': return 'Con il pulsante di emergenza premuto qualcosa resta alimentato: l’emergenza deve fermare tutto.';
     case 'safe.restartAfterEmergency': return 'Sbloccando l’emergenza la macchina riparte da sola: deve ripartire solo con un nuovo comando di marcia.';
     case 'safe.notCovered': return 'Un carico (' + nameOf(level, item.comp) + ') non è protetto dal differenziale.';
-    case 'safe.liveWork': return 'Hai cambiato i fili mentre il sezionamento (' + nameOf(level, item.comp) + ') era chiuso e i morsetti erano in tensione. Prima si apre il sezionamento, si verifica che non ci sia tensione, poi si cabla.';
+    case 'safe.liveWork': return 'Hai cambiato i fili mentre il sezionamento (' + nameOf(level, item.comp) + ') era chiuso e i morsetti erano in tensione. Premi Annulla tutto, apri il sezionamento e cabla da capo.';
     case 'safe.neutralEarth': return 'Neutro e terra sono collegati tra loro: il filo di protezione non deve mai portare corrente.';
     case 'safe.ok':
       if (item.variant === 'v2') return 'Le regole di sicurezza del livello sono rispettate.';
@@ -170,6 +170,7 @@ export function sessionMessage(msg) {
       return msg.fault === 'corto'
         ? 'Il magnetotermico è scattato: la fase tocca il neutro (cortocircuito).'
         : 'È scattato il differenziale: la fase è finita sul filo di terra.';
+    case 'liveWorkNow': return 'Attenzione: stai toccando morsetti in tensione. Apri il sezionamento prima di cablare: così com’è, perdi la stella di sicurezza.';
     case 'editWhileLive': return 'Per sicurezza il quadro si è spento: non si toccano i fili con la corrente.';
     case 'powerOff': return 'Quadro spento.';
     case 'lampDark': return 'Il quadro è acceso ma la lampada resta spenta.';

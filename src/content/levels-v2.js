@@ -416,6 +416,7 @@ export const LEVELS_V2 = [
       'Prima il circuito di potenza: le tre fasi passano dal salvamotore, dal contattore e arrivano al motore. Poi la terra del motore.',
       'Il comando prende la fase a valle del salvamotore e passa dal pulsante di arresto (NC), poi dal pulsante di marcia (NA), e arriva alla bobina A1. L’altro capo della bobina, A2, va al neutro.',
       'L’autoritenuta è un contatto del contattore (13-14) in parallelo al pulsante di marcia: 13 al morsetto 3 e 14 al morsetto 4. La spia va in parallelo alla bobina.',
+      'Il salvamotore parte chiuso: aprilo prima di cablare e richiudilo solo alla fine, per provare il motore.',
     ],
   },
   {
@@ -452,6 +453,7 @@ export const LEVELS_V2 = [
       'I tre poli del relè termico (1-2, 3-4, 5-6) stanno in serie tra il contattore e il motore.',
       'Il contatto 95-96 è normalmente chiuso e va nel circuito di comando, in serie, prima del pulsante di arresto.',
       'Il comando parte dal morsetto 2 del salvamotore, passa da 95-96 del termico, poi dall’arresto, dalla marcia e arriva alla bobina. L’autoritenuta e la spia restano come prima.',
+      'Il salvamotore parte chiuso: aprilo prima di cablare e richiudilo solo alla fine, per provare il motore.',
     ],
   },
   {
@@ -497,6 +499,7 @@ export const LEVELS_V2 = [
       'Il contattore KM2 collega il motore con due fasi scambiate: i morsetti 2 e 6 vanno a W e a U invece che a U e a W.',
       'Il comando si divide in due rami, uno per ciascuna marcia, ognuno con la sua autoritenuta (13-14).',
       'L’interblocco: la bobina di KM1 passa dal contatto normalmente chiuso 21-22 di KM2, e la bobina di KM2 da quello di KM1. Se uno è chiuso l’altro non può chiudersi.',
+      'Il salvamotore parte chiuso: aprilo prima di cablare e richiudilo solo alla fine, per provare il motore.',
     ],
   },
   {
@@ -538,6 +541,7 @@ export const LEVELS_V2 = [
       'La parte di potenza è come nel livello precedente: salvamotore, contattore, relè termico, motore e terra.',
       'Nel comando, in serie e prima dell’arresto, ci sono il contatto del termico (95-96) e il contatto NC del pulsante di emergenza.',
       'Il finecorsa sta dopo il pulsante di marcia, con il suo contatto normalmente chiuso (1-2), davanti alla bobina: quando il nastro arriva in fondo, il contatto si apre. L’autoritenuta si tiene prima del finecorsa.',
+      'Il salvamotore parte chiuso: aprilo prima di cablare e richiudilo solo alla fine, per provare il motore.',
     ],
   },
 ];

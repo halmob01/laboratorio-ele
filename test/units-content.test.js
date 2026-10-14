@@ -27,7 +27,7 @@ for (const L of withUnit) {
   });
 
   test(`${L.id}: i passi si completano con la soluzione`, () => {
-    const st = stepsState(u.steps, W(L.solution), { power: true, operated: new Set(L.controls || []), result: { pass: true }, measured: loggedMeasures(L), ratings: L.solutionRatings });
+    const st = stepsState(u.steps, W(L.solution), { power: true, operated: new Set((L.controls || []).concat((L.safety && L.safety.deadWork) || [])), result: { pass: true }, measured: loggedMeasures(L), ratings: L.solutionRatings });
     assert.ok(st.done.every(Boolean), JSON.stringify(st));
     const dp = u.lesson.pages.find(p => p.type === 'demo');
     if (dp) assert.ok(demoFrames(L, dp.captions).length > L.solution.length);

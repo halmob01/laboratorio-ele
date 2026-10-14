@@ -134,6 +134,7 @@ export function schemV2(c, s, L, ui) {
       if (has(c, '13')) o += pole(w * c.terms['13'].f, y1, y2, part.on, L('13'), L('14'));
       if (has(c, '21')) o += pole(w * c.terms['21'].f, y1, y2, !part.on, L('21'), L('22'));
       o += lab(xc, mid + 22, part.on ? 'CHIUSO' : 'APERTO');
+      if (s.obs && s.obs.burnt && s.obs.burnt[c.id]) o += lab(xc, h - 4, 'BOBINA BRUCIATA');
       break;
     }
     case 'ft': {

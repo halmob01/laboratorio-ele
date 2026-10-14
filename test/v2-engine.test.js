@@ -476,3 +476,46 @@ test('lavoro fuori tensione: il lato di linea del sezionamento non conta, il lat
   assert.equal(run(false).pass, true);
   assert.ok(run(true).safe.items.some(i => i.code === 'safe.liveWork'));
 });
+
+test('lavoro fuori tensione: il sezionamento aperto resta aperto dopo un ricaricamento', () => {
+  let saved = null;
+  const mk = () => _cs({ levels: _lv, deriveFull: _df, initialLevel: 'c13-marcia-arresto', storage: { load: () => null, save: () => {}, saveWork: w => { saved = JSON.parse(JSON.stringify(w)); }, loadWork: () => saved } });
+  const L = _lv.find(l => l.id === 'c13-marcia-arresto');
+  const s = mk(); s.skipLesson();
+  s.toggleControl('QM');
+  L.solution.slice(0, 4).forEach(([a, b, c]) => s.addWire(a, b, c));
+  const s2 = mk(); s2.start(); s2.skipLesson();
+  assert.equal(s2.snapshot().controlStates.QM, 0);
+  L.solution.slice(4).forEach(([a, b, c]) => s2.addWire(a, b, c));
+  assert.equal(s2.check().pass, true);
+});
+
+test('lavoro fuori tensione: la prova di salto e l\'apprendimento non si scambiano il registro', () => {
+  const L = _lv.find(l => l.id === 'c13-marcia-arresto');
+  const s = _cs({ levels: _lv, deriveFull: _df, initialLevel: 'c13-marcia-arresto' }); s.skipLesson();
+  L.solution.forEach(([a, b, c]) => s.addWire(a, b, c));           // in tensione: registro sporco
+  assert.equal(s.check().pass, false);
+  s.selectLevel('c13-marcia-arresto', { verify: true });
+  s.toggleControl('QM');
+  L.solution.forEach(([a, b, c]) => s.addWire(a, b, c));           // la prova di salto si fa a regola
+  assert.equal(s.check().pass, true);
+  s.selectLevel('c13-marcia-arresto');                              // si torna all'apprendimento: il registro sporco e' ancora li'
+  assert.equal(s.check().pass, false);
+});
+
+test('lavoro fuori tensione: Annulla tutto azzera il registro, anche se i fili erano gia\' stati tolti', () => {
+  const L = _lv.find(l => l.id === 'c13-marcia-arresto');
+  const s = _cs({ levels: _lv, deriveFull: _df, initialLevel: 'c13-marcia-arresto' }); s.skipLesson();
+  L.solution.forEach(([a, b, c]) => s.addWire(a, b, c));
+  s.clear();
+  s.toggleControl('QM');
+  L.solution.forEach(([a, b, c]) => s.addWire(a, b, c));
+  assert.equal(s.check().pass, true);
+  const u = _cs({ levels: _lv, deriveFull: _df, initialLevel: 'c13-marcia-arresto' }); u.skipLesson();
+  L.solution.slice(0, 5).forEach(([a, b, c]) => u.addWire(a, b, c));
+  u.snapshot().wires.slice().forEach(w => u.removeWire(w.id));
+  u.clear();                                                         // nessun filo: azzera comunque
+  u.toggleControl('QM');
+  L.solution.forEach(([a, b, c]) => u.addWire(a, b, c));
+  assert.equal(u.check().pass, true);
+});

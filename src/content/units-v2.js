@@ -692,7 +692,7 @@ export const UNITS_V2 = {
           type: 'spiegazione',
           title: 'Si lavora senza tensione',
           paras: [
-            'Da questo livello l’impianto ha un sezionamento, il salvamotore. Prima di collegare qualunque filo lo si apre, poi si cabla, e solo alla fine lo si chiude per provare.',
+            'Come nel motore trifase, l’impianto ha un sezionamento: il salvamotore. Prima di collegare qualunque filo lo si apre, poi si cabla, e solo alla fine lo si chiude per provare.',
             'Collegare fili con il sezionamento chiuso, cioè con i morsetti in tensione, è pericoloso: nel gioco vale una stella di sicurezza in meno.',
           ],
           warn: 'Il lato di ingresso del salvamotore resta sempre in tensione: collegarvi i fili del quadro è normale, quello che conta è tenere aperto il sezionamento.',
@@ -968,6 +968,7 @@ export const UNITS_V2 = {
       ],
     },
     steps: [
+      { kind: 'control', id: 'QM', short: '0 Sezionamento', title: 'Apri il salvamotore', text: 'Il salvamotore parte chiuso: aprilo toccando la levetta, così i morsetti a valle sono senza tensione mentre cabli. Lo richiudi solo alla fine, per provare.' },
       { kind: 'wire', from: 'Q.L1', to: ['QM.1'], color: 'marrone', short: '1 Fasi', title: 'Le tre fasi al salvamotore', text: 'L1, L2 e L3 ai morsetti 1, 3 e 5 del salvamotore.' },
       { kind: 'wire', from: 'QM.2', to: ['KM.1'], color: 'marrone', short: '2 Contattore', title: 'Dal salvamotore al contattore', text: 'Dai morsetti 2, 4 e 6 del salvamotore ai morsetti 1, 3 e 5 del contattore.' },
       { kind: 'wire', from: 'KM.2', to: ['M.U'], color: 'marrone', short: '3 Motore', title: 'Dal contattore al motore', text: 'Dai morsetti 2, 4 e 6 del contattore ai morsetti U, V e W del motore.' },
@@ -989,6 +990,7 @@ export const UNITS_V2 = {
       'Arresto vince sempre: premuto, il motore si ferma anche se si tiene premuta Marcia.',
     ],
     fault: {
+      open: ['QM'],
       say: 'Il circuito è già cablato. Premi Marcia e rilascia: guarda che cosa fa il motore.',
       wires: [
         ['Q.L1', 'QM.1', 'marrone'], ['Q.L2', 'QM.3', 'nero'], ['Q.L3', 'QM.5', 'grigio'],
@@ -1088,6 +1090,7 @@ export const UNITS_V2 = {
       ],
     },
     steps: [
+      { kind: 'control', id: 'QM', short: '0 Sezionamento', title: 'Apri il salvamotore', text: 'Il salvamotore parte chiuso: aprilo toccando la levetta, così i morsetti a valle sono senza tensione mentre cabli. Lo richiudi solo alla fine, per provare.' },
       { kind: 'wire', from: 'KM.2', to: ['FR.1'], color: 'marrone', short: '1 Potenza', title: 'Il termico in serie al motore', text: 'Dai morsetti 2, 4 e 6 del contattore ai morsetti 1, 3 e 5 del termico; dai morsetti 2, 4 e 6 del termico a U, V e W.' },
       { kind: 'wire', from: 'QM.2', to: ['FR.95'], color: 'rosso', short: '2 Contatto 95', title: 'Il comando passa dal termico', text: 'Dal morsetto 2 del salvamotore al morsetto 95 del termico.' },
       { kind: 'wire', from: 'FR.96', to: ['SB0.1'], color: 'rosso', short: '3 Contatto 96', title: 'Dal termico all’arresto', text: 'Dal morsetto 96 del termico al morsetto 1 del pulsante di arresto.' },
@@ -1101,6 +1104,7 @@ export const UNITS_V2 = {
       'Se il contatto 95-96 non è nel comando, il termico scatta ma il motore non si ferma.',
     ],
     fault: {
+      open: ['QM'],
       say: 'Il motore è collegato con il relè termico, ma durante un sovraccarico non si ferma. Premi Marcia e poi simula un sovraccarico.',
       wires: [
         ['Q.L1', 'QM.1', 'marrone'], ['Q.L2', 'QM.3', 'nero'], ['Q.L3', 'QM.5', 'grigio'],
@@ -1192,6 +1196,7 @@ export const UNITS_V2 = {
       ],
     },
     steps: [
+      { kind: 'control', id: 'QM', short: '0 Sezionamento', title: 'Apri il salvamotore', text: 'Il salvamotore parte chiuso: aprilo toccando la levetta, così i morsetti a valle sono senza tensione mentre cabli. Lo richiudi solo alla fine, per provare.' },
       { kind: 'wire', from: 'KM1.2', to: ['M.U'], color: 'marrone', short: '1 Avanti', title: 'KM1 in ordine', text: 'KM1 collega il motore con le fasi in ordine.' },
       { kind: 'wire', from: 'KM2.2', to: ['M.W'], color: 'marrone', short: '2 Indietro', title: 'KM2 con due fasi scambiate', text: 'KM2 collega il motore con due fasi scambiate.' },
       { kind: 'wire', from: 'SB1.4', to: ['KM2.21'], color: 'rosso', short: '3 Interblocco', title: 'L’interblocco', text: 'Le bobine passano dai contatti NC 21-22 dell’altro contattore.' },
@@ -1205,6 +1210,7 @@ export const UNITS_V2 = {
       'Per invertire il senso si preme prima Arresto.',
     ],
     fault: {
+      open: ['QM'],
       say: 'Il motore va avanti e indietro. Prova Avanti, Arresto e Indietro. Poi premi Avanti e, con il motore in marcia, premi Indietro.',
       wires: [
         ['Q.L1', 'QM.1', 'marrone'], ['Q.L2', 'QM.3', 'nero'], ['Q.L3', 'QM.5', 'grigio'],
@@ -1302,6 +1308,7 @@ export const UNITS_V2 = {
       ],
     },
     steps: [
+      { kind: 'control', id: 'QM', short: '0 Sezionamento', title: 'Apri il salvamotore', text: 'Il salvamotore parte chiuso: aprilo toccando la levetta, così i morsetti a valle sono senza tensione mentre cabli. Lo richiudi solo alla fine, per provare.' },
       { kind: 'wire', from: 'FR.96', to: ['SBE.1'], color: 'rosso', short: '1 Emergenza', title: 'L’emergenza in serie', text: 'Il fungo (contatto NC) sta nel comando, dopo il termico.' },
       { kind: 'wire', from: 'SB1.4', to: ['FC.1'], color: 'rosso', short: '2 Finecorsa', title: 'Il finecorsa dopo la marcia', text: 'Usa il contatto normalmente chiuso, davanti alla bobina.' },
       { kind: 'verify', short: '3 Verifica', title: 'Controlla l’impianto', text: 'Premi Verifica.' },
@@ -1314,6 +1321,7 @@ export const UNITS_V2 = {
       'Il finecorsa ferma il nastro a fine corsa: il contatto NC si apre.',
     ],
     fault: {
+      open: ['QM'],
       say: 'Il nastro è già cablato ma, premendo Marcia, non parte. Prova.',
       wires: [
         ['Q.L1', 'QM.1', 'marrone'], ['Q.L2', 'QM.3', 'nero'], ['Q.L3', 'QM.5', 'grigio'],
