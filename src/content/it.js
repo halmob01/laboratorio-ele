@@ -127,6 +127,8 @@ export function itemText(item, level) {
     case 'safe.noPanelEarth': return 'Il quadro non è collegato alla terra: manca il filo giallo-verde che arriva dal contatore.';
     case 'safe.noEarth': return 'Manca il collegamento a terra (' + nameOf(level, item.comp) + ').';
     case 'safe.notProtected': return 'Un componente (' + nameOf(level, item.comp) + ') non è a valle della protezione (' + nameOf(level, item.by) + '): in caso di guasto nessuno lo stacca.';
+    case 'safe.coilReturn': return 'Il comando è sul lato del neutro: la bobina (' + nameOf(level, item.comp) + ') ha il capo A2 che non va direttamente al neutro. I comandi stanno sul lato della fase.';
+    case 'safe.motorLive': return 'A comandi rilasciati il motore (' + nameOf(level, item.comp) + ') ha una fase sui suoi morsetti: una fase salta il contattore o la protezione.';
     case 'safe.interlock': return 'I due contattori possono chiudersi insieme: manca l’interblocco, e le fasi andrebbero in cortocircuito.';
     case 'safe.stopNotPriority': return 'Tenendo premuto l’arresto, la marcia avvia lo stesso: l’arresto deve prevalere sempre.';
     case 'safe.emergency': return 'Con il pulsante di emergenza premuto qualcosa resta alimentato: l’emergenza deve fermare tutto.';

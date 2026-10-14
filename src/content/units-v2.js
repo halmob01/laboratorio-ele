@@ -19,7 +19,7 @@ export const UNITS_V2 = {
           focus: ['P'],
           paras: [
             'La presa ha tre morsetti. L riceve la fase, N il neutro, PE la terra.',
-            'Fase e neutro non si scambiano mai, anche se l’apparecchio funzionerebbe lo stesso: il morsetto L deve essere sulla fase, perché le parti metalliche della spina siano sicure.',
+            'Fase e neutro non si scambiano mai, anche se l’apparecchio funzionerebbe lo stesso: per regola d’impianto il morsetto L va sulla fase e il morsetto N sul neutro.',
           ],
         },
         {
@@ -91,7 +91,7 @@ export const UNITS_V2 = {
           { id: 'c', text: 'La lampada è collegata in serie alla presa.' },
         ],
         correct: 'a',
-        why: 'La fase è arrivata sul morsetto N e il neutro sul morsetto L. Gli apparecchi funzionano lo stesso, ma una parte dell’apparecchio che dovrebbe essere a riposo resta in tensione. La fase va sempre sul morsetto L.',
+        why: 'La fase è arrivata sul morsetto N e il neutro sul morsetto L. Gli apparecchi funzionano lo stesso, ma l’impianto non è a regola: chi interviene sulla presa non può sapere quale morsetto è in tensione. La fase va sempre sul morsetto L.',
       },
       fixSay: 'Scambia i fili sulla presa: la fase al morsetto L e il neutro al morsetto N. Poi premi Verifica.',
     },
@@ -219,7 +219,7 @@ export const UNITS_V2 = {
             'Nelle fabbriche la rete è trifase: ci sono tre fasi, L1, L2 e L3. Tra due fasi qualsiasi la tensione è di 400 V; tra una fase e il neutro è di 230 V, come in casa.',
             'I motori industriali sono quasi tutti trifase: tre avvolgimenti alimentati dalle tre fasi creano un campo magnetico che gira e trascina il rotore. Non serve il neutro.',
           ],
-          warn: 'A 400 V gli errori sono più pericolosi. Si lavora sempre con il salvamotore aperto.',
+          warn: 'A 400 V gli errori sono più pericolosi. Si lavora sempre fuori tensione, con il sezionamento a monte aperto e verificato.',
         },
         {
           type: 'pezzi',
@@ -446,7 +446,7 @@ export const UNITS_V2 = {
           title: 'Proteggere il motore',
           paras: [
             'Un motore può assorbire troppa corrente per un tempo lungo: per esempio se l’albero si blocca o se il carico è eccessivo. Gli avvolgimenti si scaldano e, se si va avanti, si danneggiano.',
-            'Il salvamotore interviene subito contro i cortocircuiti. Contro il sovraccarico, che è lento, serve il relè termico: si scalda con la stessa corrente del motore e scatta dopo un po’.',
+            'La protezione a monte (il salvamotore) interviene subito contro i cortocircuiti. Il sovraccarico, che è lento, è affidato al relè termico abbinato al contattore: si scalda con la stessa corrente del motore e scatta dopo un po’.',
           ],
         },
         {
@@ -521,7 +521,7 @@ export const UNITS_V2 = {
       { kind: 'verify', short: '5 Verifica', title: 'Controlla l’impianto', text: 'Usa il pulsante sotto la scena per simulare un sovraccarico, poi premi Verifica.' },
     ],
     summary: [
-      'Il relè termico protegge dal sovraccarico, che è lento; il salvamotore dal cortocircuito, che è subito.',
+      'Il relè termico, abbinato al contattore, protegge dal sovraccarico, che è lento; la protezione a monte interviene sul cortocircuito, che è subito.',
       'I poli di potenza del termico sono in serie al motore; il contatto 95-96 è nel comando, in serie, prima dell’arresto.',
       'Scattato il termico, il comando si apre e il motore si ferma; serve riarmarlo a mano con Reset.',
       'Se il contatto 95-96 non è nel comando, il termico scatta ma il motore non si ferma.',
@@ -631,7 +631,7 @@ export const UNITS_V2 = {
       'Per invertire il senso si preme prima Arresto.',
     ],
     fault: {
-      say: 'Il motore va avanti e indietro. Prova Avanti, Arresto e Indietro. Poi tieni premuti Avanti e Indietro insieme.',
+      say: 'Il motore va avanti e indietro. Prova Avanti, Arresto e Indietro. Poi premi Avanti e, con il motore in marcia, premi Indietro.',
       wires: [
         ['Q.L1', 'QM.1', 'marrone'], ['Q.L2', 'QM.3', 'nero'], ['Q.L3', 'QM.5', 'grigio'],
         ['QM.2', 'KM1.1', 'marrone'], ['QM.4', 'KM1.3', 'nero'], ['QM.6', 'KM1.5', 'grigio'],
@@ -781,7 +781,7 @@ export const UNITS_V2 = {
           title: 'Il relè temporizzato',
           focus: ['T'],
           paras: [
-            'Ha una bobina (A1, A2) e un contatto (1, 2). Quando la bobina riceve tensione il contatto si chiude e parte il conteggio del tempo.',
+            'Ha una bobina (A1, A2) e un contatto (1, 2). Quando la bobina riceve tensione il contatto si chiude; il tempo comincia a contare quando il pulsante viene rilasciato.',
             'Il contatto resta chiuso fino alla fine del tempo, anche se il pulsante è già stato rilasciato. Se si preme di nuovo prima della fine, il conteggio riparte da capo.',
           ],
         },
@@ -876,7 +876,7 @@ export const UNITS_V2 = {
           type: 'spiegazione',
           title: 'Il campanello a bassa tensione',
           paras: [
-            'Il campanello di casa funziona a bassa tensione, per esempio 12 V. È più sicuro: chi tocca il pulsante accanto alla porta non rischia nulla, e i fili possono essere sottili.',
+            'Il campanello di casa funziona a bassa tensione, per esempio 12 V. È più sicuro: chi tocca il pulsante accanto alla porta non rischia nulla, perché il pulsante sta sul circuito a bassa tensione.',
             'La rete però è a 230 V. Serve un componente che abbassi la tensione: il trasformatore.',
           ],
         },
@@ -895,7 +895,7 @@ export const UNITS_V2 = {
           focus: ['B'],
           paras: [
             'Il campanello è fatto per 12 V. Se lo si collega per errore alla rete a 230 V si brucia.',
-            'Il pulsante invece può stare sul primario, sulla fase, come un normale interruttore. I fili del circuito a bassa tensione, né fase né neutro, possono essere di altri colori, per esempio bianco.',
+            'Il pulsante sta sul secondario, in serie al campanello: premuto, chiude il circuito a 12 V. I fili del circuito a bassa tensione, né fase né neutro, possono essere di altri colori, per esempio bianco.',
           ],
         },
         {
@@ -903,35 +903,35 @@ export const UNITS_V2 = {
           title: 'Guarda come si fa',
           captions: {
             wires: [
-              'Filo marrone dalla FASE del quadro al pulsante.',
-              'Dal pulsante al morsetto 1 del primario del trasformatore.',
+              'Filo marrone dalla FASE del quadro al morsetto 1 del primario del trasformatore.',
               'Filo blu dal morsetto 2 del primario al NEUTRO.',
-              'Filo bianco dal morsetto 3 del secondario al campanello.',
+              'Filo bianco dal morsetto 3 del secondario al pulsante.',
+              'Filo bianco dal pulsante al campanello.',
               'Filo bianco dal morsetto 4 del secondario all’altro morsetto del campanello.',
             ],
-            power: 'Levetta su: il pulsante non è premuto, il campanello è silenzioso.',
-            controls: ['Pulsante premuto: il trasformatore è alimentato e il campanello suona.'],
+            power: 'Levetta su: il trasformatore è alimentato, ma il pulsante non è premuto e il campanello è silenzioso.',
+            controls: ['Pulsante premuto: il circuito a 12 V si chiude e il campanello suona.'],
           },
         },
         {
           type: 'previsione',
-          question: 'Il trasformatore è alimentato ma il pulsante non è premuto. Il campanello è collegato al secondario. Che cosa succede?',
+          question: 'Il trasformatore è alimentato e il campanello è collegato al secondario, in serie al pulsante. Il pulsante non è premuto. Che cosa succede?',
           options: [
-            { id: 'a', text: 'Il campanello suona: il secondario ha sempre tensione.' },
-            { id: 'b', text: 'Il campanello è silenzioso: il pulsante interrompe il primario.' },
+            { id: 'a', text: 'Il campanello suona: il secondario ha tensione.' },
+            { id: 'b', text: 'Il campanello è silenzioso: il pulsante tiene aperto il circuito a 12 V.' },
             { id: 'c', text: 'Il campanello si brucia.' },
           ],
           correct: 'b',
-          why: 'Il pulsante sta sulla fase del primario. Finché è a riposo il primario non ha tensione e quindi neanche il secondario ne ha: il campanello tace.',
+          why: 'Il secondario ha tensione, ma il circuito è aperto dal pulsante: non passa corrente e il campanello tace. Premendo il pulsante il circuito si chiude e il campanello suona.',
         },
         { type: 'sintesi', title: 'Da ricordare' },
       ],
     },
     steps: [
-      { kind: 'wire', from: 'Q.F', to: ['SB.3'], color: 'marrone', short: '1 Fase', title: 'La fase al pulsante', text: 'Dalla FASE del quadro al morsetto 3 del pulsante.' },
-      { kind: 'wire', from: 'SB.4', to: ['TR.1'], color: 'marrone', short: '2 Primario', title: 'Al primario', text: 'Dal morsetto 4 del pulsante al morsetto 1 del trasformatore.' },
-      { kind: 'wire', from: 'TR.2', to: ['Q.N'], color: 'blu', short: '3 Neutro', title: 'Il neutro al primario', text: 'Dal morsetto 2 del trasformatore al NEUTRO.' },
-      { kind: 'wire', from: 'TR.3', to: ['B.1'], color: 'bianco', short: '4 Secondario', title: 'Dal secondario al campanello', text: 'Dal morsetto 3 del secondario a un morsetto del campanello. Qui puoi usare il bianco.' },
+      { kind: 'wire', from: 'Q.F', to: ['TR.1'], color: 'marrone', short: '1 Fase', title: 'La fase al primario', text: 'Dalla FASE del quadro al morsetto 1 del trasformatore.' },
+      { kind: 'wire', from: 'TR.2', to: ['Q.N'], color: 'blu', short: '2 Neutro', title: 'Il neutro al primario', text: 'Dal morsetto 2 del trasformatore al NEUTRO.' },
+      { kind: 'wire', from: 'TR.3', to: ['SB.3'], color: 'bianco', short: '3 Pulsante', title: 'Dal secondario al pulsante', text: 'Dal morsetto 3 del secondario al morsetto 3 del pulsante. Qui puoi usare il bianco.' },
+      { kind: 'wire', from: 'SB.4', to: ['B.1'], color: 'bianco', short: '4 Campanello', title: 'Dal pulsante al campanello', text: 'Dal morsetto 4 del pulsante a un morsetto del campanello.' },
       { kind: 'wire', from: 'TR.4', to: ['B.2'], color: 'bianco', short: '5 Ritorno', title: 'Il secondo filo', text: 'Dal morsetto 4 del secondario all’altro morsetto del campanello.' },
       { kind: 'power', short: '6 Levetta', title: 'Dai corrente', text: 'Tocca la levetta del quadro, poi premi il pulsante.' },
       { kind: 'verify', short: '7 Verifica', title: 'Controlla l’impianto', text: 'Premi Verifica.' },
@@ -939,7 +939,7 @@ export const UNITS_V2 = {
     summary: [
       'Il campanello funziona a bassa tensione (12 V): collegato alla rete a 230 V si brucia.',
       'Il trasformatore abbassa la tensione: il primario va alla rete, il secondario al campanello.',
-      'Il pulsante sta sul primario, sulla fase.',
+      'Il pulsante sta sul secondario, in serie al campanello.',
       'I fili del circuito a bassa tensione non hanno i colori della rete: si usa, per esempio, il bianco.',
     ],
     fault: {
@@ -957,7 +957,7 @@ export const UNITS_V2 = {
         correct: 'a',
         why: 'Il campanello è progettato per 12 V. Con 230 V ai capi si brucia. Serve il trasformatore: il campanello va collegato al secondario.',
       },
-      fixSay: 'Inserisci il trasformatore: pulsante e rete sul primario, campanello sul secondario. Poi premi Verifica.',
+      fixSay: 'Inserisci il trasformatore: la rete sul primario, pulsante e campanello in serie sul secondario. Poi premi Verifica.',
     },
   },
 
@@ -1042,7 +1042,7 @@ export const UNITS_V2 = {
       'Il tasto di prova del differenziale va premuto ogni tanto per controllare che funzioni.',
     ],
     fault: {
-      say: 'Il differenziale scatta appena dai corrente. Rialzalo e osserva, poi premi Verifica.',
+      say: 'Alla presa è collegato un apparecchio e il differenziale scatta appena dai corrente. Rialzalo e osserva, poi premi Verifica.',
       wires: [
         ['Q.F', 'D.1', 'marrone'], ['Q.N', 'D.N1', 'blu'],
         ['D.2', 'M1.1', 'marrone'], ['D.2', 'M2.1', 'marrone'], ['D.N2', 'M1.N1', 'blu'],

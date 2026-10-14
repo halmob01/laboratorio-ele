@@ -120,7 +120,7 @@ export default {
 "Si accende quando è alimentata tra i suoi due morsetti. Segnala, per esempio, che il motore è in marcia.": "تضيء عندما تتغذى بين مربطيها. تدل مثلًا على أن المحرك يعمل.",
 "Si spegne e resta spenta.": "تنطفئ وتبقى مطفأة.",
 "Si spegne solo finché tengo premuto, poi si riaccende.": "تنطفئ فقط ما دمت أضغط، ثم تضيء من جديد.",
-"Sta in serie al motore e si scalda se il motore assorbe troppa corrente. Dopo un po’ scatta: apre il contatto 95-96 del comando e il motore si ferma. Si riarma a mano con il tasto Reset.": "يكون على التسلسل مع المحرك ويسخن إذا سحب المحرك تيارًا زائدًا. بعد قليل يفصل: يفتح الملامس 95-96 في دائرة التحكم فيتوقف المحرك. يُعاد تسليحه يدويًا بزر Reset.",
+"Sta in serie al motore e si scalda se il motore assorbe troppa corrente. Dopo un po’ scatta: apre il contatto 95-96 del comando e il motore si ferma. Si riarma a mano con il tasto Reset.": "يكون على التسلسل مع المحرك ويسخن إذا سحب المحرك تيارًا زائدًا. بعد قليل يفصل: يفتح الملامس 95-96 في دائرة التحكم فيتوقف المحرك. يُعاد ضبطه يدويًا بزر Reset.",
 "Terzo impulso: la lampada si riaccende.": "النبضة الثالثة: يضيء المصباح من جديد.",
 "Tocca la levetta del quadro, poi premi i pulsanti uno alla volta.": "المس ذراع اللوحة، ثم اضغط الأزرار واحدًا تلو الآخر.",
 "Un contatto che si aziona quando la macchina arriva a fine corsa: il contatto normalmente chiuso (1-2) si apre, quello normalmente aperto (3-4) si chiude.": "ملامس يعمل عندما تصل الآلة إلى نهاية الشوط: الملامس المغلق عادةً (1-2) ينفتح، والمفتوح عادةً (3-4) ينغلق.",

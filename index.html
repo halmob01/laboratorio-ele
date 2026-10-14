@@ -1382,6 +1382,11 @@ html[lang="it"] .trnote{display:none}
     if (on) sim.mainTrip = false;
     settle(sim);
   }
+  function rewind(sim) {
+    if (!sim.level.machine) return;
+    sim.pos = sim.level.machine.start || 0;
+    settle(sim);
+  }
   function advance(sim, seconds) {
     const n = Math.max(1, Math.round(seconds / STEP));
     for (let i = 0; i < n; i++) {
@@ -1428,7 +1433,8 @@ html[lang="it"] .trnote{display:none}
         const p = an.potAt(term2);
         return p === "mix" ? null : p;
       },
-      supply: sim.supply && !sim.mainTrip
+      supply: sim.supply && !sim.mainTrip,
+      overload: !!sim.overload
     };
   }
   function stillOnIfOpen(sim, id, protIds) {
@@ -1449,6 +1455,7 @@ html[lang="it"] .trnote{display:none}
     const [a, x] = step.trim().split(/\s+/);
     if (a === "wait") advance(sim, Number(x));
     else if (a === "overload") sim.overload = x !== "off";
+    else if (a === "rewind") rewind(sim);
     else act(sim, a, x);
   }
   function mismatch(obs2, expect) {
@@ -1637,7 +1644,33 @@ html[lang="it"] .trnote{display:none}
         const sim = createSim(level, wires);
         level.comps.filter((c2) => c2.type === "pb").forEach((c2) => act(sim, "press", c2.id));
         const both2 = sim.kmHistory.some((on) => S2.never.some((pair) => pair.every((id) => on.includes(id))));
-        if (both || both2) fail("safe.interlock");
+        const starts = level.comps.filter((c2) => c2.type === "pb");
+        let both3 = false;
+        starts.forEach((a) => starts.forEach((b) => {
+          if (a.id === b.id) return;
+          const s3 = createSim(level, wires);
+          act(s3, "press", a.id);
+          act(s3, "release", a.id);
+          act(s3, "press", b.id);
+          if (s3.kmHistory.some((on) => S2.never.some((pair) => pair.every((id) => on.includes(id))))) both3 = true;
+        }));
+        if (both || both2 || both3) fail("safe.interlock");
+      }
+      if (S2.coilReturn) {
+        const uf = makeUF();
+        wires.forEach((w) => uf.u(w.a, w.b));
+        const n = sourcesOf(level).N;
+        S2.coilReturn.forEach((id) => {
+          if (uf.f(id + ".A2") !== uf.f(n)) fail("safe.coilReturn", { comp: id });
+        });
+      }
+      if (level.comps.some((c2) => c2.type === "motor3")) {
+        const sim = createSim(level, wires);
+        setSupply(sim, true);
+        const o = observe(sim);
+        const PH3 = ["L1", "L2", "L3"];
+        const live = level.comps.filter((c2) => c2.type === "motor3").find((c2) => ["U", "V", "W"].some((t) => PH3.includes(o.potential(c2.id + "." + t))));
+        if (live) fail("safe.motorLive", { comp: live.id });
       }
       if (S2.stopWins) {
         const sim = createSim(level, wires);
@@ -1808,7 +1841,7 @@ html[lang="it"] .trnote{display:none}
       const s = obs2.parts[c2.id];
       if (!s) return false;
       if (c2.type === "tmr") return s.left > 0;
-      if (c2.type === "ft") return !s.tripped && (s.heat > 0 || Object.values(obs2.motors).some((m) => m === "hum"));
+      if (c2.type === "ft") return !s.tripped && (s.heat > 0 || Object.values(obs2.motors).some((m) => m === "hum" || obs2.overload && running(m)));
       return false;
     }) || !!level.machine && Object.values(obs2.motors).some(running) && obs2.machine && !obs2.machine.atEnd && !obs2.machine.atStart || !!level.machine && Object.values(obs2.motors).some(running);
   }
@@ -2377,6 +2410,13 @@ html[lang="it"] .trnote{display:none}
       setOverload(on) {
         if (!v2()) return;
         simFor().overload = !!on;
+        emit();
+      },
+      // Livelli con una macchina (nastro): riporta il pacco all'inizio.
+      rewind() {
+        if (!v2()) return;
+        rewind(simFor());
+        applyLive2();
         emit();
       },
       // Livelli con corrente "a richiesta": mostra o nasconde i fili percorsi.
@@ -3415,7 +3455,7 @@ html[lang="it"] .trnote{display:none}
         { id: "p3", label: "Premi quello della camera: la lampada si spegne", steps: [{ do: press("P1"), expect: { loads: { L: "on" } } }, { do: press("P3"), expect: { loads: { L: "off" } } }] },
         { id: "p2", label: "Premi quello del soggiorno: la lampada si riaccende", steps: [{ do: press("P1").concat(press("P3")), expect: { loads: { L: "off" } } }, { do: press("P2"), expect: { loads: { L: "on" } } }] }
       ],
-      safety: { phaseSwitched: ["L"] },
+      safety: { phaseSwitched: ["L"], coilReturn: ["K"] },
       solution: [
         ["Q.F", "P1.3", "marrone"],
         ["P1.3", "P2.3", "marrone"],
@@ -3462,7 +3502,7 @@ html[lang="it"] .trnote{display:none}
         { id: "spegne", label: "Dopo 25 secondi le lampade si sono spente da sole", do: press("P2").concat(["wait 25"]), expect: { loads: { L1: "off", L2: "off" } } },
         { id: "riparte", label: "Se premi di nuovo, il tempo riparte da capo", steps: [{ do: press("P1").concat(["wait 15"]), expect: { loads: { L1: "on" } } }, { do: press("P2").concat(["wait 10"]), expect: { loads: { L1: "on", L2: "on" } } }] }
       ],
-      safety: { phaseSwitched: ["L1", "L2"] },
+      safety: { phaseSwitched: ["L1", "L2"], coilReturn: ["T"] },
       solution: [
         ["Q.F", "P1.3", "marrone"],
         ["P1.3", "P2.3", "marrone"],
@@ -3492,7 +3532,7 @@ html[lang="it"] .trnote{display:none}
       name: "Campanello e trasformatore",
       title: "Il campanello e il trasformatore",
       blurb: "Un trasformatore abbassa la tensione per il campanello.",
-      goal: "Il campanello funziona a 12 V: sulla rete a 230 V si brucerebbe. Collega il pulsante e il primario del trasformatore alla rete, poi il campanello al secondario. Il circuito a bassa tensione ha i suoi colori. Poi dai corrente.",
+      goal: "Il campanello funziona a 12 V: sulla rete a 230 V si brucerebbe. Collega il primario del trasformatore alla rete. Poi, sul secondario, collega il pulsante e il campanello in serie. Il circuito a bassa tensione ha i suoi colori. Poi dai corrente.",
       comps: [
         QM,
         C("SB", "pb", "Pulsante", "Pulsante del campanello", { "3": { l: "3" }, "4": { l: "4" } }),
@@ -3507,15 +3547,15 @@ html[lang="it"] .trnote{display:none}
       ],
       safety: {},
       solution: [
-        ["Q.F", "SB.3", "marrone"],
-        ["SB.4", "TR.1", "marrone"],
+        ["Q.F", "TR.1", "marrone"],
         ["TR.2", "Q.N", "blu"],
-        ["TR.3", "B.1", "bianco"],
+        ["TR.3", "SB.3", "bianco"],
+        ["SB.4", "B.1", "bianco"],
         ["TR.4", "B.2", "bianco"]
       ],
       hints: [
-        "Il primario del trasformatore (morsetti 1 e 2) si collega alla rete, passando dal pulsante sulla fase: fase al pulsante, dal pulsante al morsetto 1, neutro al morsetto 2.",
-        "Il campanello non va mai collegato alla rete: si collega al secondario del trasformatore, morsetti 3 e 4.",
+        "Il primario del trasformatore (morsetti 1 e 2) si collega alla rete: la fase al morsetto 1, il neutro al morsetto 2. Il trasformatore resta sempre alimentato.",
+        "Il campanello non va mai collegato alla rete: si collega al secondario del trasformatore, morsetti 3 e 4. Il pulsante sta in serie al campanello, sul secondario.",
         "I fili del circuito a bassa tensione non sono n\xE9 fase n\xE9 neutro: puoi usare il bianco."
       ]
     },
@@ -3541,7 +3581,7 @@ html[lang="it"] .trnote{display:none}
         C("P", "presa", "Presa", "Presa bipasso 10/16 A", { L: { l: "L" }, PE: { l: "PE" }, N: { l: "N" } })
       ],
       controls: ["D", "M1", "M2", "S"],
-      demoDo: [{ do: ["toggle S"], say: "Interruttore chiuso: la lampada si accende." }, { do: ["toggle S", "test D"], say: "Tasto di prova: il differenziale scatta e tutto si spegne." }],
+      demoDo: [{ do: ["toggle S"], say: "Interruttore chiuso: la lampada si accende." }, { do: ["test D"], say: "Tasto di prova: il differenziale scatta e tutto si spegne." }],
       checks: [
         { id: "presa", label: "La presa \xE8 alimentata", do: [], expect: { loads: { P: "on" } } },
         { id: "luce", label: "Chiudi l\u2019interruttore: la lampada si accende", do: ["toggle S"], expect: { loads: { L: "on" } } },
@@ -3629,7 +3669,7 @@ html[lang="it"] .trnote{display:none}
         { id: "arresto", label: "Premi Arresto: il motore si ferma e la spia si spegne", steps: [{ do: press("SB1"), expect: { motors: { M: "fwd" } } }, { do: press("SB0"), expect: { motors: { M: "off" }, loads: { H: "off" } } }] },
         { id: "fermo", label: "Senza comandi il motore \xE8 fermo", do: [], expect: { motors: { M: "off" } } }
       ],
-      safety: { earth: [["M.PE", "Q.PE"]], stopWins: "SB0", protectedBy: { M: "QM", KM: "QM" } },
+      safety: { earth: [["M.PE", "Q.PE"]], stopWins: "SB0", coilReturn: ["KM"], protectedBy: { M: "QM", KM: "QM" } },
       solution: [
         ["Q.L1", "QM.1", "marrone"],
         ["Q.L2", "QM.3", "nero"],
@@ -3682,7 +3722,7 @@ html[lang="it"] .trnote{display:none}
         { id: "arresto", label: "Premi Arresto: il motore si ferma", steps: [{ do: press("SB1"), expect: { motors: { M: "fwd" } } }, { do: press("SB0"), expect: { motors: { M: "off" } } }] },
         { id: "sovraccarico", label: "Con un sovraccarico il termico scatta e il motore si ferma", steps: [{ do: press("SB1"), expect: { motors: { M: "fwd" } } }, { do: ["overload on", "wait 5"], expect: { motors: { M: "off" }, tripped: ["FR"] } }] }
       ],
-      safety: { earth: [["M.PE", "Q.PE"]], stopWins: "SB0", protectedBy: { M: "QM", KM: "QM" } },
+      safety: { earth: [["M.PE", "Q.PE"]], stopWins: "SB0", coilReturn: ["KM"], protectedBy: { M: "QM", KM: "QM" } },
       solution: [
         ["Q.L1", "QM.1", "marrone"],
         ["Q.L2", "QM.3", "nero"],
@@ -3734,12 +3774,18 @@ html[lang="it"] .trnote{display:none}
         C("M", "motor3", "Motore", "Motore trifase", T("U", "V", "W", "PE"))
       ],
       controls: ["SB0", "SB1", "SB2"],
+      demoDo: [
+        { do: press("SB0"), say: "Arresto premuto: il motore resta fermo." },
+        { do: press("SB1"), say: "Avanti: KM1 si chiude e il motore gira in avanti." },
+        { do: press("SB0"), say: "Per invertire si preme prima Arresto: il motore si ferma." },
+        { do: press("SB2"), say: "Indietro: KM2 si chiude e il motore gira all\u2019indietro." }
+      ],
       checks: [
         { id: "avanti", label: "Premi Avanti e rilascia: il motore gira in avanti", do: press("SB1"), expect: { motors: { M: "fwd" } } },
         { id: "indietro", label: "Premi Indietro e rilascia: il motore gira all\u2019indietro", do: press("SB2"), expect: { motors: { M: "rev" } } },
         { id: "arresto", label: "Premi Arresto: il motore si ferma", steps: [{ do: press("SB2"), expect: { motors: { M: "rev" } } }, { do: press("SB0"), expect: { motors: { M: "off" } } }] }
       ],
-      safety: { never: [["KM1", "KM2"]], stopWins: "SB0", earth: [["M.PE", "Q.PE"]], protectedBy: { M: "QM", KM1: "QM", KM2: "QM" } },
+      safety: { never: [["KM1", "KM2"]], coilReturn: ["KM1", "KM2"], stopWins: "SB0", earth: [["M.PE", "Q.PE"]], protectedBy: { M: "QM", KM1: "QM", KM2: "QM" } },
       solution: [
         ["Q.L1", "QM.1", "marrone"],
         ["Q.L2", "QM.3", "nero"],
@@ -3807,7 +3853,7 @@ html[lang="it"] .trnote{display:none}
         { id: "arresto", label: "Premi Arresto: il nastro si ferma", steps: [{ do: press("SB1"), expect: { motors: { M: "fwd" } } }, { do: press("SB0"), expect: { motors: { M: "off" } } }] },
         { id: "emergenza", label: "Premi il fungo di emergenza: il nastro si ferma", steps: [{ do: press("SB1"), expect: { motors: { M: "fwd" } } }, { do: ["toggle SBE"], expect: { motors: { M: "off" } } }] }
       ],
-      safety: { earth: [["M.PE", "Q.PE"]], stopWins: "SB0", emergency: "SBE", protectedBy: { M: "QM", KM: "QM" } },
+      safety: { earth: [["M.PE", "Q.PE"]], stopWins: "SB0", emergency: "SBE", coilReturn: ["KM"], protectedBy: { M: "QM", KM: "QM" } },
       solution: [
         ["Q.L1", "QM.1", "marrone"],
         ["Q.L2", "QM.3", "nero"],
@@ -3862,7 +3908,7 @@ html[lang="it"] .trnote{display:none}
             focus: ["P"],
             paras: [
               "La presa ha tre morsetti. L riceve la fase, N il neutro, PE la terra.",
-              "Fase e neutro non si scambiano mai, anche se l\u2019apparecchio funzionerebbe lo stesso: il morsetto L deve essere sulla fase, perch\xE9 le parti metalliche della spina siano sicure."
+              "Fase e neutro non si scambiano mai, anche se l\u2019apparecchio funzionerebbe lo stesso: per regola d\u2019impianto il morsetto L va sulla fase e il morsetto N sul neutro."
             ]
           },
           {
@@ -3938,7 +3984,7 @@ html[lang="it"] .trnote{display:none}
             { id: "c", text: "La lampada \xE8 collegata in serie alla presa." }
           ],
           correct: "a",
-          why: "La fase \xE8 arrivata sul morsetto N e il neutro sul morsetto L. Gli apparecchi funzionano lo stesso, ma una parte dell\u2019apparecchio che dovrebbe essere a riposo resta in tensione. La fase va sempre sul morsetto L."
+          why: "La fase \xE8 arrivata sul morsetto N e il neutro sul morsetto L. Gli apparecchi funzionano lo stesso, ma l\u2019impianto non \xE8 a regola: chi interviene sulla presa non pu\xF2 sapere quale morsetto \xE8 in tensione. La fase va sempre sul morsetto L."
         },
         fixSay: "Scambia i fili sulla presa: la fase al morsetto L e il neutro al morsetto N. Poi premi Verifica."
       }
@@ -4070,7 +4116,7 @@ html[lang="it"] .trnote{display:none}
               "Nelle fabbriche la rete \xE8 trifase: ci sono tre fasi, L1, L2 e L3. Tra due fasi qualsiasi la tensione \xE8 di 400 V; tra una fase e il neutro \xE8 di 230 V, come in casa.",
               "I motori industriali sono quasi tutti trifase: tre avvolgimenti alimentati dalle tre fasi creano un campo magnetico che gira e trascina il rotore. Non serve il neutro."
             ],
-            warn: "A 400 V gli errori sono pi\xF9 pericolosi. Si lavora sempre con il salvamotore aperto."
+            warn: "A 400 V gli errori sono pi\xF9 pericolosi. Si lavora sempre fuori tensione, con il sezionamento a monte aperto e verificato."
           },
           {
             type: "pezzi",
@@ -4311,7 +4357,7 @@ html[lang="it"] .trnote{display:none}
             title: "Proteggere il motore",
             paras: [
               "Un motore pu\xF2 assorbire troppa corrente per un tempo lungo: per esempio se l\u2019albero si blocca o se il carico \xE8 eccessivo. Gli avvolgimenti si scaldano e, se si va avanti, si danneggiano.",
-              "Il salvamotore interviene subito contro i cortocircuiti. Contro il sovraccarico, che \xE8 lento, serve il rel\xE8 termico: si scalda con la stessa corrente del motore e scatta dopo un po\u2019."
+              "La protezione a monte (il salvamotore) interviene subito contro i cortocircuiti. Il sovraccarico, che \xE8 lento, \xE8 affidato al rel\xE8 termico abbinato al contattore: si scalda con la stessa corrente del motore e scatta dopo un po\u2019."
             ]
           },
           {
@@ -4386,7 +4432,7 @@ html[lang="it"] .trnote{display:none}
         { kind: "verify", short: "5 Verifica", title: "Controlla l\u2019impianto", text: "Usa il pulsante sotto la scena per simulare un sovraccarico, poi premi Verifica." }
       ],
       summary: [
-        "Il rel\xE8 termico protegge dal sovraccarico, che \xE8 lento; il salvamotore dal cortocircuito, che \xE8 subito.",
+        "Il rel\xE8 termico, abbinato al contattore, protegge dal sovraccarico, che \xE8 lento; la protezione a monte interviene sul cortocircuito, che \xE8 subito.",
         "I poli di potenza del termico sono in serie al motore; il contatto 95-96 \xE8 nel comando, in serie, prima dell\u2019arresto.",
         "Scattato il termico, il comando si apre e il motore si ferma; serve riarmarlo a mano con Reset.",
         "Se il contatto 95-96 non \xE8 nel comando, il termico scatta ma il motore non si ferma."
@@ -4526,7 +4572,7 @@ html[lang="it"] .trnote{display:none}
         "Per invertire il senso si preme prima Arresto."
       ],
       fault: {
-        say: "Il motore va avanti e indietro. Prova Avanti, Arresto e Indietro. Poi tieni premuti Avanti e Indietro insieme.",
+        say: "Il motore va avanti e indietro. Prova Avanti, Arresto e Indietro. Poi premi Avanti e, con il motore in marcia, premi Indietro.",
         wires: [
           ["Q.L1", "QM.1", "marrone"],
           ["Q.L2", "QM.3", "nero"],
@@ -4717,7 +4763,7 @@ html[lang="it"] .trnote{display:none}
             title: "Il rel\xE8 temporizzato",
             focus: ["T"],
             paras: [
-              "Ha una bobina (A1, A2) e un contatto (1, 2). Quando la bobina riceve tensione il contatto si chiude e parte il conteggio del tempo.",
+              "Ha una bobina (A1, A2) e un contatto (1, 2). Quando la bobina riceve tensione il contatto si chiude; il tempo comincia a contare quando il pulsante viene rilasciato.",
               "Il contatto resta chiuso fino alla fine del tempo, anche se il pulsante \xE8 gi\xE0 stato rilasciato. Se si preme di nuovo prima della fine, il conteggio riparte da capo."
             ]
           },
@@ -4816,7 +4862,7 @@ html[lang="it"] .trnote{display:none}
             type: "spiegazione",
             title: "Il campanello a bassa tensione",
             paras: [
-              "Il campanello di casa funziona a bassa tensione, per esempio 12 V. \xC8 pi\xF9 sicuro: chi tocca il pulsante accanto alla porta non rischia nulla, e i fili possono essere sottili.",
+              "Il campanello di casa funziona a bassa tensione, per esempio 12 V. \xC8 pi\xF9 sicuro: chi tocca il pulsante accanto alla porta non rischia nulla, perch\xE9 il pulsante sta sul circuito a bassa tensione.",
               "La rete per\xF2 \xE8 a 230 V. Serve un componente che abbassi la tensione: il trasformatore."
             ]
           },
@@ -4835,7 +4881,7 @@ html[lang="it"] .trnote{display:none}
             focus: ["B"],
             paras: [
               "Il campanello \xE8 fatto per 12 V. Se lo si collega per errore alla rete a 230 V si brucia.",
-              "Il pulsante invece pu\xF2 stare sul primario, sulla fase, come un normale interruttore. I fili del circuito a bassa tensione, n\xE9 fase n\xE9 neutro, possono essere di altri colori, per esempio bianco."
+              "Il pulsante sta sul secondario, in serie al campanello: premuto, chiude il circuito a 12 V. I fili del circuito a bassa tensione, n\xE9 fase n\xE9 neutro, possono essere di altri colori, per esempio bianco."
             ]
           },
           {
@@ -4843,35 +4889,35 @@ html[lang="it"] .trnote{display:none}
             title: "Guarda come si fa",
             captions: {
               wires: [
-                "Filo marrone dalla FASE del quadro al pulsante.",
-                "Dal pulsante al morsetto 1 del primario del trasformatore.",
+                "Filo marrone dalla FASE del quadro al morsetto 1 del primario del trasformatore.",
                 "Filo blu dal morsetto 2 del primario al NEUTRO.",
-                "Filo bianco dal morsetto 3 del secondario al campanello.",
+                "Filo bianco dal morsetto 3 del secondario al pulsante.",
+                "Filo bianco dal pulsante al campanello.",
                 "Filo bianco dal morsetto 4 del secondario all\u2019altro morsetto del campanello."
               ],
-              power: "Levetta su: il pulsante non \xE8 premuto, il campanello \xE8 silenzioso.",
-              controls: ["Pulsante premuto: il trasformatore \xE8 alimentato e il campanello suona."]
+              power: "Levetta su: il trasformatore \xE8 alimentato, ma il pulsante non \xE8 premuto e il campanello \xE8 silenzioso.",
+              controls: ["Pulsante premuto: il circuito a 12 V si chiude e il campanello suona."]
             }
           },
           {
             type: "previsione",
-            question: "Il trasformatore \xE8 alimentato ma il pulsante non \xE8 premuto. Il campanello \xE8 collegato al secondario. Che cosa succede?",
+            question: "Il trasformatore \xE8 alimentato e il campanello \xE8 collegato al secondario, in serie al pulsante. Il pulsante non \xE8 premuto. Che cosa succede?",
             options: [
-              { id: "a", text: "Il campanello suona: il secondario ha sempre tensione." },
-              { id: "b", text: "Il campanello \xE8 silenzioso: il pulsante interrompe il primario." },
+              { id: "a", text: "Il campanello suona: il secondario ha tensione." },
+              { id: "b", text: "Il campanello \xE8 silenzioso: il pulsante tiene aperto il circuito a 12 V." },
               { id: "c", text: "Il campanello si brucia." }
             ],
             correct: "b",
-            why: "Il pulsante sta sulla fase del primario. Finch\xE9 \xE8 a riposo il primario non ha tensione e quindi neanche il secondario ne ha: il campanello tace."
+            why: "Il secondario ha tensione, ma il circuito \xE8 aperto dal pulsante: non passa corrente e il campanello tace. Premendo il pulsante il circuito si chiude e il campanello suona."
           },
           { type: "sintesi", title: "Da ricordare" }
         ]
       },
       steps: [
-        { kind: "wire", from: "Q.F", to: ["SB.3"], color: "marrone", short: "1 Fase", title: "La fase al pulsante", text: "Dalla FASE del quadro al morsetto 3 del pulsante." },
-        { kind: "wire", from: "SB.4", to: ["TR.1"], color: "marrone", short: "2 Primario", title: "Al primario", text: "Dal morsetto 4 del pulsante al morsetto 1 del trasformatore." },
-        { kind: "wire", from: "TR.2", to: ["Q.N"], color: "blu", short: "3 Neutro", title: "Il neutro al primario", text: "Dal morsetto 2 del trasformatore al NEUTRO." },
-        { kind: "wire", from: "TR.3", to: ["B.1"], color: "bianco", short: "4 Secondario", title: "Dal secondario al campanello", text: "Dal morsetto 3 del secondario a un morsetto del campanello. Qui puoi usare il bianco." },
+        { kind: "wire", from: "Q.F", to: ["TR.1"], color: "marrone", short: "1 Fase", title: "La fase al primario", text: "Dalla FASE del quadro al morsetto 1 del trasformatore." },
+        { kind: "wire", from: "TR.2", to: ["Q.N"], color: "blu", short: "2 Neutro", title: "Il neutro al primario", text: "Dal morsetto 2 del trasformatore al NEUTRO." },
+        { kind: "wire", from: "TR.3", to: ["SB.3"], color: "bianco", short: "3 Pulsante", title: "Dal secondario al pulsante", text: "Dal morsetto 3 del secondario al morsetto 3 del pulsante. Qui puoi usare il bianco." },
+        { kind: "wire", from: "SB.4", to: ["B.1"], color: "bianco", short: "4 Campanello", title: "Dal pulsante al campanello", text: "Dal morsetto 4 del pulsante a un morsetto del campanello." },
         { kind: "wire", from: "TR.4", to: ["B.2"], color: "bianco", short: "5 Ritorno", title: "Il secondo filo", text: "Dal morsetto 4 del secondario all\u2019altro morsetto del campanello." },
         { kind: "power", short: "6 Levetta", title: "Dai corrente", text: "Tocca la levetta del quadro, poi premi il pulsante." },
         { kind: "verify", short: "7 Verifica", title: "Controlla l\u2019impianto", text: "Premi Verifica." }
@@ -4879,7 +4925,7 @@ html[lang="it"] .trnote{display:none}
       summary: [
         "Il campanello funziona a bassa tensione (12 V): collegato alla rete a 230 V si brucia.",
         "Il trasformatore abbassa la tensione: il primario va alla rete, il secondario al campanello.",
-        "Il pulsante sta sul primario, sulla fase.",
+        "Il pulsante sta sul secondario, in serie al campanello.",
         "I fili del circuito a bassa tensione non hanno i colori della rete: si usa, per esempio, il bianco."
       ],
       fault: {
@@ -4899,7 +4945,7 @@ html[lang="it"] .trnote{display:none}
           correct: "a",
           why: "Il campanello \xE8 progettato per 12 V. Con 230 V ai capi si brucia. Serve il trasformatore: il campanello va collegato al secondario."
         },
-        fixSay: "Inserisci il trasformatore: pulsante e rete sul primario, campanello sul secondario. Poi premi Verifica."
+        fixSay: "Inserisci il trasformatore: la rete sul primario, pulsante e campanello in serie sul secondario. Poi premi Verifica."
       }
     },
     "c11-quadro": {
@@ -4983,7 +5029,7 @@ html[lang="it"] .trnote{display:none}
         "Il tasto di prova del differenziale va premuto ogni tanto per controllare che funzioni."
       ],
       fault: {
-        say: "Il differenziale scatta appena dai corrente. Rialzalo e osserva, poi premi Verifica.",
+        say: "Alla presa \xE8 collegato un apparecchio e il differenziale scatta appena dai corrente. Rialzalo e osserva, poi premi Verifica.",
         wires: [
           ["Q.F", "D.1", "marrone"],
           ["Q.N", "D.N1", "blu"],
@@ -5162,6 +5208,10 @@ html[lang="it"] .trnote{display:none}
         return "Manca il collegamento a terra (" + nameOf(level, item.comp) + ").";
       case "safe.notProtected":
         return "Un componente (" + nameOf(level, item.comp) + ") non \xE8 a valle della protezione (" + nameOf(level, item.by) + "): in caso di guasto nessuno lo stacca.";
+      case "safe.coilReturn":
+        return "Il comando \xE8 sul lato del neutro: la bobina (" + nameOf(level, item.comp) + ") ha il capo A2 che non va direttamente al neutro. I comandi stanno sul lato della fase.";
+      case "safe.motorLive":
+        return "A comandi rilasciati il motore (" + nameOf(level, item.comp) + ") ha una fase sui suoi morsetti: una fase salta il contattore o la protezione.";
       case "safe.interlock":
         return "I due contattori possono chiudersi insieme: manca l\u2019interblocco, e le fasi andrebbero in cortocircuito.";
       case "safe.stopNotPriority":
@@ -6071,6 +6121,11 @@ html[lang="it"] .trnote{display:none}
       });
     }
     comps2.forEach((c2) => {
+      if (c2.type !== "quadro" || is2 && s.selfPowered) return;
+      const bx = is2 ? c2.w - 70 : c2.w * (c2.bx || 0.5), y0 = is2 ? 30 : 6, hh = is2 ? c2.h - 52 : 52;
+      o += `<g transform="translate(${c2.x},${c2.y})"><rect data-q="1" role="presentation" x="${bx - 30}" y="${y0}" width="60" height="${hh}" fill="transparent" style="cursor:pointer"/></g>`;
+    });
+    comps2.forEach((c2) => {
       const dim = ui2.focus && !ui2.focus.includes(c2.id), ring = ui2.focus && ui2.focus.includes(c2.id);
       Object.keys(c2.terms).forEach((id) => {
         const p = termPosOf(c2, id);
@@ -6091,7 +6146,8 @@ html[lang="it"] .trnote{display:none}
       const run = Object.values(o.motors).some((v) => v === "fwd" || v === "rev") || Object.values(o.loads).some((v) => v === "on");
       const trip2 = o.tripped.length ? '<span class="pill bad">Protezione scattata</span>' : "";
       const ov = s.level.comps.some((c2) => c2.type === "ft") ? `<button class="pill pbtn${s.overload ? " on" : ""}" data-overload="1" aria-pressed="${!!s.overload}">${s.overload ? "Sovraccarico: attivo" : "Simula un sovraccarico"}</button>` : "";
-      return `<span class="pill ${q2[1]}">${q2[0]}</span><span class="pill${run ? " on" : ""}">${run ? "Carico in funzione" : "Carico fermo"}</span>${trip2}${ov}<span class="msg" aria-live="polite">${msg}</span>`;
+      const rw = o.machine && !o.machine.atStart ? '<button class="pill pbtn" data-rewind="1">Riporta il pacco all\u2019inizio</button>' : "";
+      return `<span class="pill ${q2[1]}">${q2[0]}</span><span class="pill${run ? " on" : ""}">${run ? "Carico in funzione" : "Carico fermo"}</span>${trip2}${ov}${rw}<span class="msg" aria-live="polite">${msg}</span>`;
     }
     const multi = s.litLoads && s.litLoads.length > 1;
     const nOn = multi ? s.litLoads.filter(Boolean).length : 0;
@@ -7575,7 +7631,7 @@ html[lang="it"] .trnote{display:none}
     "Si accende quando \xE8 alimentata tra i suoi due morsetti. Segnala, per esempio, che il motore \xE8 in marcia.": "\u062A\u0636\u064A\u0621 \u0639\u0646\u062F\u0645\u0627 \u062A\u062A\u063A\u0630\u0649 \u0628\u064A\u0646 \u0645\u0631\u0628\u0637\u064A\u0647\u0627. \u062A\u062F\u0644 \u0645\u062B\u0644\u064B\u0627 \u0639\u0644\u0649 \u0623\u0646 \u0627\u0644\u0645\u062D\u0631\u0643 \u064A\u0639\u0645\u0644.",
     "Si spegne e resta spenta.": "\u062A\u0646\u0637\u0641\u0626 \u0648\u062A\u0628\u0642\u0649 \u0645\u0637\u0641\u0623\u0629.",
     "Si spegne solo finch\xE9 tengo premuto, poi si riaccende.": "\u062A\u0646\u0637\u0641\u0626 \u0641\u0642\u0637 \u0645\u0627 \u062F\u0645\u062A \u0623\u0636\u063A\u0637\u060C \u062B\u0645 \u062A\u0636\u064A\u0621 \u0645\u0646 \u062C\u062F\u064A\u062F.",
-    "Sta in serie al motore e si scalda se il motore assorbe troppa corrente. Dopo un po\u2019 scatta: apre il contatto 95-96 del comando e il motore si ferma. Si riarma a mano con il tasto Reset.": "\u064A\u0643\u0648\u0646 \u0639\u0644\u0649 \u0627\u0644\u062A\u0633\u0644\u0633\u0644 \u0645\u0639 \u0627\u0644\u0645\u062D\u0631\u0643 \u0648\u064A\u0633\u062E\u0646 \u0625\u0630\u0627 \u0633\u062D\u0628 \u0627\u0644\u0645\u062D\u0631\u0643 \u062A\u064A\u0627\u0631\u064B\u0627 \u0632\u0627\u0626\u062F\u064B\u0627. \u0628\u0639\u062F \u0642\u0644\u064A\u0644 \u064A\u0641\u0635\u0644: \u064A\u0641\u062A\u062D \u0627\u0644\u0645\u0644\u0627\u0645\u0633 95-96 \u0641\u064A \u062F\u0627\u0626\u0631\u0629 \u0627\u0644\u062A\u062D\u0643\u0645 \u0641\u064A\u062A\u0648\u0642\u0641 \u0627\u0644\u0645\u062D\u0631\u0643. \u064A\u064F\u0639\u0627\u062F \u062A\u0633\u0644\u064A\u062D\u0647 \u064A\u062F\u0648\u064A\u064B\u0627 \u0628\u0632\u0631 Reset.",
+    "Sta in serie al motore e si scalda se il motore assorbe troppa corrente. Dopo un po\u2019 scatta: apre il contatto 95-96 del comando e il motore si ferma. Si riarma a mano con il tasto Reset.": "\u064A\u0643\u0648\u0646 \u0639\u0644\u0649 \u0627\u0644\u062A\u0633\u0644\u0633\u0644 \u0645\u0639 \u0627\u0644\u0645\u062D\u0631\u0643 \u0648\u064A\u0633\u062E\u0646 \u0625\u0630\u0627 \u0633\u062D\u0628 \u0627\u0644\u0645\u062D\u0631\u0643 \u062A\u064A\u0627\u0631\u064B\u0627 \u0632\u0627\u0626\u062F\u064B\u0627. \u0628\u0639\u062F \u0642\u0644\u064A\u0644 \u064A\u0641\u0635\u0644: \u064A\u0641\u062A\u062D \u0627\u0644\u0645\u0644\u0627\u0645\u0633 95-96 \u0641\u064A \u062F\u0627\u0626\u0631\u0629 \u0627\u0644\u062A\u062D\u0643\u0645 \u0641\u064A\u062A\u0648\u0642\u0641 \u0627\u0644\u0645\u062D\u0631\u0643. \u064A\u064F\u0639\u0627\u062F \u0636\u0628\u0637\u0647 \u064A\u062F\u0648\u064A\u064B\u0627 \u0628\u0632\u0631 Reset.",
     "Terzo impulso: la lampada si riaccende.": "\u0627\u0644\u0646\u0628\u0636\u0629 \u0627\u0644\u062B\u0627\u0644\u062B\u0629: \u064A\u0636\u064A\u0621 \u0627\u0644\u0645\u0635\u0628\u0627\u062D \u0645\u0646 \u062C\u062F\u064A\u062F.",
     "Tocca la levetta del quadro, poi premi i pulsanti uno alla volta.": "\u0627\u0644\u0645\u0633 \u0630\u0631\u0627\u0639 \u0627\u0644\u0644\u0648\u062D\u0629\u060C \u062B\u0645 \u0627\u0636\u063A\u0637 \u0627\u0644\u0623\u0632\u0631\u0627\u0631 \u0648\u0627\u062D\u062F\u064B\u0627 \u062A\u0644\u0648 \u0627\u0644\u0622\u062E\u0631.",
     "Un contatto che si aziona quando la macchina arriva a fine corsa: il contatto normalmente chiuso (1-2) si apre, quello normalmente aperto (3-4) si chiude.": "\u0645\u0644\u0627\u0645\u0633 \u064A\u0639\u0645\u0644 \u0639\u0646\u062F\u0645\u0627 \u062A\u0635\u0644 \u0627\u0644\u0622\u0644\u0629 \u0625\u0644\u0649 \u0646\u0647\u0627\u064A\u0629 \u0627\u0644\u0634\u0648\u0637: \u0627\u0644\u0645\u0644\u0627\u0645\u0633 \u0627\u0644\u0645\u063A\u0644\u0642 \u0639\u0627\u062F\u0629\u064B (1-2) \u064A\u0646\u0641\u062A\u062D\u060C \u0648\u0627\u0644\u0645\u0641\u062A\u0648\u062D \u0639\u0627\u062F\u0629\u064B (3-4) \u064A\u0646\u063A\u0644\u0642.",
@@ -7868,10 +7924,10 @@ html[lang="it"] .trnote{display:none}
     "Il salvamotore interviene subito contro i cortocircuiti. Contro il sovraccarico, che \xE8 lento, serve il rel\xE8 termico: si scalda con la stessa corrente del motore e scatta dopo un po\u2019.": "\u064A\u062A\u062F\u062E\u0644 \u0642\u0627\u0637\u0639 \u062D\u0645\u0627\u064A\u0629 \u0627\u0644\u0645\u062D\u0631\u0643 \u0641\u0648\u0631\u064B\u0627 \u0636\u062F \u0642\u0635\u0631 \u0627\u0644\u062F\u0627\u0626\u0631\u0629. \u0623\u0645\u0627 \u0636\u062F \u0627\u0644\u062D\u0645\u0644 \u0627\u0644\u0632\u0627\u0626\u062F \u0627\u0644\u0628\u0637\u064A\u0621 \u0641\u0646\u062D\u062A\u0627\u062C \u0625\u0644\u0649 \u0627\u0644\u0645\u0631\u062D\u0651\u0644 \u0627\u0644\u062D\u0631\u0627\u0631\u064A: \u064A\u0633\u062E\u0646 \u0628\u062A\u064A\u0627\u0631 \u0627\u0644\u0645\u062D\u0631\u0643 \u0646\u0641\u0633\u0647 \u0648\u064A\u0641\u0635\u0644 \u0628\u0639\u062F \u0642\u0644\u064A\u0644.",
     "Il termico ferma il motore tramite il comando. Se il contatto 95-96 non \xE8 collegato nel comando, il termico scatta ma il motore continua a girare.": "\u064A\u0648\u0642\u0641 \u0627\u0644\u0645\u0631\u062D\u0651\u0644 \u0627\u0644\u062D\u0631\u0627\u0631\u064A \u0627\u0644\u0645\u062D\u0631\u0643 \u0639\u0628\u0631 \u062F\u0627\u0626\u0631\u0629 \u0627\u0644\u062A\u062D\u0643\u0645. \u0625\u0630\u0627 \u0644\u0645 \u064A\u0643\u0646 \u0627\u0644\u0645\u0644\u0627\u0645\u0633 95-96 \u0645\u0648\u0635\u0648\u0644\u064B\u0627 \u0641\u064A \u062F\u0627\u0626\u0631\u0629 \u0627\u0644\u062A\u062D\u0643\u0645 \u064A\u0641\u0635\u0644 \u0627\u0644\u0645\u0631\u062D\u0651\u0644 \u0627\u0644\u062D\u0631\u0627\u0631\u064A \u0644\u0643\u0646 \u0627\u0644\u0645\u062D\u0631\u0643 \u064A\u0633\u062A\u0645\u0631 \u0641\u064A \u0627\u0644\u062F\u0648\u0631\u0627\u0646.",
     "Il termico in serie al motore": "\u0627\u0644\u0645\u0631\u062D\u0651\u0644 \u0627\u0644\u062D\u0631\u0627\u0631\u064A \u0639\u0644\u0649 \u0627\u0644\u062A\u0633\u0644\u0633\u0644 \u0645\u0639 \u0627\u0644\u0645\u062D\u0631\u0643",
-    "Il termico non si riarma da solo: dopo aver tolto la causa del sovraccarico si preme il tasto Reset. Solo allora il motore pu\xF2 ripartire con un nuovo comando di marcia.": "\u0644\u0627 \u064A\u0639\u064A\u062F \u0627\u0644\u0645\u0631\u062D\u0651\u0644 \u0627\u0644\u062D\u0631\u0627\u0631\u064A \u062A\u0633\u0644\u064A\u062D \u0646\u0641\u0633\u0647: \u0628\u0639\u062F \u0625\u0632\u0627\u0644\u0629 \u0633\u0628\u0628 \u0627\u0644\u062D\u0645\u0644 \u0627\u0644\u0632\u0627\u0626\u062F \u0646\u0636\u063A\u0637 \u0632\u0631 Reset. \u0639\u0646\u062F\u0647\u0627 \u0641\u0642\u0637 \u064A\u0645\u0643\u0646 \u0644\u0644\u0645\u062D\u0631\u0643 \u0623\u0646 \u064A\u0639\u0645\u0644 \u0645\u0646 \u062C\u062F\u064A\u062F \u0628\u0623\u0645\u0631 \u062A\u0634\u063A\u064A\u0644 \u062C\u062F\u064A\u062F.",
+    "Il termico non si riarma da solo: dopo aver tolto la causa del sovraccarico si preme il tasto Reset. Solo allora il motore pu\xF2 ripartire con un nuovo comando di marcia.": "\u0644\u0627 \u064A\u0639\u064A\u062F \u0627\u0644\u0645\u0631\u062D\u0651\u0644 \u0627\u0644\u062D\u0631\u0627\u0631\u064A \u0636\u0628\u0637 \u0646\u0641\u0633\u0647: \u0628\u0639\u062F \u0625\u0632\u0627\u0644\u0629 \u0633\u0628\u0628 \u0627\u0644\u062D\u0645\u0644 \u0627\u0644\u0632\u0627\u0626\u062F \u0646\u0636\u063A\u0637 \u0632\u0631 Reset. \u0639\u0646\u062F\u0647\u0627 \u0641\u0642\u0637 \u064A\u0645\u0643\u0646 \u0644\u0644\u0645\u062D\u0631\u0643 \u0623\u0646 \u064A\u0639\u0645\u0644 \u0645\u0646 \u062C\u062F\u064A\u062F \u0628\u0623\u0645\u0631 \u062A\u0634\u063A\u064A\u0644 \u062C\u062F\u064A\u062F.",
     "Il termico scatta e apre il contatto 95-96, ma questo contatto non \xE8 in serie al comando: la bobina continua a essere alimentata e il motore continua a girare e a surriscaldarsi.": "\u064A\u0641\u0635\u0644 \u0627\u0644\u0645\u0631\u062D\u0651\u0644 \u0627\u0644\u062D\u0631\u0627\u0631\u064A \u0648\u064A\u0641\u062A\u062D \u0627\u0644\u0645\u0644\u0627\u0645\u0633 95-96\u060C \u0644\u0643\u0646 \u0647\u0630\u0627 \u0627\u0644\u0645\u0644\u0627\u0645\u0633 \u0644\u064A\u0633 \u0639\u0644\u0649 \u0627\u0644\u062A\u0633\u0644\u0633\u0644 \u0645\u0639 \u062F\u0627\u0626\u0631\u0629 \u0627\u0644\u062A\u062D\u0643\u0645: \u064A\u0628\u0642\u0649 \u0627\u0644\u0645\u0644\u0641 \u0645\u063A\u0630\u0651\u0649 \u0648\u064A\u0633\u062A\u0645\u0631 \u0627\u0644\u0645\u062D\u0631\u0643 \u0641\u064A \u0627\u0644\u062F\u0648\u0631\u0627\u0646 \u0648\u0627\u0644\u0633\u062E\u0648\u0646\u0629.",
-    "Il termico scattato ha il contatto 95-96 aperto finch\xE9 non lo riarmi con Reset. Il circuito di comando resta interrotto e la bobina non pu\xF2 essere alimentata.": "\u0627\u0644\u0645\u0631\u062D\u0651\u0644 \u0627\u0644\u062D\u0631\u0627\u0631\u064A \u0628\u0639\u062F \u0627\u0644\u0641\u0635\u0644 \u064A\u0628\u0642\u0649 \u0645\u0644\u0627\u0645\u0633\u0647 95-96 \u0645\u0641\u062A\u0648\u062D\u064B\u0627 \u062D\u062A\u0649 \u062A\u0639\u064A\u062F \u062A\u0633\u0644\u064A\u062D\u0647 \u0628\u0632\u0631 Reset. \u062A\u0628\u0642\u0649 \u062F\u0627\u0626\u0631\u0629 \u0627\u0644\u062A\u062D\u0643\u0645 \u0645\u0642\u0637\u0648\u0639\u0629 \u0648\u0644\u0627 \u064A\u0645\u0643\u0646 \u062A\u063A\u0630\u064A\u0629 \u0627\u0644\u0645\u0644\u0641.",
-    "Il termico \xE8 scattato e il motore si \xE8 fermato. Senza riarmarlo premo Marcia. Che cosa succede?": "\u0641\u0635\u0644 \u0627\u0644\u0645\u0631\u062D\u0651\u0644 \u0627\u0644\u062D\u0631\u0627\u0631\u064A \u0648\u062A\u0648\u0642\u0641 \u0627\u0644\u0645\u062D\u0631\u0643. \u0623\u0636\u063A\u0637 \u0627\u0644\u062A\u0634\u063A\u064A\u0644 \u062F\u0648\u0646 \u0625\u0639\u0627\u062F\u0629 \u0627\u0644\u062A\u0633\u0644\u064A\u062D. \u0645\u0627\u0630\u0627 \u064A\u062D\u062F\u062B\u061F",
+    "Il termico scattato ha il contatto 95-96 aperto finch\xE9 non lo riarmi con Reset. Il circuito di comando resta interrotto e la bobina non pu\xF2 essere alimentata.": "\u0627\u0644\u0645\u0631\u062D\u0651\u0644 \u0627\u0644\u062D\u0631\u0627\u0631\u064A \u0628\u0639\u062F \u0627\u0644\u0641\u0635\u0644 \u064A\u0628\u0642\u0649 \u0645\u0644\u0627\u0645\u0633\u0647 95-96 \u0645\u0641\u062A\u0648\u062D\u064B\u0627 \u062D\u062A\u0649 \u062A\u0639\u064A\u062F \u0636\u0628\u0637\u0647 \u0628\u0632\u0631 Reset. \u062A\u0628\u0642\u0649 \u062F\u0627\u0626\u0631\u0629 \u0627\u0644\u062A\u062D\u0643\u0645 \u0645\u0642\u0637\u0648\u0639\u0629 \u0648\u0644\u0627 \u064A\u0645\u0643\u0646 \u062A\u063A\u0630\u064A\u0629 \u0627\u0644\u0645\u0644\u0641.",
+    "Il termico \xE8 scattato e il motore si \xE8 fermato. Senza riarmarlo premo Marcia. Che cosa succede?": "\u0641\u0635\u0644 \u0627\u0644\u0645\u0631\u062D\u0651\u0644 \u0627\u0644\u062D\u0631\u0627\u0631\u064A \u0648\u062A\u0648\u0642\u0641 \u0627\u0644\u0645\u062D\u0631\u0643. \u0623\u0636\u063A\u0637 \u0627\u0644\u062A\u0634\u063A\u064A\u0644 \u062F\u0648\u0646 \u0625\u0639\u0627\u062F\u0629 \u0627\u0644\u0636\u0628\u0637. \u0645\u0627\u0630\u0627 \u064A\u062D\u062F\u062B\u061F",
     "Indietro: KM2 si chiude e il motore gira all\u2019indietro.": "\u0627\u0644\u062E\u0644\u0641: \u064A\u0646\u063A\u0644\u0642 KM2 \u0648\u064A\u062F\u0648\u0631 \u0627\u0644\u0645\u062D\u0631\u0643 \u0625\u0644\u0649 \u0627\u0644\u062E\u0644\u0641.",
     "Interblocco: da Avanti al contatto 21 di KM2.": "\u0627\u0644\u062A\u0639\u0634\u064A\u0642 \u0627\u0644\u0645\u062A\u0628\u0627\u062F\u0644: \u0645\u0646 \u0632\u0631 \u0627\u0644\u0623\u0645\u0627\u0645 \u0625\u0644\u0649 \u0627\u0644\u0645\u0644\u0627\u0645\u0633 21 \u0641\u064A KM2.",
     "KM1 collega il motore con le fasi in ordine.": "KM1 \u064A\u0648\u0635\u0644 \u0627\u0644\u0645\u062D\u0631\u0643 \u0628\u0627\u0644\u0623\u0637\u0648\u0627\u0631 \u0628\u0627\u0644\u062A\u0631\u062A\u064A\u0628.",
@@ -7928,7 +7984,7 @@ html[lang="it"] .trnote{display:none}
     "Riparte da solo.": "\u064A\u0639\u0645\u0644 \u0645\u0646 \u062C\u062F\u064A\u062F \u0645\u0646 \u062A\u0644\u0642\u0627\u0621 \u0646\u0641\u0633\u0647.",
     "Scambiando due fasi si inverte il senso del motore.": "\u0639\u0646\u062F \u062A\u0628\u062F\u064A\u0644 \u0637\u0648\u0631\u064A\u0646 \u064A\u0646\u0639\u0643\u0633 \u0627\u062A\u062C\u0627\u0647 \u0627\u0644\u0645\u062D\u0631\u0643.",
     "Scatta il termico.": "\u064A\u0641\u0635\u0644 \u0627\u0644\u0645\u0631\u062D\u0651\u0644 \u0627\u0644\u062D\u0631\u0627\u0631\u064A.",
-    "Scattato il termico, il comando si apre e il motore si ferma; serve riarmarlo a mano con Reset.": "\u0628\u0639\u062F \u0641\u0635\u0644 \u0627\u0644\u0645\u0631\u062D\u0651\u0644 \u0627\u0644\u062D\u0631\u0627\u0631\u064A \u062A\u0646\u0641\u062A\u062D \u062F\u0627\u0626\u0631\u0629 \u0627\u0644\u062A\u062D\u0643\u0645 \u0648\u064A\u062A\u0648\u0642\u0641 \u0627\u0644\u0645\u062D\u0631\u0643\u061B \u0648\u064A\u062C\u0628 \u0625\u0639\u0627\u062F\u0629 \u062A\u0633\u0644\u064A\u062D\u0647 \u064A\u062F\u0648\u064A\u064B\u0627 \u0628\u0632\u0631 Reset.",
+    "Scattato il termico, il comando si apre e il motore si ferma; serve riarmarlo a mano con Reset.": "\u0628\u0639\u062F \u0641\u0635\u0644 \u0627\u0644\u0645\u0631\u062D\u0651\u0644 \u0627\u0644\u062D\u0631\u0627\u0631\u064A \u062A\u0646\u0641\u062A\u062D \u062F\u0627\u0626\u0631\u0629 \u0627\u0644\u062A\u062D\u0643\u0645 \u0648\u064A\u062A\u0648\u0642\u0641 \u0627\u0644\u0645\u062D\u0631\u0643\u061B \u0648\u064A\u062C\u0628 \u0625\u0639\u0627\u062F\u0629 \u0636\u0628\u0637\u0647 \u064A\u062F\u0648\u064A\u064B\u0627 \u0628\u0632\u0631 Reset.",
     "Se i due contattori si chiudessero insieme, due fasi della rete si collegherebbero tra loro: un cortocircuito. Il salvamotore scatterebbe.": "\u0644\u0648 \u0627\u0646\u063A\u0644\u0642 \u0627\u0644\u0643\u0648\u0646\u062A\u0627\u0643\u062A\u0648\u0631\u0627\u0646 \u0645\u0639\u064B\u0627 \u0644\u0627\u062A\u0635\u0644 \u0637\u0648\u0631\u0627\u0646 \u0645\u0646 \u0627\u0644\u0634\u0628\u0643\u0629 \u0628\u0628\u0639\u0636\u0647\u0645\u0627: \u0642\u0635\u0631 \u0641\u064A \u0627\u0644\u062F\u0627\u0626\u0631\u0629. \u0648\u0633\u064A\u0641\u0635\u0644 \u0642\u0627\u0637\u0639 \u062D\u0645\u0627\u064A\u0629 \u0627\u0644\u0645\u062D\u0631\u0643.",
     "Se il contatto 95-96 non \xE8 nel comando, il termico scatta ma il motore non si ferma.": "\u0625\u0630\u0627 \u0644\u0645 \u064A\u0643\u0646 \u0627\u0644\u0645\u0644\u0627\u0645\u0633 95-96 \u0641\u064A \u062F\u0627\u0626\u0631\u0629 \u0627\u0644\u062A\u062D\u0643\u0645 \u064A\u0641\u0635\u0644 \u0627\u0644\u0645\u0631\u062D\u0651\u0644 \u0627\u0644\u062D\u0631\u0627\u0631\u064A \u0644\u0643\u0646 \u0627\u0644\u0645\u062D\u0631\u0643 \u0644\u0627 \u064A\u062A\u0648\u0642\u0641.",
     "Senza interblocco il circuito sembra funzionare, ma premendo le due marce insieme si ha un cortocircuito.": "\u0628\u062F\u0648\u0646 \u062A\u0639\u0634\u064A\u0642 \u0645\u062A\u0628\u0627\u062F\u0644 \u064A\u0628\u062F\u0648 \u0623\u0646 \u0627\u0644\u062F\u0627\u0626\u0631\u0629 \u062A\u0639\u0645\u0644\u060C \u0644\u0643\u0646 \u0636\u063A\u0637 \u0627\u0644\u0627\u062A\u062C\u0627\u0647\u064A\u0646 \u0645\u0639\u064B\u0627 \u064A\u0633\u0628\u0628 \u0642\u0635\u0631\u064B\u0627 \u0641\u064A \u0627\u0644\u062F\u0627\u0626\u0631\u0629.",
@@ -7945,16 +8001,16 @@ html[lang="it"] .trnote{display:none}
 
   // src/i18n/ar-12.js
   var ar_12_default = {
-    "A RIPOSO": "\u0641\u064A \u0627\u0644\u0631\u0627\u062D\u0629",
+    "A RIPOSO": "\u0641\u064A \u0648\u0636\u0639 \u0627\u0644\u0633\u0643\u0648\u0646",
     "Contatto 95": "\u0627\u0644\u0645\u0644\u0627\u0645\u0633 95",
     "Contatto 96": "\u0627\u0644\u0645\u0644\u0627\u0645\u0633 96",
     "EMERGENZA": "\u0637\u0648\u0627\u0631\u0626",
     "Potenza": "\u0627\u0644\u0642\u062F\u0631\u0629",
-    "Pulsante Avanti (NA), tieni premuto": "\u0632\u0631 \u0627\u0644\u0623\u0645\u0627\u0645 (NO)\u060C \u0623\u0628\u0642\u0650\u0647 \u0645\u0636\u063A\u0648\u0637\u064B\u0627",
-    "Pulsante Indietro (NA), tieni premuto": "\u0632\u0631 \u0627\u0644\u062E\u0644\u0641 (NO)\u060C \u0623\u0628\u0642\u0650\u0647 \u0645\u0636\u063A\u0648\u0637\u064B\u0627",
+    "Pulsante Avanti (NA), tieni premuto": "\u0632\u0631 \u0627\u0644\u0623\u0645\u0627\u0645 (NA)\u060C \u0623\u0628\u0642\u0650\u0647 \u0645\u0636\u063A\u0648\u0637\u064B\u0627",
+    "Pulsante Indietro (NA), tieni premuto": "\u0632\u0631 \u0627\u0644\u062E\u0644\u0641 (NA)\u060C \u0623\u0628\u0642\u0650\u0647 \u0645\u0636\u063A\u0648\u0637\u064B\u0627",
     "Pulsante di emergenza a fungo, premi per bloccare o sbloccare": "\u0632\u0631 \u0627\u0644\u0637\u0648\u0627\u0631\u0626 \u0627\u0644\u0641\u0637\u0631\u064A\u060C \u0627\u0636\u063A\u0637 \u0644\u0644\u062A\u062B\u0628\u064A\u062A \u0623\u0648 \u0644\u0644\u062A\u062D\u0631\u064A\u0631",
     "RESET": "\u0625\u0639\u0627\u062F\u0629 \u0627\u0644\u0636\u0628\u0637",
-    "Riarmo Termico": "\u0625\u0639\u0627\u062F\u0629 \u062A\u0633\u0644\u064A\u062D \u0627\u0644\u062D\u0631\u0627\u0631\u064A",
+    "Riarmo Termico": "\u0625\u0639\u0627\u062F\u0629 \u0636\u0628\u0637 \u0627\u0644\u062D\u0631\u0627\u0631\u064A",
     "Simula un sovraccarico": "\u0645\u062D\u0627\u0643\u0627\u0629 \u062D\u0645\u0644 \u0632\u0627\u0626\u062F",
     "TERMICO": "\u062D\u0631\u0627\u0631\u064A"
   };
@@ -8053,7 +8109,7 @@ html[lang="it"] .trnote{display:none}
     "Il differenziale": "\u0627\u0644\u0642\u0627\u0637\u0639 \u0627\u0644\u062A\u0641\u0627\u0636\u0644\u064A",
     "Il differenziale protegge le persone: scatta se la corrente di andata e quella di ritorno sono diverse.": "\u0627\u0644\u0642\u0627\u0637\u0639 \u0627\u0644\u062A\u0641\u0627\u0636\u0644\u064A \u064A\u062D\u0645\u064A \u0627\u0644\u0623\u0634\u062E\u0627\u0635: \u064A\u0641\u0635\u0644 \u0625\u0630\u0627 \u0627\u062E\u062A\u0644\u0641 \u062A\u064A\u0627\u0631 \u0627\u0644\u0630\u0647\u0627\u0628 \u0639\u0646 \u062A\u064A\u0627\u0631 \u0627\u0644\u0639\u0648\u062F\u0629.",
     "Il differenziale rileva la differenza tra la corrente di andata e quella di ritorno. Una dispersione verso terra \xE8 proprio questa differenza. I magnetotermici scattano per sovraccarico o cortocircuito, non per dispersione.": "\u064A\u0643\u0634\u0641 \u0627\u0644\u0642\u0627\u0637\u0639 \u0627\u0644\u062A\u0641\u0627\u0636\u0644\u064A \u0627\u0644\u0641\u0631\u0642 \u0628\u064A\u0646 \u062A\u064A\u0627\u0631 \u0627\u0644\u0630\u0647\u0627\u0628 \u0648\u062A\u064A\u0627\u0631 \u0627\u0644\u0639\u0648\u062F\u0629. \u0648\u062A\u0633\u0631\u0651\u0628 \u0627\u0644\u062A\u064A\u0627\u0631 \u0625\u0644\u0649 \u0627\u0644\u0623\u0631\u0636 \u0647\u0648 \u0647\u0630\u0627 \u0627\u0644\u0641\u0631\u0642 \u062A\u062D\u062F\u064A\u062F\u064B\u0627. \u0623\u0645\u0627 \u0627\u0644\u0642\u0648\u0627\u0637\u0639 \u0627\u0644\u0645\u063A\u0646\u0627\u0637\u064A\u0633\u064A\u0629 \u0627\u0644\u062D\u0631\u0627\u0631\u064A\u0629 \u0641\u062A\u0641\u0635\u0644 \u0639\u0646\u062F \u0627\u0644\u062D\u0645\u0644 \u0627\u0644\u0632\u0627\u0626\u062F \u0623\u0648 \u0627\u0644\u0642\u0635\u0631\u060C \u0644\u0627 \u0639\u0646\u062F \u0627\u0644\u062A\u0633\u0631\u0651\u0628.",
-    "Il differenziale scatta appena dai corrente. Rialzalo e osserva, poi premi Verifica.": "\u064A\u0641\u0635\u0644 \u0627\u0644\u0642\u0627\u0637\u0639 \u0627\u0644\u062A\u0641\u0627\u0636\u0644\u064A \u0628\u0645\u062C\u0631\u062F \u0625\u0639\u0637\u0627\u0621 \u0627\u0644\u062A\u064A\u0627\u0631. \u0623\u0639\u062F \u062A\u0633\u0644\u064A\u062D\u0647 \u0648\u0631\u0627\u0642\u0628\u060C \u062B\u0645 \u0627\u0636\u063A\u0637 \u062A\u062D\u0642\u0642.",
+    "Il differenziale scatta appena dai corrente. Rialzalo e osserva, poi premi Verifica.": "\u064A\u0641\u0635\u0644 \u0627\u0644\u0642\u0627\u0637\u0639 \u0627\u0644\u062A\u0641\u0627\u0636\u0644\u064A \u0628\u0645\u062C\u0631\u062F \u0625\u0639\u0637\u0627\u0621 \u0627\u0644\u062A\u064A\u0627\u0631. \u0623\u0639\u062F \u0636\u0628\u0637\u0647 \u0648\u0631\u0627\u0642\u0628\u060C \u062B\u0645 \u0627\u0636\u063A\u0637 \u062A\u062D\u0642\u0642.",
     "Il differenziale.": "\u0627\u0644\u0642\u0627\u0637\u0639 \u0627\u0644\u062A\u0641\u0627\u0636\u0644\u064A.",
     "Il fronte di salita della bobina riavvia il conteggio. Ogni pressione d\xE0 un nuovo intervallo pieno: per questo chi sale le scale pu\xF2 premere quando vuole senza restare al buio.": "\u0627\u0644\u062D\u0627\u0641\u0629 \u0627\u0644\u0635\u0627\u0639\u062F\u0629 \u0644\u0644\u0645\u0644\u0641 \u062A\u0639\u064A\u062F \u0628\u062F\u0621 \u0627\u0644\u0639\u062F\u0651. \u0643\u0644 \u0636\u063A\u0637\u0629 \u062A\u0639\u0637\u064A \u0641\u062A\u0631\u0629 \u0643\u0627\u0645\u0644\u0629 \u062C\u062F\u064A\u062F\u0629: \u0648\u0644\u0630\u0644\u0643 \u064A\u0645\u0643\u0646 \u0644\u0645\u0646 \u064A\u0635\u0639\u062F \u0627\u0644\u0633\u0644\u0627\u0644\u0645 \u0623\u0646 \u064A\u0636\u063A\u0637 \u0645\u062A\u0649 \u0634\u0627\u0621 \u0645\u0646 \u062F\u0648\u0646 \u0623\u0646 \u064A\u0628\u0642\u0649 \u0641\u064A \u0627\u0644\u0638\u0644\u0627\u0645.",
     "Il magnetotermico della luce.": "\u0627\u0644\u0642\u0627\u0637\u0639 \u0627\u0644\u0645\u063A\u0646\u0627\u0637\u064A\u0633\u064A \u0627\u0644\u062D\u0631\u0627\u0631\u064A \u0644\u0644\u0625\u0646\u0627\u0631\u0629.",
@@ -8117,7 +8173,7 @@ html[lang="it"] .trnote{display:none}
     "Linee separate con magnetotermici separati: se una si guasta, le altre restano alimentate.": "\u062E\u0637\u0648\u0637 \u0645\u0646\u0641\u0635\u0644\u0629 \u0628\u0642\u0648\u0627\u0637\u0639 \u0645\u063A\u0646\u0627\u0637\u064A\u0633\u064A\u0629 \u062D\u0631\u0627\u0631\u064A\u0629 \u0645\u0646\u0641\u0635\u0644\u0629: \u0625\u0630\u0627 \u062A\u0639\u0637\u0651\u0644 \u0623\u062D\u062F\u0647\u0627 \u0628\u0642\u064A\u062A \u0627\u0644\u0623\u062E\u0631\u0649 \u0645\u063A\u0630\u0651\u0627\u0629.",
     "Magnetotermico luce": "\u0627\u0644\u0642\u0627\u0637\u0639 \u0627\u0644\u0645\u063A\u0646\u0627\u0637\u064A\u0633\u064A \u0627\u0644\u062D\u0631\u0627\u0631\u064A \u0644\u0644\u0625\u0646\u0627\u0631\u0629",
     "Magnetotermico prese": "\u0627\u0644\u0642\u0627\u0637\u0639 \u0627\u0644\u0645\u063A\u0646\u0627\u0637\u064A\u0633\u064A \u0627\u0644\u062D\u0631\u0627\u0631\u064A \u0644\u0644\u0645\u0642\u0627\u0628\u0633",
-    "Manca la terra al campanello.": "\u064A\u0646\u0642\u0635 \u0627\u0644\u062C\u0631\u0633 \u0627\u0644\u062A\u0623\u0631\u064A\u0636.",
+    "Manca la terra al campanello.": "\u0644\u0627 \u064A\u0648\u062C\u062F \u062A\u0623\u0631\u064A\u0636 \u0644\u0644\u062C\u0631\u0633.",
     "Nelle scale dei condomini la luce si accende con un pulsante e si spegne da sola dopo qualche decina di secondi. Cos\xEC non resta accesa per dimenticanza e si risparmia energia.": "\u0641\u064A \u0633\u0644\u0627\u0644\u0645 \u0627\u0644\u0639\u0645\u0627\u0631\u0627\u062A \u064A\u064F\u0636\u0627\u0621 \u0627\u0644\u0636\u0648\u0621 \u0628\u0632\u0631 \u0648\u064A\u0646\u0637\u0641\u0626 \u0645\u0646 \u062A\u0644\u0642\u0627\u0621 \u0646\u0641\u0633\u0647 \u0628\u0639\u062F \u0628\u0636\u0639 \u0639\u0634\u0631\u0627\u062A \u0645\u0646 \u0627\u0644\u062B\u0648\u0627\u0646\u064A. \u0648\u0647\u0643\u0630\u0627 \u0644\u0627 \u064A\u0628\u0642\u0649 \u0645\u0636\u0627\u0621\u064B \u0628\u0633\u0628\u0628 \u0627\u0644\u0646\u0633\u064A\u0627\u0646\u060C \u0648\u062A\u064F\u0648\u0641\u064E\u0651\u0631 \u0627\u0644\u0637\u0627\u0642\u0629.",
     "Nulla: la dispersione non \xE8 pericolosa.": "\u0644\u0627 \u0634\u064A\u0621: \u0627\u0644\u062A\u0633\u0631\u0651\u0628 \u0644\u064A\u0633 \u062E\u0637\u064A\u0631\u064B\u0627.",
     "Per questo il neutro di ogni carico deve passare dal differenziale. Il tasto di prova simula una dispersione: va premuto ogni tanto per controllare che funzioni.": "\u0644\u0647\u0630\u0627 \u064A\u062C\u0628 \u0623\u0646 \u064A\u0645\u0631 \u0645\u062D\u0627\u064A\u062F \u0643\u0644 \u062D\u0650\u0645\u0644 \u0628\u0627\u0644\u0642\u0627\u0637\u0639 \u0627\u0644\u062A\u0641\u0627\u0636\u0644\u064A. \u0648\u0632\u0631 \u0627\u0644\u0627\u062E\u062A\u0628\u0627\u0631 \u064A\u062D\u0627\u0643\u064A \u062A\u0633\u0631\u0651\u0628\u064B\u0627: \u064A\u062C\u0628 \u0627\u0644\u0636\u063A\u0637 \u0639\u0644\u064A\u0647 \u0645\u0646 \u0648\u0642\u062A \u0644\u0622\u062E\u0631 \u0644\u0644\u062A\u0623\u0643\u062F \u0645\u0646 \u0623\u0646 \u0627\u0644\u0642\u0627\u0637\u0639 \u064A\u0639\u0645\u0644.",
@@ -8157,6 +8213,42 @@ html[lang="it"] .trnote{display:none}
     "Trasformatore": "\u0627\u0644\u0645\u062D\u0648\u0651\u0644",
     "Trasformatore 230/12 V": "\u0645\u062D\u0648\u0651\u0644 230/12 \u0641\u0648\u0644\u062A",
     "Un magnetotermico per la luce e uno per le prese: ciascuno interrompe sia la fase sia il neutro della sua linea.": "\u0642\u0627\u0637\u0639 \u0645\u063A\u0646\u0627\u0637\u064A\u0633\u064A \u062D\u0631\u0627\u0631\u064A \u0644\u0644\u0625\u0646\u0627\u0631\u0629 \u0648\u0622\u062E\u0631 \u0644\u0644\u0645\u0642\u0627\u0628\u0633: \u0643\u0644\u064C\u0651 \u0645\u0646\u0647\u0645\u0627 \u064A\u0642\u0637\u0639 \u0627\u0644\u0637\u0648\u0631 \u0648\u0627\u0644\u0645\u062D\u0627\u064A\u062F \u0641\u064A \u062E\u0637\u0647."
+  };
+
+  // src/i18n/ar-14.js
+  var ar_14_default = {
+    "Riporta il pacco all\u2019inizio": "\u0623\u0639\u062F \u0627\u0644\u0637\u0631\u062F \u0625\u0644\u0649 \u0627\u0644\u0628\u062F\u0627\u064A\u0629",
+    "A 400 V gli errori sono pi\xF9 pericolosi. Si lavora sempre fuori tensione, con il sezionamento a monte aperto e verificato.": "\u0639\u0646\u062F 400 \u0641\u0648\u0644\u062A \u062A\u0643\u0648\u0646 \u0627\u0644\u0623\u062E\u0637\u0627\u0621 \u0623\u062E\u0637\u0631. \u0646\u0639\u0645\u0644 \u062F\u0627\u0626\u0645\u064B\u0627 \u0648\u0627\u0644\u062F\u0627\u0626\u0631\u0629 \u0628\u0644\u0627 \u062C\u0647\u062F\u060C \u0628\u0639\u062F \u0641\u062A\u062D \u062C\u0647\u0627\u0632 \u0627\u0644\u0639\u0632\u0644 \u0641\u064A \u0627\u0644\u0645\u0646\u0628\u0639 \u0648\u0627\u0644\u062A\u062D\u0642\u0642 \u0645\u0646\u0647.",
+    "Alla presa \xE8 collegato un apparecchio e il differenziale scatta appena dai corrente. Rialzalo e osserva, poi premi Verifica.": "\u064A\u0648\u062C\u062F \u062C\u0647\u0627\u0632 \u0645\u0648\u0635\u0648\u0644 \u0628\u0627\u0644\u0645\u0642\u0628\u0633 \u0648\u064A\u0641\u0635\u0644 \u0627\u0644\u0642\u0627\u0637\u0639 \u0627\u0644\u062A\u0641\u0627\u0636\u0644\u064A \u0628\u0645\u062C\u0631\u062F \u0625\u0639\u0637\u0627\u0621 \u0627\u0644\u062A\u064A\u0627\u0631. \u0623\u0639\u062F \u0631\u0641\u0639\u0647 \u0648\u0631\u0627\u0642\u0628\u060C \u062B\u0645 \u0627\u0636\u063A\u0637 \u062A\u062D\u0642\u0642.",
+    "Dal morsetto 3 del secondario al morsetto 3 del pulsante. Qui puoi usare il bianco.": "\u0645\u0646 \u0627\u0644\u0645\u0631\u0628\u0637 3 \u0641\u064A \u0627\u0644\u0645\u0644\u0641 \u0627\u0644\u062B\u0627\u0646\u0648\u064A \u0625\u0644\u0649 \u0627\u0644\u0645\u0631\u0628\u0637 3 \u0641\u064A \u0627\u0644\u0632\u0631. \u0647\u0646\u0627 \u064A\u0645\u0643\u0646\u0643 \u0627\u0633\u062A\u062E\u062F\u0627\u0645 \u0627\u0644\u0644\u0648\u0646 \u0627\u0644\u0623\u0628\u064A\u0636.",
+    "Dal morsetto 4 del pulsante a un morsetto del campanello.": "\u0645\u0646 \u0627\u0644\u0645\u0631\u0628\u0637 4 \u0641\u064A \u0627\u0644\u0632\u0631 \u0625\u0644\u0649 \u0645\u0631\u0628\u0637 \u0641\u064A \u0627\u0644\u062C\u0631\u0633.",
+    "Dal pulsante al campanello": "\u0645\u0646 \u0627\u0644\u0632\u0631 \u0625\u0644\u0649 \u0627\u0644\u062C\u0631\u0633",
+    "Dal secondario al pulsante": "\u0645\u0646 \u0627\u0644\u0645\u0644\u0641 \u0627\u0644\u062B\u0627\u0646\u0648\u064A \u0625\u0644\u0649 \u0627\u0644\u0632\u0631",
+    "Dalla FASE del quadro al morsetto 1 del trasformatore.": "\u0645\u0646 \u0627\u0644\u0637\u0648\u0631 \u0641\u064A \u0627\u0644\u0644\u0648\u062D\u0629 \u0625\u0644\u0649 \u0627\u0644\u0645\u0631\u0628\u0637 1 \u0641\u064A \u0627\u0644\u0645\u062D\u0648\u0651\u0644.",
+    "Fase e neutro non si scambiano mai, anche se l\u2019apparecchio funzionerebbe lo stesso: per regola d\u2019impianto il morsetto L va sulla fase e il morsetto N sul neutro.": "\u0644\u0627 \u064A\u064F\u0628\u062F\u064E\u0651\u0644 \u0627\u0644\u0637\u0648\u0631 \u0648\u0627\u0644\u0645\u062D\u0627\u064A\u062F \u0623\u0628\u062F\u064B\u0627 \u062D\u062A\u0649 \u0644\u0648 \u0627\u0634\u062A\u063A\u0644 \u0627\u0644\u062C\u0647\u0627\u0632: \u0628\u062D\u0633\u0628 \u0642\u0648\u0627\u0639\u062F \u0627\u0644\u062A\u0645\u062F\u064A\u062F\u0627\u062A \u064A\u064F\u0648\u0635\u064E\u0651\u0644 \u0627\u0644\u0645\u0631\u0628\u0637 L \u0628\u0627\u0644\u0637\u0648\u0631 \u0648\u0627\u0644\u0645\u0631\u0628\u0637 N \u0628\u0627\u0644\u0645\u062D\u0627\u064A\u062F.",
+    "Filo bianco dal morsetto 3 del secondario al pulsante.": "\u0633\u0644\u0643 \u0623\u0628\u064A\u0636 \u0645\u0646 \u0627\u0644\u0645\u0631\u0628\u0637 3 \u0641\u064A \u0627\u0644\u0645\u0644\u0641 \u0627\u0644\u062B\u0627\u0646\u0648\u064A \u0625\u0644\u0649 \u0627\u0644\u0632\u0631.",
+    "Filo bianco dal pulsante al campanello.": "\u0633\u0644\u0643 \u0623\u0628\u064A\u0636 \u0645\u0646 \u0627\u0644\u0632\u0631 \u0625\u0644\u0649 \u0627\u0644\u062C\u0631\u0633.",
+    "Filo marrone dalla FASE del quadro al morsetto 1 del primario del trasformatore.": "\u0633\u0644\u0643 \u0628\u0646\u064A \u0645\u0646 \u0627\u0644\u0637\u0648\u0631 \u0641\u064A \u0627\u0644\u0644\u0648\u062D\u0629 \u0625\u0644\u0649 \u0627\u0644\u0645\u0631\u0628\u0637 1 \u0641\u064A \u0627\u0644\u0645\u0644\u0641 \u0627\u0644\u0627\u0628\u062A\u062F\u0627\u0626\u064A \u0644\u0644\u0645\u062D\u0648\u0651\u0644.",
+    "Ha una bobina (A1, A2) e un contatto (1, 2). Quando la bobina riceve tensione il contatto si chiude; il tempo comincia a contare quando il pulsante viene rilasciato.": "\u0644\u0647 \u0645\u0644\u0641 (A1 \u0648A2) \u0648\u0645\u0644\u0627\u0645\u0633 (1 \u06482). \u0639\u0646\u062F\u0645\u0627 \u064A\u062A\u0644\u0642\u0649 \u0627\u0644\u0645\u0644\u0641 \u062C\u0647\u062F\u064B\u0627 \u064A\u0646\u063A\u0644\u0642 \u0627\u0644\u0645\u0644\u0627\u0645\u0633\u061B \u0648\u064A\u0628\u062F\u0623 \u0639\u062F\u0651 \u0627\u0644\u0632\u0645\u0646 \u0639\u0646\u062F \u062A\u062D\u0631\u064A\u0631 \u0627\u0644\u0632\u0631.",
+    "Il campanello di casa funziona a bassa tensione, per esempio 12 V. \xC8 pi\xF9 sicuro: chi tocca il pulsante accanto alla porta non rischia nulla, perch\xE9 il pulsante sta sul circuito a bassa tensione.": "\u062C\u0631\u0633 \u0627\u0644\u0628\u064A\u062A \u064A\u0639\u0645\u0644 \u0628\u062C\u0647\u062F \u0645\u0646\u062E\u0641\u0636\u060C \u0645\u062B\u0644\u064B\u0627 12 \u0641\u0648\u0644\u062A. \u0648\u0647\u0630\u0627 \u0623\u0643\u062B\u0631 \u0623\u0645\u0627\u0646\u064B\u0627: \u0645\u0646 \u064A\u0644\u0645\u0633 \u0627\u0644\u0632\u0631 \u0628\u062C\u0627\u0646\u0628 \u0627\u0644\u0628\u0627\u0628 \u0644\u0627 \u064A\u062A\u0639\u0631\u0636 \u0644\u062E\u0637\u0631\u060C \u0644\u0623\u0646 \u0627\u0644\u0632\u0631 \u0645\u0648\u062C\u0648\u062F \u0641\u064A \u062F\u0627\u0626\u0631\u0629 \u0627\u0644\u062C\u0647\u062F \u0627\u0644\u0645\u0646\u062E\u0641\u0636.",
+    "Il campanello funziona a 12 V: sulla rete a 230 V si brucerebbe. Collega il primario del trasformatore alla rete. Poi, sul secondario, collega il pulsante e il campanello in serie. Il circuito a bassa tensione ha i suoi colori. Poi dai corrente.": "\u064A\u0639\u0645\u0644 \u0627\u0644\u062C\u0631\u0633 \u0628\u062C\u0647\u062F 12 \u0641\u0648\u0644\u062A: \u0648\u0639\u0644\u0649 \u0634\u0628\u0643\u0629 230 \u0641\u0648\u0644\u062A \u0633\u064A\u062D\u062A\u0631\u0642. \u0635\u0650\u0644 \u0627\u0644\u0645\u0644\u0641 \u0627\u0644\u0627\u0628\u062A\u062F\u0627\u0626\u064A \u0644\u0644\u0645\u062D\u0648\u0651\u0644 \u0628\u0627\u0644\u0634\u0628\u0643\u0629. \u062B\u0645 \u0635\u0650\u0644 \u0627\u0644\u0632\u0631 \u0648\u0627\u0644\u062C\u0631\u0633 \u0639\u0644\u0649 \u0627\u0644\u062A\u0633\u0644\u0633\u0644 \u0628\u0627\u0644\u0645\u0644\u0641 \u0627\u0644\u062B\u0627\u0646\u0648\u064A. \u0644\u062F\u0627\u0626\u0631\u0629 \u0627\u0644\u062C\u0647\u062F \u0627\u0644\u0645\u0646\u062E\u0641\u0636 \u0623\u0644\u0648\u0627\u0646\u0647\u0627 \u0627\u0644\u062E\u0627\u0635\u0629. \u062B\u0645 \u0634\u063A\u0651\u0644 \u0627\u0644\u062A\u064A\u0627\u0631.",
+    "Il campanello non va mai collegato alla rete: si collega al secondario del trasformatore, morsetti 3 e 4. Il pulsante sta in serie al campanello, sul secondario.": "\u0644\u0627 \u064A\u064F\u0648\u0635\u064E\u0651\u0644 \u0627\u0644\u062C\u0631\u0633 \u0628\u0627\u0644\u0634\u0628\u0643\u0629 \u0623\u0628\u062F\u064B\u0627: \u064A\u064F\u0648\u0635\u064E\u0651\u0644 \u0628\u0627\u0644\u0645\u0644\u0641 \u0627\u0644\u062B\u0627\u0646\u0648\u064A \u0644\u0644\u0645\u062D\u0648\u0651\u0644\u060C \u0627\u0644\u0645\u0631\u0628\u0637\u064A\u0646 3 \u06484. \u0648\u0627\u0644\u0632\u0631 \u0639\u0644\u0649 \u0627\u0644\u062A\u0633\u0644\u0633\u0644 \u0645\u0639 \u0627\u0644\u062C\u0631\u0633\u060C \u0641\u064A \u0627\u0644\u0645\u0644\u0641 \u0627\u0644\u062B\u0627\u0646\u0648\u064A.",
+    "Il campanello suona: il secondario ha tensione.": "\u064A\u0631\u0646\u0651 \u0627\u0644\u062C\u0631\u0633: \u0627\u0644\u0645\u0644\u0641 \u0627\u0644\u062B\u0627\u0646\u0648\u064A \u0641\u064A\u0647 \u062C\u0647\u062F.",
+    "Il campanello \xE8 silenzioso: il pulsante tiene aperto il circuito a 12 V.": "\u0627\u0644\u062C\u0631\u0633 \u0635\u0627\u0645\u062A: \u0627\u0644\u0632\u0631 \u064A\u064F\u0628\u0642\u064A \u062F\u0627\u0626\u0631\u0629 12 \u0641\u0648\u0644\u062A \u0645\u0641\u062A\u0648\u062D\u0629.",
+    "Il motore va avanti e indietro. Prova Avanti, Arresto e Indietro. Poi premi Avanti e, con il motore in marcia, premi Indietro.": "\u0627\u0644\u0645\u062D\u0631\u0643 \u064A\u0639\u0645\u0644 \u0625\u0644\u0649 \u0627\u0644\u0623\u0645\u0627\u0645 \u0648\u0625\u0644\u0649 \u0627\u0644\u062E\u0644\u0641. \u062C\u0631\u0651\u0628 \u0627\u0644\u0623\u0645\u0627\u0645 \u0648\u0627\u0644\u0625\u064A\u0642\u0627\u0641 \u0648\u0627\u0644\u062E\u0644\u0641. \u062B\u0645 \u0627\u0636\u063A\u0637 \u0627\u0644\u0623\u0645\u0627\u0645\u060C \u0648\u0628\u064A\u0646\u0645\u0627 \u0627\u0644\u0645\u062D\u0631\u0643 \u064A\u0639\u0645\u0644 \u0627\u0636\u063A\u0637 \u0627\u0644\u062E\u0644\u0641.",
+    "Il primario del trasformatore (morsetti 1 e 2) si collega alla rete: la fase al morsetto 1, il neutro al morsetto 2. Il trasformatore resta sempre alimentato.": "\u064A\u064F\u0648\u0635\u064E\u0651\u0644 \u0627\u0644\u0645\u0644\u0641 \u0627\u0644\u0627\u0628\u062A\u062F\u0627\u0626\u064A \u0644\u0644\u0645\u062D\u0648\u0651\u0644 (\u0627\u0644\u0645\u0631\u0628\u0637\u0627\u0646 1 \u06482) \u0628\u0627\u0644\u0634\u0628\u0643\u0629: \u0627\u0644\u0637\u0648\u0631 \u0625\u0644\u0649 \u0627\u0644\u0645\u0631\u0628\u0637 1 \u0648\u0627\u0644\u0645\u062D\u0627\u064A\u062F \u0625\u0644\u0649 \u0627\u0644\u0645\u0631\u0628\u0637 2. \u0648\u064A\u0628\u0642\u0649 \u0627\u0644\u0645\u062D\u0648\u0651\u0644 \u0645\u063A\u0630\u0651\u0649 \u062F\u0627\u0626\u0645\u064B\u0627.",
+    "Il pulsante sta sul secondario, in serie al campanello.": "\u0627\u0644\u0632\u0631 \u0645\u0648\u0636\u0648\u0639 \u0641\u064A \u0627\u0644\u0645\u0644\u0641 \u0627\u0644\u062B\u0627\u0646\u0648\u064A\u060C \u0639\u0644\u0649 \u0627\u0644\u062A\u0633\u0644\u0633\u0644 \u0645\u0639 \u0627\u0644\u062C\u0631\u0633.",
+    "Il pulsante sta sul secondario, in serie al campanello: premuto, chiude il circuito a 12 V. I fili del circuito a bassa tensione, n\xE9 fase n\xE9 neutro, possono essere di altri colori, per esempio bianco.": "\u0627\u0644\u0632\u0631 \u0645\u0648\u0636\u0648\u0639 \u0641\u064A \u0627\u0644\u0645\u0644\u0641 \u0627\u0644\u062B\u0627\u0646\u0648\u064A\u060C \u0639\u0644\u0649 \u0627\u0644\u062A\u0633\u0644\u0633\u0644 \u0645\u0639 \u0627\u0644\u062C\u0631\u0633: \u0639\u0646\u062F \u0627\u0644\u0636\u063A\u0637 \u0639\u0644\u064A\u0647 \u064A\u063A\u0644\u0642 \u062F\u0627\u0626\u0631\u0629 12 \u0641\u0648\u0644\u062A. \u0648\u0623\u0633\u0644\u0627\u0643 \u062F\u0627\u0626\u0631\u0629 \u0627\u0644\u062C\u0647\u062F \u0627\u0644\u0645\u0646\u062E\u0641\u0636\u060C \u0627\u0644\u062A\u064A \u0644\u064A\u0633\u062A \u0637\u0648\u0631\u064B\u0627 \u0648\u0644\u0627 \u0645\u062D\u0627\u064A\u062F\u064B\u0627\u060C \u064A\u0645\u0643\u0646 \u0623\u0646 \u062A\u0643\u0648\u0646 \u0628\u0623\u0644\u0648\u0627\u0646 \u0623\u062E\u0631\u0649\u060C \u0645\u062B\u0644 \u0627\u0644\u0623\u0628\u064A\u0636.",
+    "Il rel\xE8 termico, abbinato al contattore, protegge dal sovraccarico, che \xE8 lento; la protezione a monte interviene sul cortocircuito, che \xE8 subito.": "\u0627\u0644\u0645\u0631\u062D\u0651\u0644 \u0627\u0644\u062D\u0631\u0627\u0631\u064A\u060C \u0627\u0644\u0645\u0642\u062A\u0631\u0646 \u0628\u0627\u0644\u0643\u0648\u0646\u062A\u0627\u0643\u062A\u0648\u0631\u060C \u064A\u062D\u0645\u064A \u0645\u0646 \u0627\u0644\u062D\u0645\u0644 \u0627\u0644\u0632\u0627\u0626\u062F \u0627\u0644\u0628\u0637\u064A\u0621\u061B \u0648\u0627\u0644\u062D\u0645\u0627\u064A\u0629 \u0641\u064A \u0627\u0644\u0645\u0646\u0628\u0639 \u062A\u062A\u062F\u062E\u0644 \u0639\u0646\u062F \u0627\u0644\u0642\u0635\u0631 \u0627\u0644\u0641\u0648\u0631\u064A.",
+    "Il secondario ha tensione, ma il circuito \xE8 aperto dal pulsante: non passa corrente e il campanello tace. Premendo il pulsante il circuito si chiude e il campanello suona.": "\u0627\u0644\u0645\u0644\u0641 \u0627\u0644\u062B\u0627\u0646\u0648\u064A \u0641\u064A\u0647 \u062C\u0647\u062F\u060C \u0644\u0643\u0646 \u0627\u0644\u0632\u0631 \u064A\u064F\u0628\u0642\u064A \u0627\u0644\u062F\u0627\u0626\u0631\u0629 \u0645\u0641\u062A\u0648\u062D\u0629: \u0644\u0627 \u064A\u0645\u0631 \u062A\u064A\u0627\u0631 \u0648\u064A\u0635\u0645\u062A \u0627\u0644\u062C\u0631\u0633. \u0648\u0639\u0646\u062F \u0627\u0644\u0636\u063A\u0637 \u0639\u0644\u0649 \u0627\u0644\u0632\u0631 \u062A\u0646\u063A\u0644\u0642 \u0627\u0644\u062F\u0627\u0626\u0631\u0629 \u0648\u064A\u0631\u0646\u0651 \u0627\u0644\u062C\u0631\u0633.",
+    "Il trasformatore \xE8 alimentato e il campanello \xE8 collegato al secondario, in serie al pulsante. Il pulsante non \xE8 premuto. Che cosa succede?": "\u0627\u0644\u0645\u062D\u0648\u0651\u0644 \u0645\u063A\u0630\u0651\u0649 \u0648\u0627\u0644\u062C\u0631\u0633 \u0645\u0648\u0635\u0648\u0644 \u0628\u0627\u0644\u0645\u0644\u0641 \u0627\u0644\u062B\u0627\u0646\u0648\u064A \u0639\u0644\u0649 \u0627\u0644\u062A\u0633\u0644\u0633\u0644 \u0645\u0639 \u0627\u0644\u0632\u0631. \u0627\u0644\u0632\u0631 \u063A\u064A\u0631 \u0645\u0636\u063A\u0648\u0637. \u0645\u0627\u0630\u0627 \u064A\u062D\u062F\u062B\u061F",
+    "Inserisci il trasformatore: la rete sul primario, pulsante e campanello in serie sul secondario. Poi premi Verifica.": "\u0623\u062F\u062E\u0644 \u0627\u0644\u0645\u062D\u0648\u0651\u0644: \u0627\u0644\u0634\u0628\u0643\u0629 \u0639\u0644\u0649 \u0627\u0644\u0645\u0644\u0641 \u0627\u0644\u0627\u0628\u062A\u062F\u0627\u0626\u064A\u060C \u0648\u0627\u0644\u0632\u0631 \u0648\u0627\u0644\u062C\u0631\u0633 \u0639\u0644\u0649 \u0627\u0644\u062A\u0633\u0644\u0633\u0644 \u0639\u0644\u0649 \u0627\u0644\u0645\u0644\u0641 \u0627\u0644\u062B\u0627\u0646\u0648\u064A. \u062B\u0645 \u0627\u0636\u063A\u0637 \u062A\u062D\u0642\u0642.",
+    "La fase al primario": "\u0627\u0644\u0637\u0648\u0631 \u0625\u0644\u0649 \u0627\u0644\u0645\u0644\u0641 \u0627\u0644\u0627\u0628\u062A\u062F\u0627\u0626\u064A",
+    "La fase \xE8 arrivata sul morsetto N e il neutro sul morsetto L. Gli apparecchi funzionano lo stesso, ma l\u2019impianto non \xE8 a regola: chi interviene sulla presa non pu\xF2 sapere quale morsetto \xE8 in tensione. La fase va sempre sul morsetto L.": "\u0648\u0635\u0644 \u0627\u0644\u0637\u0648\u0631 \u0625\u0644\u0649 \u0627\u0644\u0645\u0631\u0628\u0637 N \u0648\u0627\u0644\u0645\u062D\u0627\u064A\u062F \u0625\u0644\u0649 \u0627\u0644\u0645\u0631\u0628\u0637 L. \u062A\u0639\u0645\u0644 \u0627\u0644\u0623\u062C\u0647\u0632\u0629 \u0631\u063A\u0645 \u0630\u0644\u0643\u060C \u0644\u0643\u0646 \u0627\u0644\u062A\u0645\u062F\u064A\u062F \u063A\u064A\u0631 \u0645\u0637\u0627\u0628\u0642 \u0644\u0644\u0642\u0648\u0627\u0639\u062F: \u0645\u0646 \u064A\u062A\u062F\u062E\u0644 \u0641\u064A \u0627\u0644\u0645\u0642\u0628\u0633 \u0644\u0627 \u064A\u0633\u062A\u0637\u064A\u0639 \u0623\u0646 \u064A\u0639\u0631\u0641 \u0623\u064A \u0645\u0631\u0628\u0637 \u0641\u064A\u0647 \u062C\u0647\u062F. \u0627\u0644\u0637\u0648\u0631 \u064A\u064F\u0648\u0635\u064E\u0651\u0644 \u062F\u0627\u0626\u0645\u064B\u0627 \u0628\u0627\u0644\u0645\u0631\u0628\u0637 L.",
+    "La protezione a monte (il salvamotore) interviene subito contro i cortocircuiti. Il sovraccarico, che \xE8 lento, \xE8 affidato al rel\xE8 termico abbinato al contattore: si scalda con la stessa corrente del motore e scatta dopo un po\u2019.": "\u0627\u0644\u062D\u0645\u0627\u064A\u0629 \u0641\u064A \u0627\u0644\u0645\u0646\u0628\u0639 (\u0642\u0627\u0637\u0639 \u062D\u0645\u0627\u064A\u0629 \u0627\u0644\u0645\u062D\u0631\u0643) \u062A\u062A\u062F\u062E\u0644 \u0641\u0648\u0631\u064B\u0627 \u0639\u0646\u062F \u0627\u0644\u0642\u0635\u0631. \u0623\u0645\u0627 \u0627\u0644\u062D\u0645\u0644 \u0627\u0644\u0632\u0627\u0626\u062F\u060C \u0648\u0647\u0648 \u0628\u0637\u064A\u0621\u060C \u0641\u064A\u064F\u062A\u0631\u0643 \u0644\u0644\u0645\u0631\u062D\u0651\u0644 \u0627\u0644\u062D\u0631\u0627\u0631\u064A \u0627\u0644\u0645\u0642\u062A\u0631\u0646 \u0628\u0627\u0644\u0643\u0648\u0646\u062A\u0627\u0643\u062A\u0648\u0631: \u064A\u0633\u062E\u0646 \u0628\u0627\u0644\u062A\u064A\u0627\u0631 \u0646\u0641\u0633\u0647 \u0627\u0644\u0630\u064A \u064A\u0645\u0631 \u0641\u064A \u0627\u0644\u0645\u062D\u0631\u0643 \u0648\u064A\u0641\u0635\u0644 \u0628\u0639\u062F \u0648\u0642\u062A.",
+    "Levetta su: il trasformatore \xE8 alimentato, ma il pulsante non \xE8 premuto e il campanello \xE8 silenzioso.": "\u0645\u0641\u062A\u0627\u062D \u0627\u0644\u0644\u0648\u062D\u0629 \u0645\u0631\u0641\u0648\u0639: \u0627\u0644\u0645\u062D\u0648\u0651\u0644 \u0645\u063A\u0630\u0651\u0649\u060C \u0644\u0643\u0646 \u0627\u0644\u0632\u0631 \u063A\u064A\u0631 \u0645\u0636\u063A\u0648\u0637 \u0648\u0627\u0644\u062C\u0631\u0633 \u0635\u0627\u0645\u062A.",
+    "Per invertire si preme prima Arresto: il motore si ferma.": "\u0644\u0644\u0639\u0643\u0633 \u0646\u0636\u063A\u0637 \u0627\u0644\u0625\u064A\u0642\u0627\u0641 \u0623\u0648\u0644\u064B\u0627: \u064A\u062A\u0648\u0642\u0641 \u0627\u0644\u0645\u062D\u0631\u0643.",
+    "Pulsante premuto: il circuito a 12 V si chiude e il campanello suona.": "\u0627\u0644\u0632\u0631 \u0645\u0636\u063A\u0648\u0637: \u062A\u0646\u063A\u0644\u0642 \u062F\u0627\u0626\u0631\u0629 12 \u0641\u0648\u0644\u062A \u0648\u064A\u0631\u0646\u0651 \u0627\u0644\u062C\u0631\u0633."
   };
 
   // src/i18n/ar.js
@@ -8201,12 +8293,14 @@ html[lang="it"] .trnote{display:none}
     [/^Componente bruciato \((.+)\): ha ricevuto una tensione più alta di quella per cui è fatto\.$/, (m, t) => `\u0645\u0643\u0648\u0651\u0646 \u0645\u062D\u062A\u0631\u0642 (${t(m[1])}): \u0627\u0633\u062A\u0642\u0628\u0644 \u062C\u0647\u062F\u064B\u0627 \u0623\u0639\u0644\u0649 \u0645\u0646 \u0627\u0644\u062C\u0647\u062F \u0627\u0644\u0645\u0635\u0645\u064E\u0651\u0645 \u0644\u0647.`],
     [/^Un carico \((.+)\) è collegato tra la fase e la terra: la corrente torna dal filo di protezione\. Il ritorno va sul neutro\.$/, (m, t) => `\u062D\u0645\u0644 (${t(m[1])}) \u0645\u0648\u0635\u0648\u0644 \u0628\u064A\u0646 \u0627\u0644\u0637\u0648\u0631 \u0648\u0627\u0644\u0623\u0631\u0636\u064A: \u064A\u0639\u0648\u062F \u0627\u0644\u062A\u064A\u0627\u0631 \u0639\u0628\u0631 \u0633\u0644\u0643 \u0627\u0644\u062D\u0645\u0627\u064A\u0629. \u0627\u0644\u0639\u0648\u062F\u0629 \u064A\u062C\u0628 \u0623\u0646 \u062A\u0643\u0648\u0646 \u0639\u0644\u0649 \u0627\u0644\u0645\u062D\u0627\u064A\u062F.`],
     [/^Un carico \((.+)\) non è protetto dal differenziale\.$/, (m, t) => `\u062D\u0645\u0644 (${t(m[1])}) \u063A\u064A\u0631 \u0645\u062D\u0645\u064A \u0628\u0627\u0644\u0642\u0627\u0637\u0639 \u0627\u0644\u062A\u0641\u0627\u0636\u0644\u064A.`],
+    [/^Il comando è sul lato del neutro: la bobina \((.+)\) ha il capo A2 che non va direttamente al neutro\. I comandi stanno sul lato della fase\.$/, (m, t) => `\u0627\u0644\u062A\u062D\u0643\u0645 \u0639\u0644\u0649 \u062C\u0627\u0646\u0628 \u0627\u0644\u0645\u062D\u0627\u064A\u062F: \u0627\u0644\u0637\u0631\u0641 A2 \u0641\u064A \u0627\u0644\u0645\u0644\u0641 (${t(m[1])}) \u0644\u0627 \u064A\u0630\u0647\u0628 \u0645\u0628\u0627\u0634\u0631\u0629 \u0625\u0644\u0649 \u0627\u0644\u0645\u062D\u0627\u064A\u062F. \u0623\u062C\u0647\u0632\u0629 \u0627\u0644\u062A\u062D\u0643\u0645 \u062A\u0643\u0648\u0646 \u0639\u0644\u0649 \u062C\u0627\u0646\u0628 \u0627\u0644\u0637\u0648\u0631.`],
+    [/^A comandi rilasciati il motore \((.+)\) ha una fase sui suoi morsetti: una fase salta il contattore o la protezione\.$/, (m, t) => `\u0648\u0627\u0644\u0623\u0632\u0631\u0627\u0631 \u0645\u062D\u0631\u064E\u0651\u0631\u0629 \u064A\u0648\u062C\u062F \u0637\u0648\u0631 \u0639\u0644\u0649 \u0645\u0631\u0627\u0628\u0637 \u0627\u0644\u0645\u062D\u0631\u0643 (${t(m[1])}): \u0637\u0648\u0631 \u064A\u062A\u062C\u0627\u0648\u0632 \u0627\u0644\u0643\u0648\u0646\u062A\u0627\u0643\u062A\u0648\u0631 \u0623\u0648 \u0627\u0644\u062D\u0645\u0627\u064A\u0629.`],
     [/^Un componente \((.+)\) non è a valle della protezione \((.+)\): in caso di guasto nessuno lo stacca\.$/, (m, t) => `\u0645\u0643\u0648\u0651\u0646 (${t(m[1])}) \u0644\u064A\u0633 \u0628\u0639\u062F \u0627\u0644\u062D\u0645\u0627\u064A\u0629 (${t(m[2])}): \u0641\u064A \u062D\u0627\u0644 \u0627\u0644\u0639\u0637\u0644 \u0644\u0627 \u064A\u0641\u0635\u0644\u0647 \u0623\u062D\u062F.`],
     [/^Prova non superata: (.+?)\. (.+)$/, (m, t) => `\u0627\u062E\u062A\u0628\u0627\u0631 \u0644\u0645 \u064A\u064F\u062C\u062A\u0632: ${t(m[1])}. ${t(m[2])}`],
     [/^(.+): (.+); atteso: (.+)\.$/, (m, t) => `${t(m[1])}: ${t(m[2])}\u061B \u0627\u0644\u0645\u062A\u0648\u0642\u0639: ${t(m[3])}.`],
     [/^Protezioni scattate: (.+)\.$/, (m, t) => `\u062D\u0645\u0627\u064A\u0627\u062A \u0641\u0635\u0644\u062A: ${t(m[1])}.`]
   ];
-  registerLang("ar", { ...ar_1_default, ...ar_2_default, ...ar_3_default, ...ar_4_default, ...ar_5_default, ...ar_6_default, ...ar_7_default, ...ar_8_default, ...ar_9_default, ...ar_10_default, ...ar_11_default, ...ar_12_default, ...ar_13_default }, PAT);
+  registerLang("ar", { ...ar_1_default, ...ar_2_default, ...ar_3_default, ...ar_4_default, ...ar_5_default, ...ar_6_default, ...ar_7_default, ...ar_8_default, ...ar_9_default, ...ar_10_default, ...ar_11_default, ...ar_12_default, ...ar_13_default, ...ar_14_default }, PAT);
 
   // src/trilocale/house.js
   function houseState(session2, on = true) {
@@ -8864,8 +8958,14 @@ html[lang="it"] .trnote{display:none}
   });
   var HOLD_MIN = 250;
   var held = null;
+  var pendingRelease = null;
   function holdStart(id) {
     if (held) return;
+    if (pendingRelease) {
+      clearTimeout(pendingRelease.timer);
+      session.release(pendingRelease.id);
+      pendingRelease = null;
+    }
     held = { id, at: Date.now() };
     clearSel();
     session.press(id);
@@ -8875,8 +8975,12 @@ html[lang="it"] .trnote{display:none}
     const h = held;
     held = null;
     const rest = HOLD_MIN - (Date.now() - h.at);
-    if (rest > 0) setTimeout(() => session.release(h.id), rest);
-    else session.release(h.id);
+    if (rest > 0) {
+      pendingRelease = { id: h.id, timer: setTimeout(() => {
+        pendingRelease = null;
+        session.release(h.id);
+      }, rest) };
+    } else session.release(h.id);
   }
   document.addEventListener("pointerdown", (e) => {
     const h = e.target.closest("[data-hold]");
@@ -8938,6 +9042,9 @@ html[lang="it"] .trnote{display:none}
   });
   document.addEventListener("click", (e) => {
     if (e.target.closest("[data-overload]")) session.setOverload(!S.overload);
+  });
+  document.addEventListener("click", (e) => {
+    if (e.target.closest("[data-rewind]")) session.rewind();
   });
   $("#room").addEventListener("click", (e) => {
     const c2 = e.target.closest("[data-ctl]");

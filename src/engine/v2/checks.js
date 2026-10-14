@@ -3,7 +3,7 @@
 
 import { makeUF } from '../circuit.js';
 import { PHASE_COLORS } from '../wires.js';
-import { act, advance, createSim, observe, sourcesOf, stillOnIfOpen } from './sim.js';
+import { act, advance, rewind, createSim, observe, setSupply, sourcesOf, stillOnIfOpen } from './sim.js';
 import { partOf, POWER_PATH } from './parts.js';
 
 const section = () => ({ ok: false, status: 'ko', items: [] });
@@ -18,6 +18,7 @@ export function runAction(sim, step) {
   const [a, x] = step.trim().split(/\s+/);
   if (a === 'wait') advance(sim, Number(x));
   else if (a === 'overload') sim.overload = x !== 'off';
+  else if (a === 'rewind') rewind(sim);
   else act(sim, a, x);
 }
 
@@ -221,7 +222,32 @@ export function evaluateV2(level, wires) {
       const sim = createSim(level, wires);
       level.comps.filter(c => c.type === 'pb').forEach(c => act(sim, 'press', c.id));
       const both2 = sim.kmHistory.some(on => S.never.some(pair => pair.every(id => on.includes(id))));
-      if (both || both2) fail('safe.interlock');
+      // prova aggiuntiva: un pulsante di marcia premuto e rilasciato, poi un altro (il primo contattore resta chiuso)
+      const starts = level.comps.filter(c => c.type === 'pb');
+      let both3 = false;
+      starts.forEach(a => starts.forEach(b => {
+        if (a.id === b.id) return;
+        const s3 = createSim(level, wires);
+        act(s3, 'press', a.id); act(s3, 'release', a.id); act(s3, 'press', b.id);
+        if (s3.kmHistory.some(on => S.never.some(pair => pair.every(id => on.includes(id))))) both3 = true;
+      }));
+      if (both || both2 || both3) fail('safe.interlock');
+    }
+    if (S.coilReturn) {
+      // il comando sta sul lato fase: il capo A2 di ogni bobina va direttamente al neutro
+      const uf = makeUF();
+      wires.forEach(w => uf.u(w.a, w.b));
+      const n = sourcesOf(level).N;
+      S.coilReturn.forEach(id => { if (uf.f(id + '.A2') !== uf.f(n)) fail('safe.coilReturn', { comp: id }); });
+    }
+    if (level.comps.some(c => c.type === 'motor3')) {
+      // a riposo (comandi rilasciati) nessun morsetto del motore e' in tensione
+      const sim = createSim(level, wires);
+      setSupply(sim, true);
+      const o = observe(sim);
+      const PH = ['L1', 'L2', 'L3'];
+      const live = level.comps.filter(c => c.type === 'motor3').find(c => ['U', 'V', 'W'].some(t => PH.includes(o.potential(c.id + '.' + t))));
+      if (live) fail('safe.motorLive', { comp: live.id });
     }
     if (S.stopWins) {
       const sim = createSim(level, wires);

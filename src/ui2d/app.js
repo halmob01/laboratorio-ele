@@ -318,8 +318,10 @@ bench.addEventListener('click', e => {
 // Un tocco breve vale premi e rilascia, con una pressione minima di 250 ms perche' il circuito faccia in tempo a rispondere.
 const HOLD_MIN = 250;
 let held = null;   // { id, at }
+let pendingRelease = null;   // { id, timer }: rilascio ritardato di un tocco breve
 function holdStart(id) {
   if (held) return;
+  if (pendingRelease) { clearTimeout(pendingRelease.timer); session.release(pendingRelease.id); pendingRelease = null; }
   held = { id, at: Date.now() };
   clearSel(); session.press(id);
 }
@@ -327,7 +329,9 @@ function holdEnd() {
   if (!held) return;
   const h = held; held = null;
   const rest = HOLD_MIN - (Date.now() - h.at);
-  if (rest > 0) setTimeout(() => session.release(h.id), rest); else session.release(h.id);
+  if (rest > 0) {
+    pendingRelease = { id: h.id, timer: setTimeout(() => { pendingRelease = null; session.release(h.id); }, rest) };
+  } else session.release(h.id);
 }
 document.addEventListener('pointerdown', e => {
   const h = e.target.closest('[data-hold]');
@@ -360,6 +364,7 @@ bench.addEventListener('keydown', e => {
   const h = e.target.closest('[data-help]'); if (h) { e.preventDefault(); setInfo(h.dataset.help); }
 });
 document.addEventListener('click', e => { if (e.target.closest('[data-overload]')) session.setOverload(!S.overload); });
+document.addEventListener('click', e => { if (e.target.closest('[data-rewind]')) session.rewind(); });
 $('#room').addEventListener('click', e => { const c = e.target.closest('[data-ctl]'); if (c) session.toggleControl(c.dataset.ctl); });
 $('#room').addEventListener('keydown', e => {
   const hd = e.target.closest('[data-hold]');

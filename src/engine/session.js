@@ -14,7 +14,7 @@ import { evaluate } from './evaluate.js';
 import { flowOf } from './flow.js';
 import { stepsState, ghostFor } from './steps.js';
 import { attemptBase, migrateProgress, rankOf, totalXp, xpOf } from './progress.js';
-import { createSim, setSupply, act, advance, evaluateV2, isV2, selfPowered, viewOf, HOLD } from './v2/index.js';
+import { createSim, setSupply, act, advance, rewind as rewindSim, evaluateV2, isV2, selfPowered, viewOf, HOLD } from './v2/index.js';
 
 function memoryStorage() {
   let data = {};
@@ -543,6 +543,13 @@ export function createSession({ levels, deriveFull, storage = memoryStorage(), i
     setOverload(on) {
       if (!v2()) return;
       simFor().overload = !!on;
+      emit();
+    },
+    // Livelli con una macchina (nastro): riporta il pacco all'inizio.
+    rewind() {
+      if (!v2()) return;
+      rewindSim(simFor());
+      applyLive2();
       emit();
     },
     // Livelli con corrente "a richiesta": mostra o nasconde i fili percorsi.

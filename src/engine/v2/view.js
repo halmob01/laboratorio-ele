@@ -34,7 +34,7 @@ export function needsClock(level, obs) {
     const s = obs.parts[c.id];
     if (!s) return false;
     if (c.type === 'tmr') return s.left > 0;
-    if (c.type === 'ft') return !s.tripped && (s.heat > 0 || Object.values(obs.motors).some(m => m === 'hum'));
+    if (c.type === 'ft') return !s.tripped && (s.heat > 0 || Object.values(obs.motors).some(m => m === 'hum' || (obs.overload && running(m))));
     return false;
   }) || (!!level.machine && Object.values(obs.motors).some(running) && obs.machine && !obs.machine.atEnd && !obs.machine.atStart)
     || (!!level.machine && Object.values(obs.motors).some(running));

@@ -14,6 +14,7 @@ import p10 from './ar-10.js';
 import p11 from './ar-11.js';
 import p12 from './ar-12.js';
 import p13 from './ar-13.js';
+import p14 from './ar-14.js';
 
 const ROLE = { 'del neutro': 'المحايد', 'di terra': 'الأرضي', 'di fase': 'الطور', 'a bassa tensione': 'الجهد المنخفض', 'di comando': 'التحكم' };
 const COLORI = { 'blu': 'أزرق', 'giallo-verde': 'أصفر-أخضر', 'marrone, nero o grigio': 'بنيًّا أو أسود أو رماديًّا', 'rosso, marrone, nero o grigio': 'أحمر أو بنيًّا أو أسود أو رماديًّا', 'di un colore diverso da blu e giallo-verde': 'بلون مختلف عن الأزرق والأصفر-الأخضر' };
@@ -55,10 +56,12 @@ const PAT = [
   [/^Componente bruciato \((.+)\): ha ricevuto una tensione più alta di quella per cui è fatto\.$/, (m, t) => `مكوّن محترق (${t(m[1])}): استقبل جهدًا أعلى من الجهد المصمَّم له.`],
   [/^Un carico \((.+)\) è collegato tra la fase e la terra: la corrente torna dal filo di protezione\. Il ritorno va sul neutro\.$/, (m, t) => `حمل (${t(m[1])}) موصول بين الطور والأرضي: يعود التيار عبر سلك الحماية. العودة يجب أن تكون على المحايد.`],
   [/^Un carico \((.+)\) non è protetto dal differenziale\.$/, (m, t) => `حمل (${t(m[1])}) غير محمي بالقاطع التفاضلي.`],
+  [/^Il comando è sul lato del neutro: la bobina \((.+)\) ha il capo A2 che non va direttamente al neutro\. I comandi stanno sul lato della fase\.$/, (m, t) => `التحكم على جانب المحايد: الطرف A2 في الملف (${t(m[1])}) لا يذهب مباشرة إلى المحايد. أجهزة التحكم تكون على جانب الطور.`],
+  [/^A comandi rilasciati il motore \((.+)\) ha una fase sui suoi morsetti: una fase salta il contattore o la protezione\.$/, (m, t) => `والأزرار محرَّرة يوجد طور على مرابط المحرك (${t(m[1])}): طور يتجاوز الكونتاكتور أو الحماية.`],
   [/^Un componente \((.+)\) non è a valle della protezione \((.+)\): in caso di guasto nessuno lo stacca\.$/, (m, t) => `مكوّن (${t(m[1])}) ليس بعد الحماية (${t(m[2])}): في حال العطل لا يفصله أحد.`],
   [/^Prova non superata: (.+?)\. (.+)$/, (m, t) => `اختبار لم يُجتز: ${t(m[1])}. ${t(m[2])}`],
   [/^(.+): (.+); atteso: (.+)\.$/, (m, t) => `${t(m[1])}: ${t(m[2])}؛ المتوقع: ${t(m[3])}.`],
   [/^Protezioni scattate: (.+)\.$/, (m, t) => `حمايات فصلت: ${t(m[1])}.`],
 ];
 
-registerLang('ar', { ...p1, ...p2, ...p3, ...p4, ...p5, ...p6, ...p7, ...p8, ...p9, ...p10, ...p11, ...p12, ...p13 }, PAT);
+registerLang('ar', { ...p1, ...p2, ...p3, ...p4, ...p5, ...p6, ...p7, ...p8, ...p9, ...p10, ...p11, ...p12, ...p13, ...p14 }, PAT);

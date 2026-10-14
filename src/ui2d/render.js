@@ -244,6 +244,12 @@ export function benchHTML(s, comps, ui) {
       o += `<circle class="stop" cx="${p.x}" cy="${p.y}" r="${ui.mobile ? 23 : 19}"/>`;
     });
   }
+  // La levetta del quadro resta cliccabile anche quando un filo le passa sopra.
+  comps.forEach(c => {
+    if (c.type !== 'quadro' || (is2 && s.selfPowered)) return;
+    const bx = is2 ? c.w - 70 : c.w * (c.bx || .5), y0 = is2 ? 30 : 6, hh = is2 ? c.h - 52 : 52;
+    o += `<g transform="translate(${c.x},${c.y})"><rect data-q="1" role="presentation" x="${bx - 30}" y="${y0}" width="60" height="${hh}" fill="transparent" style="cursor:pointer"/></g>`;
+  });
   comps.forEach(c => {
     const dim = ui.focus && !ui.focus.includes(c.id), ring = ui.focus && ui.focus.includes(c.id);
     Object.keys(c.terms).forEach(id => {
@@ -267,7 +273,8 @@ export function statusHTML(s) {
     const run = Object.values(o.motors).some(v => v === 'fwd' || v === 'rev') || Object.values(o.loads).some(v => v === 'on');
     const trip = o.tripped.length ? '<span class="pill bad">Protezione scattata</span>' : '';
     const ov = s.level.comps.some(c => c.type === 'ft') ? `<button class="pill pbtn${s.overload ? ' on' : ''}" data-overload="1" aria-pressed="${!!s.overload}">${s.overload ? 'Sovraccarico: attivo' : 'Simula un sovraccarico'}</button>` : '';
-    return `<span class="pill ${q2[1]}">${q2[0]}</span><span class="pill${run ? ' on' : ''}">${run ? 'Carico in funzione' : 'Carico fermo'}</span>${trip}${ov}<span class="msg" aria-live="polite">${msg}</span>`;
+    const rw = o.machine && !o.machine.atStart ? '<button class="pill pbtn" data-rewind="1">Riporta il pacco all’inizio</button>' : '';
+    return `<span class="pill ${q2[1]}">${q2[0]}</span><span class="pill${run ? ' on' : ''}">${run ? 'Carico in funzione' : 'Carico fermo'}</span>${trip}${ov}${rw}<span class="msg" aria-live="polite">${msg}</span>`;
   }
   const multi = s.litLoads && s.litLoads.length > 1;
   const nOn = multi ? s.litLoads.filter(Boolean).length : 0;

@@ -59,7 +59,7 @@ export const LEVELS_V2 = [
       { id: 'p3', label: 'Premi quello della camera: la lampada si spegne', steps: [{ do: press('P1'), expect: { loads: { L: 'on' } } }, { do: press('P3'), expect: { loads: { L: 'off' } } }] },
       { id: 'p2', label: 'Premi quello del soggiorno: la lampada si riaccende', steps: [{ do: press('P1').concat(press('P3')), expect: { loads: { L: 'off' } } }, { do: press('P2'), expect: { loads: { L: 'on' } } }] },
     ],
-    safety: { phaseSwitched: ['L'] },
+    safety: { phaseSwitched: ['L'], coilReturn: ['K'] },
     solution: [
       ['Q.F', 'P1.3', 'marrone'], ['P1.3', 'P2.3', 'marrone'], ['P2.3', 'P3.3', 'marrone'],
       ['P1.4', 'P2.4', 'marrone'], ['P2.4', 'P3.4', 'marrone'], ['P3.4', 'K.A1', 'marrone'],
@@ -92,7 +92,7 @@ export const LEVELS_V2 = [
       { id: 'spegne', label: 'Dopo 25 secondi le lampade si sono spente da sole', do: press('P2').concat(['wait 25']), expect: { loads: { L1: 'off', L2: 'off' } } },
       { id: 'riparte', label: 'Se premi di nuovo, il tempo riparte da capo', steps: [{ do: press('P1').concat(['wait 15']), expect: { loads: { L1: 'on' } } }, { do: press('P2').concat(['wait 10']), expect: { loads: { L1: 'on', L2: 'on' } } }] },
     ],
-    safety: { phaseSwitched: ['L1', 'L2'] },
+    safety: { phaseSwitched: ['L1', 'L2'], coilReturn: ['T'] },
     solution: [
       ['Q.F', 'P1.3', 'marrone'], ['P1.3', 'P2.3', 'marrone'],
       ['P1.4', 'P2.4', 'marrone'], ['P2.4', 'T.A1', 'marrone'], ['T.A2', 'Q.N', 'blu'],
@@ -109,7 +109,7 @@ export const LEVELS_V2 = [
     id: 'c10-campanello', code: 'c10', n: 0, engine: 2, quadroOnly: true, flow: 'always', palette: ['marrone', 'nero', 'blu', 'gv', 'bianco'],
     name: 'Campanello e trasformatore', title: 'Il campanello e il trasformatore',
     blurb: 'Un trasformatore abbassa la tensione per il campanello.',
-    goal: 'Il campanello funziona a 12 V: sulla rete a 230 V si brucerebbe. Collega il pulsante e il primario del trasformatore alla rete, poi il campanello al secondario. Il circuito a bassa tensione ha i suoi colori. Poi dai corrente.',
+    goal: 'Il campanello funziona a 12 V: sulla rete a 230 V si brucerebbe. Collega il primario del trasformatore alla rete. Poi, sul secondario, collega il pulsante e il campanello in serie. Il circuito a bassa tensione ha i suoi colori. Poi dai corrente.',
     comps: [
       QM,
       C('SB', 'pb', 'Pulsante', 'Pulsante del campanello', { '3': { l: '3' }, '4': { l: '4' } }),
@@ -124,12 +124,12 @@ export const LEVELS_V2 = [
     ],
     safety: {},
     solution: [
-      ['Q.F', 'SB.3', 'marrone'], ['SB.4', 'TR.1', 'marrone'], ['TR.2', 'Q.N', 'blu'],
-      ['TR.3', 'B.1', 'bianco'], ['TR.4', 'B.2', 'bianco'],
+      ['Q.F', 'TR.1', 'marrone'], ['TR.2', 'Q.N', 'blu'],
+      ['TR.3', 'SB.3', 'bianco'], ['SB.4', 'B.1', 'bianco'], ['TR.4', 'B.2', 'bianco'],
     ],
     hints: [
-      'Il primario del trasformatore (morsetti 1 e 2) si collega alla rete, passando dal pulsante sulla fase: fase al pulsante, dal pulsante al morsetto 1, neutro al morsetto 2.',
-      'Il campanello non va mai collegato alla rete: si collega al secondario del trasformatore, morsetti 3 e 4.',
+      'Il primario del trasformatore (morsetti 1 e 2) si collega alla rete: la fase al morsetto 1, il neutro al morsetto 2. Il trasformatore resta sempre alimentato.',
+      'Il campanello non va mai collegato alla rete: si collega al secondario del trasformatore, morsetti 3 e 4. Il pulsante sta in serie al campanello, sul secondario.',
       'I fili del circuito a bassa tensione non sono né fase né neutro: puoi usare il bianco.',
     ],
   },
@@ -148,7 +148,7 @@ export const LEVELS_V2 = [
       C('P', 'presa', 'Presa', 'Presa bipasso 10/16 A', { L: { l: 'L' }, PE: { l: 'PE' }, N: { l: 'N' } }),
     ],
     controls: ['D', 'M1', 'M2', 'S'],
-    demoDo: [{ do: ['toggle S'], say: 'Interruttore chiuso: la lampada si accende.' }, { do: ['toggle S', 'test D'], say: 'Tasto di prova: il differenziale scatta e tutto si spegne.' }],
+    demoDo: [{ do: ['toggle S'], say: 'Interruttore chiuso: la lampada si accende.' }, { do: ['test D'], say: 'Tasto di prova: il differenziale scatta e tutto si spegne.' }],
     checks: [
       { id: 'presa', label: 'La presa è alimentata', do: [], expect: { loads: { P: 'on' } } },
       { id: 'luce', label: 'Chiudi l’interruttore: la lampada si accende', do: ['toggle S'], expect: { loads: { L: 'on' } } },
@@ -213,7 +213,7 @@ export const LEVELS_V2 = [
       { id: 'arresto', label: 'Premi Arresto: il motore si ferma e la spia si spegne', steps: [{ do: press('SB1'), expect: { motors: { M: 'fwd' } } }, { do: press('SB0'), expect: { motors: { M: 'off' }, loads: { H: 'off' } } }] },
       { id: 'fermo', label: 'Senza comandi il motore è fermo', do: [], expect: { motors: { M: 'off' } } },
     ],
-    safety: { earth: [['M.PE', 'Q.PE']], stopWins: 'SB0', protectedBy: { M: 'QM', KM: 'QM' } },
+    safety: { earth: [['M.PE', 'Q.PE']], stopWins: 'SB0', coilReturn: ['KM'], protectedBy: { M: 'QM', KM: 'QM' } },
     solution: [
       ['Q.L1', 'QM.1', 'marrone'], ['Q.L2', 'QM.3', 'nero'], ['Q.L3', 'QM.5', 'grigio'],
       ['QM.2', 'KM.1', 'marrone'], ['QM.4', 'KM.3', 'nero'], ['QM.6', 'KM.5', 'grigio'],
@@ -248,7 +248,7 @@ export const LEVELS_V2 = [
       { id: 'arresto', label: 'Premi Arresto: il motore si ferma', steps: [{ do: press('SB1'), expect: { motors: { M: 'fwd' } } }, { do: press('SB0'), expect: { motors: { M: 'off' } } }] },
       { id: 'sovraccarico', label: 'Con un sovraccarico il termico scatta e il motore si ferma', steps: [{ do: press('SB1'), expect: { motors: { M: 'fwd' } } }, { do: ['overload on', 'wait 5'], expect: { motors: { M: 'off' }, tripped: ['FR'] } }] },
     ],
-    safety: { earth: [['M.PE', 'Q.PE']], stopWins: 'SB0', protectedBy: { M: 'QM', KM: 'QM' } },
+    safety: { earth: [['M.PE', 'Q.PE']], stopWins: 'SB0', coilReturn: ['KM'], protectedBy: { M: 'QM', KM: 'QM' } },
     solution: [
       ['Q.L1', 'QM.1', 'marrone'], ['Q.L2', 'QM.3', 'nero'], ['Q.L3', 'QM.5', 'grigio'],
       ['QM.2', 'KM.1', 'marrone'], ['QM.4', 'KM.3', 'nero'], ['QM.6', 'KM.5', 'grigio'],
@@ -279,12 +279,18 @@ export const LEVELS_V2 = [
       C('M', 'motor3', 'Motore', 'Motore trifase', T('U', 'V', 'W', 'PE')),
     ],
     controls: ['SB0', 'SB1', 'SB2'],
+    demoDo: [
+      { do: press('SB0'), say: 'Arresto premuto: il motore resta fermo.' },
+      { do: press('SB1'), say: 'Avanti: KM1 si chiude e il motore gira in avanti.' },
+      { do: press('SB0'), say: 'Per invertire si preme prima Arresto: il motore si ferma.' },
+      { do: press('SB2'), say: 'Indietro: KM2 si chiude e il motore gira all’indietro.' },
+    ],
     checks: [
       { id: 'avanti', label: 'Premi Avanti e rilascia: il motore gira in avanti', do: press('SB1'), expect: { motors: { M: 'fwd' } } },
       { id: 'indietro', label: 'Premi Indietro e rilascia: il motore gira all’indietro', do: press('SB2'), expect: { motors: { M: 'rev' } } },
       { id: 'arresto', label: 'Premi Arresto: il motore si ferma', steps: [{ do: press('SB2'), expect: { motors: { M: 'rev' } } }, { do: press('SB0'), expect: { motors: { M: 'off' } } }] },
     ],
-    safety: { never: [['KM1', 'KM2']], stopWins: 'SB0', earth: [['M.PE', 'Q.PE']], protectedBy: { M: 'QM', KM1: 'QM', KM2: 'QM' } },
+    safety: { never: [['KM1', 'KM2']], coilReturn: ['KM1', 'KM2'], stopWins: 'SB0', earth: [['M.PE', 'Q.PE']], protectedBy: { M: 'QM', KM1: 'QM', KM2: 'QM' } },
     solution: [
       ['Q.L1', 'QM.1', 'marrone'], ['Q.L2', 'QM.3', 'nero'], ['Q.L3', 'QM.5', 'grigio'],
       ['QM.2', 'KM1.1', 'marrone'], ['QM.4', 'KM1.3', 'nero'], ['QM.6', 'KM1.5', 'grigio'],
@@ -327,7 +333,7 @@ export const LEVELS_V2 = [
       { id: 'arresto', label: 'Premi Arresto: il nastro si ferma', steps: [{ do: press('SB1'), expect: { motors: { M: 'fwd' } } }, { do: press('SB0'), expect: { motors: { M: 'off' } } }] },
       { id: 'emergenza', label: 'Premi il fungo di emergenza: il nastro si ferma', steps: [{ do: press('SB1'), expect: { motors: { M: 'fwd' } } }, { do: ['toggle SBE'], expect: { motors: { M: 'off' } } }] },
     ],
-    safety: { earth: [['M.PE', 'Q.PE']], stopWins: 'SB0', emergency: 'SBE', protectedBy: { M: 'QM', KM: 'QM' } },
+    safety: { earth: [['M.PE', 'Q.PE']], stopWins: 'SB0', emergency: 'SBE', coilReturn: ['KM'], protectedBy: { M: 'QM', KM: 'QM' } },
     solution: [
       ['Q.L1', 'QM.1', 'marrone'], ['Q.L2', 'QM.3', 'nero'], ['Q.L3', 'QM.5', 'grigio'],
       ['QM.2', 'KM.1', 'marrone'], ['QM.4', 'KM.3', 'nero'], ['QM.6', 'KM.5', 'grigio'],
