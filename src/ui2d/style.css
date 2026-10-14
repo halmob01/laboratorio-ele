@@ -108,6 +108,7 @@ button.btn.primary{background:var(--accent);color:var(--on-accent);border-color:
 .hole{fill:var(--slot)}
 .faceplate{fill:var(--plate);stroke:var(--plate-edge);stroke-width:1.2}
 .term{cursor:pointer;touch-action:none}
+.term:focus:not(:focus-visible){outline:none}
 .term .hit{fill:transparent}
 .term .halo{fill:none;stroke:var(--accent);stroke-width:3;opacity:0}
 .term:hover .halo{opacity:.55}

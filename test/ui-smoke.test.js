@@ -48,10 +48,12 @@ function go(w, hash) {
 }
 
 // Collega due morsetti come farebbe l'allievo: sceglie il colore, tocca il primo, poi il secondo.
+// Un tocco e' pressione piu' rilascio: il filo si crea al rilascio.
+const tap = (w, el) => { fire(w, el, 'pointerdown'); fire(w, el, 'pointerup'); };
 function wire(w, d, a, b, color) {
   click(w, q(d, `[data-col="${color}"]`));
-  fire(w, term(d, a), 'pointerdown');
-  fire(w, term(d, b), 'pointerdown');
+  tap(w, term(d, a));
+  tap(w, term(d, b));
 }
 const solve = (w, d, level) => level.solution.forEach(([a, b, c]) => wire(w, d, a, b, c));
 const profile = w => JSON.parse(w.localStorage.getItem('fase-e-neutro-profilo') || '{}');
