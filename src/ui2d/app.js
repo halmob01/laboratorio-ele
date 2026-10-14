@@ -359,6 +359,7 @@ bench.addEventListener('keydown', e => {
   const q = e.target.closest('[data-q]'); if (q) { e.preventDefault(); session.toggleBreaker(); return; }
   const h = e.target.closest('[data-help]'); if (h) { e.preventDefault(); setInfo(h.dataset.help); }
 });
+document.addEventListener('click', e => { if (e.target.closest('[data-overload]')) session.setOverload(!S.overload); });
 $('#room').addEventListener('click', e => { const c = e.target.closest('[data-ctl]'); if (c) session.toggleControl(c.dataset.ctl); });
 $('#room').addEventListener('keydown', e => {
   const hd = e.target.closest('[data-hold]');

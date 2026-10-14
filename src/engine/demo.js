@@ -58,7 +58,7 @@ function demoFramesV2(level, captions) {
   out.push(snapOf(sim, wires, true, captions.power || '', null));
   const steps = level.demoDo || (level.controls || []).map((id, i) => {
     const c = level.comps.find(x => x.id === id);
-    const hold = c && ['pb', 'pbnc', 'fungo'].includes(c.type);
+    const hold = c && ['pb', 'pbnc'].includes(c.type);
     return { do: hold ? ['press ' + id, 'release ' + id] : ['toggle ' + id], say: (captions.controls || [])[i] || '' };
   });
   steps.forEach(st => {

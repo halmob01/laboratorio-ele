@@ -32,9 +32,9 @@ export const MODULES = [
     levels: [
       'c12-motore',
       'c13-marcia-arresto',
-      { soon: true, id: 'c14-termico', title: 'Il relè termico', blurb: 'La protezione del motore dal sovraccarico.' },
-      { soon: true, id: 'c15-inversione', title: 'Inversione di marcia', blurb: 'Due contattori e l’interblocco.' },
-      { soon: true, id: 'c16-nastro', title: 'Il nastro trasportatore', blurb: 'Emergenza, finecorsa e una macchina completa.' },
+      'c14-termico',
+      'c15-inversione',
+      'c16-nastro',
     ],
   },
 ];

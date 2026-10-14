@@ -521,6 +521,8 @@ html[lang="it"] .trnote{display:none}
 @keyframes ring{0%{transform:rotate(-8deg)}50%{transform:rotate(8deg)}100%{transform:rotate(-8deg)}}
 @media (prefers-reduced-motion:reduce){.fan.fwd,.fan.rev,.fan.hum,.bellb.ring{animation:none}}
 .chks{list-style:none;margin:4px 0 0;padding:0}.chks li{font-size:.92em;padding:2px 0}.chks .mark{display:inline-flex;width:18px;height:18px;font-size:.8em}
+.pbtn{cursor:pointer;font:inherit;border:1px solid var(--line)}.pbtn.on{background:#F59F00;color:#1B2230;border-color:#C27F00}
+.pbtn{min-height:40px}
 </style>
 </head>
 <body>
@@ -2563,7 +2565,7 @@ html[lang="it"] .trnote{display:none}
     out.push(snapOf(sim, wires, true, captions.power || "", null));
     const steps = level.demoDo || (level.controls || []).map((id, i) => {
       const c2 = level.comps.find((x) => x.id === id);
-      const hold = c2 && ["pb", "pbnc", "fungo"].includes(c2.type);
+      const hold = c2 && ["pb", "pbnc"].includes(c2.type);
       return { do: hold ? ["press " + id, "release " + id] : ["toggle " + id], say: (captions.controls || [])[i] || "" };
     });
     steps.forEach((st) => {
@@ -3519,6 +3521,190 @@ html[lang="it"] .trnote{display:none}
         "Il comando prende la fase a valle del salvamotore e passa dal pulsante di arresto (NC), poi dal pulsante di marcia (NA), e arriva alla bobina A1. L\u2019altro capo della bobina, A2, va al neutro.",
         "L\u2019autoritenuta \xE8 un contatto del contattore (13-14) in parallelo al pulsante di marcia: 13 al morsetto 3 e 14 al morsetto 4. La spia va in parallelo alla bobina."
       ]
+    },
+    {
+      id: "c14-termico",
+      code: "c14",
+      n: 0,
+      ...IND,
+      flow: "onDemand",
+      name: "Rel\xE8 termico",
+      title: "Il rel\xE8 termico",
+      blurb: "La protezione del motore dal sovraccarico.",
+      goal: "Aggiungi al comando marcia e arresto il rel\xE8 termico: sta in serie al motore e il suo contatto 95-96 interrompe il comando se il motore si sovraccarica. Prova il sovraccarico dal pulsante sotto la scena.",
+      comps: [
+        Q3,
+        C("QM", "mt3", "Salvamotore", "Salvamotore magnetotermico", T(...T6)),
+        C("KM", "km", "Contattore", "Contattore KM", T("A1", "A2", ...T6, "13", "14")),
+        C("FR", "ft", "Termico", "Rel\xE8 termico", T(...T6, "95", "96"), { tripAfter: 3 }),
+        C("SB0", "pbnc", "Arresto", "Pulsante di arresto (NC)", T("1", "2")),
+        C("SB1", "pb", "Marcia", "Pulsante di marcia (NA)", T("3", "4")),
+        C("H", "spia", "Spia", "Spia di marcia", T("X1", "X2")),
+        C("M", "motor3", "Motore", "Motore trifase", T("U", "V", "W", "PE"))
+      ],
+      controls: ["SB0", "SB1"],
+      checks: [
+        { id: "marcia", label: "Premi Marcia e rilascia: il motore resta in marcia e la spia \xE8 accesa", do: press("SB1"), expect: { motors: { M: "fwd" }, loads: { H: "on" } } },
+        { id: "arresto", label: "Premi Arresto: il motore si ferma", steps: [{ do: press("SB1"), expect: { motors: { M: "fwd" } } }, { do: press("SB0"), expect: { motors: { M: "off" } } }] },
+        { id: "sovraccarico", label: "Con un sovraccarico il termico scatta e il motore si ferma", steps: [{ do: press("SB1"), expect: { motors: { M: "fwd" } } }, { do: ["overload on", "wait 5"], expect: { motors: { M: "off" }, tripped: ["FR"] } }] }
+      ],
+      safety: { earth: [["M.PE", "Q.PE"]], stopWins: "SB0", protectedBy: { M: "QM", KM: "QM" } },
+      solution: [
+        ["Q.L1", "QM.1", "marrone"],
+        ["Q.L2", "QM.3", "nero"],
+        ["Q.L3", "QM.5", "grigio"],
+        ["QM.2", "KM.1", "marrone"],
+        ["QM.4", "KM.3", "nero"],
+        ["QM.6", "KM.5", "grigio"],
+        ["KM.2", "FR.1", "marrone"],
+        ["KM.4", "FR.3", "nero"],
+        ["KM.6", "FR.5", "grigio"],
+        ["FR.2", "M.U", "marrone"],
+        ["FR.4", "M.V", "nero"],
+        ["FR.6", "M.W", "grigio"],
+        ["M.PE", "Q.PE", "gv"],
+        ["QM.2", "FR.95", "rosso"],
+        ["FR.96", "SB0.1", "rosso"],
+        ["SB0.2", "SB1.3", "rosso"],
+        ["SB1.4", "KM.A1", "rosso"],
+        ["KM.A2", "Q.N", "blu"],
+        ["SB1.3", "KM.13", "rosso"],
+        ["KM.14", "SB1.4", "rosso"],
+        ["H.X1", "KM.A1", "rosso"],
+        ["H.X2", "Q.N", "blu"]
+      ],
+      hints: [
+        "I tre poli del rel\xE8 termico (1-2, 3-4, 5-6) stanno in serie tra il contattore e il motore.",
+        "Il contatto 95-96 \xE8 normalmente chiuso e va nel circuito di comando, in serie, prima del pulsante di arresto.",
+        "Il comando parte dal morsetto 2 del salvamotore, passa da 95-96 del termico, poi dall\u2019arresto, dalla marcia e arriva alla bobina. L\u2019autoritenuta e la spia restano come prima."
+      ]
+    },
+    {
+      id: "c15-inversione",
+      code: "c15",
+      n: 0,
+      ...IND,
+      flow: "onDemand",
+      name: "Inversione di marcia",
+      title: "Inversione di marcia",
+      blurb: "Due contattori e l\u2019interblocco.",
+      goal: "Fai girare il motore in avanti e all\u2019indietro con due contattori: il secondo scambia due fasi. Con i pulsanti Avanti e Indietro e uno di Arresto. I due contattori non devono mai chiudersi insieme.",
+      comps: [
+        Q3,
+        C("QM", "mt3", "Salvamotore", "Salvamotore magnetotermico", T(...T6)),
+        C("KM1", "km", "Avanti", "Contattore KM1 (avanti)", T("A1", "A2", ...T6, "13", "14", "21", "22")),
+        C("KM2", "km", "Indietro", "Contattore KM2 (indietro)", T("A1", "A2", ...T6, "13", "14", "21", "22")),
+        C("SB0", "pbnc", "Arresto", "Pulsante di arresto (NC)", T("1", "2")),
+        C("SB1", "pb", "Avanti", "Pulsante Avanti (NA)", T("3", "4")),
+        C("SB2", "pb", "Indietro", "Pulsante Indietro (NA)", T("3", "4")),
+        C("M", "motor3", "Motore", "Motore trifase", T("U", "V", "W", "PE"))
+      ],
+      controls: ["SB0", "SB1", "SB2"],
+      checks: [
+        { id: "avanti", label: "Premi Avanti e rilascia: il motore gira in avanti", do: press("SB1"), expect: { motors: { M: "fwd" } } },
+        { id: "indietro", label: "Premi Indietro e rilascia: il motore gira all\u2019indietro", do: press("SB2"), expect: { motors: { M: "rev" } } },
+        { id: "arresto", label: "Premi Arresto: il motore si ferma", steps: [{ do: press("SB2"), expect: { motors: { M: "rev" } } }, { do: press("SB0"), expect: { motors: { M: "off" } } }] }
+      ],
+      safety: { never: [["KM1", "KM2"]], stopWins: "SB0", earth: [["M.PE", "Q.PE"]], protectedBy: { M: "QM", KM1: "QM", KM2: "QM" } },
+      solution: [
+        ["Q.L1", "QM.1", "marrone"],
+        ["Q.L2", "QM.3", "nero"],
+        ["Q.L3", "QM.5", "grigio"],
+        ["QM.2", "KM1.1", "marrone"],
+        ["QM.4", "KM1.3", "nero"],
+        ["QM.6", "KM1.5", "grigio"],
+        ["QM.2", "KM2.1", "marrone"],
+        ["QM.4", "KM2.3", "nero"],
+        ["QM.6", "KM2.5", "grigio"],
+        ["KM1.2", "M.U", "marrone"],
+        ["KM1.4", "M.V", "nero"],
+        ["KM1.6", "M.W", "grigio"],
+        ["KM2.2", "M.W", "marrone"],
+        ["KM2.4", "M.V", "nero"],
+        ["KM2.6", "M.U", "grigio"],
+        ["M.PE", "Q.PE", "gv"],
+        ["QM.2", "SB0.1", "rosso"],
+        ["SB0.2", "SB1.3", "rosso"],
+        ["SB0.2", "SB2.3", "rosso"],
+        ["SB1.3", "KM1.13", "rosso"],
+        ["KM1.14", "SB1.4", "rosso"],
+        ["SB2.3", "KM2.13", "rosso"],
+        ["KM2.14", "SB2.4", "rosso"],
+        ["KM1.A2", "Q.N", "blu"],
+        ["KM2.A2", "Q.N", "blu"],
+        ["SB1.4", "KM2.21", "rosso"],
+        ["KM2.22", "KM1.A1", "rosso"],
+        ["SB2.4", "KM1.21", "rosso"],
+        ["KM1.22", "KM2.A1", "rosso"]
+      ],
+      hints: [
+        "Il contattore KM2 collega il motore con due fasi scambiate: i morsetti 2 e 6 vanno a W e a U invece che a U e a W.",
+        "Il comando si divide in due rami, uno per ciascuna marcia, ognuno con la sua autoritenuta (13-14).",
+        "L\u2019interblocco: la bobina di KM1 passa dal contatto normalmente chiuso 21-22 di KM2, e la bobina di KM2 da quello di KM1. Se uno \xE8 chiuso l\u2019altro non pu\xF2 chiudersi."
+      ]
+    },
+    {
+      id: "c16-nastro",
+      code: "c16",
+      n: 0,
+      ...IND,
+      flow: "onDemand",
+      name: "Nastro trasportatore",
+      title: "Il nastro trasportatore",
+      blurb: "Emergenza, finecorsa e una macchina completa.",
+      goal: "Comanda un nastro trasportatore: Marcia lo avvia, Arresto e il pulsante di emergenza lo fermano, e a fine corsa il finecorsa lo ferma da solo. Il motore ha il rel\xE8 termico e una spia segnala la marcia.",
+      machine: { motor: "M", length: 6, endFwd: "FC" },
+      comps: [
+        Q3,
+        C("QM", "mt3", "Salvamotore", "Salvamotore magnetotermico", T(...T6)),
+        C("KM", "km", "Contattore", "Contattore KM", T("A1", "A2", ...T6, "13", "14")),
+        C("FR", "ft", "Termico", "Rel\xE8 termico", T(...T6, "95", "96"), { tripAfter: 3 }),
+        C("SBE", "fungo", "Emergenza", "Pulsante di emergenza a fungo", T("1", "2")),
+        C("SB0", "pbnc", "Arresto", "Pulsante di arresto (NC)", T("1", "2")),
+        C("SB1", "pb", "Marcia", "Pulsante di marcia (NA)", T("3", "4")),
+        C("FC", "fc", "Finecorsa", "Finecorsa di fine nastro", T("1", "2", "3", "4")),
+        C("H", "spia", "Spia", "Spia di marcia", T("X1", "X2")),
+        C("M", "motor3", "Motore", "Motore del nastro", T("U", "V", "W", "PE"))
+      ],
+      controls: ["SB0", "SB1", "SBE"],
+      checks: [
+        { id: "marcia", label: "Premi Marcia e rilascia: il nastro parte e la spia \xE8 accesa", do: press("SB1"), expect: { motors: { M: "fwd" }, loads: { H: "on" } } },
+        { id: "fine", label: "A fine corsa il finecorsa ferma il nastro", do: press("SB1").concat(["wait 8"]), expect: { machine: { atEnd: true }, motors: { M: "off" } } },
+        { id: "arresto", label: "Premi Arresto: il nastro si ferma", steps: [{ do: press("SB1"), expect: { motors: { M: "fwd" } } }, { do: press("SB0"), expect: { motors: { M: "off" } } }] },
+        { id: "emergenza", label: "Premi il fungo di emergenza: il nastro si ferma", steps: [{ do: press("SB1"), expect: { motors: { M: "fwd" } } }, { do: ["toggle SBE"], expect: { motors: { M: "off" } } }] }
+      ],
+      safety: { earth: [["M.PE", "Q.PE"]], stopWins: "SB0", emergency: "SBE", protectedBy: { M: "QM", KM: "QM" } },
+      solution: [
+        ["Q.L1", "QM.1", "marrone"],
+        ["Q.L2", "QM.3", "nero"],
+        ["Q.L3", "QM.5", "grigio"],
+        ["QM.2", "KM.1", "marrone"],
+        ["QM.4", "KM.3", "nero"],
+        ["QM.6", "KM.5", "grigio"],
+        ["KM.2", "FR.1", "marrone"],
+        ["KM.4", "FR.3", "nero"],
+        ["KM.6", "FR.5", "grigio"],
+        ["FR.2", "M.U", "marrone"],
+        ["FR.4", "M.V", "nero"],
+        ["FR.6", "M.W", "grigio"],
+        ["M.PE", "Q.PE", "gv"],
+        ["QM.2", "FR.95", "rosso"],
+        ["FR.96", "SBE.1", "rosso"],
+        ["SBE.2", "SB0.1", "rosso"],
+        ["SB0.2", "SB1.3", "rosso"],
+        ["SB1.4", "FC.1", "rosso"],
+        ["FC.2", "KM.A1", "rosso"],
+        ["KM.A2", "Q.N", "blu"],
+        ["SB1.3", "KM.13", "rosso"],
+        ["KM.14", "SB1.4", "rosso"],
+        ["H.X1", "KM.A1", "rosso"],
+        ["H.X2", "Q.N", "blu"]
+      ],
+      hints: [
+        "La parte di potenza \xE8 come nel livello precedente: salvamotore, contattore, rel\xE8 termico, motore e terra.",
+        "Nel comando, in serie e prima dell\u2019arresto, ci sono il contatto del termico (95-96) e il contatto NC del pulsante di emergenza.",
+        "Il finecorsa sta dopo il pulsante di marcia, con il suo contatto normalmente chiuso (1-2), davanti alla bobina: quando il nastro arriva in fondo, il contatto si apre. L\u2019autoritenuta si tiene prima del finecorsa."
+      ]
     }
   ];
 
@@ -3980,6 +4166,404 @@ html[lang="it"] .trnote{display:none}
           why: "Senza il contatto 13-14 in parallelo al pulsante di marcia la bobina \xE8 alimentata solo finch\xE9 tieni premuto Marcia. Rilasciato il pulsante, il contattore si apre e il motore si ferma."
         },
         fixSay: "Aggiungi l\u2019autoritenuta: filo rosso dal morsetto 3 della marcia al contatto 13 e dal contatto 14 al morsetto 4 della marcia. Poi premi Verifica."
+      }
+    },
+    "c14-termico": {
+      support: "passi",
+      lesson: {
+        pages: [
+          {
+            type: "spiegazione",
+            title: "Proteggere il motore",
+            paras: [
+              "Un motore pu\xF2 assorbire troppa corrente per un tempo lungo: per esempio se l\u2019albero si blocca o se il carico \xE8 eccessivo. Gli avvolgimenti si scaldano e, se si va avanti, si danneggiano.",
+              "Il salvamotore interviene subito contro i cortocircuiti. Contro il sovraccarico, che \xE8 lento, serve il rel\xE8 termico: si scalda con la stessa corrente del motore e scatta dopo un po\u2019."
+            ]
+          },
+          {
+            type: "pezzi",
+            title: "Il rel\xE8 termico",
+            focus: ["FR"],
+            paras: [
+              "I tre poli di potenza (1-2, 3-4, 5-6) stanno in serie al motore, tra il contattore e il motore: la corrente del motore passa da qui.",
+              "Il contatto 95-96 \xE8 normalmente chiuso e va nel circuito di comando. Quando il termico scatta, si apre."
+            ]
+          },
+          {
+            type: "spiegazione",
+            title: "Come ferma il motore",
+            paras: [
+              "Il contatto 95-96 sta in serie al comando, prima dell\u2019arresto. Se il termico scatta, il comando si interrompe: la bobina perde corrente, il contattore si apre e il motore si ferma.",
+              "Il termico non si riarma da solo: dopo aver tolto la causa del sovraccarico si preme il tasto Reset. Solo allora il motore pu\xF2 ripartire con un nuovo comando di marcia."
+            ],
+            warn: "Il termico ferma il motore tramite il comando. Se il contatto 95-96 non \xE8 collegato nel comando, il termico scatta ma il motore continua a girare."
+          },
+          {
+            type: "demo",
+            title: "Guarda come si fa",
+            captions: {
+              wires: [
+                "Filo marrone dalla fase L1 al morsetto 1 del salvamotore.",
+                "Filo nero dalla fase L2 al morsetto 3.",
+                "Filo grigio dalla fase L3 al morsetto 5.",
+                "Dal salvamotore al contattore: morsetto 2 al morsetto 1.",
+                "Morsetto 4 al morsetto 3.",
+                "Morsetto 6 al morsetto 5.",
+                "Dal contattore al rel\xE8 termico: morsetto 2 al morsetto 1.",
+                "Morsetto 4 al morsetto 3.",
+                "Morsetto 6 al morsetto 5.",
+                "Dal rel\xE8 termico al motore: morsetto 2 al morsetto U.",
+                "Morsetto 4 al morsetto V.",
+                "Morsetto 6 al morsetto W.",
+                "Filo giallo-verde dalla terra al morsetto PE del motore.",
+                "Comando: filo rosso dal morsetto 2 del salvamotore al morsetto 95 del termico.",
+                "Dal morsetto 96 del termico al pulsante di arresto.",
+                "Dal pulsante di arresto al pulsante di marcia.",
+                "Dal pulsante di marcia alla bobina del contattore (A1).",
+                "Filo blu dall\u2019altro capo della bobina (A2) al neutro.",
+                "Autoritenuta: dal morsetto 3 della marcia al contatto 13.",
+                "Dal contatto 14 al morsetto 4 della marcia.",
+                "Dalla bobina (A1) alla spia di marcia.",
+                "Filo blu dalla spia al neutro."
+              ],
+              power: "Il motore \xE8 fermo.",
+              controls: ["Premuto Arresto, il motore resta fermo.", "Premuta Marcia: il motore parte."]
+            }
+          },
+          {
+            type: "previsione",
+            question: "Il termico \xE8 scattato e il motore si \xE8 fermato. Senza riarmarlo premo Marcia. Che cosa succede?",
+            options: [
+              { id: "a", text: "Il motore parte normalmente." },
+              { id: "b", text: "Il motore non parte: il contatto 95-96 \xE8 ancora aperto." },
+              { id: "c", text: "Il motore parte e il termico scatta di nuovo subito." }
+            ],
+            correct: "b",
+            why: "Il termico scattato ha il contatto 95-96 aperto finch\xE9 non lo riarmi con Reset. Il circuito di comando resta interrotto e la bobina non pu\xF2 essere alimentata."
+          },
+          { type: "sintesi", title: "Da ricordare" }
+        ]
+      },
+      steps: [
+        { kind: "wire", from: "KM.2", to: ["FR.1"], color: "marrone", short: "1 Potenza", title: "Il termico in serie al motore", text: "Dai morsetti 2, 4 e 6 del contattore ai morsetti 1, 3 e 5 del termico; dai morsetti 2, 4 e 6 del termico a U, V e W." },
+        { kind: "wire", from: "QM.2", to: ["FR.95"], color: "rosso", short: "2 Contatto 95", title: "Il comando passa dal termico", text: "Dal morsetto 2 del salvamotore al morsetto 95 del termico." },
+        { kind: "wire", from: "FR.96", to: ["SB0.1"], color: "rosso", short: "3 Contatto 96", title: "Dal termico all\u2019arresto", text: "Dal morsetto 96 del termico al morsetto 1 del pulsante di arresto." },
+        { kind: "control", id: "SB1", short: "4 Marcia", title: "Prova la marcia", text: "Il resto \xE8 come nel livello precedente. Premi Marcia e rilascia." },
+        { kind: "verify", short: "5 Verifica", title: "Controlla l\u2019impianto", text: "Usa il pulsante sotto la scena per simulare un sovraccarico, poi premi Verifica." }
+      ],
+      summary: [
+        "Il rel\xE8 termico protegge dal sovraccarico, che \xE8 lento; il salvamotore dal cortocircuito, che \xE8 subito.",
+        "I poli di potenza del termico sono in serie al motore; il contatto 95-96 \xE8 nel comando, in serie, prima dell\u2019arresto.",
+        "Scattato il termico, il comando si apre e il motore si ferma; serve riarmarlo a mano con Reset.",
+        "Se il contatto 95-96 non \xE8 nel comando, il termico scatta ma il motore non si ferma."
+      ],
+      fault: {
+        say: "Il motore \xE8 collegato con il rel\xE8 termico, ma durante un sovraccarico non si ferma. Premi Marcia e poi simula un sovraccarico.",
+        wires: [
+          ["Q.L1", "QM.1", "marrone"],
+          ["Q.L2", "QM.3", "nero"],
+          ["Q.L3", "QM.5", "grigio"],
+          ["QM.2", "KM.1", "marrone"],
+          ["QM.4", "KM.3", "nero"],
+          ["QM.6", "KM.5", "grigio"],
+          ["KM.2", "FR.1", "marrone"],
+          ["KM.4", "FR.3", "nero"],
+          ["KM.6", "FR.5", "grigio"],
+          ["FR.2", "M.U", "marrone"],
+          ["FR.4", "M.V", "nero"],
+          ["FR.6", "M.W", "grigio"],
+          ["M.PE", "Q.PE", "gv"],
+          ["QM.2", "SB0.1", "rosso"],
+          ["SB0.2", "SB1.3", "rosso"],
+          ["SB1.4", "KM.A1", "rosso"],
+          ["KM.A2", "Q.N", "blu"],
+          ["SB1.3", "KM.13", "rosso"],
+          ["KM.14", "SB1.4", "rosso"],
+          ["H.X1", "KM.A1", "rosso"],
+          ["H.X2", "Q.N", "blu"]
+        ],
+        diagnosis: {
+          question: "Che cosa non va?",
+          options: [
+            { id: "a", text: "Il contatto 95-96 del termico non \xE8 nel circuito di comando." },
+            { id: "b", text: "I poli del termico sono collegati alle fasi sbagliate." },
+            { id: "c", text: "Manca la terra al motore." }
+          ],
+          correct: "a",
+          why: "Il termico scatta e apre il contatto 95-96, ma questo contatto non \xE8 in serie al comando: la bobina continua a essere alimentata e il motore continua a girare e a surriscaldarsi."
+        },
+        fixSay: "Metti il contatto 95-96 nel comando: dal morsetto 2 del salvamotore al 95, dal 96 al morsetto 1 dell\u2019arresto. Togli il filo che andava direttamente all\u2019arresto. Poi premi Verifica."
+      }
+    },
+    "c15-inversione": {
+      support: "obiettivo",
+      lesson: {
+        pages: [
+          {
+            type: "spiegazione",
+            title: "Avanti e indietro",
+            paras: [
+              "Per invertire il senso di un motore trifase basta scambiare due fasi. Per farlo con un comando si usano due contattori: KM1 collega il motore in modo normale, KM2 con due fasi scambiate.",
+              "Cos\xEC con Avanti si chiude KM1 e con Indietro si chiude KM2."
+            ]
+          },
+          {
+            type: "pezzi",
+            title: "Due contattori",
+            focus: ["KM1", "KM2"],
+            paras: [
+              "I poli di potenza dei due contattori sono collegati agli stessi morsetti del salvamotore. In uscita KM2 scambia due fasi: i suoi morsetti 2 e 6 vanno a W e a U.",
+              "Ogni contattore ha il suo contatto di autoritenuta (13-14) e un contatto normalmente chiuso (21-22) per l\u2019interblocco."
+            ]
+          },
+          {
+            type: "spiegazione",
+            title: "L\u2019interblocco",
+            paras: [
+              "Se i due contattori si chiudessero insieme, due fasi della rete si collegherebbero tra loro: un cortocircuito. Il salvamotore scatterebbe.",
+              "L\u2019interblocco lo impedisce con il contatto NC (21-22): la bobina di KM1 passa dal contatto di KM2, e la bobina di KM2 dal contatto di KM1. Se uno \xE8 chiuso, l\u2019altro non pu\xF2 chiudersi."
+            ],
+            warn: "Senza interblocco il circuito sembra funzionare, ma premendo le due marce insieme si ha un cortocircuito."
+          },
+          {
+            type: "demo",
+            title: "Guarda come si fa",
+            captions: {
+              wires: [
+                "Le tre fasi al salvamotore: L1 al morsetto 1.",
+                "L2 al morsetto 3.",
+                "L3 al morsetto 5.",
+                "Dal salvamotore a KM1: morsetto 2 al morsetto 1.",
+                "Morsetto 4 al morsetto 3.",
+                "Morsetto 6 al morsetto 5.",
+                "Dal salvamotore a KM2: morsetto 2 al morsetto 1.",
+                "Morsetto 4 al morsetto 3.",
+                "Morsetto 6 al morsetto 5.",
+                "Da KM1 al motore, in ordine: morsetto 2 a U.",
+                "Morsetto 4 a V.",
+                "Morsetto 6 a W.",
+                "Da KM2 al motore con due fasi scambiate: morsetto 2 a W.",
+                "Morsetto 4 a V.",
+                "Morsetto 6 a U.",
+                "Filo giallo-verde dalla terra al morsetto PE del motore.",
+                "Comando: dal salvamotore al pulsante di arresto.",
+                "Dall\u2019arresto al pulsante Avanti.",
+                "Dall\u2019arresto al pulsante Indietro.",
+                "Autoritenuta di KM1: dal pulsante Avanti al contatto 13 di KM1.",
+                "Dal contatto 14 di KM1 al morsetto 4 di Avanti.",
+                "Autoritenuta di KM2: dal pulsante Indietro al contatto 13 di KM2.",
+                "Dal contatto 14 di KM2 al morsetto 4 di Indietro.",
+                "Neutro alla bobina di KM1 (A2).",
+                "Neutro alla bobina di KM2 (A2).",
+                "Interblocco: da Avanti al contatto 21 di KM2.",
+                "Dal contatto 22 di KM2 alla bobina di KM1 (A1).",
+                "Da Indietro al contatto 21 di KM1.",
+                "Dal contatto 22 di KM1 alla bobina di KM2 (A1)."
+              ],
+              power: "Il motore \xE8 fermo.",
+              controls: ["Arresto premuto: il motore resta fermo.", "Avanti: KM1 si chiude e il motore gira in avanti.", "Indietro: KM2 si chiude e il motore gira all\u2019indietro."]
+            }
+          },
+          {
+            type: "previsione",
+            question: "Il motore gira in avanti. Premo Indietro senza premere prima Arresto. Con l\u2019interblocco, che cosa succede?",
+            options: [
+              { id: "a", text: "Il motore inverte subito il senso." },
+              { id: "b", text: "Non cambia nulla: KM2 non pu\xF2 chiudersi finch\xE9 KM1 \xE8 chiuso." },
+              { id: "c", text: "Il salvamotore scatta." }
+            ],
+            correct: "b",
+            why: "Il contatto NC di KM1 \xE8 aperto finch\xE9 KM1 \xE8 chiuso: la bobina di KM2 non riceve corrente. Per invertire bisogna prima premere Arresto."
+          },
+          { type: "sintesi", title: "Da ricordare" }
+        ]
+      },
+      steps: [
+        { kind: "wire", from: "KM1.2", to: ["M.U"], color: "marrone", short: "1 Avanti", title: "KM1 in ordine", text: "KM1 collega il motore con le fasi in ordine." },
+        { kind: "wire", from: "KM2.2", to: ["M.W"], color: "marrone", short: "2 Indietro", title: "KM2 con due fasi scambiate", text: "KM2 collega il motore con due fasi scambiate." },
+        { kind: "wire", from: "SB1.4", to: ["KM2.21"], color: "rosso", short: "3 Interblocco", title: "L\u2019interblocco", text: "Le bobine passano dai contatti NC 21-22 dell\u2019altro contattore." },
+        { kind: "verify", short: "4 Verifica", title: "Controlla l\u2019impianto", text: "Premi Verifica." }
+      ],
+      summary: [
+        "Scambiando due fasi si inverte il senso del motore.",
+        "Due contattori: KM1 collega le fasi in ordine, KM2 le collega con due fasi scambiate.",
+        "I due contattori non devono mai chiudersi insieme: sarebbe un cortocircuito.",
+        "L\u2019interblocco usa il contatto NC (21-22) di ciascun contattore nel comando dell\u2019altro.",
+        "Per invertire il senso si preme prima Arresto."
+      ],
+      fault: {
+        say: "Il motore va avanti e indietro. Prova Avanti, Arresto e Indietro. Poi tieni premuti Avanti e Indietro insieme.",
+        wires: [
+          ["Q.L1", "QM.1", "marrone"],
+          ["Q.L2", "QM.3", "nero"],
+          ["Q.L3", "QM.5", "grigio"],
+          ["QM.2", "KM1.1", "marrone"],
+          ["QM.4", "KM1.3", "nero"],
+          ["QM.6", "KM1.5", "grigio"],
+          ["QM.2", "KM2.1", "marrone"],
+          ["QM.4", "KM2.3", "nero"],
+          ["QM.6", "KM2.5", "grigio"],
+          ["KM1.2", "M.U", "marrone"],
+          ["KM1.4", "M.V", "nero"],
+          ["KM1.6", "M.W", "grigio"],
+          ["KM2.2", "M.W", "marrone"],
+          ["KM2.4", "M.V", "nero"],
+          ["KM2.6", "M.U", "grigio"],
+          ["M.PE", "Q.PE", "gv"],
+          ["QM.2", "SB0.1", "rosso"],
+          ["SB0.2", "SB1.3", "rosso"],
+          ["SB0.2", "SB2.3", "rosso"],
+          ["SB1.3", "KM1.13", "rosso"],
+          ["KM1.14", "SB1.4", "rosso"],
+          ["SB2.3", "KM2.13", "rosso"],
+          ["KM2.14", "SB2.4", "rosso"],
+          ["KM1.A2", "Q.N", "blu"],
+          ["KM2.A2", "Q.N", "blu"],
+          ["SB1.4", "KM1.A1", "rosso"],
+          ["SB2.4", "KM2.A1", "rosso"]
+        ],
+        diagnosis: {
+          question: "Che cosa manca?",
+          options: [
+            { id: "a", text: "L\u2019interblocco: premendo le due marce i contattori si chiudono insieme." },
+            { id: "b", text: "L\u2019autoritenuta di KM2." },
+            { id: "c", text: "Il rel\xE8 termico." }
+          ],
+          correct: "a",
+          why: "Le bobine non passano dai contatti NC 21-22 dell\u2019altro contattore. Premendo Avanti e Indietro insieme KM1 e KM2 si chiudono tutti e due: due fasi vanno in cortocircuito e il salvamotore scatta."
+        },
+        fixSay: "Aggiungi l\u2019interblocco: da Avanti al contatto 21 di KM2 e dal 22 di KM2 alla bobina di KM1; da Indietro al contatto 21 di KM1 e dal 22 di KM1 alla bobina di KM2. Togli i fili diretti verso le bobine. Poi premi Verifica."
+      }
+    },
+    "c16-nastro": {
+      support: "obiettivo",
+      lesson: {
+        pages: [
+          {
+            type: "spiegazione",
+            title: "Una macchina completa",
+            paras: [
+              "Un nastro trasportatore porta un pacco da un punto all\u2019altro. Ha un motore, un contattore, i pulsanti di marcia e arresto, un rel\xE8 termico e due dispositivi di sicurezza: il pulsante di emergenza e il finecorsa.",
+              "Il circuito di potenza \xE8 quello che gi\xE0 conosci. Il comando mette in serie tutti i contatti che devono poter fermare il nastro."
+            ]
+          },
+          {
+            type: "pezzi",
+            title: "Emergenza e finecorsa",
+            focus: ["SBE", "FC"],
+            paras: [
+              "Il pulsante di emergenza a fungo ha un contatto normalmente chiuso, in serie al comando. Premuto, si blocca aperto: il nastro si ferma e non riparte finch\xE9 non lo sblocchi.",
+              "Il finecorsa \xE8 un contatto azionato dal pacco. Usiamo il contatto normalmente chiuso (1-2): a fine nastro si apre e il comando si interrompe."
+            ]
+          },
+          {
+            type: "spiegazione",
+            title: "Perch\xE9 i contatti NC",
+            paras: [
+              "Un contatto NC in serie al comando ferma la macchina anche quando si stacca un filo: un guasto porta alla fermata, non alla marcia.",
+              "Per questo emergenza, arresto, termico e finecorsa sono tutti contatti NC in serie. Dopo l\u2019emergenza il nastro non riparte da solo: serve un nuovo comando di marcia."
+            ],
+            warn: "Con il finecorsa collegato al contatto normalmente aperto il comando \xE8 interrotto all\u2019inizio: il nastro non parte."
+          },
+          {
+            type: "demo",
+            title: "Guarda come si fa",
+            captions: {
+              wires: [
+                "Le tre fasi al salvamotore: L1 al morsetto 1.",
+                "L2 al morsetto 3.",
+                "L3 al morsetto 5.",
+                "Dal salvamotore al contattore: morsetto 2 al morsetto 1.",
+                "Morsetto 4 al morsetto 3.",
+                "Morsetto 6 al morsetto 5.",
+                "Dal contattore al termico: morsetto 2 al morsetto 1.",
+                "Morsetto 4 al morsetto 3.",
+                "Morsetto 6 al morsetto 5.",
+                "Dal termico al motore: morsetto 2 a U.",
+                "Morsetto 4 a V.",
+                "Morsetto 6 a W.",
+                "Filo giallo-verde dalla terra al morsetto PE del motore.",
+                "Comando: dal salvamotore al morsetto 95 del termico.",
+                "Dal morsetto 96 al pulsante di emergenza.",
+                "Dall\u2019emergenza al pulsante di arresto.",
+                "Dall\u2019arresto al pulsante di marcia.",
+                "Dalla marcia al finecorsa, contatto normalmente chiuso.",
+                "Dal finecorsa alla bobina del contattore (A1).",
+                "Filo blu dalla bobina (A2) al neutro.",
+                "Autoritenuta: dal morsetto 3 della marcia al contatto 13.",
+                "Dal contatto 14 al morsetto 4 della marcia.",
+                "Dalla bobina (A1) alla spia di marcia.",
+                "Filo blu dalla spia al neutro."
+              ],
+              power: "Il nastro \xE8 fermo.",
+              controls: ["Arresto: il nastro resta fermo.", "Marcia: il nastro parte e il pacco avanza.", "Emergenza premuta: il nastro si ferma subito."]
+            }
+          },
+          {
+            type: "previsione",
+            question: "Il nastro \xE8 fermo per l\u2019emergenza. Sblocco il fungo. Che cosa fa il nastro?",
+            options: [
+              { id: "a", text: "Riparte da solo." },
+              { id: "b", text: "Resta fermo finch\xE9 non premo Marcia." },
+              { id: "c", text: "Scatta il termico." }
+            ],
+            correct: "b",
+            why: "Quando il fungo si apre, la bobina era gi\xE0 senza corrente e l\u2019autoritenuta si \xE8 aperta. Per ripartire serve un nuovo comando di marcia: una macchina non deve ripartire da sola dopo un\u2019emergenza."
+          },
+          { type: "sintesi", title: "Da ricordare" }
+        ]
+      },
+      steps: [
+        { kind: "wire", from: "FR.96", to: ["SBE.1"], color: "rosso", short: "1 Emergenza", title: "L\u2019emergenza in serie", text: "Il fungo (contatto NC) sta nel comando, dopo il termico." },
+        { kind: "wire", from: "SB1.4", to: ["FC.1"], color: "rosso", short: "2 Finecorsa", title: "Il finecorsa dopo la marcia", text: "Usa il contatto normalmente chiuso, davanti alla bobina." },
+        { kind: "verify", short: "3 Verifica", title: "Controlla l\u2019impianto", text: "Premi Verifica." }
+      ],
+      summary: [
+        "Una macchina completa ha potenza, comando e dispositivi di sicurezza.",
+        "Emergenza, arresto, termico e finecorsa sono contatti NC in serie nel comando.",
+        "Un contatto NC porta la macchina alla fermata anche se si stacca un filo.",
+        "Dopo l\u2019emergenza la macchina riparte solo con un nuovo comando di marcia.",
+        "Il finecorsa ferma il nastro a fine corsa: il contatto NC si apre."
+      ],
+      fault: {
+        say: "Il nastro \xE8 gi\xE0 cablato ma, premendo Marcia, non parte. Prova.",
+        wires: [
+          ["Q.L1", "QM.1", "marrone"],
+          ["Q.L2", "QM.3", "nero"],
+          ["Q.L3", "QM.5", "grigio"],
+          ["QM.2", "KM.1", "marrone"],
+          ["QM.4", "KM.3", "nero"],
+          ["QM.6", "KM.5", "grigio"],
+          ["KM.2", "FR.1", "marrone"],
+          ["KM.4", "FR.3", "nero"],
+          ["KM.6", "FR.5", "grigio"],
+          ["FR.2", "M.U", "marrone"],
+          ["FR.4", "M.V", "nero"],
+          ["FR.6", "M.W", "grigio"],
+          ["M.PE", "Q.PE", "gv"],
+          ["QM.2", "FR.95", "rosso"],
+          ["FR.96", "SBE.1", "rosso"],
+          ["SBE.2", "SB0.1", "rosso"],
+          ["SB0.2", "SB1.3", "rosso"],
+          ["SB1.4", "FC.3", "rosso"],
+          ["FC.4", "KM.A1", "rosso"],
+          ["KM.A2", "Q.N", "blu"],
+          ["SB1.3", "KM.13", "rosso"],
+          ["KM.14", "SB1.4", "rosso"],
+          ["H.X1", "KM.A1", "rosso"],
+          ["H.X2", "Q.N", "blu"]
+        ],
+        diagnosis: {
+          question: "Che cosa non va?",
+          options: [
+            { id: "a", text: "Il finecorsa \xE8 collegato con il contatto normalmente aperto." },
+            { id: "b", text: "Il pulsante di emergenza \xE8 premuto." },
+            { id: "c", text: "Il contattore \xE8 collegato al neutro sbagliato." }
+          ],
+          correct: "a",
+          why: "Il contatto normalmente aperto (3-4) del finecorsa \xE8 aperto quando il pacco non lo tocca: il comando \xE8 interrotto all\u2019inizio e il nastro non parte. Serve il contatto normalmente chiuso (1-2), che si apre solo a fine corsa."
+        },
+        fixSay: "Collega il finecorsa con il contatto normalmente chiuso: dal morsetto 4 della marcia al morsetto 1 del finecorsa e dal morsetto 2 alla bobina. Poi premi Verifica."
       }
     }
   };
@@ -4704,7 +5288,7 @@ html[lang="it"] .trnote{display:none}
   }
   var V2_TYPES = /* @__PURE__ */ new Set(["quadro", "mt", "rcd", "mt3", "sez", "pb", "pbnc", "fungo", "ri", "tmr", "km", "ft", "fc", "trafo", "bell", "spia", "lamp", "presa", "motor3"]);
   var DEV = /* @__PURE__ */ new Set(["lamp", "spia", "bell", "presa", "motor3"]);
-  var WALLCTL = { sw: "tog", dev: "tog", inv: "tog", pb: "hold", pbnc: "hold", fungo: "hold" };
+  var WALLCTL = { sw: "tog", dev: "tog", inv: "tog", pb: "hold", pbnc: "hold", fungo: "mush" };
   function roomV2HTML(level) {
     const m = level.machine;
     let o = `<defs><radialGradient id="glow2"><stop offset="0" stop-color="#FFE9A8" stop-opacity=".95"/><stop offset="1" stop-color="#FFD25E" stop-opacity="0"/></radialGradient></defs>`;
@@ -4742,7 +5326,9 @@ html[lang="it"] .trnote{display:none}
     const ctl = (level.controls || []).map((id) => level.comps.find((c2) => c2.id === id)).filter((c2) => c2 && WALLCTL[c2.type]);
     ctl.forEach((c2, i) => {
       const x = Math.round(400 * (i + 0.5) / ctl.length), y = WALLCTL[c2.type] === "hold" ? 148 : 144;
-      if (WALLCTL[c2.type] === "hold") {
+      if (WALLCTL[c2.type] === "mush") {
+        o += `<g class="pl" data-ctl="${c2.id}" role="button" tabindex="0" aria-label="${c2.title || c2.short}, premi per bloccare o sbloccare"><circle cx="${x}" cy="${y}" r="26" fill="transparent"/><circle cx="${x}" cy="${y}" r="22" fill="#F2C318" stroke="#7A5E1C" stroke-width="2"/><circle id="mu-${c2.id}" cx="${x}" cy="${y}" r="15" fill="#C0262D" stroke="rgba(255,255,255,.45)" stroke-width="2"/><text x="${x}" y="${y + 38}" text-anchor="middle" style="font:600 11px 'IBM Plex Sans',sans-serif;fill:var(--ink2)">${c2.short}</text></g>`;
+      } else if (WALLCTL[c2.type] === "hold") {
         const col = c2.type === "pb" ? "#2E9E5B" : "#C0262D";
         o += `<g class="pl" data-hold="${c2.id}" role="button" tabindex="0" aria-label="${c2.title || c2.short}, tieni premuto" style="touch-action:none"><circle cx="${x}" cy="${y}" r="26" fill="transparent"/><circle class="plate" cx="${x}" cy="${y}" r="20"/><circle id="bt-${c2.id}" cx="${x}" cy="${y}" r="13" fill="${col}" stroke="rgba(255,255,255,.45)" stroke-width="2"/><text x="${x}" y="${y + 36}" text-anchor="middle" style="font:600 11px 'IBM Plex Sans',sans-serif;fill:var(--ink2)">${c2.short}</text></g>`;
       } else {
@@ -4786,6 +5372,12 @@ html[lang="it"] .trnote{display:none}
       } else if (WALLCTL[c2.type] === "hold") {
         const b = root.querySelector("#bt-" + c2.id);
         if (b) b.setAttribute("opacity", s.controlStates[c2.id] ? ".55" : "1");
+      } else if (WALLCTL[c2.type] === "mush") {
+        const b = root.querySelector("#mu-" + c2.id);
+        if (b) {
+          b.setAttribute("r", s.controlStates[c2.id] ? "11" : "15");
+          b.setAttribute("opacity", s.controlStates[c2.id] ? ".7" : "1");
+        }
       }
     });
     const nt = root.querySelector("#night2");
@@ -5054,7 +5646,8 @@ html[lang="it"] .trnote{display:none}
       const q2 = s.trip ? ["Quadro scattato", "bad"] : s.selfPowered ? ["Impianto alimentato", "ok"] : q;
       const run = Object.values(o.motors).some((v) => v === "fwd" || v === "rev") || Object.values(o.loads).some((v) => v === "on");
       const trip2 = o.tripped.length ? '<span class="pill bad">Protezione scattata</span>' : "";
-      return `<span class="pill ${q2[1]}">${q2[0]}</span><span class="pill${run ? " on" : ""}">${run ? "Carico in funzione" : "Carico fermo"}</span>${trip2}<span class="msg" aria-live="polite">${msg}</span>`;
+      const ov = s.level.comps.some((c2) => c2.type === "ft") ? `<button class="pill pbtn${s.overload ? " on" : ""}" data-overload="1" aria-pressed="${!!s.overload}">${s.overload ? "Sovraccarico: attivo" : "Simula un sovraccarico"}</button>` : "";
+      return `<span class="pill ${q2[1]}">${q2[0]}</span><span class="pill${run ? " on" : ""}">${run ? "Carico in funzione" : "Carico fermo"}</span>${trip2}${ov}<span class="msg" aria-live="polite">${msg}</span>`;
     }
     const multi = s.litLoads && s.litLoads.length > 1;
     const nOn = multi ? s.litLoads.filter(Boolean).length : 0;
@@ -5118,9 +5711,9 @@ html[lang="it"] .trnote{display:none}
       levels: [
         "c12-motore",
         "c13-marcia-arresto",
-        { soon: true, id: "c14-termico", title: "Il rel\xE8 termico", blurb: "La protezione del motore dal sovraccarico." },
-        { soon: true, id: "c15-inversione", title: "Inversione di marcia", blurb: "Due contattori e l\u2019interblocco." },
-        { soon: true, id: "c16-nastro", title: "Il nastro trasportatore", blurb: "Emergenza, finecorsa e una macchina completa." }
+        "c14-termico",
+        "c15-inversione",
+        "c16-nastro"
       ]
     }
   ];
@@ -6719,6 +7312,209 @@ html[lang="it"] .trnote{display:none}
     "\xC8 utile quando serve andare avanti e indietro, per esempio in un nastro o in un cancello. Se invece succede per errore, il motore gira nel verso sbagliato.": "\u0647\u0630\u0627 \u0645\u0641\u064A\u062F \u0639\u0646\u062F\u0645\u0627 \u0646\u062D\u062A\u0627\u062C \u0625\u0644\u0649 \u0627\u0644\u062D\u0631\u0643\u0629 \u0625\u0644\u0649 \u0627\u0644\u0623\u0645\u0627\u0645 \u0648\u0627\u0644\u062E\u0644\u0641\u060C \u0645\u062B\u0644\u064B\u0627 \u0641\u064A \u0633\u064A\u0631 \u0646\u0627\u0642\u0644 \u0623\u0648 \u0628\u0648\u0627\u0628\u0629. \u0623\u0645\u0627 \u0625\u0630\u0627 \u062D\u062F\u062B \u0630\u0644\u0643 \u0639\u0646 \u0637\u0631\u064A\u0642 \u0627\u0644\u062E\u0637\u0623 \u0641\u064A\u062F\u0648\u0631 \u0627\u0644\u0645\u062D\u0631\u0643 \u0641\u064A \u0627\u0644\u0627\u062A\u062C\u0627\u0647 \u0627\u0644\u062E\u0637\u0623."
   };
 
+  // src/i18n/ar-11.js
+  var ar_11_default = {
+    "SBE": "SBE",
+    "SBE.1": "SBE.1",
+    "SBE.2": "SBE.2",
+    "A fine corsa il finecorsa ferma il nastro": "\u0639\u0646\u062F \u0646\u0647\u0627\u064A\u0629 \u0627\u0644\u0634\u0648\u0637 \u064A\u0648\u0642\u0641 \u0645\u0641\u062A\u0627\u062D \u0646\u0647\u0627\u064A\u0629 \u0627\u0644\u0634\u0648\u0637 \u0627\u0644\u0633\u064A\u0631",
+    "Aggiungi al comando marcia e arresto il rel\xE8 termico: sta in serie al motore e il suo contatto 95-96 interrompe il comando se il motore si sovraccarica. Prova il sovraccarico dal pulsante sotto la scena.": "\u0623\u0636\u0641 \u0627\u0644\u0645\u0631\u062D\u0651\u0644 \u0627\u0644\u062D\u0631\u0627\u0631\u064A \u0625\u0644\u0649 \u062F\u0627\u0626\u0631\u0629 \u0627\u0644\u062A\u0634\u063A\u064A\u0644 \u0648\u0627\u0644\u0625\u064A\u0642\u0627\u0641: \u064A\u0643\u0648\u0646 \u0639\u0644\u0649 \u0627\u0644\u062A\u0633\u0644\u0633\u0644 \u0645\u0639 \u0627\u0644\u0645\u062D\u0631\u0643 \u0648\u0645\u0644\u0627\u0645\u0633\u0647 95-96 \u064A\u0642\u0637\u0639 \u062F\u0627\u0626\u0631\u0629 \u0627\u0644\u062A\u062D\u0643\u0645 \u0625\u0630\u0627 \u062A\u0639\u0631\u0636 \u0627\u0644\u0645\u062D\u0631\u0643 \u0644\u062D\u0645\u0644 \u0632\u0627\u0626\u062F. \u062C\u0631\u0651\u0628 \u0627\u0644\u062D\u0645\u0644 \u0627\u0644\u0632\u0627\u0626\u062F \u0645\u0646 \u0627\u0644\u0632\u0631 \u062A\u062D\u062A \u0627\u0644\u0645\u0634\u0647\u062F.",
+    "Aggiungi l\u2019interblocco: da Avanti al contatto 21 di KM2 e dal 22 di KM2 alla bobina di KM1; da Indietro al contatto 21 di KM1 e dal 22 di KM1 alla bobina di KM2. Togli i fili diretti verso le bobine. Poi premi Verifica.": "\u0623\u0636\u0641 \u0627\u0644\u062A\u0639\u0634\u064A\u0642 \u0627\u0644\u0645\u062A\u0628\u0627\u062F\u0644: \u0645\u0646 \u0632\u0631 \u0627\u0644\u0623\u0645\u0627\u0645 \u0625\u0644\u0649 \u0627\u0644\u0645\u0644\u0627\u0645\u0633 21 \u0641\u064A KM2 \u0648\u0645\u0646 22 \u0641\u064A KM2 \u0625\u0644\u0649 \u0645\u0644\u0641 KM1\u061B \u0648\u0645\u0646 \u0632\u0631 \u0627\u0644\u062E\u0644\u0641 \u0625\u0644\u0649 \u0627\u0644\u0645\u0644\u0627\u0645\u0633 21 \u0641\u064A KM1 \u0648\u0645\u0646 22 \u0641\u064A KM1 \u0625\u0644\u0649 \u0645\u0644\u0641 KM2. \u0623\u0632\u0644 \u0627\u0644\u0623\u0633\u0644\u0627\u0643 \u0627\u0644\u0645\u0628\u0627\u0634\u0631\u0629 \u0625\u0644\u0649 \u0627\u0644\u0645\u0644\u0641\u0627\u062A. \u062B\u0645 \u0627\u0636\u063A\u0637 \u062A\u062D\u0642\u0642.",
+    "Arresto premuto: il motore resta fermo.": "\u0639\u0646\u062F \u0636\u063A\u0637 \u0627\u0644\u0625\u064A\u0642\u0627\u0641 \u064A\u0628\u0642\u0649 \u0627\u0644\u0645\u062D\u0631\u0643 \u0645\u062A\u0648\u0642\u0641\u064B\u0627.",
+    "Arresto: il nastro resta fermo.": "\u0627\u0644\u0625\u064A\u0642\u0627\u0641: \u064A\u0628\u0642\u0649 \u0627\u0644\u0633\u064A\u0631 \u0645\u062A\u0648\u0642\u0641\u064B\u0627.",
+    "Autoritenuta di KM1: dal pulsante Avanti al contatto 13 di KM1.": "\u0627\u0644\u062A\u062B\u0628\u064A\u062A \u0627\u0644\u0630\u0627\u062A\u064A \u0644\u0640 KM1: \u0645\u0646 \u0632\u0631 \u0627\u0644\u0623\u0645\u0627\u0645 \u0625\u0644\u0649 \u0627\u0644\u0645\u0644\u0627\u0645\u0633 13 \u0641\u064A KM1.",
+    "Autoritenuta di KM2: dal pulsante Indietro al contatto 13 di KM2.": "\u0627\u0644\u062A\u062B\u0628\u064A\u062A \u0627\u0644\u0630\u0627\u062A\u064A \u0644\u0640 KM2: \u0645\u0646 \u0632\u0631 \u0627\u0644\u062E\u0644\u0641 \u0625\u0644\u0649 \u0627\u0644\u0645\u0644\u0627\u0645\u0633 13 \u0641\u064A KM2.",
+    "Autoritenuta: dal morsetto 3 della marcia al contatto 13.": "\u0627\u0644\u062A\u062B\u0628\u064A\u062A \u0627\u0644\u0630\u0627\u062A\u064A: \u0645\u0646 \u0627\u0644\u0645\u0631\u0628\u0637 3 \u0641\u064A \u0632\u0631 \u0627\u0644\u062A\u0634\u063A\u064A\u0644 \u0625\u0644\u0649 \u0627\u0644\u0645\u0644\u0627\u0645\u0633 13.",
+    "Avanti e indietro": "\u0625\u0644\u0649 \u0627\u0644\u0623\u0645\u0627\u0645 \u0648\u0625\u0644\u0649 \u0627\u0644\u062E\u0644\u0641",
+    "Avanti: KM1 si chiude e il motore gira in avanti.": "\u0627\u0644\u0623\u0645\u0627\u0645: \u064A\u0646\u063A\u0644\u0642 KM1 \u0648\u064A\u062F\u0648\u0631 \u0627\u0644\u0645\u062D\u0631\u0643 \u0625\u0644\u0649 \u0627\u0644\u0623\u0645\u0627\u0645.",
+    "Che cosa manca?": "\u0645\u0627\u0630\u0627 \u064A\u0646\u0642\u0635\u061F",
+    "Collega il finecorsa con il contatto normalmente chiuso: dal morsetto 4 della marcia al morsetto 1 del finecorsa e dal morsetto 2 alla bobina. Poi premi Verifica.": "\u0635\u0650\u0644 \u0645\u0641\u062A\u0627\u062D \u0646\u0647\u0627\u064A\u0629 \u0627\u0644\u0634\u0648\u0637 \u0628\u0627\u0644\u0645\u0644\u0627\u0645\u0633 \u0627\u0644\u0645\u063A\u0644\u0642 \u0639\u0627\u062F\u0629\u064B: \u0645\u0646 \u0627\u0644\u0645\u0631\u0628\u0637 4 \u0641\u064A \u0632\u0631 \u0627\u0644\u062A\u0634\u063A\u064A\u0644 \u0625\u0644\u0649 \u0627\u0644\u0645\u0631\u0628\u0637 1 \u0641\u064A \u0645\u0641\u062A\u0627\u062D \u0646\u0647\u0627\u064A\u0629 \u0627\u0644\u0634\u0648\u0637 \u0648\u0645\u0646 \u0627\u0644\u0645\u0631\u0628\u0637 2 \u0625\u0644\u0649 \u0627\u0644\u0645\u0644\u0641. \u062B\u0645 \u0627\u0636\u063A\u0637 \u062A\u062D\u0642\u0642.",
+    "Comanda un nastro trasportatore: Marcia lo avvia, Arresto e il pulsante di emergenza lo fermano, e a fine corsa il finecorsa lo ferma da solo. Il motore ha il rel\xE8 termico e una spia segnala la marcia.": "\u062A\u062D\u0643\u0651\u0645 \u0641\u064A \u0633\u064A\u0631 \u0646\u0627\u0642\u0644: \u0627\u0644\u062A\u0634\u063A\u064A\u0644 \u064A\u0628\u062F\u0624\u0647\u060C \u0648\u0627\u0644\u0625\u064A\u0642\u0627\u0641 \u0648\u0632\u0631 \u0627\u0644\u0637\u0648\u0627\u0631\u0626 \u064A\u0648\u0642\u0641\u0627\u0646\u0647\u060C \u0648\u0639\u0646\u062F \u0646\u0647\u0627\u064A\u0629 \u0627\u0644\u0634\u0648\u0637 \u064A\u0648\u0642\u0641\u0647 \u0645\u0641\u062A\u0627\u062D \u0646\u0647\u0627\u064A\u0629 \u0627\u0644\u0634\u0648\u0637 \u0645\u0646 \u062A\u0644\u0642\u0627\u0621 \u0646\u0641\u0633\u0647. \u0644\u0644\u0645\u062D\u0631\u0643 \u0645\u0631\u062D\u0651\u0644 \u062D\u0631\u0627\u0631\u064A\u060C \u0648\u0644\u0645\u0628\u0629 \u0625\u0634\u0627\u0631\u064A\u0629 \u062A\u062F\u0644 \u0639\u0644\u0649 \u0627\u0644\u062A\u0634\u063A\u064A\u0644.",
+    "Comando: dal salvamotore al morsetto 95 del termico.": "\u0627\u0644\u062A\u062D\u0643\u0645: \u0645\u0646 \u0642\u0627\u0637\u0639 \u062D\u0645\u0627\u064A\u0629 \u0627\u0644\u0645\u062D\u0631\u0643 \u0625\u0644\u0649 \u0627\u0644\u0645\u0631\u0628\u0637 95 \u0641\u064A \u0627\u0644\u0645\u0631\u062D\u0651\u0644 \u0627\u0644\u062D\u0631\u0627\u0631\u064A.",
+    "Comando: dal salvamotore al pulsante di arresto.": "\u0627\u0644\u062A\u062D\u0643\u0645: \u0645\u0646 \u0642\u0627\u0637\u0639 \u062D\u0645\u0627\u064A\u0629 \u0627\u0644\u0645\u062D\u0631\u0643 \u0625\u0644\u0649 \u0632\u0631 \u0627\u0644\u0625\u064A\u0642\u0627\u0641.",
+    "Comando: filo rosso dal morsetto 2 del salvamotore al morsetto 95 del termico.": "\u0627\u0644\u062A\u062D\u0643\u0645: \u0633\u0644\u0643 \u0623\u062D\u0645\u0631 \u0645\u0646 \u0627\u0644\u0645\u0631\u0628\u0637 2 \u0641\u064A \u0642\u0627\u0637\u0639 \u062D\u0645\u0627\u064A\u0629 \u0627\u0644\u0645\u062D\u0631\u0643 \u0625\u0644\u0649 \u0627\u0644\u0645\u0631\u0628\u0637 95 \u0641\u064A \u0627\u0644\u0645\u0631\u062D\u0651\u0644 \u0627\u0644\u062D\u0631\u0627\u0631\u064A.",
+    "Come ferma il motore": "\u0643\u064A\u0641 \u064A\u0648\u0642\u0641 \u0627\u0644\u0645\u062D\u0631\u0643",
+    "Con il finecorsa collegato al contatto normalmente aperto il comando \xE8 interrotto all\u2019inizio: il nastro non parte.": "\u0625\u0630\u0627 \u0648\u064F\u0635\u0644 \u0645\u0641\u062A\u0627\u062D \u0646\u0647\u0627\u064A\u0629 \u0627\u0644\u0634\u0648\u0637 \u0628\u0627\u0644\u0645\u0644\u0627\u0645\u0633 \u0627\u0644\u0645\u0641\u062A\u0648\u062D \u0639\u0627\u062F\u0629\u064B \u062A\u0643\u0648\u0646 \u062F\u0627\u0626\u0631\u0629 \u0627\u0644\u062A\u062D\u0643\u0645 \u0645\u0642\u0637\u0648\u0639\u0629 \u0645\u0646 \u0627\u0644\u0628\u062F\u0627\u064A\u0629: \u0644\u0627 \u064A\u0628\u062F\u0623 \u0627\u0644\u0633\u064A\u0631.",
+    "Con un sovraccarico il termico scatta e il motore si ferma": "\u0639\u0646\u062F \u062D\u0645\u0644 \u0632\u0627\u0626\u062F \u064A\u0641\u0635\u0644 \u0627\u0644\u0645\u0631\u062D\u0651\u0644 \u0627\u0644\u062D\u0631\u0627\u0631\u064A \u0648\u064A\u062A\u0648\u0642\u0641 \u0627\u0644\u0645\u062D\u0631\u0643",
+    "Contattore KM1 (avanti)": "\u0627\u0644\u0643\u0648\u0646\u062A\u0627\u0643\u062A\u0648\u0631 KM1 (\u0623\u0645\u0627\u0645)",
+    "Contattore KM2 (indietro)": "\u0627\u0644\u0643\u0648\u0646\u062A\u0627\u0643\u062A\u0648\u0631 KM2 (\u062E\u0644\u0641)",
+    "Cos\xEC con Avanti si chiude KM1 e con Indietro si chiude KM2.": "\u0647\u0643\u0630\u0627 \u064A\u0646\u063A\u0644\u0642 KM1 \u0645\u0639 \u0627\u0644\u0623\u0645\u0627\u0645\u060C \u0648\u064A\u0646\u063A\u0644\u0642 KM2 \u0645\u0639 \u0627\u0644\u062E\u0644\u0641.",
+    "Da Indietro al contatto 21 di KM1.": "\u0645\u0646 \u0632\u0631 \u0627\u0644\u062E\u0644\u0641 \u0625\u0644\u0649 \u0627\u0644\u0645\u0644\u0627\u0645\u0633 21 \u0641\u064A KM1.",
+    "Da KM1 al motore, in ordine: morsetto 2 a U.": "\u0645\u0646 KM1 \u0625\u0644\u0649 \u0627\u0644\u0645\u062D\u0631\u0643\u060C \u0628\u0627\u0644\u062A\u0631\u062A\u064A\u0628: \u0627\u0644\u0645\u0631\u0628\u0637 2 \u0625\u0644\u0649 U.",
+    "Da KM2 al motore con due fasi scambiate: morsetto 2 a W.": "\u0645\u0646 KM2 \u0625\u0644\u0649 \u0627\u0644\u0645\u062D\u0631\u0643 \u0645\u0639 \u062A\u0628\u062F\u064A\u0644 \u0637\u0648\u0631\u064A\u0646: \u0627\u0644\u0645\u0631\u0628\u0637 2 \u0625\u0644\u0649 W.",
+    "Dai morsetti 2, 4 e 6 del contattore ai morsetti 1, 3 e 5 del termico; dai morsetti 2, 4 e 6 del termico a U, V e W.": "\u0645\u0646 \u0627\u0644\u0645\u0631\u0627\u0628\u0637 2 \u06484 \u06486 \u0641\u064A \u0627\u0644\u0643\u0648\u0646\u062A\u0627\u0643\u062A\u0648\u0631 \u0625\u0644\u0649 \u0627\u0644\u0645\u0631\u0627\u0628\u0637 1 \u06483 \u06485 \u0641\u064A \u0627\u0644\u0645\u0631\u062D\u0651\u0644 \u0627\u0644\u062D\u0631\u0627\u0631\u064A\u061B \u0648\u0645\u0646 \u0627\u0644\u0645\u0631\u0627\u0628\u0637 2 \u06484 \u06486 \u0641\u064A \u0627\u0644\u0645\u0631\u062D\u0651\u0644 \u0627\u0644\u062D\u0631\u0627\u0631\u064A \u0625\u0644\u0649 U \u0648V \u0648W.",
+    "Dal contatto 14 al morsetto 4 della marcia.": "\u0645\u0646 \u0627\u0644\u0645\u0644\u0627\u0645\u0633 14 \u0625\u0644\u0649 \u0627\u0644\u0645\u0631\u0628\u0637 4 \u0641\u064A \u0632\u0631 \u0627\u0644\u062A\u0634\u063A\u064A\u0644.",
+    "Dal contatto 14 di KM1 al morsetto 4 di Avanti.": "\u0645\u0646 \u0627\u0644\u0645\u0644\u0627\u0645\u0633 14 \u0641\u064A KM1 \u0625\u0644\u0649 \u0627\u0644\u0645\u0631\u0628\u0637 4 \u0641\u064A \u0632\u0631 \u0627\u0644\u0623\u0645\u0627\u0645.",
+    "Dal contatto 14 di KM2 al morsetto 4 di Indietro.": "\u0645\u0646 \u0627\u0644\u0645\u0644\u0627\u0645\u0633 14 \u0641\u064A KM2 \u0625\u0644\u0649 \u0627\u0644\u0645\u0631\u0628\u0637 4 \u0641\u064A \u0632\u0631 \u0627\u0644\u062E\u0644\u0641.",
+    "Dal contatto 22 di KM1 alla bobina di KM2 (A1).": "\u0645\u0646 \u0627\u0644\u0645\u0644\u0627\u0645\u0633 22 \u0641\u064A KM1 \u0625\u0644\u0649 \u0645\u0644\u0641 KM2 (A1).",
+    "Dal contatto 22 di KM2 alla bobina di KM1 (A1).": "\u0645\u0646 \u0627\u0644\u0645\u0644\u0627\u0645\u0633 22 \u0641\u064A KM2 \u0625\u0644\u0649 \u0645\u0644\u0641 KM1 (A1).",
+    "Dal contattore al rel\xE8 termico: morsetto 2 al morsetto 1.": "\u0645\u0646 \u0627\u0644\u0643\u0648\u0646\u062A\u0627\u0643\u062A\u0648\u0631 \u0625\u0644\u0649 \u0627\u0644\u0645\u0631\u062D\u0651\u0644 \u0627\u0644\u062D\u0631\u0627\u0631\u064A: \u0627\u0644\u0645\u0631\u0628\u0637 2 \u0625\u0644\u0649 \u0627\u0644\u0645\u0631\u0628\u0637 1.",
+    "Dal contattore al termico: morsetto 2 al morsetto 1.": "\u0645\u0646 \u0627\u0644\u0643\u0648\u0646\u062A\u0627\u0643\u062A\u0648\u0631 \u0625\u0644\u0649 \u0627\u0644\u0645\u0631\u062D\u0651\u0644 \u0627\u0644\u062D\u0631\u0627\u0631\u064A: \u0627\u0644\u0645\u0631\u0628\u0637 2 \u0625\u0644\u0649 \u0627\u0644\u0645\u0631\u0628\u0637 1.",
+    "Dal finecorsa alla bobina del contattore (A1).": "\u0645\u0646 \u0645\u0641\u062A\u0627\u062D \u0646\u0647\u0627\u064A\u0629 \u0627\u0644\u0634\u0648\u0637 \u0625\u0644\u0649 \u0645\u0644\u0641 \u0627\u0644\u0643\u0648\u0646\u062A\u0627\u0643\u062A\u0648\u0631 (A1).",
+    "Dal morsetto 2 del salvamotore al morsetto 95 del termico.": "\u0645\u0646 \u0627\u0644\u0645\u0631\u0628\u0637 2 \u0641\u064A \u0642\u0627\u0637\u0639 \u062D\u0645\u0627\u064A\u0629 \u0627\u0644\u0645\u062D\u0631\u0643 \u0625\u0644\u0649 \u0627\u0644\u0645\u0631\u0628\u0637 95 \u0641\u064A \u0627\u0644\u0645\u0631\u062D\u0651\u0644 \u0627\u0644\u062D\u0631\u0627\u0631\u064A.",
+    "Dal morsetto 96 al pulsante di emergenza.": "\u0645\u0646 \u0627\u0644\u0645\u0631\u0628\u0637 96 \u0625\u0644\u0649 \u0632\u0631 \u0627\u0644\u0637\u0648\u0627\u0631\u0626.",
+    "Dal morsetto 96 del termico al morsetto 1 del pulsante di arresto.": "\u0645\u0646 \u0627\u0644\u0645\u0631\u0628\u0637 96 \u0641\u064A \u0627\u0644\u0645\u0631\u062D\u0651\u0644 \u0627\u0644\u062D\u0631\u0627\u0631\u064A \u0625\u0644\u0649 \u0627\u0644\u0645\u0631\u0628\u0637 1 \u0641\u064A \u0632\u0631 \u0627\u0644\u0625\u064A\u0642\u0627\u0641.",
+    "Dal morsetto 96 del termico al pulsante di arresto.": "\u0645\u0646 \u0627\u0644\u0645\u0631\u0628\u0637 96 \u0641\u064A \u0627\u0644\u0645\u0631\u062D\u0651\u0644 \u0627\u0644\u062D\u0631\u0627\u0631\u064A \u0625\u0644\u0649 \u0632\u0631 \u0627\u0644\u0625\u064A\u0642\u0627\u0641.",
+    "Dal pulsante di arresto al pulsante di marcia.": "\u0645\u0646 \u0632\u0631 \u0627\u0644\u0625\u064A\u0642\u0627\u0641 \u0625\u0644\u0649 \u0632\u0631 \u0627\u0644\u062A\u0634\u063A\u064A\u0644.",
+    "Dal pulsante di marcia alla bobina del contattore (A1).": "\u0645\u0646 \u0632\u0631 \u0627\u0644\u062A\u0634\u063A\u064A\u0644 \u0625\u0644\u0649 \u0645\u0644\u0641 \u0627\u0644\u0643\u0648\u0646\u062A\u0627\u0643\u062A\u0648\u0631 (A1).",
+    "Dal rel\xE8 termico al motore: morsetto 2 al morsetto U.": "\u0645\u0646 \u0627\u0644\u0645\u0631\u062D\u0651\u0644 \u0627\u0644\u062D\u0631\u0627\u0631\u064A \u0625\u0644\u0649 \u0627\u0644\u0645\u062D\u0631\u0643: \u0627\u0644\u0645\u0631\u0628\u0637 2 \u0625\u0644\u0649 \u0627\u0644\u0645\u0631\u0628\u0637 U.",
+    "Dal salvamotore a KM1: morsetto 2 al morsetto 1.": "\u0645\u0646 \u0642\u0627\u0637\u0639 \u062D\u0645\u0627\u064A\u0629 \u0627\u0644\u0645\u062D\u0631\u0643 \u0625\u0644\u0649 KM1: \u0627\u0644\u0645\u0631\u0628\u0637 2 \u0625\u0644\u0649 \u0627\u0644\u0645\u0631\u0628\u0637 1.",
+    "Dal salvamotore a KM2: morsetto 2 al morsetto 1.": "\u0645\u0646 \u0642\u0627\u0637\u0639 \u062D\u0645\u0627\u064A\u0629 \u0627\u0644\u0645\u062D\u0631\u0643 \u0625\u0644\u0649 KM2: \u0627\u0644\u0645\u0631\u0628\u0637 2 \u0625\u0644\u0649 \u0627\u0644\u0645\u0631\u0628\u0637 1.",
+    "Dal salvamotore al contattore: morsetto 2 al morsetto 1.": "\u0645\u0646 \u0642\u0627\u0637\u0639 \u062D\u0645\u0627\u064A\u0629 \u0627\u0644\u0645\u062D\u0631\u0643 \u0625\u0644\u0649 \u0627\u0644\u0643\u0648\u0646\u062A\u0627\u0643\u062A\u0648\u0631: \u0627\u0644\u0645\u0631\u0628\u0637 2 \u0625\u0644\u0649 \u0627\u0644\u0645\u0631\u0628\u0637 1.",
+    "Dal termico al motore: morsetto 2 a U.": "\u0645\u0646 \u0627\u0644\u0645\u0631\u062D\u0651\u0644 \u0627\u0644\u062D\u0631\u0627\u0631\u064A \u0625\u0644\u0649 \u0627\u0644\u0645\u062D\u0631\u0643: \u0627\u0644\u0645\u0631\u0628\u0637 2 \u0625\u0644\u0649 U.",
+    "Dal termico all\u2019arresto": "\u0645\u0646 \u0627\u0644\u0645\u0631\u062D\u0651\u0644 \u0627\u0644\u062D\u0631\u0627\u0631\u064A \u0625\u0644\u0649 \u0627\u0644\u0625\u064A\u0642\u0627\u0641",
+    "Dalla bobina (A1) alla spia di marcia.": "\u0645\u0646 \u0627\u0644\u0645\u0644\u0641 (A1) \u0625\u0644\u0649 \u0644\u0645\u0628\u0629 \u0627\u0644\u062A\u0634\u063A\u064A\u0644 \u0627\u0644\u0625\u0634\u0627\u0631\u064A\u0629.",
+    "Dalla marcia al finecorsa, contatto normalmente chiuso.": "\u0645\u0646 \u0627\u0644\u062A\u0634\u063A\u064A\u0644 \u0625\u0644\u0649 \u0645\u0641\u062A\u0627\u062D \u0646\u0647\u0627\u064A\u0629 \u0627\u0644\u0634\u0648\u0637\u060C \u0627\u0644\u0645\u0644\u0627\u0645\u0633 \u0627\u0644\u0645\u063A\u0644\u0642 \u0639\u0627\u062F\u0629\u064B.",
+    "Dall\u2019arresto al pulsante Avanti.": "\u0645\u0646 \u0627\u0644\u0625\u064A\u0642\u0627\u0641 \u0625\u0644\u0649 \u0632\u0631 \u0627\u0644\u0623\u0645\u0627\u0645.",
+    "Dall\u2019arresto al pulsante Indietro.": "\u0645\u0646 \u0627\u0644\u0625\u064A\u0642\u0627\u0641 \u0625\u0644\u0649 \u0632\u0631 \u0627\u0644\u062E\u0644\u0641.",
+    "Dall\u2019arresto al pulsante di marcia.": "\u0645\u0646 \u0627\u0644\u0625\u064A\u0642\u0627\u0641 \u0625\u0644\u0649 \u0632\u0631 \u0627\u0644\u062A\u0634\u063A\u064A\u0644.",
+    "Dall\u2019emergenza al pulsante di arresto.": "\u0645\u0646 \u0627\u0644\u0637\u0648\u0627\u0631\u0626 \u0625\u0644\u0649 \u0632\u0631 \u0627\u0644\u0625\u064A\u0642\u0627\u0641.",
+    "Dopo l\u2019emergenza la macchina riparte solo con un nuovo comando di marcia.": "\u0628\u0639\u062F \u0627\u0644\u0637\u0648\u0627\u0631\u0626 \u0644\u0627 \u062A\u0639\u0645\u0644 \u0627\u0644\u0622\u0644\u0629 \u0645\u0646 \u062C\u062F\u064A\u062F \u0625\u0644\u0627 \u0628\u0623\u0645\u0631 \u062A\u0634\u063A\u064A\u0644 \u062C\u062F\u064A\u062F.",
+    "Due contattori": "\u0643\u0648\u0646\u062A\u0627\u0643\u062A\u0648\u0631\u0627\u0646",
+    "Due contattori: KM1 collega le fasi in ordine, KM2 le collega con due fasi scambiate.": "\u0643\u0648\u0646\u062A\u0627\u0643\u062A\u0648\u0631\u0627\u0646: KM1 \u064A\u0648\u0635\u0644 \u0627\u0644\u0623\u0637\u0648\u0627\u0631 \u0628\u0627\u0644\u062A\u0631\u062A\u064A\u0628\u060C \u0648KM2 \u064A\u0648\u0635\u0644\u0647\u0627 \u0645\u0639 \u062A\u0628\u062F\u064A\u0644 \u0637\u0648\u0631\u064A\u0646.",
+    "Emergenza": "\u0627\u0644\u0637\u0648\u0627\u0631\u0626",
+    "Emergenza e finecorsa": "\u0627\u0644\u0637\u0648\u0627\u0631\u0626 \u0648\u0645\u0641\u062A\u0627\u062D \u0646\u0647\u0627\u064A\u0629 \u0627\u0644\u0634\u0648\u0637",
+    "Emergenza premuta: il nastro si ferma subito.": "\u0639\u0646\u062F \u0636\u063A\u0637 \u0627\u0644\u0637\u0648\u0627\u0631\u0626: \u064A\u062A\u0648\u0642\u0641 \u0627\u0644\u0633\u064A\u0631 \u0641\u0648\u0631\u064B\u0627.",
+    "Emergenza, arresto, termico e finecorsa sono contatti NC in serie nel comando.": "\u0627\u0644\u0637\u0648\u0627\u0631\u0626 \u0648\u0627\u0644\u0625\u064A\u0642\u0627\u0641 \u0648\u0627\u0644\u0645\u0631\u062D\u0651\u0644 \u0627\u0644\u062D\u0631\u0627\u0631\u064A \u0648\u0645\u0641\u062A\u0627\u062D \u0646\u0647\u0627\u064A\u0629 \u0627\u0644\u0634\u0648\u0637 \u0643\u0644\u0647\u0627 \u0645\u0644\u0627\u0645\u0633\u0627\u062A NC \u0639\u0644\u0649 \u0627\u0644\u062A\u0633\u0644\u0633\u0644 \u0641\u064A \u062F\u0627\u0626\u0631\u0629 \u0627\u0644\u062A\u062D\u0643\u0645.",
+    "Fai girare il motore in avanti e all\u2019indietro con due contattori: il secondo scambia due fasi. Con i pulsanti Avanti e Indietro e uno di Arresto. I due contattori non devono mai chiudersi insieme.": "\u0627\u062C\u0639\u0644 \u0627\u0644\u0645\u062D\u0631\u0643 \u064A\u062F\u0648\u0631 \u0625\u0644\u0649 \u0627\u0644\u0623\u0645\u0627\u0645 \u0648\u0625\u0644\u0649 \u0627\u0644\u062E\u0644\u0641 \u0628\u0643\u0648\u0646\u062A\u0627\u0643\u062A\u0648\u0631\u064A\u0646: \u0627\u0644\u062B\u0627\u0646\u064A \u064A\u0628\u062F\u0651\u0644 \u0637\u0648\u0631\u064A\u0646. \u0628\u0632\u0631\u0651\u064A \u0627\u0644\u0623\u0645\u0627\u0645 \u0648\u0627\u0644\u062E\u0644\u0641 \u0648\u0632\u0631 \u0644\u0644\u0625\u064A\u0642\u0627\u0641. \u064A\u062C\u0628 \u0623\u0644\u0627 \u064A\u0646\u063A\u0644\u0642 \u0627\u0644\u0643\u0648\u0646\u062A\u0627\u0643\u062A\u0648\u0631\u0627\u0646 \u0645\u0639\u064B\u0627 \u0623\u0628\u062F\u064B\u0627.",
+    "Filo blu dalla bobina (A2) al neutro.": "\u0633\u0644\u0643 \u0623\u0632\u0631\u0642 \u0645\u0646 \u0627\u0644\u0645\u0644\u0641 (A2) \u0625\u0644\u0649 \u0627\u0644\u0645\u062D\u0627\u064A\u062F.",
+    "Finecorsa": "\u0645\u0641\u062A\u0627\u062D \u0646\u0647\u0627\u064A\u0629 \u0627\u0644\u0634\u0648\u0637",
+    "Finecorsa di fine nastro": "\u0645\u0641\u062A\u0627\u062D \u0646\u0647\u0627\u064A\u0629 \u0627\u0644\u0634\u0648\u0637 \u0639\u0646\u062F \u0622\u062E\u0631 \u0627\u0644\u0633\u064A\u0631",
+    "I due contattori non devono mai chiudersi insieme: sarebbe un cortocircuito.": "\u064A\u062C\u0628 \u0623\u0644\u0627 \u064A\u0646\u063A\u0644\u0642 \u0627\u0644\u0643\u0648\u0646\u062A\u0627\u0643\u062A\u0648\u0631\u0627\u0646 \u0645\u0639\u064B\u0627 \u0623\u0628\u062F\u064B\u0627: \u0633\u064A\u0643\u0648\u0646 \u0630\u0644\u0643 \u0642\u0635\u0631\u064B\u0627 \u0641\u064A \u0627\u0644\u062F\u0627\u0626\u0631\u0629.",
+    "I poli del termico sono collegati alle fasi sbagliate.": "\u0623\u0642\u0637\u0627\u0628 \u0627\u0644\u0645\u0631\u062D\u0651\u0644 \u0627\u0644\u062D\u0631\u0627\u0631\u064A \u0645\u0648\u0635\u0648\u0644\u0629 \u0628\u0623\u0637\u0648\u0627\u0631 \u062E\u0627\u0637\u0626\u0629.",
+    "I poli di potenza dei due contattori sono collegati agli stessi morsetti del salvamotore. In uscita KM2 scambia due fasi: i suoi morsetti 2 e 6 vanno a W e a U.": "\u0623\u0642\u0637\u0627\u0628 \u0627\u0644\u0642\u062F\u0631\u0629 \u0641\u064A \u0627\u0644\u0643\u0648\u0646\u062A\u0627\u0643\u062A\u0648\u0631\u064A\u0646 \u0645\u0648\u0635\u0648\u0644\u0629 \u0628\u0627\u0644\u0645\u0631\u0627\u0628\u0637 \u0646\u0641\u0633\u0647\u0627 \u0641\u064A \u0642\u0627\u0637\u0639 \u062D\u0645\u0627\u064A\u0629 \u0627\u0644\u0645\u062D\u0631\u0643. \u0639\u0646\u062F \u0627\u0644\u062E\u0631\u062C \u064A\u0628\u062F\u0651\u0644 KM2 \u0637\u0648\u0631\u064A\u0646: \u0645\u0631\u0628\u0637\u0627\u0647 2 \u06486 \u064A\u0630\u0647\u0628\u0627\u0646 \u0625\u0644\u0649 W \u0648U.",
+    "I poli di potenza del termico sono in serie al motore; il contatto 95-96 \xE8 nel comando, in serie, prima dell\u2019arresto.": "\u0623\u0642\u0637\u0627\u0628 \u0627\u0644\u0642\u062F\u0631\u0629 \u0641\u064A \u0627\u0644\u0645\u0631\u062D\u0651\u0644 \u0627\u0644\u062D\u0631\u0627\u0631\u064A \u0639\u0644\u0649 \u0627\u0644\u062A\u0633\u0644\u0633\u0644 \u0645\u0639 \u0627\u0644\u0645\u062D\u0631\u0643\u061B \u0648\u0627\u0644\u0645\u0644\u0627\u0645\u0633 95-96 \u0641\u064A \u062F\u0627\u0626\u0631\u0629 \u0627\u0644\u062A\u062D\u0643\u0645\u060C \u0639\u0644\u0649 \u0627\u0644\u062A\u0633\u0644\u0633\u0644\u060C \u0642\u0628\u0644 \u0627\u0644\u0625\u064A\u0642\u0627\u0641.",
+    "I tre poli del rel\xE8 termico (1-2, 3-4, 5-6) stanno in serie tra il contattore e il motore.": "\u0623\u0642\u0637\u0627\u0628 \u0627\u0644\u0645\u0631\u062D\u0651\u0644 \u0627\u0644\u062D\u0631\u0627\u0631\u064A \u0627\u0644\u062B\u0644\u0627\u062B\u0629 (1-2 \u06483-4 \u06485-6) \u0639\u0644\u0649 \u0627\u0644\u062A\u0633\u0644\u0633\u0644 \u0628\u064A\u0646 \u0627\u0644\u0643\u0648\u0646\u062A\u0627\u0643\u062A\u0648\u0631 \u0648\u0627\u0644\u0645\u062D\u0631\u0643.",
+    "I tre poli di potenza (1-2, 3-4, 5-6) stanno in serie al motore, tra il contattore e il motore: la corrente del motore passa da qui.": "\u0623\u0642\u0637\u0627\u0628 \u0627\u0644\u0642\u062F\u0631\u0629 \u0627\u0644\u062B\u0644\u0627\u062B\u0629 (1-2 \u06483-4 \u06485-6) \u0639\u0644\u0649 \u0627\u0644\u062A\u0633\u0644\u0633\u0644 \u0645\u0639 \u0627\u0644\u0645\u062D\u0631\u0643\u060C \u0628\u064A\u0646 \u0627\u0644\u0643\u0648\u0646\u062A\u0627\u0643\u062A\u0648\u0631 \u0648\u0627\u0644\u0645\u062D\u0631\u0643: \u062A\u064A\u0627\u0631 \u0627\u0644\u0645\u062D\u0631\u0643 \u064A\u0645\u0631 \u0645\u0646 \u0647\u0646\u0627.",
+    "Il circuito di potenza \xE8 quello che gi\xE0 conosci. Il comando mette in serie tutti i contatti che devono poter fermare il nastro.": "\u062F\u0627\u0626\u0631\u0629 \u0627\u0644\u0642\u062F\u0631\u0629 \u0647\u064A \u0627\u0644\u062A\u064A \u062A\u0639\u0631\u0641\u0647\u0627 \u0628\u0627\u0644\u0641\u0639\u0644. \u062F\u0627\u0626\u0631\u0629 \u0627\u0644\u062A\u062D\u0643\u0645 \u062A\u0636\u0639 \u0639\u0644\u0649 \u0627\u0644\u062A\u0633\u0644\u0633\u0644 \u0643\u0644 \u0627\u0644\u0645\u0644\u0627\u0645\u0633\u0627\u062A \u0627\u0644\u062A\u064A \u064A\u062C\u0628 \u0623\u0646 \u062A\u0633\u062A\u0637\u064A\u0639 \u0625\u064A\u0642\u0627\u0641 \u0627\u0644\u0633\u064A\u0631.",
+    "Il comando parte dal morsetto 2 del salvamotore, passa da 95-96 del termico, poi dall\u2019arresto, dalla marcia e arriva alla bobina. L\u2019autoritenuta e la spia restano come prima.": "\u064A\u0628\u062F\u0623 \u0627\u0644\u062A\u062D\u0643\u0645 \u0645\u0646 \u0627\u0644\u0645\u0631\u0628\u0637 2 \u0641\u064A \u0642\u0627\u0637\u0639 \u062D\u0645\u0627\u064A\u0629 \u0627\u0644\u0645\u062D\u0631\u0643\u060C \u0648\u064A\u0645\u0631 \u0639\u0628\u0631 95-96 \u0641\u064A \u0627\u0644\u0645\u0631\u062D\u0651\u0644 \u0627\u0644\u062D\u0631\u0627\u0631\u064A\u060C \u062B\u0645 \u0627\u0644\u0625\u064A\u0642\u0627\u0641\u060C \u062B\u0645 \u0627\u0644\u062A\u0634\u063A\u064A\u0644\u060C \u0648\u064A\u0635\u0644 \u0625\u0644\u0649 \u0627\u0644\u0645\u0644\u0641. \u0627\u0644\u062A\u062B\u0628\u064A\u062A \u0627\u0644\u0630\u0627\u062A\u064A \u0648\u0627\u0644\u0644\u0645\u0628\u0629 \u0627\u0644\u0625\u0634\u0627\u0631\u064A\u0629 \u0643\u0645\u0627 \u0643\u0627\u0646\u0627.",
+    "Il comando passa dal termico": "\u0627\u0644\u062A\u062D\u0643\u0645 \u064A\u0645\u0631 \u0639\u0628\u0631 \u0627\u0644\u0645\u0631\u062D\u0651\u0644 \u0627\u0644\u062D\u0631\u0627\u0631\u064A",
+    "Il comando si divide in due rami, uno per ciascuna marcia, ognuno con la sua autoritenuta (13-14).": "\u064A\u0646\u0642\u0633\u0645 \u0627\u0644\u062A\u062D\u0643\u0645 \u0625\u0644\u0649 \u0641\u0631\u0639\u064A\u0646\u060C \u0648\u0627\u062D\u062F \u0644\u0643\u0644 \u0627\u062A\u062C\u0627\u0647\u060C \u0648\u0644\u0643\u0644 \u0645\u0646\u0647\u0645\u0627 \u062A\u062B\u0628\u064A\u062A\u0647 \u0627\u0644\u0630\u0627\u062A\u064A (13-14).",
+    "Il contatto 95-96 del termico non \xE8 nel circuito di comando.": "\u0627\u0644\u0645\u0644\u0627\u0645\u0633 95-96 \u0641\u064A \u0627\u0644\u0645\u0631\u062D\u0651\u0644 \u0627\u0644\u062D\u0631\u0627\u0631\u064A \u0644\u064A\u0633 \u0641\u064A \u062F\u0627\u0626\u0631\u0629 \u0627\u0644\u062A\u062D\u0643\u0645.",
+    "Il contatto 95-96 sta in serie al comando, prima dell\u2019arresto. Se il termico scatta, il comando si interrompe: la bobina perde corrente, il contattore si apre e il motore si ferma.": "\u0627\u0644\u0645\u0644\u0627\u0645\u0633 95-96 \u0639\u0644\u0649 \u0627\u0644\u062A\u0633\u0644\u0633\u0644 \u0645\u0639 \u062F\u0627\u0626\u0631\u0629 \u0627\u0644\u062A\u062D\u0643\u0645\u060C \u0642\u0628\u0644 \u0627\u0644\u0625\u064A\u0642\u0627\u0641. \u0625\u0630\u0627 \u0641\u0635\u0644 \u0627\u0644\u0645\u0631\u062D\u0651\u0644 \u0627\u0644\u062D\u0631\u0627\u0631\u064A \u062A\u0646\u0642\u0637\u0639 \u062F\u0627\u0626\u0631\u0629 \u0627\u0644\u062A\u062D\u0643\u0645: \u064A\u0641\u0642\u062F \u0627\u0644\u0645\u0644\u0641 \u062A\u064A\u0651\u0627\u0631\u0647\u060C \u0648\u064A\u0646\u0641\u062A\u062D \u0627\u0644\u0643\u0648\u0646\u062A\u0627\u0643\u062A\u0648\u0631 \u0648\u064A\u062A\u0648\u0642\u0641 \u0627\u0644\u0645\u062D\u0631\u0643.",
+    "Il contatto 95-96 \xE8 normalmente chiuso e va nel circuito di comando, in serie, prima del pulsante di arresto.": "\u0627\u0644\u0645\u0644\u0627\u0645\u0633 95-96 \u0645\u063A\u0644\u0642 \u0639\u0627\u062F\u0629\u064B \u0648\u064A\u0648\u0636\u0639 \u0641\u064A \u062F\u0627\u0626\u0631\u0629 \u0627\u0644\u062A\u062D\u0643\u0645\u060C \u0639\u0644\u0649 \u0627\u0644\u062A\u0633\u0644\u0633\u0644\u060C \u0642\u0628\u0644 \u0632\u0631 \u0627\u0644\u0625\u064A\u0642\u0627\u0641.",
+    "Il contatto 95-96 \xE8 normalmente chiuso e va nel circuito di comando. Quando il termico scatta, si apre.": "\u0627\u0644\u0645\u0644\u0627\u0645\u0633 95-96 \u0645\u063A\u0644\u0642 \u0639\u0627\u062F\u0629\u064B \u0648\u064A\u0648\u0636\u0639 \u0641\u064A \u062F\u0627\u0626\u0631\u0629 \u0627\u0644\u062A\u062D\u0643\u0645. \u0639\u0646\u062F\u0645\u0627 \u064A\u0641\u0635\u0644 \u0627\u0644\u0645\u0631\u062D\u0651\u0644 \u0627\u0644\u062D\u0631\u0627\u0631\u064A \u064A\u0646\u0641\u062A\u062D.",
+    "Il contatto NC di KM1 \xE8 aperto finch\xE9 KM1 \xE8 chiuso: la bobina di KM2 non riceve corrente. Per invertire bisogna prima premere Arresto.": "\u0645\u0644\u0627\u0645\u0633 NC \u0641\u064A KM1 \u0645\u0641\u062A\u0648\u062D \u0645\u0627 \u062F\u0627\u0645 KM1 \u0645\u063A\u0644\u0642\u064B\u0627: \u0644\u0627 \u064A\u0635\u0644 \u0627\u0644\u062A\u064A\u0627\u0631 \u0625\u0644\u0649 \u0645\u0644\u0641 KM2. \u0644\u0644\u0639\u0643\u0633 \u064A\u062C\u0628 \u0623\u0648\u0644\u064B\u0627 \u0636\u063A\u0637 \u0627\u0644\u0625\u064A\u0642\u0627\u0641.",
+    "Il contatto normalmente aperto (3-4) del finecorsa \xE8 aperto quando il pacco non lo tocca: il comando \xE8 interrotto all\u2019inizio e il nastro non parte. Serve il contatto normalmente chiuso (1-2), che si apre solo a fine corsa.": "\u0627\u0644\u0645\u0644\u0627\u0645\u0633 \u0627\u0644\u0645\u0641\u062A\u0648\u062D \u0639\u0627\u062F\u0629\u064B (3-4) \u0641\u064A \u0645\u0641\u062A\u0627\u062D \u0646\u0647\u0627\u064A\u0629 \u0627\u0644\u0634\u0648\u0637 \u064A\u0643\u0648\u0646 \u0645\u0641\u062A\u0648\u062D\u064B\u0627 \u0639\u0646\u062F\u0645\u0627 \u0644\u0627 \u062A\u0644\u0645\u0633\u0647 \u0627\u0644\u0639\u0644\u0628\u0629: \u062A\u0643\u0648\u0646 \u062F\u0627\u0626\u0631\u0629 \u0627\u0644\u062A\u062D\u0643\u0645 \u0645\u0642\u0637\u0648\u0639\u0629 \u0645\u0646 \u0627\u0644\u0628\u062F\u0627\u064A\u0629 \u0648\u0644\u0627 \u064A\u0628\u062F\u0623 \u0627\u0644\u0633\u064A\u0631. \u0627\u0644\u0645\u0637\u0644\u0648\u0628 \u0647\u0648 \u0627\u0644\u0645\u0644\u0627\u0645\u0633 \u0627\u0644\u0645\u063A\u0644\u0642 \u0639\u0627\u062F\u0629\u064B (1-2) \u0627\u0644\u0630\u064A \u064A\u0646\u0641\u062A\u062D \u0639\u0646\u062F \u0646\u0647\u0627\u064A\u0629 \u0627\u0644\u0634\u0648\u0637 \u0641\u0642\u0637.",
+    "Il contattore KM2 collega il motore con due fasi scambiate: i morsetti 2 e 6 vanno a W e a U invece che a U e a W.": "\u0627\u0644\u0643\u0648\u0646\u062A\u0627\u0643\u062A\u0648\u0631 KM2 \u064A\u0648\u0635\u0644 \u0627\u0644\u0645\u062D\u0631\u0643 \u0645\u0639 \u062A\u0628\u062F\u064A\u0644 \u0637\u0648\u0631\u064A\u0646: \u0627\u0644\u0645\u0631\u0628\u0637\u0627\u0646 2 \u06486 \u064A\u0630\u0647\u0628\u0627\u0646 \u0625\u0644\u0649 W \u0648U \u0628\u062F\u0644 U \u0648W.",
+    "Il contattore \xE8 collegato al neutro sbagliato.": "\u0627\u0644\u0643\u0648\u0646\u062A\u0627\u0643\u062A\u0648\u0631 \u0645\u0648\u0635\u0648\u0644 \u0628\u0627\u0644\u0645\u062D\u0627\u064A\u062F \u0627\u0644\u062E\u0637\u0623.",
+    "Il finecorsa dopo la marcia": "\u0645\u0641\u062A\u0627\u062D \u0646\u0647\u0627\u064A\u0629 \u0627\u0644\u0634\u0648\u0637 \u0628\u0639\u062F \u0627\u0644\u062A\u0634\u063A\u064A\u0644",
+    "Il finecorsa ferma il nastro a fine corsa: il contatto NC si apre.": "\u064A\u0648\u0642\u0641 \u0645\u0641\u062A\u0627\u062D \u0646\u0647\u0627\u064A\u0629 \u0627\u0644\u0634\u0648\u0637 \u0627\u0644\u0633\u064A\u0631 \u0639\u0646\u062F \u0646\u0647\u0627\u064A\u0629 \u0627\u0644\u0634\u0648\u0637: \u064A\u0646\u0641\u062A\u062D \u0645\u0644\u0627\u0645\u0633 NC.",
+    "Il finecorsa sta dopo il pulsante di marcia, con il suo contatto normalmente chiuso (1-2), davanti alla bobina: quando il nastro arriva in fondo, il contatto si apre. L\u2019autoritenuta si tiene prima del finecorsa.": "\u064A\u0643\u0648\u0646 \u0645\u0641\u062A\u0627\u062D \u0646\u0647\u0627\u064A\u0629 \u0627\u0644\u0634\u0648\u0637 \u0628\u0639\u062F \u0632\u0631 \u0627\u0644\u062A\u0634\u063A\u064A\u0644\u060C \u0628\u0645\u0644\u0627\u0645\u0633\u0647 \u0627\u0644\u0645\u063A\u0644\u0642 \u0639\u0627\u062F\u0629\u064B (1-2)\u060C \u0642\u0628\u0644 \u0627\u0644\u0645\u0644\u0641 \u0645\u0628\u0627\u0634\u0631\u0629: \u0639\u0646\u062F\u0645\u0627 \u064A\u0635\u0644 \u0627\u0644\u0633\u064A\u0631 \u0625\u0644\u0649 \u0627\u0644\u0646\u0647\u0627\u064A\u0629 \u064A\u0646\u0641\u062A\u062D \u0627\u0644\u0645\u0644\u0627\u0645\u0633. \u0648\u0627\u0644\u062A\u062B\u0628\u064A\u062A \u0627\u0644\u0630\u0627\u062A\u064A \u064A\u064F\u0624\u062E\u0630 \u0642\u0628\u0644 \u0645\u0641\u062A\u0627\u062D \u0646\u0647\u0627\u064A\u0629 \u0627\u0644\u0634\u0648\u0637.",
+    "Il finecorsa \xE8 collegato con il contatto normalmente aperto.": "\u0645\u0641\u062A\u0627\u062D \u0646\u0647\u0627\u064A\u0629 \u0627\u0644\u0634\u0648\u0637 \u0645\u0648\u0635\u0648\u0644 \u0628\u0627\u0644\u0645\u0644\u0627\u0645\u0633 \u0627\u0644\u0645\u0641\u062A\u0648\u062D \u0639\u0627\u062F\u0629\u064B.",
+    "Il finecorsa \xE8 un contatto azionato dal pacco. Usiamo il contatto normalmente chiuso (1-2): a fine nastro si apre e il comando si interrompe.": "\u0645\u0641\u062A\u0627\u062D \u0646\u0647\u0627\u064A\u0629 \u0627\u0644\u0634\u0648\u0637 \u0645\u0644\u0627\u0645\u0633 \u062A\u0634\u063A\u0651\u0644\u0647 \u0627\u0644\u0639\u0644\u0628\u0629. \u0646\u0633\u062A\u062E\u062F\u0645 \u0627\u0644\u0645\u0644\u0627\u0645\u0633 \u0627\u0644\u0645\u063A\u0644\u0642 \u0639\u0627\u062F\u0629\u064B (1-2): \u0639\u0646\u062F \u0646\u0647\u0627\u064A\u0629 \u0627\u0644\u0633\u064A\u0631 \u064A\u0646\u0641\u062A\u062D \u0648\u062A\u0646\u0642\u0637\u0639 \u062F\u0627\u0626\u0631\u0629 \u0627\u0644\u062A\u062D\u0643\u0645.",
+    "Il fungo (contatto NC) sta nel comando, dopo il termico.": "\u0627\u0644\u0632\u0631 \u0627\u0644\u0641\u0637\u0631\u064A (\u0645\u0644\u0627\u0645\u0633 NC) \u064A\u0643\u0648\u0646 \u0641\u064A \u062F\u0627\u0626\u0631\u0629 \u0627\u0644\u062A\u062D\u0643\u0645\u060C \u0628\u0639\u062F \u0627\u0644\u0645\u0631\u062D\u0651\u0644 \u0627\u0644\u062D\u0631\u0627\u0631\u064A.",
+    "Il motore gira in avanti. Premo Indietro senza premere prima Arresto. Con l\u2019interblocco, che cosa succede?": "\u0627\u0644\u0645\u062D\u0631\u0643 \u064A\u062F\u0648\u0631 \u0625\u0644\u0649 \u0627\u0644\u0623\u0645\u0627\u0645. \u0623\u0636\u063A\u0637 \u0632\u0631 \u0627\u0644\u062E\u0644\u0641 \u062F\u0648\u0646 \u0636\u063A\u0637 \u0627\u0644\u0625\u064A\u0642\u0627\u0641 \u0623\u0648\u0644\u064B\u0627. \u0645\u0639 \u0627\u0644\u062A\u0639\u0634\u064A\u0642 \u0627\u0644\u0645\u062A\u0628\u0627\u062F\u0644\u060C \u0645\u0627\u0630\u0627 \u064A\u062D\u062F\u062B\u061F",
+    "Il motore inverte subito il senso.": "\u064A\u0639\u0643\u0633 \u0627\u0644\u0645\u062D\u0631\u0643 \u0627\u062A\u062C\u0627\u0647\u0647 \u0641\u0648\u0631\u064B\u0627.",
+    "Il motore non parte: il contatto 95-96 \xE8 ancora aperto.": "\u0644\u0627 \u064A\u0628\u062F\u0623 \u0627\u0644\u0645\u062D\u0631\u0643: \u0627\u0644\u0645\u0644\u0627\u0645\u0633 95-96 \u0645\u0627 \u0632\u0627\u0644 \u0645\u0641\u062A\u0648\u062D\u064B\u0627.",
+    "Il motore parte e il termico scatta di nuovo subito.": "\u064A\u0628\u062F\u0623 \u0627\u0644\u0645\u062D\u0631\u0643 \u0648\u064A\u0641\u0635\u0644 \u0627\u0644\u0645\u0631\u062D\u0651\u0644 \u0627\u0644\u062D\u0631\u0627\u0631\u064A \u0645\u0631\u0629 \u0623\u062E\u0631\u0649 \u0641\u0648\u0631\u064B\u0627.",
+    "Il motore parte normalmente.": "\u064A\u0628\u062F\u0623 \u0627\u0644\u0645\u062D\u0631\u0643 \u0628\u0634\u0643\u0644 \u0637\u0628\u064A\u0639\u064A.",
+    "Il motore va avanti e indietro. Prova Avanti, Arresto e Indietro. Poi tieni premuti Avanti e Indietro insieme.": "\u0627\u0644\u0645\u062D\u0631\u0643 \u064A\u0639\u0645\u0644 \u0625\u0644\u0649 \u0627\u0644\u0623\u0645\u0627\u0645 \u0648\u0625\u0644\u0649 \u0627\u0644\u062E\u0644\u0641. \u062C\u0631\u0651\u0628 \u0627\u0644\u0623\u0645\u0627\u0645 \u062B\u0645 \u0627\u0644\u0625\u064A\u0642\u0627\u0641 \u062B\u0645 \u0627\u0644\u062E\u0644\u0641. \u062B\u0645 \u0627\u0636\u063A\u0637 \u0627\u0644\u0623\u0645\u0627\u0645 \u0648\u0627\u0644\u062E\u0644\u0641 \u0645\u0639\u064B\u0627 \u0648\u0627\u0633\u062A\u0645\u0631 \u0641\u064A \u0627\u0644\u0636\u063A\u0637.",
+    "Il motore \xE8 collegato con il rel\xE8 termico, ma durante un sovraccarico non si ferma. Premi Marcia e poi simula un sovraccarico.": "\u0627\u0644\u0645\u062D\u0631\u0643 \u0645\u0648\u0635\u0648\u0644 \u0628\u0627\u0644\u0645\u0631\u062D\u0651\u0644 \u0627\u0644\u062D\u0631\u0627\u0631\u064A\u060C \u0644\u0643\u0646\u0647 \u0644\u0627 \u064A\u062A\u0648\u0642\u0641 \u0623\u062B\u0646\u0627\u0621 \u0627\u0644\u062D\u0645\u0644 \u0627\u0644\u0632\u0627\u0626\u062F. \u0627\u0636\u063A\u0637 \u0627\u0644\u062A\u0634\u063A\u064A\u0644 \u062B\u0645 \u062D\u0627\u0643\u0650 \u062D\u0645\u0644\u064B\u0627 \u0632\u0627\u0626\u062F\u064B\u0627.",
+    "Il motore \xE8 fermo.": "\u0627\u0644\u0645\u062D\u0631\u0643 \u0645\u062A\u0648\u0642\u0641.",
+    "Il nastro \xE8 fermo per l\u2019emergenza. Sblocco il fungo. Che cosa fa il nastro?": "\u0627\u0644\u0633\u064A\u0631 \u0645\u062A\u0648\u0642\u0641 \u0628\u0633\u0628\u0628 \u0627\u0644\u0637\u0648\u0627\u0631\u0626. \u0623\u0641\u0643\u0651 \u0627\u0644\u0632\u0631 \u0627\u0644\u0641\u0637\u0631\u064A. \u0645\u0627\u0630\u0627 \u064A\u0641\u0639\u0644 \u0627\u0644\u0633\u064A\u0631\u061F",
+    "Il nastro \xE8 fermo.": "\u0627\u0644\u0633\u064A\u0631 \u0645\u062A\u0648\u0642\u0641.",
+    "Il nastro \xE8 gi\xE0 cablato ma, premendo Marcia, non parte. Prova.": "\u0627\u0644\u0633\u064A\u0631 \u0645\u0648\u0635\u0648\u0644 \u0645\u0633\u0628\u0642\u064B\u0627 \u0644\u0643\u0646\u0647 \u0644\u0627 \u064A\u0628\u062F\u0623 \u0639\u0646\u062F \u0636\u063A\u0637 \u0627\u0644\u062A\u0634\u063A\u064A\u0644. \u062C\u0631\u0651\u0628.",
+    "La parte di potenza \xE8 come nel livello precedente: salvamotore, contattore, rel\xE8 termico, motore e terra.": "\u062C\u0632\u0621 \u0627\u0644\u0642\u062F\u0631\u0629 \u0643\u0645\u0627 \u0641\u064A \u0627\u0644\u0645\u0633\u062A\u0648\u0649 \u0627\u0644\u0633\u0627\u0628\u0642: \u0642\u0627\u0637\u0639 \u062D\u0645\u0627\u064A\u0629 \u0627\u0644\u0645\u062D\u0631\u0643 \u0648\u0627\u0644\u0643\u0648\u0646\u062A\u0627\u0643\u062A\u0648\u0631 \u0648\u0627\u0644\u0645\u0631\u062D\u0651\u0644 \u0627\u0644\u062D\u0631\u0627\u0631\u064A \u0648\u0627\u0644\u0645\u062D\u0631\u0643 \u0648\u0627\u0644\u0623\u0631\u0636\u064A.",
+    "Il pulsante di emergenza a fungo ha un contatto normalmente chiuso, in serie al comando. Premuto, si blocca aperto: il nastro si ferma e non riparte finch\xE9 non lo sblocchi.": "\u0632\u0631 \u0627\u0644\u0637\u0648\u0627\u0631\u0626 \u0627\u0644\u0641\u0637\u0631\u064A \u0644\u0647 \u0645\u0644\u0627\u0645\u0633 \u0645\u063A\u0644\u0642 \u0639\u0627\u062F\u0629\u064B\u060C \u0639\u0644\u0649 \u0627\u0644\u062A\u0633\u0644\u0633\u0644 \u0645\u0639 \u062F\u0627\u0626\u0631\u0629 \u0627\u0644\u062A\u062D\u0643\u0645. \u0639\u0646\u062F \u0627\u0644\u0636\u063A\u0637 \u0639\u0644\u064A\u0647 \u064A\u062B\u0628\u062A \u0645\u0641\u062A\u0648\u062D\u064B\u0627: \u064A\u062A\u0648\u0642\u0641 \u0627\u0644\u0633\u064A\u0631 \u0648\u0644\u0627 \u064A\u0639\u0645\u0644 \u0645\u0646 \u062C\u062F\u064A\u062F \u062D\u062A\u0649 \u062A\u0641\u0643\u0651\u0647.",
+    "Il pulsante di emergenza \xE8 premuto.": "\u0632\u0631 \u0627\u0644\u0637\u0648\u0627\u0631\u0626 \u0645\u0636\u063A\u0648\u0637.",
+    "Il rel\xE8 termico protegge dal sovraccarico, che \xE8 lento; il salvamotore dal cortocircuito, che \xE8 subito.": "\u0627\u0644\u0645\u0631\u062D\u0651\u0644 \u0627\u0644\u062D\u0631\u0627\u0631\u064A \u064A\u062D\u0645\u064A \u0645\u0646 \u0627\u0644\u062D\u0645\u0644 \u0627\u0644\u0632\u0627\u0626\u062F \u0627\u0644\u0628\u0637\u064A\u0621\u061B \u0648\u0642\u0627\u0637\u0639 \u062D\u0645\u0627\u064A\u0629 \u0627\u0644\u0645\u062D\u0631\u0643 \u0645\u0646 \u0642\u0635\u0631 \u0627\u0644\u062F\u0627\u0626\u0631\u0629 \u0627\u0644\u0641\u0648\u0631\u064A.",
+    "Il rel\xE8 termico.": "\u0627\u0644\u0645\u0631\u062D\u0651\u0644 \u0627\u0644\u062D\u0631\u0627\u0631\u064A.",
+    "Il resto \xE8 come nel livello precedente. Premi Marcia e rilascia.": "\u0627\u0644\u0628\u0627\u0642\u064A \u0643\u0645\u0627 \u0641\u064A \u0627\u0644\u0645\u0633\u062A\u0648\u0649 \u0627\u0644\u0633\u0627\u0628\u0642. \u0627\u0636\u063A\u0637 \u0627\u0644\u062A\u0634\u063A\u064A\u0644 \u062B\u0645 \u062D\u0631\u0651\u0631\u0647.",
+    "Il salvamotore interviene subito contro i cortocircuiti. Contro il sovraccarico, che \xE8 lento, serve il rel\xE8 termico: si scalda con la stessa corrente del motore e scatta dopo un po\u2019.": "\u064A\u062A\u062F\u062E\u0644 \u0642\u0627\u0637\u0639 \u062D\u0645\u0627\u064A\u0629 \u0627\u0644\u0645\u062D\u0631\u0643 \u0641\u0648\u0631\u064B\u0627 \u0636\u062F \u0642\u0635\u0631 \u0627\u0644\u062F\u0627\u0626\u0631\u0629. \u0623\u0645\u0627 \u0636\u062F \u0627\u0644\u062D\u0645\u0644 \u0627\u0644\u0632\u0627\u0626\u062F \u0627\u0644\u0628\u0637\u064A\u0621 \u0641\u0646\u062D\u062A\u0627\u062C \u0625\u0644\u0649 \u0627\u0644\u0645\u0631\u062D\u0651\u0644 \u0627\u0644\u062D\u0631\u0627\u0631\u064A: \u064A\u0633\u062E\u0646 \u0628\u062A\u064A\u0627\u0631 \u0627\u0644\u0645\u062D\u0631\u0643 \u0646\u0641\u0633\u0647 \u0648\u064A\u0641\u0635\u0644 \u0628\u0639\u062F \u0642\u0644\u064A\u0644.",
+    "Il termico ferma il motore tramite il comando. Se il contatto 95-96 non \xE8 collegato nel comando, il termico scatta ma il motore continua a girare.": "\u064A\u0648\u0642\u0641 \u0627\u0644\u0645\u0631\u062D\u0651\u0644 \u0627\u0644\u062D\u0631\u0627\u0631\u064A \u0627\u0644\u0645\u062D\u0631\u0643 \u0639\u0628\u0631 \u062F\u0627\u0626\u0631\u0629 \u0627\u0644\u062A\u062D\u0643\u0645. \u0625\u0630\u0627 \u0644\u0645 \u064A\u0643\u0646 \u0627\u0644\u0645\u0644\u0627\u0645\u0633 95-96 \u0645\u0648\u0635\u0648\u0644\u064B\u0627 \u0641\u064A \u062F\u0627\u0626\u0631\u0629 \u0627\u0644\u062A\u062D\u0643\u0645 \u064A\u0641\u0635\u0644 \u0627\u0644\u0645\u0631\u062D\u0651\u0644 \u0627\u0644\u062D\u0631\u0627\u0631\u064A \u0644\u0643\u0646 \u0627\u0644\u0645\u062D\u0631\u0643 \u064A\u0633\u062A\u0645\u0631 \u0641\u064A \u0627\u0644\u062F\u0648\u0631\u0627\u0646.",
+    "Il termico in serie al motore": "\u0627\u0644\u0645\u0631\u062D\u0651\u0644 \u0627\u0644\u062D\u0631\u0627\u0631\u064A \u0639\u0644\u0649 \u0627\u0644\u062A\u0633\u0644\u0633\u0644 \u0645\u0639 \u0627\u0644\u0645\u062D\u0631\u0643",
+    "Il termico non si riarma da solo: dopo aver tolto la causa del sovraccarico si preme il tasto Reset. Solo allora il motore pu\xF2 ripartire con un nuovo comando di marcia.": "\u0644\u0627 \u064A\u0639\u064A\u062F \u0627\u0644\u0645\u0631\u062D\u0651\u0644 \u0627\u0644\u062D\u0631\u0627\u0631\u064A \u062A\u0633\u0644\u064A\u062D \u0646\u0641\u0633\u0647: \u0628\u0639\u062F \u0625\u0632\u0627\u0644\u0629 \u0633\u0628\u0628 \u0627\u0644\u062D\u0645\u0644 \u0627\u0644\u0632\u0627\u0626\u062F \u0646\u0636\u063A\u0637 \u0632\u0631 Reset. \u0639\u0646\u062F\u0647\u0627 \u0641\u0642\u0637 \u064A\u0645\u0643\u0646 \u0644\u0644\u0645\u062D\u0631\u0643 \u0623\u0646 \u064A\u0639\u0645\u0644 \u0645\u0646 \u062C\u062F\u064A\u062F \u0628\u0623\u0645\u0631 \u062A\u0634\u063A\u064A\u0644 \u062C\u062F\u064A\u062F.",
+    "Il termico scatta e apre il contatto 95-96, ma questo contatto non \xE8 in serie al comando: la bobina continua a essere alimentata e il motore continua a girare e a surriscaldarsi.": "\u064A\u0641\u0635\u0644 \u0627\u0644\u0645\u0631\u062D\u0651\u0644 \u0627\u0644\u062D\u0631\u0627\u0631\u064A \u0648\u064A\u0641\u062A\u062D \u0627\u0644\u0645\u0644\u0627\u0645\u0633 95-96\u060C \u0644\u0643\u0646 \u0647\u0630\u0627 \u0627\u0644\u0645\u0644\u0627\u0645\u0633 \u0644\u064A\u0633 \u0639\u0644\u0649 \u0627\u0644\u062A\u0633\u0644\u0633\u0644 \u0645\u0639 \u062F\u0627\u0626\u0631\u0629 \u0627\u0644\u062A\u062D\u0643\u0645: \u064A\u0628\u0642\u0649 \u0627\u0644\u0645\u0644\u0641 \u0645\u063A\u0630\u0651\u0649 \u0648\u064A\u0633\u062A\u0645\u0631 \u0627\u0644\u0645\u062D\u0631\u0643 \u0641\u064A \u0627\u0644\u062F\u0648\u0631\u0627\u0646 \u0648\u0627\u0644\u0633\u062E\u0648\u0646\u0629.",
+    "Il termico scattato ha il contatto 95-96 aperto finch\xE9 non lo riarmi con Reset. Il circuito di comando resta interrotto e la bobina non pu\xF2 essere alimentata.": "\u0627\u0644\u0645\u0631\u062D\u0651\u0644 \u0627\u0644\u062D\u0631\u0627\u0631\u064A \u0628\u0639\u062F \u0627\u0644\u0641\u0635\u0644 \u064A\u0628\u0642\u0649 \u0645\u0644\u0627\u0645\u0633\u0647 95-96 \u0645\u0641\u062A\u0648\u062D\u064B\u0627 \u062D\u062A\u0649 \u062A\u0639\u064A\u062F \u062A\u0633\u0644\u064A\u062D\u0647 \u0628\u0632\u0631 Reset. \u062A\u0628\u0642\u0649 \u062F\u0627\u0626\u0631\u0629 \u0627\u0644\u062A\u062D\u0643\u0645 \u0645\u0642\u0637\u0648\u0639\u0629 \u0648\u0644\u0627 \u064A\u0645\u0643\u0646 \u062A\u063A\u0630\u064A\u0629 \u0627\u0644\u0645\u0644\u0641.",
+    "Il termico \xE8 scattato e il motore si \xE8 fermato. Senza riarmarlo premo Marcia. Che cosa succede?": "\u0641\u0635\u0644 \u0627\u0644\u0645\u0631\u062D\u0651\u0644 \u0627\u0644\u062D\u0631\u0627\u0631\u064A \u0648\u062A\u0648\u0642\u0641 \u0627\u0644\u0645\u062D\u0631\u0643. \u0623\u0636\u063A\u0637 \u0627\u0644\u062A\u0634\u063A\u064A\u0644 \u062F\u0648\u0646 \u0625\u0639\u0627\u062F\u0629 \u0627\u0644\u062A\u0633\u0644\u064A\u062D. \u0645\u0627\u0630\u0627 \u064A\u062D\u062F\u062B\u061F",
+    "Indietro: KM2 si chiude e il motore gira all\u2019indietro.": "\u0627\u0644\u062E\u0644\u0641: \u064A\u0646\u063A\u0644\u0642 KM2 \u0648\u064A\u062F\u0648\u0631 \u0627\u0644\u0645\u062D\u0631\u0643 \u0625\u0644\u0649 \u0627\u0644\u062E\u0644\u0641.",
+    "Interblocco: da Avanti al contatto 21 di KM2.": "\u0627\u0644\u062A\u0639\u0634\u064A\u0642 \u0627\u0644\u0645\u062A\u0628\u0627\u062F\u0644: \u0645\u0646 \u0632\u0631 \u0627\u0644\u0623\u0645\u0627\u0645 \u0625\u0644\u0649 \u0627\u0644\u0645\u0644\u0627\u0645\u0633 21 \u0641\u064A KM2.",
+    "KM1 collega il motore con le fasi in ordine.": "KM1 \u064A\u0648\u0635\u0644 \u0627\u0644\u0645\u062D\u0631\u0643 \u0628\u0627\u0644\u0623\u0637\u0648\u0627\u0631 \u0628\u0627\u0644\u062A\u0631\u062A\u064A\u0628.",
+    "KM1 in ordine": "KM1 \u0628\u0627\u0644\u062A\u0631\u062A\u064A\u0628",
+    "KM2 collega il motore con due fasi scambiate.": "KM2 \u064A\u0648\u0635\u0644 \u0627\u0644\u0645\u062D\u0631\u0643 \u0645\u0639 \u062A\u0628\u062F\u064A\u0644 \u0637\u0648\u0631\u064A\u0646.",
+    "KM2 con due fasi scambiate": "KM2 \u0645\u0639 \u062A\u0628\u062F\u064A\u0644 \u0637\u0648\u0631\u064A\u0646",
+    "L2 al morsetto 3.": "L2 \u0625\u0644\u0649 \u0627\u0644\u0645\u0631\u0628\u0637 3.",
+    "L3 al morsetto 5.": "L3 \u0625\u0644\u0649 \u0627\u0644\u0645\u0631\u0628\u0637 5.",
+    "Le bobine non passano dai contatti NC 21-22 dell\u2019altro contattore. Premendo Avanti e Indietro insieme KM1 e KM2 si chiudono tutti e due: due fasi vanno in cortocircuito e il salvamotore scatta.": "\u0627\u0644\u0645\u0644\u0641\u0627\u062A \u0644\u0627 \u062A\u0645\u0631 \u0639\u0628\u0631 \u0645\u0644\u0627\u0645\u0633\u0627\u062A NC 21-22 \u0641\u064A \u0627\u0644\u0643\u0648\u0646\u062A\u0627\u0643\u062A\u0648\u0631 \u0627\u0644\u0622\u062E\u0631. \u0639\u0646\u062F \u0636\u063A\u0637 \u0627\u0644\u0623\u0645\u0627\u0645 \u0648\u0627\u0644\u062E\u0644\u0641 \u0645\u0639\u064B\u0627 \u064A\u0646\u063A\u0644\u0642 KM1 \u0648KM2 \u0643\u0644\u0627\u0647\u0645\u0627: \u064A\u062D\u062F\u062B \u0642\u0635\u0631 \u0628\u064A\u0646 \u0637\u0648\u0631\u064A\u0646 \u0648\u064A\u0641\u0635\u0644 \u0642\u0627\u0637\u0639 \u062D\u0645\u0627\u064A\u0629 \u0627\u0644\u0645\u062D\u0631\u0643.",
+    "Le bobine passano dai contatti NC 21-22 dell\u2019altro contattore.": "\u0627\u0644\u0645\u0644\u0641\u0627\u062A \u062A\u0645\u0631 \u0639\u0628\u0631 \u0645\u0644\u0627\u0645\u0633\u0627\u062A NC 21-22 \u0641\u064A \u0627\u0644\u0643\u0648\u0646\u062A\u0627\u0643\u062A\u0648\u0631 \u0627\u0644\u0622\u062E\u0631.",
+    "Le tre fasi al salvamotore: L1 al morsetto 1.": "\u0627\u0644\u0623\u0637\u0648\u0627\u0631 \u0627\u0644\u062B\u0644\u0627\u062B\u0629 \u0625\u0644\u0649 \u0642\u0627\u0637\u0639 \u062D\u0645\u0627\u064A\u0629 \u0627\u0644\u0645\u062D\u0631\u0643: L1 \u0625\u0644\u0649 \u0627\u0644\u0645\u0631\u0628\u0637 1.",
+    "L\u2019autoritenuta di KM2.": "\u0627\u0644\u062A\u062B\u0628\u064A\u062A \u0627\u0644\u0630\u0627\u062A\u064A \u0644\u0640 KM2.",
+    "L\u2019emergenza in serie": "\u0627\u0644\u0637\u0648\u0627\u0631\u0626 \u0639\u0644\u0649 \u0627\u0644\u062A\u0633\u0644\u0633\u0644",
+    "L\u2019interblocco": "\u0627\u0644\u062A\u0639\u0634\u064A\u0642 \u0627\u0644\u0645\u062A\u0628\u0627\u062F\u0644",
+    "L\u2019interblocco lo impedisce con il contatto NC (21-22): la bobina di KM1 passa dal contatto di KM2, e la bobina di KM2 dal contatto di KM1. Se uno \xE8 chiuso, l\u2019altro non pu\xF2 chiudersi.": "\u064A\u0645\u0646\u0639 \u0627\u0644\u062A\u0639\u0634\u064A\u0642 \u0627\u0644\u0645\u062A\u0628\u0627\u062F\u0644 \u0630\u0644\u0643 \u0628\u0645\u0644\u0627\u0645\u0633 NC (21-22): \u0645\u0644\u0641 KM1 \u064A\u0645\u0631 \u0639\u0628\u0631 \u0645\u0644\u0627\u0645\u0633 KM2\u060C \u0648\u0645\u0644\u0641 KM2 \u0639\u0628\u0631 \u0645\u0644\u0627\u0645\u0633 KM1. \u0625\u0630\u0627 \u0643\u0627\u0646 \u0623\u062D\u062F\u0647\u0645\u0627 \u0645\u063A\u0644\u0642\u064B\u0627 \u0644\u0627 \u064A\u0633\u062A\u0637\u064A\u0639 \u0627\u0644\u0622\u062E\u0631 \u0623\u0646 \u064A\u0646\u063A\u0644\u0642.",
+    "L\u2019interblocco usa il contatto NC (21-22) di ciascun contattore nel comando dell\u2019altro.": "\u064A\u0633\u062A\u062E\u062F\u0645 \u0627\u0644\u062A\u0639\u0634\u064A\u0642 \u0627\u0644\u0645\u062A\u0628\u0627\u062F\u0644 \u0645\u0644\u0627\u0645\u0633 NC (21-22) \u0644\u0643\u0644 \u0643\u0648\u0646\u062A\u0627\u0643\u062A\u0648\u0631 \u0641\u064A \u062F\u0627\u0626\u0631\u0629 \u062A\u062D\u0643\u0645 \u0627\u0644\u0622\u062E\u0631.",
+    "L\u2019interblocco: la bobina di KM1 passa dal contatto normalmente chiuso 21-22 di KM2, e la bobina di KM2 da quello di KM1. Se uno \xE8 chiuso l\u2019altro non pu\xF2 chiudersi.": "\u0627\u0644\u062A\u0639\u0634\u064A\u0642 \u0627\u0644\u0645\u062A\u0628\u0627\u062F\u0644: \u0645\u0644\u0641 KM1 \u064A\u0645\u0631 \u0639\u0628\u0631 \u0627\u0644\u0645\u0644\u0627\u0645\u0633 \u0627\u0644\u0645\u063A\u0644\u0642 \u0639\u0627\u062F\u0629\u064B 21-22 \u0641\u064A KM2\u060C \u0648\u0645\u0644\u0641 KM2 \u0639\u0628\u0631 \u0645\u0644\u0627\u0645\u0633 KM1. \u0625\u0630\u0627 \u0643\u0627\u0646 \u0623\u062D\u062F\u0647\u0645\u0627 \u0645\u063A\u0644\u0642\u064B\u0627 \u0644\u0627 \u064A\u0633\u062A\u0637\u064A\u0639 \u0627\u0644\u0622\u062E\u0631 \u0623\u0646 \u064A\u0646\u063A\u0644\u0642.",
+    "L\u2019interblocco: premendo le due marce i contattori si chiudono insieme.": "\u0627\u0644\u062A\u0639\u0634\u064A\u0642 \u0627\u0644\u0645\u062A\u0628\u0627\u062F\u0644: \u0639\u0646\u062F \u0636\u063A\u0637 \u0627\u0644\u0627\u062A\u062C\u0627\u0647\u064A\u0646 \u062A\u0646\u063A\u0644\u0642 \u0627\u0644\u0643\u0648\u0646\u062A\u0627\u0643\u062A\u0648\u0631\u0627\u062A \u0645\u0639\u064B\u0627.",
+    "Manca la terra al motore.": "\u0627\u0644\u0623\u0631\u0636\u064A \u0645\u0641\u0642\u0648\u062F \u0639\u0646\u062F \u0627\u0644\u0645\u062D\u0631\u0643.",
+    "Marcia: il nastro parte e il pacco avanza.": "\u0627\u0644\u062A\u0634\u063A\u064A\u0644: \u064A\u0628\u062F\u0623 \u0627\u0644\u0633\u064A\u0631 \u0648\u062A\u062A\u0642\u062F\u0645 \u0627\u0644\u0639\u0644\u0628\u0629.",
+    "Metti il contatto 95-96 nel comando: dal morsetto 2 del salvamotore al 95, dal 96 al morsetto 1 dell\u2019arresto. Togli il filo che andava direttamente all\u2019arresto. Poi premi Verifica.": "\u0636\u0639 \u0627\u0644\u0645\u0644\u0627\u0645\u0633 95-96 \u0641\u064A \u062F\u0627\u0626\u0631\u0629 \u0627\u0644\u062A\u062D\u0643\u0645: \u0645\u0646 \u0627\u0644\u0645\u0631\u0628\u0637 2 \u0641\u064A \u0642\u0627\u0637\u0639 \u062D\u0645\u0627\u064A\u0629 \u0627\u0644\u0645\u062D\u0631\u0643 \u0625\u0644\u0649 95\u060C \u0648\u0645\u0646 96 \u0625\u0644\u0649 \u0627\u0644\u0645\u0631\u0628\u0637 1 \u0641\u064A \u0627\u0644\u0625\u064A\u0642\u0627\u0641. \u0623\u0632\u0644 \u0627\u0644\u0633\u0644\u0643 \u0627\u0644\u0630\u064A \u0643\u0627\u0646 \u064A\u0630\u0647\u0628 \u0645\u0628\u0627\u0634\u0631\u0629 \u0625\u0644\u0649 \u0627\u0644\u0625\u064A\u0642\u0627\u0641. \u062B\u0645 \u0627\u0636\u063A\u0637 \u062A\u062D\u0642\u0642.",
+    "Morsetto 4 a V.": "\u0627\u0644\u0645\u0631\u0628\u0637 4 \u0625\u0644\u0649 V.",
+    "Morsetto 4 al morsetto 3.": "\u0627\u0644\u0645\u0631\u0628\u0637 4 \u0625\u0644\u0649 \u0627\u0644\u0645\u0631\u0628\u0637 3.",
+    "Morsetto 4 al morsetto V.": "\u0627\u0644\u0645\u0631\u0628\u0637 4 \u0625\u0644\u0649 \u0627\u0644\u0645\u0631\u0628\u0637 V.",
+    "Morsetto 6 a U.": "\u0627\u0644\u0645\u0631\u0628\u0637 6 \u0625\u0644\u0649 U.",
+    "Morsetto 6 a W.": "\u0627\u0644\u0645\u0631\u0628\u0637 6 \u0625\u0644\u0649 W.",
+    "Morsetto 6 al morsetto 5.": "\u0627\u0644\u0645\u0631\u0628\u0637 6 \u0625\u0644\u0649 \u0627\u0644\u0645\u0631\u0628\u0637 5.",
+    "Morsetto 6 al morsetto W.": "\u0627\u0644\u0645\u0631\u0628\u0637 6 \u0625\u0644\u0649 \u0627\u0644\u0645\u0631\u0628\u0637 W.",
+    "Motore del nastro": "\u0645\u062D\u0631\u0643 \u0627\u0644\u0633\u064A\u0631",
+    "Nastro trasportatore": "\u0627\u0644\u0633\u064A\u0631 \u0627\u0644\u0646\u0627\u0642\u0644",
+    "Nel comando, in serie e prima dell\u2019arresto, ci sono il contatto del termico (95-96) e il contatto NC del pulsante di emergenza.": "\u0641\u064A \u062F\u0627\u0626\u0631\u0629 \u0627\u0644\u062A\u062D\u0643\u0645\u060C \u0639\u0644\u0649 \u0627\u0644\u062A\u0633\u0644\u0633\u0644 \u0648\u0642\u0628\u0644 \u0627\u0644\u0625\u064A\u0642\u0627\u0641\u060C \u064A\u0648\u062C\u062F \u0645\u0644\u0627\u0645\u0633 \u0627\u0644\u0645\u0631\u062D\u0651\u0644 \u0627\u0644\u062D\u0631\u0627\u0631\u064A (95-96) \u0648\u0645\u0644\u0627\u0645\u0633 NC \u0641\u064A \u0632\u0631 \u0627\u0644\u0637\u0648\u0627\u0631\u0626.",
+    "Neutro alla bobina di KM1 (A2).": "\u0627\u0644\u0645\u062D\u0627\u064A\u062F \u0625\u0644\u0649 \u0645\u0644\u0641 KM1 (A2).",
+    "Neutro alla bobina di KM2 (A2).": "\u0627\u0644\u0645\u062D\u0627\u064A\u062F \u0625\u0644\u0649 \u0645\u0644\u0641 KM2 (A2).",
+    "Non cambia nulla: KM2 non pu\xF2 chiudersi finch\xE9 KM1 \xE8 chiuso.": "\u0644\u0627 \u0634\u064A\u0621 \u064A\u062A\u063A\u064A\u0631: \u0644\u0627 \u064A\u0633\u062A\u0637\u064A\u0639 KM2 \u0623\u0646 \u064A\u0646\u063A\u0644\u0642 \u0645\u0627 \u062F\u0627\u0645 KM1 \u0645\u063A\u0644\u0642\u064B\u0627.",
+    "Ogni contattore ha il suo contatto di autoritenuta (13-14) e un contatto normalmente chiuso (21-22) per l\u2019interblocco.": "\u0644\u0643\u0644 \u0643\u0648\u0646\u062A\u0627\u0643\u062A\u0648\u0631 \u0645\u0644\u0627\u0645\u0633 \u062A\u062B\u0628\u064A\u062A \u0630\u0627\u062A\u064A (13-14) \u0648\u0645\u0644\u0627\u0645\u0633 \u0645\u063A\u0644\u0642 \u0639\u0627\u062F\u0629\u064B (21-22) \u0644\u0644\u062A\u0639\u0634\u064A\u0642 \u0627\u0644\u0645\u062A\u0628\u0627\u062F\u0644.",
+    "Per invertire il senso di un motore trifase basta scambiare due fasi. Per farlo con un comando si usano due contattori: KM1 collega il motore in modo normale, KM2 con due fasi scambiate.": "\u0644\u0639\u0643\u0633 \u0627\u062A\u062C\u0627\u0647 \u0645\u062D\u0631\u0643 \u062B\u0644\u0627\u062B\u064A \u0627\u0644\u0637\u0648\u0631 \u064A\u0643\u0641\u064A \u062A\u0628\u062F\u064A\u0644 \u0637\u0648\u0631\u064A\u0646. \u0648\u0644\u0641\u0639\u0644 \u0630\u0644\u0643 \u0628\u0623\u0645\u0631 \u062A\u062D\u0643\u0645 \u0646\u0633\u062A\u062E\u062F\u0645 \u0643\u0648\u0646\u062A\u0627\u0643\u062A\u0648\u0631\u064A\u0646: KM1 \u064A\u0648\u0635\u0644 \u0627\u0644\u0645\u062D\u0631\u0643 \u0628\u0634\u0643\u0644 \u0639\u0627\u062F\u064A \u0648KM2 \u0645\u0639 \u062A\u0628\u062F\u064A\u0644 \u0637\u0648\u0631\u064A\u0646.",
+    "Per invertire il senso si preme prima Arresto.": "\u0644\u0639\u0643\u0633 \u0627\u0644\u0627\u062A\u062C\u0627\u0647 \u0646\u0636\u063A\u0637 \u0627\u0644\u0625\u064A\u0642\u0627\u0641 \u0623\u0648\u0644\u064B\u0627.",
+    "Per questo emergenza, arresto, termico e finecorsa sono tutti contatti NC in serie. Dopo l\u2019emergenza il nastro non riparte da solo: serve un nuovo comando di marcia.": "\u0644\u0630\u0644\u0643 \u0641\u0625\u0646 \u0627\u0644\u0637\u0648\u0627\u0631\u0626 \u0648\u0627\u0644\u0625\u064A\u0642\u0627\u0641 \u0648\u0627\u0644\u0645\u0631\u062D\u0651\u0644 \u0627\u0644\u062D\u0631\u0627\u0631\u064A \u0648\u0645\u0641\u062A\u0627\u062D \u0646\u0647\u0627\u064A\u0629 \u0627\u0644\u0634\u0648\u0637 \u0643\u0644\u0647\u0627 \u0645\u0644\u0627\u0645\u0633\u0627\u062A NC \u0639\u0644\u0649 \u0627\u0644\u062A\u0633\u0644\u0633\u0644. \u0628\u0639\u062F \u0627\u0644\u0637\u0648\u0627\u0631\u0626 \u0644\u0627 \u064A\u0639\u0645\u0644 \u0627\u0644\u0633\u064A\u0631 \u0645\u0646 \u062A\u0644\u0642\u0627\u0621 \u0646\u0641\u0633\u0647: \u0646\u062D\u062A\u0627\u062C \u0625\u0644\u0649 \u0623\u0645\u0631 \u062A\u0634\u063A\u064A\u0644 \u062C\u062F\u064A\u062F.",
+    "Perch\xE9 i contatti NC": "\u0644\u0645\u0627\u0630\u0627 \u0645\u0644\u0627\u0645\u0633\u0627\u062A NC",
+    "Premi Arresto: il motore si ferma": "\u0627\u0636\u063A\u0637 \u0627\u0644\u0625\u064A\u0642\u0627\u0641: \u064A\u062A\u0648\u0642\u0641 \u0627\u0644\u0645\u062D\u0631\u0643",
+    "Premi Arresto: il nastro si ferma": "\u0627\u0636\u063A\u0637 \u0627\u0644\u0625\u064A\u0642\u0627\u0641: \u064A\u062A\u0648\u0642\u0641 \u0627\u0644\u0633\u064A\u0631",
+    "Premi Avanti e rilascia: il motore gira in avanti": "\u0627\u0636\u063A\u0637 \u0627\u0644\u0623\u0645\u0627\u0645 \u062B\u0645 \u062D\u0631\u0651\u0631\u0647: \u064A\u062F\u0648\u0631 \u0627\u0644\u0645\u062D\u0631\u0643 \u0625\u0644\u0649 \u0627\u0644\u0623\u0645\u0627\u0645",
+    "Premi Indietro e rilascia: il motore gira all\u2019indietro": "\u0627\u0636\u063A\u0637 \u0627\u0644\u062E\u0644\u0641 \u062B\u0645 \u062D\u0631\u0651\u0631\u0647: \u064A\u062F\u0648\u0631 \u0627\u0644\u0645\u062D\u0631\u0643 \u0625\u0644\u0649 \u0627\u0644\u062E\u0644\u0641",
+    "Premi Marcia e rilascia: il nastro parte e la spia \xE8 accesa": "\u0627\u0636\u063A\u0637 \u0627\u0644\u062A\u0634\u063A\u064A\u0644 \u062B\u0645 \u062D\u0631\u0651\u0631\u0647: \u064A\u0628\u062F\u0623 \u0627\u0644\u0633\u064A\u0631 \u0648\u0627\u0644\u0644\u0645\u0628\u0629 \u0627\u0644\u0625\u0634\u0627\u0631\u064A\u0629 \u0645\u0636\u0627\u0621\u0629",
+    "Premi il fungo di emergenza: il nastro si ferma": "\u0627\u0636\u063A\u0637 \u0627\u0644\u0632\u0631 \u0627\u0644\u0641\u0637\u0631\u064A \u0644\u0644\u0637\u0648\u0627\u0631\u0626: \u064A\u062A\u0648\u0642\u0641 \u0627\u0644\u0633\u064A\u0631",
+    "Premuta Marcia: il motore parte.": "\u0639\u0646\u062F \u0636\u063A\u0637 \u0627\u0644\u062A\u0634\u063A\u064A\u0644: \u064A\u0628\u062F\u0623 \u0627\u0644\u0645\u062D\u0631\u0643.",
+    "Proteggere il motore": "\u062D\u0645\u0627\u064A\u0629 \u0627\u0644\u0645\u062D\u0631\u0643",
+    "Pulsante Avanti (NA)": "\u0632\u0631 \u0627\u0644\u0623\u0645\u0627\u0645 (NA)",
+    "Pulsante Indietro (NA)": "\u0632\u0631 \u0627\u0644\u062E\u0644\u0641 (NA)",
+    "Pulsante di emergenza a fungo": "\u0632\u0631 \u0627\u0644\u0637\u0648\u0627\u0631\u0626 \u0627\u0644\u0641\u0637\u0631\u064A",
+    "Quando il fungo si apre, la bobina era gi\xE0 senza corrente e l\u2019autoritenuta si \xE8 aperta. Per ripartire serve un nuovo comando di marcia: una macchina non deve ripartire da sola dopo un\u2019emergenza.": "\u0639\u0646\u062F\u0645\u0627 \u064A\u0646\u0641\u062A\u062D \u0627\u0644\u0632\u0631 \u0627\u0644\u0641\u0637\u0631\u064A \u064A\u0643\u0648\u0646 \u0627\u0644\u0645\u0644\u0641 \u0642\u062F \u0641\u0642\u062F \u062A\u064A\u0651\u0627\u0631\u0647 \u0623\u0635\u0644\u064B\u0627 \u0648\u0627\u0646\u0641\u062A\u062D \u0627\u0644\u062A\u062B\u0628\u064A\u062A \u0627\u0644\u0630\u0627\u062A\u064A. \u0644\u0644\u0639\u0645\u0644 \u0645\u0646 \u062C\u062F\u064A\u062F \u0646\u062D\u062A\u0627\u062C \u0625\u0644\u0649 \u0623\u0645\u0631 \u062A\u0634\u063A\u064A\u0644 \u062C\u062F\u064A\u062F: \u0644\u0627 \u064A\u062C\u0648\u0632 \u0623\u0646 \u062A\u0639\u0645\u0644 \u0627\u0644\u0622\u0644\u0629 \u0645\u0646 \u062A\u0644\u0642\u0627\u0621 \u0646\u0641\u0633\u0647\u0627 \u0628\u0639\u062F \u0637\u0648\u0627\u0631\u0626.",
+    "Rel\xE8 termico": "\u0627\u0644\u0645\u0631\u062D\u0651\u0644 \u0627\u0644\u062D\u0631\u0627\u0631\u064A",
+    "Resta fermo finch\xE9 non premo Marcia.": "\u064A\u0628\u0642\u0649 \u0645\u062A\u0648\u0642\u0641\u064B\u0627 \u062D\u062A\u0649 \u0623\u0636\u063A\u0637 \u0627\u0644\u062A\u0634\u063A\u064A\u0644.",
+    "Riparte da solo.": "\u064A\u0639\u0645\u0644 \u0645\u0646 \u062C\u062F\u064A\u062F \u0645\u0646 \u062A\u0644\u0642\u0627\u0621 \u0646\u0641\u0633\u0647.",
+    "Scambiando due fasi si inverte il senso del motore.": "\u0639\u0646\u062F \u062A\u0628\u062F\u064A\u0644 \u0637\u0648\u0631\u064A\u0646 \u064A\u0646\u0639\u0643\u0633 \u0627\u062A\u062C\u0627\u0647 \u0627\u0644\u0645\u062D\u0631\u0643.",
+    "Scatta il termico.": "\u064A\u0641\u0635\u0644 \u0627\u0644\u0645\u0631\u062D\u0651\u0644 \u0627\u0644\u062D\u0631\u0627\u0631\u064A.",
+    "Scattato il termico, il comando si apre e il motore si ferma; serve riarmarlo a mano con Reset.": "\u0628\u0639\u062F \u0641\u0635\u0644 \u0627\u0644\u0645\u0631\u062D\u0651\u0644 \u0627\u0644\u062D\u0631\u0627\u0631\u064A \u062A\u0646\u0641\u062A\u062D \u062F\u0627\u0626\u0631\u0629 \u0627\u0644\u062A\u062D\u0643\u0645 \u0648\u064A\u062A\u0648\u0642\u0641 \u0627\u0644\u0645\u062D\u0631\u0643\u061B \u0648\u064A\u062C\u0628 \u0625\u0639\u0627\u062F\u0629 \u062A\u0633\u0644\u064A\u062D\u0647 \u064A\u062F\u0648\u064A\u064B\u0627 \u0628\u0632\u0631 Reset.",
+    "Se i due contattori si chiudessero insieme, due fasi della rete si collegherebbero tra loro: un cortocircuito. Il salvamotore scatterebbe.": "\u0644\u0648 \u0627\u0646\u063A\u0644\u0642 \u0627\u0644\u0643\u0648\u0646\u062A\u0627\u0643\u062A\u0648\u0631\u0627\u0646 \u0645\u0639\u064B\u0627 \u0644\u0627\u062A\u0635\u0644 \u0637\u0648\u0631\u0627\u0646 \u0645\u0646 \u0627\u0644\u0634\u0628\u0643\u0629 \u0628\u0628\u0639\u0636\u0647\u0645\u0627: \u0642\u0635\u0631 \u0641\u064A \u0627\u0644\u062F\u0627\u0626\u0631\u0629. \u0648\u0633\u064A\u0641\u0635\u0644 \u0642\u0627\u0637\u0639 \u062D\u0645\u0627\u064A\u0629 \u0627\u0644\u0645\u062D\u0631\u0643.",
+    "Se il contatto 95-96 non \xE8 nel comando, il termico scatta ma il motore non si ferma.": "\u0625\u0630\u0627 \u0644\u0645 \u064A\u0643\u0646 \u0627\u0644\u0645\u0644\u0627\u0645\u0633 95-96 \u0641\u064A \u062F\u0627\u0626\u0631\u0629 \u0627\u0644\u062A\u062D\u0643\u0645 \u064A\u0641\u0635\u0644 \u0627\u0644\u0645\u0631\u062D\u0651\u0644 \u0627\u0644\u062D\u0631\u0627\u0631\u064A \u0644\u0643\u0646 \u0627\u0644\u0645\u062D\u0631\u0643 \u0644\u0627 \u064A\u062A\u0648\u0642\u0641.",
+    "Senza interblocco il circuito sembra funzionare, ma premendo le due marce insieme si ha un cortocircuito.": "\u0628\u062F\u0648\u0646 \u062A\u0639\u0634\u064A\u0642 \u0645\u062A\u0628\u0627\u062F\u0644 \u064A\u0628\u062F\u0648 \u0623\u0646 \u0627\u0644\u062F\u0627\u0626\u0631\u0629 \u062A\u0639\u0645\u0644\u060C \u0644\u0643\u0646 \u0636\u063A\u0637 \u0627\u0644\u0627\u062A\u062C\u0627\u0647\u064A\u0646 \u0645\u0639\u064B\u0627 \u064A\u0633\u0628\u0628 \u0642\u0635\u0631\u064B\u0627 \u0641\u064A \u0627\u0644\u062F\u0627\u0626\u0631\u0629.",
+    "Termico": "\u0627\u0644\u0645\u0631\u062D\u0651\u0644 \u0627\u0644\u062D\u0631\u0627\u0631\u064A",
+    "Un contatto NC in serie al comando ferma la macchina anche quando si stacca un filo: un guasto porta alla fermata, non alla marcia.": "\u0645\u0644\u0627\u0645\u0633 NC \u0639\u0644\u0649 \u0627\u0644\u062A\u0633\u0644\u0633\u0644 \u0645\u0639 \u062F\u0627\u0626\u0631\u0629 \u0627\u0644\u062A\u062D\u0643\u0645 \u064A\u0648\u0642\u0641 \u0627\u0644\u0622\u0644\u0629 \u062D\u062A\u0649 \u0639\u0646\u062F\u0645\u0627 \u064A\u0646\u0641\u0635\u0644 \u0633\u0644\u0643: \u0627\u0644\u0639\u0637\u0644 \u064A\u0624\u062F\u064A \u0625\u0644\u0649 \u0627\u0644\u062A\u0648\u0642\u0641 \u0644\u0627 \u0625\u0644\u0649 \u0627\u0644\u062A\u0634\u063A\u064A\u0644.",
+    "Un contatto NC porta la macchina alla fermata anche se si stacca un filo.": "\u0645\u0644\u0627\u0645\u0633 NC \u064A\u0648\u0642\u0641 \u0627\u0644\u0622\u0644\u0629 \u062D\u062A\u0649 \u0644\u0648 \u0627\u0646\u0641\u0635\u0644 \u0633\u0644\u0643.",
+    "Un motore pu\xF2 assorbire troppa corrente per un tempo lungo: per esempio se l\u2019albero si blocca o se il carico \xE8 eccessivo. Gli avvolgimenti si scaldano e, se si va avanti, si danneggiano.": "\u0642\u062F \u064A\u0633\u062D\u0628 \u0627\u0644\u0645\u062D\u0631\u0643 \u062A\u064A\u0627\u0631\u064B\u0627 \u0643\u0628\u064A\u0631\u064B\u0627 \u0644\u0641\u062A\u0631\u0629 \u0637\u0648\u064A\u0644\u0629: \u0645\u062B\u0644\u064B\u0627 \u0625\u0630\u0627 \u062A\u0639\u0637\u0644 \u0627\u0644\u0639\u0645\u0648\u062F \u0623\u0648 \u0643\u0627\u0646 \u0627\u0644\u062D\u0645\u0644 \u0645\u0641\u0631\u0637\u064B\u0627. \u062A\u0633\u062E\u0646 \u0627\u0644\u0645\u0644\u0641\u0627\u062A\u060C \u0648\u0625\u0630\u0627 \u0627\u0633\u062A\u0645\u0631 \u0627\u0644\u0623\u0645\u0631 \u062A\u062A\u0644\u0641.",
+    "Un nastro trasportatore porta un pacco da un punto all\u2019altro. Ha un motore, un contattore, i pulsanti di marcia e arresto, un rel\xE8 termico e due dispositivi di sicurezza: il pulsante di emergenza e il finecorsa.": "\u0627\u0644\u0633\u064A\u0631 \u0627\u0644\u0646\u0627\u0642\u0644 \u064A\u0646\u0642\u0644 \u0639\u0644\u0628\u0629 \u0645\u0646 \u0646\u0642\u0637\u0629 \u0625\u0644\u0649 \u0623\u062E\u0631\u0649. \u0641\u064A\u0647 \u0645\u062D\u0631\u0643 \u0648\u0643\u0648\u0646\u062A\u0627\u0643\u062A\u0648\u0631 \u0648\u0632\u0631\u0651\u0627 \u062A\u0634\u063A\u064A\u0644 \u0648\u0625\u064A\u0642\u0627\u0641 \u0648\u0645\u0631\u062D\u0651\u0644 \u062D\u0631\u0627\u0631\u064A \u0648\u062C\u0647\u0627\u0632\u0627 \u0623\u0645\u0627\u0646: \u0632\u0631 \u0627\u0644\u0637\u0648\u0627\u0631\u0626 \u0648\u0645\u0641\u062A\u0627\u062D \u0646\u0647\u0627\u064A\u0629 \u0627\u0644\u0634\u0648\u0637.",
+    "Una macchina completa": "\u0622\u0644\u0629 \u0643\u0627\u0645\u0644\u0629",
+    "Una macchina completa ha potenza, comando e dispositivi di sicurezza.": "\u0627\u0644\u0622\u0644\u0629 \u0627\u0644\u0643\u0627\u0645\u0644\u0629 \u0641\u064A\u0647\u0627 \u0642\u062F\u0631\u0629 \u0648\u062A\u062D\u0643\u0645 \u0648\u0623\u062C\u0647\u0632\u0629 \u0623\u0645\u0627\u0646.",
+    "Usa il contatto normalmente chiuso, davanti alla bobina.": "\u0627\u0633\u062A\u062E\u062F\u0645 \u0627\u0644\u0645\u0644\u0627\u0645\u0633 \u0627\u0644\u0645\u063A\u0644\u0642 \u0639\u0627\u062F\u0629\u064B\u060C \u0642\u0628\u0644 \u0627\u0644\u0645\u0644\u0641 \u0645\u0628\u0627\u0634\u0631\u0629.",
+    "Usa il pulsante sotto la scena per simulare un sovraccarico, poi premi Verifica.": "\u0627\u0633\u062A\u062E\u062F\u0645 \u0627\u0644\u0632\u0631 \u0627\u0644\u0645\u0648\u062C\u0648\u062F \u062A\u062D\u062A \u0627\u0644\u0645\u0634\u0647\u062F \u0644\u0645\u062D\u0627\u0643\u0627\u0629 \u062D\u0645\u0644 \u0632\u0627\u0626\u062F\u060C \u062B\u0645 \u0627\u0636\u063A\u0637 \u062A\u062D\u0642\u0642."
+  };
+
+  // src/i18n/ar-12.js
+  var ar_12_default = {
+    "A RIPOSO": "\u0641\u064A \u0627\u0644\u0631\u0627\u062D\u0629",
+    "Contatto 95": "\u0627\u0644\u0645\u0644\u0627\u0645\u0633 95",
+    "Contatto 96": "\u0627\u0644\u0645\u0644\u0627\u0645\u0633 96",
+    "EMERGENZA": "\u0637\u0648\u0627\u0631\u0626",
+    "Potenza": "\u0627\u0644\u0642\u062F\u0631\u0629",
+    "Pulsante Avanti (NA), tieni premuto": "\u0632\u0631 \u0627\u0644\u0623\u0645\u0627\u0645 (NO)\u060C \u0623\u0628\u0642\u0650\u0647 \u0645\u0636\u063A\u0648\u0637\u064B\u0627",
+    "Pulsante Indietro (NA), tieni premuto": "\u0632\u0631 \u0627\u0644\u062E\u0644\u0641 (NO)\u060C \u0623\u0628\u0642\u0650\u0647 \u0645\u0636\u063A\u0648\u0637\u064B\u0627",
+    "Pulsante di emergenza a fungo, premi per bloccare o sbloccare": "\u0632\u0631 \u0627\u0644\u0637\u0648\u0627\u0631\u0626 \u0627\u0644\u0641\u0637\u0631\u064A\u060C \u0627\u0636\u063A\u0637 \u0644\u0644\u062A\u062B\u0628\u064A\u062A \u0623\u0648 \u0644\u0644\u062A\u062D\u0631\u064A\u0631",
+    "RESET": "\u0625\u0639\u0627\u062F\u0629 \u0627\u0644\u0636\u0628\u0637",
+    "Riarmo Termico": "\u0625\u0639\u0627\u062F\u0629 \u062A\u0633\u0644\u064A\u062D \u0627\u0644\u062D\u0631\u0627\u0631\u064A",
+    "Simula un sovraccarico": "\u0645\u062D\u0627\u0643\u0627\u0629 \u062D\u0645\u0644 \u0632\u0627\u0626\u062F",
+    "TERMICO": "\u062D\u0631\u0627\u0631\u064A"
+  };
+
   // src/i18n/ar.js
   var ROLE = { "del neutro": "\u0627\u0644\u0645\u062D\u0627\u064A\u062F", "di terra": "\u0627\u0644\u0623\u0631\u0636\u064A", "di fase": "\u0627\u0644\u0637\u0648\u0631", "a bassa tensione": "\u0627\u0644\u062C\u0647\u062F \u0627\u0644\u0645\u0646\u062E\u0641\u0636", "di comando": "\u0627\u0644\u062A\u062D\u0643\u0645" };
   var COLORI = { "blu": "\u0623\u0632\u0631\u0642", "giallo-verde": "\u0623\u0635\u0641\u0631-\u0623\u062E\u0636\u0631", "marrone, nero o grigio": "\u0628\u0646\u064A\u064B\u0651\u0627 \u0623\u0648 \u0623\u0633\u0648\u062F \u0623\u0648 \u0631\u0645\u0627\u062F\u064A\u064B\u0651\u0627", "rosso, marrone, nero o grigio": "\u0623\u062D\u0645\u0631 \u0623\u0648 \u0628\u0646\u064A\u064B\u0651\u0627 \u0623\u0648 \u0623\u0633\u0648\u062F \u0623\u0648 \u0631\u0645\u0627\u062F\u064A\u064B\u0651\u0627", "di un colore diverso da blu e giallo-verde": "\u0628\u0644\u0648\u0646 \u0645\u062E\u062A\u0644\u0641 \u0639\u0646 \u0627\u0644\u0623\u0632\u0631\u0642 \u0648\u0627\u0644\u0623\u0635\u0641\u0631-\u0627\u0644\u0623\u062E\u0636\u0631" };
@@ -6766,7 +7562,7 @@ html[lang="it"] .trnote{display:none}
     [/^(.+): (.+); atteso: (.+)\.$/, (m, t) => `${t(m[1])}: ${t(m[2])}\u061B \u0627\u0644\u0645\u062A\u0648\u0642\u0639: ${t(m[3])}.`],
     [/^Protezioni scattate: (.+)\.$/, (m, t) => `\u062D\u0645\u0627\u064A\u0627\u062A \u0641\u0635\u0644\u062A: ${t(m[1])}.`]
   ];
-  registerLang("ar", { ...ar_1_default, ...ar_2_default, ...ar_3_default, ...ar_4_default, ...ar_5_default, ...ar_6_default, ...ar_7_default, ...ar_8_default, ...ar_9_default, ...ar_10_default }, PAT);
+  registerLang("ar", { ...ar_1_default, ...ar_2_default, ...ar_3_default, ...ar_4_default, ...ar_5_default, ...ar_6_default, ...ar_7_default, ...ar_8_default, ...ar_9_default, ...ar_10_default, ...ar_11_default, ...ar_12_default }, PAT);
 
   // src/trilocale/house.js
   function houseState(session2, on = true) {
@@ -7495,6 +8291,9 @@ html[lang="it"] .trnote{display:none}
       e.preventDefault();
       setInfo(h.dataset.help);
     }
+  });
+  document.addEventListener("click", (e) => {
+    if (e.target.closest("[data-overload]")) session.setOverload(!S.overload);
   });
   $("#room").addEventListener("click", (e) => {
     const c2 = e.target.closest("[data-ctl]");

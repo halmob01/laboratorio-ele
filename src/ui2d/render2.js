@@ -197,7 +197,7 @@ export const V2_TYPES = new Set(['quadro', 'mt', 'rcd', 'mt3', 'sez', 'pb', 'pbn
 
 /* ---------- scena della stanza / della macchina (livelli v2) ---------- */
 const DEV = new Set(['lamp', 'spia', 'bell', 'presa', 'motor3']);
-const WALLCTL = { sw: 'tog', dev: 'tog', inv: 'tog', pb: 'hold', pbnc: 'hold', fungo: 'hold' };
+const WALLCTL = { sw: 'tog', dev: 'tog', inv: 'tog', pb: 'hold', pbnc: 'hold', fungo: 'mush' };
 
 // Struttura fissa della scena (gli id servono a updateRoomV2, che cambia solo classi e posizioni).
 export function roomV2HTML(level) {
@@ -238,7 +238,9 @@ export function roomV2HTML(level) {
   const ctl = (level.controls || []).map(id => level.comps.find(c => c.id === id)).filter(c => c && WALLCTL[c.type]);
   ctl.forEach((c, i) => {
     const x = Math.round(400 * (i + .5) / ctl.length), y = WALLCTL[c.type] === 'hold' ? 148 : 144;
-    if (WALLCTL[c.type] === 'hold') {
+    if (WALLCTL[c.type] === 'mush') {
+      o += `<g class="pl" data-ctl="${c.id}" role="button" tabindex="0" aria-label="${c.title || c.short}, premi per bloccare o sbloccare"><circle cx="${x}" cy="${y}" r="26" fill="transparent"/><circle cx="${x}" cy="${y}" r="22" fill="#F2C318" stroke="#7A5E1C" stroke-width="2"/><circle id="mu-${c.id}" cx="${x}" cy="${y}" r="15" fill="#C0262D" stroke="rgba(255,255,255,.45)" stroke-width="2"/><text x="${x}" y="${y + 38}" text-anchor="middle" style="font:600 11px 'IBM Plex Sans',sans-serif;fill:var(--ink2)">${c.short}</text></g>`;
+    } else if (WALLCTL[c.type] === 'hold') {
       const col = c.type === 'pb' ? '#2E9E5B' : '#C0262D';
       o += `<g class="pl" data-hold="${c.id}" role="button" tabindex="0" aria-label="${c.title || c.short}, tieni premuto" style="touch-action:none"><circle cx="${x}" cy="${y}" r="26" fill="transparent"/><circle class="plate" cx="${x}" cy="${y}" r="20"/><circle id="bt-${c.id}" cx="${x}" cy="${y}" r="13" fill="${col}" stroke="rgba(255,255,255,.45)" stroke-width="2"/><text x="${x}" y="${y + 36}" text-anchor="middle" style="font:600 11px 'IBM Plex Sans',sans-serif;fill:var(--ink2)">${c.short}</text></g>`;
     } else {
@@ -277,6 +279,8 @@ export function updateRoomV2(root, s) {
       set('rt-' + c.id, 'rk ' + (on ? 'hi' : 'lo')); set('rb-' + c.id, 'rk ' + (on ? 'lo' : 'hi'));
     } else if (WALLCTL[c.type] === 'hold') {
       const b = root.querySelector('#bt-' + c.id); if (b) b.setAttribute('opacity', s.controlStates[c.id] ? '.55' : '1');
+    } else if (WALLCTL[c.type] === 'mush') {
+      const b = root.querySelector('#mu-' + c.id); if (b) { b.setAttribute('r', s.controlStates[c.id] ? '11' : '15'); b.setAttribute('opacity', s.controlStates[c.id] ? '.7' : '1'); }
     }
   });
   const nt = root.querySelector('#night2');

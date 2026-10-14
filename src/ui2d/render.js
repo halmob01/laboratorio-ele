@@ -266,7 +266,8 @@ export function statusHTML(s) {
     const q2 = s.trip ? ['Quadro scattato', 'bad'] : s.selfPowered ? ['Impianto alimentato', 'ok'] : q;
     const run = Object.values(o.motors).some(v => v === 'fwd' || v === 'rev') || Object.values(o.loads).some(v => v === 'on');
     const trip = o.tripped.length ? '<span class="pill bad">Protezione scattata</span>' : '';
-    return `<span class="pill ${q2[1]}">${q2[0]}</span><span class="pill${run ? ' on' : ''}">${run ? 'Carico in funzione' : 'Carico fermo'}</span>${trip}<span class="msg" aria-live="polite">${msg}</span>`;
+    const ov = s.level.comps.some(c => c.type === 'ft') ? `<button class="pill pbtn${s.overload ? ' on' : ''}" data-overload="1" aria-pressed="${!!s.overload}">${s.overload ? 'Sovraccarico: attivo' : 'Simula un sovraccarico'}</button>` : '';
+    return `<span class="pill ${q2[1]}">${q2[0]}</span><span class="pill${run ? ' on' : ''}">${run ? 'Carico in funzione' : 'Carico fermo'}</span>${trip}${ov}<span class="msg" aria-live="polite">${msg}</span>`;
   }
   const multi = s.litLoads && s.litLoads.length > 1;
   const nOn = multi ? s.litLoads.filter(Boolean).length : 0;
