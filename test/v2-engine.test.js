@@ -2,6 +2,7 @@
 
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { doMeasures } from './misure.js';
 import { createSim, act, advance, observe, evaluateV2 } from '../src/engine/v2/index.js';
 
 const W = (...lines) => lines.map((l, i) => { const [a, b, c] = l.split(' '); return { id: 'w' + i, a, b, c: c || 'marrone' }; });
@@ -353,7 +354,7 @@ test('polarita della presa: fase e neutro scambiati sulla presa si vedono anche 
 /* ---------- sovraccarico e cavo (E1) ---------- */
 
 const MT_LINE = {
-  engine: 2, cable: { prot: 'QM', iz: 15.5, s: 1.5 },
+  engine: 2, cable: { prot: 'QM', iz: 14.5, s: 1.5 },
   comps: [Q1, comp('QM', 'mt', { in: 16, ratings: [10, 16, 20] }), comp('S1', 'sw'), comp('H1', 'lamp', { w: 2000 }), comp('S2', 'sw'), comp('H2', 'lamp', { w: 2000 })],
 };
 const mtWires = W('Q.F QM.1', 'QM.2 S1.a', 'QM.2 S2.a', 'S1.b H1.A', 'S2.b H2.A', 'Q.N QM.N1', 'QM.N2 H1.B', 'QM.N2 H2.B blu');
@@ -385,7 +386,7 @@ test('due stufe su 10 A: 17,4 A sono 1,74 In, scatta dopo qualche secondo e il c
   assert.equal(o.cable.burnt, false);
 });
 
-test('due stufe su 16 A: 1,09 In non scatta e il cavo da 1,5 mm2 (15,5 A) si surriscalda', () => {
+test('due stufe su 16 A: 1,09 In non scatta e il cavo da 1,5 mm2 (14,5 A) si surriscalda', () => {
   const s = createSim(MT_LINE, mtWires);
   act(s, 'toggle', 'S1'); act(s, 'toggle', 'S2');
   advance(s, 12);
@@ -400,4 +401,48 @@ test('la portata scelta entra nella verifica', () => {
   const bad = evaluateV2(L, mtWires, { ratings: { QM: 16 } });
   assert.equal(bad.work.ok, false);
   assert.equal(bad.work.items[0].code, 'work.cableBurnt');
+});
+
+/* ---------- revisione P1: stato di orologio, guasti e lavoro salvato ---------- */
+import { createSession as _cs } from '../src/engine/index.js';
+import { levels as _lv, deriveFull as _df } from '../src/content/index.js';
+
+test('c19: il magnetotermico aperto a mano durante il sovraccarico azzera il riscaldamento e ferma l\'orologio', () => {
+  const s = _cs({ levels: _lv, deriveFull: _df, initialLevel: 'c19-magnetotermico' });
+  s.skipLesson();
+  const L = _lv.find(l => l.id === 'c19-magnetotermico');
+  L.solution.forEach(([a, b, c]) => s.addWire(a, b, c));
+  s.toggleControl('S1'); s.toggleControl('S2');   // 17,4 A su un magnetotermico da 16 A: non scatta, il cavo scalda
+  s.tick(1);
+  assert.equal(s.snapshot().needsClock, true);
+  s.toggleControl('QM');                           // aperto a mano
+  for (let i = 0; i < 40; i++) s.tick(0.5);        // il cavo si raffredda
+  assert.equal(s.snapshot().needsClock, false);
+});
+
+test('c19: la portata scelta si salva e si ripristina con il lavoro', () => {
+  let saved = null;
+  const mk = () => _cs({ levels: _lv, deriveFull: _df, initialLevel: 'c19-magnetotermico', storage: { load: () => null, save: () => {}, saveWork: w => { saved = JSON.parse(JSON.stringify(w)); }, loadWork: () => saved } });
+  const s = mk();
+  s.skipLesson();
+  const L = _lv.find(l => l.id === 'c19-magnetotermico');
+  L.solution.forEach(([a, b, c]) => s.addWire(a, b, c));
+  s.rateControl('QM'); s.rateControl('QM');   // 16 -> 20 -> 10
+  assert.deepEqual(Object.values(saved.w)[0].ratings, { QM: 10 });
+  const s2 = mk();
+  s2.start();   // come all'apertura della pagina: ricarica il lavoro salvato
+  s2.skipLesson();
+  assert.equal(s2.check().pass, true);
+});
+
+test('c17: le letture del multimetro non sopravvivono a una modifica dei fili', () => {
+  const s = _cs({ levels: _lv, deriveFull: _df, initialLevel: 'c17-multimetro' });
+  s.skipLesson();
+  const L = _lv.find(l => l.id === 'c17-multimetro');
+  L.solution.forEach(([a, b, c]) => s.addWire(a, b, c));
+  doMeasures(s, L);
+  assert.equal(s.check().pass, true);
+  s.clear();
+  L.solution.forEach(([a, b, c]) => s.addWire(a, b, c));
+  assert.equal(s.check().pass, false);
 });

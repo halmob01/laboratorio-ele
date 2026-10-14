@@ -17,7 +17,7 @@ Tra 1,13 e 1,45 In la norma non impone né lo scatto né il non scatto: il gioco
 
 La portata Iz dipende da isolante, posa, temperatura e raggruppamento (CEI-UNEL 35024/1, CEI 64-8 art. 523).
 - Fonte consultata: [Nunzio Grieco, tabella portate](https://www.nunziogrieco.it/prontuario/elettrotecnica/tabella-portata-cavi-elettrici/) (norma datata UNEL 35011-72): rame PVC, unipolari in tubo, 2 conduttori caricati: 1,5 mm² 19,5 A; 2,5 mm² 24 A; 4 mm² 32 A; 6 mm² 41 A. Con il coefficiente 0,8 per la posa incassata: 15,6 A e 19,2 A (calcolo dalla regola della pagina, non valori in tabella).
-- Il gioco usa due valori prudenti e vicini a questi: **1,5 mm² = 15,5 A, 2,5 mm² = 21 A**, per una sola posa (cavi in tubo incassato) senza raggruppamento. Servono solo a far fallire 16 A su 1,5 mm² e a far passare 10 A su 1,5 e 16 A su 2,5.
+- Il gioco usa due valori prudenti e vicini a questi: **1,5 mm² = 14,5 A, 2,5 mm² = 19,5 A** (valori della posa A1 della tabella IEC 60364-5-52 / CEI-UNEL 35024/1, cavo in tubo in parete termicamente isolante, PVC, due conduttori caricati; la revisione del 14 ottobre li ha corretti rispetto ai 15,5 e 21 A usati prima), senza raggruppamento. Servono solo a far fallire 16 A su 1,5 mm² (17,4 A di due stufe sono oltre 14,5 A ma sotto 1,13 volte 16 A) e a far passare 10 A su 1,5 e 16 A su 2,5.
 - Stato: **da riconfermare** con la tabella aggiornata CEI-UNEL 35024/1 (la fonte letta è una norma più vecchia).
 
 ## Interruttori differenziali (CEI EN 61008-1, 61009-1)

@@ -201,7 +201,7 @@ function lineCurrent(sim, an, prot) {
 const closedProtections = (sim, kind) =>
   sim.level.comps.filter(c => partOf(c).protect && (!kind || partOf(c).protect === kind) && sim.parts[c.id].on);
 
-const trip = (sim, c) => { sim.parts[c.id].on = false; sim.parts[c.id].tripped = true; };
+const trip = (sim, c) => { sim.parts[c.id].on = false; sim.parts[c.id].tripped = true; sim.parts[c.id].heat = 0; };
 
 const hasFault = (an, codes) => an.faults.some(f => codes.includes(f.code));
 
@@ -304,7 +304,7 @@ export function act(sim, action, id) {
   else if (action === 'release') s.pressed = false;
   else if (action === 'toggle') {
     if ('pressed' in s && c.type === 'fungo') s.pressed = !s.pressed;
-    else { s.on = !s.on; if (s.on) { s.tripped = false; s.heat = 0; } }
+    else { s.on = !s.on; if (s.on) s.tripped = false; s.heat = 0; }
     if (s.on && sim.mainTrip && (p.protect || c.type === 'sez')) sim.mainTrip = false;
   } else if (action === 'rate' && c.type === 'gu' && c.levels) {
     s.mA = c.levels[(c.levels.indexOf(s.mA) + 1) % c.levels.length];
@@ -356,7 +356,8 @@ export function advance(sim, seconds) {
     // magnetotermici con portata: sopra 1,45 In scattano dopo qualche secondo; il cavo della linea scalda se supera la sua portata
     sim.level.comps.forEach(c => {
       const s = sim.parts[c.id];
-      if (c.type !== 'mt' || !s.in || !s.on) return;
+      if (c.type !== 'mt' || !s.in) return;
+      if (!s.on) { s.heat = 0; return; }
       const ratio = lineCurrent(sim, an, c.id) / s.in;
       s.heat = ratio > OVERLOAD_TRIP ? s.heat + STEP * (ratio > 3 ? 4 : 1) : Math.max(0, s.heat - STEP);
       if (s.heat >= (c.tripAfter || 3)) { trip(sim, c); s.heat = 0; }
@@ -364,7 +365,8 @@ export function advance(sim, seconds) {
     const cab = sim.level.cable;
     if (cab && sim.parts[cab.prot] && sim.parts[cab.prot].on) {
       const I = lineCurrent(sim, an, cab.prot);
-      sim.cableHeat = I > cab.iz ? sim.cableHeat + STEP : Math.max(0, sim.cableHeat - STEP);
+      // il calore cresce con il quadrato del rapporto I/Iz: poco sopra la portata scalda piano, molto sopra scalda in fretta
+      sim.cableHeat = I > cab.iz ? sim.cableHeat + STEP * Math.max(.25, Math.min(4, ((I / cab.iz) ** 2 - 1) * 2.3)) : Math.max(0, sim.cableHeat - STEP);
       if (sim.cableHeat >= (cab.burnAfter || 6)) sim.cableBurnt = true;
     } else sim.cableHeat = Math.max(0, sim.cableHeat - STEP);
     const m = sim.level.machine;
@@ -481,7 +483,7 @@ export function measure(sim, a, b, mode = 'V') {
     return { kind: 'v', value: v, ac: true };
   }
   const live = x => x && x !== 'N' && x !== 'PE';
-  if (live(pa) || live(pb)) return { kind: 'live' };
+  if (live(pa) || live(pb) || (sim.supply && !sim.mainTrip)) return { kind: 'live' };   // a impianto alimentato la continuità non si misura mai
   const ra = an.uf.f(a), rb = an.uf.f(b);
   if (ra === rb) return { kind: 'cont' };
   // ricerca del percorso piu' corto attraverso gli avvolgimenti

@@ -376,6 +376,7 @@ bench.addEventListener('keydown', e => {
   if (t) {
     e.preventDefault();
     const id = t.dataset.term;
+    if (S.meter && S.meter.on) { session.probe(id); return; }   // con il multimetro anche la tastiera posa i puntali
     if (SEL && SEL !== id) { const a = SEL; clearSel(); addWire(a, id); }
     else { clearSel(); SEL = id; t.classList.add('sel'); }
     return;

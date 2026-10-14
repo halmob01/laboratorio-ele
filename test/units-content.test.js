@@ -60,6 +60,11 @@ for (const L of withUnit.filter(l => l.unit.fault)) {
     s.clear();
     L.solution.forEach(([a, b, c]) => s.addWire(a, b, c));
     doMeasures(s, L); doRatings(s, L);
+    if (L.unit.fault.on) {
+      // con il guasto ancora acceso la verifica non passa: prima va tolto
+      assert.equal(s.check().pass, false);
+      L.unit.fault.on.forEach(id => s.toggleControl(id));
+    }
     assert.equal(s.check().pass, true);
     assert.equal(s.snapshot().unit.faultSolved, true);
   });

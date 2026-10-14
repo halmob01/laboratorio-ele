@@ -1314,6 +1314,7 @@ html[lang="it"] .trnote{display:none}
   var trip = (sim, c2) => {
     sim.parts[c2.id].on = false;
     sim.parts[c2.id].tripped = true;
+    sim.parts[c2.id].heat = 0;
   };
   var hasFault = (an, codes) => an.faults.some((f) => codes.includes(f.code));
   function protect(sim, an) {
@@ -1430,10 +1431,8 @@ html[lang="it"] .trnote{display:none}
       if ("pressed" in s && c2.type === "fungo") s.pressed = !s.pressed;
       else {
         s.on = !s.on;
-        if (s.on) {
-          s.tripped = false;
-          s.heat = 0;
-        }
+        if (s.on) s.tripped = false;
+        s.heat = 0;
       }
       if (s.on && sim.mainTrip && (p.protect || c2.type === "sez")) sim.mainTrip = false;
     } else if (action === "rate" && c2.type === "gu" && c2.levels) {
@@ -1481,7 +1480,11 @@ html[lang="it"] .trnote{display:none}
       });
       sim.level.comps.forEach((c2) => {
         const s = sim.parts[c2.id];
-        if (c2.type !== "mt" || !s.in || !s.on) return;
+        if (c2.type !== "mt" || !s.in) return;
+        if (!s.on) {
+          s.heat = 0;
+          return;
+        }
         const ratio = lineCurrent(sim, an, c2.id) / s.in;
         s.heat = ratio > OVERLOAD_TRIP ? s.heat + STEP * (ratio > 3 ? 4 : 1) : Math.max(0, s.heat - STEP);
         if (s.heat >= (c2.tripAfter || 3)) {
@@ -1492,7 +1495,7 @@ html[lang="it"] .trnote{display:none}
       const cab = sim.level.cable;
       if (cab && sim.parts[cab.prot] && sim.parts[cab.prot].on) {
         const I = lineCurrent(sim, an, cab.prot);
-        sim.cableHeat = I > cab.iz ? sim.cableHeat + STEP : Math.max(0, sim.cableHeat - STEP);
+        sim.cableHeat = I > cab.iz ? sim.cableHeat + STEP * Math.max(0.25, Math.min(4, ((I / cab.iz) ** 2 - 1) * 2.3)) : Math.max(0, sim.cableHeat - STEP);
         if (sim.cableHeat >= (cab.burnAfter || 6)) sim.cableBurnt = true;
       } else sim.cableHeat = Math.max(0, sim.cableHeat - STEP);
       const m = sim.level.machine;
@@ -1604,7 +1607,7 @@ html[lang="it"] .trnote{display:none}
       return { kind: "v", value: v, ac: true };
     }
     const live = (x) => x && x !== "N" && x !== "PE";
-    if (live(pa) || live(pb)) return { kind: "live" };
+    if (live(pa) || live(pb) || sim.supply && !sim.mainTrip) return { kind: "live" };
     const ra = an.uf.f(a), rb = an.uf.f(b);
     if (ra === rb) return { kind: "cont" };
     const adj = /* @__PURE__ */ new Map();
@@ -1777,6 +1780,10 @@ html[lang="it"] .trnote{display:none}
       if (missing.length) {
         out.work.ok = false;
         add("work", "work.measureMissing", { label: missing[0].label, n: missing.length });
+      }
+      if ((ctx.faultOn || []).length) {
+        out.work.ok = false;
+        add("work", "work.faultActive", { comp: ctx.faultOn[0] });
       }
     } else {
       const first = failed[0].r.fail;
@@ -2034,7 +2041,7 @@ html[lang="it"] .trnote{display:none}
       const s = obs2.parts[c2.id];
       if (!s) return false;
       if (c2.type === "tmr") return s.left > 0;
-      if (c2.type === "mt") return s.heat > 0 || obs2.cable && (obs2.cable.heat > 0 || obs2.cable.amps > obs2.cable.iz) || !!s.in && !!s.on && !s.tripped && !!(obs2.lines && obs2.lines[c2.id] && obs2.lines[c2.id].ratio > 1.45);
+      if (c2.type === "mt") return s.heat > 0 || obs2.cable && !obs2.cable.burnt && (obs2.cable.heat > 0 || obs2.cable.amps > obs2.cable.iz) || !!s.in && !!s.on && !s.tripped && !!(obs2.lines && obs2.lines[c2.id] && obs2.lines[c2.id].ratio > 1.45);
       if (c2.type === "ft") return !s.tripped && (s.heat > 0 || Object.values(obs2.motors).some((m) => m === "hum" || obs2.overload && running(m)));
       return false;
     }) || !!level.machine && !!obs2.machine && Object.values(obs2.motors).some((m) => m === "fwd" && !obs2.machine.atEnd || m === "rev" && !obs2.machine.atStart);
@@ -2121,7 +2128,7 @@ html[lang="it"] .trnote{display:none}
     const record = () => progress.best[progressKey(levelAt().id)] || (progress.best[progressKey(levelAt().id)] = { base: 0, pred: false, fault: false, skipped: false });
     const ratingsOf = (i = levelIndex) => {
       const sim = simsByKey[keyOf(i, "quadro")];
-      const out = {};
+      const out = { ...ratingsSaved[keyOf(i, "quadro")] || {} };
       if (sim) levels2[i].comps.forEach((c2) => {
         if (c2.type === "mt" && sim.parts[c2.id] && sim.parts[c2.id].in) out[c2.id] = sim.parts[c2.id].in;
       });
@@ -2142,6 +2149,7 @@ html[lang="it"] .trnote{display:none}
       m.last = k;
       (measuredBy[keyOf()] = measuredBy[keyOf()] || []).push({ a: m.a, b: m.b, mode: m.mode, kind: r.kind, value: r.value === void 0 ? null : r.value, ohm: r.ohm || null, live: !!power });
     }
+    const ratingsSaved = {};
     const operated = () => operatedByKey[keyOf()] || (operatedByKey[keyOf()] = []);
     const v2 = (level = levelAt()) => isV2(level);
     const dropSim = () => {
@@ -2153,7 +2161,7 @@ html[lang="it"] .trnote{display:none}
       if (!old || !selfPowered(lv)) return;
       const sim = simFor();
       lv.comps.forEach((c2) => {
-        if (["mt", "mt3", "sez", "rcd", "sw"].includes(c2.type) && old.parts[c2.id]) {
+        if (["mt", "mt3", "sez", "rcd", "sw", "gu"].includes(c2.type) && old.parts[c2.id]) {
           Object.assign(sim.parts[c2.id], JSON.parse(JSON.stringify(old.parts[c2.id])));
         }
       });
@@ -2163,6 +2171,13 @@ html[lang="it"] .trnote{display:none}
       const k = keyOf();
       if (!simsByKey[k]) {
         const sim = createSim(levelAt(), wires());
+        const sr = ratingsSaved[k];
+        delete ratingsSaved[k];
+        if (sr) levelAt().comps.forEach((c2) => {
+          if (c2.type === "mt" && c2.ratings && c2.ratings.includes(sr[c2.id]) && sim.parts[c2.id]) {
+            sim.parts[c2.id].in = sr[c2.id];
+          }
+        });
         if (sim.supply !== power) setSupply(sim, power);
         simsByKey[k] = sim;
       }
@@ -2273,8 +2288,18 @@ html[lang="it"] .trnote{display:none}
       if (u && u.phase === "fault") return;
       const ws = (wiresByKey[keyOf()] || []).map((x) => ({ id: x.id, a: x.a, b: x.b, c: x.c }));
       const st = { ...statesByKey[keyOf()] || {} };
-      if (ws.length || Object.keys(st).length) work.w[workKeyOf(levelIndex, mode)] = { wires: ws, states: st };
-      else delete work.w[workKeyOf(levelIndex, mode)];
+      const rt = {};
+      const rs = mode === "quadro" ? ratingsOf() : {};
+      l.comps.forEach((c2) => {
+        if (rs[c2.id] && rs[c2.id] !== c2.in) rt[c2.id] = rs[c2.id];
+      });
+      const ms = (measuredBy[keyOf()] || []).slice(0, 100);
+      if (ws.length || Object.keys(st).length || Object.keys(rt).length || ms.length) {
+        const e = { wires: ws, states: st };
+        if (Object.keys(rt).length) e.ratings = rt;
+        if (ms.length) e.measured = ms;
+        work.w[workKeyOf(levelIndex, mode)] = e;
+      } else delete work.w[workKeyOf(levelIndex, mode)];
       if (u && l.unit) {
         if (u.phase === "lesson" && !u.page) delete work.u[l.id];
         else work.u[l.id] = { phase: u.phase, page: u.page || 0, pred: u.pred ? { option: u.pred.option, correct: !!u.pred.correct } : null };
@@ -2323,7 +2348,25 @@ html[lang="it"] .trnote{display:none}
           });
           wiresByKey[keyOf(i, m)] = ws;
           statesByKey[keyOf(i, m)] = st;
-          if (ws.length || Object.keys(st).length) work.w[workKeyOf(i, m)] = { wires: ws.map((x) => ({ ...x })), states: { ...st } };
+          const entry = { wires: ws.map((x) => ({ ...x })), states: { ...st } };
+          if (isObj(e2.ratings)) {
+            const rt = {};
+            lv.comps.forEach((c2) => {
+              if (c2.type === "mt" && c2.ratings && c2.ratings.includes(e2.ratings[c2.id])) rt[c2.id] = e2.ratings[c2.id];
+            });
+            if (Object.keys(rt).length) {
+              ratingsSaved[keyOf(i, m)] = rt;
+              entry.ratings = { ...rt };
+            }
+          }
+          if (Array.isArray(e2.measured)) {
+            const ms = e2.measured.slice(0, 100).filter((x) => isObj(x) && typeof x.a === "string" && typeof x.b === "string" && typeof x.mode === "string" && typeof x.kind === "string" && known.has(x.a) && known.has(x.b)).map((x) => ({ a: x.a, b: x.b, mode: x.mode, kind: x.kind, value: typeof x.value === "number" ? x.value : null, ohm: typeof x.ohm === "number" ? x.ohm : null, live: !!x.live }));
+            if (ms.length) {
+              measuredBy[keyOf(i, m)] = ms;
+              entry.measured = ms.map((x) => ({ ...x }));
+            }
+          }
+          if (ws.length || Object.keys(st).length || entry.ratings || entry.measured) work.w[workKeyOf(i, m)] = entry;
         });
         const e = isObj(data.u) ? data.u[l.id] : null;
         if (!isObj(e) || !l.unit || !["lesson", "build", "done"].includes(e.phase)) return;
@@ -2365,6 +2408,8 @@ html[lang="it"] .trnote{display:none}
         wiresByKey[keyOf(levelIndex, "quadro")] = us.before.wires;
         statesByKey[keyOf(levelIndex, "quadro")] = us.before.states;
         resultsByKey[keyOf(levelIndex, "quadro")] = us.before.result;
+        measuredBy[keyOf(levelIndex, "quadro")] = us.before.measured || [];
+        if (us.before.ratings && Object.keys(us.before.ratings).length) ratingsSaved[keyOf(levelIndex, "quadro")] = us.before.ratings;
         us.before = null;
       }
     }
@@ -2417,6 +2462,8 @@ html[lang="it"] .trnote{display:none}
     }
     function wiresChanged() {
       resultsByKey[keyOf()] = null;
+      delete measuredBy[keyOf()];
+      if (meterBy[keyOf()]) meterBy[keyOf()].last = "";
       rewireSim();
       if (selfPowered(levelAt())) {
         power = true;
@@ -2695,7 +2742,8 @@ html[lang="it"] .trnote{display:none}
       },
       check() {
         const level = levelAt();
-        const r = v2(level) ? evaluateV2(level, wires(), { measured: measuredBy[keyOf()] || [], ratings: ratingsOf() }) : evaluate(level, wires());
+        const faultOn = v2(level) && level.unit && level.unit.fault && unitState().phase === "fault" ? (level.unit.fault.on || []).filter((id) => simFor().parts[id] && simFor().parts[id].on) : [];
+        const r = v2(level) ? evaluateV2(level, wires(), { measured: measuredBy[keyOf()] || [], ratings: ratingsOf(), faultOn }) : evaluate(level, wires());
         resultsByKey[keyOf()] = r;
         const u = usage();
         u.checks++;
@@ -2791,8 +2839,9 @@ html[lang="it"] .trnote{display:none}
         const level = levelAt();
         const us = level.unit && level.unit.fault && unitState();
         if (!us || !["done", "fault"].includes(us.phase) || playMode === "verifica" || mode !== "quadro") return;
-        if (us.phase === "done") us.before = { wires: (wiresByKey[keyOf()] || []).slice(), states: { ...statesByKey[keyOf()] || {} }, result: resultsByKey[keyOf()] || null };
+        if (us.phase === "done") us.before = { wires: (wiresByKey[keyOf()] || []).slice(), states: { ...statesByKey[keyOf()] || {} }, result: resultsByKey[keyOf()] || null, measured: (measuredBy[keyOf()] || []).slice(), ratings: ratingsOf() };
         resetLevelState();
+        delete measuredBy[keyOf()];
         wiresByKey[keyOf()] = level.unit.fault.wires.map(([a, b, c2]) => ({ id: nextWireId++, a, b, c: c2 }));
         statesByKey[keyOf()] = {};
         resultsByKey[keyOf()] = null;
@@ -3752,7 +3801,7 @@ html[lang="it"] .trnote{display:none}
       title: "Il magnetotermico",
       blurb: "La portata dell\u2019interruttore e quella del cavo: due stufe su una linea.",
       goal: "Una linea in cavo da 1,5 mm\xB2 alimenta due stufe da 2000 W, ognuna con il suo interruttore. Collega la linea e scegli la portata del magnetotermico (tocca il numero sull\u2019interruttore): con una stufa deve restare acceso, con due deve scattare prima che il cavo si scaldi.",
-      cable: { prot: "QM", iz: 15.5, s: 1.5, burnAfter: 6 },
+      cable: { prot: "QM", iz: 14.5, s: 1.5, burnAfter: 6 },
       comps: [
         QM,
         C("QM", "mt", "Magnetotermico", "Magnetotermico della linea", { "1": { l: "1" }, "2": { l: "2" }, N1: { l: "N" }, N2: { l: "N" } }, { in: 16, ratings: [10, 16, 20] }),
@@ -3787,7 +3836,7 @@ html[lang="it"] .trnote{display:none}
       hints: [
         "La fase entra dal morsetto 1 del magnetotermico ed esce dal morsetto 2, poi si divide verso i due interruttori delle stufe.",
         "Il neutro passa dal magnetotermico (N-N) e poi va alle due stufe.",
-        "La portata si cambia toccando il numero sull\u2019interruttore. Con una stufa passano 8,7 A; con due 17,4 A. Il cavo regge 15,5 A."
+        "La portata si cambia toccando il numero sull\u2019interruttore. Con una stufa passano 8,7 A; con due 17,4 A. Il cavo regge 14,5 A."
       ]
     },
     {
@@ -4530,7 +4579,7 @@ html[lang="it"] .trnote{display:none}
             title: "Quanta corrente passa nel cavo",
             paras: [
               "La corrente di un apparecchio si ricava dalla potenza: corrente = potenza diviso tensione. Una stufa da 2000 W a 230 V assorbe circa 8,7 A. Due stufe sulla stessa linea ne assorbono circa 17,4.",
-              "Ogni cavo regge una corrente massima, la portata, che dipende dalla sezione e da come \xE8 posato. Un cavo da 1,5 mm\xB2 in tubo incassato regge circa 15,5 A (valore del gioco). Se passa di pi\xF9, si scalda."
+              "Ogni cavo regge una corrente massima, la portata, che dipende dalla sezione e da come \xE8 posato. Un cavo da 1,5 mm\xB2 in tubo incassato regge circa 14,5 A (valore del gioco). Se passa di pi\xF9, si scalda."
             ]
           },
           {
@@ -4571,14 +4620,14 @@ html[lang="it"] .trnote{display:none}
           },
           {
             type: "previsione",
-            question: "Una linea in cavo da 1,5 mm\xB2 (portata 15,5 A) ha un magnetotermico da 16 A. Si accendono due stufe: 17,4 A. Che cosa succede?",
+            question: "Una linea in cavo da 1,5 mm\xB2 (portata 14,5 A) ha un magnetotermico da 16 A. Si accendono due stufe: 17,4 A. Che cosa succede?",
             options: [
               { id: "a", text: "Il magnetotermico scatta subito: 17,4 A sono pi\xF9 di 16 A." },
               { id: "b", text: "Il magnetotermico non scatta e il cavo si scalda oltre la sua portata." },
               { id: "c", text: "Il cavo si adatta alla corrente." }
             ],
             correct: "b",
-            why: "17,4 A sono solo 1,09 volte i 16 A: sotto 1,13 In il magnetotermico non scatta mai. Ma il cavo regge 15,5 A: la corrente \xE8 oltre la sua portata e nessuno la interrompe. Con un magnetotermico da 10 A la stessa corrente \xE8 1,74 volte la portata e scatta."
+            why: "17,4 A sono solo 1,09 volte i 16 A: sotto 1,13 In il magnetotermico non scatta mai. Ma il cavo regge 14,5 A: la corrente \xE8 oltre la sua portata e nessuno la interrompe. Con un magnetotermico da 10 A la stessa corrente \xE8 1,74 volte la portata e scatta."
           },
           { type: "sintesi", title: "Da ricordare" }
         ]
@@ -4592,7 +4641,7 @@ html[lang="it"] .trnote{display:none}
         { kind: "wire", from: "Q.N", to: ["QM.N1"], color: "blu", short: "6 Neutro", title: "Il neutro al magnetotermico", text: "Dal NEUTRO del quadro al morsetto N in alto del magnetotermico." },
         { kind: "wire", from: "QM.N2", to: ["H1.B"], color: "blu", short: "7 Neutro 1", title: "Il neutro alla stufa 1", text: "Dal morsetto N in basso del magnetotermico alla stufa 1." },
         { kind: "wire", from: "QM.N2", to: ["H2.B"], color: "blu", short: "8 Neutro 2", title: "Il neutro alla stufa 2", text: "Dallo stesso morsetto N alla stufa 2." },
-        { kind: "rate", id: "QM", value: 10, short: "9 Portata", title: "Scegli la portata", text: "Tocca il numero sul magnetotermico fino a 10 A: il cavo regge 15,5 A e una stufa assorbe 8,7 A." },
+        { kind: "rate", id: "QM", value: 10, short: "9 Portata", title: "Scegli la portata", text: "Tocca il numero sul magnetotermico fino a 10 A: il cavo regge 14,5 A e una stufa assorbe 8,7 A." },
         { kind: "control", id: "S1", short: "10 Una stufa", title: "Prova una stufa", text: "Chiudi l\u2019interruttore della stufa 1: resta accesa e il magnetotermico non scatta." },
         { kind: "control", id: "S2", short: "11 Due stufe", title: "Prova due stufe", text: "Chiudi anche l\u2019interruttore della stufa 2 e aspetta qualche secondo: il magnetotermico scatta." },
         { kind: "verify", short: "12 Verifica", title: "Controlla l\u2019impianto", text: "Riarma il magnetotermico e premi Verifica." }
@@ -4623,7 +4672,7 @@ html[lang="it"] .trnote{display:none}
             { id: "c", text: "Le stufe sono collegate in serie." }
           ],
           correct: "a",
-          why: "Con due stufe passano 17,4 A: il cavo da 1,5 mm\xB2 regge 15,5 A. Il magnetotermico da 16 A non scatta, perch\xE9 17,4 A sono sotto 1,13 volte i 16 A, e il cavo si scalda. La portata dell\u2019interruttore deve essere minore o uguale a quella del cavo: 10 A."
+          why: "Con due stufe passano 17,4 A: il cavo da 1,5 mm\xB2 regge 14,5 A. Il magnetotermico da 16 A non scatta, perch\xE9 17,4 A sono sotto 1,13 volte i 16 A, e il cavo si scalda. La portata dell\u2019interruttore deve essere minore o uguale a quella del cavo: 10 A."
         },
         fixSay: "Porta la portata del magnetotermico a 10 A, poi premi Verifica."
       }
@@ -6006,6 +6055,8 @@ html[lang="it"] .trnote{display:none}
         const why = item.cause && item.cause !== "work.checkFail" ? itemText({ code: item.cause, comp: item.comp }, level) : item.comp === "tripped" ? "Protezioni scattate: " + (item.got || "nessuna") + "." : nameOf(level, item.comp) + ": " + stateText(item.got) + "; atteso: " + stateText(item.want) + ".";
         return "Prova non superata: " + item.label + ". " + why;
       }
+      case "work.faultActive":
+        return "Il guasto \xE8 ancora attivo: scollega l\u2019apparecchio difettoso (tocca il pannello del guasto) prima di verificare.";
       case "work.measureMissing":
         return "Prima di verificare serve ancora una misura con il multimetro: " + item.label + ".";
       case "work.checkMore":
@@ -6437,8 +6488,8 @@ html[lang="it"] .trnote{display:none}
   var HALF = 185;
   var KIND = {
     quadro: [FULL, 100, null, ["L1", "L2", "L3", "F", "N", "PE"]],
-    mt: [HALF, 120, ["1", "N1"], ["2", "N2"]],
-    rcd: [HALF, 120, ["1", "N1"], ["2", "N2"]],
+    mt: [HALF, 160, ["1", "N1"], ["2", "N2"]],
+    rcd: [HALF, 160, ["1", "N1"], ["2", "N2"]],
     mt3: [FULL, 120, ["1", "3", "5"], ["2", "4", "6"]],
     sez: [FULL, 120, ["1", "3", "5"], ["2", "4", "6"]],
     pb: [HALF, 110, ["3"], ["4"]],
@@ -6596,10 +6647,10 @@ html[lang="it"] .trnote{display:none}
         o += lever(w / 2, mid, part.on, part.tripped);
         if (c2.type === "mt" && part.in) {
           const amps = obs2.lines && obs2.lines[c2.id] ? obs2.lines[c2.id].amps : 0;
-          o += `<g class="tbtn" data-rate="${c2.id}" role="button" tabindex="0" aria-label="Portata ${c2.short}: ${part.in} ampere. Tocca per cambiarla"><rect x="${w / 2 + 28}" y="${mid - 14}" width="50" height="28" rx="5" fill="#EDE7D4" stroke="var(--comp-edge)" stroke-width="1.4"/><text x="${w / 2 + 53}" y="${mid + 5}" text-anchor="middle" style="font:600 13px 'IBM Plex Mono',monospace;fill:#222">${part.in} A</text></g>`;
-          o += lab(w / 2 + 53, mid + 30, amps ? amps.toFixed(1).replace(".", ",") + " A" : "0 A");
+          o += `<g class="tbtn" data-rate="${c2.id}" role="button" tabindex="0" aria-label="Portata ${c2.short}: ${part.in} ampere. Tocca per cambiarla"><rect x="${w / 2 - 25}" y="${h - 50}" width="50" height="26" rx="5" fill="#EDE7D4" stroke="var(--comp-edge)" stroke-width="1.4"/><text x="${w / 2}" y="${h - 32}" text-anchor="middle" style="font:600 13px 'IBM Plex Mono',monospace;fill:#222">${part.in} A</text></g>`;
+          o += lab(w / 2, h - 12, amps ? amps.toFixed(1).replace(".", ",") + " A" : "0 A");
         }
-        if (c2.type === "rcd") o += `<g class="tbtn" data-test="${c2.id}" role="button" tabindex="0" aria-label="Tasto di prova ${c2.short}"><rect x="${w / 2 + 28}" y="${mid - 12}" width="30" height="24" rx="5" fill="#EDE7D4" stroke="var(--comp-edge)" stroke-width="1.4"/><text x="${w / 2 + 43}" y="${mid + 5}" text-anchor="middle" style="font:600 12px 'IBM Plex Mono',monospace;fill:#222">T</text></g>`;
+        if (c2.type === "rcd") o += `<g class="tbtn" data-test="${c2.id}" role="button" tabindex="0" aria-label="Tasto di prova ${c2.short}"><rect x="${w / 2 - 15}" y="${h - 46}" width="30" height="24" rx="5" fill="#EDE7D4" stroke="var(--comp-edge)" stroke-width="1.4"/><text x="${w / 2}" y="${h - 29}" text-anchor="middle" style="font:600 12px 'IBM Plex Mono',monospace;fill:#222">T</text></g>`;
         break;
       }
       case "mt3":
@@ -9302,12 +9353,12 @@ html[lang="it"] .trnote{display:none}
     "REL\xC8": "\u0627\u0644\u0645\u0631\u062D\u0651\u0644",
     "Rossa": "\u0627\u0644\u0623\u062D\u0645\u0631",
     "Verde": "\u0627\u0644\u0623\u062E\u0636\u0631",
-    "17,4 A sono solo 1,09 volte i 16 A: sotto 1,13 In il magnetotermico non scatta mai. Ma il cavo regge 15,5 A: la corrente \xE8 oltre la sua portata e nessuno la interrompe. Con un magnetotermico da 10 A la stessa corrente \xE8 1,74 volte la portata e scatta.": "17,4 \u0623\u0645\u0628\u064A\u0631 \u0647\u064A 1,09 \u0645\u0631\u0629 \u0641\u0642\u0637 \u0645\u0646 16 \u0623\u0645\u0628\u064A\u0631: \u0648\u062A\u062D\u062A 1,13 In \u0644\u0627 \u064A\u0641\u0635\u0644 \u0627\u0644\u0642\u0627\u0637\u0639 \u0623\u0628\u062F\u064B\u0627. \u0644\u0643\u0646 \u0627\u0644\u0643\u0627\u0628\u0644 \u064A\u062A\u062D\u0645\u0644 15,5 \u0623\u0645\u0628\u064A\u0631: \u0627\u0644\u062A\u064A\u0627\u0631 \u0623\u0639\u0644\u0649 \u0645\u0646 \u0633\u0639\u062A\u0647 \u0648\u0644\u0627 \u0623\u062D\u062F \u064A\u0642\u0637\u0639\u0647. \u0648\u0645\u0639 \u0642\u0627\u0637\u0639 10 \u0623\u0645\u0628\u064A\u0631 \u064A\u0643\u0648\u0646 \u0627\u0644\u062A\u064A\u0627\u0631 \u0646\u0641\u0633\u0647 1,74 \u0645\u0631\u0629 \u0645\u0646 \u0627\u0644\u0633\u0639\u0629 \u0641\u064A\u0641\u0635\u0644.",
+    "17,4 A sono solo 1,09 volte i 16 A: sotto 1,13 In il magnetotermico non scatta mai. Ma il cavo regge 14,5 A: la corrente \xE8 oltre la sua portata e nessuno la interrompe. Con un magnetotermico da 10 A la stessa corrente \xE8 1,74 volte la portata e scatta.": "17,4 \u0623\u0645\u0628\u064A\u0631 \u0647\u064A 1,09 \u0645\u0631\u0629 \u0641\u0642\u0637 \u0645\u0646 16 \u0623\u0645\u0628\u064A\u0631: \u0648\u062A\u062D\u062A 1,13 In \u0644\u0627 \u064A\u0641\u0635\u0644 \u0627\u0644\u0642\u0627\u0637\u0639 \u0623\u0628\u062F\u064B\u0627. \u0644\u0643\u0646 \u0627\u0644\u0643\u0627\u0628\u0644 \u064A\u062A\u062D\u0645\u0644 14,5 \u0623\u0645\u0628\u064A\u0631: \u0627\u0644\u062A\u064A\u0627\u0631 \u0623\u0639\u0644\u0649 \u0645\u0646 \u0633\u0639\u062A\u0647 \u0648\u0644\u0627 \u0623\u062D\u062F \u064A\u0642\u0637\u0639\u0647. \u0648\u0645\u0639 \u0642\u0627\u0637\u0639 10 \u0623\u0645\u0628\u064A\u0631 \u064A\u0643\u0648\u0646 \u0627\u0644\u062A\u064A\u0627\u0631 \u0646\u0641\u0633\u0647 1,74 \u0645\u0631\u0629 \u0645\u0646 \u0627\u0644\u0633\u0639\u0629 \u0641\u064A\u0641\u0635\u0644.",
     "All\u2019interruttore della stufa 1": "\u0625\u0644\u0649 \u0645\u0641\u062A\u0627\u062D \u0627\u0644\u0645\u062F\u0641\u0623\u0629 1",
     "All\u2019interruttore della stufa 2": "\u0625\u0644\u0649 \u0645\u0641\u062A\u0627\u062D \u0627\u0644\u0645\u062F\u0641\u0623\u0629 2",
     "Chiudi anche l\u2019interruttore della stufa 2 e aspetta qualche secondo: il magnetotermico scatta.": "\u0623\u063A\u0644\u0642 \u0623\u064A\u0636\u064B\u0627 \u0645\u0641\u062A\u0627\u062D \u0627\u0644\u0645\u062F\u0641\u0623\u0629 2 \u0648\u0627\u0646\u062A\u0638\u0631 \u0628\u0636\u0639 \u062B\u0648\u0627\u0646\u064D: \u064A\u0641\u0635\u0644 \u0627\u0644\u0642\u0627\u0637\u0639 \u0627\u0644\u0645\u063A\u0646\u0627\u0637\u064A\u0633\u064A \u0627\u0644\u062D\u0631\u0627\u0631\u064A.",
     "Chiudi l\u2019interruttore della stufa 1: resta accesa e il magnetotermico non scatta.": "\u0623\u063A\u0644\u0642 \u0645\u0641\u062A\u0627\u062D \u0627\u0644\u0645\u062F\u0641\u0623\u0629 1: \u062A\u0628\u0642\u0649 \u0645\u0634\u063A\u0651\u0644\u0629 \u0648\u0644\u0627 \u064A\u0641\u0635\u0644 \u0627\u0644\u0642\u0627\u0637\u0639 \u0627\u0644\u0645\u063A\u0646\u0627\u0637\u064A\u0633\u064A \u0627\u0644\u062D\u0631\u0627\u0631\u064A.",
-    "Con due stufe passano 17,4 A: il cavo da 1,5 mm\xB2 regge 15,5 A. Il magnetotermico da 16 A non scatta, perch\xE9 17,4 A sono sotto 1,13 volte i 16 A, e il cavo si scalda. La portata dell\u2019interruttore deve essere minore o uguale a quella del cavo: 10 A.": "\u0645\u0639 \u0645\u062F\u0641\u0623\u062A\u064A\u0646 \u064A\u0645\u0631 17,4 \u0623\u0645\u0628\u064A\u0631: \u0627\u0644\u0643\u0627\u0628\u0644 1,5 \u0645\u0645\xB2 \u064A\u062A\u062D\u0645\u0644 15,5 \u0623\u0645\u0628\u064A\u0631. \u0627\u0644\u0642\u0627\u0637\u0639 16 \u0623\u0645\u0628\u064A\u0631 \u0644\u0627 \u064A\u0641\u0635\u0644\u060C \u0644\u0623\u0646 17,4 \u0623\u0645\u0628\u064A\u0631 \u0623\u0642\u0644 \u0645\u0646 1,13 \u0645\u0631\u0629 \u0645\u0646 16\u060C \u0641\u064A\u0633\u062E\u0646 \u0627\u0644\u0643\u0627\u0628\u0644. \u064A\u062C\u0628 \u0623\u0646 \u062A\u0643\u0648\u0646 \u0633\u0639\u0629 \u0627\u0644\u0642\u0627\u0637\u0639 \u0623\u0635\u063A\u0631 \u0645\u0646 \u0633\u0639\u0629 \u0627\u0644\u0643\u0627\u0628\u0644 \u0623\u0648 \u0645\u0633\u0627\u0648\u064A\u0629 \u0644\u0647\u0627: 10 \u0623\u0645\u0628\u064A\u0631.",
+    "Con due stufe passano 17,4 A: il cavo da 1,5 mm\xB2 regge 14,5 A. Il magnetotermico da 16 A non scatta, perch\xE9 17,4 A sono sotto 1,13 volte i 16 A, e il cavo si scalda. La portata dell\u2019interruttore deve essere minore o uguale a quella del cavo: 10 A.": "\u0645\u0639 \u0645\u062F\u0641\u0623\u062A\u064A\u0646 \u064A\u0645\u0631 17,4 \u0623\u0645\u0628\u064A\u0631: \u0627\u0644\u0643\u0627\u0628\u0644 1,5 \u0645\u0645\xB2 \u064A\u062A\u062D\u0645\u0644 14,5 \u0623\u0645\u0628\u064A\u0631. \u0627\u0644\u0642\u0627\u0637\u0639 16 \u0623\u0645\u0628\u064A\u0631 \u0644\u0627 \u064A\u0641\u0635\u0644\u060C \u0644\u0623\u0646 17,4 \u0623\u0645\u0628\u064A\u0631 \u0623\u0642\u0644 \u0645\u0646 1,13 \u0645\u0631\u0629 \u0645\u0646 16\u060C \u0641\u064A\u0633\u062E\u0646 \u0627\u0644\u0643\u0627\u0628\u0644. \u064A\u062C\u0628 \u0623\u0646 \u062A\u0643\u0648\u0646 \u0633\u0639\u0629 \u0627\u0644\u0642\u0627\u0637\u0639 \u0623\u0635\u063A\u0631 \u0645\u0646 \u0633\u0639\u0629 \u0627\u0644\u0643\u0627\u0628\u0644 \u0623\u0648 \u0645\u0633\u0627\u0648\u064A\u0629 \u0644\u0647\u0627: 10 \u0623\u0645\u0628\u064A\u0631.",
     "Corrente di impiego, portata dell\u2019interruttore, portata del cavo: Ib \u2264 In \u2264 Iz. L\u2019interruttore deve reggere l\u2019uso normale e deve scattare prima che il cavo si scaldi.": "\u062A\u064A\u0627\u0631 \u0627\u0644\u0627\u0633\u062A\u0639\u0645\u0627\u0644\u060C \u0633\u0639\u0629 \u0627\u0644\u0642\u0627\u0637\u0639\u060C \u0633\u0639\u0629 \u0627\u0644\u0643\u0627\u0628\u0644: Ib \u2264 In \u2264 Iz. \u064A\u062C\u0628 \u0623\u0646 \u064A\u062A\u062D\u0645\u0644 \u0627\u0644\u0642\u0627\u0637\u0639 \u0627\u0644\u0627\u0633\u062A\u0639\u0645\u0627\u0644 \u0627\u0644\u0639\u0627\u062F\u064A \u0648\u0623\u0646 \u064A\u0641\u0635\u0644 \u0642\u0628\u0644 \u0623\u0646 \u064A\u0633\u062E\u0646 \u0627\u0644\u0643\u0627\u0628\u0644.",
     "Dal NEUTRO del quadro al morsetto N in alto del magnetotermico.": "\u0645\u0646 \u0645\u062D\u0627\u064A\u062F \u0627\u0644\u0644\u0648\u062D\u0629 \u0625\u0644\u0649 \u0627\u0644\u0645\u0631\u0628\u0637 N \u0627\u0644\u0639\u0644\u0648\u064A \u0641\u064A \u0627\u0644\u0642\u0627\u0637\u0639 \u0627\u0644\u0645\u063A\u0646\u0627\u0637\u064A\u0633\u064A \u0627\u0644\u062D\u0631\u0627\u0631\u064A.",
     "Dal morsetto 2 del magnetotermico al morsetto 1 dell\u2019interruttore della stufa 1.": "\u0645\u0646 \u0627\u0644\u0645\u0631\u0628\u0637 2 \u0641\u064A \u0627\u0644\u0642\u0627\u0637\u0639 \u0627\u0644\u0645\u063A\u0646\u0627\u0637\u064A\u0633\u064A \u0627\u0644\u062D\u0631\u0627\u0631\u064A \u0625\u0644\u0649 \u0627\u0644\u0645\u0631\u0628\u0637 1 \u0641\u064A \u0645\u0641\u062A\u0627\u062D \u0627\u0644\u0645\u062F\u0641\u0623\u0629 1.",
@@ -9350,12 +9401,12 @@ html[lang="it"] .trnote{display:none}
     "La linea \xE8 gi\xE0 cablata e le due stufe funzionano. Accendile tutte e due, aspetta qualche secondo e guarda il cavo.": "\u0627\u0644\u062E\u0637 \u0645\u0648\u0635\u0648\u0644 \u0623\u0635\u0644\u064B\u0627 \u0648\u0627\u0644\u0645\u062F\u0641\u0623\u062A\u0627\u0646 \u062A\u0639\u0645\u0644\u0627\u0646. \u0634\u063A\u0651\u0644\u0647\u0645\u0627 \u0645\u0639\u064B\u0627 \u0648\u0627\u0646\u062A\u0638\u0631 \u0628\u0636\u0639 \u062B\u0648\u0627\u0646\u064D \u0648\u0631\u0627\u0642\u0628 \u0627\u0644\u0643\u0627\u0628\u0644.",
     "La portata del magnetotermico": "\u0633\u0639\u0629 \u0627\u0644\u0642\u0627\u0637\u0639 \u0627\u0644\u0645\u063A\u0646\u0627\u0637\u064A\u0633\u064A \u0627\u0644\u062D\u0631\u0627\u0631\u064A",
     "La portata dell\u2019interruttore e quella del cavo: due stufe su una linea.": "\u0633\u0639\u0629 \u0627\u0644\u0642\u0627\u0637\u0639 \u0648\u0633\u0639\u0629 \u0627\u0644\u0643\u0627\u0628\u0644: \u0645\u062F\u0641\u0623\u062A\u0627\u0646 \u0639\u0644\u0649 \u062E\u0637 \u0648\u0627\u062D\u062F.",
-    "La portata si cambia toccando il numero sull\u2019interruttore. Con una stufa passano 8,7 A; con due 17,4 A. Il cavo regge 15,5 A.": "\u062A\u064F\u063A\u064A\u064E\u0651\u0631 \u0627\u0644\u0633\u0639\u0629 \u0628\u0644\u0645\u0633 \u0627\u0644\u0631\u0642\u0645 \u0639\u0644\u0649 \u0627\u0644\u0642\u0627\u0637\u0639. \u0645\u0639 \u0645\u062F\u0641\u0623\u0629 \u0648\u0627\u062D\u062F\u0629 \u064A\u0645\u0631 8,7 \u0623\u0645\u0628\u064A\u0631\u061B \u0648\u0645\u0639 \u0645\u062F\u0641\u0623\u062A\u064A\u0646 17,4 \u0623\u0645\u0628\u064A\u0631. \u0627\u0644\u0643\u0627\u0628\u0644 \u064A\u062A\u062D\u0645\u0644 15,5 \u0623\u0645\u0628\u064A\u0631.",
+    "La portata si cambia toccando il numero sull\u2019interruttore. Con una stufa passano 8,7 A; con due 17,4 A. Il cavo regge 14,5 A.": "\u062A\u064F\u063A\u064A\u064E\u0651\u0631 \u0627\u0644\u0633\u0639\u0629 \u0628\u0644\u0645\u0633 \u0627\u0644\u0631\u0642\u0645 \u0639\u0644\u0649 \u0627\u0644\u0642\u0627\u0637\u0639. \u0645\u0639 \u0645\u062F\u0641\u0623\u0629 \u0648\u0627\u062D\u062F\u0629 \u064A\u0645\u0631 8,7 \u0623\u0645\u0628\u064A\u0631\u061B \u0648\u0645\u0639 \u0645\u062F\u0641\u0623\u062A\u064A\u0646 17,4 \u0623\u0645\u0628\u064A\u0631. \u0627\u0644\u0643\u0627\u0628\u0644 \u064A\u062A\u062D\u0645\u0644 14,5 \u0623\u0645\u0628\u064A\u0631.",
     "La regola dei tre numeri": "\u0642\u0627\u0639\u062F\u0629 \u0627\u0644\u0623\u0631\u0642\u0627\u0645 \u0627\u0644\u062B\u0644\u0627\u062B\u0629",
     "Le stufe sono collegate in serie.": "\u0627\u0644\u0645\u062F\u0641\u0623\u062A\u0627\u0646 \u0645\u0648\u0635\u0648\u0644\u062A\u0627\u0646 \u0639\u0644\u0649 \u0627\u0644\u062A\u0633\u0644\u0633\u0644.",
     "Lo stesso neutro va alla stufa 2.": "\u0627\u0644\u0645\u062D\u0627\u064A\u062F \u0646\u0641\u0633\u0647 \u064A\u0630\u0647\u0628 \u0625\u0644\u0649 \u0627\u0644\u0645\u062F\u0641\u0623\u0629 2.",
     "Magnetotermico della linea": "\u0627\u0644\u0642\u0627\u0637\u0639 \u0627\u0644\u0645\u063A\u0646\u0627\u0637\u064A\u0633\u064A \u0627\u0644\u062D\u0631\u0627\u0631\u064A \u0644\u0644\u062E\u0637",
-    "Ogni cavo regge una corrente massima, la portata, che dipende dalla sezione e da come \xE8 posato. Un cavo da 1,5 mm\xB2 in tubo incassato regge circa 15,5 A (valore del gioco). Se passa di pi\xF9, si scalda.": "\u0643\u0644 \u0643\u0627\u0628\u0644 \u064A\u062A\u062D\u0645\u0644 \u062A\u064A\u0627\u0631\u064B\u0627 \u0623\u0642\u0635\u0649 \u0647\u0648 \u0627\u0644\u0633\u0639\u0629\u060C \u0648\u062A\u062A\u0648\u0642\u0641 \u0639\u0644\u0649 \u0627\u0644\u0645\u0642\u0637\u0639 \u0648\u0637\u0631\u064A\u0642\u0629 \u0627\u0644\u062A\u0645\u062F\u064A\u062F. \u0643\u0627\u0628\u0644 1,5 \u0645\u0645\xB2 \u0641\u064A \u0623\u0646\u0628\u0648\u0628 \u0645\u062F\u0641\u0648\u0646 \u064A\u062A\u062D\u0645\u0644 \u0646\u062D\u0648 15,5 \u0623\u0645\u0628\u064A\u0631 (\u0642\u064A\u0645\u0629 \u0627\u0644\u0644\u0639\u0628\u0629). \u0648\u0625\u0630\u0627 \u0645\u0631\u0651 \u0623\u0643\u062B\u0631 \u0645\u0646 \u0630\u0644\u0643 \u064A\u0633\u062E\u0646.",
+    "Ogni cavo regge una corrente massima, la portata, che dipende dalla sezione e da come \xE8 posato. Un cavo da 1,5 mm\xB2 in tubo incassato regge circa 14,5 A (valore del gioco). Se passa di pi\xF9, si scalda.": "\u0643\u0644 \u0643\u0627\u0628\u0644 \u064A\u062A\u062D\u0645\u0644 \u062A\u064A\u0627\u0631\u064B\u0627 \u0623\u0642\u0635\u0649 \u0647\u0648 \u0627\u0644\u0633\u0639\u0629\u060C \u0648\u062A\u062A\u0648\u0642\u0641 \u0639\u0644\u0649 \u0627\u0644\u0645\u0642\u0637\u0639 \u0648\u0637\u0631\u064A\u0642\u0629 \u0627\u0644\u062A\u0645\u062F\u064A\u062F. \u0643\u0627\u0628\u0644 1,5 \u0645\u0645\xB2 \u0641\u064A \u0623\u0646\u0628\u0648\u0628 \u0645\u062F\u0641\u0648\u0646 \u064A\u062A\u062D\u0645\u0644 \u0646\u062D\u0648 14,5 \u0623\u0645\u0628\u064A\u0631 (\u0642\u064A\u0645\u0629 \u0627\u0644\u0644\u0639\u0628\u0629). \u0648\u0625\u0630\u0627 \u0645\u0631\u0651 \u0623\u0643\u062B\u0631 \u0645\u0646 \u0630\u0644\u0643 \u064A\u0633\u062E\u0646.",
     "Porta la portata del magnetotermico a 10 A, poi premi Verifica.": "\u0627\u062C\u0639\u0644 \u0633\u0639\u0629 \u0627\u0644\u0642\u0627\u0637\u0639 \u0627\u0644\u0645\u063A\u0646\u0627\u0637\u064A\u0633\u064A \u0627\u0644\u062D\u0631\u0627\u0631\u064A 10 \u0623\u0645\u0628\u064A\u0631\u060C \u062B\u0645 \u0627\u0636\u063A\u0637 \u062A\u062D\u0642\u0642.",
     "Prova due stufe": "\u062C\u0631\u0651\u0628 \u0645\u062F\u0641\u0623\u062A\u064A\u0646",
     "Prova una stufa": "\u062C\u0631\u0651\u0628 \u0645\u062F\u0641\u0623\u0629 \u0648\u0627\u062D\u062F\u0629",
@@ -9370,11 +9421,11 @@ html[lang="it"] .trnote{display:none}
     "Stufa 2": "\u0645\u062F\u0641\u0623\u0629 2",
     "Stufa 2 (2000 W)": "\u0645\u062F\u0641\u0623\u0629 2 (2000 \u0648\u0627\u0637)",
     "Sul magnetotermico c\u2019\xE8 un numero: la portata In, in ampere. Sotto 1,13 volte In non scatta mai. Sopra 1,45 volte In scatta (nella realt\xE0 in meno di un\u2019ora, nel gioco in pochi secondi). In mezzo, la norma non dice che cosa deve fare.": "\u0639\u0644\u0649 \u0627\u0644\u0642\u0627\u0637\u0639 \u0627\u0644\u0645\u063A\u0646\u0627\u0637\u064A\u0633\u064A \u0627\u0644\u062D\u0631\u0627\u0631\u064A \u0631\u0642\u0645: \u0627\u0644\u0633\u0639\u0629 In \u0628\u0627\u0644\u0623\u0645\u0628\u064A\u0631. \u062A\u062D\u062A 1,13 \u0645\u0631\u0629 \u0645\u0646 In \u0644\u0627 \u064A\u0641\u0635\u0644 \u0623\u0628\u062F\u064B\u0627. \u0648\u0641\u0648\u0642 1,45 \u0645\u0631\u0629 \u0645\u0646 In \u064A\u0641\u0635\u0644 (\u0641\u064A \u0627\u0644\u0648\u0627\u0642\u0639 \u0641\u064A \u0623\u0642\u0644 \u0645\u0646 \u0633\u0627\u0639\u0629\u060C \u0648\u0641\u064A \u0627\u0644\u0644\u0639\u0628\u0629 \u0641\u064A \u0628\u0636\u0639 \u062B\u0648\u0627\u0646\u064D). \u0648\u0641\u064A \u0645\u0627 \u0628\u064A\u0646\u0647\u0645\u0627 \u0644\u0627 \u062A\u062D\u062F\u062F \u0627\u0644\u0645\u0648\u0627\u0635\u0641\u0629 \u0645\u0627 \u064A\u062C\u0628 \u0623\u0646 \u064A\u0641\u0639\u0644.",
-    "Tocca il numero sul magnetotermico fino a 10 A: il cavo regge 15,5 A e una stufa assorbe 8,7 A.": "\u0627\u0644\u0645\u0633 \u0627\u0644\u0631\u0642\u0645 \u0639\u0644\u0649 \u0627\u0644\u0642\u0627\u0637\u0639 \u0627\u0644\u0645\u063A\u0646\u0627\u0637\u064A\u0633\u064A \u0627\u0644\u062D\u0631\u0627\u0631\u064A \u062D\u062A\u0649 10 \u0623\u0645\u0628\u064A\u0631: \u0627\u0644\u0643\u0627\u0628\u0644 \u064A\u062A\u062D\u0645\u0644 15,5 \u0623\u0645\u0628\u064A\u0631 \u0648\u0627\u0644\u0645\u062F\u0641\u0623\u0629 \u0627\u0644\u0648\u0627\u062D\u062F\u0629 \u062A\u0633\u062D\u0628 8,7 \u0623\u0645\u0628\u064A\u0631.",
+    "Tocca il numero sul magnetotermico fino a 10 A: il cavo regge 14,5 A e una stufa assorbe 8,7 A.": "\u0627\u0644\u0645\u0633 \u0627\u0644\u0631\u0642\u0645 \u0639\u0644\u0649 \u0627\u0644\u0642\u0627\u0637\u0639 \u0627\u0644\u0645\u063A\u0646\u0627\u0637\u064A\u0633\u064A \u0627\u0644\u062D\u0631\u0627\u0631\u064A \u062D\u062A\u0649 10 \u0623\u0645\u0628\u064A\u0631: \u0627\u0644\u0643\u0627\u0628\u0644 \u064A\u062A\u062D\u0645\u0644 14,5 \u0623\u0645\u0628\u064A\u0631 \u0648\u0627\u0644\u0645\u062F\u0641\u0623\u0629 \u0627\u0644\u0648\u0627\u062D\u062F\u0629 \u062A\u0633\u062D\u0628 8,7 \u0623\u0645\u0628\u064A\u0631.",
     "Un cortocircuito, invece, lo fa scattare subito.": "\u0623\u0645\u0627 \u0642\u0635\u0631 \u0627\u0644\u062F\u0627\u0626\u0631\u0629 \u0641\u064A\u062C\u0639\u0644\u0647 \u064A\u0641\u0635\u0644 \u0641\u0648\u0631\u064B\u0627.",
     "Un interruttore da 16 A su un cavo da 1,5 mm\xB2 \xE8 uno degli errori pi\xF9 pericolosi: non scatta e il cavo si scalda.": "\u0642\u0627\u0637\u0639 16 \u0623\u0645\u0628\u064A\u0631 \u0639\u0644\u0649 \u0643\u0627\u0628\u0644 1,5 \u0645\u0645\xB2 \u0645\u0646 \u0623\u062E\u0637\u0631 \u0627\u0644\u0623\u062E\u0637\u0627\u0621: \u0644\u0627 \u064A\u0641\u0635\u0644 \u0648\u064A\u0633\u062E\u0646 \u0627\u0644\u0643\u0627\u0628\u0644.",
     "Un interruttore troppo piccolo scatta senza motivo. Uno troppo grande non protegge il cavo: la corrente supera la portata del cavo ma non quella dell\u2019interruttore, e nessuno se ne accorge finch\xE9 il cavo non scalda.": "\u0627\u0644\u0642\u0627\u0637\u0639 \u0627\u0644\u0635\u063A\u064A\u0631 \u062C\u062F\u064B\u0627 \u064A\u0641\u0635\u0644 \u0628\u0644\u0627 \u0633\u0628\u0628. \u0648\u0627\u0644\u0643\u0628\u064A\u0631 \u062C\u062F\u064B\u0627 \u0644\u0627 \u064A\u062D\u0645\u064A \u0627\u0644\u0643\u0627\u0628\u0644: \u064A\u062A\u062C\u0627\u0648\u0632 \u0627\u0644\u062A\u064A\u0627\u0631 \u0633\u0639\u0629 \u0627\u0644\u0643\u0627\u0628\u0644 \u0644\u0643\u0646 \u0644\u064A\u0633 \u0633\u0639\u0629 \u0627\u0644\u0642\u0627\u0637\u0639\u060C \u0648\u0644\u0627 \u064A\u0644\u0627\u062D\u0638 \u0623\u062D\u062F \u0630\u0644\u0643 \u062D\u062A\u0649 \u064A\u0633\u062E\u0646 \u0627\u0644\u0643\u0627\u0628\u0644.",
-    "Una linea in cavo da 1,5 mm\xB2 (portata 15,5 A) ha un magnetotermico da 16 A. Si accendono due stufe: 17,4 A. Che cosa succede?": "\u062E\u0637 \u0628\u0643\u0627\u0628\u0644 1,5 \u0645\u0645\xB2 (\u0633\u0639\u062A\u0647 15,5 \u0623\u0645\u0628\u064A\u0631) \u0641\u064A\u0647 \u0642\u0627\u0637\u0639 \u0645\u063A\u0646\u0627\u0637\u064A\u0633\u064A \u062D\u0631\u0627\u0631\u064A 16 \u0623\u0645\u0628\u064A\u0631. \u062A\u064F\u0634\u063A\u064E\u0651\u0644 \u0645\u062F\u0641\u0623\u062A\u0627\u0646: 17,4 \u0623\u0645\u0628\u064A\u0631. \u0645\u0627\u0630\u0627 \u064A\u062D\u062F\u062B\u061F",
+    "Una linea in cavo da 1,5 mm\xB2 (portata 14,5 A) ha un magnetotermico da 16 A. Si accendono due stufe: 17,4 A. Che cosa succede?": "\u062E\u0637 \u0628\u0643\u0627\u0628\u0644 1,5 \u0645\u0645\xB2 (\u0633\u0639\u062A\u0647 14,5 \u0623\u0645\u0628\u064A\u0631) \u0641\u064A\u0647 \u0642\u0627\u0637\u0639 \u0645\u063A\u0646\u0627\u0637\u064A\u0633\u064A \u062D\u0631\u0627\u0631\u064A 16 \u0623\u0645\u0628\u064A\u0631. \u062A\u064F\u0634\u063A\u064E\u0651\u0644 \u0645\u062F\u0641\u0623\u062A\u0627\u0646: 17,4 \u0623\u0645\u0628\u064A\u0631. \u0645\u0627\u0630\u0627 \u064A\u062D\u062F\u062B\u061F",
     "Una linea in cavo da 1,5 mm\xB2 alimenta due stufe da 2000 W, ognuna con il suo interruttore. Collega la linea e scegli la portata del magnetotermico (tocca il numero sull\u2019interruttore): con una stufa deve restare acceso, con due deve scattare prima che il cavo si scaldi.": "\u062E\u0637 \u0628\u0643\u0627\u0628\u0644 1,5 \u0645\u0645\xB2 \u064A\u063A\u0630\u0651\u064A \u0645\u062F\u0641\u0623\u062A\u064A\u0646 \u0628\u0642\u062F\u0631\u0629 2000 \u0648\u0627\u0637\u060C \u0644\u0643\u0644 \u0645\u0646\u0647\u0645\u0627 \u0645\u0641\u062A\u0627\u062D\u0647\u0627. \u0635\u0650\u0644 \u0627\u0644\u062E\u0637 \u0648\u0627\u062E\u062A\u0631 \u0633\u0639\u0629 \u0627\u0644\u0642\u0627\u0637\u0639 \u0627\u0644\u0645\u063A\u0646\u0627\u0637\u064A\u0633\u064A \u0627\u0644\u062D\u0631\u0627\u0631\u064A (\u0627\u0644\u0645\u0633 \u0627\u0644\u0631\u0642\u0645 \u0639\u0644\u0649 \u0627\u0644\u0642\u0627\u0637\u0639): \u0645\u0639 \u0645\u062F\u0641\u0623\u0629 \u0648\u0627\u062D\u062F\u0629 \u064A\u062C\u0628 \u0623\u0646 \u064A\u0628\u0642\u0649 \u0645\u0634\u063A\u0651\u0644\u064B\u0627\u060C \u0648\u0645\u0639 \u0645\u062F\u0641\u0623\u062A\u064A\u0646 \u064A\u062C\u0628 \u0623\u0646 \u064A\u0641\u0635\u0644 \u0642\u0628\u0644 \u0623\u0646 \u064A\u0633\u062E\u0646 \u0627\u0644\u0643\u0627\u0628\u0644.",
     "Una stufa accesa per 20 secondi: resta in funzione e il magnetotermico non scatta": "\u0645\u062F\u0641\u0623\u0629 \u0648\u0627\u062D\u062F\u0629 \u0645\u0634\u063A\u0651\u0644\u0629 20 \u062B\u0627\u0646\u064A\u0629: \u062A\u0628\u0642\u0649 \u062A\u0639\u0645\u0644 \u0648\u0644\u0627 \u064A\u0641\u0635\u0644 \u0627\u0644\u0642\u0627\u0637\u0639 \u0627\u0644\u0645\u063A\u0646\u0627\u0637\u064A\u0633\u064A \u0627\u0644\u062D\u0631\u0627\u0631\u064A",
     "Una stufa: 8,7 A. Il magnetotermico non scatta.": "\u0645\u062F\u0641\u0623\u0629 \u0648\u0627\u062D\u062F\u0629: 8,7 \u0623\u0645\u0628\u064A\u0631. \u0644\u0627 \u064A\u0641\u0635\u0644 \u0627\u0644\u0642\u0627\u0637\u0639 \u0627\u0644\u0645\u063A\u0646\u0627\u0637\u064A\u0633\u064A \u0627\u0644\u062D\u0631\u0627\u0631\u064A.",
@@ -9463,7 +9514,8 @@ html[lang="it"] .trnote{display:none}
     "Sposta l\u2019interruttore sulla fase: la fase del quadro entra nell\u2019interruttore e da l\xEC va alla presa e alla lampada; il neutro va diretto. Poi premi Verifica.": "\u0627\u0646\u0642\u0644 \u0627\u0644\u0645\u0641\u062A\u0627\u062D \u0625\u0644\u0649 \u0627\u0644\u0637\u0648\u0631: \u064A\u062F\u062E\u0644 \u0637\u0648\u0631 \u0627\u0644\u0644\u0648\u062D\u0629 \u0625\u0644\u0649 \u0627\u0644\u0645\u0641\u062A\u0627\u062D \u0648\u0645\u0646\u0647 \u064A\u0630\u0647\u0628 \u0625\u0644\u0649 \u0627\u0644\u0645\u0642\u0628\u0633 \u0648\u0627\u0644\u0645\u0635\u0628\u0627\u062D\u061B \u0623\u0645\u0627 \u0627\u0644\u062D\u064A\u0627\u062F \u0641\u064A\u0630\u0647\u0628 \u0645\u0628\u0627\u0634\u0631\u0629. \u062B\u0645 \u0627\u0636\u063A\u0637 \u062A\u062D\u0642\u0651\u0642.",
     "Sulla linea della luce.": "\u0639\u0644\u0649 \u062E\u0637 \u0627\u0644\u0625\u0646\u0627\u0631\u0629.",
     "Sulla linea delle prese: un apparecchio collegato alla presa disperde verso terra.": "\u0639\u0644\u0649 \u062E\u0637 \u0627\u0644\u0645\u0642\u0627\u0628\u0633: \u062C\u0647\u0627\u0632 \u0645\u0648\u0635\u0648\u0644 \u0628\u0627\u0644\u0645\u0642\u0628\u0633 \u064A\u062A\u0633\u0631\u0651\u0628 \u0646\u062D\u0648 \u0627\u0644\u0623\u0631\u0636.",
-    "Un apparecchio sulla presa disperde verso terra: scatta il differenziale": "\u062C\u0647\u0627\u0632 \u0639\u0644\u0649 \u0627\u0644\u0645\u0642\u0628\u0633 \u064A\u062A\u0633\u0631\u0651\u0628 \u0646\u062D\u0648 \u0627\u0644\u0623\u0631\u0636: \u064A\u0641\u0635\u0644 \u0627\u0644\u0642\u0627\u0637\u0639 \u0627\u0644\u062A\u0641\u0627\u0636\u0644\u064A"
+    "Un apparecchio sulla presa disperde verso terra: scatta il differenziale": "\u062C\u0647\u0627\u0632 \u0639\u0644\u0649 \u0627\u0644\u0645\u0642\u0628\u0633 \u064A\u062A\u0633\u0631\u0651\u0628 \u0646\u062D\u0648 \u0627\u0644\u0623\u0631\u0636: \u064A\u0641\u0635\u0644 \u0627\u0644\u0642\u0627\u0637\u0639 \u0627\u0644\u062A\u0641\u0627\u0636\u0644\u064A",
+    "Il guasto \xE8 ancora attivo: scollega l\u2019apparecchio difettoso (tocca il pannello del guasto) prima di verificare.": "\u0627\u0644\u0639\u0637\u0644 \u0645\u0627 \u0632\u0627\u0644 \u0641\u0639\u0651\u0627\u0644\u064B\u0627: \u0627\u0641\u0635\u0644 \u0627\u0644\u062C\u0647\u0627\u0632 \u0627\u0644\u0645\u0639\u064A\u0628 (\u0627\u0644\u0645\u0633 \u0644\u0648\u062D\u0629 \u0627\u0644\u0639\u0637\u0644) \u0642\u0628\u0644 \u0627\u0644\u062A\u062D\u0642\u0642."
   };
 
   // src/i18n/ar.js
@@ -10278,6 +10330,10 @@ html[lang="it"] .trnote{display:none}
     if (t) {
       e.preventDefault();
       const id = t.dataset.term;
+      if (S.meter && S.meter.on) {
+        session.probe(id);
+        return;
+      }
       if (SEL && SEL !== id) {
         const a = SEL;
         clearSel();

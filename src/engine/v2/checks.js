@@ -172,6 +172,7 @@ export function evaluateV2(level, wires, ctx = {}) {
     // letture del multimetro che il livello pretende (misurare prima di dare per buono)
     const missing = (level.measures || []).filter(m => !(ctx.measured || []).some(x => measureMatches(m, x)));
     if (missing.length) { out.work.ok = false; add('work', 'work.measureMissing', { label: missing[0].label, n: missing.length }); }
+    if ((ctx.faultOn || []).length) { out.work.ok = false; add('work', 'work.faultActive', { comp: ctx.faultOn[0] }); }
   } else {
     // un guasto che blocca tutte le prove si dice una volta sola
     const first = failed[0].r.fail;

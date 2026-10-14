@@ -77,7 +77,7 @@ export const LEVELS_V2 = [
     name: 'Il magnetotermico', title: 'Il magnetotermico',
     blurb: 'La portata dell’interruttore e quella del cavo: due stufe su una linea.',
     goal: 'Una linea in cavo da 1,5 mm² alimenta due stufe da 2000 W, ognuna con il suo interruttore. Collega la linea e scegli la portata del magnetotermico (tocca il numero sull’interruttore): con una stufa deve restare acceso, con due deve scattare prima che il cavo si scaldi.',
-    cable: { prot: 'QM', iz: 15.5, s: 1.5, burnAfter: 6 },
+    cable: { prot: 'QM', iz: 14.5, s: 1.5, burnAfter: 6 },
     comps: [
       QM,
       C('QM', 'mt', 'Magnetotermico', 'Magnetotermico della linea', { '1': { l: '1' }, '2': { l: '2' }, N1: { l: 'N' }, N2: { l: 'N' } }, { in: 16, ratings: [10, 16, 20] }),
@@ -107,7 +107,7 @@ export const LEVELS_V2 = [
     hints: [
       'La fase entra dal morsetto 1 del magnetotermico ed esce dal morsetto 2, poi si divide verso i due interruttori delle stufe.',
       'Il neutro passa dal magnetotermico (N-N) e poi va alle due stufe.',
-      'La portata si cambia toccando il numero sull’interruttore. Con una stufa passano 8,7 A; con due 17,4 A. Il cavo regge 15,5 A.',
+      'La portata si cambia toccando il numero sull’interruttore. Con una stufa passano 8,7 A; con due 17,4 A. Il cavo regge 14,5 A.',
     ],
   },
   {
