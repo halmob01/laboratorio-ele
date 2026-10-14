@@ -28,8 +28,8 @@ export function wirePath(p1, p2) {
 }
 
 /* ---------- livelli e palette ---------- */
-export function paletteHTML(col) {
-  return WIRE_COLORS.map(k => {
+export function paletteHTML(col, level) {
+  return ((level && level.palette) || WIRE_COLORS).map(k => {
     const c = WIRE_STYLE[k];
     const bg = c.dash ? `repeating-linear-gradient(90deg,${c.base} 0 6px,${c.dash} 6px 12px)` : c.base;
     return `<button class="chip" data-col="${k}" aria-pressed="${k === col}"><span class="sw" style="background:${bg}"></span>${COLOR_NAMES[k]}</button>`;

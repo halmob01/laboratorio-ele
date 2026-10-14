@@ -45,7 +45,11 @@ let KWH = 42.7;         // contatore, solo estetico
 const ui = () => ({ mobile: MQ.matches, sel: SEL, kwh: KWH });
 
 /* ---------- disegno ---------- */
-function renderPalette() { $('#palette').innerHTML = R.paletteHTML(COL); }
+function renderPalette() {
+  const lv = S && S.level;
+  if (lv && lv.palette && !lv.palette.includes(COL)) COL = lv.palette[0];
+  $('#palette').innerHTML = R.paletteHTML(COL, lv);
+}
 function setRoomVB() {
   const r = $('#room');
   r.classList.toggle('full', S.level.room !== 'tavolo' && (S.level.controls || []).length > 0);
@@ -78,6 +82,7 @@ function onLevelChange() {
   stopDemo();
   comps = composeComps(S.level);
   SEL = null;
+  renderPalette();
   $('#lvTag').textContent = S.level.name + (S.mode === 'contatore' ? ' · dal contatore' : '') + (S.playMode === 'verifica' ? ' · prova di salto' : '');
   $('#room').innerHTML = R.roomHTML(S.level, comps);
   setRoomVB();

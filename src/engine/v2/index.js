@@ -3,3 +3,4 @@ export { createSim, setWires, setSupply, act, advance, observe, settle, voltage,
 export { evaluateV2, runCheck, runAction, wireRoles, allowedColorsV2 } from './checks.js';
 export { PARTS, partOf, loadVolt } from './parts.js';
 export { flowV2 } from './flow.js';
+export { isV2, selfPowered, viewOf, controlStates, needsClock, MANUAL, HOLD } from './view.js';
