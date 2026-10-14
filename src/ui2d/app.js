@@ -428,6 +428,8 @@ overlay.addEventListener('click', e => {
     return;
   }
   if (e.target.closest('[data-close]')) { closeOverlay(); return; }
+  // toccando lo sfondo scuro si chiude la finestra (non l'introduzione al primo avvio)
+  if (e.target === overlay && !overlay.querySelector('[data-intro]')) { closeOverlay(); return; }
   if (e.target.closest('[data-skipname]')) { profile.nameAsked = true; saveProfile(); closeOverlay(); render(); }
 });
 overlay.addEventListener('submit', e => {

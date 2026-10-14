@@ -239,3 +239,15 @@ test('con un cortocircuito i passi di cablaggio non risultano fatti', () => {
   s.addWire('Q.F', 'Q.N', 'marrone');
   assert.ok(s.snapshot().steps.done.every(d => d === false));
 });
+
+test('uscendo dalla sfida guasto torna l\'impianto riuscito con il suo esito', () => {
+  const s = make();
+  lesson(s);
+  L.solution.forEach(([a, b, c]) => s.addWire(a, b, c));
+  s.check();
+  const n = s.snapshot().wires.length;
+  s.startFault();
+  s.leaveFault();
+  assert.equal(s.snapshot().wires.length, n);
+  assert.equal(s.snapshot().unit.phase, 'done');
+});

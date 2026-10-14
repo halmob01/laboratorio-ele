@@ -133,7 +133,7 @@ button.btn.primary{background:var(--accent);color:var(--on-accent);border-color:
 .flow{fill:none;stroke-width:2.6;stroke-linecap:round;stroke-dasharray:1 12;animation:fl .9s linear infinite;pointer-events:none}
 .flow.f{stroke:#FFE08A}.flow.n{stroke:#D7EEFF}
 @keyframes fl{to{stroke-dashoffset:-13}}
-.ghost{fill:none;stroke-width:5;stroke-linecap:round;stroke-dasharray:3 9;opacity:.8;pointer-events:none}
+svg .ghost{fill:none;stroke-width:5;stroke-linecap:round;stroke-dasharray:3 9;opacity:.8;pointer-events:none}
 #prev{fill:none;stroke:var(--accent);stroke-width:3;stroke-dasharray:6 6;pointer-events:none}
 .brk{cursor:pointer}
 .brk .hs{fill:var(--breaker);stroke:var(--comp-edge);stroke-width:1.5}
@@ -166,6 +166,7 @@ button.btn.primary{background:var(--accent);color:var(--on-accent);border-color:
   .benchcard>.mode{margin-inline:12px}
   .benchcard>.palette{background:var(--card);margin:0 0 6px;padding:8px 12px;display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:6px;border-bottom:1px solid var(--line)}
   .benchside{padding-inline:12px}
+  .palette .chip{hyphens:none;word-break:keep-all;overflow-wrap:normal}
   .chip{flex-direction:column;align-items:stretch;gap:5px;border-radius:10px;padding:6px 4px 6px;font-size:12px;text-align:center;line-height:1.1;overflow-wrap:anywhere}
   .chip .sw{width:100%;height:12px}
   .seg.chip{flex-direction:row;justify-content:center;padding:9px 14px;font-size:14px;border-radius:999px;min-height:40px;align-items:center}
@@ -325,7 +326,8 @@ button:disabled{cursor:default}
 /* finestre */
 .overlay{position:fixed;inset:0;z-index:60;background:rgba(15,20,30,.55);display:flex;align-items:flex-start;justify-content:center;padding:16px;overflow:auto}
 .overlay[hidden]{display:none}
-@media (min-height:42rem){.overlay{align-items:center}}
+@media (min-height:42rem){.overlay{align-items:safe center}}
+.mtop{position:sticky;top:-20px;background:var(--card);padding-top:4px;z-index:1}
 .mcard,.introcard{background:var(--card);color:var(--ink);border:1.5px solid var(--ink);border-radius:12px;width:100%;max-width:560px;padding:20px;box-shadow:0 18px 50px rgba(0,0,0,.35)}
 .mtop{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:10px}
 .mtop h2,.namecard h2{font:700 28px/1.05 'Barlow Condensed',sans-serif;text-transform:uppercase}
@@ -366,6 +368,8 @@ button:disabled{cursor:default}
 .steps li{flex:1;text-align:center;padding:7px 2px;border-radius:9px;font:600 12px/1.2 'IBM Plex Sans',sans-serif;background:var(--chip);color:var(--ink2)}
 .steps li.done{background:#DCE8F6;color:var(--neutro)}
 .steps li.cur{background:var(--ink);color:var(--bg)}
+.steps li{min-width:0;overflow:hidden}
+@media (max-width:919px){.steps li .st{display:none}.steps li.cur{flex:2.6}.steps li.cur .st{display:inline}}
 .benchrow{display:flex;flex-direction:column}
 .benchmain{min-width:0}
 .sidelinks{display:flex;gap:16px;margin-top:10px;flex-wrap:wrap}
@@ -386,7 +390,7 @@ button:disabled{cursor:default}
 }
 .dimmed{opacity:.28}
 .focusring{fill:none;stroke:var(--lamp);stroke-width:4}
-.newwire .w-col{stroke-dasharray:100;stroke-dashoffset:100;animation:drawwire .8s ease forwards}
+.newwire .w-col{stroke-dasharray:100;stroke-dashoffset:100;animation:drawwire 1.5s ease forwards}
 @keyframes drawwire{to{stroke-dashoffset:0}}
 .newwire .w-col{--len:1}
 @media (prefers-reduced-motion:reduce){.newwire .w-col{animation:none;stroke-dashoffset:0}}
@@ -1417,6 +1421,7 @@ a.tool{display:flex;align-items:center;justify-content:center;text-decoration:no
         const level = levelAt();
         const us = level.unit && level.unit.fault && unitState();
         if (!us || !["done", "fault"].includes(us.phase) || playMode === "verifica" || mode !== "quadro") return;
+        if (us.phase === "done") us.before = { wires: (wiresByKey[keyOf()] || []).slice(), states: { ...statesByKey[keyOf()] || {} }, result: resultsByKey[keyOf()] || null };
         resetLevelState();
         wiresByKey[keyOf()] = level.unit.fault.wires.map(([a, b, c2]) => ({ id: nextWireId++, a, b, c: c2 }));
         statesByKey[keyOf()] = {};
@@ -1437,6 +1442,13 @@ a.tool{display:flex;align-items:center;justify-content:center;text-decoration:no
         const us = levelAt().unit && unitState();
         if (!us || us.phase !== "fault") return;
         us.phase = "done";
+        if (us.before) {
+          resetLevelState();
+          wiresByKey[keyOf()] = us.before.wires;
+          statesByKey[keyOf()] = us.before.states;
+          resultsByKey[keyOf()] = us.before.result;
+          us.before = null;
+        }
         emit();
       }
     };
@@ -3143,6 +3155,7 @@ a.tool{display:flex;align-items:center;justify-content:center;text-decoration:no
       <button class="tool" data-open="legenda">Legenda dei simboli</button>
       <button class="tool" data-open="glossario">Glossario</button>
       <button class="tool" data-open="intro">Rivedi l\u2019introduzione</button>
+      <button class="tool only-narrow" data-open="informativa">Informativa</button>
       <button class="tool" disabled aria-disabled="true">Area docente <small>in arrivo</small></button>
     </div>`;
   }
@@ -3208,7 +3221,7 @@ a.tool{display:flex;align-items:center;justify-content:center;text-decoration:no
         <div class="kick">PER COMINCIARE \xB7 ${i + 1}/${INTRO.length}</div>
         ${sc.text.map((t) => `<p class="introtext">${t}</p>`).join("")}
         <div class="dots" aria-hidden="true">${INTRO.map((_, k) => `<i class="${k < i ? "done" : k === i ? "now" : ""}"></i>`).join("")}</div>
-        <div class="introact"><button class="btn primary" data-intro="next">${last ? "Vai alla mappa" : "Avanti"}</button>${last ? "" : '<button class="btn" data-intro="skip">Salta</button>'}</div>
+        <div class="introact"><button class="btn primary" data-intro="next">${last ? "Comincia" : "Avanti"}</button>${last ? "" : '<button class="btn" data-intro="skip">Salta</button>'}</div>
       </div>
     </div>`;
   }
@@ -3252,7 +3265,7 @@ a.tool{display:flex;align-items:center;justify-content:center;text-decoration:no
     return `<div class="mcard" role="dialog" aria-modal="true" aria-labelledby="mT"><div class="mtop"><h2 id="mT">Da ricordare</h2><button class="btn" data-close="1">Chiudi</button></div><div class="mbody"><p><b>${esc(L.title)}</b></p><ul class="sum">${s.unit.summary.map((t) => `<li>${esc(t)}</li>`).join("")}</ul></div></div>`;
   }
   function stepsBarHTML(st) {
-    return `<ol class="steps" aria-label="Passi">${st.list.map((x, i) => `<li class="${st.done[i] ? "done" : i === st.current ? "cur" : ""}"${i === st.current ? ' aria-current="step"' : ""}>${esc(x.short)}</li>`).join("")}</ol>`;
+    return `<ol class="steps" aria-label="Passi">${st.list.map((x, i) => `<li class="${st.done[i] ? "done" : i === st.current ? "cur" : ""}"${i === st.current ? ' aria-current="step"' : ""}>${((m) => m ? `<span class="sn">${esc(m[1])}</span><span class="st"> ${esc(m[2])}</span>` : esc(x.short))(String(x.short).match(/^(\d+)\s+(.*)$/))}</li>`).join("")}</ol>`;
   }
   function unitHTML(s) {
     const L = s.level, u = L.unit;
@@ -3269,7 +3282,7 @@ a.tool{display:flex;align-items:center;justify-content:center;text-decoration:no
       <div class="uact"><button class="btn" data-unit="leaveFault">Esci dalla sfida</button></div>`;
     }
     if (ph === "done") {
-      return `${s.steps ? stepsBarHTML(s.steps) : ""}<h2>Livello completato</h2><p>Puoi rifare l\u2019impianto, rivedere la sintesi o passare al livello successivo.</p>`;
+      return `${s.steps && u.support !== "obiettivo" ? stepsBarHTML(s.steps) : ""}<h2>Livello completato</h2><p>Puoi rifare l\u2019impianto, rivedere la sintesi o passare al livello successivo.</p>`;
     }
     if (s.steps && u.support !== "obiettivo") {
       const cur = s.steps.current === null ? null : s.steps.list[s.steps.current];
@@ -4133,6 +4146,10 @@ a.tool{display:flex;align-items:center;justify-content:center;text-decoration:no
       return;
     }
     if (e.target.closest("[data-close]")) {
+      closeOverlay();
+      return;
+    }
+    if (e.target === overlay && !overlay.querySelector("[data-intro]")) {
       closeOverlay();
       return;
     }

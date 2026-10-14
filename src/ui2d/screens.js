@@ -85,6 +85,7 @@ function toolsHTML() {
       <button class="tool" data-open="legenda">Legenda dei simboli</button>
       <button class="tool" data-open="glossario">Glossario</button>
       <button class="tool" data-open="intro">Rivedi l’introduzione</button>
+      <button class="tool only-narrow" data-open="informativa">Informativa</button>
       <button class="tool" disabled aria-disabled="true">Area docente <small>in arrivo</small></button>
     </div>`;
 }
@@ -166,7 +167,7 @@ export function introHTML(i) {
         <div class="kick">PER COMINCIARE · ${i + 1}/${INTRO.length}</div>
         ${sc.text.map(t => `<p class="introtext">${t}</p>`).join('')}
         <div class="dots" aria-hidden="true">${INTRO.map((_, k) => `<i class="${k < i ? 'done' : k === i ? 'now' : ''}"></i>`).join('')}</div>
-        <div class="introact"><button class="btn primary" data-intro="next">${last ? 'Vai alla mappa' : 'Avanti'}</button>${last ? '' : '<button class="btn" data-intro="skip">Salta</button>'}</div>
+        <div class="introact"><button class="btn primary" data-intro="next">${last ? 'Comincia' : 'Avanti'}</button>${last ? '' : '<button class="btn" data-intro="skip">Salta</button>'}</div>
       </div>
     </div>`;
 }
@@ -221,7 +222,7 @@ export function summaryHTML(s) {
 
 /* ---------- compito dell'esercizio ---------- */
 export function stepsBarHTML(st) {
-  return `<ol class="steps" aria-label="Passi">${st.list.map((x, i) => `<li class="${st.done[i] ? 'done' : i === st.current ? 'cur' : ''}"${i === st.current ? ' aria-current="step"' : ''}>${esc(x.short)}</li>`).join('')}</ol>`;
+  return `<ol class="steps" aria-label="Passi">${st.list.map((x, i) => `<li class="${st.done[i] ? 'done' : i === st.current ? 'cur' : ''}"${i === st.current ? ' aria-current="step"' : ''}>${(m => m ? `<span class="sn">${esc(m[1])}</span><span class="st"> ${esc(m[2])}</span>` : esc(x.short))(String(x.short).match(/^(\d+)\s+(.*)$/))}</li>`).join('')}</ol>`;
 }
 
 export function unitHTML(s) {
@@ -239,7 +240,7 @@ export function unitHTML(s) {
       <div class="uact"><button class="btn" data-unit="leaveFault">Esci dalla sfida</button></div>`;
   }
   if (ph === 'done') {
-    return `${s.steps ? stepsBarHTML(s.steps) : ''}<h2>Livello completato</h2><p>Puoi rifare l’impianto, rivedere la sintesi o passare al livello successivo.</p>`;
+    return `${s.steps && u.support !== 'obiettivo' ? stepsBarHTML(s.steps) : ''}<h2>Livello completato</h2><p>Puoi rifare l’impianto, rivedere la sintesi o passare al livello successivo.</p>`;
   }
   // cablaggio
   if (s.steps && u.support !== 'obiettivo') {

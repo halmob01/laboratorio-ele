@@ -429,6 +429,8 @@ export function createSession({ levels, deriveFull, storage = memoryStorage(), i
       const level = levelAt();
       const us = level.unit && level.unit.fault && unitState();
       if (!us || !['done', 'fault'].includes(us.phase) || playMode === 'verifica' || mode !== 'quadro') return;
+      // l'impianto riuscito si conserva: uscendo dalla sfida torna com'era, con il suo esito
+      if (us.phase === 'done') us.before = { wires: (wiresByKey[keyOf()] || []).slice(), states: { ...(statesByKey[keyOf()] || {}) }, result: resultsByKey[keyOf()] || null };
       resetLevelState();
       wiresByKey[keyOf()] = level.unit.fault.wires.map(([a, b, c]) => ({ id: nextWireId++, a, b, c }));
       statesByKey[keyOf()] = {};
@@ -449,6 +451,13 @@ export function createSession({ levels, deriveFull, storage = memoryStorage(), i
       const us = levelAt().unit && unitState();
       if (!us || us.phase !== 'fault') return;
       us.phase = 'done';
+      if (us.before) {
+        resetLevelState();
+        wiresByKey[keyOf()] = us.before.wires;
+        statesByKey[keyOf()] = us.before.states;
+        resultsByKey[keyOf()] = us.before.result;
+        us.before = null;
+      }
       emit();
     },
   };
