@@ -5,10 +5,23 @@ import { MODULES, UPCOMING, INTRO, GLOSSARY, LEGEND, INFO_PRIVACY, FOOTER } from
 import { RANK_NAMES, STATUS_NAMES } from '../content/it.js';
 import { CONTACT_EMAIL, GAME_VERSION } from '../config.js';
 import { artHTML } from './art.js';
+import { LANGS, hasLang, getLang } from '../i18n/index.js';
 
 export const esc = t => String(t).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
 const STAR = '<svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2l3 6.9 7.4.7-5.6 4.9 1.7 7.3L12 17.9 5.5 21.8l1.7-7.3L1.6 9.6 9 8.9z" fill="#F5B800" stroke="#1B2230" stroke-width="1.5" stroke-linejoin="round"/></svg>';
+
+/* ---------- lingua ---------- */
+export function langSelectHTML() {
+  const opts = Object.keys(LANGS).filter(hasLang).map(k => `<option value="${k}"${k === getLang() ? ' selected' : ''}>${LANGS[k].name}</option>`).join('');
+  return Object.keys(LANGS).filter(hasLang).length < 2 ? '' : `<select class="langsel" id="langSel" data-notr aria-label="Lingua / Language / اللغة">${opts}</select>`;
+}
+
+// Avviso sulle traduzioni: visibile solo fuori dall'italiano (vedi style.css).
+export function trNoteHTML() {
+  const link = CONTACT_EMAIL ? ` <a href="mailto:${esc(CONTACT_EMAIL)}?subject=${encodeURIComponent('Traduzione - Fase e Neutro ' + GAME_VERSION)}">Segnala un errore di traduzione</a>` : '';
+  return `<p class="trnote">Traduzione non rivista da un madrelingua: può contenere errori.${link}</p>`;
+}
 
 /* ---------- barra in alto ---------- */
 export function appbarHTML(s, profile) {
@@ -16,9 +29,9 @@ export function appbarHTML(s, profile) {
   const rank = RANK_NAMES[s.player.rank.id];
   return `<a class="brand" href="#/home" aria-label="Fase e Neutro, vai alla mappa">
       <svg width="34" height="34" viewBox="0 0 34 34" aria-hidden="true"><circle cx="17" cy="17" r="17" fill="#1E2635"/><line x1="7" y1="12" x2="27" y2="12" stroke="#E9A15F" stroke-width="4" stroke-linecap="round"/><line x1="7" y1="22" x2="27" y2="22" stroke="#8CC3F2" stroke-width="4" stroke-linecap="round"/></svg>
-      <span class="wordmark">Fase <i>e</i> Neutro</span>
+      <span class="wordmark" data-notr>Fase <i>e</i> Neutro</span>
     </a>
-    <button class="player" id="bPlayer" aria-label="Giocatore ${name}, grado ${rank}, ${s.player.xp} XP. Cambia nome"><span class="pname">${name}</span><span class="prank">${rank}</span><span class="pxp">${s.player.xp} XP</span></button>`;
+    <button class="player" id="bPlayer" aria-label="Giocatore ${name}, grado ${rank}, ${s.player.xp} XP. Cambia nome"><span class="pname"${profile.name ? ' data-notr' : ''}>${name}</span><span class="prank">${rank}</span><span class="pxp">${s.player.xp} XP</span></button>${langSelectHTML()}`;
 }
 
 /* ---------- homepage ---------- */
@@ -76,7 +89,7 @@ export function homeHTML(s) {
       </section>`;
   const up = UPCOMING.map(m => `<div class="upc"><div class="uphead"><span class="kick">${m.tag}</span><span class="soonl">In arrivo</span></div><h3>${m.title}</h3><p>${m.note}</p></div>`).join('');
   return `<div class="homegrid">
-      <div class="homemain">${cont.replace('class="cont"', 'class="cont only-narrow"')}${mods}${trilocale}<div class="upcoming">${up}</div></div>
+      <div class="homemain">${cont.replace('class="cont"', 'class="cont only-narrow"')}${mods}${trilocale}<div class="upcoming">${up}</div>${trNoteHTML()}</div>
       <aside class="homeside">${cont}${toolsHTML()}</aside>
     </div>`;
 }
@@ -120,9 +133,9 @@ export function footerHTML() {
         if (it.id === 'quaderno') return `<a class="fbtn" href="#/quaderno">${it.label}</a>`;
         return `<button class="fbtn" data-open="${it.id}">${it.label}</button>`;
       }).join('');
-    return items ? `<nav class="fcol" aria-label="${col.title}"><div class="ftitle">${col.title.toUpperCase()}</div>${items}</nav>` : '';
+    return items ? `<nav class="fcol" aria-label="${col.title}"><div class="ftitle">${col.title}</div>${items}</nav>` : '';
   }).join('');
-  return `<div class="fwrap"><div class="fabout"><div class="wordmark">Fase <i>e</i> Neutro</div><p>Laboratorio di impianti elettrici per chi parte da zero.</p></div><div class="fcols">${cols}</div></div>`;
+  return `<div class="fwrap"><div class="fabout"><div class="wordmark" data-notr>Fase <i>e</i> Neutro</div><p>Laboratorio di impianti elettrici per chi parte da zero.</p>${trNoteHTML()}</div><div class="fcols">${cols}</div></div>`;
 }
 
 /* ---------- schede informative (finestre) ---------- */
