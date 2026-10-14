@@ -30,3 +30,13 @@ Frasi tecniche delle lezioni di c02, c03, c05, c06 su cui conviene un parere:
 - Il 3D si carica da un file separato (`trilocale.js`, circa 500 KB) solo quando si apre un circuito del trilocale. Dove WebGL non e' disponibile compare la pianta.
 
 - c04 (parallelo): nel gioco due lampade in serie restano spente; in realta' si accenderebbero debolmente. Frase da far controllare al collega.
+
+## Moduli 2 e 3 (motore v2)
+
+Da far controllare al collega di laboratorio:
+- Circuito di comando dei livelli industriali a 230 V tra L1 e neutro, a valle del salvamotore. Nelle macchine si usa spesso un trasformatore a 24 V: va bene la semplificazione?
+- Colore rosso per i fili del circuito di comando in alternata (CEI EN 60204-1), ammesso nel gioco insieme ai colori di fase.
+- Colori ammessi sul secondario a 12 V del campanello: tutti tranne blu e giallo-verde.
+- Sezioni e protezioni per le linee di casa: 1,5 mm² con 10 A per la luce, 2,5 mm² con 16 A per le prese.
+- Nel gioco il differenziale scatta anche se il neutro di una linea è preso a monte e la fase a valle (squilibrio), e se neutro e terra sono uniti a valle.
+- Il relè termico scatta dopo circa 3 secondi di fase mancante o sovraccarico (tempo accorciato per il gioco).

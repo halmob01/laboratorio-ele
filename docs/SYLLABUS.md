@@ -103,29 +103,31 @@ Una pagina speciale con un appartamento in 3D, aperto da un percorso di tre cabl
 - **Collaudo finale** in modalità verifica: i tre circuiti insieme dal quadro, una verifica con il multimetro, un guasto nascosto da trovare, la scelta delle protezioni e dei cavi per le tre linee.
 - Premio: sblocco della Milestone 2 e del grado di Operatore.
 
-### Milestone 2, Civile avanzato (abbozzo)
+### Milestone 2, Civile avanzato
+
+Piano di dettaglio: `docs/PIANO-AUTOMATICO.md`; motore: `docs/SPEC-MOTORE-V2.md`.
 
 | Id | Livello | Obiettivi |
 |---|---|---|
-| c07-rele-impulsi | Pulsanti e relè ad impulsi: comando da molti punti | O14 |
-| c08-presa-comandata | Presa comandata con punto luce | O15 |
-| c09-temporizzato | Luce a tempo (scale) | O16 |
+| c07-presa-comandata | Presa comandata e punto luce | O15 |
+| c08-rele-impulsi | Pulsanti e relè ad impulsi: comando da molti punti | O14 |
+| c09-luce-scale | Luce scale a tempo | O16 |
 | c10-campanello | Campanello e trasformatore | O17 |
-| c11-quadro | Il quadro: differenziale, magnetotermici, dimensionamento delle linee | O13 |
+| c11-quadro | Il quadro: differenziale, magnetotermici, sezioni delle linee | O13 |
 
-Prova di milestone: appartamento completo, con scena giorno e notte.
+Prova del modulo: appartamento di notte in 3D.
 
-### Milestone 3, Industriale (abbozzo)
+### Milestone 3, Industriale
 
 | Id | Livello | Obiettivi |
 |---|---|---|
-| c12-trifase | Il trifase e il motore | O18 |
-| c13-marcia-arresto | Teleruttore, marcia e arresto, autoritenuta | O19 |
-| c14-termico | Relè termico e fase mancante | O20 |
+| c12-motore | Il trifase e il motore, senso di rotazione | O18 |
+| c13-marcia-arresto | Contattore, marcia e arresto, autoritenuta | O19 |
+| c14-termico | Relè termico, sovraccarico e fase mancante | O20 |
 | c15-inversione | Inversione di marcia con interblocco | O21 |
 | c16-nastro | Il nastro trasportatore: emergenza e finecorsa | O22 |
 
-Prova di milestone: nastro trasportatore in 3D. Bonus possibile: avviamento stella-triangolo.
+Prova del modulo: nastro trasportatore in 3D. Bonus possibile: avviamento stella-triangolo.
 
 ## 5. Tipi di esercizio, corrente visibile e schemi
 
