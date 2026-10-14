@@ -8,4 +8,5 @@ export default {
 "Marcia: il nastro parte.": "التشغيل: يبدأ السير بالحركة.",
 "Premendo il fungo il suo contatto si apre: la bobina perde corrente e l’autoritenuta 13-14 si apre. Sbloccando il fungo il contatto si richiude, ma il circuito resta aperto finché non premi Marcia: una macchina non deve ripartire da sola dopo un’emergenza.": "عند ضغط زر الفطر ينفتح ملامسه: يفقد الملف التيار وينفتح التثبيت الذاتي 13-14. عند تحرير الفطر يعود الملامس للإغلاق، لكن الدائرة تبقى مفتوحة حتى تضغط التشغيل: يجب ألا تعيد الآلة التشغيل وحدها بعد حالة طوارئ.",
 "Se un neutro è preso a monte del differenziale, la corrente non torna da dove è andata e il differenziale scatta anche senza una vera dispersione.": "إذا أُخذ الحياد من قبل القاطع التفاضلي، لا يعود التيار من حيث ذهب ويفصل التفاضلي حتى دون تسرب حقيقي.",
+"Crediti: i modelli 3D del divano (Wayfair) e della pianta (Darmstadt Graphics Group) sono con licenza CC BY 4.0; l’elenco completo è nel repository del progetto.": "الشكر: نماذج الأريكة (Wayfair) والنبتة (Darmstadt Graphics Group) ثلاثية الأبعاد مرخصة بموجب CC BY 4.0؛ والقائمة الكاملة في مستودع المشروع.",
 };

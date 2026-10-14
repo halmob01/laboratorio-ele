@@ -57,10 +57,6 @@ export function createScene(container, cb) {
   labelLayer.className = 'hlabels';
   container.appendChild(labelLayer);
   // attribuzione richiesta dalla licenza CC BY 4.0 di divano e pianta (vedi assets/trilocale/CREDITI.md)
-  const credit = document.createElement('div');
-  credit.className = 'hcredit';
-  credit.textContent = 'Modelli 3D: Wayfair, Darmstadt Graphics Group (CC BY 4.0)';
-  container.appendChild(credit);
 
   let needs = true, raf = 0, disposed = false;
   const anims = new Set();          // animazioni in corso: funzioni (t) -> true se continuano
@@ -316,6 +312,7 @@ export function createScene(container, cb) {
   function go(to, ms = 900) {
     if (intro) { introTarget = to; return; }      // durante l'ingresso si ricorda solo dove arrivare
     const target = { ...OVERVIEW, ...to };
+    if (camera.aspect < 0.9 && target.dist === OVERVIEW.dist) target.dist *= 1.22;   // su telefono la casa deve entrare tutta
     if (camAnim) anims.delete(camAnim);
     if (cb.reduced) { Object.assign(view, target); redraw(); return; }
     const from = { ...view };
@@ -432,6 +429,8 @@ export function createScene(container, cb) {
       const r = rooms[id] && rooms[id].def;
       if (!r) return;
       if (roofOn && !intro) setRoof(false);
+      // su schermo stretto la stanza da vicino non si legge: si resta sulla vista d'insieme, appena spostata
+      if (camera.aspect < 0.9) { go({ tx: (cx + r.x + r.w / 2) / 2, tz: (cz + r.z + r.d / 2) / 2 + 0.3, dist: 19, pitch: 62 }); return; }
       go({ tx: r.x + r.w / 2, tz: r.z + r.d / 2 + 0.3, dist: 12.5, yaw: 0, pitch: 60 });
     },
     overview() { go({}); },
@@ -452,7 +451,6 @@ export function createScene(container, cb) {
       if (renderer.forceContextLoss) renderer.forceContextLoss();
       renderer.domElement.remove();
       labelLayer.remove();
-      credit.remove();
     },
   };
 }

@@ -82,6 +82,7 @@ export const INFO_PRIVACY = [
   'Il gioco salva i tuoi progressi e il nome che scegli in questo browser, sul tuo dispositivo.',
   'In questa versione non viene inviato nulla a nessun server.',
   'Quando ci sarà la classifica condivisa, verrà inviato solo il nome o soprannome che scrivi e i punti. Usa il nome di battesimo o un soprannome, mai il cognome.',
+  'Crediti: i modelli 3D del divano (Wayfair) e della pianta (Darmstadt Graphics Group) sono con licenza CC BY 4.0; l’elenco completo è nel repository del progetto.',
 ];
 
 // Voci del piè di pagina (solo su computer). `href` assente: la voce è un pulsante che apre una scheda.
