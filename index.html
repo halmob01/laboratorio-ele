@@ -8928,6 +8928,9 @@ html[lang="it"] .trnote{display:none}
       t.classList.add("sel");
     }
   });
+  bench.addEventListener("touchstart", (e) => {
+    if (e.target.closest && e.target.closest("[data-term]")) e.preventDefault();
+  }, { passive: false });
   window.addEventListener("pointermove", (e) => {
     if (!SEL) return;
     if (dragging && downPt && Math.hypot(e.clientX - downPt.x, e.clientY - downPt.y) > 10) moved = true;

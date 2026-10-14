@@ -277,6 +277,11 @@ bench.addEventListener('pointerdown', e => {
   dragging = true; moved = false; downPt = { x: e.clientX, y: e.clientY };
   if (!SEL) { SEL = id; t.classList.add('sel'); }
 });
+// Sul telefono il browser prende il gesto per scorrere la pagina e annulla il trascinamento (pointercancel):
+// touch-action sugli elementi SVG non basta. Se il dito parte da un morsetto, la pagina non deve scorrere.
+bench.addEventListener('touchstart', e => {
+  if (e.target.closest && e.target.closest('[data-term]')) e.preventDefault();
+}, { passive: false });
 window.addEventListener('pointermove', e => {
   if (!SEL) return;
   if (dragging && downPt && Math.hypot(e.clientX - downPt.x, e.clientY - downPt.y) > 10) moved = true;
