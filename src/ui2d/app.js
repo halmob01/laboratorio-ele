@@ -5,6 +5,8 @@ import { createSession, cleanName, demoFrames, blankSnap } from '../engine/index
 import { levels, deriveFull } from '../content/index.js';
 import { HELP } from '../content/it.js';
 import { composeComps } from './layout.js';
+// Su computer i livelli con molti componenti si dispongono su due colonne, per dare scala al banco.
+const colsFor = lv => (!MQ.matches && lv.engine === 2 && lv.comps.length >= 5 ? 2 : 1);
 import * as R from './render.js';
 import * as V from './screens.js';
 import { INTRO } from '../content/home.js';
@@ -80,7 +82,7 @@ function showHint() {
 
 function onLevelChange() {
   stopDemo();
-  comps = composeComps(S.level);
+  comps = composeComps(S.level, colsFor(S.level));
   SEL = null;
   renderPalette();
   $('#lvTag').textContent = S.level.name + (S.mode === 'contatore' ? ' · dal contatore' : '') + (S.playMode === 'verifica' ? ' · prova di salto' : '');
@@ -385,7 +387,7 @@ if (window.ResizeObserver) {
     document.documentElement.style.setProperty('--roomH', Math.ceil($('.roomcard').getBoundingClientRect().height) + 8 + 'px');
   }).observe($('.roomcard'));
 }
-const onMQ = () => { if (route.name !== 'level' || !comps.length) return; setRoomVB(); renderBench(); if (!MQ.matches) $('#info').classList.add('open'); };
+const onMQ = () => { if (route.name !== 'level' || !comps.length) return; comps = composeComps(S.level, colsFor(S.level)); setRoomVB(); renderBench(); if (!MQ.matches) $('#info').classList.add('open'); };
 if (MQ.addEventListener) MQ.addEventListener('change', onMQ);
 $('#palette').addEventListener('click', e => { const b = e.target.closest('[data-col]'); if (b) { COL = b.dataset.col; renderPalette(); } });
 $('#bUndo').addEventListener('click', () => session.undo());

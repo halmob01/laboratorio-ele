@@ -181,7 +181,8 @@ function termSVG(c, id, ui) {
 export function benchViewBox(comps) {
   if (!comps.length) return '0 0 400 100';
   const H = Math.max(...comps.map(c => c.y + c.h)) + 22;
-  return `10 -28 400 ${H + 28}`;
+  const W = Math.max(400, Math.max(...comps.map(c => c.x + c.w)) + 0);
+  return `10 -28 ${W} ${H + 28}`;
 }
 
 // La lampada del banco e' accesa? Con piu' carichi si guarda quella del componente.
@@ -197,7 +198,8 @@ export function benchHTML(s, comps, ui) {
   const is2 = s.level && s.level.engine === 2;
   const live = is2 ? id => isLive(s.potential(id)) : id => s.power && s.potential(id) === 'F';
   const H = Math.max(...comps.map(c => c.y + c.h)) + 22;
-  let o = `<defs><pattern id="pegs" width="16" height="16" patternUnits="userSpaceOnUse"><circle cx="8" cy="8" r="1.4" fill="var(--dot)"/></pattern></defs><rect x="0" y="-28" width="420" height="${H + 28}" fill="var(--bench)"/><rect x="0" y="-28" width="420" height="${H + 28}" fill="url(#pegs)"/>`;
+  const BW = Math.max(420, Math.max(...comps.map(c => c.x + c.w)) + 10);
+  let o = `<defs><pattern id="pegs" width="16" height="16" patternUnits="userSpaceOnUse"><circle cx="8" cy="8" r="1.4" fill="var(--dot)"/></pattern></defs><rect x="0" y="-28" width="${BW}" height="${H + 28}" fill="var(--bench)"/><rect x="0" y="-28" width="${BW}" height="${H + 28}" fill="url(#pegs)"/>`;
   const dimmed = c => ui.focus && !ui.focus.includes(c.id);
   comps.forEach(c => {
     const toggles = ['sw', 'dev', 'inv', 'mt', 'mt3', 'sez', 'rcd', 'fungo'].includes(c.type);

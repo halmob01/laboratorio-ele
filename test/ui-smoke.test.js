@@ -129,7 +129,7 @@ test('la mappa mostra i livelli, Continua (nessun livello in arrivo nel Modulo 0
   assert.equal(qa(d, m0 + ' .lvcard').length, 6);
   assert.equal(qa(d, m0 + ' .lvcard.soon').length, 0);
   assert.equal(qa(d, '.module[aria-label^="MODULO 2"] .lvcard.soon').length, 3);
-  assert.equal(qa(d, '.module[aria-label^="MODULO 3"] .lvcard.soon').length, 5);
+  assert.equal(qa(d, '.module[aria-label^="MODULO 3"] .lvcard.soon').length, 3);
   assert.match(q(d, '.homemain .cont').textContent, /Il circuito chiuso/);
   assert.match(q(d, m0).textContent, /Due lampade/);
   assert.equal(qa(d, m0 + ' .lvcard a[href*="verifica"]').length, 6);   // "Già lo so" su ogni livello nuovo

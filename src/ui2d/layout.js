@@ -108,7 +108,7 @@ const KIND = {
 };
 const spread = (n, a = .1, b = .88) => (n === 1 ? [.5] : n === 2 ? [.28, .72] : n === 3 ? [.2, .5, .8] : Array.from({ length: n }, (_, i) => a + (b - a) * i / (n - 1)));
 
-export function autoLayout(level) {
+export function autoLayout(level, cols = 1) {
   const comps = {};
   let y = 0, pending = null;
   const make = (c, x, y0) => {
@@ -145,18 +145,28 @@ export function autoLayout(level) {
       y += g.h + 44;
     }
   });
+  if (cols > 1) {
+    // seconda colonna: le righe dopo la meta' dell'altezza passano a destra, accanto alle prime
+    const ids = level.comps.map(c => c.id);
+    const total = Math.max(...ids.map(id => comps[id].y + comps[id].h));
+    const cut = ids.find(id => comps[id].y >= total / 2 && comps[id].y > 0);
+    if (cut) {
+      const y0 = comps[cut].y, rest = ids.slice(ids.indexOf(cut));
+      rest.forEach(id => { comps[id].x += 410; comps[id].y -= y0; });
+    }
+  }
   return { comps, plates: {} };
 }
 
-export function layoutFor(level) {
-  if (level.engine === 2) return autoLayout(level);
+export function layoutFor(level, cols = 1) {
+  if (level.engine === 2) return autoLayout(level, cols);
   return level.full ? fullLayout(level.id) : BASE[level.id];
 }
 
 // Componenti del modello con la geometria sopra: x, y, w, h, flip, bx, plate e, per ogni morsetto, f e s.
 // Per il disegno e' piu' comodo avere tutto in un oggetto solo.
-export function composeComps(level) {
-  const layout = layoutFor(level);
+export function composeComps(level, cols = 1) {
+  const layout = layoutFor(level, cols);
   return level.comps.map(c => {
     const g = layout.comps[c.id];
     const terms = {};

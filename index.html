@@ -3344,6 +3344,11 @@ html[lang="it"] .trnote{display:none}
   var T = (...ids) => Object.fromEntries(ids.map((i) => [i, { l: i }]));
   var C = (id, type, short, title, terms, extra = {}) => ({ id, type, short, title, terms: Array.isArray(terms) ? T(...terms) : terms, ...extra });
   var QM = C("Q", "quadro", "Quadro", "Quadro elettrico", { F: { l: "FASE" }, N: { l: "NEUTRO" }, PE: { l: "TERRA" } });
+  var Q3 = C("Q", "quadro", "Quadro", "Quadro trifase", T("L1", "L2", "L3", "N", "PE"));
+  var SRC3 = { L1: "Q.L1", L2: "Q.L2", L3: "Q.L3", N: "Q.N", PE: "Q.PE" };
+  var PAL3 = ["marrone", "nero", "grigio", "blu", "gv", "rosso"];
+  var T6 = ["1", "2", "3", "4", "5", "6"];
+  var IND = { engine: 2, quadroOnly: true, src: SRC3, palette: PAL3, controlColor: "rosso" };
   var press = (id) => ["press " + id, "release " + id];
   var LEVELS_V2 = [
     {
@@ -3425,6 +3430,94 @@ html[lang="it"] .trnote{display:none}
         "I tre pulsanti sono in parallelo: i morsetti 3 sono collegati tra loro e alla fase, i morsetti 4 sono collegati tra loro.",
         "Dai morsetti 4 dei pulsanti un filo va alla bobina del rel\xE8 (A1). L\u2019altro capo della bobina (A2) va al neutro.",
         "La lampada si collega al contatto del rel\xE8: la fase arriva al morsetto 1, dal morsetto 2 va alla lampada. Il neutro va direttamente alla lampada."
+      ]
+    },
+    {
+      id: "c12-motore",
+      code: "c12",
+      n: 0,
+      ...IND,
+      flow: "onDemand",
+      name: "Motore trifase",
+      title: "Il motore trifase",
+      blurb: "Tre fasi, 400 V e il senso di rotazione.",
+      goal: "Collega il motore alla rete trifase passando dal salvamotore, poi collega la terra del motore. Chiudi il salvamotore: il motore deve girare in avanti.",
+      comps: [
+        Q3,
+        C("QM", "mt3", "Salvamotore", "Salvamotore magnetotermico", T(...T6), { init: 0 }),
+        C("M", "motor3", "Motore", "Motore trifase", T("U", "V", "W", "PE"))
+      ],
+      controls: ["QM"],
+      checks: [
+        { id: "gira", label: "Chiudi il salvamotore: il motore gira in avanti", do: ["toggle QM"], expect: { motors: { M: "fwd" } } },
+        { id: "fermo", label: "Con il salvamotore aperto il motore \xE8 fermo", do: [], expect: { motors: { M: "off" } } }
+      ],
+      safety: { earth: [["M.PE", "Q.PE"]], protectedBy: { M: "QM" } },
+      solution: [
+        ["Q.L1", "QM.1", "marrone"],
+        ["Q.L2", "QM.3", "nero"],
+        ["Q.L3", "QM.5", "grigio"],
+        ["QM.2", "M.U", "marrone"],
+        ["QM.4", "M.V", "nero"],
+        ["QM.6", "M.W", "grigio"],
+        ["Q.PE", "M.PE", "gv"]
+      ],
+      hints: [
+        "Le tre fasi L1, L2, L3 entrano nel salvamotore dai morsetti in alto: 1, 3 e 5.",
+        "Dai morsetti in basso del salvamotore (2, 4, 6) le tre fasi vanno ai morsetti U, V, W del motore, nello stesso ordine.",
+        "Il morsetto PE del motore va alla terra del quadro con il filo giallo-verde. Poi tocca la levetta del salvamotore."
+      ]
+    },
+    {
+      id: "c13-marcia-arresto",
+      code: "c13",
+      n: 0,
+      ...IND,
+      flow: "onDemand",
+      name: "Marcia e arresto",
+      title: "Marcia e arresto",
+      blurb: "Contattore, pulsanti e autoritenuta.",
+      goal: "Comanda il motore con due pulsanti: con Marcia il motore parte e resta in marcia anche a pulsante rilasciato, con Arresto si ferma. Una spia segnala la marcia. Il circuito di comando va in rosso.",
+      comps: [
+        Q3,
+        C("QM", "mt3", "Salvamotore", "Salvamotore magnetotermico", T(...T6)),
+        C("KM", "km", "Contattore", "Contattore KM", T("A1", "A2", ...T6, "13", "14")),
+        C("SB0", "pbnc", "Arresto", "Pulsante di arresto (NC)", T("1", "2")),
+        C("SB1", "pb", "Marcia", "Pulsante di marcia (NA)", T("3", "4")),
+        C("H", "spia", "Spia", "Spia di marcia", T("X1", "X2")),
+        C("M", "motor3", "Motore", "Motore trifase", T("U", "V", "W", "PE"))
+      ],
+      controls: ["SB0", "SB1"],
+      checks: [
+        { id: "marcia", label: "Premi Marcia e rilascia: il motore resta in marcia e la spia \xE8 accesa", do: press("SB1"), expect: { motors: { M: "fwd" }, loads: { H: "on" } } },
+        { id: "arresto", label: "Premi Arresto: il motore si ferma e la spia si spegne", steps: [{ do: press("SB1"), expect: { motors: { M: "fwd" } } }, { do: press("SB0"), expect: { motors: { M: "off" }, loads: { H: "off" } } }] },
+        { id: "fermo", label: "Senza comandi il motore \xE8 fermo", do: [], expect: { motors: { M: "off" } } }
+      ],
+      safety: { earth: [["M.PE", "Q.PE"]], stopWins: "SB0", protectedBy: { M: "QM", KM: "QM" } },
+      solution: [
+        ["Q.L1", "QM.1", "marrone"],
+        ["Q.L2", "QM.3", "nero"],
+        ["Q.L3", "QM.5", "grigio"],
+        ["QM.2", "KM.1", "marrone"],
+        ["QM.4", "KM.3", "nero"],
+        ["QM.6", "KM.5", "grigio"],
+        ["KM.2", "M.U", "marrone"],
+        ["KM.4", "M.V", "nero"],
+        ["KM.6", "M.W", "grigio"],
+        ["M.PE", "Q.PE", "gv"],
+        ["QM.2", "SB0.1", "rosso"],
+        ["SB0.2", "SB1.3", "rosso"],
+        ["SB1.4", "KM.A1", "rosso"],
+        ["KM.A2", "Q.N", "blu"],
+        ["SB1.3", "KM.13", "rosso"],
+        ["KM.14", "SB1.4", "rosso"],
+        ["H.X1", "KM.A1", "rosso"],
+        ["H.X2", "Q.N", "blu"]
+      ],
+      hints: [
+        "Prima il circuito di potenza: le tre fasi passano dal salvamotore, dal contattore e arrivano al motore. Poi la terra del motore.",
+        "Il comando prende la fase a valle del salvamotore e passa dal pulsante di arresto (NC), poi dal pulsante di marcia (NA), e arriva alla bobina A1. L\u2019altro capo della bobina, A2, va al neutro.",
+        "L\u2019autoritenuta \xE8 un contatto del contattore (13-14) in parallelo al pulsante di marcia: 13 al morsetto 3 e 14 al morsetto 4. La spia va in parallelo alla bobina."
       ]
     }
   ];
@@ -3644,6 +3737,249 @@ html[lang="it"] .trnote{display:none}
           why: "I pulsanti sono uno dopo l\u2019altro: la fase arriva alla bobina solo se tutti e tre sono premuti insieme, ed \xE8 impossibile da punti diversi della casa. I pulsanti vanno in parallelo."
         },
         fixSay: "Ricollega i pulsanti in parallelo: i tre morsetti 3 insieme alla fase, i tre morsetti 4 insieme alla bobina. Poi premi Verifica."
+      }
+    },
+    "c12-motore": {
+      support: "passi",
+      lesson: {
+        pages: [
+          {
+            type: "spiegazione",
+            title: "Tre fasi e 400 V",
+            paras: [
+              "Nelle fabbriche la rete \xE8 trifase: ci sono tre fasi, L1, L2 e L3. Tra due fasi qualsiasi la tensione \xE8 di 400 V; tra una fase e il neutro \xE8 di 230 V, come in casa.",
+              "I motori industriali sono quasi tutti trifase: tre avvolgimenti alimentati dalle tre fasi creano un campo magnetico che gira e trascina il rotore. Non serve il neutro."
+            ],
+            warn: "A 400 V gli errori sono pi\xF9 pericolosi. Si lavora sempre con il salvamotore aperto."
+          },
+          {
+            type: "pezzi",
+            title: "Il salvamotore",
+            focus: ["QM"],
+            paras: [
+              "Il salvamotore \xE8 un interruttore con tre poli, uno per fase. In alto entrano le fasi (1, 3, 5), in basso escono (2, 4, 6).",
+              "Protegge il motore e i fili che vengono dopo: scatta se la corrente \xE8 troppo alta. La levetta su vuol dire chiuso, gi\xF9 aperto."
+            ]
+          },
+          {
+            type: "pezzi",
+            title: "Il motore",
+            focus: ["M"],
+            paras: [
+              "Il motore ha tre morsetti per le fasi, U, V e W, e il morsetto PE per la terra. La terra collega la carcassa metallica: se un avvolgimento tocca la carcassa, la corrente va a terra e non in chi la tocca.",
+              "Le fasi si collegano in ordine: L1 a U, L2 a V, L3 a W. Con questo ordine il motore gira in avanti."
+            ]
+          },
+          {
+            type: "spiegazione",
+            title: "Il senso di rotazione",
+            paras: [
+              "Per far girare il motore al contrario basta scambiare due qualunque delle tre fasi. Il campo magnetico gira nell\u2019altro verso e con lui il rotore.",
+              "\xC8 utile quando serve andare avanti e indietro, per esempio in un nastro o in un cancello. Se invece succede per errore, il motore gira nel verso sbagliato."
+            ],
+            table: { head: ["U", "V", "W", "Senso"], rows: [["L1", "L2", "L3", "in avanti"], ["L1", "L3", "L2", "all\u2019indietro"]] }
+          },
+          {
+            type: "demo",
+            title: "Guarda come si fa",
+            captions: {
+              wires: [
+                "Filo marrone dalla fase L1 al morsetto 1 del salvamotore.",
+                "Filo nero dalla fase L2 al morsetto 3.",
+                "Filo grigio dalla fase L3 al morsetto 5.",
+                "Filo marrone dal morsetto 2 del salvamotore al morsetto U del motore.",
+                "Filo nero dal morsetto 4 al morsetto V.",
+                "Filo grigio dal morsetto 6 al morsetto W.",
+                "Filo giallo-verde dalla terra del quadro al morsetto PE del motore."
+              ],
+              power: "Il salvamotore \xE8 aperto: il motore \xE8 fermo.",
+              controls: ["Salvamotore chiuso: le tre fasi arrivano al motore e il motore gira in avanti."]
+            }
+          },
+          {
+            type: "previsione",
+            question: "Scambio due delle tre fasi sui morsetti del motore. Che cosa succede?",
+            options: [
+              { id: "a", text: "Il motore gira al contrario." },
+              { id: "b", text: "Il motore non parte." },
+              { id: "c", text: "Il salvamotore scatta." }
+            ],
+            correct: "a",
+            why: "Scambiando due fasi il campo magnetico del motore gira nel verso opposto: il motore funziona normalmente, ma al contrario. Non c\u2019\xE8 nessun cortocircuito, quindi il salvamotore non scatta."
+          },
+          { type: "sintesi", title: "Da ricordare" }
+        ]
+      },
+      steps: [
+        { kind: "wire", from: "Q.L1", to: ["QM.1"], color: "marrone", short: "1 Fasi", title: "Le tre fasi al salvamotore", text: "L1 al morsetto 1 (marrone), L2 al 3 (nero), L3 al 5 (grigio)." },
+        { kind: "wire", from: "QM.2", to: ["M.U"], color: "marrone", short: "2 Motore", title: "Dal salvamotore al motore", text: "Dai morsetti 2, 4 e 6 ai morsetti U, V e W, nello stesso ordine." },
+        { kind: "wire", from: "Q.PE", to: ["M.PE"], color: "gv", short: "3 Terra", title: "La terra al motore", text: "Dalla terra del quadro al morsetto PE del motore." },
+        { kind: "control", id: "QM", short: "4 Salvamotore", title: "Chiudi il salvamotore", text: "Tocca la levetta del salvamotore: il motore deve girare." },
+        { kind: "verify", short: "5 Verifica", title: "Controlla l\u2019impianto", text: "Premi Verifica." }
+      ],
+      summary: [
+        "La rete industriale ha tre fasi, L1, L2 e L3: tra due fasi ci sono 400 V.",
+        "Il motore trifase non usa il neutro: usa le tre fasi, U, V e W, e la terra PE.",
+        "Il salvamotore ha un polo per fase e protegge il motore.",
+        "Scambiando due fasi il motore gira al contrario."
+      ],
+      fault: {
+        say: "Il motore \xE8 gi\xE0 collegato e gira, ma nel verso sbagliato. Chiudi il salvamotore e guarda.",
+        wires: [
+          ["Q.L1", "QM.1", "marrone"],
+          ["Q.L2", "QM.3", "nero"],
+          ["Q.L3", "QM.5", "grigio"],
+          ["QM.2", "M.U", "marrone"],
+          ["QM.4", "M.W", "nero"],
+          ["QM.6", "M.V", "grigio"],
+          ["Q.PE", "M.PE", "gv"]
+        ],
+        diagnosis: {
+          question: "Che cosa non va?",
+          options: [
+            { id: "a", text: "Due fasi sono scambiate: il motore gira all\u2019indietro." },
+            { id: "b", text: "Manca la terra." },
+            { id: "c", text: "Il motore \xE8 collegato al neutro." }
+          ],
+          correct: "a",
+          why: "I fili che vanno ai morsetti V e W sono scambiati. Per invertire il senso di rotazione di un motore trifase basta scambiare due fasi."
+        },
+        fixSay: "Rimetti le fasi in ordine: il morsetto 4 va a V e il morsetto 6 a W. Poi premi Verifica."
+      }
+    },
+    "c13-marcia-arresto": {
+      support: "passi",
+      lesson: {
+        pages: [
+          {
+            type: "spiegazione",
+            title: "Due circuiti: potenza e comando",
+            paras: [
+              "Un motore si comanda con un contattore: un interruttore pilotato da una bobina. Il circuito di potenza porta le tre fasi al motore. Il circuito di comando alimenta la bobina e decide quando il contattore si chiude.",
+              "I due circuiti sono separati. Il comando usa pochi fili sottili, con pulsanti piccoli e sicuri. Nel gioco i fili di comando sono rossi."
+            ]
+          },
+          {
+            type: "pezzi",
+            title: "Il contattore",
+            focus: ["KM"],
+            paras: [
+              "La bobina \xE8 tra A1 e A2. Se \xE8 alimentata, i tre poli di potenza (1-2, 3-4, 5-6) si chiudono e il motore parte.",
+              "Il contattore ha anche un contatto ausiliario, 13-14: si chiude insieme ai poli di potenza. Serve per l\u2019autoritenuta."
+            ]
+          },
+          {
+            type: "pezzi",
+            title: "Marcia e arresto",
+            focus: ["SB0", "SB1"],
+            paras: [
+              "Il pulsante di marcia \xE8 normalmente aperto (NA): chiude il circuito finch\xE9 lo tieni premuto. Il pulsante di arresto \xE8 normalmente chiuso (NC): lo apre.",
+              "L\u2019arresto \xE8 NC perch\xE9 se un filo si stacca il circuito si apre e il motore si ferma. Un guasto va sempre verso la sicurezza."
+            ]
+          },
+          {
+            type: "spiegazione",
+            title: "L\u2019autoritenuta",
+            paras: [
+              "Il pulsante di marcia d\xE0 corrente alla bobina solo finch\xE9 lo tieni premuto. Per non doverlo tenere premuto si usa il contatto 13-14 del contattore, in parallelo al pulsante.",
+              "Premi Marcia: la bobina si eccita e il contatto 13-14 si chiude. Rilasci: la corrente alla bobina continua a passare dal contatto. Il contattore si tiene da solo, per questo si chiama autoritenuta.",
+              "Premi Arresto: il circuito si apre, la bobina si diseccita, il contatto 13-14 si apre e il motore si ferma. Il motore riparte solo con un nuovo comando di marcia."
+            ]
+          },
+          {
+            type: "demo",
+            title: "Guarda come si fa",
+            captions: {
+              wires: [
+                "Filo marrone dalla fase L1 al morsetto 1 del salvamotore.",
+                "Filo nero dalla fase L2 al morsetto 3.",
+                "Filo grigio dalla fase L3 al morsetto 5.",
+                "Dal morsetto 2 del salvamotore al morsetto 1 del contattore.",
+                "Dal morsetto 4 al morsetto 3 del contattore.",
+                "Dal morsetto 6 al morsetto 5 del contattore.",
+                "Dal morsetto 2 del contattore al morsetto U del motore.",
+                "Dal morsetto 4 del contattore al morsetto V.",
+                "Dal morsetto 6 del contattore al morsetto W.",
+                "Filo giallo-verde dalla terra al morsetto PE del motore.",
+                "Comando: filo rosso dal morsetto 2 del salvamotore al pulsante di arresto.",
+                "Filo rosso dal pulsante di arresto al pulsante di marcia.",
+                "Filo rosso dal pulsante di marcia alla bobina del contattore (A1).",
+                "Filo blu dall\u2019altro capo della bobina (A2) al neutro.",
+                "Autoritenuta: filo rosso dal morsetto 3 del pulsante di marcia al contatto 13.",
+                "Filo rosso dal contatto 14 al morsetto 4 del pulsante di marcia.",
+                "Filo rosso dalla bobina (A1) alla spia di marcia.",
+                "Filo blu dalla spia al neutro."
+              ],
+              power: "Il motore \xE8 fermo e la spia \xE8 spenta.",
+              controls: ["Premuto Arresto, il motore resta fermo.", "Premuta Marcia: il contattore si chiude, il motore parte e la spia si accende."]
+            }
+          },
+          {
+            type: "previsione",
+            question: "Il motore sta girando e premo Marcia. Che cosa succede?",
+            options: [
+              { id: "a", text: "Niente: il motore continua a girare." },
+              { id: "b", text: "Il motore si ferma." },
+              { id: "c", text: "Il salvamotore scatta." }
+            ],
+            correct: "a",
+            why: "Il contattore \xE8 gi\xE0 chiuso e la bobina \xE8 gi\xE0 alimentata dal contatto di autoritenuta. Premere Marcia ancora non cambia nulla."
+          },
+          { type: "sintesi", title: "Da ricordare" }
+        ]
+      },
+      steps: [
+        { kind: "wire", from: "Q.L1", to: ["QM.1"], color: "marrone", short: "1 Fasi", title: "Le tre fasi al salvamotore", text: "L1, L2 e L3 ai morsetti 1, 3 e 5 del salvamotore." },
+        { kind: "wire", from: "QM.2", to: ["KM.1"], color: "marrone", short: "2 Contattore", title: "Dal salvamotore al contattore", text: "Dai morsetti 2, 4 e 6 del salvamotore ai morsetti 1, 3 e 5 del contattore." },
+        { kind: "wire", from: "KM.2", to: ["M.U"], color: "marrone", short: "3 Motore", title: "Dal contattore al motore", text: "Dai morsetti 2, 4 e 6 del contattore ai morsetti U, V e W del motore." },
+        { kind: "wire", from: "M.PE", to: ["Q.PE"], color: "gv", short: "4 Terra", title: "La terra al motore", text: "Dal morsetto PE del motore alla terra del quadro." },
+        { kind: "wire", from: "QM.2", to: ["SB0.1"], color: "rosso", short: "5 Arresto", title: "Il comando passa dall\u2019arresto", text: "Filo rosso dal morsetto 2 del salvamotore al morsetto 1 del pulsante di arresto." },
+        { kind: "wire", from: "SB0.2", to: ["SB1.3"], color: "rosso", short: "6 Marcia", title: "Poi dalla marcia", text: "Filo rosso dal morsetto 2 dell\u2019arresto al morsetto 3 del pulsante di marcia." },
+        { kind: "wire", from: "SB1.4", to: ["KM.A1"], color: "rosso", short: "7 Bobina", title: "Alla bobina", text: "Filo rosso dal morsetto 4 della marcia al morsetto A1 del contattore." },
+        { kind: "wire", from: "KM.A2", to: ["Q.N"], color: "blu", short: "8 Neutro", title: "Il neutro alla bobina", text: "Filo blu da A2 al neutro del quadro." },
+        { kind: "wire", from: "KM.13", to: ["SB1.3"], color: "rosso", short: "9 Autoritenuta", title: "L\u2019autoritenuta", text: "Due fili rossi: dal morsetto 3 della marcia al contatto 13 e dal contatto 14 al morsetto 4 della marcia." },
+        { kind: "wire", from: "H.X1", to: ["KM.A1"], color: "rosso", short: "10 Spia", title: "La spia di marcia", text: "Filo rosso da A1 alla spia e filo blu dall\u2019altro morsetto della spia al neutro." },
+        { kind: "control", id: "SB1", short: "11 Marcia", title: "Prova la marcia", text: "Tieni premuto Marcia e rilascia: il motore deve restare in marcia." },
+        { kind: "verify", short: "12 Verifica", title: "Controlla l\u2019impianto", text: "Premi Verifica." }
+      ],
+      summary: [
+        "Il circuito di potenza porta le tre fasi al motore; il circuito di comando alimenta la bobina del contattore.",
+        "La bobina alimentata chiude i poli di potenza e il contatto ausiliario 13-14.",
+        "Marcia \xE8 un pulsante NA, Arresto \xE8 un pulsante NC: un filo staccato ferma il motore.",
+        "L\u2019autoritenuta \xE8 il contatto 13-14 in parallelo al pulsante di marcia: il contattore si tiene da solo.",
+        "Arresto vince sempre: premuto, il motore si ferma anche se si tiene premuta Marcia."
+      ],
+      fault: {
+        say: "Il circuito \xE8 gi\xE0 cablato. Premi Marcia e rilascia: guarda che cosa fa il motore.",
+        wires: [
+          ["Q.L1", "QM.1", "marrone"],
+          ["Q.L2", "QM.3", "nero"],
+          ["Q.L3", "QM.5", "grigio"],
+          ["QM.2", "KM.1", "marrone"],
+          ["QM.4", "KM.3", "nero"],
+          ["QM.6", "KM.5", "grigio"],
+          ["KM.2", "M.U", "marrone"],
+          ["KM.4", "M.V", "nero"],
+          ["KM.6", "M.W", "grigio"],
+          ["M.PE", "Q.PE", "gv"],
+          ["QM.2", "SB0.1", "rosso"],
+          ["SB0.2", "SB1.3", "rosso"],
+          ["SB1.4", "KM.A1", "rosso"],
+          ["KM.A2", "Q.N", "blu"],
+          ["H.X1", "KM.A1", "rosso"],
+          ["H.X2", "Q.N", "blu"]
+        ],
+        diagnosis: {
+          question: "Che cosa non va?",
+          options: [
+            { id: "a", text: "Manca l\u2019autoritenuta: il motore si ferma appena rilasci Marcia." },
+            { id: "b", text: "Il motore \xE8 collegato alle fasi sbagliate." },
+            { id: "c", text: "Il pulsante di arresto \xE8 sul neutro." }
+          ],
+          correct: "a",
+          why: "Senza il contatto 13-14 in parallelo al pulsante di marcia la bobina \xE8 alimentata solo finch\xE9 tieni premuto Marcia. Rilasciato il pulsante, il contattore si apre e il motore si ferma."
+        },
+        fixSay: "Aggiungi l\u2019autoritenuta: filo rosso dal morsetto 3 della marcia al contatto 13 e dal contatto 14 al morsetto 4 della marcia. Poi premi Verifica."
       }
     }
   };
@@ -4098,7 +4434,7 @@ html[lang="it"] .trnote{display:none}
     inv: [HALF, 112, ["1", "2"], ["3", "4"]]
   };
   var spread = (n, a = 0.1, b = 0.88) => n === 1 ? [0.5] : n === 2 ? [0.28, 0.72] : n === 3 ? [0.2, 0.5, 0.8] : Array.from({ length: n }, (_, i) => a + (b - a) * i / (n - 1));
-  function autoLayout(level) {
+  function autoLayout(level, cols = 1) {
     const comps2 = {};
     let y = 0, pending = null;
     const make = (c2, x, y0) => {
@@ -4137,14 +4473,26 @@ html[lang="it"] .trnote{display:none}
         y += g.h + 44;
       }
     });
+    if (cols > 1) {
+      const ids = level.comps.map((c2) => c2.id);
+      const total = Math.max(...ids.map((id) => comps2[id].y + comps2[id].h));
+      const cut = ids.find((id) => comps2[id].y >= total / 2 && comps2[id].y > 0);
+      if (cut) {
+        const y0 = comps2[cut].y, rest = ids.slice(ids.indexOf(cut));
+        rest.forEach((id) => {
+          comps2[id].x += 410;
+          comps2[id].y -= y0;
+        });
+      }
+    }
     return { comps: comps2, plates: {} };
   }
-  function layoutFor(level) {
-    if (level.engine === 2) return autoLayout(level);
+  function layoutFor(level, cols = 1) {
+    if (level.engine === 2) return autoLayout(level, cols);
     return level.full ? fullLayout(level.id) : BASE[level.id];
   }
-  function composeComps(level) {
-    const layout = layoutFor(level);
+  function composeComps(level, cols = 1) {
+    const layout = layoutFor(level, cols);
     return level.comps.map((c2) => {
       const g = layout.comps[c2.id];
       const terms = {};
@@ -4361,11 +4709,11 @@ html[lang="it"] .trnote{display:none}
     const m = level.machine;
     let o = `<defs><radialGradient id="glow2"><stop offset="0" stop-color="#FFE9A8" stop-opacity=".95"/><stop offset="1" stop-color="#FFD25E" stop-opacity="0"/></radialGradient></defs>`;
     o += `<rect class="wall" x="0" y="0" width="400" height="196"/><rect class="floor" x="0" y="196" width="400" height="54"/><rect class="skirt" x="0" y="190" width="400" height="8"/>`;
-    if (!m) o += `<rect id="night2" class="night" x="0" y="0" width="400" height="250" opacity=".5"/>`;
+    if (!m && level.comps.some((c2) => c2.type === "lamp")) o += `<rect id="night2" class="night" x="0" y="0" width="400" height="250" opacity=".5"/>`;
     const devs = level.comps.filter((c2) => DEV.has(c2.type) && !(m && c2.id === m.motor));
     const n = devs.length + (m ? 0 : 0);
     devs.forEach((c2, i) => {
-      const x = Math.round(400 * (i + 0.5) / Math.max(1, n)), y = m ? 40 : 66;
+      const x = Math.round(400 * (i + 0.5) / Math.max(1, n)), y = m ? 40 : 52;
       o += `<g data-dev="${c2.id}">`;
       if (c2.type === "lamp" || c2.type === "spia") {
         o += `<line x1="${x}" y1="0" x2="${x}" y2="${y - 22}" stroke="var(--ink)" stroke-width="2.5" opacity=".7"/>`;
@@ -4379,7 +4727,7 @@ html[lang="it"] .trnote{display:none}
       } else if (c2.type === "motor3") {
         o += fanSVG(c2.id, x, y);
       }
-      o += `<text x="${x}" y="${y + 40}" text-anchor="middle" style="font:600 11px 'IBM Plex Sans',sans-serif;fill:var(--ink2)">${c2.short || c2.id}</text></g>`;
+      o += `<text x="${x}" y="${y + (c2.type === "motor3" ? 64 : 40)}" text-anchor="middle" style="font:600 11px 'IBM Plex Sans',sans-serif;fill:var(--ink2)">${c2.short || c2.id}</text></g>`;
     });
     if (m) {
       const mt = level.comps.find((c2) => c2.id === m.motor);
@@ -4393,7 +4741,7 @@ html[lang="it"] .trnote{display:none}
     }
     const ctl = (level.controls || []).map((id) => level.comps.find((c2) => c2.id === id)).filter((c2) => c2 && WALLCTL[c2.type]);
     ctl.forEach((c2, i) => {
-      const x = Math.round(400 * (i + 0.5) / ctl.length), y = 142;
+      const x = Math.round(400 * (i + 0.5) / ctl.length), y = WALLCTL[c2.type] === "hold" ? 148 : 144;
       if (WALLCTL[c2.type] === "hold") {
         const col = c2.type === "pb" ? "#2E9E5B" : "#C0262D";
         o += `<g class="pl" data-hold="${c2.id}" role="button" tabindex="0" aria-label="${c2.title || c2.short}, tieni premuto" style="touch-action:none"><circle cx="${x}" cy="${y}" r="26" fill="transparent"/><circle class="plate" cx="${x}" cy="${y}" r="20"/><circle id="bt-${c2.id}" cx="${x}" cy="${y}" r="13" fill="${col}" stroke="rgba(255,255,255,.45)" stroke-width="2"/><text x="${x}" y="${y + 36}" text-anchor="middle" style="font:600 11px 'IBM Plex Sans',sans-serif;fill:var(--ink2)">${c2.short}</text></g>`;
@@ -4628,7 +4976,8 @@ html[lang="it"] .trnote{display:none}
   function benchViewBox(comps2) {
     if (!comps2.length) return "0 0 400 100";
     const H = Math.max(...comps2.map((c2) => c2.y + c2.h)) + 22;
-    return `10 -28 400 ${H + 28}`;
+    const W = Math.max(400, Math.max(...comps2.map((c2) => c2.x + c2.w)) + 0);
+    return `10 -28 ${W} ${H + 28}`;
   }
   function litOf(s, c2) {
     const loads = s.level && s.level.loads;
@@ -4640,7 +4989,8 @@ html[lang="it"] .trnote{display:none}
     const is2 = s.level && s.level.engine === 2;
     const live = is2 ? (id) => isLive(s.potential(id)) : (id) => s.power && s.potential(id) === "F";
     const H = Math.max(...comps2.map((c2) => c2.y + c2.h)) + 22;
-    let o = `<defs><pattern id="pegs" width="16" height="16" patternUnits="userSpaceOnUse"><circle cx="8" cy="8" r="1.4" fill="var(--dot)"/></pattern></defs><rect x="0" y="-28" width="420" height="${H + 28}" fill="var(--bench)"/><rect x="0" y="-28" width="420" height="${H + 28}" fill="url(#pegs)"/>`;
+    const BW = Math.max(420, Math.max(...comps2.map((c2) => c2.x + c2.w)) + 10);
+    let o = `<defs><pattern id="pegs" width="16" height="16" patternUnits="userSpaceOnUse"><circle cx="8" cy="8" r="1.4" fill="var(--dot)"/></pattern></defs><rect x="0" y="-28" width="${BW}" height="${H + 28}" fill="var(--bench)"/><rect x="0" y="-28" width="${BW}" height="${H + 28}" fill="url(#pegs)"/>`;
     const dimmed = (c2) => ui2.focus && !ui2.focus.includes(c2.id);
     comps2.forEach((c2) => {
       const toggles = ["sw", "dev", "inv", "mt", "mt3", "sez", "rcd", "fungo"].includes(c2.type);
@@ -4766,8 +5116,8 @@ html[lang="it"] .trnote{display:none}
       tag: "MODULO 3",
       title: "Industriale",
       levels: [
-        { soon: true, id: "c12-motore", title: "Il motore trifase", blurb: "Tre fasi, 400 V e il senso di rotazione." },
-        { soon: true, id: "c13-marcia-arresto", title: "Marcia e arresto", blurb: "Contattore, pulsanti e autoritenuta." },
+        "c12-motore",
+        "c13-marcia-arresto",
         { soon: true, id: "c14-termico", title: "Il rel\xE8 termico", blurb: "La protezione del motore dal sovraccarico." },
         { soon: true, id: "c15-inversione", title: "Inversione di marcia", blurb: "Due contattori e l\u2019interblocco." },
         { soon: true, id: "c16-nastro", title: "Il nastro trasportatore", blurb: "Emergenza, finecorsa e una macchina completa." }
@@ -6523,6 +6873,7 @@ html[lang="it"] .trnote{display:none}
   }
 
   // src/ui2d/app.js
+  var colsFor = (lv) => !MQ.matches && lv.engine === 2 && lv.comps.length >= 5 ? 2 : 1;
   var $ = (s) => document.querySelector(s);
   var MQ = window.matchMedia("(max-width:919px)");
   var buzz = () => {
@@ -6612,7 +6963,7 @@ html[lang="it"] .trnote{display:none}
   }
   function onLevelChange() {
     stopDemo();
-    comps = composeComps(S.level);
+    comps = composeComps(S.level, colsFor(S.level));
     SEL = null;
     renderPalette();
     $("#lvTag").textContent = S.level.name + (S.mode === "contatore" ? " \xB7 dal contatore" : "") + (S.playMode === "verifica" ? " \xB7 prova di salto" : "");
@@ -7045,6 +7396,7 @@ html[lang="it"] .trnote{display:none}
   }
   var onMQ = () => {
     if (route.name !== "level" || !comps.length) return;
+    comps = composeComps(S.level, colsFor(S.level));
     setRoomVB();
     renderBench();
     if (!MQ.matches) $("#info").classList.add("open");
