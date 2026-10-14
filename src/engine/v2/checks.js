@@ -5,6 +5,7 @@ import { makeUF } from '../circuit.js';
 import { PHASE_COLORS } from '../wires.js';
 import { act, advance, rewind, createSim, observe, setSupply, sourcesOf, stillOnIfOpen } from './sim.js';
 import { partOf, POWER_PATH } from './parts.js';
+import { measureMatches } from '../steps.js';
 
 const section = () => ({ ok: false, status: 'ko', items: [] });
 function finish(sec) {
@@ -143,7 +144,7 @@ export function allowedColorsV2(level, role, wire) {
 
 /* ---------- verifica ---------- */
 
-export function evaluateV2(level, wires) {
+export function evaluateV2(level, wires, ctx = {}) {
   const out = { work: section(), color: section(), safe: section() };
   const add = (sec, code, params) => out[sec].items.push(params ? { code, ...params } : { code });
 
@@ -160,6 +161,9 @@ export function evaluateV2(level, wires) {
   if (!failed.length) {
     out.work.ok = true;
     add('work', 'work.allChecksOk', { n: runs.length });
+    // letture del multimetro che il livello pretende (misurare prima di dare per buono)
+    const missing = (level.measures || []).filter(m => !(ctx.measured || []).some(x => measureMatches(m, x)));
+    if (missing.length) { out.work.ok = false; add('work', 'work.measureMissing', { label: missing[0].label, n: missing.length }); }
   } else {
     // un guasto che blocca tutte le prove si dice una volta sola
     const first = failed[0].r.fail;

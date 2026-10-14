@@ -104,6 +104,7 @@ export function itemText(item, level) {
           : nameOf(level, item.comp) + ': ' + stateText(item.got) + '; atteso: ' + stateText(item.want) + '.');
       return 'Prova non superata: ' + item.label + '. ' + why;
     }
+    case 'work.measureMissing': return 'Prima di verificare serve ancora una misura con il multimetro: ' + item.label + '.';
     case 'work.checkMore': return 'E altre ' + item.n + ' prove non superate.';
     case 'work.secondaryMixed': return 'Il secondario del trasformatore è collegato alla rete: la bassa tensione non è più separata dai 230 V.';
     case 'work.unstable': return 'Un relè si apre e si chiude da solo: la sua bobina è alimentata attraverso il suo stesso contatto NC.';

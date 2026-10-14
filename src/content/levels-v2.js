@@ -1,5 +1,7 @@
 // Livelli dei Moduli 2 e 3 (motore v2). Stessa forma dei livelli del Modulo 0, piu':
 //   engine: 2; checks = prove di funzionamento; safety = regole di sicurezza; demoDo = azioni mostrate nella demo.
+//   meter: true = il livello ha il multimetro; measures = letture che la verifica pretende ({ between, mode, value|reading, live, setup, label };
+//   setup = stato dei comandi in cui si fa la lettura, lo usano i test).
 // Vedi docs/SPEC-MOTORE-V2.md. Nessuna coordinata: la disposizione sul banco e' automatica (src/ui2d/layout.js).
 
 const T = (...ids) => Object.fromEntries(ids.map(i => [i, { l: i }]));
@@ -13,6 +15,34 @@ const IND = { engine: 2, quadroOnly: true, src: SRC3, palette: PAL3, controlColo
 const press = id => ['press ' + id, 'release ' + id];
 
 export const LEVELS_V2 = [
+  {
+    id: 'c17-multimetro', code: 'c17', n: 0, engine: 2, quadroOnly: true, flow: 'onDemand', meter: true, palette: ['marrone', 'blu', 'gv'],
+    name: 'Il multimetro', title: 'Il multimetro',
+    blurb: 'Misurare la tensione e la continuità di un punto luce.',
+    goal: 'Collega un punto luce con un interruttore e una lampada. Poi usa il multimetro: misura la tensione a quadro acceso, la tensione ai capi dell’interruttore aperto e, a quadro spento, la continuità dell’interruttore chiuso.',
+    comps: [
+      QM,
+      C('S', 'sw', 'Interruttore', 'Interruttore', { a: { l: '1' }, b: { l: '2' } }),
+      C('L', 'lamp', 'Lampada', 'Portalampada', { B: { l: 'B' }, A: { l: 'A' } }),
+    ],
+    controls: ['S'],
+    checks: [
+      { id: 'chiuso', label: 'Interruttore chiuso: la lampada si accende', do: ['toggle S'], expect: { loads: { L: 'on' } } },
+      { id: 'aperto', label: 'Interruttore aperto: la lampada è spenta', do: [], expect: { loads: { L: 'off' } } },
+    ],
+    measures: [
+      { between: ['S.a', 'Q.N'], mode: 'V', value: 230, live: true, setup: { S: 0 }, label: 'tensione tra l’ingresso dell’interruttore (morsetto 1) e il neutro, a quadro acceso' },
+      { between: ['S.a', 'S.b'], mode: 'V', value: 230, live: true, setup: { S: 0 }, label: 'tensione ai capi dell’interruttore aperto, a quadro acceso' },
+      { between: ['S.a', 'S.b'], mode: 'R', reading: 'cont', live: false, setup: { S: 1 }, label: 'continuità dell’interruttore chiuso, a quadro spento' },
+    ],
+    safety: { phaseSwitched: ['L'] },
+    solution: [['Q.F', 'S.a', 'marrone'], ['S.b', 'L.A', 'marrone'], ['Q.N', 'L.B', 'blu']],
+    hints: [
+      'La fase esce dal quadro e arriva al morsetto 1 dell’interruttore. Dal morsetto 2 va alla lampada.',
+      'Il neutro (blu) va dal quadro direttamente alla lampada, senza passare dall’interruttore.',
+      'Per misurare, tocca Multimetro: il primo morsetto che tocchi è il puntale rosso, il secondo il nero.',
+    ],
+  },
   {
     id: 'c07-presa-comandata', code: 'c07', n: 0, engine: 2, quadroOnly: true, flow: 'always',
     name: 'Presa comandata', title: 'La presa comandata',

@@ -113,6 +113,9 @@ button.btn.primary{background:var(--accent);color:var(--on-accent);border-color:
 .term .halo{fill:none;stroke:var(--accent);stroke-width:3;opacity:0}
 .term:hover .halo{opacity:.55}
 .term.sel .halo{opacity:1;animation:pulse 1s ease-in-out infinite}
+.term.pa .halo,.term.pb .halo{opacity:1;stroke-width:5}
+.term.pa .halo{stroke:#d33}
+.term.pb .halo{stroke:#222}
 .screw{fill:var(--metal);stroke:var(--metal-edge);stroke-width:1.6}
 .slot{stroke:var(--slot);stroke-width:2.4;stroke-linecap:round}
 @keyframes pulse{50%{stroke-width:6}}
@@ -513,3 +516,11 @@ html[lang="it"] .trnote{display:none}
 .chks{list-style:none;margin:4px 0 0;padding:0}.chks li{font-size:.92em;padding:2px 0}.chks .mark{display:inline-flex;width:18px;height:18px;font-size:.8em}
 .pbtn{cursor:pointer;font:inherit;border:1px solid var(--line)}.pbtn.on{background:#F59F00;color:#1B2230;border-color:#C27F00}
 .pbtn{min-height:40px}
+
+.meter{border:1px solid var(--line,#cfd4da);border-radius:12px;padding:10px 12px;margin-top:10px;background:var(--card,#fff)}
+.meter .mhead{display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between}
+.meter .mmode{display:inline-flex;gap:6px}
+.meter .mdisp{display:flex;align-items:baseline;gap:8px;margin:8px 0 4px;padding:8px 12px;border-radius:8px;background:#1d2b22;color:#b9f5c8;font:600 30px/1.1 'IBM Plex Mono',ui-monospace,monospace;min-height:48px}
+.meter .mdisp.warn{background:#4a2020;color:#ffd0c8}
+.meter .mdisp .munit{font-size:13px;opacity:.8}
+.meter .msub{margin:2px 0 8px;font-size:13px;line-height:1.35}

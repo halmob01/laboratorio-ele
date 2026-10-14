@@ -14,7 +14,7 @@ import { evaluate } from './evaluate.js';
 import { flowOf } from './flow.js';
 import { stepsState, ghostFor } from './steps.js';
 import { attemptBase, migrateProgress, rankOf, totalXp, xpOf } from './progress.js';
-import { createSim, setWires as setWires2, setSupply, act, advance, rewind as rewindSim, evaluateV2, isV2, selfPowered, viewOf, HOLD } from './v2/index.js';
+import { createSim, measure as measureSim, setWires as setWires2, setSupply, act, advance, rewind as rewindSim, evaluateV2, isV2, selfPowered, viewOf, HOLD } from './v2/index.js';
 
 function memoryStorage() {
   let data = {};
@@ -38,6 +38,8 @@ export function createSession({ levels, deriveFull, storage = memoryStorage(), i
   const resultsByKey = {};
   const usageByKey = {};
   const unitByKey = {};
+  const meterBy = {};         // multimetro: { on, mode, a, b } per livello e modalita'
+  const measuredBy = {};      // letture fatte (per i passi): { a, b, mode, kind, value, ohm, live }
   const operatedByKey = {};   // comandi azionati con il quadro acceso, per i passi
   const simsByKey = {};       // motore v2: simulazione con stato (pulsanti, relè, tempo), una per livello e modalita'
   let nextWireId = 1;
@@ -79,6 +81,22 @@ export function createSession({ levels, deriveFull, storage = memoryStorage(), i
   const save = () => { try { storage.save(progress); } catch (e) { /* si continua senza salvare */ } };
   const record = () => progress.best[progressKey(levelAt().id)] || (progress.best[progressKey(levelAt().id)] = { base: 0, pred: false, fault: false, skipped: false });
 
+  const meterOf = () => meterBy[keyOf()] || (meterBy[keyOf()] = { on: false, mode: 'V', a: null, b: null, last: '' });
+  const readMeter = level => {
+    const m = meterOf();
+    if (!level.meter || !v2(level) || !m.a || !m.b) return null;
+    return measureSim(simFor(), m.a, m.b, m.mode);
+  };
+  // Ogni lettura nuova si registra: i passi ("misura 230 V qui") e, piu' avanti, la regola del lavoro fuori tensione la leggono.
+  function logMeter() {
+    const level = levelAt(), r = readMeter(level);
+    if (!r) return;
+    const m = meterOf();
+    const k = [m.a, m.b, m.mode, r.kind, r.value, r.ohm, power].join('|');
+    if (k === m.last) return;
+    m.last = k;
+    (measuredBy[keyOf()] = measuredBy[keyOf()] || []).push({ a: m.a, b: m.b, mode: m.mode, kind: r.kind, value: r.value === undefined ? null : r.value, ohm: r.ohm || null, live: !!power });
+  }
   const operated = () => operatedByKey[keyOf()] || (operatedByKey[keyOf()] = []);
 
   // Motore v2: la simulazione si crea alla prima richiesta e si butta a ogni modifica dei fili.
@@ -134,7 +152,7 @@ export function createSession({ levels, deriveFull, storage = memoryStorage(), i
   function stepsPart(level, phase) {
     const u = level.unit;
     if (!u || !u.steps || playMode !== 'apprendimento' || phase === 'lesson') return { steps: null, ghost: null };
-    const st = stepsState(u.steps, wires(), { power, operated: operated(), result: resultsByKey[keyOf()] || null, fault: !!analysisOf(level).fault });
+    const st = stepsState(u.steps, wires(), { power, operated: operated(), result: resultsByKey[keyOf()] || null, fault: !!analysisOf(level).fault, measured: measuredBy[keyOf()] || [] });
     const cur = st.current === null ? null : u.steps[st.current];
     const ghost = phase === 'build' && u.support === 'guidato' && cur ? ghostFor(cur, wires()) : null;
     return { steps: { list: u.steps, done: st.done, current: st.current }, ghost };
@@ -172,6 +190,8 @@ export function createSession({ levels, deriveFull, storage = memoryStorage(), i
       needsClock: is2 ? view2.needsClock : false,
       selfPowered: is2 ? selfPowered(level) : false,
       overload: is2 ? !!simFor().overload : false,
+      // multimetro: solo nei livelli che lo dichiarano (`meter: true`)
+      meter: is2 && level.meter ? { on: meterOf().on, mode: meterOf().mode, a: meterOf().a, b: meterOf().b, reading: readMeter(level) } : null,
       flowVisible: flowVisible(level),
       result: resultsByKey[keyOf()] || null,
       solutionShown,
@@ -271,7 +291,7 @@ export function createSession({ levels, deriveFull, storage = memoryStorage(), i
       if (phase === 'done') {
         const ws = wiresByKey[keyOf(i, 'quadro')] || [];
         if (!(progress.stars[progressKey(l.id, 'quadro')] > 0) || !ws.length) phase = 'build';
-        else result = isV2(levelAt(i, 'quadro')) ? evaluateV2(levelAt(i, 'quadro'), ws) : evaluate(levelAt(i, 'quadro'), ws);
+        else result = isV2(levelAt(i, 'quadro')) ? evaluateV2(levelAt(i, 'quadro'), ws, { measured: measuredBy[keyOf(i, 'quadro')] || [] }) : evaluate(levelAt(i, 'quadro'), ws);
         if (result && !result.pass) { phase = 'build'; result = null; }
       }
       unitByKey[i] = { phase, page, pred, diag: null, faultSolved: false };
@@ -310,6 +330,7 @@ export function createSession({ levels, deriveFull, storage = memoryStorage(), i
   }
 
   const emit = () => {
+    logMeter();
     const s = snapshot();
     saveWork();
     listeners.forEach(f => f(s));
@@ -562,6 +583,16 @@ export function createSession({ levels, deriveFull, storage = memoryStorage(), i
       emit();
     },
     // Livelli con corrente "a richiesta": mostra o nasconde i fili percorsi.
+    toggleMeter() { if (!levelAt().meter) return; const m = meterOf(); m.on = !m.on; emit(); },
+    setMeterMode(md) { if (!levelAt().meter || !['V', 'R'].includes(md)) return; meterOf().mode = md; emit(); },
+    // Il primo morsetto toccato e' il puntale rosso, il secondo il nero, il terzo ricomincia.
+    probe(term) {
+      if (!levelAt().meter) return;
+      const m = meterOf();
+      if (!m.a || m.b) { m.a = term; m.b = null; } else if (term !== m.a) m.b = term;
+      emit();
+    },
+    clearProbes() { const m = meterOf(); m.a = m.b = null; m.last = ''; emit(); },
     toggleFlow() {
       flowOnDemand = !flowOnDemand;
       emit();
@@ -569,7 +600,7 @@ export function createSession({ levels, deriveFull, storage = memoryStorage(), i
 
     check() {
       const level = levelAt();
-      const r = v2(level) ? evaluateV2(level, wires()) : evaluate(level, wires());
+      const r = v2(level) ? evaluateV2(level, wires(), { measured: measuredBy[keyOf()] || [] }) : evaluate(level, wires());
       resultsByKey[keyOf()] = r;
       const u = usage();
       u.checks++;

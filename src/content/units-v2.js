@@ -1,6 +1,98 @@
 // Unita' didattiche dei Moduli 2 e 3. Stessa forma di units.js.
 
 export const UNITS_V2 = {
+  'c17-multimetro': {
+    support: 'passi',
+    lesson: {
+      pages: [
+        {
+          type: 'spiegazione',
+          title: 'Misurare invece di indovinare',
+          paras: [
+            'Un impianto che non funziona si può ispezionare a occhio, ma spesso il guasto non si vede: un filo staccato dentro il morsetto, un contatto che non chiude. L’elettricista misura.',
+            'Lo strumento è il multimetro. Ha due puntali: il rosso e il nero. Li appoggi su due punti dell’impianto e il display ti dice cosa c’è tra quei due punti.',
+          ],
+        },
+        {
+          type: 'spiegazione',
+          title: 'Due misure: tensione e continuità',
+          paras: [
+            'La tensione, in volt, si misura a impianto in tensione. Tra la fase e il neutro leggi 230 V; tra il neutro e la terra, circa 0 V.',
+            'La continuità si misura a impianto spento. Il multimetro manda una piccola corrente tra i due puntali: se il percorso è chiuso (un filo, un interruttore chiuso) legge continuità; se è interrotto legge circuito aperto; se attraversa un carico legge la sua resistenza.',
+          ],
+          warn: 'Mai misurare la continuità con l’impianto in tensione: la lettura non vale e lo strumento si può rovinare.',
+        },
+        {
+          type: 'demo',
+          title: 'Guarda come si fa',
+          captions: {
+            wires: [
+              'Filo marrone dalla FASE del quadro al morsetto 1 dell’interruttore.',
+              'Filo marrone dal morsetto 2 dell’interruttore alla lampada.',
+              'Filo blu dal NEUTRO alla lampada.',
+            ],
+            power: 'Levetta su: l’interruttore è aperto, la lampada è spenta.',
+            controls: ['Interruttore chiuso: la lampada si accende.'],
+          },
+        },
+        {
+          type: 'previsione',
+          question: 'L’interruttore è aperto e la lampada è spenta. Metto i puntali sui due morsetti dell’interruttore. Quanti volt leggo?',
+          options: [
+            { id: 'a', text: '0 V: la lampada è spenta, quindi non c’è tensione.' },
+            { id: 'b', text: '230 V: da un lato arriva la fase, dall’altro, attraverso la lampada, il neutro.' },
+            { id: 'c', text: '115 V: metà della tensione.' },
+          ],
+          correct: 'b',
+          why: 'Una lampada spenta non è senza tensione. Il morsetto a valle dell’interruttore aperto prende il neutro attraverso la lampada, quindi tra i due morsetti ci sono 230 V. Per questo si può prendere la scossa anche con la luce spenta.',
+        },
+        {
+          type: 'previsione',
+          question: 'Devo cambiare la lampada. Che cosa faccio prima di toccare i fili?',
+          options: [
+            { id: 'a', text: 'Spengo l’interruttore: la lampada è spenta, sono al sicuro.' },
+            { id: 'b', text: 'Tolgo la tensione dal quadro e controllo con il multimetro che non ce ne sia.' },
+            { id: 'c', text: 'Niente: con una mano sola non si rischia.' },
+          ],
+          correct: 'b',
+          why: 'L’interruttore spegne la lampada ma può lasciare la fase sul portalampada. Si apre il quadro e si misura: solo uno 0 V letto con lo strumento dice che si può lavorare.',
+        },
+        { type: 'sintesi', title: 'Da ricordare' },
+      ],
+    },
+    steps: [
+      { kind: 'wire', from: 'Q.F', to: ['S.a'], color: 'marrone', short: '1 Fase', title: 'La fase all’interruttore', text: 'Dalla FASE del quadro al morsetto 1 dell’interruttore.' },
+      { kind: 'wire', from: 'S.b', to: ['L.A'], color: 'marrone', short: '2 Lampada', title: 'Dall’interruttore alla lampada', text: 'Dal morsetto 2 dell’interruttore a un morsetto della lampada.' },
+      { kind: 'wire', from: 'Q.N', to: ['L.B'], color: 'blu', short: '3 Neutro', title: 'Il neutro alla lampada', text: 'Dal NEUTRO al morsetto libero della lampada.' },
+      { kind: 'power', short: '4 Levetta', title: 'Dai corrente', text: 'Tocca la levetta del quadro.' },
+      { kind: 'measure', between: ['S.a', 'Q.N'], mode: 'V', value: 230, live: true, short: '5 Fase e neutro', title: 'Misura la tensione', text: 'Tocca Multimetro, poi il morsetto 1 dell’interruttore (rosso) e il NEUTRO del quadro (nero): leggi 230 V.' },
+      { kind: 'measure', between: ['S.a', 'S.b'], mode: 'V', value: 230, live: true, short: '6 Interruttore aperto', title: 'Ai capi dell’interruttore aperto', text: 'Con l’interruttore aperto, metti i puntali sul morsetto 1 e sul morsetto 2: leggi 230 V anche se la lampada è spenta.' },
+      { kind: 'measure', between: ['S.a', 'S.b'], mode: 'R', reading: 'cont', live: false, short: '7 Quadro spento', title: 'Continuità a quadro spento', text: 'Tocca la levetta del quadro per toglierla. Chiudi l’interruttore, scegli la misura Continuità e metti i puntali sui morsetti 1 e 2.' },
+      { kind: 'verify', short: '8 Verifica', title: 'Controlla l’impianto', text: 'Premi Verifica.' },
+    ],
+    summary: [
+      'Il multimetro ha due puntali: la tensione si misura a impianto in tensione, la continuità a impianto spento.',
+      'Una lampada spenta può avere tensione ai suoi morsetti: un interruttore aperto lascia la fase dal lato del quadro e il neutro attraverso la lampada.',
+      'Prima di lavorare su un impianto si toglie la tensione e si verifica con il multimetro che non ci sia.',
+      'La continuità con l’impianto in tensione non è una misura valida.',
+    ],
+    fault: {
+      say: 'Il punto luce è già cablato, ma la lampada non si accende. Dai corrente, chiudi l’interruttore e usa il multimetro per capire dove si interrompe il circuito.',
+      wires: [['Q.F', 'S.a', 'marrone'], ['S.b', 'L.A', 'marrone']],
+      diagnosis: {
+        question: 'Che cosa non va?',
+        options: [
+          { id: 'a', text: 'Manca il filo del neutro alla lampada.' },
+          { id: 'b', text: 'Il filo di fase non arriva all’interruttore.' },
+          { id: 'c', text: 'La lampada è bruciata.' },
+        ],
+        correct: 'a',
+        why: 'Con l’interruttore chiuso, tra il morsetto B della lampada e il neutro ci sono 230 V: la fase arriva fino lì attraverso la lampada, ma il ritorno manca. Senza il neutro il circuito è aperto e la corrente non circola.',
+      },
+      fixSay: 'Collega il neutro (blu) alla lampada, poi premi Verifica.',
+    },
+  },
+
   'c07-presa-comandata': {
     support: 'passi',
     lesson: {

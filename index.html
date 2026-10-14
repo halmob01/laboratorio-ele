@@ -123,6 +123,9 @@ button.btn.primary{background:var(--accent);color:var(--on-accent);border-color:
 .term .halo{fill:none;stroke:var(--accent);stroke-width:3;opacity:0}
 .term:hover .halo{opacity:.55}
 .term.sel .halo{opacity:1;animation:pulse 1s ease-in-out infinite}
+.term.pa .halo,.term.pb .halo{opacity:1;stroke-width:5}
+.term.pa .halo{stroke:#d33}
+.term.pb .halo{stroke:#222}
 .screw{fill:var(--metal);stroke:var(--metal-edge);stroke-width:1.6}
 .slot{stroke:var(--slot);stroke-width:2.4;stroke-linecap:round}
 @keyframes pulse{50%{stroke-width:6}}
@@ -523,6 +526,14 @@ html[lang="it"] .trnote{display:none}
 .chks{list-style:none;margin:4px 0 0;padding:0}.chks li{font-size:.92em;padding:2px 0}.chks .mark{display:inline-flex;width:18px;height:18px;font-size:.8em}
 .pbtn{cursor:pointer;font:inherit;border:1px solid var(--line)}.pbtn.on{background:#F59F00;color:#1B2230;border-color:#C27F00}
 .pbtn{min-height:40px}
+
+.meter{border:1px solid var(--line,#cfd4da);border-radius:12px;padding:10px 12px;margin-top:10px;background:var(--card,#fff)}
+.meter .mhead{display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between}
+.meter .mmode{display:inline-flex;gap:6px}
+.meter .mdisp{display:flex;align-items:baseline;gap:8px;margin:8px 0 4px;padding:8px 12px;border-radius:8px;background:#1d2b22;color:#b9f5c8;font:600 30px/1.1 'IBM Plex Mono',ui-monospace,monospace;min-height:48px}
+.meter .mdisp.warn{background:#4a2020;color:#ffd0c8}
+.meter .mdisp .munit{font-size:13px;opacity:.8}
+.meter .msub{margin:2px 0 8px;font-size:13px;line-height:1.35}
 </style>
 </head>
 <body>
@@ -555,11 +566,13 @@ html[lang="it"] .trnote{display:none}
                 <button class="btn" id="bUndo">Annulla</button>
                 <button class="btn" id="bClear">Annulla tutto</button>
                 <button class="btn" id="bFlow" aria-pressed="false" hidden>Mostra la corrente</button>
+                <button class="btn" id="bMeter" aria-pressed="false" hidden>Multimetro</button>
                 <button class="btn" id="bHint">Suggerimento</button>
                 <button class="btn" id="bSol" aria-pressed="false">Mostra soluzione</button>
                 <button class="btn primary" id="bCheck">Verifica</button>
               </div>
               <div class="flowlegend" id="flowLegend" hidden></div>
+              <div class="meter" id="meter" hidden></div>
               <div class="sidelinks" id="sideLinks"></div>
             </div>
           </div>
@@ -854,10 +867,10 @@ html[lang="it"] .trnote{display:none}
   function buildFull(base2, text2) {
     const lv = JSON.parse(JSON.stringify(base2));
     const earthThrough = !!base2.earth;
-    const order = earthThrough ? ["F", "PE", "N"] : ["N", "F", "PE"];
+    const order2 = earthThrough ? ["F", "PE", "N"] : ["N", "F", "PE"];
     const K2 = { id: "K", type: "cont", ...text2.components.K, terms: {} };
     const Q = { id: "Q", type: "quadro", full: true, ...text2.components.Q, terms: {} };
-    order.forEach((k) => {
+    order2.forEach((k) => {
       K2.terms[k] = { l: NAMES[k], n: NAMES[k] };
       Q.terms[k + "i"] = { l: NAMES[k], n: NAMES[k] + " (ingresso)" };
       if (k !== "PE" || earthThrough) Q.terms[k] = { l: NAMES[k], n: NAMES[k] + " (uscita)" };
@@ -950,8 +963,8 @@ html[lang="it"] .trnote{display:none}
         const pot = potentialOf(an, t);
         if ((pot === "F" || pot === "N") && degree[t] === 1) out.deadEnds.push(t);
       });
-      const rank = (t) => potentialOf(an, t) === "F" ? 0 : 1;
-      out.deadEnds = [...new Set(out.deadEnds)].sort((x, y) => rank(x) - rank(y) || (x < y ? -1 : x > y ? 1 : 0));
+      const rank2 = (t) => potentialOf(an, t) === "F" ? 0 : 1;
+      out.deadEnds = [...new Set(out.deadEnds)].sort((x, y) => rank2(x) - rank2(y) || (x < y ? -1 : x > y ? 1 : 0));
     }
     return out;
   }
@@ -962,6 +975,14 @@ html[lang="it"] .trnote{display:none}
     wires.forEach((w) => uf.u(w.a, w.b));
     return step.to.some((t) => uf.f(step.from) === uf.f(t));
   };
+  function measureMatches(st, m) {
+    const same = m.a === st.between[0] && m.b === st.between[1] || m.a === st.between[1] && m.b === st.between[0];
+    if (!same || m.mode !== (st.mode || "V")) return false;
+    if (st.value !== void 0 && m.value !== st.value) return false;
+    if (st.reading !== void 0 && m.kind !== st.reading) return false;
+    if (st.live !== void 0 && m.live !== st.live) return false;
+    return true;
+  }
   function stepsState(steps, wires, ctx) {
     const operated = new Set(ctx.operated || []);
     let ok = true;
@@ -970,6 +991,7 @@ html[lang="it"] .trnote{display:none}
       if (st.kind === "wire") d = !ctx.fault && wireDone(st, wires);
       else if (st.kind === "power") d = !!ctx.power;
       else if (st.kind === "control") d = operated.has(st.id);
+      else if (st.kind === "measure") d = (ctx.measured || []).some((m) => measureMatches(st, m));
       else if (st.kind === "verify") d = !!(ctx.result && ctx.result.pass);
       else d = false;
       ok = ok && d;
@@ -1265,11 +1287,11 @@ html[lang="it"] .trnote{display:none}
   };
   var hasFault = (an, codes) => an.faults.some((f) => codes.includes(f.code));
   function protect(sim, an) {
-    const rank = (c2) => c2.rank || 1;
+    const rank2 = (c2) => c2.rank || 1;
     const pick = (cands, still) => {
       const ok = cands.filter((c2) => !still(analyse2(sim, { [c2.id]: "all" })));
       if (!ok.length) return null;
-      return ok.sort((a, b) => rank(b) - rank(a))[0];
+      return ok.sort((a, b) => rank2(b) - rank2(a))[0];
     };
     if (hasFault(an, ["corto"])) {
       const c2 = pick(closedProtections(sim, "corto"), (a) => hasFault(a, ["corto"]));
@@ -1451,6 +1473,84 @@ html[lang="it"] .trnote{display:none}
     const an = analyse2(sim, open);
     return an.loads[id] === "on" || an.coils[id] === true || an.motors[id] !== void 0 && an.motors[id] !== "off";
   }
+  var OHM = { lamp: 530, spia: 8e3, presa: 60, bell: 30, ri: 1500, tmr: 1500, km: 1200, motor3: 12 };
+  function windings(sim) {
+    const out = [];
+    sim.level.comps.forEach((c2) => {
+      const p = partOf(c2);
+      const ohm = c2.ohm || OHM[c2.type] || 500;
+      if (p.load || p.coil) {
+        const [x, y] = p.load || p.coil;
+        out.push({ a: c2.id + "." + x, b: c2.id + "." + y, ohm, id: c2.id });
+      }
+      if (p.motor) for (let i = 0; i < p.motor.length; i++) for (let j = i + 1; j < p.motor.length; j++) out.push({ a: c2.id + "." + p.motor[i], b: c2.id + "." + p.motor[j], ohm, id: c2.id });
+    });
+    return out;
+  }
+  function measure(sim, a, b, mode = "V") {
+    const an = analyse2(sim);
+    const roots = /* @__PURE__ */ new Map();
+    const wd = windings(sim);
+    const terms = [a, b];
+    sim.wires.forEach((w) => terms.push(w.a, w.b));
+    wd.forEach((w) => terms.push(w.a, w.b));
+    sim.level.comps.forEach((c2) => {
+      Object.keys(c2.terms || {}).forEach((t) => terms.push(c2.id + "." + t));
+      partOf(c2).contacts(c2, sim.parts[c2.id] || {}).forEach(([x, y]) => terms.push(c2.id + "." + x, c2.id + "." + y));
+    });
+    terms.forEach((t) => {
+      const r = an.uf.f(t);
+      if (!roots.has(r)) roots.set(r, an.potAt(t));
+    });
+    for (let k = 0; k < 20; k++) {
+      let changed = false;
+      wd.forEach((w) => {
+        const ra2 = an.uf.f(w.a), rb2 = an.uf.f(w.b);
+        const pa2 = roots.get(ra2), pb2 = roots.get(rb2);
+        if (pa2 && pa2 !== "mix" && !pb2) {
+          roots.set(rb2, pa2);
+          changed = true;
+        } else if (pb2 && pb2 !== "mix" && !pa2) {
+          roots.set(ra2, pb2);
+          changed = true;
+        }
+      });
+      if (!changed) break;
+    }
+    const pa = roots.get(an.uf.f(a)) || null, pb = roots.get(an.uf.f(b)) || null;
+    if (mode === "V") {
+      if (pa === "mix" || pb === "mix") return { kind: "v", value: null };
+      let v = voltage(pa, pb);
+      if (typeof v === "string") {
+        const t = sim.level.comps.find((c2) => c2.id === v.slice(4));
+        v = t ? t.vout || 12 : 0;
+      }
+      return { kind: "v", value: v, ac: true };
+    }
+    const live = (x) => x && x !== "N" && x !== "PE";
+    if (live(pa) || live(pb)) return { kind: "live" };
+    const ra = an.uf.f(a), rb = an.uf.f(b);
+    if (ra === rb) return { kind: "cont" };
+    const adj = /* @__PURE__ */ new Map();
+    wd.forEach((w) => {
+      const x = an.uf.f(w.a), y = an.uf.f(w.b);
+      (adj.get(x) || adj.set(x, []).get(x)).push({ to: y, ohm: w.ohm });
+      (adj.get(y) || adj.set(y, []).get(y)).push({ to: x, ohm: w.ohm });
+    });
+    const seen = /* @__PURE__ */ new Set([ra]);
+    let frontier = [{ r: ra, ohm: 0 }];
+    while (frontier.length) {
+      const next = [];
+      for (const f of frontier) for (const e of adj.get(f.r) || []) {
+        if (seen.has(e.to)) continue;
+        seen.add(e.to);
+        if (e.to === rb) return { kind: "res", ohm: f.ohm + e.ohm };
+        next.push({ r: e.to, ohm: f.ohm + e.ohm });
+      }
+      frontier = next;
+    }
+    return { kind: "open" };
+  }
 
   // src/engine/v2/checks.js
   var section2 = () => ({ ok: false, status: "ko", items: [] });
@@ -1574,7 +1674,7 @@ html[lang="it"] .trnote{display:none}
     if (role === "bassa") return ["marrone", "nero", "grigio", "rosso", "bianco"];
     return PHASE_COLORS.concat(red);
   }
-  function evaluateV2(level, wires) {
+  function evaluateV2(level, wires, ctx = {}) {
     const out = { work: section2(), color: section2(), safe: section2() };
     const add = (sec, code, params) => out[sec].items.push(params ? { code, ...params } : { code });
     if (!wires.length) {
@@ -1593,6 +1693,11 @@ html[lang="it"] .trnote{display:none}
     if (!failed.length) {
       out.work.ok = true;
       add("work", "work.allChecksOk", { n: runs.length });
+      const missing = (level.measures || []).filter((m) => !(ctx.measured || []).some((x) => measureMatches(m, x)));
+      if (missing.length) {
+        out.work.ok = false;
+        add("work", "work.measureMissing", { label: missing[0].label, n: missing.length });
+      }
     } else {
       const first = failed[0].r.fail;
       if (first.code !== "work.checkFail" && failed.every((x) => x.r.fail.code === first.code)) add("work", first.code, first.comp ? { comp: first.comp } : void 0);
@@ -1885,6 +1990,8 @@ html[lang="it"] .trnote{display:none}
     const resultsByKey = {};
     const usageByKey = {};
     const unitByKey = {};
+    const meterBy = {};
+    const measuredBy = {};
     const operatedByKey = {};
     const simsByKey = {};
     let nextWireId = 1;
@@ -1931,6 +2038,21 @@ html[lang="it"] .trnote{display:none}
       }
     };
     const record = () => progress.best[progressKey(levelAt().id)] || (progress.best[progressKey(levelAt().id)] = { base: 0, pred: false, fault: false, skipped: false });
+    const meterOf = () => meterBy[keyOf()] || (meterBy[keyOf()] = { on: false, mode: "V", a: null, b: null, last: "" });
+    const readMeter = (level) => {
+      const m = meterOf();
+      if (!level.meter || !v2(level) || !m.a || !m.b) return null;
+      return measure(simFor(), m.a, m.b, m.mode);
+    };
+    function logMeter() {
+      const level = levelAt(), r = readMeter(level);
+      if (!r) return;
+      const m = meterOf();
+      const k = [m.a, m.b, m.mode, r.kind, r.value, r.ohm, power].join("|");
+      if (k === m.last) return;
+      m.last = k;
+      (measuredBy[keyOf()] = measuredBy[keyOf()] || []).push({ a: m.a, b: m.b, mode: m.mode, kind: r.kind, value: r.value === void 0 ? null : r.value, ohm: r.ohm || null, live: !!power });
+    }
     const operated = () => operatedByKey[keyOf()] || (operatedByKey[keyOf()] = []);
     const v2 = (level = levelAt()) => isV2(level);
     const dropSim = () => {
@@ -1984,7 +2106,7 @@ html[lang="it"] .trnote{display:none}
     function stepsPart(level, phase) {
       const u = level.unit;
       if (!u || !u.steps || playMode !== "apprendimento" || phase === "lesson") return { steps: null, ghost: null };
-      const st = stepsState(u.steps, wires(), { power, operated: operated(), result: resultsByKey[keyOf()] || null, fault: !!analysisOf(level).fault });
+      const st = stepsState(u.steps, wires(), { power, operated: operated(), result: resultsByKey[keyOf()] || null, fault: !!analysisOf(level).fault, measured: measuredBy[keyOf()] || [] });
       const cur = st.current === null ? null : u.steps[st.current];
       const ghost = phase === "build" && u.support === "guidato" && cur ? ghostFor(cur, wires()) : null;
       return { steps: { list: u.steps, done: st.done, current: st.current }, ghost };
@@ -2021,6 +2143,8 @@ html[lang="it"] .trnote{display:none}
         needsClock: is2 ? view2.needsClock : false,
         selfPowered: is2 ? selfPowered(level) : false,
         overload: is2 ? !!simFor().overload : false,
+        // multimetro: solo nei livelli che lo dichiarano (`meter: true`)
+        meter: is2 && level.meter ? { on: meterOf().on, mode: meterOf().mode, a: meterOf().a, b: meterOf().b, reading: readMeter(level) } : null,
         flowVisible: flowVisible(level),
         result: resultsByKey[keyOf()] || null,
         solutionShown,
@@ -2127,7 +2251,7 @@ html[lang="it"] .trnote{display:none}
         if (phase === "done") {
           const ws = wiresByKey[keyOf(i, "quadro")] || [];
           if (!(progress.stars[progressKey(l.id, "quadro")] > 0) || !ws.length) phase = "build";
-          else result = isV2(levelAt(i, "quadro")) ? evaluateV2(levelAt(i, "quadro"), ws) : evaluate(levelAt(i, "quadro"), ws);
+          else result = isV2(levelAt(i, "quadro")) ? evaluateV2(levelAt(i, "quadro"), ws, { measured: measuredBy[keyOf(i, "quadro")] || [] }) : evaluate(levelAt(i, "quadro"), ws);
           if (result && !result.pass) {
             phase = "build";
             result = null;
@@ -2176,6 +2300,7 @@ html[lang="it"] .trnote{display:none}
       delete verifyStash[levelIndex];
     }
     const emit = () => {
+      logMeter();
       const s = snapshot();
       saveWork();
       listeners2.forEach((f) => f(s));
@@ -2440,13 +2565,40 @@ html[lang="it"] .trnote{display:none}
         emit();
       },
       // Livelli con corrente "a richiesta": mostra o nasconde i fili percorsi.
+      toggleMeter() {
+        if (!levelAt().meter) return;
+        const m = meterOf();
+        m.on = !m.on;
+        emit();
+      },
+      setMeterMode(md) {
+        if (!levelAt().meter || !["V", "R"].includes(md)) return;
+        meterOf().mode = md;
+        emit();
+      },
+      // Il primo morsetto toccato e' il puntale rosso, il secondo il nero, il terzo ricomincia.
+      probe(term2) {
+        if (!levelAt().meter) return;
+        const m = meterOf();
+        if (!m.a || m.b) {
+          m.a = term2;
+          m.b = null;
+        } else if (term2 !== m.a) m.b = term2;
+        emit();
+      },
+      clearProbes() {
+        const m = meterOf();
+        m.a = m.b = null;
+        m.last = "";
+        emit();
+      },
       toggleFlow() {
         flowOnDemand = !flowOnDemand;
         emit();
       },
       check() {
         const level = levelAt();
-        const r = v2(level) ? evaluateV2(level, wires()) : evaluate(level, wires());
+        const r = v2(level) ? evaluateV2(level, wires(), { measured: measuredBy[keyOf()] || [] }) : evaluate(level, wires());
         resultsByKey[keyOf()] = r;
         const u = usage();
         u.checks++;
@@ -3414,6 +3566,42 @@ html[lang="it"] .trnote{display:none}
   var press = (id) => ["press " + id, "release " + id];
   var LEVELS_V2 = [
     {
+      id: "c17-multimetro",
+      code: "c17",
+      n: 0,
+      engine: 2,
+      quadroOnly: true,
+      flow: "onDemand",
+      meter: true,
+      palette: ["marrone", "blu", "gv"],
+      name: "Il multimetro",
+      title: "Il multimetro",
+      blurb: "Misurare la tensione e la continuit\xE0 di un punto luce.",
+      goal: "Collega un punto luce con un interruttore e una lampada. Poi usa il multimetro: misura la tensione a quadro acceso, la tensione ai capi dell\u2019interruttore aperto e, a quadro spento, la continuit\xE0 dell\u2019interruttore chiuso.",
+      comps: [
+        QM,
+        C("S", "sw", "Interruttore", "Interruttore", { a: { l: "1" }, b: { l: "2" } }),
+        C("L", "lamp", "Lampada", "Portalampada", { B: { l: "B" }, A: { l: "A" } })
+      ],
+      controls: ["S"],
+      checks: [
+        { id: "chiuso", label: "Interruttore chiuso: la lampada si accende", do: ["toggle S"], expect: { loads: { L: "on" } } },
+        { id: "aperto", label: "Interruttore aperto: la lampada \xE8 spenta", do: [], expect: { loads: { L: "off" } } }
+      ],
+      measures: [
+        { between: ["S.a", "Q.N"], mode: "V", value: 230, live: true, setup: { S: 0 }, label: "tensione tra l\u2019ingresso dell\u2019interruttore (morsetto 1) e il neutro, a quadro acceso" },
+        { between: ["S.a", "S.b"], mode: "V", value: 230, live: true, setup: { S: 0 }, label: "tensione ai capi dell\u2019interruttore aperto, a quadro acceso" },
+        { between: ["S.a", "S.b"], mode: "R", reading: "cont", live: false, setup: { S: 1 }, label: "continuit\xE0 dell\u2019interruttore chiuso, a quadro spento" }
+      ],
+      safety: { phaseSwitched: ["L"] },
+      solution: [["Q.F", "S.a", "marrone"], ["S.b", "L.A", "marrone"], ["Q.N", "L.B", "blu"]],
+      hints: [
+        "La fase esce dal quadro e arriva al morsetto 1 dell\u2019interruttore. Dal morsetto 2 va alla lampada.",
+        "Il neutro (blu) va dal quadro direttamente alla lampada, senza passare dall\u2019interruttore.",
+        "Per misurare, tocca Multimetro: il primo morsetto che tocchi \xE8 il puntale rosso, il secondo il nero."
+      ]
+    },
+    {
       id: "c07-presa-comandata",
       code: "c07",
       n: 0,
@@ -3910,6 +4098,97 @@ html[lang="it"] .trnote{display:none}
 
   // src/content/units-v2.js
   var UNITS_V2 = {
+    "c17-multimetro": {
+      support: "passi",
+      lesson: {
+        pages: [
+          {
+            type: "spiegazione",
+            title: "Misurare invece di indovinare",
+            paras: [
+              "Un impianto che non funziona si pu\xF2 ispezionare a occhio, ma spesso il guasto non si vede: un filo staccato dentro il morsetto, un contatto che non chiude. L\u2019elettricista misura.",
+              "Lo strumento \xE8 il multimetro. Ha due puntali: il rosso e il nero. Li appoggi su due punti dell\u2019impianto e il display ti dice cosa c\u2019\xE8 tra quei due punti."
+            ]
+          },
+          {
+            type: "spiegazione",
+            title: "Due misure: tensione e continuit\xE0",
+            paras: [
+              "La tensione, in volt, si misura a impianto in tensione. Tra la fase e il neutro leggi 230 V; tra il neutro e la terra, circa 0 V.",
+              "La continuit\xE0 si misura a impianto spento. Il multimetro manda una piccola corrente tra i due puntali: se il percorso \xE8 chiuso (un filo, un interruttore chiuso) legge continuit\xE0; se \xE8 interrotto legge circuito aperto; se attraversa un carico legge la sua resistenza."
+            ],
+            warn: "Mai misurare la continuit\xE0 con l\u2019impianto in tensione: la lettura non vale e lo strumento si pu\xF2 rovinare."
+          },
+          {
+            type: "demo",
+            title: "Guarda come si fa",
+            captions: {
+              wires: [
+                "Filo marrone dalla FASE del quadro al morsetto 1 dell\u2019interruttore.",
+                "Filo marrone dal morsetto 2 dell\u2019interruttore alla lampada.",
+                "Filo blu dal NEUTRO alla lampada."
+              ],
+              power: "Levetta su: l\u2019interruttore \xE8 aperto, la lampada \xE8 spenta.",
+              controls: ["Interruttore chiuso: la lampada si accende."]
+            }
+          },
+          {
+            type: "previsione",
+            question: "L\u2019interruttore \xE8 aperto e la lampada \xE8 spenta. Metto i puntali sui due morsetti dell\u2019interruttore. Quanti volt leggo?",
+            options: [
+              { id: "a", text: "0 V: la lampada \xE8 spenta, quindi non c\u2019\xE8 tensione." },
+              { id: "b", text: "230 V: da un lato arriva la fase, dall\u2019altro, attraverso la lampada, il neutro." },
+              { id: "c", text: "115 V: met\xE0 della tensione." }
+            ],
+            correct: "b",
+            why: "Una lampada spenta non \xE8 senza tensione. Il morsetto a valle dell\u2019interruttore aperto prende il neutro attraverso la lampada, quindi tra i due morsetti ci sono 230 V. Per questo si pu\xF2 prendere la scossa anche con la luce spenta."
+          },
+          {
+            type: "previsione",
+            question: "Devo cambiare la lampada. Che cosa faccio prima di toccare i fili?",
+            options: [
+              { id: "a", text: "Spengo l\u2019interruttore: la lampada \xE8 spenta, sono al sicuro." },
+              { id: "b", text: "Tolgo la tensione dal quadro e controllo con il multimetro che non ce ne sia." },
+              { id: "c", text: "Niente: con una mano sola non si rischia." }
+            ],
+            correct: "b",
+            why: "L\u2019interruttore spegne la lampada ma pu\xF2 lasciare la fase sul portalampada. Si apre il quadro e si misura: solo uno 0 V letto con lo strumento dice che si pu\xF2 lavorare."
+          },
+          { type: "sintesi", title: "Da ricordare" }
+        ]
+      },
+      steps: [
+        { kind: "wire", from: "Q.F", to: ["S.a"], color: "marrone", short: "1 Fase", title: "La fase all\u2019interruttore", text: "Dalla FASE del quadro al morsetto 1 dell\u2019interruttore." },
+        { kind: "wire", from: "S.b", to: ["L.A"], color: "marrone", short: "2 Lampada", title: "Dall\u2019interruttore alla lampada", text: "Dal morsetto 2 dell\u2019interruttore a un morsetto della lampada." },
+        { kind: "wire", from: "Q.N", to: ["L.B"], color: "blu", short: "3 Neutro", title: "Il neutro alla lampada", text: "Dal NEUTRO al morsetto libero della lampada." },
+        { kind: "power", short: "4 Levetta", title: "Dai corrente", text: "Tocca la levetta del quadro." },
+        { kind: "measure", between: ["S.a", "Q.N"], mode: "V", value: 230, live: true, short: "5 Fase e neutro", title: "Misura la tensione", text: "Tocca Multimetro, poi il morsetto 1 dell\u2019interruttore (rosso) e il NEUTRO del quadro (nero): leggi 230 V." },
+        { kind: "measure", between: ["S.a", "S.b"], mode: "V", value: 230, live: true, short: "6 Interruttore aperto", title: "Ai capi dell\u2019interruttore aperto", text: "Con l\u2019interruttore aperto, metti i puntali sul morsetto 1 e sul morsetto 2: leggi 230 V anche se la lampada \xE8 spenta." },
+        { kind: "measure", between: ["S.a", "S.b"], mode: "R", reading: "cont", live: false, short: "7 Quadro spento", title: "Continuit\xE0 a quadro spento", text: "Tocca la levetta del quadro per toglierla. Chiudi l\u2019interruttore, scegli la misura Continuit\xE0 e metti i puntali sui morsetti 1 e 2." },
+        { kind: "verify", short: "8 Verifica", title: "Controlla l\u2019impianto", text: "Premi Verifica." }
+      ],
+      summary: [
+        "Il multimetro ha due puntali: la tensione si misura a impianto in tensione, la continuit\xE0 a impianto spento.",
+        "Una lampada spenta pu\xF2 avere tensione ai suoi morsetti: un interruttore aperto lascia la fase dal lato del quadro e il neutro attraverso la lampada.",
+        "Prima di lavorare su un impianto si toglie la tensione e si verifica con il multimetro che non ci sia.",
+        "La continuit\xE0 con l\u2019impianto in tensione non \xE8 una misura valida."
+      ],
+      fault: {
+        say: "Il punto luce \xE8 gi\xE0 cablato, ma la lampada non si accende. Dai corrente, chiudi l\u2019interruttore e usa il multimetro per capire dove si interrompe il circuito.",
+        wires: [["Q.F", "S.a", "marrone"], ["S.b", "L.A", "marrone"]],
+        diagnosis: {
+          question: "Che cosa non va?",
+          options: [
+            { id: "a", text: "Manca il filo del neutro alla lampada." },
+            { id: "b", text: "Il filo di fase non arriva all\u2019interruttore." },
+            { id: "c", text: "La lampada \xE8 bruciata." }
+          ],
+          correct: "a",
+          why: "Con l\u2019interruttore chiuso, tra il morsetto B della lampada e il neutro ci sono 230 V: la fase arriva fino l\xEC attraverso la lampada, ma il ritorno manca. Senza il neutro il circuito \xE8 aperto e la corrente non circola."
+        },
+        fixSay: "Collega il neutro (blu) alla lampada, poi premi Verifica."
+      }
+    },
     "c07-presa-comandata": {
       support: "passi",
       lesson: {
@@ -5190,6 +5469,8 @@ html[lang="it"] .trnote{display:none}
         const why = item.cause && item.cause !== "work.checkFail" ? itemText({ code: item.cause, comp: item.comp }, level) : item.comp === "tripped" ? "Protezioni scattate: " + (item.got || "nessuna") + "." : nameOf(level, item.comp) + ": " + stateText(item.got) + "; atteso: " + stateText(item.want) + ".";
         return "Prova non superata: " + item.label + ". " + why;
       }
+      case "work.measureMissing":
+        return "Prima di verificare serve ancora una misura con il multimetro: " + item.label + ".";
       case "work.checkMore":
         return "E altre " + item.n + " prove non superate.";
       case "work.secondaryMixed":
@@ -5424,9 +5705,114 @@ html[lang="it"] .trnote{display:none}
     }
   };
 
+  // src/content/home.js
+  var MODULES = [
+    {
+      tag: "MODULO 0",
+      title: "Fondamenta",
+      levels: [
+        "c01-circuito-chiuso",
+        "c02-presa",
+        "c03-interrotto",
+        "c04-parallelo",
+        "c05-deviato",
+        "c06-invertito"
+      ]
+    },
+    {
+      tag: "MODULO 2",
+      title: "Civile avanzato",
+      levels: [
+        "c17-multimetro",
+        "c07-presa-comandata",
+        "c08-rele-impulsi",
+        "c09-luce-scale",
+        "c10-campanello",
+        "c11-quadro"
+      ]
+    },
+    {
+      tag: "MODULO 3",
+      title: "Industriale",
+      levels: [
+        "c12-motore",
+        "c13-marcia-arresto",
+        "c14-termico",
+        "c15-inversione",
+        "c16-nastro"
+      ]
+    }
+  ];
+  var UPCOMING = [
+    { tag: "PROVE DEI MODULI", title: "Appartamento e nastro", note: "Un appartamento di notte e un nastro trasportatore, in 3D" }
+  ];
+  var INTRO = [
+    { art: "lampada", text: ["Una lampada, un interruttore, due fili nel muro. Per farla funzionare serve capire dove passa la corrente."] },
+    { art: "giro", text: ["La corrente circola in un percorso chiuso: esce dalla rete, attraversa la lampada e torna indietro."] },
+    { art: "fili", text: ["I due fili si chiamano fase e neutro. Di norma la fase \xE8 marrone, nera o grigia; il neutro \xE8 blu."] },
+    { art: "chiuso", text: ["Quando il percorso \xE8 completo il circuito \xE8 chiuso e la lampada si accende."] },
+    { art: "aperto", text: ["Se un collegamento manca il circuito \xE8 aperto: non passa corrente e la lampada resta spenta."] },
+    { art: "tensione", text: ["Un filo collegato alla fase \xE8 in tensione anche con la lampada spenta. Per questo sugli impianti veri si lavora a corrente tolta."] },
+    { art: "terra", text: ["Il terzo filo \xE8 la terra, giallo-verde. Non serve al funzionamento: serve alla sicurezza, perch\xE9 porta a terra un eventuale guasto."] },
+    { art: "banco", text: ["In laboratorio cabli circuiti virtuali con le regole di un impianto vero. Il quadro dice se funziona, se i colori sono giusti e se \xE8 sicuro."] }
+  ];
+  var GLOSSARY = [
+    ["Fase", "Il filo che porta la tensione. Colori ammessi: marrone, nero o grigio."],
+    ["Neutro", "Il filo di ritorno della corrente. \xC8 sempre blu."],
+    ["Terra", "Il filo di protezione, giallo-verde. Non porta corrente in funzionamento normale."],
+    ["Morsetto", "La vite che stringe il filo su un componente."],
+    ["Circuito chiuso", "Un percorso completo dalla fase al neutro attraverso il carico: la corrente circola."],
+    ["Circuito aperto", "Un percorso interrotto, per esempio per un filo mancante o un interruttore aperto: non passa corrente."],
+    ["Tensione", "Differenza di potenziale tra due punti, in volt. Un filo pu\xF2 essere in tensione anche senza corrente."],
+    ["Corrente", "Il movimento di cariche nel circuito, in ampere. Passa solo se il circuito \xE8 chiuso."],
+    ["Carico", "Ci\xF2 che consuma energia: una lampada, un motore, un elettrodomestico."],
+    ["Magnetotermico", "L\u2019interruttore automatico del quadro: scatta in caso di sovraccarico o cortocircuito."],
+    ["Cortocircuito", "Collegamento diretto tra fase e neutro senza carico: la corrente cresce di colpo e il magnetotermico scatta."]
+  ];
+  var LEGEND = [
+    { sample: "plain", title: "Filo non collegato", text: "Non arriva a nessuna sorgente." },
+    { sample: "fase", title: "In tensione, fase", text: "Collegato alla fase, ma senza corrente." },
+    { sample: "neutro", title: "In tensione, neutro", text: "Collegato al neutro, ma senza corrente." },
+    { sample: "corrente", title: "Percorso da corrente", text: "Sta su un circuito chiuso con la lampada accesa. I puntini non indicano un verso reale: in alternata la corrente cambia verso di continuo." },
+    { sample: "stop", title: "Qui la tensione si ferma", text: "Il filo arriva fino a questo morsetto e non prosegue." }
+  ];
+  var INFO_PRIVACY = [
+    "Il gioco salva i tuoi progressi e il nome che scegli in questo browser, sul tuo dispositivo.",
+    "In questa versione non viene inviato nulla a nessun server.",
+    "Quando ci sar\xE0 la classifica condivisa, verr\xE0 inviato solo il nome o soprannome che scrivi e i punti. Usa il nome di battesimo o un soprannome, mai il cognome.",
+    "Crediti: i modelli 3D del divano (Wayfair) e della pianta (Darmstadt Graphics Group) sono con licenza CC BY 4.0; l\u2019elenco completo \xE8 nel repository del progetto."
+  ];
+  var FOOTER = [
+    { title: "Gioco", items: [
+      { id: "mappa", label: "Mappa dei livelli" },
+      { id: "quaderno", label: "Quaderno" },
+      { id: "classifica", label: "Classifica", soon: true },
+      { id: "legenda", label: "Legenda dei simboli" },
+      { id: "glossario", label: "Glossario" }
+    ] },
+    { title: "Aiuto", items: [
+      { id: "segnala", label: "Segnala un problema", mail: "bug" },
+      { id: "scrivici", label: "Scrivici", mail: "info" }
+    ] },
+    { title: "Informazioni", items: [
+      { id: "informativa", label: "Informativa" }
+    ] }
+  ];
+
   // src/content/index.js
   var ALL_UNITS = { ...UNITS, ...UNITS_V2, ...TRILOCALE_UNITS };
-  var levels = [...LEVELS, ...TRILOCALE_LEVELS, ...LEVELS_V2].map((l) => ALL_UNITS[l.id] ? { ...l, unit: ALL_UNITS[l.id] } : l);
+  var withUnit = (l) => ALL_UNITS[l.id] ? { ...l, unit: ALL_UNITS[l.id] } : l;
+  var pool = [...LEVELS, ...TRILOCALE_LEVELS, ...LEVELS_V2];
+  var order = [
+    ...MODULES[0].levels,
+    ...TRILOCALE_LEVELS.map((l) => l.id),
+    ...MODULES.slice(1).flatMap((m) => m.levels.filter((x) => typeof x === "string"))
+  ];
+  var rank = (id) => {
+    const i = order.indexOf(id);
+    return i < 0 ? order.length + pool.findIndex((l) => l.id === id) : i;
+  };
+  var levels = pool.slice().sort((a, b) => rank(a.id) - rank(b.id)).map(withUnit);
   var deriveFull = (base2) => buildFull(base2, FULL_TEXT);
 
   // src/ui2d/layout.js
@@ -5541,8 +5927,8 @@ html[lang="it"] .trnote{display:none}
       const t = top === null ? [] : ids.filter((i) => (top || []).includes(i) || !(bot || []).includes(i));
       const b = top === null ? ids : ids.filter((i) => (bot || []).includes(i));
       const terms = {};
-      const order = (list, ref) => list.slice().sort((p, q) => (ref.indexOf(p) < 0 ? 99 : ref.indexOf(p)) - (ref.indexOf(q) < 0 ? 99 : ref.indexOf(q)));
-      const tt = order(t, top || []), bb = order(b, bot || []);
+      const order2 = (list, ref) => list.slice().sort((p, q) => (ref.indexOf(p) < 0 ? 99 : ref.indexOf(p)) - (ref.indexOf(q) < 0 ? 99 : ref.indexOf(q)));
+      const tt = order2(t, top || []), bb = order2(b, bot || []);
       spread(tt.length, lead || 0.1).forEach((f, i) => terms[tt[i]] = { f, s: "t" });
       const fb = c2.type === "quadro" && !selfPowered(level) && bb.length <= 3 ? [0.12, 0.38, 0.64].slice(0, bb.length) : spread(bb.length, lead || 0.1);
       fb.forEach((f, i) => terms[bb[i]] = { f, s: "b" });
@@ -6077,7 +6463,7 @@ html[lang="it"] .trnote{display:none}
     const p = termPosOf(c2, id), tid = c2.id + "." + id, t = c2.terms[id];
     const rot = (tid.charCodeAt(0) * 37 + tid.charCodeAt(tid.length - 1) * 17) % 160 - 20;
     const m = ui2.mobile, lx = p.x + (m ? 19 : 16);
-    return `<g class="term${ui2.sel === tid ? " sel" : ""}" data-term="${tid}" transform="translate(${p.x},${p.y})" role="button" tabindex="0" aria-label="Morsetto ${c2.short} ${t.l}"><circle class="hit" r="${m ? 26 : 20}"/><circle class="halo" r="${m ? 18.5 : 15.5}"/><circle class="screw" r="${m ? 13 : 10.5}"/><line class="slot" x1="${m ? -8 : -6}" y1="0" x2="${m ? 8 : 6}" y2="0" transform="rotate(${rot})"/></g><text class="lbl" x="${lx}" y="${p.y + 4.5}">${t.l}</text>`;
+    return `<g class="term${ui2.sel === tid ? " sel" : ""}${ui2.probes && ui2.probes[0] === tid ? " pa" : ""}${ui2.probes && ui2.probes[1] === tid ? " pb" : ""}" data-term="${tid}" transform="translate(${p.x},${p.y})" role="button" tabindex="0" aria-label="Morsetto ${c2.short} ${t.l}"><circle class="hit" r="${m ? 26 : 20}"/><circle class="halo" r="${m ? 18.5 : 15.5}"/><circle class="screw" r="${m ? 13 : 10.5}"/><line class="slot" x1="${m ? -8 : -6}" y1="0" x2="${m ? 8 : 6}" y2="0" transform="rotate(${rot})"/></g><text class="lbl" x="${lx}" y="${p.y + 4.5}">${t.l}</text>`;
   }
   function benchViewBox(comps2) {
     if (!comps2.length) return "0 0 400 100";
@@ -6199,99 +6585,37 @@ html[lang="it"] .trnote{display:none}
     }
     return `<h3>${r.pass ? "Impianto funzionante" : "Controllo del circuito"}</h3><div class="stars" aria-label="${r.stars} stelle su 3">${"\u2605".repeat(r.stars)}<span class="e">${"\u2605".repeat(3 - r.stars)}</span></div>${row("Funziona", r.work)}${checksHTML(s.result)}${row("Colori dei fili", r.color)}${row("Sicurezza", r.safe)}<p class="xpline">Punti di questo livello: <b>${xp} XP</b></p>${r.pass && last ? '<p class="next"><b>Hai completato tutti i livelli.</b></p>' : r.pass && toHouse ? '<p class="next"><b>Hai completato il Modulo 0.</b></p>' : ""}${acts.length ? `<div class="uact">${acts.join("")}</div>` : ""}`;
   }
-
-  // src/content/home.js
-  var MODULES = [
-    {
-      tag: "MODULO 0",
-      title: "Fondamenta",
-      levels: [
-        "c01-circuito-chiuso",
-        "c02-presa",
-        "c03-interrotto",
-        "c04-parallelo",
-        "c05-deviato",
-        "c06-invertito"
-      ]
-    },
-    {
-      tag: "MODULO 2",
-      title: "Civile avanzato",
-      levels: [
-        "c07-presa-comandata",
-        "c08-rele-impulsi",
-        "c09-luce-scale",
-        "c10-campanello",
-        "c11-quadro"
-      ]
-    },
-    {
-      tag: "MODULO 3",
-      title: "Industriale",
-      levels: [
-        "c12-motore",
-        "c13-marcia-arresto",
-        "c14-termico",
-        "c15-inversione",
-        "c16-nastro"
-      ]
+  function meterHTML(m, nameOf2) {
+    const r = m.reading;
+    let main = "&mdash;", sub = "Tocca due morsetti: il primo \xE8 il puntale rosso, il secondo il nero.", cls = "";
+    if (m.a && !m.b) sub = "Puntale rosso su " + nameOf2(m.a) + ". Tocca il secondo morsetto per il puntale nero.";
+    if (r) {
+      sub = "Rosso su " + nameOf2(m.a) + ", nero su " + nameOf2(m.b) + ".";
+      if (r.kind === "v") {
+        main = r.value === null ? "corto" : r.value + " V";
+        if (r.value === null) sub += " I due punti sono in cortocircuito.";
+      } else if (r.kind === "cont") {
+        main = "0 \u03A9";
+        sub += " Continuit\xE0: il percorso \xE8 chiuso.";
+        cls = " ok";
+      } else if (r.kind === "res") {
+        main = r.ohm + " \u03A9";
+        sub += " Il percorso passa da un carico: \xE8 la sua resistenza.";
+      } else if (r.kind === "open") {
+        main = "OL";
+        sub += " Circuito aperto: nessun percorso.";
+      } else if (r.kind === "live") {
+        main = "!";
+        sub = "C\u2019\xE8 tensione sul punto misurato: la lettura di continuit\xE0 non vale. Togli la tensione dal quadro e riprova.";
+        cls = " warn";
+      }
     }
-  ];
-  var UPCOMING = [
-    { tag: "PROVE DEI MODULI", title: "Appartamento e nastro", note: "Un appartamento di notte e un nastro trasportatore, in 3D" }
-  ];
-  var INTRO = [
-    { art: "lampada", text: ["Una lampada, un interruttore, due fili nel muro. Per farla funzionare serve capire dove passa la corrente."] },
-    { art: "giro", text: ["La corrente circola in un percorso chiuso: esce dalla rete, attraversa la lampada e torna indietro."] },
-    { art: "fili", text: ["I due fili si chiamano fase e neutro. Di norma la fase \xE8 marrone, nera o grigia; il neutro \xE8 blu."] },
-    { art: "chiuso", text: ["Quando il percorso \xE8 completo il circuito \xE8 chiuso e la lampada si accende."] },
-    { art: "aperto", text: ["Se un collegamento manca il circuito \xE8 aperto: non passa corrente e la lampada resta spenta."] },
-    { art: "tensione", text: ["Un filo collegato alla fase \xE8 in tensione anche con la lampada spenta. Per questo sugli impianti veri si lavora a corrente tolta."] },
-    { art: "terra", text: ["Il terzo filo \xE8 la terra, giallo-verde. Non serve al funzionamento: serve alla sicurezza, perch\xE9 porta a terra un eventuale guasto."] },
-    { art: "banco", text: ["In laboratorio cabli circuiti virtuali con le regole di un impianto vero. Il quadro dice se funziona, se i colori sono giusti e se \xE8 sicuro."] }
-  ];
-  var GLOSSARY = [
-    ["Fase", "Il filo che porta la tensione. Colori ammessi: marrone, nero o grigio."],
-    ["Neutro", "Il filo di ritorno della corrente. \xC8 sempre blu."],
-    ["Terra", "Il filo di protezione, giallo-verde. Non porta corrente in funzionamento normale."],
-    ["Morsetto", "La vite che stringe il filo su un componente."],
-    ["Circuito chiuso", "Un percorso completo dalla fase al neutro attraverso il carico: la corrente circola."],
-    ["Circuito aperto", "Un percorso interrotto, per esempio per un filo mancante o un interruttore aperto: non passa corrente."],
-    ["Tensione", "Differenza di potenziale tra due punti, in volt. Un filo pu\xF2 essere in tensione anche senza corrente."],
-    ["Corrente", "Il movimento di cariche nel circuito, in ampere. Passa solo se il circuito \xE8 chiuso."],
-    ["Carico", "Ci\xF2 che consuma energia: una lampada, un motore, un elettrodomestico."],
-    ["Magnetotermico", "L\u2019interruttore automatico del quadro: scatta in caso di sovraccarico o cortocircuito."],
-    ["Cortocircuito", "Collegamento diretto tra fase e neutro senza carico: la corrente cresce di colpo e il magnetotermico scatta."]
-  ];
-  var LEGEND = [
-    { sample: "plain", title: "Filo non collegato", text: "Non arriva a nessuna sorgente." },
-    { sample: "fase", title: "In tensione, fase", text: "Collegato alla fase, ma senza corrente." },
-    { sample: "neutro", title: "In tensione, neutro", text: "Collegato al neutro, ma senza corrente." },
-    { sample: "corrente", title: "Percorso da corrente", text: "Sta su un circuito chiuso con la lampada accesa. I puntini non indicano un verso reale: in alternata la corrente cambia verso di continuo." },
-    { sample: "stop", title: "Qui la tensione si ferma", text: "Il filo arriva fino a questo morsetto e non prosegue." }
-  ];
-  var INFO_PRIVACY = [
-    "Il gioco salva i tuoi progressi e il nome che scegli in questo browser, sul tuo dispositivo.",
-    "In questa versione non viene inviato nulla a nessun server.",
-    "Quando ci sar\xE0 la classifica condivisa, verr\xE0 inviato solo il nome o soprannome che scrivi e i punti. Usa il nome di battesimo o un soprannome, mai il cognome.",
-    "Crediti: i modelli 3D del divano (Wayfair) e della pianta (Darmstadt Graphics Group) sono con licenza CC BY 4.0; l\u2019elenco completo \xE8 nel repository del progetto."
-  ];
-  var FOOTER = [
-    { title: "Gioco", items: [
-      { id: "mappa", label: "Mappa dei livelli" },
-      { id: "quaderno", label: "Quaderno" },
-      { id: "classifica", label: "Classifica", soon: true },
-      { id: "legenda", label: "Legenda dei simboli" },
-      { id: "glossario", label: "Glossario" }
-    ] },
-    { title: "Aiuto", items: [
-      { id: "segnala", label: "Segnala un problema", mail: "bug" },
-      { id: "scrivici", label: "Scrivici", mail: "info" }
-    ] },
-    { title: "Informazioni", items: [
-      { id: "informativa", label: "Informativa" }
-    ] }
-  ];
+    const seg = (k, t) => `<button class="chip seg" data-meter-mode="${k}" aria-pressed="${m.mode === k}">${t}</button>`;
+    return `<div class="mhead"><b>Multimetro</b><span class="mmode">${seg("V", "Tensione")}${seg("R", "Continuit\xE0")}</span></div>
+    <div class="mdisp${cls}" role="status" aria-live="polite"><span class="mval">${main}</span>${m.mode === "V" && r && r.kind === "v" ? '<span class="munit">AC</span>' : ""}</div>
+    <p class="msub">${sub}</p>
+    <button class="btn small" data-meter-clear="1">Togli i puntali</button>`;
+  }
 
   // src/config.js
   var CONTACT_EMAIL = "";
@@ -6529,12 +6853,12 @@ html[lang="it"] .trnote{display:none}
   }
   function appbarHTML(s, profile2) {
     const name = profile2.name ? esc(profile2.name) : "Giocatore";
-    const rank = RANK_NAMES[s.player.rank.id];
+    const rank2 = RANK_NAMES[s.player.rank.id];
     return `<a class="brand" href="#/home" aria-label="Fase e Neutro, vai alla mappa">
       <svg width="34" height="34" viewBox="0 0 34 34" aria-hidden="true"><circle cx="17" cy="17" r="17" fill="#1E2635"/><line x1="7" y1="12" x2="27" y2="12" stroke="#E9A15F" stroke-width="4" stroke-linecap="round"/><line x1="7" y1="22" x2="27" y2="22" stroke="#8CC3F2" stroke-width="4" stroke-linecap="round"/></svg>
       <span class="wordmark" data-notr>Fase <i>e</i> Neutro</span>
     </a>
-    <button class="player" id="bPlayer" aria-label="Giocatore ${name}, grado ${rank}, ${s.player.xp} XP. Cambia nome"><span class="pname"${profile2.name ? " data-notr" : ""}>${name}</span><span class="prank">${rank}</span><span class="pxp">${s.player.xp} XP</span></button>${langSelectHTML()}`;
+    <button class="player" id="bPlayer" aria-label="Giocatore ${name}, grado ${rank2}, ${s.player.xp} XP. Cambia nome"><span class="pname"${profile2.name ? " data-notr" : ""}>${name}</span><span class="prank">${rank2}</span><span class="pxp">${s.player.xp} XP</span></button>${langSelectHTML()}`;
   }
   function levelCard(l, s) {
     const st = l.status;
@@ -8282,7 +8606,65 @@ html[lang="it"] .trnote{display:none}
     "Marcia: il nastro parte.": "\u0627\u0644\u062A\u0634\u063A\u064A\u0644: \u064A\u0628\u062F\u0623 \u0627\u0644\u0633\u064A\u0631 \u0628\u0627\u0644\u062D\u0631\u0643\u0629.",
     "Premendo il fungo il suo contatto si apre: la bobina perde corrente e l\u2019autoritenuta 13-14 si apre. Sbloccando il fungo il contatto si richiude, ma il circuito resta aperto finch\xE9 non premi Marcia: una macchina non deve ripartire da sola dopo un\u2019emergenza.": "\u0639\u0646\u062F \u0636\u063A\u0637 \u0632\u0631 \u0627\u0644\u0641\u0637\u0631 \u064A\u0646\u0641\u062A\u062D \u0645\u0644\u0627\u0645\u0633\u0647: \u064A\u0641\u0642\u062F \u0627\u0644\u0645\u0644\u0641 \u0627\u0644\u062A\u064A\u0627\u0631 \u0648\u064A\u0646\u0641\u062A\u062D \u0627\u0644\u062A\u062B\u0628\u064A\u062A \u0627\u0644\u0630\u0627\u062A\u064A 13-14. \u0639\u0646\u062F \u062A\u062D\u0631\u064A\u0631 \u0627\u0644\u0641\u0637\u0631 \u064A\u0639\u0648\u062F \u0627\u0644\u0645\u0644\u0627\u0645\u0633 \u0644\u0644\u0625\u063A\u0644\u0627\u0642\u060C \u0644\u0643\u0646 \u0627\u0644\u062F\u0627\u0626\u0631\u0629 \u062A\u0628\u0642\u0649 \u0645\u0641\u062A\u0648\u062D\u0629 \u062D\u062A\u0649 \u062A\u0636\u063A\u0637 \u0627\u0644\u062A\u0634\u063A\u064A\u0644: \u064A\u062C\u0628 \u0623\u0644\u0627 \u062A\u0639\u064A\u062F \u0627\u0644\u0622\u0644\u0629 \u0627\u0644\u062A\u0634\u063A\u064A\u0644 \u0648\u062D\u062F\u0647\u0627 \u0628\u0639\u062F \u062D\u0627\u0644\u0629 \u0637\u0648\u0627\u0631\u0626.",
     "Se un neutro \xE8 preso a monte del differenziale, la corrente non torna da dove \xE8 andata e il differenziale scatta anche senza una vera dispersione.": "\u0625\u0630\u0627 \u0623\u064F\u062E\u0630 \u0627\u0644\u062D\u064A\u0627\u062F \u0645\u0646 \u0642\u0628\u0644 \u0627\u0644\u0642\u0627\u0637\u0639 \u0627\u0644\u062A\u0641\u0627\u0636\u0644\u064A\u060C \u0644\u0627 \u064A\u0639\u0648\u062F \u0627\u0644\u062A\u064A\u0627\u0631 \u0645\u0646 \u062D\u064A\u062B \u0630\u0647\u0628 \u0648\u064A\u0641\u0635\u0644 \u0627\u0644\u062A\u0641\u0627\u0636\u0644\u064A \u062D\u062A\u0649 \u062F\u0648\u0646 \u062A\u0633\u0631\u0628 \u062D\u0642\u064A\u0642\u064A.",
-    "Crediti: i modelli 3D del divano (Wayfair) e della pianta (Darmstadt Graphics Group) sono con licenza CC BY 4.0; l\u2019elenco completo \xE8 nel repository del progetto.": "\u0627\u0644\u0634\u0643\u0631: \u0646\u0645\u0627\u0630\u062C \u0627\u0644\u0623\u0631\u064A\u0643\u0629 (Wayfair) \u0648\u0627\u0644\u0646\u0628\u062A\u0629 (Darmstadt Graphics Group) \u062B\u0644\u0627\u062B\u064A\u0629 \u0627\u0644\u0623\u0628\u0639\u0627\u062F \u0645\u0631\u062E\u0635\u0629 \u0628\u0645\u0648\u062C\u0628 CC BY 4.0\u061B \u0648\u0627\u0644\u0642\u0627\u0626\u0645\u0629 \u0627\u0644\u0643\u0627\u0645\u0644\u0629 \u0641\u064A \u0645\u0633\u062A\u0648\u062F\u0639 \u0627\u0644\u0645\u0634\u0631\u0648\u0639."
+    "Crediti: i modelli 3D del divano (Wayfair) e della pianta (Darmstadt Graphics Group) sono con licenza CC BY 4.0; l\u2019elenco completo \xE8 nel repository del progetto.": "\u0627\u0644\u0634\u0643\u0631: \u0646\u0645\u0627\u0630\u062C \u0627\u0644\u0623\u0631\u064A\u0643\u0629 (Wayfair) \u0648\u0627\u0644\u0646\u0628\u062A\u0629 (Darmstadt Graphics Group) \u062B\u0644\u0627\u062B\u064A\u0629 \u0627\u0644\u0623\u0628\u0639\u0627\u062F \u0645\u0631\u062E\u0635\u0629 \u0628\u0645\u0648\u062C\u0628 CC BY 4.0\u061B \u0648\u0627\u0644\u0642\u0627\u0626\u0645\u0629 \u0627\u0644\u0643\u0627\u0645\u0644\u0629 \u0641\u064A \u0645\u0633\u062A\u0648\u062F\u0639 \u0627\u0644\u0645\u0634\u0631\u0648\u0639.",
+    "Ai capi dell\u2019interruttore aperto": "\u0639\u0644\u0649 \u0637\u0631\u0641\u064A \u0627\u0644\u0645\u0641\u062A\u0627\u062D \u0627\u0644\u0645\u0641\u062A\u0648\u062D",
+    "Collega il neutro (blu) alla lampada, poi premi Verifica.": "\u0635\u0650\u0644 \u0627\u0644\u0645\u062D\u0627\u064A\u062F (\u0627\u0644\u0623\u0632\u0631\u0642) \u0628\u0627\u0644\u0645\u0635\u0628\u0627\u062D\u060C \u062B\u0645 \u0627\u0636\u063A\u0637 \u062A\u062D\u0642\u0642.",
+    "Collega un punto luce con un interruttore e una lampada. Poi usa il multimetro: misura la tensione a quadro acceso, la tensione ai capi dell\u2019interruttore aperto e, a quadro spento, la continuit\xE0 dell\u2019interruttore chiuso.": "\u0635\u0650\u0644 \u0646\u0642\u0637\u0629 \u0625\u0646\u0627\u0631\u0629 \u0628\u0645\u0641\u062A\u0627\u062D \u0648\u0645\u0635\u0628\u0627\u062D. \u062B\u0645 \u0627\u0633\u062A\u062E\u062F\u0645 \u062C\u0647\u0627\u0632 \u0627\u0644\u0642\u064A\u0627\u0633 \u0627\u0644\u0645\u062A\u0639\u062F\u062F: \u0642\u0650\u0633 \u0627\u0644\u062C\u0647\u062F \u0648\u0627\u0644\u0644\u0648\u062D\u0629 \u0645\u0634\u063A\u0651\u0644\u0629\u060C \u0648\u0627\u0644\u062C\u0647\u062F \u0639\u0644\u0649 \u0637\u0631\u0641\u064A \u0627\u0644\u0645\u0641\u062A\u0627\u062D \u0627\u0644\u0645\u0641\u062A\u0648\u062D\u060C \u0648\u0642\u0650\u0633 \u0627\u0633\u062A\u0645\u0631\u0627\u0631\u064A\u0629 \u0627\u0644\u0645\u0641\u062A\u0627\u062D \u0627\u0644\u0645\u063A\u0644\u0642 \u0648\u0627\u0644\u0644\u0648\u062D\u0629 \u0645\u0637\u0641\u0623\u0629.",
+    "Con l\u2019interruttore aperto, metti i puntali sul morsetto 1 e sul morsetto 2: leggi 230 V anche se la lampada \xE8 spenta.": "\u0648\u0627\u0644\u0645\u0641\u062A\u0627\u062D \u0645\u0641\u062A\u0648\u062D\u060C \u0636\u0639 \u0627\u0644\u0645\u062C\u0633\u0651\u064A\u0646 \u0639\u0644\u0649 \u0627\u0644\u0645\u0631\u0628\u0637 1 \u0648\u0627\u0644\u0645\u0631\u0628\u0637 2: \u0633\u062A\u0642\u0631\u0623 230 \u0641\u0648\u0644\u062A \u062D\u062A\u0649 \u0644\u0648 \u0643\u0627\u0646 \u0627\u0644\u0645\u0635\u0628\u0627\u062D \u0645\u0637\u0641\u0623\u064B.",
+    "Con l\u2019interruttore chiuso, tra il morsetto B della lampada e il neutro ci sono 230 V: la fase arriva fino l\xEC attraverso la lampada, ma il ritorno manca. Senza il neutro il circuito \xE8 aperto e la corrente non circola.": "\u0648\u0627\u0644\u0645\u0641\u062A\u0627\u062D \u0645\u063A\u0644\u0642\u060C \u064A\u0648\u062C\u062F 230 \u0641\u0648\u0644\u062A \u0628\u064A\u0646 \u0627\u0644\u0645\u0631\u0628\u0637 B \u0641\u064A \u0627\u0644\u0645\u0635\u0628\u0627\u062D \u0648\u0627\u0644\u0645\u062D\u0627\u064A\u062F: \u064A\u0635\u0644 \u0627\u0644\u0637\u0648\u0631 \u0625\u0644\u0649 \u0647\u0646\u0627\u0643 \u0639\u0628\u0631 \u0627\u0644\u0645\u0635\u0628\u0627\u062D\u060C \u0644\u0643\u0646 \u0637\u0631\u064A\u0642 \u0627\u0644\u0639\u0648\u062F\u0629 \u0645\u0641\u0642\u0648\u062F. \u0628\u062F\u0648\u0646 \u0627\u0644\u0645\u062D\u0627\u064A\u062F \u062A\u0643\u0648\u0646 \u0627\u0644\u062F\u0627\u0626\u0631\u0629 \u0645\u0641\u062A\u0648\u062D\u0629 \u0648\u0644\u0627 \u064A\u0645\u0631 \u0627\u0644\u062A\u064A\u0627\u0631.",
+    "Continuit\xE0 a quadro spento": "\u0627\u0644\u0627\u0633\u062A\u0645\u0631\u0627\u0631\u064A\u0629 \u0648\u0627\u0644\u0644\u0648\u062D\u0629 \u0645\u0637\u0641\u0623\u0629",
+    "Devo cambiare la lampada. Che cosa faccio prima di toccare i fili?": "\u0639\u0644\u064A\u0651 \u062A\u063A\u064A\u064A\u0631 \u0627\u0644\u0645\u0635\u0628\u0627\u062D. \u0645\u0627\u0630\u0627 \u0623\u0641\u0639\u0644 \u0642\u0628\u0644 \u0623\u0646 \u0623\u0644\u0645\u0633 \u0627\u0644\u0623\u0633\u0644\u0627\u0643\u061F",
+    "Due misure: tensione e continuit\xE0": "\u0642\u064A\u0627\u0633\u0627\u0646: \u0627\u0644\u062C\u0647\u062F \u0648\u0627\u0644\u0627\u0633\u062A\u0645\u0631\u0627\u0631\u064A\u0629",
+    "Filo marrone dal morsetto 2 dell\u2019interruttore alla lampada.": "\u0633\u0644\u0643 \u0628\u0646\u064A \u0645\u0646 \u0627\u0644\u0645\u0631\u0628\u0637 2 \u0641\u064A \u0627\u0644\u0645\u0641\u062A\u0627\u062D \u0625\u0644\u0649 \u0627\u0644\u0645\u0635\u0628\u0627\u062D.",
+    "Il filo di fase non arriva all\u2019interruttore.": "\u0633\u0644\u0643 \u0627\u0644\u0637\u0648\u0631 \u0644\u0627 \u064A\u0635\u0644 \u0625\u0644\u0649 \u0627\u0644\u0645\u0641\u062A\u0627\u062D.",
+    "Il multimetro": "\u062C\u0647\u0627\u0632 \u0627\u0644\u0642\u064A\u0627\u0633 \u0627\u0644\u0645\u062A\u0639\u062F\u062F",
+    "Il multimetro ha due puntali: la tensione si misura a impianto in tensione, la continuit\xE0 a impianto spento.": "\u0644\u062C\u0647\u0627\u0632 \u0627\u0644\u0642\u064A\u0627\u0633 \u0627\u0644\u0645\u062A\u0639\u062F\u062F \u0645\u062C\u0633\u0651\u0627\u0646: \u064A\u064F\u0642\u0627\u0633 \u0627\u0644\u062C\u0647\u062F \u0648\u0627\u0644\u062A\u0645\u062F\u064A\u062F \u0645\u063A\u0630\u0651\u0649\u060C \u0648\u062A\u064F\u0642\u0627\u0633 \u0627\u0644\u0627\u0633\u062A\u0645\u0631\u0627\u0631\u064A\u0629 \u0648\u0627\u0644\u062A\u0645\u062F\u064A\u062F \u0645\u0641\u0635\u0648\u0644.",
+    "Il neutro (blu) va dal quadro direttamente alla lampada, senza passare dall\u2019interruttore.": "\u064A\u0630\u0647\u0628 \u0627\u0644\u0645\u062D\u0627\u064A\u062F (\u0627\u0644\u0623\u0632\u0631\u0642) \u0645\u0646 \u0627\u0644\u0644\u0648\u062D\u0629 \u0645\u0628\u0627\u0634\u0631\u0629 \u0625\u0644\u0649 \u0627\u0644\u0645\u0635\u0628\u0627\u062D\u060C \u062F\u0648\u0646 \u0623\u0646 \u064A\u0645\u0631 \u0628\u0627\u0644\u0645\u0641\u062A\u0627\u062D.",
+    "Il punto luce \xE8 gi\xE0 cablato, ma la lampada non si accende. Dai corrente, chiudi l\u2019interruttore e usa il multimetro per capire dove si interrompe il circuito.": "\u0646\u0642\u0637\u0629 \u0627\u0644\u0625\u0646\u0627\u0631\u0629 \u0645\u0648\u0635\u0648\u0644\u0629 \u0623\u0635\u0644\u064B\u0627\u060C \u0644\u0643\u0646 \u0627\u0644\u0645\u0635\u0628\u0627\u062D \u0644\u0627 \u064A\u0636\u064A\u0621. \u0634\u063A\u0651\u0644 \u0627\u0644\u062A\u064A\u0627\u0631\u060C \u0648\u0623\u063A\u0644\u0642 \u0627\u0644\u0645\u0641\u062A\u0627\u062D\u060C \u0648\u0627\u0633\u062A\u062E\u062F\u0645 \u062C\u0647\u0627\u0632 \u0627\u0644\u0642\u064A\u0627\u0633 \u0627\u0644\u0645\u062A\u0639\u062F\u062F \u0644\u062A\u0639\u0631\u0641 \u0623\u064A\u0646 \u062A\u0646\u0642\u0637\u0639 \u0627\u0644\u062F\u0627\u0626\u0631\u0629.",
+    "Interruttore aperto: la lampada \xE8 spenta": "\u0627\u0644\u0645\u0641\u062A\u0627\u062D \u0645\u0641\u062A\u0648\u062D: \u0627\u0644\u0645\u0635\u0628\u0627\u062D \u0645\u0637\u0641\u0623",
+    "Interruttore chiuso: la lampada si accende": "\u0627\u0644\u0645\u0641\u062A\u0627\u062D \u0645\u063A\u0644\u0642: \u0627\u0644\u0645\u0635\u0628\u0627\u062D \u064A\u0636\u064A\u0621",
+    "La continuit\xE0 con l\u2019impianto in tensione non \xE8 una misura valida.": "\u0642\u064A\u0627\u0633 \u0627\u0644\u0627\u0633\u062A\u0645\u0631\u0627\u0631\u064A\u0629 \u0648\u0627\u0644\u062A\u0645\u062F\u064A\u062F \u0645\u063A\u0630\u0651\u0649 \u0644\u064A\u0633 \u0642\u064A\u0627\u0633\u064B\u0627 \u0635\u0627\u0644\u062D\u064B\u0627.",
+    "La continuit\xE0 si misura a impianto spento. Il multimetro manda una piccola corrente tra i due puntali: se il percorso \xE8 chiuso (un filo, un interruttore chiuso) legge continuit\xE0; se \xE8 interrotto legge circuito aperto; se attraversa un carico legge la sua resistenza.": "\u062A\u064F\u0642\u0627\u0633 \u0627\u0644\u0627\u0633\u062A\u0645\u0631\u0627\u0631\u064A\u0629 \u0648\u0627\u0644\u062A\u0645\u062F\u064A\u062F \u0645\u0641\u0635\u0648\u0644. \u064A\u0631\u0633\u0644 \u0627\u0644\u062C\u0647\u0627\u0632 \u062A\u064A\u0627\u0631\u064B\u0627 \u0635\u063A\u064A\u0631\u064B\u0627 \u0628\u064A\u0646 \u0627\u0644\u0645\u062C\u0633\u0651\u064A\u0646: \u0625\u0630\u0627 \u0643\u0627\u0646 \u0627\u0644\u0645\u0633\u0627\u0631 \u0645\u063A\u0644\u0642\u064B\u0627 (\u0633\u0644\u0643 \u0623\u0648 \u0645\u0641\u062A\u0627\u062D \u0645\u063A\u0644\u0642) \u064A\u0642\u0631\u0623 \u0627\u0633\u062A\u0645\u0631\u0627\u0631\u064A\u0629\u061B \u0648\u0625\u0630\u0627 \u0643\u0627\u0646 \u0645\u0642\u0637\u0648\u0639\u064B\u0627 \u064A\u0642\u0631\u0623 \u062F\u0627\u0626\u0631\u0629 \u0645\u0641\u062A\u0648\u062D\u0629\u061B \u0648\u0625\u0630\u0627 \u0645\u0631\u0651 \u0639\u0628\u0631 \u062D\u0650\u0645\u0644 \u064A\u0642\u0631\u0623 \u0645\u0642\u0627\u0648\u0645\u062A\u0647.",
+    "La fase all\u2019interruttore": "\u0627\u0644\u0637\u0648\u0631 \u0625\u0644\u0649 \u0627\u0644\u0645\u0641\u062A\u0627\u062D",
+    "La fase esce dal quadro e arriva al morsetto 1 dell\u2019interruttore. Dal morsetto 2 va alla lampada.": "\u064A\u062E\u0631\u062C \u0627\u0644\u0637\u0648\u0631 \u0645\u0646 \u0627\u0644\u0644\u0648\u062D\u0629 \u0648\u064A\u0635\u0644 \u0625\u0644\u0649 \u0627\u0644\u0645\u0631\u0628\u0637 1 \u0641\u064A \u0627\u0644\u0645\u0641\u062A\u0627\u062D. \u0648\u0645\u0646 \u0627\u0644\u0645\u0631\u0628\u0637 2 \u064A\u0630\u0647\u0628 \u0625\u0644\u0649 \u0627\u0644\u0645\u0635\u0628\u0627\u062D.",
+    "La lampada \xE8 bruciata.": "\u0627\u0644\u0645\u0635\u0628\u0627\u062D \u0645\u062D\u062A\u0631\u0642.",
+    "La tensione, in volt, si misura a impianto in tensione. Tra la fase e il neutro leggi 230 V; tra il neutro e la terra, circa 0 V.": "\u064A\u064F\u0642\u0627\u0633 \u0627\u0644\u062C\u0647\u062F\u060C \u0628\u0627\u0644\u0641\u0648\u0644\u062A\u060C \u0648\u0627\u0644\u062A\u0645\u062F\u064A\u062F \u0645\u063A\u0630\u0651\u0649. \u0628\u064A\u0646 \u0627\u0644\u0637\u0648\u0631 \u0648\u0627\u0644\u0645\u062D\u0627\u064A\u062F \u062A\u0642\u0631\u0623 230 \u0641\u0648\u0644\u062A\u061B \u0648\u0628\u064A\u0646 \u0627\u0644\u0645\u062D\u0627\u064A\u062F \u0648\u0627\u0644\u0623\u0631\u0636\u064A \u0646\u062D\u0648 0 \u0641\u0648\u0644\u062A.",
+    "Levetta su: l\u2019interruttore \xE8 aperto, la lampada \xE8 spenta.": "\u0645\u0641\u062A\u0627\u062D \u0627\u0644\u0644\u0648\u062D\u0629 \u0645\u0631\u0641\u0648\u0639: \u0627\u0644\u0645\u0641\u062A\u0627\u062D \u0645\u0641\u062A\u0648\u062D \u0648\u0627\u0644\u0645\u0635\u0628\u0627\u062D \u0645\u0637\u0641\u0623.",
+    "Lo strumento \xE8 il multimetro. Ha due puntali: il rosso e il nero. Li appoggi su due punti dell\u2019impianto e il display ti dice cosa c\u2019\xE8 tra quei due punti.": "\u0627\u0644\u0623\u062F\u0627\u0629 \u0647\u064A \u062C\u0647\u0627\u0632 \u0627\u0644\u0642\u064A\u0627\u0633 \u0627\u0644\u0645\u062A\u0639\u062F\u062F. \u0644\u0647 \u0645\u062C\u0633\u0651\u0627\u0646: \u0623\u062D\u0645\u0631 \u0648\u0623\u0633\u0648\u062F. \u062A\u0636\u0639\u0647\u0645\u0627 \u0639\u0644\u0649 \u0646\u0642\u0637\u062A\u064A\u0646 \u0645\u0646 \u0627\u0644\u062A\u0645\u062F\u064A\u062F \u0641\u062A\u064F\u0638\u0647\u0631 \u0627\u0644\u0634\u0627\u0634\u0629 \u0645\u0627 \u0628\u064A\u0646 \u0627\u0644\u0646\u0642\u0637\u062A\u064A\u0646.",
+    "L\u2019interruttore spegne la lampada ma pu\xF2 lasciare la fase sul portalampada. Si apre il quadro e si misura: solo uno 0 V letto con lo strumento dice che si pu\xF2 lavorare.": "\u064A\u0637\u0641\u0626 \u0627\u0644\u0645\u0641\u062A\u0627\u062D \u0627\u0644\u0645\u0635\u0628\u0627\u062D \u0644\u0643\u0646\u0647 \u0642\u062F \u064A\u062A\u0631\u0643 \u0627\u0644\u0637\u0648\u0631 \u0639\u0644\u0649 \u062D\u0627\u0645\u0644 \u0627\u0644\u0645\u0635\u0628\u0627\u062D. \u062A\u064F\u0641\u062A\u062D \u0627\u0644\u0644\u0648\u062D\u0629 \u062B\u0645 \u064A\u064F\u0642\u0627\u0633: \u0641\u0642\u0637 \u0642\u0631\u0627\u0621\u0629 0 \u0641\u0648\u0644\u062A \u0628\u0627\u0644\u062C\u0647\u0627\u0632 \u062A\u0639\u0646\u064A \u0623\u0646\u0647 \u064A\u0645\u0643\u0646 \u0627\u0644\u0639\u0645\u0644.",
+    "L\u2019interruttore \xE8 aperto e la lampada \xE8 spenta. Metto i puntali sui due morsetti dell\u2019interruttore. Quanti volt leggo?": "\u0627\u0644\u0645\u0641\u062A\u0627\u062D \u0645\u0641\u062A\u0648\u062D \u0648\u0627\u0644\u0645\u0635\u0628\u0627\u062D \u0645\u0637\u0641\u0623. \u0623\u0636\u0639 \u0627\u0644\u0645\u062C\u0633\u0651\u064A\u0646 \u0639\u0644\u0649 \u0645\u0631\u0628\u0637\u064A \u0627\u0644\u0645\u0641\u062A\u0627\u062D. \u0643\u0645 \u0641\u0648\u0644\u062A \u0623\u0642\u0631\u0623\u061F",
+    "Mai misurare la continuit\xE0 con l\u2019impianto in tensione: la lettura non vale e lo strumento si pu\xF2 rovinare.": "\u0644\u0627 \u062A\u0642\u0650\u0633 \u0627\u0644\u0627\u0633\u062A\u0645\u0631\u0627\u0631\u064A\u0629 \u0623\u0628\u062F\u064B\u0627 \u0648\u0627\u0644\u062A\u0645\u062F\u064A\u062F \u0645\u063A\u0630\u0651\u0649: \u0627\u0644\u0642\u0631\u0627\u0621\u0629 \u063A\u064A\u0631 \u0635\u0627\u0644\u062D\u0629 \u0648\u0642\u062F \u064A\u062A\u0644\u0641 \u0627\u0644\u062C\u0647\u0627\u0632.",
+    "Manca il filo del neutro alla lampada.": "\u0633\u0644\u0643 \u0627\u0644\u0645\u062D\u0627\u064A\u062F \u0625\u0644\u0649 \u0627\u0644\u0645\u0635\u0628\u0627\u062D \u0645\u0641\u0642\u0648\u062F.",
+    "Misura la tensione": "\u0642\u0650\u0633 \u0627\u0644\u062C\u0647\u062F",
+    "Misurare invece di indovinare": "\u0627\u0644\u0642\u064A\u0627\u0633 \u0628\u062F\u0644 \u0627\u0644\u062A\u062E\u0645\u064A\u0646",
+    "Misurare la tensione e la continuit\xE0 di un punto luce.": "\u0642\u064A\u0627\u0633 \u0627\u0644\u062C\u0647\u062F \u0648\u0627\u0644\u0627\u0633\u062A\u0645\u0631\u0627\u0631\u064A\u0629 \u0641\u064A \u0646\u0642\u0637\u0629 \u0625\u0646\u0627\u0631\u0629.",
+    "Niente: con una mano sola non si rischia.": "\u0644\u0627 \u0634\u064A\u0621: \u0628\u064A\u062F \u0648\u0627\u062D\u062F\u0629 \u0644\u0627 \u062E\u0637\u0631.",
+    "Per misurare, tocca Multimetro: il primo morsetto che tocchi \xE8 il puntale rosso, il secondo il nero.": "\u0644\u0644\u0642\u064A\u0627\u0633\u060C \u0627\u0644\u0645\u0633 \xAB\u062C\u0647\u0627\u0632 \u0627\u0644\u0642\u064A\u0627\u0633 \u0627\u0644\u0645\u062A\u0639\u062F\u062F\xBB: \u0623\u0648\u0644 \u0645\u0631\u0628\u0637 \u062A\u0644\u0645\u0633\u0647 \u0647\u0648 \u0627\u0644\u0645\u062C\u0633 \u0627\u0644\u0623\u062D\u0645\u0631 \u0648\u0627\u0644\u062B\u0627\u0646\u064A \u0647\u0648 \u0627\u0644\u0645\u062C\u0633 \u0627\u0644\u0623\u0633\u0648\u062F.",
+    "Prima di lavorare su un impianto si toglie la tensione e si verifica con il multimetro che non ci sia.": "\u0642\u0628\u0644 \u0627\u0644\u0639\u0645\u0644 \u0639\u0644\u0649 \u062A\u0645\u062F\u064A\u062F \u064A\u064F\u0641\u0635\u0644 \u0627\u0644\u062C\u0647\u062F \u0648\u064A\u064F\u062A\u062D\u0642\u0642 \u0628\u062C\u0647\u0627\u0632 \u0627\u0644\u0642\u064A\u0627\u0633 \u0627\u0644\u0645\u062A\u0639\u062F\u062F \u0645\u0646 \u063A\u064A\u0627\u0628\u0647.",
+    "Spengo l\u2019interruttore: la lampada \xE8 spenta, sono al sicuro.": "\u0623\u0637\u0641\u0626 \u0627\u0644\u0645\u0641\u062A\u0627\u062D: \u0627\u0644\u0645\u0635\u0628\u0627\u062D \u0645\u0637\u0641\u0623 \u0641\u0623\u0646\u0627 \u0641\u064A \u0623\u0645\u0627\u0646.",
+    "Tocca Multimetro, poi il morsetto 1 dell\u2019interruttore (rosso) e il NEUTRO del quadro (nero): leggi 230 V.": "\u0627\u0644\u0645\u0633 \xAB\u062C\u0647\u0627\u0632 \u0627\u0644\u0642\u064A\u0627\u0633 \u0627\u0644\u0645\u062A\u0639\u062F\u062F\xBB\u060C \u062B\u0645 \u0627\u0644\u0645\u0631\u0628\u0637 1 \u0641\u064A \u0627\u0644\u0645\u0641\u062A\u0627\u062D (\u0623\u062D\u0645\u0631) \u0648\u0645\u062D\u0627\u064A\u062F \u0627\u0644\u0644\u0648\u062D\u0629 (\u0623\u0633\u0648\u062F): \u062A\u0642\u0631\u0623 230 \u0641\u0648\u0644\u062A.",
+    "Tocca la levetta del quadro per toglierla. Chiudi l\u2019interruttore, scegli la misura Continuit\xE0 e metti i puntali sui morsetti 1 e 2.": "\u0627\u0644\u0645\u0633 \u0645\u0641\u062A\u0627\u062D \u0627\u0644\u0644\u0648\u062D\u0629 \u0644\u0625\u064A\u0642\u0627\u0641 \u0627\u0644\u062A\u064A\u0627\u0631. \u0623\u063A\u0644\u0642 \u0627\u0644\u0645\u0641\u062A\u0627\u062D\u060C \u0648\u0627\u062E\u062A\u0631 \u0642\u064A\u0627\u0633 \u0627\u0644\u0627\u0633\u062A\u0645\u0631\u0627\u0631\u064A\u0629\u060C \u0648\u0636\u0639 \u0627\u0644\u0645\u062C\u0633\u0651\u064A\u0646 \u0639\u0644\u0649 \u0627\u0644\u0645\u0631\u0628\u0637\u064A\u0646 1 \u06482.",
+    "Tolgo la tensione dal quadro e controllo con il multimetro che non ce ne sia.": "\u0623\u0641\u0635\u0644 \u0627\u0644\u062C\u0647\u062F \u0639\u0646 \u0627\u0644\u0644\u0648\u062D\u0629 \u0648\u0623\u062A\u062D\u0642\u0642 \u0628\u062C\u0647\u0627\u0632 \u0627\u0644\u0642\u064A\u0627\u0633 \u0627\u0644\u0645\u062A\u0639\u062F\u062F \u0645\u0646 \u0639\u062F\u0645 \u0648\u062C\u0648\u062F\u0647.",
+    "Un impianto che non funziona si pu\xF2 ispezionare a occhio, ma spesso il guasto non si vede: un filo staccato dentro il morsetto, un contatto che non chiude. L\u2019elettricista misura.": "\u064A\u0645\u0643\u0646 \u0641\u062D\u0635 \u062A\u0645\u062F\u064A\u062F \u0644\u0627 \u064A\u0639\u0645\u0644 \u0628\u0627\u0644\u0639\u064A\u0646\u060C \u0644\u0643\u0646 \u0627\u0644\u0639\u0637\u0644 \u0643\u062B\u064A\u0631\u064B\u0627 \u0645\u0627 \u0644\u0627 \u064A\u064F\u0631\u0649: \u0633\u0644\u0643 \u0645\u0646\u0641\u0635\u0644 \u062F\u0627\u062E\u0644 \u0627\u0644\u0645\u0631\u0628\u0637\u060C \u0623\u0648 \u0645\u0644\u0627\u0645\u0633 \u0644\u0627 \u064A\u064F\u063A\u0644\u0642. \u0627\u0644\u0643\u0647\u0631\u0628\u0627\u0626\u064A \u064A\u0642\u064A\u0633.",
+    "Una lampada spenta non \xE8 senza tensione. Il morsetto a valle dell\u2019interruttore aperto prende il neutro attraverso la lampada, quindi tra i due morsetti ci sono 230 V. Per questo si pu\xF2 prendere la scossa anche con la luce spenta.": "\u0627\u0644\u0645\u0635\u0628\u0627\u062D \u0627\u0644\u0645\u0637\u0641\u0623 \u0644\u064A\u0633 \u0628\u0644\u0627 \u062C\u0647\u062F. \u0627\u0644\u0645\u0631\u0628\u0637 \u0628\u0639\u062F \u0627\u0644\u0645\u0641\u062A\u0627\u062D \u0627\u0644\u0645\u0641\u062A\u0648\u062D \u064A\u0623\u062E\u0630 \u0627\u0644\u0645\u062D\u0627\u064A\u062F \u0639\u0628\u0631 \u0627\u0644\u0645\u0635\u0628\u0627\u062D\u060C \u0641\u064A\u0643\u0648\u0646 \u0628\u064A\u0646 \u0627\u0644\u0645\u0631\u0628\u0637\u064A\u0646 230 \u0641\u0648\u0644\u062A. \u0644\u0630\u0644\u0643 \u0642\u062F \u062A\u064F\u0635\u0639\u0642 \u062D\u062A\u0649 \u0648\u0627\u0644\u0636\u0648\u0621 \u0645\u0637\u0641\u0623.",
+    "Una lampada spenta pu\xF2 avere tensione ai suoi morsetti: un interruttore aperto lascia la fase dal lato del quadro e il neutro attraverso la lampada.": "\u0642\u062F \u064A\u0648\u062C\u062F \u062C\u0647\u062F \u0639\u0644\u0649 \u0645\u0631\u0628\u0637\u064A \u0645\u0635\u0628\u0627\u062D \u0645\u0637\u0641\u0623: \u0627\u0644\u0645\u0641\u062A\u0627\u062D \u0627\u0644\u0645\u0641\u062A\u0648\u062D \u064A\u062A\u0631\u0643 \u0627\u0644\u0637\u0648\u0631 \u0645\u0646 \u062C\u0647\u0629 \u0627\u0644\u0644\u0648\u062D\u0629 \u0648\u0627\u0644\u0645\u062D\u0627\u064A\u062F \u0639\u0628\u0631 \u0627\u0644\u0645\u0635\u0628\u0627\u062D.",
+    "continuit\xE0 dell\u2019interruttore chiuso, a quadro spento": "\u0627\u0633\u062A\u0645\u0631\u0627\u0631\u064A\u0629 \u0627\u0644\u0645\u0641\u062A\u0627\u062D \u0627\u0644\u0645\u063A\u0644\u0642 \u0648\u0627\u0644\u0644\u0648\u062D\u0629 \u0645\u0637\u0641\u0623\u0629",
+    "tensione ai capi dell\u2019interruttore aperto, a quadro acceso": "\u0627\u0644\u062C\u0647\u062F \u0639\u0644\u0649 \u0637\u0631\u0641\u064A \u0627\u0644\u0645\u0641\u062A\u0627\u062D \u0627\u0644\u0645\u0641\u062A\u0648\u062D \u0648\u0627\u0644\u0644\u0648\u062D\u0629 \u0645\u0634\u063A\u0651\u0644\u0629",
+    "tensione tra l\u2019ingresso dell\u2019interruttore (morsetto 1) e il neutro, a quadro acceso": "\u0627\u0644\u062C\u0647\u062F \u0628\u064A\u0646 \u0645\u062F\u062E\u0644 \u0627\u0644\u0645\u0641\u062A\u0627\u062D (\u0627\u0644\u0645\u0631\u0628\u0637 1) \u0648\u0627\u0644\u0645\u062D\u0627\u064A\u062F \u0648\u0627\u0644\u0644\u0648\u062D\u0629 \u0645\u0634\u063A\u0651\u0644\u0629",
+    "Fase e neutro": "\u0627\u0644\u0637\u0648\u0631 \u0648\u0627\u0644\u0645\u062D\u0627\u064A\u062F",
+    "Interruttore aperto": "\u0627\u0644\u0645\u0641\u062A\u0627\u062D \u0645\u0641\u062A\u0648\u062D",
+    "Multimetro": "\u062C\u0647\u0627\u0632 \u0627\u0644\u0642\u064A\u0627\u0633 \u0627\u0644\u0645\u062A\u0639\u062F\u062F",
+    "Prima di verificare serve ancora una misura con il multimetro: tensione tra l\u2019ingresso dell\u2019interruttore (morsetto 1) e il neutro, a quadro acceso.": "\u0642\u0628\u0644 \u0627\u0644\u062A\u062D\u0642\u0642 \u0645\u0627 \u0632\u0627\u0644 \u0645\u0637\u0644\u0648\u0628\u064B\u0627 \u0642\u064A\u0627\u0633 \u0628\u062C\u0647\u0627\u0632 \u0627\u0644\u0642\u064A\u0627\u0633 \u0627\u0644\u0645\u062A\u0639\u062F\u062F: \u0627\u0644\u062C\u0647\u062F \u0628\u064A\u0646 \u0645\u062F\u062E\u0644 \u0627\u0644\u0645\u0641\u062A\u0627\u062D (\u0627\u0644\u0645\u0631\u0628\u0637 1) \u0648\u0627\u0644\u0645\u062D\u0627\u064A\u062F \u0648\u0627\u0644\u0644\u0648\u062D\u0629 \u0645\u0634\u063A\u0651\u0644\u0629.",
+    "Tensione": "\u0627\u0644\u062C\u0647\u062F",
+    "Continuit\xE0": "\u0627\u0644\u0627\u0633\u062A\u0645\u0631\u0627\u0631\u064A\u0629",
+    "Togli i puntali": "\u0623\u0632\u0644 \u0627\u0644\u0645\u062C\u0633\u0651\u064A\u0646",
+    "Tocca due morsetti: il primo \xE8 il puntale rosso, il secondo il nero.": "\u0627\u0644\u0645\u0633 \u0645\u0631\u0628\u0637\u064A\u0646: \u0627\u0644\u0623\u0648\u0644 \u0647\u0648 \u0627\u0644\u0645\u062C\u0633 \u0627\u0644\u0623\u062D\u0645\u0631 \u0648\u0627\u0644\u062B\u0627\u0646\u064A \u0647\u0648 \u0627\u0644\u0645\u062C\u0633 \u0627\u0644\u0623\u0633\u0648\u062F.",
+    "I due punti sono in cortocircuito.": "\u0627\u0644\u0646\u0642\u0637\u062A\u0627\u0646 \u0641\u064A \u0642\u0635\u0631 \u062F\u0627\u0626\u0631\u0629.",
+    "Continuit\xE0: il percorso \xE8 chiuso.": "\u0627\u0633\u062A\u0645\u0631\u0627\u0631\u064A\u0629: \u0627\u0644\u0645\u0633\u0627\u0631 \u0645\u063A\u0644\u0642.",
+    "Il percorso passa da un carico: \xE8 la sua resistenza.": "\u0627\u0644\u0645\u0633\u0627\u0631 \u064A\u0645\u0631 \u0639\u0628\u0631 \u062D\u0650\u0645\u0644: \u0647\u0630\u0647 \u0645\u0642\u0627\u0648\u0645\u062A\u0647.",
+    "Circuito aperto: nessun percorso.": "\u062F\u0627\u0626\u0631\u0629 \u0645\u0641\u062A\u0648\u062D\u0629: \u0644\u0627 \u064A\u0648\u062C\u062F \u0645\u0633\u0627\u0631.",
+    "C\u2019\xE8 tensione sul punto misurato: la lettura di continuit\xE0 non vale. Togli la tensione dal quadro e riprova.": "\u064A\u0648\u062C\u062F \u062C\u0647\u062F \u0639\u0644\u0649 \u0627\u0644\u0646\u0642\u0637\u0629 \u0627\u0644\u0645\u0642\u064A\u0633\u0629: \u0642\u0631\u0627\u0621\u0629 \u0627\u0644\u0627\u0633\u062A\u0645\u0631\u0627\u0631\u064A\u0629 \u063A\u064A\u0631 \u0635\u0627\u0644\u062D\u0629. \u0627\u0641\u0635\u0644 \u0627\u0644\u062C\u0647\u062F \u0639\u0646 \u0627\u0644\u0644\u0648\u062D\u0629 \u0648\u0623\u0639\u062F \u0627\u0644\u0645\u062D\u0627\u0648\u0644\u0629.",
+    "corto": "\u0642\u0635\u0631"
   };
 
   // src/i18n/ar.js
@@ -8332,6 +8714,9 @@ html[lang="it"] .trnote{display:none}
     [/^Un componente \((.+)\) non è a valle della protezione \((.+)\): in caso di guasto nessuno lo stacca\.$/, (m, t) => `\u0645\u0643\u0648\u0651\u0646 (${t(m[1])}) \u0644\u064A\u0633 \u0628\u0639\u062F \u0627\u0644\u062D\u0645\u0627\u064A\u0629 (${t(m[2])}): \u0641\u064A \u062D\u0627\u0644 \u0627\u0644\u0639\u0637\u0644 \u0644\u0627 \u064A\u0641\u0635\u0644\u0647 \u0623\u062D\u062F.`],
     [/^Prova non superata: (.+?)\. (.+)$/, (m, t) => `\u0627\u062E\u062A\u0628\u0627\u0631 \u0644\u0645 \u064A\u064F\u062C\u062A\u0632: ${t(m[1])}. ${t(m[2])}`],
     [/^(.+): (.+); atteso: (.+)\.$/, (m, t) => `${t(m[1])}: ${t(m[2])}\u061B \u0627\u0644\u0645\u062A\u0648\u0642\u0639: ${t(m[3])}.`],
+    [/^Prima di verificare serve ancora una misura con il multimetro: (.+)\.$/, (m, t) => `\u0642\u0628\u0644 \u0627\u0644\u062A\u062D\u0642\u0642 \u0645\u0627 \u0632\u0627\u0644 \u0645\u0637\u0644\u0648\u0628\u064B\u0627 \u0642\u064A\u0627\u0633 \u0628\u062C\u0647\u0627\u0632 \u0627\u0644\u0642\u064A\u0627\u0633 \u0627\u0644\u0645\u062A\u0639\u062F\u062F: ${t(m[1])}.`],
+    [/^Puntale rosso su (.+)\. Tocca il secondo morsetto per il puntale nero\.$/, (m, t) => `\u0627\u0644\u0645\u062C\u0633 \u0627\u0644\u0623\u062D\u0645\u0631 \u0639\u0644\u0649 ${t(m[1])}. \u0627\u0644\u0645\u0633 \u0627\u0644\u0645\u0631\u0628\u0637 \u0627\u0644\u062B\u0627\u0646\u064A \u0644\u0644\u0645\u062C\u0633 \u0627\u0644\u0623\u0633\u0648\u062F.`],
+    [/^Rosso su (.+), nero su (.+)\.(?: (.+))?$/, (m, t) => `\u0627\u0644\u0623\u062D\u0645\u0631 \u0639\u0644\u0649 ${t(m[1])}\u060C \u0648\u0627\u0644\u0623\u0633\u0648\u062F \u0639\u0644\u0649 ${t(m[2])}.${m[3] ? " " + t(m[3]) : ""}`],
     [/^Protezioni scattate: (.+)\.$/, (m, t) => `\u062D\u0645\u0627\u064A\u0627\u062A \u0641\u0635\u0644\u062A: ${t(m[1])}.`]
   ];
   registerLang("ar", { ...ar_1_default, ...ar_2_default, ...ar_3_default, ...ar_4_default, ...ar_5_default, ...ar_6_default, ...ar_7_default, ...ar_8_default, ...ar_9_default, ...ar_10_default, ...ar_11_default, ...ar_12_default, ...ar_13_default, ...ar_14_default, ...ar_15_default }, PAT);
@@ -8650,7 +9035,7 @@ html[lang="it"] .trnote{display:none}
   var COL = "marrone";
   var SEL = null;
   var KWH = 42.7;
-  var ui = () => ({ mobile: MQ.matches, sel: SEL, kwh: KWH });
+  var ui = () => ({ mobile: MQ.matches, sel: SEL, kwh: KWH, probes: S && S.meter && S.meter.on ? [S.meter.a, S.meter.b] : null });
   function renderPalette() {
     const lv = S && S.level;
     const pal = lv && lv.palette || WIRE_COLORS;
@@ -8823,6 +9208,11 @@ html[lang="it"] .trnote{display:none}
     const lg = $("#flowLegend");
     lg.hidden = !S.flowVisible;
     lg.innerHTML = S.flowVisible ? '<span><i class="lg f"></i>in tensione, fase</span><span><i class="lg n"></i>in tensione, neutro</span><span><i class="lg c"></i>percorso da corrente</span><span><i class="lg s"></i>qui la tensione si ferma</span>' : "";
+    const mt = $("#bMeter"), mp = $("#meter");
+    mt.hidden = !S.meter;
+    mt.setAttribute("aria-pressed", String(!!(S.meter && S.meter.on)));
+    mp.hidden = !(S.meter && S.meter.on);
+    mp.innerHTML = S.meter && S.meter.on ? meterHTML(S.meter, (t) => termName(S.level, t)) : "";
     renderBench();
     renderStatus();
     renderResult();
@@ -8918,6 +9308,11 @@ html[lang="it"] .trnote{display:none}
     const t = e.target.closest("[data-term]");
     if (!t) return;
     const id = t.dataset.term;
+    if (S.meter && S.meter.on) {
+      e.preventDefault();
+      session.probe(id);
+      return;
+    }
     prevSel = SEL;
     downTerm = id;
     reselect = SEL === id;
@@ -8999,6 +9394,7 @@ html[lang="it"] .trnote{display:none}
       return;
     }
     const w = e.target.closest("[data-wire]");
+    if (w && S.meter && S.meter.on) return;
     if (w) {
       clearSel();
       if (!(w.dataset.wire === lastWireId && Date.now() - lastWireAt < 600)) session.removeWire(+w.dataset.wire);
@@ -9165,6 +9561,18 @@ html[lang="it"] .trnote{display:none}
     (r.pass ? isHouseLevel(S.level.id) ? $("#house") : $(".roomcard") : $("#result")).scrollIntoView({ behavior, block: r.pass ? "start" : "nearest" });
   });
   $("#bFlow").addEventListener("click", () => session.toggleFlow());
+  $("#bMeter").addEventListener("click", () => {
+    clearSel();
+    session.toggleMeter();
+  });
+  $("#meter").addEventListener("click", (e) => {
+    const md = e.target.closest("[data-meter-mode]");
+    if (md) {
+      session.setMeterMode(md.dataset.meterMode);
+      return;
+    }
+    if (e.target.closest("[data-meter-clear]")) session.clearProbes();
+  });
   $("#result").addEventListener("click", (e) => {
     if (e.target.id === "bNext") {
       const n = S.levels[S.levelIndex + 1];

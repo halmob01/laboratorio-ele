@@ -56,6 +56,20 @@ function wire(w, d, a, b, color) {
   tap(w, term(d, b));
 }
 const solve = (w, d, level) => level.solution.forEach(([a, b, c]) => wire(w, d, a, b, c));
+// Le letture del multimetro che il livello pretende, fatte dall'interfaccia: puntali sui morsetti, quadro e comandi come richiesto.
+function measureUI(w, d, level) {
+  let powered = false;
+  const ctl = {};
+  (level.measures || []).forEach(m => {
+    const meter = q(d, '#meter');
+    if (!meter || meter.hidden) click(w, q(d, '#bMeter'));
+    click(w, q(d, `[data-meter-mode="${m.mode || 'V'}"]`));
+    if (powered !== !!m.live) { click(w, q(d, '[data-q]')); powered = !!m.live; }
+    Object.entries(m.setup || {}).forEach(([id, v]) => { if ((ctl[id] || 0) !== v) { click(w, q(d, `[data-ctl="${id}"]`)); ctl[id] = v; } });
+    click(w, q(d, '[data-meter-clear]'));
+    tap(w, term(d, m.between[0])); tap(w, term(d, m.between[1]));
+  });
+}
 const profile = w => JSON.parse(w.localStorage.getItem('fase-e-neutro-profilo') || '{}');
 const saved = w => JSON.parse(w.localStorage.getItem('fase-e-neutro-1') || '{}');
 
@@ -258,6 +272,7 @@ test('si superano tutti i livelli cablando la soluzione (quadro e contatore)', (
       assert.match(q(d, '#lvTag').textContent, new RegExp(base.name));
       solve(w, d, lvl);
       assert.equal(qa(d, '#bench [data-wire]').length, lvl.solution.length, base.id + ' ' + mode);
+      measureUI(w, d, lvl);
       click(w, q(d, '#bCheck'));
       assert.match(q(d, '#result h3').textContent, /Impianto funzionante/, base.id + ' ' + mode);
       assert.equal(qa(d, '#result .row:not(.chk) > .mark.ok').length, 3);

@@ -358,4 +358,84 @@ export function stillOnIfOpen(sim, id, protIds) {
   return an.loads[id] === 'on' || an.coils[id] === true || (an.motors[id] !== undefined && an.motors[id] !== 'off');
 }
 
+/* ---------- multimetro ---------- */
+// Resistenze nominali usate per la lettura Ohm (valori didattici).
+const OHM = { lamp: 530, spia: 8000, presa: 60, bell: 30, ri: 1500, tmr: 1500, km: 1200, motor3: 12 };
+
+// Elementi che il multimetro attraversa: carichi, bobine e avvolgimenti dei motori.
+function windings(sim) {
+  const out = [];
+  sim.level.comps.forEach(c => {
+    const p = partOf(c);
+    const ohm = c.ohm || OHM[c.type] || 500;
+    if (p.load || p.coil) { const [x, y] = p.load || p.coil; out.push({ a: c.id + '.' + x, b: c.id + '.' + y, ohm, id: c.id }); }
+    if (p.motor) for (let i = 0; i < p.motor.length; i++) for (let j = i + 1; j < p.motor.length; j++) out.push({ a: c.id + '.' + p.motor[i], b: c.id + '.' + p.motor[j], ohm, id: c.id });
+  });
+  return out;
+}
+
+/**
+ * Lettura del multimetro tra due morsetti.
+ *  mode 'V': tensione. Il potenziale si propaga attraverso carichi, bobine e avvolgimenti (impedenza d'ingresso alta):
+ *            con l'interruttore aperto, il morsetto a valle verso la lampada legge il neutro, quindi 230 V verso la fase.
+ *            -> { kind: 'v', value: volt, ac: true }, oppure { kind: 'v', value: null } se il punto e' in cortocircuito.
+ *  mode 'R': continuita' e resistenza, solo a impianto fuori tensione.
+ *            -> { kind: 'cont' } (fili e contatti chiusi), { kind: 'res', ohm } (attraverso un carico),
+ *               { kind: 'open' }, oppure { kind: 'live' } se c'e' tensione sul punto (lettura non valida).
+ */
+export function measure(sim, a, b, mode = 'V') {
+  const an = analyse(sim);
+  const roots = new Map();   // radice -> potenziale
+  const wd = windings(sim);
+  const terms = [a, b];
+  sim.wires.forEach(w => terms.push(w.a, w.b));
+  wd.forEach(w => terms.push(w.a, w.b));
+  sim.level.comps.forEach(c => {
+    Object.keys(c.terms || {}).forEach(t => terms.push(c.id + '.' + t));
+    partOf(c).contacts(c, sim.parts[c.id] || {}).forEach(([x, y]) => terms.push(c.id + '.' + x, c.id + '.' + y));
+  });
+  terms.forEach(t => { const r = an.uf.f(t); if (!roots.has(r)) roots.set(r, an.potAt(t)); });
+  for (let k = 0; k < 20; k++) {
+    let changed = false;
+    wd.forEach(w => {
+      const ra = an.uf.f(w.a), rb = an.uf.f(w.b);
+      const pa = roots.get(ra), pb = roots.get(rb);
+      if (pa && pa !== 'mix' && !pb) { roots.set(rb, pa); changed = true; }
+      else if (pb && pb !== 'mix' && !pa) { roots.set(ra, pb); changed = true; }
+    });
+    if (!changed) break;
+  }
+  const pa = roots.get(an.uf.f(a)) || null, pb = roots.get(an.uf.f(b)) || null;
+  if (mode === 'V') {
+    if (pa === 'mix' || pb === 'mix') return { kind: 'v', value: null };
+    let v = voltage(pa, pb);
+    if (typeof v === 'string') { const t = sim.level.comps.find(c => c.id === v.slice(4)); v = t ? t.vout || 12 : 0; }
+    return { kind: 'v', value: v, ac: true };
+  }
+  const live = x => x && x !== 'N' && x !== 'PE';
+  if (live(pa) || live(pb)) return { kind: 'live' };
+  const ra = an.uf.f(a), rb = an.uf.f(b);
+  if (ra === rb) return { kind: 'cont' };
+  // ricerca del percorso piu' corto attraverso gli avvolgimenti
+  const adj = new Map();
+  wd.forEach(w => {
+    const x = an.uf.f(w.a), y = an.uf.f(w.b);
+    (adj.get(x) || adj.set(x, []).get(x)).push({ to: y, ohm: w.ohm });
+    (adj.get(y) || adj.set(y, []).get(y)).push({ to: x, ohm: w.ohm });
+  });
+  const seen = new Set([ra]);
+  let frontier = [{ r: ra, ohm: 0 }];
+  while (frontier.length) {
+    const next = [];
+    for (const f of frontier) for (const e of adj.get(f.r) || []) {
+      if (seen.has(e.to)) continue;
+      seen.add(e.to);
+      if (e.to === rb) return { kind: 'res', ohm: f.ohm + e.ohm };
+      next.push({ r: e.to, ohm: f.ohm + e.ohm });
+    }
+    frontier = next;
+  }
+  return { kind: 'open' };
+}
+
 export { analyse as analyseV2, connect as connectV2, PARTS };

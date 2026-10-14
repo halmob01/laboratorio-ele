@@ -4,7 +4,7 @@
 import { WIRE_COLORS } from '../engine/index.js';
 import { createSession, cleanName, demoFrames, blankSnap } from '../engine/index.js';
 import { levels, deriveFull } from '../content/index.js';
-import { HELP } from '../content/it.js';
+import { HELP, termName } from '../content/it.js';
 import { composeComps } from './layout.js';
 // Su computer i livelli con molti componenti si dispongono su due colonne, per dare scala al banco.
 const colsFor = lv => (!MQ.matches && lv.engine === 2 && lv.comps.length >= 5 ? 2 : 1);
@@ -45,7 +45,7 @@ let rebuild = false;    // forza il ridisegno della scena anche se il livello no
 let COL = 'marrone';    // colore del filo selezionato
 let SEL = null;         // morsetto selezionato
 let KWH = 42.7;         // contatore, solo estetico
-const ui = () => ({ mobile: MQ.matches, sel: SEL, kwh: KWH });
+const ui = () => ({ mobile: MQ.matches, sel: SEL, kwh: KWH, probes: S && S.meter && S.meter.on ? [S.meter.a, S.meter.b] : null });
 
 /* ---------- disegno ---------- */
 function renderPalette() {
@@ -197,6 +197,11 @@ function renderLevelScreen() {
   const lg = $('#flowLegend');
   lg.hidden = !S.flowVisible;
   lg.innerHTML = S.flowVisible ? '<span><i class="lg f"></i>in tensione, fase</span><span><i class="lg n"></i>in tensione, neutro</span><span><i class="lg c"></i>percorso da corrente</span><span><i class="lg s"></i>qui la tensione si ferma</span>' : '';
+  const mt = $('#bMeter'), mp = $('#meter');
+  mt.hidden = !S.meter;
+  mt.setAttribute('aria-pressed', String(!!(S.meter && S.meter.on)));
+  mp.hidden = !(S.meter && S.meter.on);
+  mp.innerHTML = S.meter && S.meter.on ? R.meterHTML(S.meter, t => termName(S.level, t)) : '';
   renderBench();
   renderStatus();
   renderResult();
@@ -272,6 +277,7 @@ bench.addEventListener('pointerdown', e => {
   const t = e.target.closest('[data-term]');
   if (!t) return;
   const id = t.dataset.term;
+  if (S.meter && S.meter.on) { e.preventDefault(); session.probe(id); return; }   // con il multimetro i tocchi posano i puntali, non i fili
   prevSel = SEL; downTerm = id;
   reselect = (SEL === id);
   dragging = true; moved = false; downPt = { x: e.clientX, y: e.clientY };
@@ -322,7 +328,7 @@ bench.addEventListener('click', e => {
   const c = e.target.closest('[data-ctl]'); if (c) { clearSel(); session.toggleControl(c.dataset.ctl); return; }
   // Il "click" che il telefono genera dopo il tocco arriva quando il banco e' gia' stato ridisegnato:
   // puo' cadere sul filo appena creato e cancellarlo. Quel filo non si cancella nel primo mezzo secondo.
-  const w = e.target.closest('[data-wire]'); if (w) { clearSel(); if (!(w.dataset.wire === lastWireId && Date.now() - lastWireAt < 600)) session.removeWire(+w.dataset.wire); return; }
+  const w = e.target.closest('[data-wire]'); if (w && S.meter && S.meter.on) return; if (w) { clearSel(); if (!(w.dataset.wire === lastWireId && Date.now() - lastWireAt < 600)) session.removeWire(+w.dataset.wire); return; }
   clearSel();
 });
 /* ---------- pulsanti a impulso (motore v2): attivi finche' si tengono premuti ---------- */
@@ -419,6 +425,11 @@ $('#bCheck').addEventListener('click', () => {
   (r.pass ? (isHouseLevel(S.level.id) ? $('#house') : $('.roomcard')) : $('#result')).scrollIntoView({ behavior, block: r.pass ? 'start' : 'nearest' });
 });
 $('#bFlow').addEventListener('click', () => session.toggleFlow());
+$('#bMeter').addEventListener('click', () => { clearSel(); session.toggleMeter(); });
+$('#meter').addEventListener('click', e => {
+  const md = e.target.closest('[data-meter-mode]'); if (md) { session.setMeterMode(md.dataset.meterMode); return; }
+  if (e.target.closest('[data-meter-clear]')) session.clearProbes();
+});
 $('#result').addEventListener('click', e => {
   if (e.target.id === 'bNext') { const n = S.levels[S.levelIndex + 1]; if (e.target.dataset.href) location.hash = e.target.dataset.href; else if (n) location.hash = '#/livello/' + n.id; }
 });

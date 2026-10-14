@@ -62,6 +62,9 @@ const PAT = [
   [/^Un componente \((.+)\) non è a valle della protezione \((.+)\): in caso di guasto nessuno lo stacca\.$/, (m, t) => `مكوّن (${t(m[1])}) ليس بعد الحماية (${t(m[2])}): في حال العطل لا يفصله أحد.`],
   [/^Prova non superata: (.+?)\. (.+)$/, (m, t) => `اختبار لم يُجتز: ${t(m[1])}. ${t(m[2])}`],
   [/^(.+): (.+); atteso: (.+)\.$/, (m, t) => `${t(m[1])}: ${t(m[2])}؛ المتوقع: ${t(m[3])}.`],
+  [/^Prima di verificare serve ancora una misura con il multimetro: (.+)\.$/, (m, t) => `قبل التحقق ما زال مطلوبًا قياس بجهاز القياس المتعدد: ${t(m[1])}.`],
+  [/^Puntale rosso su (.+)\. Tocca il secondo morsetto per il puntale nero\.$/, (m, t) => `المجس الأحمر على ${t(m[1])}. المس المربط الثاني للمجس الأسود.`],
+  [/^Rosso su (.+), nero su (.+)\.(?: (.+))?$/, (m, t) => `الأحمر على ${t(m[1])}، والأسود على ${t(m[2])}.${m[3] ? ' ' + t(m[3]) : ''}`],
   [/^Protezioni scattate: (.+)\.$/, (m, t) => `حمايات فصلت: ${t(m[1])}.`],
 ];
 

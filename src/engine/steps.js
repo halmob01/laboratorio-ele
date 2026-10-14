@@ -4,6 +4,7 @@
 //   { kind: 'wire', from, to: [morsetti], color }   fatto quando `from` e' collegato, attraverso i soli fili, a uno dei `to`
 //   { kind: 'power' }                                fatto quando il quadro e' acceso
 //   { kind: 'control', id }                          fatto quando il comando e' stato azionato con il quadro acceso
+//   { kind: 'measure', between: [a, b], mode: 'V'|'R', value?, reading?, live? }   fatto quando il multimetro ha letto cio' che si chiede
 //   { kind: 'verify' }                               fatto quando la verifica e' superata
 // I passi sono sequenziali: un passo conta come fatto solo se lo sono anche tutti i precedenti.
 
@@ -14,6 +15,17 @@ const wireDone = (step, wires) => {
   wires.forEach(w => uf.u(w.a, w.b));
   return step.to.some(t => uf.f(step.from) === uf.f(t));
 };
+
+// Una lettura soddisfa il passo se riguarda gli stessi due morsetti (in qualunque ordine), nella stessa modalita',
+// e, se richiesto, ha il valore (`value`), il tipo (`reading`: 'cont', 'res', 'open', 'live') o lo stato dell'impianto (`live`).
+export function measureMatches(st, m) {
+  const same = (m.a === st.between[0] && m.b === st.between[1]) || (m.a === st.between[1] && m.b === st.between[0]);
+  if (!same || m.mode !== (st.mode || 'V')) return false;
+  if (st.value !== undefined && m.value !== st.value) return false;
+  if (st.reading !== undefined && m.kind !== st.reading) return false;
+  if (st.live !== undefined && m.live !== st.live) return false;
+  return true;
+}
 
 /**
  * @param {object[]} steps     passi del livello
@@ -29,6 +41,7 @@ export function stepsState(steps, wires, ctx) {
     if (st.kind === 'wire') d = !ctx.fault && wireDone(st, wires);   // con un cortocircuito i passi di cablaggio non risultano fatti
     else if (st.kind === 'power') d = !!ctx.power;
     else if (st.kind === 'control') d = operated.has(st.id);
+    else if (st.kind === 'measure') d = (ctx.measured || []).some(m => measureMatches(st, m));
     else if (st.kind === 'verify') d = !!(ctx.result && ctx.result.pass);
     else d = false;
     ok = ok && d;

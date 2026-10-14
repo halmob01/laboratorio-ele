@@ -175,7 +175,7 @@ function termSVG(c, id, ui) {
   const p = termPosOf(c, id), tid = c.id + '.' + id, t = c.terms[id];
   const rot = ((tid.charCodeAt(0) * 37 + tid.charCodeAt(tid.length - 1) * 17) % 160) - 20;
   const m = ui.mobile, lx = p.x + (m ? 19 : 16);
-  return `<g class="term${ui.sel === tid ? ' sel' : ''}" data-term="${tid}" transform="translate(${p.x},${p.y})" role="button" tabindex="0" aria-label="Morsetto ${c.short} ${t.l}"><circle class="hit" r="${m ? 26 : 20}"/><circle class="halo" r="${m ? 18.5 : 15.5}"/><circle class="screw" r="${m ? 13 : 10.5}"/><line class="slot" x1="${m ? -8 : -6}" y1="0" x2="${m ? 8 : 6}" y2="0" transform="rotate(${rot})"/></g><text class="lbl" x="${lx}" y="${p.y + 4.5}">${t.l}</text>`;
+  return `<g class="term${ui.sel === tid ? ' sel' : ''}${ui.probes && ui.probes[0] === tid ? ' pa' : ''}${ui.probes && ui.probes[1] === tid ? ' pb' : ''}" data-term="${tid}" transform="translate(${p.x},${p.y})" role="button" tabindex="0" aria-label="Morsetto ${c.short} ${t.l}"><circle class="hit" r="${m ? 26 : 20}"/><circle class="halo" r="${m ? 18.5 : 15.5}"/><circle class="screw" r="${m ? 13 : 10.5}"/><line class="slot" x1="${m ? -8 : -6}" y1="0" x2="${m ? 8 : 6}" y2="0" transform="rotate(${rot})"/></g><text class="lbl" x="${lx}" y="${p.y + 4.5}">${t.l}</text>`;
 }
 
 export function benchViewBox(comps) {
@@ -309,4 +309,24 @@ export function resultHTML(s) {
     acts.push(last ? '' : toHouse ? '<button class="btn primary" id="bNext" data-href="#/modulo/1">Vai al trilocale</button>' : '<button class="btn primary" id="bNext">Livello successivo</button>');
   }
   return `<h3>${r.pass ? 'Impianto funzionante' : 'Controllo del circuito'}</h3><div class="stars" aria-label="${r.stars} stelle su 3">${'★'.repeat(r.stars)}<span class="e">${'★'.repeat(3 - r.stars)}</span></div>${row('Funziona', r.work)}${checksHTML(s.result)}${row('Colori dei fili', r.color)}${row('Sicurezza', r.safe)}<p class="xpline">Punti di questo livello: <b>${xp} XP</b></p>${r.pass && last ? '<p class="next"><b>Hai completato tutti i livelli.</b></p>' : r.pass && toHouse ? '<p class="next"><b>Hai completato il Modulo 0.</b></p>' : ''}${acts.length ? `<div class="uact">${acts.join('')}</div>` : ''}`;
+}
+
+// Pannello del multimetro: modalita', display e puntali. `m` e' snap.meter; `nameOf(tid)` da' il nome del morsetto.
+export function meterHTML(m, nameOf) {
+  const r = m.reading;
+  let main = '&mdash;', sub = 'Tocca due morsetti: il primo è il puntale rosso, il secondo il nero.', cls = '';
+  if (m.a && !m.b) sub = 'Puntale rosso su ' + nameOf(m.a) + '. Tocca il secondo morsetto per il puntale nero.';
+  if (r) {
+    sub = 'Rosso su ' + nameOf(m.a) + ', nero su ' + nameOf(m.b) + '.';
+    if (r.kind === 'v') { main = r.value === null ? 'corto' : r.value + ' V'; if (r.value === null) sub += ' I due punti sono in cortocircuito.'; }
+    else if (r.kind === 'cont') { main = '0 Ω'; sub += ' Continuità: il percorso è chiuso.'; cls = ' ok'; }
+    else if (r.kind === 'res') { main = r.ohm + ' Ω'; sub += ' Il percorso passa da un carico: è la sua resistenza.'; }
+    else if (r.kind === 'open') { main = 'OL'; sub += ' Circuito aperto: nessun percorso.'; }
+    else if (r.kind === 'live') { main = '!'; sub = 'C’è tensione sul punto misurato: la lettura di continuità non vale. Togli la tensione dal quadro e riprova.'; cls = ' warn'; }
+  }
+  const seg = (k, t) => `<button class="chip seg" data-meter-mode="${k}" aria-pressed="${m.mode === k}">${t}</button>`;
+  return `<div class="mhead"><b>Multimetro</b><span class="mmode">${seg('V', 'Tensione')}${seg('R', 'Continuità')}</span></div>
+    <div class="mdisp${cls}" role="status" aria-live="polite"><span class="mval">${main}</span>${m.mode === 'V' && r && r.kind === 'v' ? '<span class="munit">AC</span>' : ''}</div>
+    <p class="msub">${sub}</p>
+    <button class="btn small" data-meter-clear="1">Togli i puntali</button>`;
 }
