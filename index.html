@@ -3828,9 +3828,14 @@ a.tool{display:flex;align-items:center;justify-content:center;text-decoration:no
     const p = $("#prev");
     if (p) p.setAttribute("d", "");
   }
+  var lastWireAt = 0;
+  var lastWireId = null;
   function addWire(a, b) {
     if (!a || !b || a === b) return;
     session.addWire(a, b, COL);
+    const ws = session.snapshot().wires;
+    lastWireAt = Date.now();
+    lastWireId = ws.length ? String(ws[ws.length - 1].id) : null;
     buzz();
   }
   var dragging = false;
@@ -3917,7 +3922,7 @@ a.tool{display:flex;align-items:center;justify-content:center;text-decoration:no
     const w = e.target.closest("[data-wire]");
     if (w) {
       clearSel();
-      session.removeWire(+w.dataset.wire);
+      if (!(w.dataset.wire === lastWireId && Date.now() - lastWireAt < 600)) session.removeWire(+w.dataset.wire);
       return;
     }
     clearSel();

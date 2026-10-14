@@ -239,9 +239,12 @@ function clearSel() {
   document.querySelectorAll('.term.sel').forEach(n => n.classList.remove('sel'));
   const p = $('#prev'); if (p) p.setAttribute('d', '');
 }
+let lastWireAt = 0, lastWireId = null;
 function addWire(a, b) {
   if (!a || !b || a === b) return;
   session.addWire(a, b, COL);
+  const ws = session.snapshot().wires;
+  lastWireAt = Date.now(); lastWireId = ws.length ? String(ws[ws.length - 1].id) : null;
   buzz();
 }
 
@@ -292,7 +295,9 @@ bench.addEventListener('click', e => {
   const h = e.target.closest('[data-help]'); if (h) { setInfo(h.dataset.help); return; }
   const q = e.target.closest('[data-q]'); if (q) { clearSel(); session.toggleBreaker(); return; }
   const c = e.target.closest('[data-ctl]'); if (c) { clearSel(); session.toggleControl(c.dataset.ctl); return; }
-  const w = e.target.closest('[data-wire]'); if (w) { clearSel(); session.removeWire(+w.dataset.wire); return; }
+  // Il "click" che il telefono genera dopo il tocco arriva quando il banco e' gia' stato ridisegnato:
+  // puo' cadere sul filo appena creato e cancellarlo. Quel filo non si cancella nel primo mezzo secondo.
+  const w = e.target.closest('[data-wire]'); if (w) { clearSel(); if (!(w.dataset.wire === lastWireId && Date.now() - lastWireAt < 600)) session.removeWire(+w.dataset.wire); return; }
   clearSel();
 });
 bench.addEventListener('keydown', e => {
