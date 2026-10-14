@@ -1,1 +1,4 @@
 node_modules/
+
+# skill di terzi scaricate con scripts/get-skills.sh
+.claude/skills/
