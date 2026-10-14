@@ -51,3 +51,8 @@ Da far controllare al collega di laboratorio:
 - Salvamotore e relè termico insieme (c14, c16): un salvamotore magnetotermico ha gia' lo sganciatore termico. Nel gioco il salvamotore funge da protezione di linea e il termico sta con il contattore. Va bene cosi' o conviene chiamarlo "interruttore magnetico"?
 - c10: il pulsante sul primario del trasformatore e' accettato (3 stelle) come quello sul secondario. Elettricamente funziona; didatticamente si chiede il secondario. Serve una regola in piu'?
 - Valori tecnici (tempo 20 s, 12 V, tripAfter 3 s, tempi del nastro): far controllare al collega.
+
+## Piano e valori tecnici (14 ottobre)
+
+- Modulo 5 (energia e casa intelligente): inserito nel percorso tra Modulo 4 e fabbrica, ramo opzionale fuori dal percorso minimo (docs/ARCHITETTURA-PERCORSO.md, sezione 3).
+- Valori tecnici ricercati con fonti: docs/VALORI-TECNICI.md. Le sei domande per il collega sono in fondo a quel file.

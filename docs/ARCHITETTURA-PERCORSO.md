@@ -96,7 +96,7 @@ Differenze dal syllabus: inversione e interblocco restano un solo livello (c15).
 
 ### Modulo 6, La fabbrica
 
-Il Modulo 5 non è un prerequisito della fabbrica (vedi sotto e decisione 1). Il Modulo 6 si costruisce prima perché è la meta.
+Il Modulo 5 non è un prerequisito della fabbrica, ma sta nel percorso prima di essa (vedi sotto). Il Modulo 6 si costruisce prima del 5B perché è la meta.
 
 | # | Livello | Si impara | Tipo | Minimo |
 |---|---|---|---|---|
@@ -116,7 +116,22 @@ Differenze dal syllabus: bus di campo e manutenzione predittiva diventano facolt
 
 ### Modulo 5, Impianti del futuro
 
-Resta com'è nel syllabus come direzione: 5A energia (fotovoltaico, stringhe, inverter, accumulo, scambio, colonnina, gestione del carico), 5B casa (bus, tapparelle, sensori, PLC della casa, casa intelligente). 5A chiede solo M2, la corrente continua (E8) e il simulatore (E7); 5B-4 e 5B-5 chiedono anche il PLC. Sulla mappa compare subito come ramo: 5A dopo M2, 5B dopo M4.
+Decisione di Matteo (14 ottobre): il Modulo 5 entra nel percorso, tra il Modulo 4 e la fabbrica. Resta fuori dal percorso minimo verso la fabbrica: non è un prerequisito, ma è un ramo che l'allievo può fare e che sulla mappa compare come tappa normale.
+
+Ordine di gioco: M1, M2, M3, M4, **M5**, M6. Ordine di costruzione diverso (vedi sezione 10): il Modulo 5 chiede il simulatore (E7) e la corrente continua (E8), che nascono con la regolazione del Modulo 6.
+
+| # | Livello | Si impara | Chiede | Minimo |
+|---|---|---|---|---|
+| 5.1 | Il sensore e l'attuatore (5B) | sensore di presenza e luce, tapparella, comando a bassa tensione | M2, c10 | no |
+| 5.2 | La casa col PLC (5B) | luci e tapparelle da programma, scene (esce, torna) | M4 (PLC) | no |
+| 5.3 | La corrente continua (5A) | polarità, serie e parallelo, un pannello e un carico | E8 | no |
+| 5.4 | Il pannello fotovoltaico (5A) | stringa, inverter, produzione nella giornata simulata | E7, E8 | no |
+| 5.5 | Il contatore e lo scambio (5A) | consumo, produzione, immissione | E7 | no |
+| 5.6 | L'accumulo (5A) | batteria: carica di giorno, scarica di sera | E7, E8 | no |
+| 5.7 | La colonnina (5A) | potenza di ricarica, gestione del carico, limite del contatore | E7, PLC | no |
+| 5.8 | La casa intelligente | una giornata simulata: sole, batteria, auto, carichi, scene | tutti i precedenti | no |
+
+Perché qui: la casa intelligente riprende l'appartamento del Modulo 1 con i sensori e il PLC appena imparati; l'energia si ragiona bene solo dopo aver visto i carichi, le protezioni e un processo nel tempo. Meglio dopo l'automazione e prima della fabbrica: la fabbrica riusa lo stesso simulatore con processi più grandi. La mappa può mostrare il Modulo 5 come ramo opzionale, con la fabbrica raggiungibile anche senza averlo fatto.
 
 ## 4. Estensioni del motore
 
@@ -153,6 +168,7 @@ Le estensioni sono additive: i livelli esistenti non cambiano (salvo M3, vedi so
 
 ### E5. PLC e ladder (per M4 e M6)
 
+- **Il PLC è simulato per intero nel browser**, in JavaScript: nessun PLC vero e nessun runtime di un costruttore. Il programma è un dato (gradini di contatti e bobine), la scansione è una funzione pura. Si simula un sottoinsieme didattico del ladder IEC 61131-3, non la compatibilità con un software reale (Siemens, CODESYS).
 - **Componente `plc`**: alimentazione, ingressi `I0.0...` con il comune, uscite a relè `Q0.0...` con il loro comune. Le uscite sono contatti e entrano nella rete come quelli di un relè. Gli ingressi valgono 1 se tra ingresso e comune c'è la tensione di comando (24 V, un'altra rete simbolica come il secondario del trasformatore). Indirizzi in stile Siemens (I0.0, Q0.0), simboli IEC 61131-3.
 - **Istruzioni**: contatto NA e NC, rami in parallelo, bobina, Set e Reset, merker, fronte di salita, TON, CTU, confronto, MOVE, scalatura (per il 4-20 mA). Il programma è un elenco di gradini valutato da `scan(program, inputs, memory, dt)`, funzione pura con i suoi test.
 - **Quando si esegue**: non a ogni iterazione di `settle`, che cambia una bobina alla volta e passa per stati intermedi. Ogni passo della simulazione fa: assestamento della rete, una sola scansione (tempo da `advance`, zero dopo un'azione), scrittura delle uscite, nuovo assestamento. Fronti e conteggi si calcolano solo tra una scansione e la successiva. Nello stesso assestamento le diseccitazioni avvengono prima delle eccitazioni; due uscite in `never` che commutano in versi opposti nella stessa scansione contano come violazione (è il guasto "stella e triangolo accesi per un istante"). Un programma che lampeggia oscilla nel tempo e non è "instabile". Il limite di iterazioni cresce con il numero di bobine.
@@ -234,7 +250,7 @@ Le scene condividono un kit di pezzi 3D (quadro, nastro, motore, torretta lumino
 
 ## 9. Rischi tecnici
 
-- **Scala della corrente visibile.** `flowV2` enumera i percorsi con un tetto di 200.000 passi: sulla fabbrica si troncherebbe. Prima di P8 va riscritta per reti grandi, o limitata alla sezione dell'impianto che si sta guardando.
+- **Scala della corrente visibile.** `flowV2` enumera i percorsi con un tetto di 200.000 passi: sulla fabbrica si troncherebbe. Prima di P7 va riscritta per reti grandi, o limitata alla sezione dell'impianto che si sta guardando.
 - **Costo delle prove automatiche.** La regola `never` crea una simulazione per ogni coppia di pulsanti; con il PLC e i processi lenti il tempo della Verifica cresce. Va misurato nei prototipi, con un tetto per livello.
 - **Telefono.** Editor ladder e multimetro sono le due interazioni nuove più difficili su schermo piccolo: prototipo da provare in classe prima di scrivere tutti i livelli.
 - **Valori tecnici.** Portate dei cavi, curve, tempi accorciati, mA: ogni fase passa dal collega prima della pubblicazione.
@@ -250,15 +266,15 @@ Ogni fase si chiude con lo stesso controllo di oggi: test verdi, schermate a 390
 | P3 | Prove 3D di M2 e M3 sul kit comune | due prove nuove |
 | P4 | E6 sicurezza funzionale sul nastro di c16 | 6.1-6.3 |
 | P5 | `kt`, `motor6`, stella-triangolo; E5 PLC, scansione, editor ladder, `emergencyHardwired` | M4 completo e prova 3D di M4 |
-| P6 | E7 modelli, pannello di regolazione, 4-20 mA simbolico | 6.4-6.8 |
+| P6 | E7 modelli, pannello di regolazione, 4-20 mA simbolico; E8 corrente continua | 6.4-6.8 e Modulo 5A (5.3-5.7) |
 | P7 | Linea, libreria guasti, corrente visibile per reti grandi, fabbrica, prova 3D finale | 6.9-6.11 |
-| P8 | E8 corrente continua e Modulo 5 | M5A e M5B |
+| P8 | Modulo 5B (casa col PLC) e finale 5.8 | Modulo 5 completo |
 
 P4 viene prima del PLC perché non ne ha bisogno e consolida la sicurezza cablata. Le fasi più rischiose sono P5 (editor ladder su telefono) e P6 (modelli giusti ma semplici): per entrambe un prototipo da far provare a una classe prima di scrivere i livelli.
 
 ## 11. Decisioni per Matteo
 
-1. **Modulo 5 dopo la fabbrica?** A favore: la strada più corta alla meta, e 5B riusa il PLC. Contro: fotovoltaico e colonnina hanno peso professionale per un elettricista IeFP, e 5A chiede solo M2, corrente continua e simulatore. Alternativa: 5A subito dopo P6, quando il simulatore esiste, e 5B dopo la fabbrica.
+1. **Modulo 5:** deciso da Matteo il 14 ottobre, entra tra il Modulo 4 e la fabbrica (sezione 3), come ramo opzionale fuori dal percorso minimo.
 2. **Percorso minimo:** c08 e c09 fuori dal minimo, c10 dentro. Va bene?
 3. **Multimetro** come primo livello di M2 e **lavoro fuori tensione** obbligatorio da M3, con la modifica di c13-c16 che serve. Va bene?
 4. **Colori:** rosso per il comando in alternata (in uso da c13), blu per il comando in continua del PLC. Da confermare con il collega.
