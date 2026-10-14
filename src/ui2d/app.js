@@ -103,7 +103,7 @@ function renderChrome() {
 /* ---------- lezione: pagine e dimostrazione ---------- */
 const REDUCED = window.matchMedia ? window.matchMedia('(prefers-reduced-motion: reduce)') : { matches: false };
 let demo = { page: -1, frames: [], i: 0, timer: null, playing: false };
-function stopDemo() { if (demo.timer) clearInterval(demo.timer); demo.timer = null; demo.playing = false; }
+function stopDemo() { if (demo.timer) clearTimeout(demo.timer); demo.timer = null; demo.playing = false; }
 function drawDemo() {
   const f = demo.frames[demo.i];
   const b = $('#demoBench');
@@ -115,15 +115,19 @@ function drawDemo() {
   const t = document.querySelector('[data-demo="toggle"]');
   if (t) { t.textContent = demo.playing ? 'Pausa' : 'Riprendi'; t.setAttribute('aria-label', t.textContent); }
 }
+// Tempo di ogni passo della demo: abbastanza per guardare il filo e leggere la didascalia
+// (circa 3,5 s, di piu' per le didascalie lunghe, al massimo 7 s).
+const demoDelay = f => Math.min(7000, 3500 + ((f && f.caption) || '').length * 30);
 function demoTick() {
   if (demo.i < demo.frames.length - 1) { demo.i++; drawDemo(); }
-  if (demo.i >= demo.frames.length - 1) { stopDemo(); drawDemo(); }
+  if (demo.i >= demo.frames.length - 1) { stopDemo(); drawDemo(); return; }
+  demo.timer = setTimeout(demoTick, demoDelay(demo.frames[demo.i]));
 }
 function startDemo() {
   stopDemo();
   if (REDUCED.matches || demo.i >= demo.frames.length - 1) { drawDemo(); return; }
   demo.playing = true;
-  demo.timer = setInterval(demoTick, 1800);
+  demo.timer = setTimeout(demoTick, demoDelay(demo.frames[demo.i]));
   drawDemo();
 }
 

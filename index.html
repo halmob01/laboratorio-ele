@@ -3603,7 +3603,7 @@ a.tool{display:flex;align-items:center;justify-content:center;text-decoration:no
   var REDUCED = window.matchMedia ? window.matchMedia("(prefers-reduced-motion: reduce)") : { matches: false };
   var demo = { page: -1, frames: [], i: 0, timer: null, playing: false };
   function stopDemo() {
-    if (demo.timer) clearInterval(demo.timer);
+    if (demo.timer) clearTimeout(demo.timer);
     demo.timer = null;
     demo.playing = false;
   }
@@ -3621,6 +3621,7 @@ a.tool{display:flex;align-items:center;justify-content:center;text-decoration:no
       t.setAttribute("aria-label", t.textContent);
     }
   }
+  var demoDelay = (f) => Math.min(7e3, 3500 + (f && f.caption || "").length * 30);
   function demoTick() {
     if (demo.i < demo.frames.length - 1) {
       demo.i++;
@@ -3629,7 +3630,9 @@ a.tool{display:flex;align-items:center;justify-content:center;text-decoration:no
     if (demo.i >= demo.frames.length - 1) {
       stopDemo();
       drawDemo();
+      return;
     }
+    demo.timer = setTimeout(demoTick, demoDelay(demo.frames[demo.i]));
   }
   function startDemo() {
     stopDemo();
@@ -3638,7 +3641,7 @@ a.tool{display:flex;align-items:center;justify-content:center;text-decoration:no
       return;
     }
     demo.playing = true;
-    demo.timer = setInterval(demoTick, 1800);
+    demo.timer = setTimeout(demoTick, demoDelay(demo.frames[demo.i]));
     drawDemo();
   }
   function renderLesson() {
