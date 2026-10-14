@@ -26,6 +26,8 @@ export const PARTS = {
 
   // relè e contattori: la bobina e' un carico, il resto sono contatti
   ri: { coil: ['A1', 'A2'], contacts: (c, s) => pole(s.on, [['1', '2']]), init: () => ({ on: false, coil: false }) },
+  // relè con contatto di scambio: 11 comune, 12 chiuso a riposo (NC), 14 chiuso a bobina eccitata (NA)
+  rel: { coil: ['A1', 'A2'], contacts: (c, s) => (s.on ? [['11', '14']] : [['11', '12']]), init: () => ({ on: false, coil: false }) },
   tmr: { coil: ['A1', 'A2'], contacts: (c, s) => pole(s.left > 0, [['1', '2']]), init: () => ({ left: 0, coil: false }) },
   km: {
     coil: ['A1', 'A2'],

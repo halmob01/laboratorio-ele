@@ -244,7 +244,7 @@ export function settle(sim) {
       if (!p.coil) continue;
       const s = sim.parts[c.id];
       const en = !!an.coils[c.id];
-      if (c.type === 'km' && s.on !== en) { s.on = en; s.coil = en; changed = true; }
+      if ((c.type === 'km' || c.type === 'rel') && s.on !== en) { s.on = en; s.coil = en; changed = true; }
       else if (c.type === 'ri' && en !== s.coil) {
         if (en) s.on = !s.on;
         s.coil = en;
@@ -360,7 +360,7 @@ export function stillOnIfOpen(sim, id, protIds) {
 
 /* ---------- multimetro ---------- */
 // Resistenze nominali usate per la lettura Ohm (valori didattici).
-const OHM = { lamp: 530, spia: 8000, presa: 60, bell: 30, ri: 1500, tmr: 1500, km: 1200, motor3: 12 };
+const OHM = { lamp: 530, spia: 8000, presa: 60, bell: 30, ri: 1500, rel: 1500, tmr: 1500, km: 1200, motor3: 12 };
 
 // Elementi che il multimetro attraversa: carichi, bobine e avvolgimenti dei motori.
 function windings(sim) {

@@ -93,6 +93,98 @@ export const UNITS_V2 = {
     },
   },
 
+  'c18-rele': {
+    support: 'passi',
+    lesson: {
+      pages: [
+        {
+          type: 'spiegazione',
+          title: 'Comando e carico separati',
+          paras: [
+            'Un relè è un interruttore comandato da un altro circuito. Una piccola bobina, quando riceve tensione, diventa un elettromagnete e sposta un contatto.',
+            'Il circuito che alimenta la bobina è il comando. Il circuito che passa dal contatto è il carico. I due circuiti non si toccano: possono anche avere tensioni diverse.',
+          ],
+        },
+        {
+          type: 'pezzi',
+          title: 'Il relè con contatto di scambio',
+          focus: ['K'],
+          paras: [
+            'La bobina ha due morsetti, A1 e A2. Il contatto ne ha tre: 11 è il comune, 12 è chiuso a bobina spenta (NC), 14 è chiuso a bobina accesa (NA).',
+            'Il comune è sempre collegato a uno dei due: il contatto non resta mai a metà. Con una sola lampada ne basta un morsetto; con due si può dare un segnale per ogni stato.',
+          ],
+        },
+        {
+          type: 'demo',
+          title: 'Guarda come si fa',
+          captions: {
+            wires: [
+              'Filo marrone dalla FASE all’interruttore di comando.',
+              'Dall’interruttore alla bobina del relè (A1).',
+              'Filo blu dalla bobina (A2) al NEUTRO.',
+              'La fase al morsetto comune 11 del contatto.',
+              'Dal morsetto 12 alla lampada verde.',
+              'Dal morsetto 14 alla lampada rossa.',
+              'Filo blu dal NEUTRO alla lampada verde.',
+              'Filo blu dal NEUTRO alla lampada rossa.',
+            ],
+            power: 'Levetta su: la bobina non è alimentata, si accende la lampada verde.',
+            controls: ['Comando chiuso: la bobina si eccita, il contatto passa dal 12 al 14 e si accende la lampada rossa.'],
+          },
+        },
+        {
+          type: 'previsione',
+          question: 'Il comando è aperto. Quale lampada è accesa?',
+          options: [
+            { id: 'a', text: 'La rossa, collegata al morsetto 14.' },
+            { id: 'b', text: 'La verde, collegata al morsetto 12.' },
+            { id: 'c', text: 'Tutte e due.' },
+          ],
+          correct: 'b',
+          why: 'A bobina spenta il contatto comune 11 è collegato al 12, chiuso a riposo. La lampada verde è alimentata. La rossa, sul 14, si accende solo quando la bobina si eccita.',
+        },
+        { type: 'sintesi', title: 'Da ricordare' },
+      ],
+    },
+    steps: [
+      { kind: 'wire', from: 'Q.F', to: ['S.a'], color: 'marrone', short: '1 Comando', title: 'La fase al comando', text: 'Dalla FASE del quadro al morsetto 1 dell’interruttore.' },
+      { kind: 'wire', from: 'S.b', to: ['K.A1'], color: 'marrone', short: '2 Bobina', title: 'Dal comando alla bobina', text: 'Dal morsetto 2 dell’interruttore al morsetto A1 del relè.' },
+      { kind: 'wire', from: 'K.A2', to: ['Q.N'], color: 'blu', short: '3 Neutro bobina', title: 'Il neutro alla bobina', text: 'Dal morsetto A2 del relè al NEUTRO.' },
+      { kind: 'wire', from: 'Q.F', to: ['K.11'], color: 'marrone', short: '4 Comune', title: 'La fase al contatto', text: 'Dalla FASE al morsetto comune 11 del relè.' },
+      { kind: 'wire', from: 'K.12', to: ['LV.A'], color: 'marrone', short: '5 Verde', title: 'Il morsetto 12 alla lampada verde', text: 'Dal morsetto 12 a un morsetto della lampada verde.' },
+      { kind: 'wire', from: 'K.14', to: ['LR.A'], color: 'marrone', short: '6 Rossa', title: 'Il morsetto 14 alla lampada rossa', text: 'Dal morsetto 14 a un morsetto della lampada rossa.' },
+      { kind: 'wire', from: 'Q.N', to: ['LV.B'], color: 'blu', short: '7 Neutro verde', title: 'Il neutro alla lampada verde', text: 'Dal NEUTRO al morsetto libero della lampada verde.' },
+      { kind: 'wire', from: 'Q.N', to: ['LR.B'], color: 'blu', short: '8 Neutro rossa', title: 'Il neutro alla lampada rossa', text: 'Dal NEUTRO al morsetto libero della lampada rossa.' },
+      { kind: 'power', short: '9 Levetta', title: 'Dai corrente', text: 'Tocca la levetta del quadro, poi chiudi e apri il comando.' },
+      { kind: 'verify', short: '10 Verifica', title: 'Controlla l’impianto', text: 'Premi Verifica.' },
+    ],
+    summary: [
+      'Il relè ha un circuito di comando (la bobina) e un circuito di carico (il contatto), separati.',
+      'Il contatto di scambio ha un comune (11), un morsetto chiuso a riposo (12) e uno chiuso a bobina eccitata (14).',
+      'Con il comando aperto è collegato il 12, con il comando chiuso il 14: una sola bobina può dare due segnali opposti.',
+      'La bobina ha il suo ritorno al neutro, e il comando sta sulla fase.',
+    ],
+    fault: {
+      say: 'L’impianto è già cablato. Dai corrente: a comando aperto le due lampade sono accese insieme. Misura con il multimetro e trova l’errore.',
+      wires: [
+        ['Q.F', 'S.a', 'marrone'], ['S.b', 'K.A1', 'marrone'], ['K.A2', 'Q.N', 'blu'],
+        ['Q.F', 'K.11', 'marrone'], ['K.12', 'LV.A', 'marrone'], ['K.12', 'LR.A', 'marrone'],
+        ['LV.B', 'Q.N', 'blu'], ['LR.B', 'Q.N', 'blu'],
+      ],
+      diagnosis: {
+        question: 'Che cosa non va?',
+        options: [
+          { id: 'a', text: 'La lampada rossa è collegata al morsetto 12 invece del 14.' },
+          { id: 'b', text: 'La bobina non riceve il neutro.' },
+          { id: 'c', text: 'Il relè è guasto.' },
+        ],
+        correct: 'a',
+        why: 'Le due lampade sono sullo stesso morsetto del contatto, il 12, quindi si accendono e si spengono insieme. Il morsetto 14 è libero: la lampada rossa va lì, perché si accenda solo a bobina eccitata.',
+      },
+      fixSay: 'Sposta il filo della lampada rossa dal morsetto 12 al morsetto 14, poi premi Verifica.',
+    },
+  },
+
   'c07-presa-comandata': {
     support: 'passi',
     lesson: {

@@ -1102,6 +1102,8 @@ html[lang="it"] .trnote{display:none}
     rcd: { protect: "terra", contacts: (c2, s) => pole(s.on, [["1", "2"], ["N1", "N2"]]), poles: { F: ["1", "2"], N: ["N1", "N2"] }, init: (c2) => ({ on: c2.init !== 0, tripped: false }), actions: ["toggle", "test"] },
     // relè e contattori: la bobina e' un carico, il resto sono contatti
     ri: { coil: ["A1", "A2"], contacts: (c2, s) => pole(s.on, [["1", "2"]]), init: () => ({ on: false, coil: false }) },
+    // relè con contatto di scambio: 11 comune, 12 chiuso a riposo (NC), 14 chiuso a bobina eccitata (NA)
+    rel: { coil: ["A1", "A2"], contacts: (c2, s) => s.on ? [["11", "14"]] : [["11", "12"]], init: () => ({ on: false, coil: false }) },
     tmr: { coil: ["A1", "A2"], contacts: (c2, s) => pole(s.left > 0, [["1", "2"]]), init: () => ({ left: 0, coil: false }) },
     km: {
       coil: ["A1", "A2"],
@@ -1354,7 +1356,7 @@ html[lang="it"] .trnote{display:none}
         if (!p.coil) continue;
         const s = sim.parts[c2.id];
         const en = !!an.coils[c2.id];
-        if (c2.type === "km" && s.on !== en) {
+        if ((c2.type === "km" || c2.type === "rel") && s.on !== en) {
           s.on = en;
           s.coil = en;
           changed = true;
@@ -1473,7 +1475,7 @@ html[lang="it"] .trnote{display:none}
     const an = analyse2(sim, open);
     return an.loads[id] === "on" || an.coils[id] === true || an.motors[id] !== void 0 && an.motors[id] !== "off";
   }
-  var OHM = { lamp: 530, spia: 8e3, presa: 60, bell: 30, ri: 1500, tmr: 1500, km: 1200, motor3: 12 };
+  var OHM = { lamp: 530, spia: 8e3, presa: 60, bell: 30, ri: 1500, rel: 1500, tmr: 1500, km: 1200, motor3: 12 };
   function windings(sim) {
     const out = [];
     sim.level.comps.forEach((c2) => {
@@ -1631,6 +1633,7 @@ html[lang="it"] .trnote{display:none}
     if (!c2) return false;
     if (CTL_TYPES.has(c2.type)) return true;
     if (c2.type === "km") return ["A1", "A2", "13", "14", "21", "22"].includes(t);
+    if (c2.type === "rel") return ["A1", "A2"].includes(t);
     if (c2.type === "ft") return ["95", "96", "97", "98"].includes(t);
     return false;
   }
@@ -3602,6 +3605,47 @@ html[lang="it"] .trnote{display:none}
       ]
     },
     {
+      id: "c18-rele",
+      code: "c18",
+      n: 0,
+      engine: 2,
+      quadroOnly: true,
+      flow: "always",
+      palette: ["marrone", "blu", "gv"],
+      name: "Il rel\xE8",
+      title: "Il rel\xE8",
+      blurb: "Un comando e un contatto di scambio: due lampade, una per ogni stato.",
+      goal: "Un interruttore comanda la bobina di un rel\xE8. Il contatto di scambio del rel\xE8 accende una lampada verde quando la bobina \xE8 spenta e una lampada rossa quando \xE8 accesa. Collega tutto, poi dai corrente.",
+      comps: [
+        QM,
+        C("S", "sw", "Comando", "Comando", { a: { l: "1" }, b: { l: "2" } }),
+        C("K", "rel", "Rel\xE8", "Rel\xE8", { A1: { l: "A1" }, A2: { l: "A2" }, "11": { l: "11" }, "12": { l: "12" }, "14": { l: "14" } }),
+        C("LV", "lamp", "Lampada verde", "Lampada verde", { B: { l: "B" }, A: { l: "A" } }),
+        C("LR", "lamp", "Lampada rossa", "Lampada rossa", { B: { l: "B" }, A: { l: "A" } })
+      ],
+      controls: ["S"],
+      checks: [
+        { id: "riposo", label: "Comando aperto: la lampada verde \xE8 accesa e la rossa \xE8 spenta", do: [], expect: { loads: { LV: "on", LR: "off" } } },
+        { id: "comando", label: "Comando chiuso: la lampada verde si spegne e la rossa si accende", do: ["toggle S"], expect: { loads: { LV: "off", LR: "on" } } }
+      ],
+      safety: { phaseSwitched: ["LV", "LR"], coilReturn: ["K"] },
+      solution: [
+        ["Q.F", "S.a", "marrone"],
+        ["S.b", "K.A1", "marrone"],
+        ["K.A2", "Q.N", "blu"],
+        ["Q.F", "K.11", "marrone"],
+        ["K.12", "LV.A", "marrone"],
+        ["K.14", "LR.A", "marrone"],
+        ["LV.B", "Q.N", "blu"],
+        ["LR.B", "Q.N", "blu"]
+      ],
+      hints: [
+        "Il comando e il carico sono circuiti separati. Il comando: fase, interruttore, bobina (A1-A2), neutro.",
+        "Il carico: la fase arriva al morsetto comune 11 del contatto. Il morsetto 12 \xE8 chiuso a riposo, il 14 si chiude a bobina eccitata.",
+        "La lampada verde va sul 12, la rossa sul 14. I neutri delle due lampade vanno direttamente al neutro del quadro."
+      ]
+    },
+    {
       id: "c07-presa-comandata",
       code: "c07",
       n: 0,
@@ -4187,6 +4231,102 @@ html[lang="it"] .trnote{display:none}
           why: "Con l\u2019interruttore chiuso, tra il morsetto B della lampada e il neutro ci sono 230 V: la fase arriva fino l\xEC attraverso la lampada, ma il ritorno manca. Senza il neutro il circuito \xE8 aperto e la corrente non circola."
         },
         fixSay: "Collega il neutro (blu) alla lampada, poi premi Verifica."
+      }
+    },
+    "c18-rele": {
+      support: "passi",
+      lesson: {
+        pages: [
+          {
+            type: "spiegazione",
+            title: "Comando e carico separati",
+            paras: [
+              "Un rel\xE8 \xE8 un interruttore comandato da un altro circuito. Una piccola bobina, quando riceve tensione, diventa un elettromagnete e sposta un contatto.",
+              "Il circuito che alimenta la bobina \xE8 il comando. Il circuito che passa dal contatto \xE8 il carico. I due circuiti non si toccano: possono anche avere tensioni diverse."
+            ]
+          },
+          {
+            type: "pezzi",
+            title: "Il rel\xE8 con contatto di scambio",
+            focus: ["K"],
+            paras: [
+              "La bobina ha due morsetti, A1 e A2. Il contatto ne ha tre: 11 \xE8 il comune, 12 \xE8 chiuso a bobina spenta (NC), 14 \xE8 chiuso a bobina accesa (NA).",
+              "Il comune \xE8 sempre collegato a uno dei due: il contatto non resta mai a met\xE0. Con una sola lampada ne basta un morsetto; con due si pu\xF2 dare un segnale per ogni stato."
+            ]
+          },
+          {
+            type: "demo",
+            title: "Guarda come si fa",
+            captions: {
+              wires: [
+                "Filo marrone dalla FASE all\u2019interruttore di comando.",
+                "Dall\u2019interruttore alla bobina del rel\xE8 (A1).",
+                "Filo blu dalla bobina (A2) al NEUTRO.",
+                "La fase al morsetto comune 11 del contatto.",
+                "Dal morsetto 12 alla lampada verde.",
+                "Dal morsetto 14 alla lampada rossa.",
+                "Filo blu dal NEUTRO alla lampada verde.",
+                "Filo blu dal NEUTRO alla lampada rossa."
+              ],
+              power: "Levetta su: la bobina non \xE8 alimentata, si accende la lampada verde.",
+              controls: ["Comando chiuso: la bobina si eccita, il contatto passa dal 12 al 14 e si accende la lampada rossa."]
+            }
+          },
+          {
+            type: "previsione",
+            question: "Il comando \xE8 aperto. Quale lampada \xE8 accesa?",
+            options: [
+              { id: "a", text: "La rossa, collegata al morsetto 14." },
+              { id: "b", text: "La verde, collegata al morsetto 12." },
+              { id: "c", text: "Tutte e due." }
+            ],
+            correct: "b",
+            why: "A bobina spenta il contatto comune 11 \xE8 collegato al 12, chiuso a riposo. La lampada verde \xE8 alimentata. La rossa, sul 14, si accende solo quando la bobina si eccita."
+          },
+          { type: "sintesi", title: "Da ricordare" }
+        ]
+      },
+      steps: [
+        { kind: "wire", from: "Q.F", to: ["S.a"], color: "marrone", short: "1 Comando", title: "La fase al comando", text: "Dalla FASE del quadro al morsetto 1 dell\u2019interruttore." },
+        { kind: "wire", from: "S.b", to: ["K.A1"], color: "marrone", short: "2 Bobina", title: "Dal comando alla bobina", text: "Dal morsetto 2 dell\u2019interruttore al morsetto A1 del rel\xE8." },
+        { kind: "wire", from: "K.A2", to: ["Q.N"], color: "blu", short: "3 Neutro bobina", title: "Il neutro alla bobina", text: "Dal morsetto A2 del rel\xE8 al NEUTRO." },
+        { kind: "wire", from: "Q.F", to: ["K.11"], color: "marrone", short: "4 Comune", title: "La fase al contatto", text: "Dalla FASE al morsetto comune 11 del rel\xE8." },
+        { kind: "wire", from: "K.12", to: ["LV.A"], color: "marrone", short: "5 Verde", title: "Il morsetto 12 alla lampada verde", text: "Dal morsetto 12 a un morsetto della lampada verde." },
+        { kind: "wire", from: "K.14", to: ["LR.A"], color: "marrone", short: "6 Rossa", title: "Il morsetto 14 alla lampada rossa", text: "Dal morsetto 14 a un morsetto della lampada rossa." },
+        { kind: "wire", from: "Q.N", to: ["LV.B"], color: "blu", short: "7 Neutro verde", title: "Il neutro alla lampada verde", text: "Dal NEUTRO al morsetto libero della lampada verde." },
+        { kind: "wire", from: "Q.N", to: ["LR.B"], color: "blu", short: "8 Neutro rossa", title: "Il neutro alla lampada rossa", text: "Dal NEUTRO al morsetto libero della lampada rossa." },
+        { kind: "power", short: "9 Levetta", title: "Dai corrente", text: "Tocca la levetta del quadro, poi chiudi e apri il comando." },
+        { kind: "verify", short: "10 Verifica", title: "Controlla l\u2019impianto", text: "Premi Verifica." }
+      ],
+      summary: [
+        "Il rel\xE8 ha un circuito di comando (la bobina) e un circuito di carico (il contatto), separati.",
+        "Il contatto di scambio ha un comune (11), un morsetto chiuso a riposo (12) e uno chiuso a bobina eccitata (14).",
+        "Con il comando aperto \xE8 collegato il 12, con il comando chiuso il 14: una sola bobina pu\xF2 dare due segnali opposti.",
+        "La bobina ha il suo ritorno al neutro, e il comando sta sulla fase."
+      ],
+      fault: {
+        say: "L\u2019impianto \xE8 gi\xE0 cablato. Dai corrente: a comando aperto le due lampade sono accese insieme. Misura con il multimetro e trova l\u2019errore.",
+        wires: [
+          ["Q.F", "S.a", "marrone"],
+          ["S.b", "K.A1", "marrone"],
+          ["K.A2", "Q.N", "blu"],
+          ["Q.F", "K.11", "marrone"],
+          ["K.12", "LV.A", "marrone"],
+          ["K.12", "LR.A", "marrone"],
+          ["LV.B", "Q.N", "blu"],
+          ["LR.B", "Q.N", "blu"]
+        ],
+        diagnosis: {
+          question: "Che cosa non va?",
+          options: [
+            { id: "a", text: "La lampada rossa \xE8 collegata al morsetto 12 invece del 14." },
+            { id: "b", text: "La bobina non riceve il neutro." },
+            { id: "c", text: "Il rel\xE8 \xE8 guasto." }
+          ],
+          correct: "a",
+          why: "Le due lampade sono sullo stesso morsetto del contatto, il 12, quindi si accendono e si spengono insieme. Il morsetto 14 \xE8 libero: la lampada rossa va l\xEC, perch\xE9 si accenda solo a bobina eccitata."
+        },
+        fixSay: "Sposta il filo della lampada rossa dal morsetto 12 al morsetto 14, poi premi Verifica."
       }
     },
     "c07-presa-comandata": {
@@ -5724,6 +5864,7 @@ html[lang="it"] .trnote{display:none}
       title: "Civile avanzato",
       levels: [
         "c17-multimetro",
+        "c18-rele",
         "c07-presa-comandata",
         "c08-rele-impulsi",
         "c09-luce-scale",
@@ -5904,6 +6045,7 @@ html[lang="it"] .trnote{display:none}
     fungo: [HALF, 110, ["1"], ["2"]],
     ri: [HALF, 130, ["A1", "A2"], ["1", "2"]],
     tmr: [HALF, 130, ["A1", "A2"], ["1", "2"]],
+    rel: [HALF, 150, ["A1", "A2", "11"], ["12", "14"]],
     km: [FULL, 190, ["A1", "1", "3", "5", "13", "21"], ["A2", "2", "4", "6", "14", "22"]],
     ft: [FULL, 150, ["1", "3", "5", "95", "97"], ["2", "4", "6", "96", "98"], 0.3],
     fc: [HALF, 110, ["1", "3"], ["2", "4"]],
@@ -6084,6 +6226,20 @@ html[lang="it"] .trnote{display:none}
         o += pole2(w * c2.terms["1"].f, h * 0.56, h - 22, part.on, L("1"), L("2"));
         break;
       }
+      case "rel": {
+        const x1 = w * c2.terms.A1.f, x2 = w * c2.terms.A2.f, xc = w * c2.terms["11"].f, xn = w * c2.terms["12"].f, xa = w * c2.terms["14"].f;
+        const on = !!part.on;
+        o += `<rect x="${x1 - 14}" y="40" width="${x2 - x1 + 28}" height="${h * 0.3}" rx="4" fill="none" stroke="${obs2.coils[c2.id] ? "#F59F00" : "var(--sch)"}" stroke-width="2.6"/>`;
+        o += ln(x1, 22, x1, 40, L("A1")) + ln(x2, 22, x2, 40, L("A2"));
+        o += lab((x1 + x2) / 2, 40 + h * 0.19, "REL\xC8");
+        const yt = h * 0.5, yb = h - 40;
+        o += ln(xc, 22, xc, yt, L("11")) + ln(xn, yb, xn, h - 22, L("12")) + ln(xa, yb, xa, h - 22, L("14"));
+        o += dot(xc, yt) + dot(xn, yb) + dot(xa, yb);
+        const tx = on ? xa : xn;
+        o += ln(xc, yt, tx, yb, L("11") && (on ? L("14") : L("12")));
+        o += lab(xn, h - 6, "12 NC") + lab(xa, h - 6, "14 NA");
+        break;
+      }
       case "tmr": {
         o += `<rect x="${w * 0.3}" y="40" width="${w * 0.4}" height="${h * 0.36}" rx="4" fill="none" stroke="${obs2.coils[c2.id] ? "#F59F00" : "var(--sch)"}" stroke-width="2.6"/>`;
         o += ln(w * c2.terms.A1.f, 22, w * c2.terms.A1.f, 40, L("A1")) + ln(w * c2.terms.A2.f, 22, w * c2.terms.A2.f, 40, L("A2"));
@@ -6186,7 +6342,7 @@ html[lang="it"] .trnote{display:none}
     }
     return o;
   }
-  var V2_TYPES = /* @__PURE__ */ new Set(["quadro", "mt", "rcd", "mt3", "sez", "pb", "pbnc", "fungo", "ri", "tmr", "km", "ft", "fc", "trafo", "bell", "spia", "lamp", "presa", "motor3"]);
+  var V2_TYPES = /* @__PURE__ */ new Set(["quadro", "mt", "rcd", "mt3", "sez", "pb", "pbnc", "fungo", "ri", "rel", "tmr", "km", "ft", "fc", "trafo", "bell", "spia", "lamp", "presa", "motor3"]);
   var DEV = /* @__PURE__ */ new Set(["lamp", "spia", "bell", "presa", "motor3"]);
   var WALLCTL = { sw: "tog", dev: "tog", inv: "tog", pb: "hold", pbnc: "hold", fungo: "mush" };
   function roomV2HTML(level) {
@@ -8664,7 +8820,68 @@ html[lang="it"] .trnote{display:none}
     "Il percorso passa da un carico: \xE8 la sua resistenza.": "\u0627\u0644\u0645\u0633\u0627\u0631 \u064A\u0645\u0631 \u0639\u0628\u0631 \u062D\u0650\u0645\u0644: \u0647\u0630\u0647 \u0645\u0642\u0627\u0648\u0645\u062A\u0647.",
     "Circuito aperto: nessun percorso.": "\u062F\u0627\u0626\u0631\u0629 \u0645\u0641\u062A\u0648\u062D\u0629: \u0644\u0627 \u064A\u0648\u062C\u062F \u0645\u0633\u0627\u0631.",
     "C\u2019\xE8 tensione sul punto misurato: la lettura di continuit\xE0 non vale. Togli la tensione dal quadro e riprova.": "\u064A\u0648\u062C\u062F \u062C\u0647\u062F \u0639\u0644\u0649 \u0627\u0644\u0646\u0642\u0637\u0629 \u0627\u0644\u0645\u0642\u064A\u0633\u0629: \u0642\u0631\u0627\u0621\u0629 \u0627\u0644\u0627\u0633\u062A\u0645\u0631\u0627\u0631\u064A\u0629 \u063A\u064A\u0631 \u0635\u0627\u0644\u062D\u0629. \u0627\u0641\u0635\u0644 \u0627\u0644\u062C\u0647\u062F \u0639\u0646 \u0627\u0644\u0644\u0648\u062D\u0629 \u0648\u0623\u0639\u062F \u0627\u0644\u0645\u062D\u0627\u0648\u0644\u0629.",
-    "corto": "\u0642\u0635\u0631"
+    "corto": "\u0642\u0635\u0631",
+    "A bobina spenta il contatto comune 11 \xE8 collegato al 12, chiuso a riposo. La lampada verde \xE8 alimentata. La rossa, sul 14, si accende solo quando la bobina si eccita.": "\u0648\u0627\u0644\u0645\u0644\u0641 \u0645\u0641\u0635\u0648\u0644 \u064A\u062A\u0635\u0644 \u0627\u0644\u0645\u0644\u0627\u0645\u0633 \u0627\u0644\u0645\u0634\u062A\u0631\u0643 11 \u0628\u0627\u0644\u0645\u0631\u0628\u0637 12\u060C \u0627\u0644\u0645\u063A\u0644\u0642 \u0641\u064A \u062D\u0627\u0644\u0629 \u0627\u0644\u0631\u0627\u062D\u0629. \u0641\u0627\u0644\u0645\u0635\u0628\u0627\u062D \u0627\u0644\u0623\u062E\u0636\u0631 \u0645\u063A\u0630\u0651\u0649. \u0623\u0645\u0627 \u0627\u0644\u0623\u062D\u0645\u0631\u060C \u0639\u0644\u0649 \u0627\u0644\u0645\u0631\u0628\u0637 14\u060C \u0641\u0644\u0627 \u064A\u0636\u064A\u0621 \u0625\u0644\u0627 \u0639\u0646\u062F \u062A\u063A\u0630\u064A\u0629 \u0627\u0644\u0645\u0644\u0641.",
+    "Comando": "\u0627\u0644\u062A\u062D\u0643\u0645",
+    "Comando aperto: la lampada verde \xE8 accesa e la rossa \xE8 spenta": "\u0627\u0644\u062A\u062D\u0643\u0645 \u0645\u0641\u062A\u0648\u062D: \u0627\u0644\u0645\u0635\u0628\u0627\u062D \u0627\u0644\u0623\u062E\u0636\u0631 \u0645\u0636\u0627\u0621 \u0648\u0627\u0644\u0623\u062D\u0645\u0631 \u0645\u0637\u0641\u0623",
+    "Comando chiuso: la bobina si eccita, il contatto passa dal 12 al 14 e si accende la lampada rossa.": "\u0627\u0644\u062A\u062D\u0643\u0645 \u0645\u063A\u0644\u0642: \u064A\u062A\u063A\u0630\u0651\u0649 \u0627\u0644\u0645\u0644\u0641\u060C \u0648\u064A\u0646\u062A\u0642\u0644 \u0627\u0644\u0645\u0644\u0627\u0645\u0633 \u0645\u0646 12 \u0625\u0644\u0649 14 \u0648\u064A\u0636\u064A\u0621 \u0627\u0644\u0645\u0635\u0628\u0627\u062D \u0627\u0644\u0623\u062D\u0645\u0631.",
+    "Comando chiuso: la lampada verde si spegne e la rossa si accende": "\u0627\u0644\u062A\u062D\u0643\u0645 \u0645\u063A\u0644\u0642: \u064A\u0646\u0637\u0641\u0626 \u0627\u0644\u0645\u0635\u0628\u0627\u062D \u0627\u0644\u0623\u062E\u0636\u0631 \u0648\u064A\u0636\u064A\u0621 \u0627\u0644\u0623\u062D\u0645\u0631",
+    "Comando e carico separati": "\u0627\u0644\u062A\u062D\u0643\u0645 \u0648\u0627\u0644\u062D\u0650\u0645\u0644 \u0645\u0646\u0641\u0635\u0644\u0627\u0646",
+    "Con il comando aperto \xE8 collegato il 12, con il comando chiuso il 14: una sola bobina pu\xF2 dare due segnali opposti.": "\u0639\u0646\u062F\u0645\u0627 \u064A\u0643\u0648\u0646 \u0627\u0644\u062A\u062D\u0643\u0645 \u0645\u0641\u062A\u0648\u062D\u064B\u0627 \u064A\u062A\u0635\u0644 \u0627\u0644\u0645\u0631\u0628\u0637 12\u060C \u0648\u0639\u0646\u062F\u0645\u0627 \u064A\u0643\u0648\u0646 \u0645\u063A\u0644\u0642\u064B\u0627 \u064A\u062A\u0635\u0644 14: \u0645\u0644\u0641 \u0648\u0627\u062D\u062F \u064A\u0645\u0643\u0646\u0647 \u0625\u0639\u0637\u0627\u0621 \u0625\u0634\u0627\u0631\u062A\u064A\u0646 \u0645\u062A\u0639\u0627\u0643\u0633\u062A\u064A\u0646.",
+    "Dal NEUTRO al morsetto libero della lampada rossa.": "\u0645\u0646 \u0627\u0644\u0645\u062D\u0627\u064A\u062F \u0625\u0644\u0649 \u0627\u0644\u0645\u0631\u0628\u0637 \u0627\u0644\u062D\u0631 \u0641\u064A \u0627\u0644\u0645\u0635\u0628\u0627\u062D \u0627\u0644\u0623\u062D\u0645\u0631.",
+    "Dal NEUTRO al morsetto libero della lampada verde.": "\u0645\u0646 \u0627\u0644\u0645\u062D\u0627\u064A\u062F \u0625\u0644\u0649 \u0627\u0644\u0645\u0631\u0628\u0637 \u0627\u0644\u062D\u0631 \u0641\u064A \u0627\u0644\u0645\u0635\u0628\u0627\u062D \u0627\u0644\u0623\u062E\u0636\u0631.",
+    "Dal comando alla bobina": "\u0645\u0646 \u0627\u0644\u062A\u062D\u0643\u0645 \u0625\u0644\u0649 \u0627\u0644\u0645\u0644\u0641",
+    "Dal morsetto 12 a un morsetto della lampada verde.": "\u0645\u0646 \u0627\u0644\u0645\u0631\u0628\u0637 12 \u0625\u0644\u0649 \u0645\u0631\u0628\u0637 \u0641\u064A \u0627\u0644\u0645\u0635\u0628\u0627\u062D \u0627\u0644\u0623\u062E\u0636\u0631.",
+    "Dal morsetto 12 alla lampada verde.": "\u0645\u0646 \u0627\u0644\u0645\u0631\u0628\u0637 12 \u0625\u0644\u0649 \u0627\u0644\u0645\u0635\u0628\u0627\u062D \u0627\u0644\u0623\u062E\u0636\u0631.",
+    "Dal morsetto 14 a un morsetto della lampada rossa.": "\u0645\u0646 \u0627\u0644\u0645\u0631\u0628\u0637 14 \u0625\u0644\u0649 \u0645\u0631\u0628\u0637 \u0641\u064A \u0627\u0644\u0645\u0635\u0628\u0627\u062D \u0627\u0644\u0623\u062D\u0645\u0631.",
+    "Dal morsetto 14 alla lampada rossa.": "\u0645\u0646 \u0627\u0644\u0645\u0631\u0628\u0637 14 \u0625\u0644\u0649 \u0627\u0644\u0645\u0635\u0628\u0627\u062D \u0627\u0644\u0623\u062D\u0645\u0631.",
+    "Dal morsetto 2 dell\u2019interruttore al morsetto A1 del rel\xE8.": "\u0645\u0646 \u0627\u0644\u0645\u0631\u0628\u0637 2 \u0641\u064A \u0627\u0644\u0645\u0641\u062A\u0627\u062D \u0625\u0644\u0649 \u0627\u0644\u0645\u0631\u0628\u0637 A1 \u0641\u064A \u0627\u0644\u0645\u0631\u062D\u0651\u0644.",
+    "Dalla FASE al morsetto comune 11 del rel\xE8.": "\u0645\u0646 \u0627\u0644\u0637\u0648\u0631 \u0625\u0644\u0649 \u0627\u0644\u0645\u0631\u0628\u0637 \u0627\u0644\u0645\u0634\u062A\u0631\u0643 11 \u0641\u064A \u0627\u0644\u0645\u0631\u062D\u0651\u0644.",
+    "Dall\u2019interruttore alla bobina del rel\xE8 (A1).": "\u0645\u0646 \u0627\u0644\u0645\u0641\u062A\u0627\u062D \u0625\u0644\u0649 \u0645\u0644\u0641 \u0627\u0644\u0645\u0631\u062D\u0651\u0644 (A1).",
+    "Filo blu dal NEUTRO alla lampada rossa.": "\u0633\u0644\u0643 \u0623\u0632\u0631\u0642 \u0645\u0646 \u0627\u0644\u0645\u062D\u0627\u064A\u062F \u0625\u0644\u0649 \u0627\u0644\u0645\u0635\u0628\u0627\u062D \u0627\u0644\u0623\u062D\u0645\u0631.",
+    "Filo blu dal NEUTRO alla lampada verde.": "\u0633\u0644\u0643 \u0623\u0632\u0631\u0642 \u0645\u0646 \u0627\u0644\u0645\u062D\u0627\u064A\u062F \u0625\u0644\u0649 \u0627\u0644\u0645\u0635\u0628\u0627\u062D \u0627\u0644\u0623\u062E\u0636\u0631.",
+    "Filo blu dalla bobina (A2) al NEUTRO.": "\u0633\u0644\u0643 \u0623\u0632\u0631\u0642 \u0645\u0646 \u0627\u0644\u0645\u0644\u0641 (A2) \u0625\u0644\u0649 \u0627\u0644\u0645\u062D\u0627\u064A\u062F.",
+    "Filo marrone dalla FASE all\u2019interruttore di comando.": "\u0633\u0644\u0643 \u0628\u0646\u064A \u0645\u0646 \u0627\u0644\u0637\u0648\u0631 \u0625\u0644\u0649 \u0645\u0641\u062A\u0627\u062D \u0627\u0644\u062A\u062D\u0643\u0645.",
+    "Il carico: la fase arriva al morsetto comune 11 del contatto. Il morsetto 12 \xE8 chiuso a riposo, il 14 si chiude a bobina eccitata.": "\u0627\u0644\u062D\u0650\u0645\u0644: \u064A\u0635\u0644 \u0627\u0644\u0637\u0648\u0631 \u0625\u0644\u0649 \u0627\u0644\u0645\u0631\u0628\u0637 \u0627\u0644\u0645\u0634\u062A\u0631\u0643 11 \u0641\u064A \u0627\u0644\u0645\u0644\u0627\u0645\u0633. \u0627\u0644\u0645\u0631\u0628\u0637 12 \u0645\u063A\u0644\u0642 \u0641\u064A \u062D\u0627\u0644\u0629 \u0627\u0644\u0631\u0627\u062D\u0629\u060C \u0648\u0627\u0644\u0645\u0631\u0628\u0637 14 \u064A\u064F\u063A\u0644\u0642 \u0639\u0646\u062F \u062A\u063A\u0630\u064A\u0629 \u0627\u0644\u0645\u0644\u0641.",
+    "Il circuito che alimenta la bobina \xE8 il comando. Il circuito che passa dal contatto \xE8 il carico. I due circuiti non si toccano: possono anche avere tensioni diverse.": "\u0627\u0644\u062F\u0627\u0626\u0631\u0629 \u0627\u0644\u062A\u064A \u062A\u063A\u0630\u0651\u064A \u0627\u0644\u0645\u0644\u0641 \u0647\u064A \u0627\u0644\u062A\u062D\u0643\u0645. \u0648\u0627\u0644\u062F\u0627\u0626\u0631\u0629 \u0627\u0644\u062A\u064A \u062A\u0645\u0631 \u0639\u0628\u0631 \u0627\u0644\u0645\u0644\u0627\u0645\u0633 \u0647\u064A \u0627\u0644\u062D\u0650\u0645\u0644. \u0627\u0644\u062F\u0627\u0626\u0631\u062A\u0627\u0646 \u0644\u0627 \u062A\u062A\u0644\u0627\u0645\u0633\u0627\u0646: \u0648\u064A\u0645\u0643\u0646 \u0623\u0646 \u064A\u0643\u0648\u0646 \u0644\u0647\u0645\u0627 \u062C\u0647\u062F\u0627\u0646 \u0645\u062E\u062A\u0644\u0641\u0627\u0646.",
+    "Il comando e il carico sono circuiti separati. Il comando: fase, interruttore, bobina (A1-A2), neutro.": "\u0627\u0644\u062A\u062D\u0643\u0645 \u0648\u0627\u0644\u062D\u0650\u0645\u0644 \u062F\u0627\u0626\u0631\u062A\u0627\u0646 \u0645\u0646\u0641\u0635\u0644\u062A\u0627\u0646. \u0627\u0644\u062A\u062D\u0643\u0645: \u0627\u0644\u0637\u0648\u0631\u060C \u0627\u0644\u0645\u0641\u062A\u0627\u062D\u060C \u0627\u0644\u0645\u0644\u0641 (A1-A2)\u060C \u0627\u0644\u0645\u062D\u0627\u064A\u062F.",
+    "Il comando \xE8 aperto. Quale lampada \xE8 accesa?": "\u0627\u0644\u062A\u062D\u0643\u0645 \u0645\u0641\u062A\u0648\u062D. \u0623\u064A \u0645\u0635\u0628\u0627\u062D \u0645\u0636\u0627\u0621\u061F",
+    "Il comune \xE8 sempre collegato a uno dei due: il contatto non resta mai a met\xE0. Con una sola lampada ne basta un morsetto; con due si pu\xF2 dare un segnale per ogni stato.": "\u0627\u0644\u0645\u0634\u062A\u0631\u0643 \u0645\u062A\u0635\u0644 \u062F\u0627\u0626\u0645\u064B\u0627 \u0628\u0623\u062D\u062F \u0627\u0644\u0645\u0631\u0628\u0637\u064A\u0646: \u0644\u0627 \u064A\u0628\u0642\u0649 \u0627\u0644\u0645\u0644\u0627\u0645\u0633 \u0641\u064A \u0627\u0644\u0645\u0646\u062A\u0635\u0641 \u0623\u0628\u062F\u064B\u0627. \u0645\u0639 \u0645\u0635\u0628\u0627\u062D \u0648\u0627\u062D\u062F \u064A\u0643\u0641\u064A \u0645\u0631\u0628\u0637 \u0648\u0627\u062D\u062F\u061B \u0648\u0645\u0639 \u0645\u0635\u0628\u0627\u062D\u064A\u0646 \u064A\u0645\u0643\u0646 \u0625\u0639\u0637\u0627\u0621 \u0625\u0634\u0627\u0631\u0629 \u0644\u0643\u0644 \u062D\u0627\u0644\u0629.",
+    "Il contatto di scambio ha un comune (11), un morsetto chiuso a riposo (12) e uno chiuso a bobina eccitata (14).": "\u0644\u0644\u0645\u0644\u0627\u0645\u0633 \u0627\u0644\u0645\u0628\u062F\u0651\u0644 \u0645\u0631\u0628\u0637 \u0645\u0634\u062A\u0631\u0643 (11)\u060C \u0648\u0645\u0631\u0628\u0637 \u0645\u063A\u0644\u0642 \u0641\u064A \u062D\u0627\u0644\u0629 \u0627\u0644\u0631\u0627\u062D\u0629 (12)\u060C \u0648\u0645\u0631\u0628\u0637 \u0645\u063A\u0644\u0642 \u0639\u0646\u062F \u062A\u063A\u0630\u064A\u0629 \u0627\u0644\u0645\u0644\u0641 (14).",
+    "Il morsetto 12 alla lampada verde": "\u0627\u0644\u0645\u0631\u0628\u0637 12 \u0625\u0644\u0649 \u0627\u0644\u0645\u0635\u0628\u0627\u062D \u0627\u0644\u0623\u062E\u0636\u0631",
+    "Il morsetto 14 alla lampada rossa": "\u0627\u0644\u0645\u0631\u0628\u0637 14 \u0625\u0644\u0649 \u0627\u0644\u0645\u0635\u0628\u0627\u062D \u0627\u0644\u0623\u062D\u0645\u0631",
+    "Il neutro alla lampada rossa": "\u0627\u0644\u0645\u062D\u0627\u064A\u062F \u0625\u0644\u0649 \u0627\u0644\u0645\u0635\u0628\u0627\u062D \u0627\u0644\u0623\u062D\u0645\u0631",
+    "Il neutro alla lampada verde": "\u0627\u0644\u0645\u062D\u0627\u064A\u062F \u0625\u0644\u0649 \u0627\u0644\u0645\u0635\u0628\u0627\u062D \u0627\u0644\u0623\u062E\u0636\u0631",
+    "Il rel\xE8": "\u0627\u0644\u0645\u0631\u062D\u0651\u0644",
+    "Il rel\xE8 con contatto di scambio": "\u0627\u0644\u0645\u0631\u062D\u0651\u0644 \u0630\u0648 \u0627\u0644\u0645\u0644\u0627\u0645\u0633 \u0627\u0644\u0645\u0628\u062F\u0651\u0644",
+    "Il rel\xE8 ha un circuito di comando (la bobina) e un circuito di carico (il contatto), separati.": "\u0644\u0644\u0645\u0631\u062D\u0651\u0644 \u062F\u0627\u0626\u0631\u0629 \u062A\u062D\u0643\u0645 (\u0627\u0644\u0645\u0644\u0641) \u0648\u062F\u0627\u0626\u0631\u0629 \u062D\u0650\u0645\u0644 (\u0627\u0644\u0645\u0644\u0627\u0645\u0633)\u060C \u0645\u0646\u0641\u0635\u0644\u062A\u0627\u0646.",
+    "Il rel\xE8 \xE8 guasto.": "\u0627\u0644\u0645\u0631\u062D\u0651\u0644 \u0645\u0639\u0637\u0651\u0644.",
+    "La bobina ha due morsetti, A1 e A2. Il contatto ne ha tre: 11 \xE8 il comune, 12 \xE8 chiuso a bobina spenta (NC), 14 \xE8 chiuso a bobina accesa (NA).": "\u0644\u0644\u0645\u0644\u0641 \u0645\u0631\u0628\u0637\u0627\u0646\u060C A1 \u0648A2. \u0648\u0644\u0644\u0645\u0644\u0627\u0645\u0633 \u062B\u0644\u0627\u062B\u0629: 11 \u0647\u0648 \u0627\u0644\u0645\u0634\u062A\u0631\u0643\u060C \u064812 \u0645\u063A\u0644\u0642 \u0648\u0627\u0644\u0645\u0644\u0641 \u0645\u0641\u0635\u0648\u0644 (NC)\u060C \u064814 \u0645\u063A\u0644\u0642 \u0648\u0627\u0644\u0645\u0644\u0641 \u0645\u063A\u0630\u0651\u0649 (NA).",
+    "La bobina ha il suo ritorno al neutro, e il comando sta sulla fase.": "\u0644\u0644\u0645\u0644\u0641 \u0639\u0648\u062F\u062A\u0647 \u0625\u0644\u0649 \u0627\u0644\u0645\u062D\u0627\u064A\u062F\u060C \u0648\u0627\u0644\u062A\u062D\u0643\u0645 \u064A\u0643\u0648\u0646 \u0639\u0644\u0649 \u062C\u0627\u0646\u0628 \u0627\u0644\u0637\u0648\u0631.",
+    "La bobina non riceve il neutro.": "\u0627\u0644\u0645\u0644\u0641 \u0644\u0627 \u064A\u0633\u062A\u0642\u0628\u0644 \u0627\u0644\u0645\u062D\u0627\u064A\u062F.",
+    "La fase al comando": "\u0627\u0644\u0637\u0648\u0631 \u0625\u0644\u0649 \u0627\u0644\u062A\u062D\u0643\u0645",
+    "La fase al morsetto comune 11 del contatto.": "\u0627\u0644\u0637\u0648\u0631 \u0625\u0644\u0649 \u0627\u0644\u0645\u0631\u0628\u0637 \u0627\u0644\u0645\u0634\u062A\u0631\u0643 11 \u0641\u064A \u0627\u0644\u0645\u0644\u0627\u0645\u0633.",
+    "La lampada rossa \xE8 collegata al morsetto 12 invece del 14.": "\u0627\u0644\u0645\u0635\u0628\u0627\u062D \u0627\u0644\u0623\u062D\u0645\u0631 \u0645\u0648\u0635\u0648\u0644 \u0628\u0627\u0644\u0645\u0631\u0628\u0637 12 \u0628\u062F\u0644 14.",
+    "La lampada verde va sul 12, la rossa sul 14. I neutri delle due lampade vanno direttamente al neutro del quadro.": "\u0627\u0644\u0645\u0635\u0628\u0627\u062D \u0627\u0644\u0623\u062E\u0636\u0631 \u0639\u0644\u0649 12 \u0648\u0627\u0644\u0623\u062D\u0645\u0631 \u0639\u0644\u0649 14. \u0648\u0645\u062D\u0627\u064A\u062F\u0627 \u0627\u0644\u0645\u0635\u0628\u0627\u062D\u064A\u0646 \u064A\u0630\u0647\u0628\u0627\u0646 \u0645\u0628\u0627\u0634\u0631\u0629 \u0625\u0644\u0649 \u0645\u062D\u0627\u064A\u062F \u0627\u0644\u0644\u0648\u062D\u0629.",
+    "La rossa, collegata al morsetto 14.": "\u0627\u0644\u0623\u062D\u0645\u0631\u060C \u0627\u0644\u0645\u0648\u0635\u0648\u0644 \u0628\u0627\u0644\u0645\u0631\u0628\u0637 14.",
+    "La verde, collegata al morsetto 12.": "\u0627\u0644\u0623\u062E\u0636\u0631\u060C \u0627\u0644\u0645\u0648\u0635\u0648\u0644 \u0628\u0627\u0644\u0645\u0631\u0628\u0637 12.",
+    "Lampada rossa": "\u0627\u0644\u0645\u0635\u0628\u0627\u062D \u0627\u0644\u0623\u062D\u0645\u0631",
+    "Lampada verde": "\u0627\u0644\u0645\u0635\u0628\u0627\u062D \u0627\u0644\u0623\u062E\u0636\u0631",
+    "Le due lampade sono sullo stesso morsetto del contatto, il 12, quindi si accendono e si spengono insieme. Il morsetto 14 \xE8 libero: la lampada rossa va l\xEC, perch\xE9 si accenda solo a bobina eccitata.": "\u0627\u0644\u0645\u0635\u0628\u0627\u062D\u0627\u0646 \u0639\u0644\u0649 \u0645\u0631\u0628\u0637 \u0648\u0627\u062D\u062F \u0645\u0646 \u0627\u0644\u0645\u0644\u0627\u0645\u0633\u060C \u0647\u0648 12\u060C \u0644\u0630\u0644\u0643 \u064A\u0636\u064A\u0626\u0627\u0646 \u0648\u064A\u0646\u0637\u0641\u0626\u0627\u0646 \u0645\u0639\u064B\u0627. \u0627\u0644\u0645\u0631\u0628\u0637 14 \u062D\u0631\u0651: \u064A\u0630\u0647\u0628 \u0627\u0644\u0645\u0635\u0628\u0627\u062D \u0627\u0644\u0623\u062D\u0645\u0631 \u0625\u0644\u064A\u0647\u060C \u062D\u062A\u0649 \u0644\u0627 \u064A\u0636\u064A\u0621 \u0625\u0644\u0627 \u0639\u0646\u062F \u062A\u063A\u0630\u064A\u0629 \u0627\u0644\u0645\u0644\u0641.",
+    "Levetta su: la bobina non \xE8 alimentata, si accende la lampada verde.": "\u0645\u0641\u062A\u0627\u062D \u0627\u0644\u0644\u0648\u062D\u0629 \u0645\u0631\u0641\u0648\u0639: \u0627\u0644\u0645\u0644\u0641 \u063A\u064A\u0631 \u0645\u063A\u0630\u0651\u0649 \u0648\u064A\u0636\u064A\u0621 \u0627\u0644\u0645\u0635\u0628\u0627\u062D \u0627\u0644\u0623\u062E\u0636\u0631.",
+    "L\u2019impianto \xE8 gi\xE0 cablato. Dai corrente: a comando aperto le due lampade sono accese insieme. Misura con il multimetro e trova l\u2019errore.": "\u0627\u0644\u062A\u0645\u062F\u064A\u062F \u0645\u0648\u0635\u0648\u0644 \u0623\u0635\u0644\u064B\u0627. \u0634\u063A\u0651\u0644 \u0627\u0644\u062A\u064A\u0627\u0631: \u0648\u0627\u0644\u062A\u062D\u0643\u0645 \u0645\u0641\u062A\u0648\u062D \u064A\u0636\u064A\u0621 \u0627\u0644\u0645\u0635\u0628\u0627\u062D\u0627\u0646 \u0645\u0639\u064B\u0627. \u0642\u0650\u0633 \u0628\u062C\u0647\u0627\u0632 \u0627\u0644\u0642\u064A\u0627\u0633 \u0627\u0644\u0645\u062A\u0639\u062F\u062F \u0648\u0627\u0628\u062D\u062B \u0639\u0646 \u0627\u0644\u062E\u0637\u0623.",
+    "Sposta il filo della lampada rossa dal morsetto 12 al morsetto 14, poi premi Verifica.": "\u0627\u0646\u0642\u0644 \u0633\u0644\u0643 \u0627\u0644\u0645\u0635\u0628\u0627\u062D \u0627\u0644\u0623\u062D\u0645\u0631 \u0645\u0646 \u0627\u0644\u0645\u0631\u0628\u0637 12 \u0625\u0644\u0649 \u0627\u0644\u0645\u0631\u0628\u0637 14\u060C \u062B\u0645 \u0627\u0636\u063A\u0637 \u062A\u062D\u0642\u0642.",
+    "Tocca la levetta del quadro, poi chiudi e apri il comando.": "\u0627\u0644\u0645\u0633 \u0645\u0641\u062A\u0627\u062D \u0627\u0644\u0644\u0648\u062D\u0629\u060C \u062B\u0645 \u0623\u063A\u0644\u0642 \u0627\u0644\u062A\u062D\u0643\u0645 \u0648\u0627\u0641\u062A\u062D\u0647.",
+    "Tutte e due.": "\u0643\u0644\u0627\u0647\u0645\u0627.",
+    "Un comando e un contatto di scambio: due lampade, una per ogni stato.": "\u062A\u062D\u0643\u0645 \u0648\u0645\u0644\u0627\u0645\u0633 \u0645\u0628\u062F\u0651\u0644: \u0645\u0635\u0628\u0627\u062D\u0627\u0646\u060C \u0648\u0627\u062D\u062F \u0644\u0643\u0644 \u062D\u0627\u0644\u0629.",
+    "Un interruttore comanda la bobina di un rel\xE8. Il contatto di scambio del rel\xE8 accende una lampada verde quando la bobina \xE8 spenta e una lampada rossa quando \xE8 accesa. Collega tutto, poi dai corrente.": "\u0645\u0641\u062A\u0627\u062D \u064A\u062A\u062D\u0643\u0645 \u0641\u064A \u0645\u0644\u0641 \u0645\u0631\u062D\u0651\u0644. \u0627\u0644\u0645\u0644\u0627\u0645\u0633 \u0627\u0644\u0645\u0628\u062F\u0651\u0644 \u0644\u0644\u0645\u0631\u062D\u0651\u0644 \u064A\u064F\u0636\u064A\u0621 \u0645\u0635\u0628\u0627\u062D\u064B\u0627 \u0623\u062E\u0636\u0631 \u0639\u0646\u062F\u0645\u0627 \u064A\u0643\u0648\u0646 \u0627\u0644\u0645\u0644\u0641 \u0645\u0641\u0635\u0648\u0644\u064B\u0627 \u0648\u0645\u0635\u0628\u0627\u062D\u064B\u0627 \u0623\u062D\u0645\u0631 \u0639\u0646\u062F\u0645\u0627 \u064A\u0643\u0648\u0646 \u0645\u063A\u0630\u0651\u0649. \u0635\u0650\u0644 \u0643\u0644 \u0634\u064A\u0621 \u062B\u0645 \u0634\u063A\u0651\u0644 \u0627\u0644\u062A\u064A\u0627\u0631.",
+    "Un rel\xE8 \xE8 un interruttore comandato da un altro circuito. Una piccola bobina, quando riceve tensione, diventa un elettromagnete e sposta un contatto.": "\u0627\u0644\u0645\u0631\u062D\u0651\u0644 \u0645\u0641\u062A\u0627\u062D \u062A\u062A\u062D\u0643\u0645 \u0641\u064A\u0647 \u062F\u0627\u0626\u0631\u0629 \u0623\u062E\u0631\u0649. \u0645\u0644\u0641 \u0635\u063A\u064A\u0631\u060C \u0639\u0646\u062F\u0645\u0627 \u064A\u0633\u062A\u0642\u0628\u0644 \u062C\u0647\u062F\u064B\u0627\u060C \u064A\u0635\u064A\u0631 \u0645\u063A\u0646\u0627\u0637\u064A\u0633\u064B\u0627 \u0643\u0647\u0631\u0628\u0627\u0626\u064A\u064B\u0627 \u0648\u064A\u062D\u0631\u0651\u0643 \u0645\u0644\u0627\u0645\u0633\u064B\u0627.",
+    "Comune": "\u0645\u0634\u062A\u0631\u0643",
+    "Neutro rossa": "\u0645\u062D\u0627\u064A\u062F \u0627\u0644\u0623\u062D\u0645\u0631",
+    "Neutro verde": "\u0645\u062D\u0627\u064A\u062F \u0627\u0644\u0623\u062E\u0636\u0631",
+    "REL\xC8": "\u0627\u0644\u0645\u0631\u062D\u0651\u0644",
+    "Rossa": "\u0627\u0644\u0623\u062D\u0645\u0631",
+    "Verde": "\u0627\u0644\u0623\u062E\u0636\u0631"
   };
 
   // src/i18n/ar.js

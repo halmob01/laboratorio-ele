@@ -44,6 +44,35 @@ export const LEVELS_V2 = [
     ],
   },
   {
+    id: 'c18-rele', code: 'c18', n: 0, engine: 2, quadroOnly: true, flow: 'always', palette: ['marrone', 'blu', 'gv'],
+    name: 'Il relè', title: 'Il relè',
+    blurb: 'Un comando e un contatto di scambio: due lampade, una per ogni stato.',
+    goal: 'Un interruttore comanda la bobina di un relè. Il contatto di scambio del relè accende una lampada verde quando la bobina è spenta e una lampada rossa quando è accesa. Collega tutto, poi dai corrente.',
+    comps: [
+      QM,
+      C('S', 'sw', 'Comando', 'Comando', { a: { l: '1' }, b: { l: '2' } }),
+      C('K', 'rel', 'Relè', 'Relè', { A1: { l: 'A1' }, A2: { l: 'A2' }, '11': { l: '11' }, '12': { l: '12' }, '14': { l: '14' } }),
+      C('LV', 'lamp', 'Lampada verde', 'Lampada verde', { B: { l: 'B' }, A: { l: 'A' } }),
+      C('LR', 'lamp', 'Lampada rossa', 'Lampada rossa', { B: { l: 'B' }, A: { l: 'A' } }),
+    ],
+    controls: ['S'],
+    checks: [
+      { id: 'riposo', label: 'Comando aperto: la lampada verde è accesa e la rossa è spenta', do: [], expect: { loads: { LV: 'on', LR: 'off' } } },
+      { id: 'comando', label: 'Comando chiuso: la lampada verde si spegne e la rossa si accende', do: ['toggle S'], expect: { loads: { LV: 'off', LR: 'on' } } },
+    ],
+    safety: { phaseSwitched: ['LV', 'LR'], coilReturn: ['K'] },
+    solution: [
+      ['Q.F', 'S.a', 'marrone'], ['S.b', 'K.A1', 'marrone'], ['K.A2', 'Q.N', 'blu'],
+      ['Q.F', 'K.11', 'marrone'], ['K.12', 'LV.A', 'marrone'], ['K.14', 'LR.A', 'marrone'],
+      ['LV.B', 'Q.N', 'blu'], ['LR.B', 'Q.N', 'blu'],
+    ],
+    hints: [
+      'Il comando e il carico sono circuiti separati. Il comando: fase, interruttore, bobina (A1-A2), neutro.',
+      'Il carico: la fase arriva al morsetto comune 11 del contatto. Il morsetto 12 è chiuso a riposo, il 14 si chiude a bobina eccitata.',
+      'La lampada verde va sul 12, la rossa sul 14. I neutri delle due lampade vanno direttamente al neutro del quadro.',
+    ],
+  },
+  {
     id: 'c07-presa-comandata', code: 'c07', n: 0, engine: 2, quadroOnly: true, flow: 'always',
     name: 'Presa comandata', title: 'La presa comandata',
     blurb: 'Un interruttore accende insieme una presa e una lampada.',

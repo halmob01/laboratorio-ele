@@ -20,6 +20,7 @@ export const MODULES = [
     title: 'Civile avanzato',
     levels: [
       'c17-multimetro',
+      'c18-rele',
       'c07-presa-comandata',
       'c08-rele-impulsi',
       'c09-luce-scale',

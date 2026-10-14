@@ -95,6 +95,21 @@ export function schemV2(c, s, L, ui) {
       o += pole(w * c.terms['1'].f, h * .56, h - 22, part.on, L('1'), L('2'));
       break;
     }
+    case 'rel': {
+      // bobina in alto a sinistra, contatto di scambio: il comune 11 passa a 14 (eccitato) o a 12 (a riposo)
+      const x1 = w * c.terms.A1.f, x2 = w * c.terms.A2.f, xc = w * c.terms['11'].f, xn = w * c.terms['12'].f, xa = w * c.terms['14'].f;
+      const on = !!part.on;
+      o += `<rect x="${x1 - 14}" y="40" width="${x2 - x1 + 28}" height="${h * .3}" rx="4" fill="none" stroke="${obs.coils[c.id] ? '#F59F00' : 'var(--sch)'}" stroke-width="2.6"/>`;
+      o += ln(x1, 22, x1, 40, L('A1')) + ln(x2, 22, x2, 40, L('A2'));
+      o += lab((x1 + x2) / 2, 40 + h * .19, 'RELÈ');
+      const yt = h * .5, yb = h - 40;
+      o += ln(xc, 22, xc, yt, L('11')) + ln(xn, yb, xn, h - 22, L('12')) + ln(xa, yb, xa, h - 22, L('14'));
+      o += dot(xc, yt) + dot(xn, yb) + dot(xa, yb);
+      const tx = on ? xa : xn;
+      o += ln(xc, yt, tx, yb, L('11') && (on ? L('14') : L('12')));
+      o += lab(xn, h - 6, '12 NC') + lab(xa, h - 6, '14 NA');
+      break;
+    }
     case 'tmr': {
       o += `<rect x="${w * .3}" y="40" width="${w * .4}" height="${h * .36}" rx="4" fill="none" stroke="${obs.coils[c.id] ? '#F59F00' : 'var(--sch)'}" stroke-width="2.6"/>`;
       o += ln(w * c.terms.A1.f, 22, w * c.terms.A1.f, 40, L('A1')) + ln(w * c.terms.A2.f, 22, w * c.terms.A2.f, 40, L('A2'));
@@ -193,7 +208,7 @@ export function schemV2(c, s, L, ui) {
 }
 
 // Tipi che il disegno v2 gestisce al posto di quelli del motore v1 (sw, dev e inv restano come nel v1).
-export const V2_TYPES = new Set(['quadro', 'mt', 'rcd', 'mt3', 'sez', 'pb', 'pbnc', 'fungo', 'ri', 'tmr', 'km', 'ft', 'fc', 'trafo', 'bell', 'spia', 'lamp', 'presa', 'motor3']);
+export const V2_TYPES = new Set(['quadro', 'mt', 'rcd', 'mt3', 'sez', 'pb', 'pbnc', 'fungo', 'ri', 'rel', 'tmr', 'km', 'ft', 'fc', 'trafo', 'bell', 'spia', 'lamp', 'presa', 'motor3']);
 
 /* ---------- scena della stanza / della macchina (livelli v2) ---------- */
 const DEV = new Set(['lamp', 'spia', 'bell', 'presa', 'motor3']);

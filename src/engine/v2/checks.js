@@ -98,6 +98,7 @@ function isCtlTerm(level, term) {
   if (!c) return false;
   if (CTL_TYPES.has(c.type)) return true;
   if (c.type === 'km') return ['A1', 'A2', '13', '14', '21', '22'].includes(t);
+  if (c.type === 'rel') return ['A1', 'A2'].includes(t);
   if (c.type === 'ft') return ['95', '96', '97', '98'].includes(t);
   return false;
 }
