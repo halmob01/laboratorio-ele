@@ -56,7 +56,9 @@ export function homeHTML(s) {
   s.levels.forEach(l => (byId[l.id] = l));
   const cont = t
     ? `<section class="cont" aria-label="Continua"><div class="kick">${t.status === 'nuovo' ? 'COMINCIA DA QUI' : 'RIPRENDI DA QUI'}</div><h2>${esc(t.title)}</h2><p>${esc(t.blurb)}</p><a class="btn lamp" href="#/livello/${t.id}">${t.status === 'nuovo' ? 'Inizia' : 'Continua'}</a></section>`
-    : `<section class="cont"><div class="kick">COMPLETATO</div><h2>Hai completato i livelli disponibili</h2><p>Altri livelli sono in preparazione.</p></section>`;
+    : s.levels.some(l => /^t\d\d-/.test(l.id) && l.status !== 'completato' && l.status !== 'saltato')
+      ? `<section class="cont" aria-label="Continua"><div class="kick">PROSSIMO MODULO</div><h2>Il trilocale</h2><p>Tre circuiti da cablare in una casa: quando l’impianto funziona, la luce si accende nella stanza.</p><a class="btn lamp" href="#/modulo/1">Entra nel trilocale</a></section>`
+      : `<section class="cont"><div class="kick">COMPLETATO</div><h2>Hai completato i livelli disponibili</h2><p>Altri livelli sono in preparazione.</p></section>`;
   const mods = MODULES.map(m => {
     const have = m.levels.filter(x => typeof x === 'string');
     const done = have.filter(id => byId[id] && (byId[id].status === 'completato' || byId[id].status === 'saltato')).length;
@@ -238,6 +240,9 @@ export function unitHTML(s) {
       ${optButtons(f.diagnosis.options, d, f.diagnosis.correct, 'diag', true)}
       ${d ? `<p class="fb ${d.correct ? 'ok' : 'ko'}"><b>${d.correct ? 'Giusto.' : 'Non proprio.'}</b> ${d.correct ? esc(f.diagnosis.why) + ' ' + esc(f.fixSay) : 'Osserva i fili: gli aloni mostrano dove arriva la tensione. Puoi riprovare.'}</p>` : ''}
       <div class="uact"><button class="btn" data-unit="leaveFault">Esci dalla sfida</button></div>`;
+  }
+  if (s.mode === 'contatore' && ph === 'done') {
+    return `<div class="kick">Dal contatore</div><h2>${esc(L.title)}</h2><p>${esc(L.goal)}</p>`;
   }
   if (ph === 'done') {
     return `${s.steps && u.support !== 'obiettivo' ? stepsBarHTML(s.steps) : ''}<h2>Livello completato</h2><p>Puoi rifare l’impianto, rivedere la sintesi o passare al livello successivo.</p>`;

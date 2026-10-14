@@ -9,6 +9,7 @@
 // Un livello si puo' anche aprire "in verifica" (prova di salto): niente lezione, niente aiuti.
 
 import { analyse, potentialOf } from './circuit.js';
+import { WIRE_COLORS } from './wires.js';
 import { evaluate } from './evaluate.js';
 import { flowOf } from './flow.js';
 import { stepsState, ghostFor } from './steps.js';
@@ -153,8 +154,117 @@ export function createSession({ levels, deriveFull, storage = memoryStorage(), i
     };
   }
 
+  // Lavoro in corso (fili, comandi, punto della lezione): si salva a ogni cambiamento e si ricarica
+  // all'apertura, cosi' una pagina ricaricata a meta' livello non fa perdere niente.
+  // Formato: { v: 1, w: { '<idLivello>|<modalita'>': { wires, states } }, u: { '<idLivello>': { phase, page, pred } } }
+  // Non si salvano le prove di salto ne' la sfida guasto. Al ritorno tutto viene riconvalidato.
+  const MAX_WORK_WIRES = 200;
+  let work = { v: 1, w: {}, u: {} };
+  let lastWorkStr = '';
+  const workKeyOf = (i, m) => levels[i].id + '|' + m;
+  function saveWork() {
+    if (!storage.saveWork || playMode === 'verifica') return;
+    const l = levels[levelIndex];
+    const u = unitByKey[levelIndex];
+    if (u && u.phase === 'fault') return;
+    const ws = (wiresByKey[keyOf()] || []).map(x => ({ id: x.id, a: x.a, b: x.b, c: x.c }));
+    const st = { ...(statesByKey[keyOf()] || {}) };
+    if (ws.length || Object.keys(st).length) work.w[workKeyOf(levelIndex, mode)] = { wires: ws, states: st };
+    else delete work.w[workKeyOf(levelIndex, mode)];
+    if (u && l.unit) {
+      if (u.phase === 'lesson' && !u.page) delete work.u[l.id];
+      else work.u[l.id] = { phase: u.phase, page: u.page || 0, pred: u.pred ? { option: u.pred.option, correct: !!u.pred.correct } : null };
+    }
+    let str;
+    try { str = JSON.stringify(work); } catch (e) { return; }
+    if (str === lastWorkStr) return;   // niente scritture inutili
+    lastWorkStr = str;
+    try { storage.saveWork(work); } catch (e) { /* si continua senza salvare */ }
+  }
+  function restoreWork() {
+    if (!storage.loadWork) return;
+    let data;
+    try { data = storage.loadWork(); } catch (e) { return; }
+    const isObj = o => o && typeof o === 'object' && !Array.isArray(o);
+    if (!isObj(data) || !isObj(data.w) && !isObj(data.u)) return;
+    levels.forEach((l, i) => {
+      MODES.forEach(m => {
+        const e = isObj(data.w) ? data.w[workKeyOf(i, m)] : null;
+        if (!isObj(e) || (m === 'contatore' && l.quadroOnly)) return;
+        const lv = levelAt(i, m);
+        const known = new Set(lv.comps.flatMap(c => Object.keys(c.terms).map(t => c.id + '.' + t)));
+        const seen = new Set();
+        const ws = [];
+        (Array.isArray(e.wires) ? e.wires.slice(0, MAX_WORK_WIRES) : []).forEach(x => {
+          if (!isObj(x) || !known.has(x.a) || !known.has(x.b) || x.a === x.b || !WIRE_COLORS.includes(x.c)) return;
+          const k = [x.a, x.b].sort().join('~');
+          if (seen.has(k)) return;
+          seen.add(k);
+          ws.push({ id: nextWireId++, a: x.a, b: x.b, c: x.c });
+        });
+        const st = {};
+        if (isObj(e.states)) lv.controls.forEach(id => { if (e.states[id] === 1) st[id] = 1; });
+        wiresByKey[keyOf(i, m)] = ws;
+        statesByKey[keyOf(i, m)] = st;
+        if (ws.length || Object.keys(st).length) work.w[workKeyOf(i, m)] = { wires: ws.map(x => ({ ...x })), states: { ...st } };
+      });
+      const e = isObj(data.u) ? data.u[l.id] : null;
+      if (!isObj(e) || !l.unit || !['lesson', 'build', 'done'].includes(e.phase)) return;
+      const pages = l.unit.lesson.pages;
+      let page = Math.max(0, Math.min(pages.length - 1, Math.floor(Number(e.page) || 0)));
+      // la previsione si riconvalida sul contenuto: senza una risposta valida non si va oltre la sua pagina
+      const pi = pages.findIndex(pg => pg.type === 'previsione');
+      let pred = null;
+      if (pi >= 0 && isObj(e.pred) && typeof e.pred.option === 'string' && pages[pi].options.some(o => o.id === e.pred.option)) {
+        pred = { option: e.pred.option, correct: pages[pi].correct === e.pred.option };
+      }
+      if (pi >= 0 && !pred && page > pi) page = pi;
+      let phase = e.phase;
+      let result = null;
+      if (phase === 'done') {
+        const ws = wiresByKey[keyOf(i, 'quadro')] || [];
+        if (!(progress.stars[progressKey(l.id, 'quadro')] > 0) || !ws.length) phase = 'build';
+        else result = evaluate(levelAt(i, 'quadro'), ws);
+        if (result && !result.pass) { phase = 'build'; result = null; }
+      }
+      unitByKey[i] = { phase, page, pred, diag: null, faultSolved: false };
+      if (result) resultsByKey[keyOf(i, 'quadro')] = result;
+      work.u[l.id] = { phase, page, pred };
+    });
+    try { lastWorkStr = JSON.stringify(work); } catch (e) { lastWorkStr = ''; }
+  }
+
+  // Uscendo dalla sfida guasto (con "Esci", cambiando livello o modalita') l'impianto riuscito torna com'era.
+  function exitFault() {
+    const us = unitByKey[levelIndex];
+    if (!us || us.phase !== 'fault') return;
+    us.phase = 'done';
+    us.diag = null;
+    if (us.before) {
+      wiresByKey[keyOf(levelIndex, 'quadro')] = us.before.wires;
+      statesByKey[keyOf(levelIndex, 'quadro')] = us.before.states;
+      resultsByKey[keyOf(levelIndex, 'quadro')] = us.before.result;
+      us.before = null;
+    }
+  }
+  // La prova di salto riparte da zero: il lavoro dell'apprendimento si mette da parte e si rimette all'uscita.
+  const verifyStash = {};
+  function stashForVerify() {
+    const k = keyOf();
+    verifyStash[levelIndex] = { key: k, wires: (wiresByKey[k] || []).slice(), states: { ...(statesByKey[k] || {}) }, result: resultsByKey[k] || null, usage: usageByKey[k] || null, unit: unitByKey[levelIndex] || null };
+  }
+  function unstashFromVerify() {
+    const st = verifyStash[levelIndex];
+    if (!st) { dropUnitState(); return; }
+    wiresByKey[st.key] = st.wires; statesByKey[st.key] = st.states; resultsByKey[st.key] = st.result;
+    if (st.usage) usageByKey[st.key] = st.usage; else delete usageByKey[st.key];
+    if (st.unit) unitByKey[levelIndex] = st.unit; else delete unitByKey[levelIndex];
+    delete verifyStash[levelIndex];
+  }
+
   const emit = () => {
     const s = snapshot();
+    saveWork();
     listeners.forEach(f => f(s));
   };
 
@@ -202,7 +312,7 @@ export function createSession({ levels, deriveFull, storage = memoryStorage(), i
       listeners.add(fn);
       return () => listeners.delete(fn);
     },
-    start() { emit(); },
+    start() { restoreWork(); emit(); },
 
     // Stato di un livello qualsiasi (non solo quello aperto), per chi disegna piu' circuiti insieme (la casa).
     // `lit`: la lampada si accende con i fili e i comandi attuali, ignorando il quadro; `power` vale solo per il livello aperto.
@@ -234,14 +344,17 @@ export function createSession({ levels, deriveFull, storage = memoryStorage(), i
     selectLevel(x, opts = {}) {
       const i = indexOf(x);
       if (i < 0 || i >= levels.length) return;
+      // si lascia il livello corrente: la sfida guasto si chiude e la prova di salto restituisce il lavoro
+      exitFault();
+      const wasVerify = playMode === 'verifica';
+      if (wasVerify) unstashFromVerify();
       levelIndex = i;
       if (levels[i].quadroOnly) mode = 'quadro';
-      const wasVerify = playMode === 'verifica';
       playMode = opts.verify ? 'verifica' : 'apprendimento';
-      if (wasVerify || (unitByKey[i] && unitByKey[i].phase === 'fault')) dropUnitState();
       resetLevelState();
       if (opts.verify) {
         // si riparte da zero, anche se il livello era stato cablato prima
+        stashForVerify();
         wiresByKey[keyOf()] = [];
         statesByKey[keyOf()] = {};
         resultsByKey[keyOf()] = null;
@@ -257,11 +370,11 @@ export function createSession({ levels, deriveFull, storage = memoryStorage(), i
     },
     setMode(m) {
       if (!MODES.includes(m) || m === mode || (levels[levelIndex].quadroOnly && m !== 'quadro')) return;
+      exitFault();
+      if (playMode === 'verifica') unstashFromVerify();
       mode = m;
       const us = unitByKey[levelIndex];
-      if (us && us.phase === 'fault') { us.phase = 'done'; us.diag = null; }
-      else if (us && us.phase === 'lesson' && m !== 'quadro') us.phase = 'build';
-      else if (playMode === 'verifica') dropUnitState();
+      if (us && us.phase === 'lesson' && m !== 'quadro') us.phase = 'build';
       playMode = 'apprendimento';
       resetLevelState();
       emit();
@@ -450,14 +563,8 @@ export function createSession({ levels, deriveFull, storage = memoryStorage(), i
     leaveFault() {
       const us = levelAt().unit && unitState();
       if (!us || us.phase !== 'fault') return;
-      us.phase = 'done';
-      if (us.before) {
-        resetLevelState();
-        wiresByKey[keyOf()] = us.before.wires;
-        statesByKey[keyOf()] = us.before.states;
-        resultsByKey[keyOf()] = us.before.result;
-        us.before = null;
-      }
+      resetLevelState();
+      exitFault();
       emit();
     },
   };

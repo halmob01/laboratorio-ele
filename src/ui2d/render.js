@@ -213,7 +213,7 @@ export function benchHTML(s, comps, ui) {
   // Con la corrente visibile ogni filo ha uno stato: in tensione (alone), percorso da corrente (puntini).
   const fv = s.flowVisible && s.power;
   s.wires.forEach(w => {
-    const d = wirePath(termPos(comps, w.a), termPos(comps, w.b)), q = WIRE_STYLE[w.c];
+    const d = wirePath(termPos(comps, w.a), termPos(comps, w.b)), q = Object.hasOwn(WIRE_STYLE, w.c) ? WIRE_STYLE[w.c] : WIRE_STYLE.nero;
     const pot = s.potential(w.a);
     const st = s.flow.wires[w.id];
     let halo = '', fl = '';

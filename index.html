@@ -1153,8 +1153,135 @@ a.tool{display:flex;align-items:center;justify-content:center;text-decoration:no
         usage: { ...usage() }
       };
     }
+    const MAX_WORK_WIRES = 200;
+    let work = { v: 1, w: {}, u: {} };
+    let lastWorkStr = "";
+    const workKeyOf = (i, m) => levels2[i].id + "|" + m;
+    function saveWork() {
+      if (!storage2.saveWork || playMode === "verifica") return;
+      const l = levels2[levelIndex];
+      const u = unitByKey[levelIndex];
+      if (u && u.phase === "fault") return;
+      const ws = (wiresByKey[keyOf()] || []).map((x) => ({ id: x.id, a: x.a, b: x.b, c: x.c }));
+      const st = { ...statesByKey[keyOf()] || {} };
+      if (ws.length || Object.keys(st).length) work.w[workKeyOf(levelIndex, mode)] = { wires: ws, states: st };
+      else delete work.w[workKeyOf(levelIndex, mode)];
+      if (u && l.unit) {
+        if (u.phase === "lesson" && !u.page) delete work.u[l.id];
+        else work.u[l.id] = { phase: u.phase, page: u.page || 0, pred: u.pred ? { option: u.pred.option, correct: !!u.pred.correct } : null };
+      }
+      let str;
+      try {
+        str = JSON.stringify(work);
+      } catch (e) {
+        return;
+      }
+      if (str === lastWorkStr) return;
+      lastWorkStr = str;
+      try {
+        storage2.saveWork(work);
+      } catch (e) {
+      }
+    }
+    function restoreWork() {
+      if (!storage2.loadWork) return;
+      let data;
+      try {
+        data = storage2.loadWork();
+      } catch (e) {
+        return;
+      }
+      const isObj = (o) => o && typeof o === "object" && !Array.isArray(o);
+      if (!isObj(data) || !isObj(data.w) && !isObj(data.u)) return;
+      levels2.forEach((l, i) => {
+        MODES.forEach((m) => {
+          const e2 = isObj(data.w) ? data.w[workKeyOf(i, m)] : null;
+          if (!isObj(e2) || m === "contatore" && l.quadroOnly) return;
+          const lv = levelAt(i, m);
+          const known = new Set(lv.comps.flatMap((c2) => Object.keys(c2.terms).map((t) => c2.id + "." + t)));
+          const seen = /* @__PURE__ */ new Set();
+          const ws = [];
+          (Array.isArray(e2.wires) ? e2.wires.slice(0, MAX_WORK_WIRES) : []).forEach((x) => {
+            if (!isObj(x) || !known.has(x.a) || !known.has(x.b) || x.a === x.b || !WIRE_COLORS.includes(x.c)) return;
+            const k = [x.a, x.b].sort().join("~");
+            if (seen.has(k)) return;
+            seen.add(k);
+            ws.push({ id: nextWireId++, a: x.a, b: x.b, c: x.c });
+          });
+          const st = {};
+          if (isObj(e2.states)) lv.controls.forEach((id) => {
+            if (e2.states[id] === 1) st[id] = 1;
+          });
+          wiresByKey[keyOf(i, m)] = ws;
+          statesByKey[keyOf(i, m)] = st;
+          if (ws.length || Object.keys(st).length) work.w[workKeyOf(i, m)] = { wires: ws.map((x) => ({ ...x })), states: { ...st } };
+        });
+        const e = isObj(data.u) ? data.u[l.id] : null;
+        if (!isObj(e) || !l.unit || !["lesson", "build", "done"].includes(e.phase)) return;
+        const pages = l.unit.lesson.pages;
+        let page = Math.max(0, Math.min(pages.length - 1, Math.floor(Number(e.page) || 0)));
+        const pi = pages.findIndex((pg) => pg.type === "previsione");
+        let pred = null;
+        if (pi >= 0 && isObj(e.pred) && typeof e.pred.option === "string" && pages[pi].options.some((o) => o.id === e.pred.option)) {
+          pred = { option: e.pred.option, correct: pages[pi].correct === e.pred.option };
+        }
+        if (pi >= 0 && !pred && page > pi) page = pi;
+        let phase = e.phase;
+        let result = null;
+        if (phase === "done") {
+          const ws = wiresByKey[keyOf(i, "quadro")] || [];
+          if (!(progress.stars[progressKey(l.id, "quadro")] > 0) || !ws.length) phase = "build";
+          else result = evaluate(levelAt(i, "quadro"), ws);
+          if (result && !result.pass) {
+            phase = "build";
+            result = null;
+          }
+        }
+        unitByKey[i] = { phase, page, pred, diag: null, faultSolved: false };
+        if (result) resultsByKey[keyOf(i, "quadro")] = result;
+        work.u[l.id] = { phase, page, pred };
+      });
+      try {
+        lastWorkStr = JSON.stringify(work);
+      } catch (e) {
+        lastWorkStr = "";
+      }
+    }
+    function exitFault() {
+      const us = unitByKey[levelIndex];
+      if (!us || us.phase !== "fault") return;
+      us.phase = "done";
+      us.diag = null;
+      if (us.before) {
+        wiresByKey[keyOf(levelIndex, "quadro")] = us.before.wires;
+        statesByKey[keyOf(levelIndex, "quadro")] = us.before.states;
+        resultsByKey[keyOf(levelIndex, "quadro")] = us.before.result;
+        us.before = null;
+      }
+    }
+    const verifyStash = {};
+    function stashForVerify() {
+      const k = keyOf();
+      verifyStash[levelIndex] = { key: k, wires: (wiresByKey[k] || []).slice(), states: { ...statesByKey[k] || {} }, result: resultsByKey[k] || null, usage: usageByKey[k] || null, unit: unitByKey[levelIndex] || null };
+    }
+    function unstashFromVerify() {
+      const st = verifyStash[levelIndex];
+      if (!st) {
+        dropUnitState();
+        return;
+      }
+      wiresByKey[st.key] = st.wires;
+      statesByKey[st.key] = st.states;
+      resultsByKey[st.key] = st.result;
+      if (st.usage) usageByKey[st.key] = st.usage;
+      else delete usageByKey[st.key];
+      if (st.unit) unitByKey[levelIndex] = st.unit;
+      else delete unitByKey[levelIndex];
+      delete verifyStash[levelIndex];
+    }
     const emit = () => {
       const s = snapshot();
+      saveWork();
       listeners.forEach((f) => f(s));
     };
     function resetLevelState() {
@@ -1196,6 +1323,7 @@ a.tool{display:flex;align-items:center;justify-content:center;text-decoration:no
         return () => listeners.delete(fn);
       },
       start() {
+        restoreWork();
         emit();
       },
       // Stato di un livello qualsiasi (non solo quello aperto), per chi disegna piu' circuiti insieme (la casa).
@@ -1228,13 +1356,15 @@ a.tool{display:flex;align-items:center;justify-content:center;text-decoration:no
       selectLevel(x, opts = {}) {
         const i = indexOf(x);
         if (i < 0 || i >= levels2.length) return;
+        exitFault();
+        const wasVerify = playMode === "verifica";
+        if (wasVerify) unstashFromVerify();
         levelIndex = i;
         if (levels2[i].quadroOnly) mode = "quadro";
-        const wasVerify = playMode === "verifica";
         playMode = opts.verify ? "verifica" : "apprendimento";
-        if (wasVerify || unitByKey[i] && unitByKey[i].phase === "fault") dropUnitState();
         resetLevelState();
         if (opts.verify) {
+          stashForVerify();
           wiresByKey[keyOf()] = [];
           statesByKey[keyOf()] = {};
           resultsByKey[keyOf()] = null;
@@ -1250,13 +1380,11 @@ a.tool{display:flex;align-items:center;justify-content:center;text-decoration:no
       },
       setMode(m) {
         if (!MODES.includes(m) || m === mode || levels2[levelIndex].quadroOnly && m !== "quadro") return;
+        exitFault();
+        if (playMode === "verifica") unstashFromVerify();
         mode = m;
         const us = unitByKey[levelIndex];
-        if (us && us.phase === "fault") {
-          us.phase = "done";
-          us.diag = null;
-        } else if (us && us.phase === "lesson" && m !== "quadro") us.phase = "build";
-        else if (playMode === "verifica") dropUnitState();
+        if (us && us.phase === "lesson" && m !== "quadro") us.phase = "build";
         playMode = "apprendimento";
         resetLevelState();
         emit();
@@ -1441,14 +1569,8 @@ a.tool{display:flex;align-items:center;justify-content:center;text-decoration:no
       leaveFault() {
         const us = levelAt().unit && unitState();
         if (!us || us.phase !== "fault") return;
-        us.phase = "done";
-        if (us.before) {
-          resetLevelState();
-          wiresByKey[keyOf()] = us.before.wires;
-          statesByKey[keyOf()] = us.before.states;
-          resultsByKey[keyOf()] = us.before.result;
-          us.before = null;
-        }
+        resetLevelState();
+        exitFault();
         emit();
       }
     };
@@ -2874,7 +2996,7 @@ a.tool{display:flex;align-items:center;justify-content:center;text-decoration:no
     }
     const fv = s.flowVisible && s.power;
     s.wires.forEach((w) => {
-      const d = wirePath(termPos(comps2, w.a), termPos(comps2, w.b)), q = WIRE_STYLE[w.c];
+      const d = wirePath(termPos(comps2, w.a), termPos(comps2, w.b)), q = Object.hasOwn(WIRE_STYLE, w.c) ? WIRE_STYLE[w.c] : WIRE_STYLE.nero;
       const pot = s.potential(w.a);
       const st = s.flow.wires[w.id];
       let halo = "", fl = "";
@@ -3127,7 +3249,7 @@ a.tool{display:flex;align-items:center;justify-content:center;text-decoration:no
     const t = continueTarget(s);
     const byId = {};
     s.levels.forEach((l) => byId[l.id] = l);
-    const cont = t ? `<section class="cont" aria-label="Continua"><div class="kick">${t.status === "nuovo" ? "COMINCIA DA QUI" : "RIPRENDI DA QUI"}</div><h2>${esc(t.title)}</h2><p>${esc(t.blurb)}</p><a class="btn lamp" href="#/livello/${t.id}">${t.status === "nuovo" ? "Inizia" : "Continua"}</a></section>` : `<section class="cont"><div class="kick">COMPLETATO</div><h2>Hai completato i livelli disponibili</h2><p>Altri livelli sono in preparazione.</p></section>`;
+    const cont = t ? `<section class="cont" aria-label="Continua"><div class="kick">${t.status === "nuovo" ? "COMINCIA DA QUI" : "RIPRENDI DA QUI"}</div><h2>${esc(t.title)}</h2><p>${esc(t.blurb)}</p><a class="btn lamp" href="#/livello/${t.id}">${t.status === "nuovo" ? "Inizia" : "Continua"}</a></section>` : s.levels.some((l) => /^t\d\d-/.test(l.id) && l.status !== "completato" && l.status !== "saltato") ? `<section class="cont" aria-label="Continua"><div class="kick">PROSSIMO MODULO</div><h2>Il trilocale</h2><p>Tre circuiti da cablare in una casa: quando l\u2019impianto funziona, la luce si accende nella stanza.</p><a class="btn lamp" href="#/modulo/1">Entra nel trilocale</a></section>` : `<section class="cont"><div class="kick">COMPLETATO</div><h2>Hai completato i livelli disponibili</h2><p>Altri livelli sono in preparazione.</p></section>`;
     const mods = MODULES.map((m) => {
       const have = m.levels.filter((x) => typeof x === "string");
       const done = have.filter((id) => byId[id] && (byId[id].status === "completato" || byId[id].status === "saltato")).length;
@@ -3280,6 +3402,9 @@ a.tool{display:flex;align-items:center;justify-content:center;text-decoration:no
       ${optButtons(f.diagnosis.options, d, f.diagnosis.correct, "diag", true)}
       ${d ? `<p class="fb ${d.correct ? "ok" : "ko"}"><b>${d.correct ? "Giusto." : "Non proprio."}</b> ${d.correct ? esc(f.diagnosis.why) + " " + esc(f.fixSay) : "Osserva i fili: gli aloni mostrano dove arriva la tensione. Puoi riprovare."}</p>` : ""}
       <div class="uact"><button class="btn" data-unit="leaveFault">Esci dalla sfida</button></div>`;
+    }
+    if (s.mode === "contatore" && ph === "done") {
+      return `<div class="kick">Dal contatore</div><h2>${esc(L.title)}</h2><p>${esc(L.goal)}</p>`;
     }
     if (ph === "done") {
       return `${s.steps && u.support !== "obiettivo" ? stepsBarHTML(s.steps) : ""}<h2>Livello completato</h2><p>Puoi rifare l\u2019impianto, rivedere la sintesi o passare al livello successivo.</p>`;
@@ -3570,6 +3695,7 @@ a.tool{display:flex;align-items:center;justify-content:center;text-decoration:no
   var STORAGE_KEY = "fase-e-neutro-1";
   var OLD_KEY = "lab-elettrico-1";
   var PROFILE_KEY = "fase-e-neutro-profilo";
+  var WORK_KEY = "fase-e-neutro-lavoro";
   var read = (k) => {
     try {
       return JSON.parse(localStorage.getItem(k) || "null");
@@ -3589,6 +3715,12 @@ a.tool{display:flex;align-items:center;justify-content:center;text-decoration:no
     },
     save(o) {
       write(STORAGE_KEY, o);
+    },
+    loadWork() {
+      return read(WORK_KEY) || {};
+    },
+    saveWork(o) {
+      write(WORK_KEY, o);
     }
   };
   var profile = Object.assign({ name: "", introSeen: false, nameAsked: false }, read(PROFILE_KEY) || {});
@@ -4114,6 +4246,10 @@ a.tool{display:flex;align-items:center;justify-content:center;text-decoration:no
     const wrap = document.querySelector(".wrap");
     if (wrap) wrap.inert = false;
     if (opener && opener.focus && document.contains(opener)) opener.focus({ preventScroll: true });
+    else {
+      const m = $("#main");
+      if (m && m.focus) m.focus({ preventScroll: true });
+    }
     opener = null;
   }
   function openIntro() {

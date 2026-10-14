@@ -18,11 +18,14 @@ const buzz = () => { try { navigator.vibrate && navigator.vibrate(12); } catch (
 const STORAGE_KEY = 'fase-e-neutro-1';
 const OLD_KEY = 'lab-elettrico-1';       // versione precedente: la sessione ne migra il formato
 const PROFILE_KEY = 'fase-e-neutro-profilo';
+const WORK_KEY = 'fase-e-neutro-lavoro';
 const read = k => { try { return JSON.parse(localStorage.getItem(k) || 'null'); } catch (e) { return null; } };
 const write = (k, o) => { try { localStorage.setItem(k, JSON.stringify(o)); } catch (e) { /* si continua senza salvare */ } };
 const storage = {
   load() { return read(STORAGE_KEY) || read(OLD_KEY) || {}; },
   save(o) { write(STORAGE_KEY, o); },
+  loadWork() { return read(WORK_KEY) || {}; },
+  saveWork(o) { write(WORK_KEY, o); },
 };
 const profile = Object.assign({ name: '', introSeen: false, nameAsked: false }, read(PROFILE_KEY) || {});
 const saveProfile = () => write(PROFILE_KEY, profile);
@@ -409,6 +412,7 @@ function closeOverlay() {
   document.body.style.overflow = '';
   const wrap = document.querySelector('.wrap'); if (wrap) wrap.inert = false;
   if (opener && opener.focus && document.contains(opener)) opener.focus({ preventScroll: true });
+  else { const m = $('#main'); if (m && m.focus) m.focus({ preventScroll: true }); }   // senza un punto di ritorno, il fuoco riparte dalla pagina
   opener = null;
 }
 function openIntro() { introI = 0; openOverlay('intro', V.introHTML(0)); }

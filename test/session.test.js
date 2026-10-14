@@ -91,3 +91,113 @@ test('i listener ricevono un\'istantanea a ogni cambiamento', () => {
   s.addWire('Q.PE', 'P.PE', 'gv');
   assert.deepEqual(seen, [1, 2]);
 });
+
+function workStore() {
+  let w = {};
+  return { load: () => ({}), save: () => {}, loadWork: () => JSON.parse(JSON.stringify(w)), saveWork: o => { w = JSON.parse(JSON.stringify(o)); }, peekWork: () => w };
+}
+const open = (st, id, fn) => { const s = createSession({ levels, deriveFull, storage: st, initialLevel: id }); s.start(); if (fn) fn(s); return s; };
+const wiresOf = s => s.snapshot().wires.map(w => [w.a, w.b, w.c]);
+
+test('il lavoro a meta\' livello sopravvive a una ricarica: fili, comandi e pagina della lezione', () => {
+  const st = workStore();
+  open(st, INT, s => { s.unitNext(); s.unitNext(); });
+  let r = open(st, INT);
+  assert.equal(r.snapshot().unit.page, 2);
+  r.skipLesson();
+  lv(INT).solution.slice(0, 2).forEach(([a, b, c]) => r.addWire(a, b, c));
+  const before = wiresOf(r);
+  const s = open(st, INT);
+  assert.deepEqual(wiresOf(s), before);
+  assert.equal(s.snapshot().unit.phase, 'build');
+  s.addWire('Q.N', 'L.B', 'blu');
+  assert.equal(new Set(s.snapshot().wires.map(w => w.id)).size, 3);
+});
+
+test('dati salvati rovinati: colori, morsetti, identificativi, duplicati e stati non validi vengono scartati', () => {
+  const st = workStore();
+  st.saveWork({ v: 1, w: { [INT + '|quadro']: { wires: [
+    { id: 1, a: 'X.Y', b: 'Q.F', c: 'marrone' },
+    { id: 1, a: 'Q.F', b: 'S.a', c: 'viola' },
+    { id: 1, a: 'Q.F', b: 'S.a', c: '__proto__' },
+    { id: 1e300, a: 'Q.F', b: 'S.a', c: 'marrone' },
+    { id: 1e300, a: 'S.a', b: 'Q.F', c: 'marrone' },
+    { id: 5, a: 'S.b', b: 'S.b', c: 'marrone' },
+    { id: -3, a: 'S.b', b: 'L.A', c: 'marrone' },
+  ], states: { S: 1, Z: 1 } } }, u: { [INT]: { phase: 'done', page: 99, pred: [] } }, 'inesistente|quadro': { wires: [] } });
+  const s = open(st, INT);
+  assert.deepEqual(wiresOf(s), [['Q.F', 'S.a', 'marrone'], ['S.b', 'L.A', 'marrone']]);
+  assert.equal(new Set(s.snapshot().wires.map(w => w.id)).size, 2);
+  assert.equal(s.snapshot().controlStates.Z, undefined);
+  assert.notEqual(s.snapshot().unit.phase, 'done');   // senza stelle non si ripristina "completato"
+  s.addWire('Q.N', 'L.B', 'blu');
+  assert.equal(new Set(s.snapshot().wires.map(w => w.id)).size, 3);
+});
+
+test('la previsione non si salta con dati manomessi', () => {
+  const st = workStore();
+  const pi = lv(INT).unit.lesson.pages.findIndex(p => p.type === 'previsione');
+  if (pi < 0) return;
+  st.saveWork({ v: 1, w: {}, u: { [INT]: { phase: 'lesson', page: pi + 1, pred: { option: 'zzz', correct: true } } } });
+  assert.equal(open(st, INT).snapshot().unit.page, pi);
+});
+
+test('livello completato: dopo la ricarica restano l\'esito e le sfide; senza fili si riparte da build', () => {
+  const st = workStore();
+  const p = { '1': 0 };
+  const store = { load: () => ({ v: 2, stars: { [INT]: 3 }, best: { [INT]: { base: 100, pred: true, fault: false, skipped: false } }, last: INT }), save: () => {}, loadWork: st.loadWork, saveWork: st.saveWork };
+  let s = createSession({ levels, deriveFull, storage: store, initialLevel: INT }); s.start();
+  s.skipLesson();
+  lv(INT).solution.forEach(([a, b, c]) => s.addWire(a, b, c));
+  s.check();
+  assert.equal(s.snapshot().unit.phase, 'done');
+  s = createSession({ levels, deriveFull, storage: store, initialLevel: INT }); s.start();
+  assert.equal(s.snapshot().unit.phase, 'done');
+  assert.equal(s.snapshot().result && s.snapshot().result.pass, true);
+  s.clear();
+  s = createSession({ levels, deriveFull, storage: store, initialLevel: INT }); s.start();
+  assert.equal(s.snapshot().unit.phase, 'build');
+});
+
+test('sfida guasto: non si salva e uscendo (anche cambiando livello) torna l\'impianto riuscito', () => {
+  const st = workStore();
+  const store = { load: () => ({}), save: () => {}, loadWork: st.loadWork, saveWork: st.saveWork };
+  const s = createSession({ levels, deriveFull, storage: store, initialLevel: INT }); s.start();
+  s.skipLesson();
+  lv(INT).solution.forEach(([a, b, c]) => s.addWire(a, b, c));
+  s.check();
+  const ok = wiresOf(s);
+  s.startFault();
+  assert.notDeepEqual(wiresOf(s), ok);
+  s.selectLevel(PRESA);
+  s.selectLevel(INT);
+  assert.deepEqual(wiresOf(s), ok);
+  assert.equal(JSON.stringify(st.peekWork()).includes('fault'), false);
+  const r = createSession({ levels, deriveFull, storage: store, initialLevel: INT }); r.start();
+  assert.deepEqual(wiresOf(r), ok);
+});
+
+test('prova di salto: il lavoro dell\'apprendimento torna all\'uscita e non viene sovrascritto nel deposito', () => {
+  const st = workStore();
+  const s = open(st, PRESA);
+  s.skipLesson(); s.skipLesson();
+  s.addWire('Q.F', 'P.L', 'marrone'); s.addWire('Q.N', 'P.N', 'blu');
+  s.selectLevel(PRESA, { verify: true });
+  assert.equal(s.snapshot().wires.length, 0);
+  s.addWire('Q.F', 'P.L', 'marrone');
+  assert.equal(st.peekWork().w[PRESA + '|quadro'].wires.length, 2);
+  s.selectLevel(PRESA);
+  assert.equal(s.snapshot().wires.length, 2);
+});
+
+test('nessuna scrittura inutile se il lavoro non cambia', () => {
+  let n = 0;
+  const st = workStore();
+  const store = { ...st, saveWork: o => { n++; st.saveWork(o); } };
+  const s = open(store, PRESA);
+  s.skipLesson(); s.skipLesson();
+  s.addWire('Q.F', 'P.L', 'marrone');
+  const k = n;
+  s.toggleFlow(); s.toggleFlow(); s.toggleSolution(); s.toggleSolution();
+  assert.equal(n, k);
+});
