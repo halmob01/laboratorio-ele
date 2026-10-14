@@ -3435,6 +3435,140 @@ html[lang="it"] .trnote{display:none}
       ]
     },
     {
+      id: "c09-luce-scale",
+      code: "c09",
+      n: 0,
+      engine: 2,
+      quadroOnly: true,
+      flow: "always",
+      palette: ["marrone", "blu", "gv"],
+      name: "Luce scale a tempo",
+      title: "La luce scale a tempo",
+      blurb: "La luce si spegne da sola dopo qualche secondo.",
+      goal: "Due pulsanti, uno a ogni piano, accendono due lampade per 20 secondi: poi si spengono da sole. Se si preme di nuovo, il tempo riparte da capo. Collega i pulsanti alla bobina del rel\xE8 temporizzato e le lampade al suo contatto. Poi dai corrente.",
+      comps: [
+        QM,
+        C("P1", "pb", "Piano terra", "Pulsante piano terra", { "3": { l: "3" }, "4": { l: "4" } }),
+        C("P2", "pb", "Primo piano", "Pulsante primo piano", { "3": { l: "3" }, "4": { l: "4" } }),
+        C("T", "tmr", "Temporizzatore", "Rel\xE8 temporizzato", { A1: { l: "A1" }, A2: { l: "A2" }, "1": { l: "1" }, "2": { l: "2" } }, { time: 20 }),
+        C("L1", "lamp", "Scala bassa", "Lampada scala bassa", { B: { l: "B" }, A: { l: "A" } }),
+        C("L2", "lamp", "Scala alta", "Lampada scala alta", { B: { l: "B" }, A: { l: "A" } })
+      ],
+      controls: ["P1", "P2"],
+      demoDo: [{ do: press("P1"), say: "Pulsante premuto e rilasciato: le due lampade si accendono." }, { do: ["wait 25"], say: "Dopo il tempo impostato le lampade si spengono da sole." }],
+      checks: [
+        { id: "accende", label: "Premi un pulsante: le due lampade si accendono", do: press("P1"), expect: { loads: { L1: "on", L2: "on" } } },
+        { id: "resta", label: "Dopo 10 secondi le lampade sono ancora accese", do: press("P1").concat(["wait 10"]), expect: { loads: { L1: "on", L2: "on" } } },
+        { id: "spegne", label: "Dopo 25 secondi le lampade si sono spente da sole", do: press("P2").concat(["wait 25"]), expect: { loads: { L1: "off", L2: "off" } } },
+        { id: "riparte", label: "Se premi di nuovo, il tempo riparte da capo", steps: [{ do: press("P1").concat(["wait 15"]), expect: { loads: { L1: "on" } } }, { do: press("P2").concat(["wait 10"]), expect: { loads: { L1: "on", L2: "on" } } }] }
+      ],
+      safety: { phaseSwitched: ["L1", "L2"] },
+      solution: [
+        ["Q.F", "P1.3", "marrone"],
+        ["P1.3", "P2.3", "marrone"],
+        ["P1.4", "P2.4", "marrone"],
+        ["P2.4", "T.A1", "marrone"],
+        ["T.A2", "Q.N", "blu"],
+        ["Q.F", "T.1", "marrone"],
+        ["T.2", "L1.A", "marrone"],
+        ["T.2", "L2.A", "marrone"],
+        ["L1.B", "Q.N", "blu"],
+        ["L2.B", "Q.N", "blu"]
+      ],
+      hints: [
+        "I due pulsanti sono in parallelo: i morsetti 3 sono collegati tra loro e alla fase, i morsetti 4 sono collegati tra loro.",
+        "Dai morsetti 4 dei pulsanti un filo va alla bobina del temporizzatore (A1). L\u2019altro capo della bobina (A2) va al neutro.",
+        "Le lampade si alimentano dal contatto del temporizzatore: la fase arriva al morsetto 1, dal morsetto 2 vanno alle due lampade. I neutri vanno direttamente alle lampade."
+      ]
+    },
+    {
+      id: "c10-campanello",
+      code: "c10",
+      n: 0,
+      engine: 2,
+      quadroOnly: true,
+      flow: "always",
+      palette: ["marrone", "nero", "blu", "gv", "bianco"],
+      name: "Campanello e trasformatore",
+      title: "Il campanello e il trasformatore",
+      blurb: "Un trasformatore abbassa la tensione per il campanello.",
+      goal: "Il campanello funziona a 12 V: sulla rete a 230 V si brucerebbe. Collega il pulsante e il primario del trasformatore alla rete, poi il campanello al secondario. Il circuito a bassa tensione ha i suoi colori. Poi dai corrente.",
+      comps: [
+        QM,
+        C("SB", "pb", "Pulsante", "Pulsante del campanello", { "3": { l: "3" }, "4": { l: "4" } }),
+        C("TR", "trafo", "Trasformatore", "Trasformatore 230/12 V", { "1": { l: "1" }, "2": { l: "2" }, "3": { l: "3" }, "4": { l: "4" } }, { vout: 12 }),
+        C("B", "bell", "Campanello", "Campanello 12 V", { "1": { l: "1" }, "2": { l: "2" } })
+      ],
+      controls: ["SB"],
+      demoDo: [{ do: ["press SB"], say: "Pulsante premuto: il trasformatore \xE8 alimentato e il campanello suona." }],
+      checks: [
+        { id: "suona", label: "Premi il pulsante: il campanello suona", do: ["press SB"], expect: { loads: { B: "on" } } },
+        { id: "fermo", label: "Senza premere il campanello \xE8 silenzioso", do: [], expect: { loads: { B: "off" } } }
+      ],
+      safety: {},
+      solution: [
+        ["Q.F", "SB.3", "marrone"],
+        ["SB.4", "TR.1", "marrone"],
+        ["TR.2", "Q.N", "blu"],
+        ["TR.3", "B.1", "bianco"],
+        ["TR.4", "B.2", "bianco"]
+      ],
+      hints: [
+        "Il primario del trasformatore (morsetti 1 e 2) si collega alla rete, passando dal pulsante sulla fase: fase al pulsante, dal pulsante al morsetto 1, neutro al morsetto 2.",
+        "Il campanello non va mai collegato alla rete: si collega al secondario del trasformatore, morsetti 3 e 4.",
+        "I fili del circuito a bassa tensione non sono n\xE9 fase n\xE9 neutro: puoi usare il bianco."
+      ]
+    },
+    {
+      id: "c11-quadro",
+      code: "c11",
+      n: 0,
+      engine: 2,
+      quadroOnly: true,
+      flow: "onDemand",
+      palette: ["marrone", "blu", "gv"],
+      name: "Il quadro di casa",
+      title: "Il quadro di casa",
+      blurb: "Differenziale e magnetotermici su luce e prese.",
+      goal: "Costruisci il quadro di una piccola casa: un differenziale protegge tutto, poi due magnetotermici separati, uno per la luce e uno per le prese. La luce ha un interruttore. La presa ha la terra. Prova il tasto di prova del differenziale.",
+      comps: [
+        QM,
+        C("D", "rcd", "Differenziale", "Interruttore differenziale", { "1": { l: "1" }, N1: { l: "N" }, "2": { l: "2" }, N2: { l: "N" } }),
+        C("M1", "mt", "Luce", "Magnetotermico luce", { "1": { l: "1" }, N1: { l: "N" }, "2": { l: "2" }, N2: { l: "N" } }, { rank: 2 }),
+        C("M2", "mt", "Prese", "Magnetotermico prese", { "1": { l: "1" }, N1: { l: "N" }, "2": { l: "2" }, N2: { l: "N" } }, { rank: 2 }),
+        C("S", "sw", "Interruttore", "Interruttore della luce", { a: { l: "1" }, b: { l: "2" } }),
+        C("L", "lamp", "Lampada", "Portalampada", { B: { l: "B" }, A: { l: "A" } }),
+        C("P", "presa", "Presa", "Presa bipasso 10/16 A", { L: { l: "L" }, PE: { l: "PE" }, N: { l: "N" } })
+      ],
+      controls: ["D", "M1", "M2", "S"],
+      demoDo: [{ do: ["toggle S"], say: "Interruttore chiuso: la lampada si accende." }, { do: ["toggle S", "test D"], say: "Tasto di prova: il differenziale scatta e tutto si spegne." }],
+      checks: [
+        { id: "presa", label: "La presa \xE8 alimentata", do: [], expect: { loads: { P: "on" } } },
+        { id: "luce", label: "Chiudi l\u2019interruttore: la lampada si accende", do: ["toggle S"], expect: { loads: { L: "on" } } },
+        { id: "prova", label: "Tasto di prova del differenziale: luce e presa si spengono", do: ["toggle S", "test D"], expect: { loads: { L: "off", P: "off" }, tripped: ["D"] } }
+      ],
+      safety: { earth: [["P.PE", "Q.PE"]], phaseSwitched: ["P", "L"], pol: ["P.L", "P.N"], rcdCovers: ["L", "P"], protectedBy: { L: "M1", P: "M2" } },
+      solution: [
+        ["Q.F", "D.1", "marrone"],
+        ["Q.N", "D.N1", "blu"],
+        ["D.2", "M1.1", "marrone"],
+        ["D.2", "M2.1", "marrone"],
+        ["D.N2", "M1.N1", "blu"],
+        ["D.N2", "M2.N1", "blu"],
+        ["M1.2", "S.a", "marrone"],
+        ["S.b", "L.A", "marrone"],
+        ["M1.N2", "L.B", "blu"],
+        ["M2.2", "P.L", "marrone"],
+        ["M2.N2", "P.N", "blu"],
+        ["Q.PE", "P.PE", "gv"]
+      ],
+      hints: [
+        "In alto c\u2019\xE8 il differenziale: fase e neutro del quadro entrano nei suoi morsetti in alto (1 e N). Tutto il resto dell\u2019impianto si collega dopo di lui.",
+        "Dall\u2019uscita del differenziale fase e neutro si dividono in due linee: ciascuna passa da un magnetotermico (luce, prese). Fase sul morsetto 1, neutro sul morsetto N in ingresso.",
+        "La luce passa dall\u2019interruttore sulla fase, il neutro va diretto alla lampada. La presa prende fase e neutro dal suo magnetotermico, pi\xF9 la terra del quadro. Il neutro di ogni carico deve passare dal differenziale."
+      ]
+    },
+    {
       id: "c12-motore",
       code: "c12",
       n: 0,
@@ -4564,6 +4698,316 @@ html[lang="it"] .trnote{display:none}
           why: "Il contatto normalmente aperto (3-4) del finecorsa \xE8 aperto quando il pacco non lo tocca: il comando \xE8 interrotto all\u2019inizio e il nastro non parte. Serve il contatto normalmente chiuso (1-2), che si apre solo a fine corsa."
         },
         fixSay: "Collega il finecorsa con il contatto normalmente chiuso: dal morsetto 4 della marcia al morsetto 1 del finecorsa e dal morsetto 2 alla bobina. Poi premi Verifica."
+      }
+    },
+    "c09-luce-scale": {
+      support: "passi",
+      lesson: {
+        pages: [
+          {
+            type: "spiegazione",
+            title: "La luce che si spegne da sola",
+            paras: [
+              "Nelle scale dei condomini la luce si accende con un pulsante e si spegne da sola dopo qualche decina di secondi. Cos\xEC non resta accesa per dimenticanza e si risparmia energia.",
+              "Il pulsante non comanda direttamente le lampade: comanda un rel\xE8 temporizzato, che tiene acceso il contatto per un tempo regolabile."
+            ]
+          },
+          {
+            type: "pezzi",
+            title: "Il rel\xE8 temporizzato",
+            focus: ["T"],
+            paras: [
+              "Ha una bobina (A1, A2) e un contatto (1, 2). Quando la bobina riceve tensione il contatto si chiude e parte il conteggio del tempo.",
+              "Il contatto resta chiuso fino alla fine del tempo, anche se il pulsante \xE8 gi\xE0 stato rilasciato. Se si preme di nuovo prima della fine, il conteggio riparte da capo."
+            ]
+          },
+          {
+            type: "pezzi",
+            title: "Pulsanti in parallelo",
+            focus: ["P1", "P2"],
+            paras: [
+              "Come nel rel\xE8 ad impulsi, i pulsanti sono in parallelo: basta premerne uno qualunque per eccitare la bobina. Se ne possono aggiungere quanti servono, uno a ogni piano.",
+              "Le lampade non passano dai pulsanti: sono alimentate dal contatto del temporizzatore."
+            ]
+          },
+          {
+            type: "demo",
+            title: "Guarda come si fa",
+            captions: {
+              wires: [
+                "Filo marrone dalla FASE del quadro al morsetto 3 del primo pulsante.",
+                "Dal morsetto 3 del primo pulsante al morsetto 3 del secondo.",
+                "Dal morsetto 4 del primo pulsante al morsetto 4 del secondo.",
+                "Dal morsetto 4 del secondo pulsante alla bobina del temporizzatore (A1).",
+                "Filo blu dall\u2019altro capo della bobina (A2) al NEUTRO.",
+                "La fase arriva anche al contatto del temporizzatore: morsetto 1.",
+                "Dal morsetto 2 del temporizzatore alla prima lampada.",
+                "Dallo stesso morsetto 2 alla seconda lampada.",
+                "Filo blu dalla prima lampada al NEUTRO.",
+                "Filo blu dalla seconda lampada al NEUTRO."
+              ],
+              power: "Levetta su: le lampade sono spente.",
+              controls: ["Pulsante premuto e rilasciato: le due lampade si accendono.", "Dopo il tempo impostato le lampade si spengono da sole."]
+            }
+          },
+          {
+            type: "previsione",
+            question: "Le lampade sono accese da 15 secondi su 20. Premo di nuovo il pulsante. Quanto resteranno accese ancora?",
+            options: [
+              { id: "a", text: "Altri 5 secondi: il tempo non cambia." },
+              { id: "b", text: "Altri 20 secondi: il conteggio riparte da capo." },
+              { id: "c", text: "Si spengono subito." }
+            ],
+            correct: "b",
+            why: "Il fronte di salita della bobina riavvia il conteggio. Ogni pressione d\xE0 un nuovo intervallo pieno: per questo chi sale le scale pu\xF2 premere quando vuole senza restare al buio."
+          },
+          { type: "sintesi", title: "Da ricordare" }
+        ]
+      },
+      steps: [
+        { kind: "wire", from: "Q.F", to: ["P1.3"], color: "marrone", short: "1 Fase", title: "La fase ai pulsanti", text: "Dalla FASE del quadro al morsetto 3 del primo pulsante." },
+        { kind: "wire", from: "P1.3", to: ["P2.3"], color: "marrone", short: "2 Parallelo 3", title: "Pulsanti in parallelo", text: "Collega tra loro i morsetti 3 dei due pulsanti." },
+        { kind: "wire", from: "P1.4", to: ["P2.4"], color: "marrone", short: "3 Parallelo 4", title: "Pulsanti in parallelo", text: "Collega tra loro i morsetti 4 dei due pulsanti." },
+        { kind: "wire", from: "P2.4", to: ["T.A1"], color: "marrone", short: "4 Bobina", title: "Alla bobina", text: "Dai morsetti 4 dei pulsanti alla bobina del temporizzatore (A1)." },
+        { kind: "wire", from: "T.A2", to: ["Q.N"], color: "blu", short: "5 Neutro bobina", title: "Il neutro alla bobina", text: "Dall\u2019altro capo della bobina (A2) al NEUTRO." },
+        { kind: "wire", from: "Q.F", to: ["T.1"], color: "marrone", short: "6 Contatto", title: "La fase al contatto", text: "Dalla FASE del quadro al morsetto 1 del temporizzatore." },
+        { kind: "wire", from: "T.2", to: ["L1.A"], color: "marrone", short: "7 Lampada 1", title: "Alla prima lampada", text: "Dal morsetto 2 del temporizzatore a un morsetto della prima lampada." },
+        { kind: "wire", from: "T.2", to: ["L2.A"], color: "marrone", short: "8 Lampada 2", title: "Alla seconda lampada", text: "Dallo stesso morsetto 2 a un morsetto della seconda lampada." },
+        { kind: "wire", from: "L1.B", to: ["Q.N"], color: "blu", short: "9 Neutro 1", title: "Il neutro alla lampada 1", text: "Dal NEUTRO all\u2019altro morsetto della prima lampada." },
+        { kind: "wire", from: "L2.B", to: ["Q.N"], color: "blu", short: "10 Neutro 2", title: "Il neutro alla lampada 2", text: "Dal NEUTRO all\u2019altro morsetto della seconda lampada." },
+        { kind: "power", short: "11 Levetta", title: "Dai corrente", text: "Tocca la levetta del quadro, poi premi un pulsante e osserva le lampade." },
+        { kind: "verify", short: "12 Verifica", title: "Controlla l\u2019impianto", text: "Premi Verifica: il controllo simula anche lo scorrere del tempo." }
+      ],
+      summary: [
+        "Il rel\xE8 temporizzato tiene chiuso il suo contatto per un tempo fissato, dopo che la bobina \xE8 stata eccitata.",
+        "Il pulsante comanda la bobina: le lampade sono alimentate dal contatto.",
+        "I pulsanti si mettono in parallelo: se ne pu\xF2 aggiungere uno per ogni punto di comando.",
+        "Premendo di nuovo prima della fine, il tempo riparte da capo."
+      ],
+      fault: {
+        say: "Qui il temporizzatore non c\u2019\xE8: i pulsanti comandano direttamente le lampade. Premi un pulsante, aspetta qualche secondo e poi premi Verifica.",
+        wires: [
+          ["Q.F", "P1.3", "marrone"],
+          ["P1.3", "P2.3", "marrone"],
+          ["P1.4", "P2.4", "marrone"],
+          ["P2.4", "L1.A", "marrone"],
+          ["P2.4", "L2.A", "marrone"],
+          ["L1.B", "Q.N", "blu"],
+          ["L2.B", "Q.N", "blu"]
+        ],
+        diagnosis: {
+          question: "Perch\xE9 la luce non resta accesa?",
+          options: [
+            { id: "a", text: "Le lampade sono collegate direttamente ai pulsanti: si accendono solo finch\xE9 si tiene premuto." },
+            { id: "b", text: "Il neutro delle lampade \xE8 sbagliato." },
+            { id: "c", text: "Il tempo del temporizzatore \xE8 troppo breve." }
+          ],
+          correct: "a",
+          why: "Il pulsante chiude il contatto solo mentre \xE8 premuto. Per mantenere la luce accesa per un tempo, il pulsante deve comandare la bobina del temporizzatore e le lampade devono essere alimentate dal suo contatto."
+        },
+        fixSay: "Inserisci il temporizzatore: i pulsanti vanno alla bobina e le lampade al contatto del temporizzatore. Poi premi Verifica."
+      }
+    },
+    "c10-campanello": {
+      support: "passi",
+      lesson: {
+        pages: [
+          {
+            type: "spiegazione",
+            title: "Il campanello a bassa tensione",
+            paras: [
+              "Il campanello di casa funziona a bassa tensione, per esempio 12 V. \xC8 pi\xF9 sicuro: chi tocca il pulsante accanto alla porta non rischia nulla, e i fili possono essere sottili.",
+              "La rete per\xF2 \xE8 a 230 V. Serve un componente che abbassi la tensione: il trasformatore."
+            ]
+          },
+          {
+            type: "pezzi",
+            title: "Il trasformatore",
+            focus: ["TR"],
+            paras: [
+              "Ha due lati separati. Il primario (morsetti 1 e 2) si collega alla rete a 230 V. Il secondario (morsetti 3 e 4) fornisce i 12 V.",
+              "Tra primario e secondario non c\u2019\xE8 nessun collegamento elettrico: l\u2019energia passa attraverso il campo magnetico del nucleo."
+            ]
+          },
+          {
+            type: "pezzi",
+            title: "Il campanello",
+            focus: ["B"],
+            paras: [
+              "Il campanello \xE8 fatto per 12 V. Se lo si collega per errore alla rete a 230 V si brucia.",
+              "Il pulsante invece pu\xF2 stare sul primario, sulla fase, come un normale interruttore. I fili del circuito a bassa tensione, n\xE9 fase n\xE9 neutro, possono essere di altri colori, per esempio bianco."
+            ]
+          },
+          {
+            type: "demo",
+            title: "Guarda come si fa",
+            captions: {
+              wires: [
+                "Filo marrone dalla FASE del quadro al pulsante.",
+                "Dal pulsante al morsetto 1 del primario del trasformatore.",
+                "Filo blu dal morsetto 2 del primario al NEUTRO.",
+                "Filo bianco dal morsetto 3 del secondario al campanello.",
+                "Filo bianco dal morsetto 4 del secondario all\u2019altro morsetto del campanello."
+              ],
+              power: "Levetta su: il pulsante non \xE8 premuto, il campanello \xE8 silenzioso.",
+              controls: ["Pulsante premuto: il trasformatore \xE8 alimentato e il campanello suona."]
+            }
+          },
+          {
+            type: "previsione",
+            question: "Il trasformatore \xE8 alimentato ma il pulsante non \xE8 premuto. Il campanello \xE8 collegato al secondario. Che cosa succede?",
+            options: [
+              { id: "a", text: "Il campanello suona: il secondario ha sempre tensione." },
+              { id: "b", text: "Il campanello \xE8 silenzioso: il pulsante interrompe il primario." },
+              { id: "c", text: "Il campanello si brucia." }
+            ],
+            correct: "b",
+            why: "Il pulsante sta sulla fase del primario. Finch\xE9 \xE8 a riposo il primario non ha tensione e quindi neanche il secondario ne ha: il campanello tace."
+          },
+          { type: "sintesi", title: "Da ricordare" }
+        ]
+      },
+      steps: [
+        { kind: "wire", from: "Q.F", to: ["SB.3"], color: "marrone", short: "1 Fase", title: "La fase al pulsante", text: "Dalla FASE del quadro al morsetto 3 del pulsante." },
+        { kind: "wire", from: "SB.4", to: ["TR.1"], color: "marrone", short: "2 Primario", title: "Al primario", text: "Dal morsetto 4 del pulsante al morsetto 1 del trasformatore." },
+        { kind: "wire", from: "TR.2", to: ["Q.N"], color: "blu", short: "3 Neutro", title: "Il neutro al primario", text: "Dal morsetto 2 del trasformatore al NEUTRO." },
+        { kind: "wire", from: "TR.3", to: ["B.1"], color: "bianco", short: "4 Secondario", title: "Dal secondario al campanello", text: "Dal morsetto 3 del secondario a un morsetto del campanello. Qui puoi usare il bianco." },
+        { kind: "wire", from: "TR.4", to: ["B.2"], color: "bianco", short: "5 Ritorno", title: "Il secondo filo", text: "Dal morsetto 4 del secondario all\u2019altro morsetto del campanello." },
+        { kind: "power", short: "6 Levetta", title: "Dai corrente", text: "Tocca la levetta del quadro, poi premi il pulsante." },
+        { kind: "verify", short: "7 Verifica", title: "Controlla l\u2019impianto", text: "Premi Verifica." }
+      ],
+      summary: [
+        "Il campanello funziona a bassa tensione (12 V): collegato alla rete a 230 V si brucia.",
+        "Il trasformatore abbassa la tensione: il primario va alla rete, il secondario al campanello.",
+        "Il pulsante sta sul primario, sulla fase.",
+        "I fili del circuito a bassa tensione non hanno i colori della rete: si usa, per esempio, il bianco."
+      ],
+      fault: {
+        say: "Il campanello \xE8 collegato al pulsante senza trasformatore. Premi il pulsante e guarda che cosa succede, poi premi Verifica.",
+        wires: [
+          ["Q.F", "SB.3", "marrone"],
+          ["SB.4", "B.1", "marrone"],
+          ["B.2", "Q.N", "blu"]
+        ],
+        diagnosis: {
+          question: "Che cosa non va?",
+          options: [
+            { id: "a", text: "Il campanello \xE8 collegato direttamente alla rete a 230 V: si brucia." },
+            { id: "b", text: "Il pulsante \xE8 collegato al neutro." },
+            { id: "c", text: "Manca la terra al campanello." }
+          ],
+          correct: "a",
+          why: "Il campanello \xE8 progettato per 12 V. Con 230 V ai capi si brucia. Serve il trasformatore: il campanello va collegato al secondario."
+        },
+        fixSay: "Inserisci il trasformatore: pulsante e rete sul primario, campanello sul secondario. Poi premi Verifica."
+      }
+    },
+    "c11-quadro": {
+      support: "obiettivo",
+      lesson: {
+        pages: [
+          {
+            type: "spiegazione",
+            title: "Il quadro di una casa",
+            paras: [
+              "Il quadro elettrico raccoglie le protezioni. All\u2019ingresso c\u2019\xE8 un interruttore differenziale, che protegge le persone. A valle, ogni linea ha il suo magnetotermico, che protegge i cavi dal sovraccarico e dal cortocircuito.",
+              "Dividere in linee ha un vantaggio: se si guasta la luce, scatta solo il magnetotermico della luce e le prese restano alimentate."
+            ]
+          },
+          {
+            type: "pezzi",
+            title: "Il differenziale",
+            focus: ["D"],
+            paras: [
+              "Confronta la corrente che entra dalla fase con quella che torna dal neutro. Se non sono uguali, una parte sta tornando per un\u2019altra strada, per esempio attraverso una persona, e il differenziale scatta.",
+              "Per questo il neutro di ogni carico deve passare dal differenziale. Il tasto di prova simula una dispersione: va premuto ogni tanto per controllare che funzioni."
+            ],
+            warn: "Se un neutro \xE8 preso a monte del differenziale, la corrente non torna da dove \xE8 andata e il differenziale scatta senza motivo."
+          },
+          {
+            type: "pezzi",
+            title: "I magnetotermici di linea",
+            focus: ["M1", "M2"],
+            paras: [
+              "Un magnetotermico per la luce e uno per le prese: ciascuno interrompe sia la fase sia il neutro della sua linea.",
+              "Sono entrambi a valle del differenziale: una dispersione su qualunque linea lo fa scattare."
+            ]
+          },
+          {
+            type: "demo",
+            title: "Guarda come si fa",
+            captions: {
+              wires: [
+                "La fase del quadro entra nel differenziale: morsetto 1.",
+                "Il neutro del quadro entra nel differenziale: morsetto N.",
+                "Dall\u2019uscita fase del differenziale al magnetotermico della luce.",
+                "Dalla stessa uscita al magnetotermico delle prese.",
+                "Dall\u2019uscita neutro del differenziale al magnetotermico della luce.",
+                "Dalla stessa uscita al magnetotermico delle prese.",
+                "Dal magnetotermico della luce all\u2019interruttore.",
+                "Dall\u2019interruttore alla lampada.",
+                "Il neutro del magnetotermico della luce alla lampada.",
+                "Dal magnetotermico delle prese al morsetto L della presa.",
+                "Il neutro del magnetotermico delle prese al morsetto N della presa.",
+                "La terra del quadro al morsetto PE della presa."
+              ],
+              power: "Il quadro \xE8 alimentato: la presa ha tensione, la lampada \xE8 spenta.",
+              controls: ["Interruttore chiuso: la lampada si accende.", "Tasto di prova: il differenziale scatta e tutto si spegne."]
+            }
+          },
+          {
+            type: "previsione",
+            question: "In casa un apparecchio della linea prese ha una dispersione verso terra. Che cosa dovrebbe scattare?",
+            options: [
+              { id: "a", text: "Il magnetotermico della luce." },
+              { id: "b", text: "Il differenziale." },
+              { id: "c", text: "Nulla: la dispersione non \xE8 pericolosa." }
+            ],
+            correct: "b",
+            why: "Il differenziale rileva la differenza tra la corrente di andata e quella di ritorno. Una dispersione verso terra \xE8 proprio questa differenza. I magnetotermici scattano per sovraccarico o cortocircuito, non per dispersione."
+          },
+          { type: "sintesi", title: "Da ricordare" }
+        ]
+      },
+      steps: [
+        { kind: "wire", from: "Q.F", to: ["D.1"], color: "marrone", short: "1 Ingresso", title: "Entra nel differenziale", text: "Fase e neutro del quadro entrano nel differenziale, in alto." },
+        { kind: "wire", from: "D.2", to: ["M1.1", "M2.1"], color: "marrone", short: "2 Linee", title: "Le due linee", text: "Dal differenziale la fase e il neutro si dividono nelle due linee, luce e prese." },
+        { kind: "wire", from: "M2.N2", to: ["P.N"], color: "blu", short: "3 Presa", title: "La presa e la terra", text: "La presa riceve fase e neutro dal suo magnetotermico, pi\xF9 la terra del quadro." },
+        { kind: "verify", short: "4 Verifica", title: "Controlla l\u2019impianto", text: "Prova anche il tasto di prova del differenziale, poi premi Verifica." }
+      ],
+      summary: [
+        "Il differenziale protegge le persone: scatta se la corrente di andata e quella di ritorno sono diverse.",
+        "Il magnetotermico protegge i cavi dal sovraccarico e dal cortocircuito.",
+        "Il neutro di ogni carico deve passare dal differenziale, altrimenti scatta senza motivo.",
+        "Linee separate con magnetotermici separati: se una si guasta, le altre restano alimentate.",
+        "Il tasto di prova del differenziale va premuto ogni tanto per controllare che funzioni."
+      ],
+      fault: {
+        say: "Il differenziale scatta appena dai corrente. Rialzalo e osserva, poi premi Verifica.",
+        wires: [
+          ["Q.F", "D.1", "marrone"],
+          ["Q.N", "D.N1", "blu"],
+          ["D.2", "M1.1", "marrone"],
+          ["D.2", "M2.1", "marrone"],
+          ["D.N2", "M1.N1", "blu"],
+          ["M1.2", "S.a", "marrone"],
+          ["S.b", "L.A", "marrone"],
+          ["M1.N2", "L.B", "blu"],
+          ["M2.2", "P.L", "marrone"],
+          ["Q.N", "P.N", "blu"],
+          ["Q.PE", "P.PE", "gv"]
+        ],
+        diagnosis: {
+          question: "Perch\xE9 il differenziale scatta?",
+          options: [
+            { id: "a", text: "Il neutro della presa \xE8 preso a monte del differenziale: la corrente di ritorno non passa da lui." },
+            { id: "b", text: "Il magnetotermico delle prese \xE8 troppo piccolo." },
+            { id: "c", text: "La lampada \xE8 collegata male." }
+          ],
+          correct: "a",
+          why: "La fase della presa passa dal differenziale, ma il neutro no. Il differenziale vede una corrente che entra e non esce, la interpreta come dispersione e scatta. Il neutro di ogni carico deve essere preso a valle del differenziale."
+        },
+        fixSay: "Porta il neutro della presa a valle del differenziale, passando dal magnetotermico delle prese. Poi premi Verifica."
       }
     }
   };
@@ -5700,9 +6144,9 @@ html[lang="it"] .trnote{display:none}
       levels: [
         "c07-presa-comandata",
         "c08-rele-impulsi",
-        { soon: true, id: "c09-luce-scale", title: "Luce scale a tempo", blurb: "La luce si spegne da sola dopo qualche secondo." },
-        { soon: true, id: "c10-campanello", title: "Campanello e trasformatore", blurb: "Un trasformatore abbassa la tensione per il campanello." },
-        { soon: true, id: "c11-quadro", title: "Il quadro di casa", blurb: "Differenziale e magnetotermici su luce e prese." }
+        "c09-luce-scale",
+        "c10-campanello",
+        "c11-quadro"
       ]
     },
     {
@@ -7515,6 +7959,206 @@ html[lang="it"] .trnote{display:none}
     "TERMICO": "\u062D\u0631\u0627\u0631\u064A"
   };
 
+  // src/i18n/ar-13.js
+  var ar_13_default = {
+    "APPARECCHIO ALIMENTATO": "\u0627\u0644\u062C\u0647\u0627\u0632 \u0645\u063A\u0630\u0651\u0649",
+    "Parallelo 3": "\u062A\u0648\u0627\u0632\u064A 3",
+    "Parallelo 4": "\u062A\u0648\u0627\u0632\u064A 4",
+    "Primario": "\u0627\u0644\u0627\u0628\u062A\u062F\u0627\u0626\u064A",
+    "Pulsante del campanello, tieni premuto": "\u0632\u0631 \u0627\u0644\u062C\u0631\u0633\u060C \u0627\u0633\u062A\u0645\u0631 \u0641\u064A \u0627\u0644\u0636\u063A\u0637",
+    "Pulsante piano terra, tieni premuto": "\u0632\u0631 \u0627\u0644\u0637\u0627\u0628\u0642 \u0627\u0644\u0623\u0631\u0636\u064A\u060C \u0627\u0633\u062A\u0645\u0631 \u0641\u064A \u0627\u0644\u0636\u063A\u0637",
+    "Pulsante primo piano, tieni premuto": "\u0632\u0631 \u0627\u0644\u0637\u0627\u0628\u0642 \u0627\u0644\u0623\u0648\u0644\u060C \u0627\u0633\u062A\u0645\u0631 \u0641\u064A \u0627\u0644\u0636\u063A\u0637",
+    "Ritorno": "\u0627\u0644\u0639\u0648\u062F\u0629",
+    "Secondario": "\u0627\u0644\u062B\u0627\u0646\u0648\u064A",
+    "Tasto di prova Differenziale": "\u0632\u0631 \u0627\u062E\u062A\u0628\u0627\u0631 \u0627\u0644\u0642\u0627\u0637\u0639 \u0627\u0644\u062A\u0641\u0627\u0636\u0644\u064A",
+    "Al primario": "\u0625\u0644\u0649 \u0627\u0644\u0645\u0644\u0641 \u0627\u0644\u0627\u0628\u062A\u062F\u0627\u0626\u064A",
+    "Alla prima lampada": "\u0625\u0644\u0649 \u0627\u0644\u0645\u0635\u0628\u0627\u062D \u0627\u0644\u0623\u0648\u0644",
+    "Alla seconda lampada": "\u0625\u0644\u0649 \u0627\u0644\u0645\u0635\u0628\u0627\u062D \u0627\u0644\u062B\u0627\u0646\u064A",
+    "Altri 20 secondi: il conteggio riparte da capo.": "20 \u062B\u0627\u0646\u064A\u0629 \u0623\u062E\u0631\u0649: \u064A\u0628\u062F\u0623 \u0627\u0644\u0639\u062F\u0651 \u0645\u0646 \u062C\u062F\u064A\u062F.",
+    "Altri 5 secondi: il tempo non cambia.": "5 \u062B\u0648\u0627\u0646\u064D \u0623\u062E\u0631\u0649: \u0644\u0627 \u064A\u062A\u063A\u064A\u0631 \u0627\u0644\u0632\u0645\u0646.",
+    "Campanello": "\u0627\u0644\u062C\u0631\u0633",
+    "Campanello 12 V": "\u062C\u0631\u0633 12 \u0641\u0648\u0644\u062A",
+    "Chiudi l\u2019interruttore: la lampada si accende": "\u0623\u063A\u0644\u0642 \u0627\u0644\u0645\u0641\u062A\u0627\u062D: \u064A\u064F\u0636\u0627\u0621 \u0627\u0644\u0645\u0635\u0628\u0627\u062D",
+    "Collega tra loro i morsetti 3 dei due pulsanti.": "\u0635\u0650\u0644 \u0628\u064A\u0646 \u0627\u0644\u0645\u0631\u0628\u0637\u064A\u0646 3 \u0641\u064A \u0627\u0644\u0632\u0631\u0651\u064A\u0646.",
+    "Collega tra loro i morsetti 4 dei due pulsanti.": "\u0635\u0650\u0644 \u0628\u064A\u0646 \u0627\u0644\u0645\u0631\u0628\u0637\u064A\u0646 4 \u0641\u064A \u0627\u0644\u0632\u0631\u0651\u064A\u0646.",
+    "Come nel rel\xE8 ad impulsi, i pulsanti sono in parallelo: basta premerne uno qualunque per eccitare la bobina. Se ne possono aggiungere quanti servono, uno a ogni piano.": "\u0643\u0645\u0627 \u0641\u064A \u0645\u0631\u062D\u0651\u0644 \u0627\u0644\u0646\u0628\u0636\u0627\u062A\u060C \u0627\u0644\u0632\u0631\u0651\u0627\u0646 \u0639\u0644\u0649 \u0627\u0644\u062A\u0648\u0627\u0632\u064A: \u064A\u0643\u0641\u064A \u0627\u0644\u0636\u063A\u0637 \u0639\u0644\u0649 \u0623\u064A\u064D\u0651 \u0645\u0646\u0647\u0645\u0627 \u0644\u062A\u063A\u0630\u064A\u0629 \u0627\u0644\u0645\u0644\u0641. \u0648\u064A\u0645\u0643\u0646 \u0625\u0636\u0627\u0641\u0629 \u0645\u0627 \u064A\u0644\u0632\u0645 \u0645\u0646 \u0627\u0644\u0623\u0632\u0631\u0627\u0631\u060C \u0632\u0631\u0651 \u0641\u064A \u0643\u0644 \u0637\u0627\u0628\u0642.",
+    "Confronta la corrente che entra dalla fase con quella che torna dal neutro. Se non sono uguali, una parte sta tornando per un\u2019altra strada, per esempio attraverso una persona, e il differenziale scatta.": "\u064A\u0642\u0627\u0631\u0646 \u0627\u0644\u062A\u064A\u0627\u0631 \u0627\u0644\u062F\u0627\u062E\u0644 \u0645\u0646 \u0627\u0644\u0637\u0648\u0631 \u0628\u0627\u0644\u062A\u064A\u0627\u0631 \u0627\u0644\u0639\u0627\u0626\u062F \u0645\u0646 \u0627\u0644\u0645\u062D\u0627\u064A\u062F. \u0625\u0630\u0627 \u0644\u0645 \u064A\u062A\u0633\u0627\u0648\u064A\u0627 \u0641\u0647\u0630\u0627 \u064A\u0639\u0646\u064A \u0623\u0646 \u062C\u0632\u0621\u064B\u0627 \u0645\u0646 \u0627\u0644\u062A\u064A\u0627\u0631 \u064A\u0639\u0648\u062F \u0645\u0646 \u0637\u0631\u064A\u0642 \u0622\u062E\u0631\u060C \u0645\u062B\u0644\u064B\u0627 \u0639\u0628\u0631 \u0634\u062E\u0635\u060C \u0641\u064A\u0641\u0635\u0644 \u0627\u0644\u0642\u0627\u0637\u0639 \u0627\u0644\u062A\u0641\u0627\u0636\u0644\u064A.",
+    "Costruisci il quadro di una piccola casa: un differenziale protegge tutto, poi due magnetotermici separati, uno per la luce e uno per le prese. La luce ha un interruttore. La presa ha la terra. Prova il tasto di prova del differenziale.": "\u0627\u0628\u0646\u0650 \u0644\u0648\u062D\u0629 \u0628\u064A\u062A \u0635\u063A\u064A\u0631: \u0642\u0627\u0637\u0639 \u062A\u0641\u0627\u0636\u0644\u064A \u064A\u062D\u0645\u064A \u0643\u0644 \u0634\u064A\u0621\u060C \u062B\u0645 \u0642\u0627\u0637\u0639\u0627\u0646 \u0645\u063A\u0646\u0627\u0637\u064A\u0633\u064A\u0627\u0646 \u062D\u0631\u0627\u0631\u064A\u0627\u0646 \u0645\u0646\u0641\u0635\u0644\u0627\u0646\u060C \u0648\u0627\u062D\u062F \u0644\u0644\u0625\u0646\u0627\u0631\u0629 \u0648\u0622\u062E\u0631 \u0644\u0644\u0645\u0642\u0627\u0628\u0633. \u0644\u0644\u0625\u0646\u0627\u0631\u0629 \u0645\u0641\u062A\u0627\u062D. \u0648\u0644\u0644\u0645\u0642\u0628\u0633 \u062A\u0623\u0631\u064A\u0636. \u062C\u0631\u0651\u0628 \u0632\u0631 \u0627\u0644\u0627\u062E\u062A\u0628\u0627\u0631 \u0641\u064A \u0627\u0644\u0642\u0627\u0637\u0639 \u0627\u0644\u062A\u0641\u0627\u0636\u0644\u064A.",
+    "Dai morsetti 4 dei pulsanti alla bobina del temporizzatore (A1).": "\u0645\u0646 \u0627\u0644\u0645\u0631\u0628\u0637\u064A\u0646 4 \u0641\u064A \u0627\u0644\u0632\u0631\u0651\u064A\u0646 \u0625\u0644\u0649 \u0645\u0644\u0641 \u0627\u0644\u0645\u0624\u0642\u0651\u062A (A1).",
+    "Dai morsetti 4 dei pulsanti un filo va alla bobina del temporizzatore (A1). L\u2019altro capo della bobina (A2) va al neutro.": "\u0645\u0646 \u0627\u0644\u0645\u0631\u0628\u0637\u064A\u0646 4 \u0641\u064A \u0627\u0644\u0632\u0631\u0651\u064A\u0646 \u064A\u0630\u0647\u0628 \u0633\u0644\u0643 \u0625\u0644\u0649 \u0645\u0644\u0641 \u0627\u0644\u0645\u0624\u0642\u0651\u062A (A1). \u0627\u0644\u0637\u0631\u0641 \u0627\u0644\u0622\u062E\u0631 \u0644\u0644\u0645\u0644\u0641 (A2) \u064A\u0630\u0647\u0628 \u0625\u0644\u0649 \u0627\u0644\u0645\u062D\u0627\u064A\u062F.",
+    "Dal NEUTRO all\u2019altro morsetto della prima lampada.": "\u0645\u0646 \u0627\u0644\u0645\u062D\u0627\u064A\u062F \u0625\u0644\u0649 \u0627\u0644\u0637\u0631\u0641 \u0627\u0644\u0622\u062E\u0631 \u0641\u064A \u0627\u0644\u0645\u0635\u0628\u0627\u062D \u0627\u0644\u0623\u0648\u0644.",
+    "Dal NEUTRO all\u2019altro morsetto della seconda lampada.": "\u0645\u0646 \u0627\u0644\u0645\u062D\u0627\u064A\u062F \u0625\u0644\u0649 \u0627\u0644\u0637\u0631\u0641 \u0627\u0644\u0622\u062E\u0631 \u0641\u064A \u0627\u0644\u0645\u0635\u0628\u0627\u062D \u0627\u0644\u062B\u0627\u0646\u064A.",
+    "Dal differenziale la fase e il neutro si dividono nelle due linee, luce e prese.": "\u0628\u0639\u062F \u0627\u0644\u0642\u0627\u0637\u0639 \u0627\u0644\u062A\u0641\u0627\u0636\u0644\u064A \u064A\u0646\u0642\u0633\u0645 \u0627\u0644\u0637\u0648\u0631 \u0648\u0627\u0644\u0645\u062D\u0627\u064A\u062F \u0625\u0644\u0649 \u062E\u0637\u0651\u064A\u0646: \u0627\u0644\u0625\u0646\u0627\u0631\u0629 \u0648\u0627\u0644\u0645\u0642\u0627\u0628\u0633.",
+    "Dal magnetotermico della luce all\u2019interruttore.": "\u0645\u0646 \u0627\u0644\u0642\u0627\u0637\u0639 \u0627\u0644\u0645\u063A\u0646\u0627\u0637\u064A\u0633\u064A \u0627\u0644\u062D\u0631\u0627\u0631\u064A \u0644\u0644\u0625\u0646\u0627\u0631\u0629 \u0625\u0644\u0649 \u0627\u0644\u0645\u0641\u062A\u0627\u062D.",
+    "Dal magnetotermico delle prese al morsetto L della presa.": "\u0645\u0646 \u0627\u0644\u0642\u0627\u0637\u0639 \u0627\u0644\u0645\u063A\u0646\u0627\u0637\u064A\u0633\u064A \u0627\u0644\u062D\u0631\u0627\u0631\u064A \u0644\u0644\u0645\u0642\u0627\u0628\u0633 \u0625\u0644\u0649 \u0627\u0644\u0645\u0631\u0628\u0637 L \u0641\u064A \u0627\u0644\u0645\u0642\u0628\u0633.",
+    "Dal morsetto 2 del temporizzatore a un morsetto della prima lampada.": "\u0645\u0646 \u0627\u0644\u0645\u0631\u0628\u0637 2 \u0641\u064A \u0627\u0644\u0645\u0624\u0642\u0651\u062A \u0625\u0644\u0649 \u0645\u0631\u0628\u0637 \u0641\u064A \u0627\u0644\u0645\u0635\u0628\u0627\u062D \u0627\u0644\u0623\u0648\u0644.",
+    "Dal morsetto 2 del temporizzatore alla prima lampada.": "\u0645\u0646 \u0627\u0644\u0645\u0631\u0628\u0637 2 \u0641\u064A \u0627\u0644\u0645\u0624\u0642\u0651\u062A \u0625\u0644\u0649 \u0627\u0644\u0645\u0635\u0628\u0627\u062D \u0627\u0644\u0623\u0648\u0644.",
+    "Dal morsetto 2 del trasformatore al NEUTRO.": "\u0645\u0646 \u0627\u0644\u0645\u0631\u0628\u0637 2 \u0641\u064A \u0627\u0644\u0645\u062D\u0648\u0651\u0644 \u0625\u0644\u0649 \u0627\u0644\u0645\u062D\u0627\u064A\u062F.",
+    "Dal morsetto 3 del primo pulsante al morsetto 3 del secondo.": "\u0645\u0646 \u0627\u0644\u0645\u0631\u0628\u0637 3 \u0641\u064A \u0627\u0644\u0632\u0631\u0651 \u0627\u0644\u0623\u0648\u0644 \u0625\u0644\u0649 \u0627\u0644\u0645\u0631\u0628\u0637 3 \u0641\u064A \u0627\u0644\u0632\u0631\u0651 \u0627\u0644\u062B\u0627\u0646\u064A.",
+    "Dal morsetto 3 del secondario a un morsetto del campanello. Qui puoi usare il bianco.": "\u0645\u0646 \u0627\u0644\u0645\u0631\u0628\u0637 3 \u0641\u064A \u0627\u0644\u0645\u0644\u0641 \u0627\u0644\u062B\u0627\u0646\u0648\u064A \u0625\u0644\u0649 \u0645\u0631\u0628\u0637 \u0641\u064A \u0627\u0644\u062C\u0631\u0633. \u0647\u0646\u0627 \u064A\u0645\u0643\u0646\u0643 \u0627\u0633\u062A\u062E\u062F\u0627\u0645 \u0627\u0644\u0644\u0648\u0646 \u0627\u0644\u0623\u0628\u064A\u0636.",
+    "Dal morsetto 4 del primo pulsante al morsetto 4 del secondo.": "\u0645\u0646 \u0627\u0644\u0645\u0631\u0628\u0637 4 \u0641\u064A \u0627\u0644\u0632\u0631\u0651 \u0627\u0644\u0623\u0648\u0644 \u0625\u0644\u0649 \u0627\u0644\u0645\u0631\u0628\u0637 4 \u0641\u064A \u0627\u0644\u0632\u0631\u0651 \u0627\u0644\u062B\u0627\u0646\u064A.",
+    "Dal morsetto 4 del pulsante al morsetto 1 del trasformatore.": "\u0645\u0646 \u0627\u0644\u0645\u0631\u0628\u0637 4 \u0641\u064A \u0627\u0644\u0632\u0631\u0651 \u0625\u0644\u0649 \u0627\u0644\u0645\u0631\u0628\u0637 1 \u0641\u064A \u0627\u0644\u0645\u062D\u0648\u0651\u0644.",
+    "Dal morsetto 4 del secondario all\u2019altro morsetto del campanello.": "\u0645\u0646 \u0627\u0644\u0645\u0631\u0628\u0637 4 \u0641\u064A \u0627\u0644\u0645\u0644\u0641 \u0627\u0644\u062B\u0627\u0646\u0648\u064A \u0625\u0644\u0649 \u0627\u0644\u0645\u0631\u0628\u0637 \u0627\u0644\u0622\u062E\u0631 \u0641\u064A \u0627\u0644\u062C\u0631\u0633.",
+    "Dal morsetto 4 del secondo pulsante alla bobina del temporizzatore (A1).": "\u0645\u0646 \u0627\u0644\u0645\u0631\u0628\u0637 4 \u0641\u064A \u0627\u0644\u0632\u0631\u0651 \u0627\u0644\u062B\u0627\u0646\u064A \u0625\u0644\u0649 \u0645\u0644\u0641 \u0627\u0644\u0645\u0624\u0642\u0651\u062A (A1).",
+    "Dal pulsante al morsetto 1 del primario del trasformatore.": "\u0645\u0646 \u0627\u0644\u0632\u0631\u0651 \u0625\u0644\u0649 \u0627\u0644\u0645\u0631\u0628\u0637 1 \u0641\u064A \u0627\u0644\u0645\u0644\u0641 \u0627\u0644\u0627\u0628\u062A\u062F\u0627\u0626\u064A \u0644\u0644\u0645\u062D\u0648\u0651\u0644.",
+    "Dal secondario al campanello": "\u0645\u0646 \u0627\u0644\u0645\u0644\u0641 \u0627\u0644\u062B\u0627\u0646\u0648\u064A \u0625\u0644\u0649 \u0627\u0644\u062C\u0631\u0633",
+    "Dalla FASE del quadro al morsetto 1 del temporizzatore.": "\u0645\u0646 \u0627\u0644\u0637\u0648\u0631 \u0641\u064A \u0627\u0644\u0644\u0648\u062D\u0629 \u0625\u0644\u0649 \u0627\u0644\u0645\u0631\u0628\u0637 1 \u0641\u064A \u0627\u0644\u0645\u0624\u0642\u0651\u062A.",
+    "Dalla FASE del quadro al morsetto 3 del primo pulsante.": "\u0645\u0646 \u0627\u0644\u0637\u0648\u0631 \u0641\u064A \u0627\u0644\u0644\u0648\u062D\u0629 \u0625\u0644\u0649 \u0627\u0644\u0645\u0631\u0628\u0637 3 \u0641\u064A \u0627\u0644\u0632\u0631\u0651 \u0627\u0644\u0623\u0648\u0644.",
+    "Dalla FASE del quadro al morsetto 3 del pulsante.": "\u0645\u0646 \u0627\u0644\u0637\u0648\u0631 \u0641\u064A \u0627\u0644\u0644\u0648\u062D\u0629 \u0625\u0644\u0649 \u0627\u0644\u0645\u0631\u0628\u0637 3 \u0641\u064A \u0627\u0644\u0632\u0631\u0651.",
+    "Dalla stessa uscita al magnetotermico delle prese.": "\u0645\u0646 \u0627\u0644\u0645\u062E\u0631\u062C \u0646\u0641\u0633\u0647 \u0625\u0644\u0649 \u0627\u0644\u0642\u0627\u0637\u0639 \u0627\u0644\u0645\u063A\u0646\u0627\u0637\u064A\u0633\u064A \u0627\u0644\u062D\u0631\u0627\u0631\u064A \u0644\u0644\u0645\u0642\u0627\u0628\u0633.",
+    "Dallo stesso morsetto 2 a un morsetto della seconda lampada.": "\u0645\u0646 \u0627\u0644\u0645\u0631\u0628\u0637 2 \u0646\u0641\u0633\u0647 \u0625\u0644\u0649 \u0645\u0631\u0628\u0637 \u0641\u064A \u0627\u0644\u0645\u0635\u0628\u0627\u062D \u0627\u0644\u062B\u0627\u0646\u064A.",
+    "Dallo stesso morsetto 2 alla seconda lampada.": "\u0645\u0646 \u0627\u0644\u0645\u0631\u0628\u0637 2 \u0646\u0641\u0633\u0647 \u0625\u0644\u0649 \u0627\u0644\u0645\u0635\u0628\u0627\u062D \u0627\u0644\u062B\u0627\u0646\u064A.",
+    "Dall\u2019altro capo della bobina (A2) al NEUTRO.": "\u0645\u0646 \u0627\u0644\u0637\u0631\u0641 \u0627\u0644\u0622\u062E\u0631 \u0644\u0644\u0645\u0644\u0641 (A2) \u0625\u0644\u0649 \u0627\u0644\u0645\u062D\u0627\u064A\u062F.",
+    "Dall\u2019interruttore alla lampada.": "\u0645\u0646 \u0627\u0644\u0645\u0641\u062A\u0627\u062D \u0625\u0644\u0649 \u0627\u0644\u0645\u0635\u0628\u0627\u062D.",
+    "Dall\u2019uscita del differenziale fase e neutro si dividono in due linee: ciascuna passa da un magnetotermico (luce, prese). Fase sul morsetto 1, neutro sul morsetto N in ingresso.": "\u0628\u0639\u062F \u0645\u062E\u0631\u062C \u0627\u0644\u0642\u0627\u0637\u0639 \u0627\u0644\u062A\u0641\u0627\u0636\u0644\u064A \u064A\u0646\u0642\u0633\u0645 \u0627\u0644\u0637\u0648\u0631 \u0648\u0627\u0644\u0645\u062D\u0627\u064A\u062F \u0625\u0644\u0649 \u062E\u0637\u0651\u064A\u0646: \u0643\u0644 \u062E\u0637 \u064A\u0645\u0631 \u0628\u0642\u0627\u0637\u0639 \u0645\u063A\u0646\u0627\u0637\u064A\u0633\u064A \u062D\u0631\u0627\u0631\u064A (\u0627\u0644\u0625\u0646\u0627\u0631\u0629\u060C \u0627\u0644\u0645\u0642\u0627\u0628\u0633). \u0627\u0644\u0637\u0648\u0631 \u0639\u0644\u0649 \u0627\u0644\u0645\u0631\u0628\u0637 1 \u0648\u0627\u0644\u0645\u062D\u0627\u064A\u062F \u0639\u0644\u0649 \u0627\u0644\u0645\u0631\u0628\u0637 N \u0641\u064A \u0627\u0644\u062F\u062E\u0648\u0644.",
+    "Dall\u2019uscita fase del differenziale al magnetotermico della luce.": "\u0645\u0646 \u0645\u062E\u0631\u062C \u0627\u0644\u0637\u0648\u0631 \u0641\u064A \u0627\u0644\u0642\u0627\u0637\u0639 \u0627\u0644\u062A\u0641\u0627\u0636\u0644\u064A \u0625\u0644\u0649 \u0627\u0644\u0642\u0627\u0637\u0639 \u0627\u0644\u0645\u063A\u0646\u0627\u0637\u064A\u0633\u064A \u0627\u0644\u062D\u0631\u0627\u0631\u064A \u0644\u0644\u0625\u0646\u0627\u0631\u0629.",
+    "Dall\u2019uscita neutro del differenziale al magnetotermico della luce.": "\u0645\u0646 \u0645\u062E\u0631\u062C \u0627\u0644\u0645\u062D\u0627\u064A\u062F \u0641\u064A \u0627\u0644\u0642\u0627\u0637\u0639 \u0627\u0644\u062A\u0641\u0627\u0636\u0644\u064A \u0625\u0644\u0649 \u0627\u0644\u0642\u0627\u0637\u0639 \u0627\u0644\u0645\u063A\u0646\u0627\u0637\u064A\u0633\u064A \u0627\u0644\u062D\u0631\u0627\u0631\u064A \u0644\u0644\u0625\u0646\u0627\u0631\u0629.",
+    "Differenziale": "\u0627\u0644\u0642\u0627\u0637\u0639 \u0627\u0644\u062A\u0641\u0627\u0636\u0644\u064A",
+    "Dividere in linee ha un vantaggio: se si guasta la luce, scatta solo il magnetotermico della luce e le prese restano alimentate.": "\u062A\u0642\u0633\u064A\u0645 \u0627\u0644\u062F\u0627\u0626\u0631\u0629 \u0625\u0644\u0649 \u062E\u0637\u0648\u0637 \u0644\u0647 \u0645\u064A\u0632\u0629: \u0625\u0630\u0627 \u062A\u0639\u0637\u0651\u0644\u062A \u0627\u0644\u0625\u0646\u0627\u0631\u0629 \u064A\u0641\u0635\u0644 \u0627\u0644\u0642\u0627\u0637\u0639 \u0627\u0644\u0645\u063A\u0646\u0627\u0637\u064A\u0633\u064A \u0627\u0644\u062D\u0631\u0627\u0631\u064A \u0644\u0644\u0625\u0646\u0627\u0631\u0629 \u0648\u062D\u062F\u0647 \u0648\u062A\u0628\u0642\u0649 \u0627\u0644\u0645\u0642\u0627\u0628\u0633 \u0645\u063A\u0630\u0651\u0627\u0629.",
+    "Dopo 10 secondi le lampade sono ancora accese": "\u0628\u0639\u062F 10 \u062B\u0648\u0627\u0646\u064D \u062A\u0628\u0642\u0649 \u0627\u0644\u0645\u0635\u0627\u0628\u064A\u062D \u0645\u0636\u0627\u0621\u0629",
+    "Dopo 25 secondi le lampade si sono spente da sole": "\u0628\u0639\u062F 25 \u062B\u0627\u0646\u064A\u0629 \u062A\u0646\u0637\u0641\u0626 \u0627\u0644\u0645\u0635\u0627\u0628\u064A\u062D \u0645\u0646 \u062A\u0644\u0642\u0627\u0621 \u0646\u0641\u0633\u0647\u0627",
+    "Dopo il tempo impostato le lampade si spengono da sole.": "\u0628\u0639\u062F \u0627\u0644\u0632\u0645\u0646 \u0627\u0644\u0645\u0636\u0628\u0648\u0637 \u062A\u0646\u0637\u0641\u0626 \u0627\u0644\u0645\u0635\u0627\u0628\u064A\u062D \u0645\u0646 \u062A\u0644\u0642\u0627\u0621 \u0646\u0641\u0633\u0647\u0627.",
+    "Due pulsanti, uno a ogni piano, accendono due lampade per 20 secondi: poi si spengono da sole. Se si preme di nuovo, il tempo riparte da capo. Collega i pulsanti alla bobina del rel\xE8 temporizzato e le lampade al suo contatto. Poi dai corrente.": "\u0632\u0631\u0651\u0627\u0646\u060C \u0648\u0627\u062D\u062F \u0641\u064A \u0643\u0644 \u0637\u0627\u0628\u0642\u060C \u064A\u0636\u064A\u0626\u0627\u0646 \u0645\u0635\u0628\u0627\u062D\u064A\u0646 \u0645\u062F\u0629 20 \u062B\u0627\u0646\u064A\u0629 \u062B\u0645 \u064A\u0646\u0637\u0641\u0626\u0627\u0646 \u0645\u0646 \u062A\u0644\u0642\u0627\u0621 \u0646\u0641\u0633\u064A\u0647\u0645\u0627. \u0648\u0625\u0630\u0627 \u0636\u064F\u063A\u0637 \u0627\u0644\u0632\u0631 \u0645\u0646 \u062C\u062F\u064A\u062F \u064A\u0628\u062F\u0623 \u0627\u0644\u0632\u0645\u0646 \u0645\u0646 \u0627\u0644\u0628\u062F\u0627\u064A\u0629. \u0635\u0650\u0644 \u0627\u0644\u0632\u0631\u0651\u064A\u0646 \u0628\u0645\u0644\u0641 \u0627\u0644\u0645\u0631\u062D\u0651\u0644 \u0627\u0644\u0632\u0645\u0646\u064A \u0648\u0635\u0650\u0644 \u0627\u0644\u0645\u0635\u0628\u0627\u062D\u064A\u0646 \u0628\u0645\u0644\u0627\u0645\u0633\u0647. \u062B\u0645 \u0634\u063A\u0651\u0644 \u0627\u0644\u062A\u064A\u0627\u0631.",
+    "Entra nel differenziale": "\u0627\u0644\u062F\u062E\u0648\u0644 \u0625\u0644\u0649 \u0627\u0644\u0642\u0627\u0637\u0639 \u0627\u0644\u062A\u0641\u0627\u0636\u0644\u064A",
+    "Fase e neutro del quadro entrano nel differenziale, in alto.": "\u064A\u062F\u062E\u0644 \u0637\u0648\u0631 \u0627\u0644\u0644\u0648\u062D\u0629 \u0648\u0645\u062D\u0627\u064A\u062F\u0647\u0627 \u0641\u064A \u0627\u0644\u0642\u0627\u0637\u0639 \u0627\u0644\u062A\u0641\u0627\u0636\u0644\u064A \u0645\u0646 \u0627\u0644\u0623\u0639\u0644\u0649.",
+    "Filo bianco dal morsetto 3 del secondario al campanello.": "\u0633\u0644\u0643 \u0623\u0628\u064A\u0636 \u0645\u0646 \u0627\u0644\u0645\u0631\u0628\u0637 3 \u0641\u064A \u0627\u0644\u0645\u0644\u0641 \u0627\u0644\u062B\u0627\u0646\u0648\u064A \u0625\u0644\u0649 \u0627\u0644\u062C\u0631\u0633.",
+    "Filo bianco dal morsetto 4 del secondario all\u2019altro morsetto del campanello.": "\u0633\u0644\u0643 \u0623\u0628\u064A\u0636 \u0645\u0646 \u0627\u0644\u0645\u0631\u0628\u0637 4 \u0641\u064A \u0627\u0644\u0645\u0644\u0641 \u0627\u0644\u062B\u0627\u0646\u0648\u064A \u0625\u0644\u0649 \u0627\u0644\u0645\u0631\u0628\u0637 \u0627\u0644\u0622\u062E\u0631 \u0641\u064A \u0627\u0644\u062C\u0631\u0633.",
+    "Filo blu dal morsetto 2 del primario al NEUTRO.": "\u0633\u0644\u0643 \u0623\u0632\u0631\u0642 \u0645\u0646 \u0627\u0644\u0645\u0631\u0628\u0637 2 \u0641\u064A \u0627\u0644\u0645\u0644\u0641 \u0627\u0644\u0627\u0628\u062A\u062F\u0627\u0626\u064A \u0625\u0644\u0649 \u0627\u0644\u0645\u062D\u0627\u064A\u062F.",
+    "Filo blu dalla prima lampada al NEUTRO.": "\u0633\u0644\u0643 \u0623\u0632\u0631\u0642 \u0645\u0646 \u0627\u0644\u0645\u0635\u0628\u0627\u062D \u0627\u0644\u0623\u0648\u0644 \u0625\u0644\u0649 \u0627\u0644\u0645\u062D\u0627\u064A\u062F.",
+    "Filo blu dalla seconda lampada al NEUTRO.": "\u0633\u0644\u0643 \u0623\u0632\u0631\u0642 \u0645\u0646 \u0627\u0644\u0645\u0635\u0628\u0627\u062D \u0627\u0644\u062B\u0627\u0646\u064A \u0625\u0644\u0649 \u0627\u0644\u0645\u062D\u0627\u064A\u062F.",
+    "Filo blu dall\u2019altro capo della bobina (A2) al NEUTRO.": "\u0633\u0644\u0643 \u0623\u0632\u0631\u0642 \u0645\u0646 \u0627\u0644\u0637\u0631\u0641 \u0627\u0644\u0622\u062E\u0631 \u0644\u0644\u0645\u0644\u0641 (A2) \u0625\u0644\u0649 \u0627\u0644\u0645\u062D\u0627\u064A\u062F.",
+    "Filo marrone dalla FASE del quadro al morsetto 3 del primo pulsante.": "\u0633\u0644\u0643 \u0628\u0646\u064A \u0645\u0646 \u0627\u0644\u0637\u0648\u0631 \u0641\u064A \u0627\u0644\u0644\u0648\u062D\u0629 \u0625\u0644\u0649 \u0627\u0644\u0645\u0631\u0628\u0637 3 \u0641\u064A \u0627\u0644\u0632\u0631\u0651 \u0627\u0644\u0623\u0648\u0644.",
+    "Filo marrone dalla FASE del quadro al pulsante.": "\u0633\u0644\u0643 \u0628\u0646\u064A \u0645\u0646 \u0627\u0644\u0637\u0648\u0631 \u0641\u064A \u0627\u0644\u0644\u0648\u062D\u0629 \u0625\u0644\u0649 \u0627\u0644\u0632\u0631\u0651.",
+    "Ha due lati separati. Il primario (morsetti 1 e 2) si collega alla rete a 230 V. Il secondario (morsetti 3 e 4) fornisce i 12 V.": "\u0644\u0647 \u062C\u0627\u0646\u0628\u0627\u0646 \u0645\u0646\u0641\u0635\u0644\u0627\u0646. \u0627\u0644\u0645\u0644\u0641 \u0627\u0644\u0627\u0628\u062A\u062F\u0627\u0626\u064A (\u0627\u0644\u0645\u0631\u0628\u0637\u0627\u0646 1 \u06482) \u064A\u0648\u0635\u064E\u0651\u0644 \u0628\u0627\u0644\u0634\u0628\u0643\u0629 230 \u0641\u0648\u0644\u062A. \u0648\u0627\u0644\u0645\u0644\u0641 \u0627\u0644\u062B\u0627\u0646\u0648\u064A (\u0627\u0644\u0645\u0631\u0628\u0637\u0627\u0646 3 \u06484) \u064A\u0639\u0637\u064A 12 \u0641\u0648\u0644\u062A.",
+    "Ha una bobina (A1, A2) e un contatto (1, 2). Quando la bobina riceve tensione il contatto si chiude e parte il conteggio del tempo.": "\u0644\u0647 \u0645\u0644\u0641 (A1 \u0648A2) \u0648\u0645\u0644\u0627\u0645\u0633 (1 \u06482). \u0639\u0646\u062F\u0645\u0627 \u064A\u062A\u0644\u0642\u0649 \u0627\u0644\u0645\u0644\u0641 \u062C\u0647\u062F\u064B\u0627 \u064A\u0646\u063A\u0644\u0642 \u0627\u0644\u0645\u0644\u0627\u0645\u0633 \u0648\u064A\u0628\u062F\u0623 \u0639\u062F\u0651 \u0627\u0644\u0632\u0645\u0646.",
+    "I due pulsanti sono in parallelo: i morsetti 3 sono collegati tra loro e alla fase, i morsetti 4 sono collegati tra loro.": "\u0627\u0644\u0632\u0631\u0651\u0627\u0646 \u0639\u0644\u0649 \u0627\u0644\u062A\u0648\u0627\u0632\u064A: \u0627\u0644\u0645\u0631\u0628\u0637\u0627\u0646 3 \u0645\u0648\u0635\u0648\u0644\u0627\u0646 \u0645\u0639\u064B\u0627 \u0648\u0628\u0627\u0644\u0637\u0648\u0631\u060C \u0648\u0627\u0644\u0645\u0631\u0628\u0637\u0627\u0646 4 \u0645\u0648\u0635\u0648\u0644\u0627\u0646 \u0645\u0639\u064B\u0627.",
+    "I fili del circuito a bassa tensione non hanno i colori della rete: si usa, per esempio, il bianco.": "\u0623\u0633\u0644\u0627\u0643 \u0627\u0644\u062F\u0627\u0626\u0631\u0629 \u0630\u0627\u062A \u0627\u0644\u062C\u0647\u062F \u0627\u0644\u0645\u0646\u062E\u0641\u0636 \u0644\u0627 \u062A\u062D\u0645\u0644 \u0623\u0644\u0648\u0627\u0646 \u0627\u0644\u0634\u0628\u0643\u0629: \u064A\u064F\u0633\u062A\u062E\u062F\u0645 \u0645\u062B\u0644\u064B\u0627 \u0627\u0644\u0644\u0648\u0646 \u0627\u0644\u0623\u0628\u064A\u0636.",
+    "I fili del circuito a bassa tensione non sono n\xE9 fase n\xE9 neutro: puoi usare il bianco.": "\u0623\u0633\u0644\u0627\u0643 \u0627\u0644\u062F\u0627\u0626\u0631\u0629 \u0630\u0627\u062A \u0627\u0644\u062C\u0647\u062F \u0627\u0644\u0645\u0646\u062E\u0641\u0636 \u0644\u064A\u0633\u062A \u0637\u0648\u0631\u064B\u0627 \u0648\u0644\u0627 \u0645\u062D\u0627\u064A\u062F\u064B\u0627: \u064A\u0645\u0643\u0646\u0643 \u0627\u0633\u062A\u062E\u062F\u0627\u0645 \u0627\u0644\u0644\u0648\u0646 \u0627\u0644\u0623\u0628\u064A\u0636.",
+    "I magnetotermici di linea": "\u0627\u0644\u0642\u0648\u0627\u0637\u0639 \u0627\u0644\u0645\u063A\u0646\u0627\u0637\u064A\u0633\u064A\u0629 \u0627\u0644\u062D\u0631\u0627\u0631\u064A\u0629 \u0644\u0644\u062E\u0637\u0648\u0637",
+    "I pulsanti si mettono in parallelo: se ne pu\xF2 aggiungere uno per ogni punto di comando.": "\u062A\u064F\u0648\u0636\u0639 \u0627\u0644\u0623\u0632\u0631\u0627\u0631 \u0639\u0644\u0649 \u0627\u0644\u062A\u0648\u0627\u0632\u064A: \u064A\u0645\u0643\u0646 \u0625\u0636\u0627\u0641\u0629 \u0632\u0631\u0651 \u0644\u0643\u0644 \u0646\u0642\u0637\u0629 \u062A\u062D\u0643\u0645.",
+    "Il campanello a bassa tensione": "\u0627\u0644\u062C\u0631\u0633 \u0630\u0648 \u0627\u0644\u062C\u0647\u062F \u0627\u0644\u0645\u0646\u062E\u0641\u0636",
+    "Il campanello di casa funziona a bassa tensione, per esempio 12 V. \xC8 pi\xF9 sicuro: chi tocca il pulsante accanto alla porta non rischia nulla, e i fili possono essere sottili.": "\u062C\u0631\u0633 \u0627\u0644\u0628\u064A\u062A \u064A\u0639\u0645\u0644 \u0628\u062C\u0647\u062F \u0645\u0646\u062E\u0641\u0636\u060C \u0645\u062B\u0644\u064B\u0627 12 \u0641\u0648\u0644\u062A. \u0648\u0647\u0630\u0627 \u0623\u0643\u062B\u0631 \u0623\u0645\u0627\u0646\u064B\u0627: \u0645\u0646 \u064A\u0644\u0645\u0633 \u0627\u0644\u0632\u0631 \u0628\u062C\u0627\u0646\u0628 \u0627\u0644\u0628\u0627\u0628 \u0644\u0627 \u064A\u062A\u0639\u0631\u0636 \u0644\u062E\u0637\u0631\u060C \u0648\u064A\u0645\u0643\u0646 \u0623\u0646 \u062A\u0643\u0648\u0646 \u0627\u0644\u0623\u0633\u0644\u0627\u0643 \u0631\u0641\u064A\u0639\u0629.",
+    "Il campanello e il trasformatore": "\u0627\u0644\u062C\u0631\u0633 \u0648\u0627\u0644\u0645\u062D\u0648\u0651\u0644",
+    "Il campanello funziona a 12 V: sulla rete a 230 V si brucerebbe. Collega il pulsante e il primario del trasformatore alla rete, poi il campanello al secondario. Il circuito a bassa tensione ha i suoi colori. Poi dai corrente.": "\u064A\u0639\u0645\u0644 \u0627\u0644\u062C\u0631\u0633 \u0628\u062C\u0647\u062F 12 \u0641\u0648\u0644\u062A: \u0648\u0639\u0644\u0649 \u0634\u0628\u0643\u0629 230 \u0641\u0648\u0644\u062A \u0633\u064A\u062D\u062A\u0631\u0642. \u0635\u0650\u0644 \u0627\u0644\u0632\u0631\u0651 \u0648\u0627\u0644\u0645\u0644\u0641 \u0627\u0644\u0627\u0628\u062A\u062F\u0627\u0626\u064A \u0644\u0644\u0645\u062D\u0648\u0651\u0644 \u0628\u0627\u0644\u0634\u0628\u0643\u0629\u060C \u062B\u0645 \u0635\u0650\u0644 \u0627\u0644\u062C\u0631\u0633 \u0628\u0627\u0644\u0645\u0644\u0641 \u0627\u0644\u062B\u0627\u0646\u0648\u064A. \u0644\u062F\u0627\u0626\u0631\u0629 \u0627\u0644\u062C\u0647\u062F \u0627\u0644\u0645\u0646\u062E\u0641\u0636 \u0623\u0644\u0648\u0627\u0646\u0647\u0627 \u0627\u0644\u062E\u0627\u0635\u0629. \u062B\u0645 \u0634\u063A\u0651\u0644 \u0627\u0644\u062A\u064A\u0627\u0631.",
+    "Il campanello funziona a bassa tensione (12 V): collegato alla rete a 230 V si brucia.": "\u064A\u0639\u0645\u0644 \u0627\u0644\u062C\u0631\u0633 \u0628\u062C\u0647\u062F \u0645\u0646\u062E\u0641\u0636 (12 \u0641\u0648\u0644\u062A): \u0648\u0625\u0630\u0627 \u0648\u064F\u0635\u0644 \u0628\u0627\u0644\u0634\u0628\u0643\u0629 230 \u0641\u0648\u0644\u062A \u064A\u062D\u062A\u0631\u0642.",
+    "Il campanello non va mai collegato alla rete: si collega al secondario del trasformatore, morsetti 3 e 4.": "\u0644\u0627 \u064A\u064F\u0648\u0635\u064E\u0651\u0644 \u0627\u0644\u062C\u0631\u0633 \u0628\u0627\u0644\u0634\u0628\u0643\u0629 \u0623\u0628\u062F\u064B\u0627: \u064A\u064F\u0648\u0635\u064E\u0651\u0644 \u0628\u0627\u0644\u0645\u0644\u0641 \u0627\u0644\u062B\u0627\u0646\u0648\u064A \u0644\u0644\u0645\u062D\u0648\u0651\u0644\u060C \u0627\u0644\u0645\u0631\u0628\u0637\u064A\u0646 3 \u06484.",
+    "Il campanello si brucia.": "\u064A\u062D\u062A\u0631\u0642 \u0627\u0644\u062C\u0631\u0633.",
+    "Il campanello suona: il secondario ha sempre tensione.": "\u064A\u0631\u0646\u0651 \u0627\u0644\u062C\u0631\u0633: \u0627\u0644\u0645\u0644\u0641 \u0627\u0644\u062B\u0627\u0646\u0648\u064A \u0641\u064A\u0647 \u062C\u0647\u062F \u062F\u0627\u0626\u0645\u064B\u0627.",
+    "Il campanello \xE8 collegato al pulsante senza trasformatore. Premi il pulsante e guarda che cosa succede, poi premi Verifica.": "\u0627\u0644\u062C\u0631\u0633 \u0645\u0648\u0635\u0648\u0644 \u0628\u0627\u0644\u0632\u0631 \u0645\u0646 \u062F\u0648\u0646 \u0645\u062D\u0648\u0651\u0644. \u0627\u0636\u063A\u0637 \u0627\u0644\u0632\u0631 \u0648\u0631\u0627\u0642\u0628 \u0645\u0627 \u064A\u062D\u062F\u062B\u060C \u062B\u0645 \u0627\u0636\u063A\u0637 \u062A\u062D\u0642\u0642.",
+    "Il campanello \xE8 collegato direttamente alla rete a 230 V: si brucia.": "\u0627\u0644\u062C\u0631\u0633 \u0645\u0648\u0635\u0648\u0644 \u0645\u0628\u0627\u0634\u0631\u0629 \u0628\u0627\u0644\u0634\u0628\u0643\u0629 230 \u0641\u0648\u0644\u062A: \u0641\u064A\u062D\u062A\u0631\u0642.",
+    "Il campanello \xE8 fatto per 12 V. Se lo si collega per errore alla rete a 230 V si brucia.": "\u0627\u0644\u062C\u0631\u0633 \u0645\u0635\u0646\u0648\u0639 \u0644\u062C\u0647\u062F 12 \u0641\u0648\u0644\u062A. \u0648\u0625\u0630\u0627 \u0648\u064F\u0635\u0644 \u0628\u0627\u0644\u062E\u0637\u0623 \u0628\u0627\u0644\u0634\u0628\u0643\u0629 230 \u0641\u0648\u0644\u062A \u064A\u062D\u062A\u0631\u0642.",
+    "Il campanello \xE8 progettato per 12 V. Con 230 V ai capi si brucia. Serve il trasformatore: il campanello va collegato al secondario.": "\u0627\u0644\u062C\u0631\u0633 \u0645\u0635\u0645\u064E\u0651\u0645 \u0644\u062C\u0647\u062F 12 \u0641\u0648\u0644\u062A. \u0648\u0645\u0639 230 \u0641\u0648\u0644\u062A \u0639\u0644\u0649 \u0637\u0631\u0641\u064A\u0647 \u064A\u062D\u062A\u0631\u0642. \u064A\u0644\u0632\u0645 \u0627\u0644\u0645\u062D\u0648\u0651\u0644: \u064A\u062C\u0628 \u062A\u0648\u0635\u064A\u0644 \u0627\u0644\u062C\u0631\u0633 \u0628\u0627\u0644\u0645\u0644\u0641 \u0627\u0644\u062B\u0627\u0646\u0648\u064A.",
+    "Il campanello \xE8 silenzioso: il pulsante interrompe il primario.": "\u0627\u0644\u062C\u0631\u0633 \u0635\u0627\u0645\u062A: \u0627\u0644\u0632\u0631 \u064A\u0642\u0637\u0639 \u0627\u0644\u0645\u0644\u0641 \u0627\u0644\u0627\u0628\u062A\u062F\u0627\u0626\u064A.",
+    "Il contatto resta chiuso fino alla fine del tempo, anche se il pulsante \xE8 gi\xE0 stato rilasciato. Se si preme di nuovo prima della fine, il conteggio riparte da capo.": "\u064A\u0628\u0642\u0649 \u0627\u0644\u0645\u0644\u0627\u0645\u0633 \u0645\u063A\u0644\u0642\u064B\u0627 \u062D\u062A\u0649 \u0646\u0647\u0627\u064A\u0629 \u0627\u0644\u0632\u0645\u0646\u060C \u062D\u062A\u0649 \u0644\u0648 \u062D\u064F\u0631\u0651\u0631 \u0627\u0644\u0632\u0631. \u0648\u0625\u0630\u0627 \u0636\u064F\u063A\u0637 \u0627\u0644\u0632\u0631 \u0645\u0646 \u062C\u062F\u064A\u062F \u0642\u0628\u0644 \u0627\u0644\u0646\u0647\u0627\u064A\u0629 \u064A\u0628\u062F\u0623 \u0627\u0644\u0639\u062F\u0651 \u0645\u0646 \u062C\u062F\u064A\u062F.",
+    "Il differenziale": "\u0627\u0644\u0642\u0627\u0637\u0639 \u0627\u0644\u062A\u0641\u0627\u0636\u0644\u064A",
+    "Il differenziale protegge le persone: scatta se la corrente di andata e quella di ritorno sono diverse.": "\u0627\u0644\u0642\u0627\u0637\u0639 \u0627\u0644\u062A\u0641\u0627\u0636\u0644\u064A \u064A\u062D\u0645\u064A \u0627\u0644\u0623\u0634\u062E\u0627\u0635: \u064A\u0641\u0635\u0644 \u0625\u0630\u0627 \u0627\u062E\u062A\u0644\u0641 \u062A\u064A\u0627\u0631 \u0627\u0644\u0630\u0647\u0627\u0628 \u0639\u0646 \u062A\u064A\u0627\u0631 \u0627\u0644\u0639\u0648\u062F\u0629.",
+    "Il differenziale rileva la differenza tra la corrente di andata e quella di ritorno. Una dispersione verso terra \xE8 proprio questa differenza. I magnetotermici scattano per sovraccarico o cortocircuito, non per dispersione.": "\u064A\u0643\u0634\u0641 \u0627\u0644\u0642\u0627\u0637\u0639 \u0627\u0644\u062A\u0641\u0627\u0636\u0644\u064A \u0627\u0644\u0641\u0631\u0642 \u0628\u064A\u0646 \u062A\u064A\u0627\u0631 \u0627\u0644\u0630\u0647\u0627\u0628 \u0648\u062A\u064A\u0627\u0631 \u0627\u0644\u0639\u0648\u062F\u0629. \u0648\u062A\u0633\u0631\u0651\u0628 \u0627\u0644\u062A\u064A\u0627\u0631 \u0625\u0644\u0649 \u0627\u0644\u0623\u0631\u0636 \u0647\u0648 \u0647\u0630\u0627 \u0627\u0644\u0641\u0631\u0642 \u062A\u062D\u062F\u064A\u062F\u064B\u0627. \u0623\u0645\u0627 \u0627\u0644\u0642\u0648\u0627\u0637\u0639 \u0627\u0644\u0645\u063A\u0646\u0627\u0637\u064A\u0633\u064A\u0629 \u0627\u0644\u062D\u0631\u0627\u0631\u064A\u0629 \u0641\u062A\u0641\u0635\u0644 \u0639\u0646\u062F \u0627\u0644\u062D\u0645\u0644 \u0627\u0644\u0632\u0627\u0626\u062F \u0623\u0648 \u0627\u0644\u0642\u0635\u0631\u060C \u0644\u0627 \u0639\u0646\u062F \u0627\u0644\u062A\u0633\u0631\u0651\u0628.",
+    "Il differenziale scatta appena dai corrente. Rialzalo e osserva, poi premi Verifica.": "\u064A\u0641\u0635\u0644 \u0627\u0644\u0642\u0627\u0637\u0639 \u0627\u0644\u062A\u0641\u0627\u0636\u0644\u064A \u0628\u0645\u062C\u0631\u062F \u0625\u0639\u0637\u0627\u0621 \u0627\u0644\u062A\u064A\u0627\u0631. \u0623\u0639\u062F \u062A\u0633\u0644\u064A\u062D\u0647 \u0648\u0631\u0627\u0642\u0628\u060C \u062B\u0645 \u0627\u0636\u063A\u0637 \u062A\u062D\u0642\u0642.",
+    "Il differenziale.": "\u0627\u0644\u0642\u0627\u0637\u0639 \u0627\u0644\u062A\u0641\u0627\u0636\u0644\u064A.",
+    "Il fronte di salita della bobina riavvia il conteggio. Ogni pressione d\xE0 un nuovo intervallo pieno: per questo chi sale le scale pu\xF2 premere quando vuole senza restare al buio.": "\u0627\u0644\u062D\u0627\u0641\u0629 \u0627\u0644\u0635\u0627\u0639\u062F\u0629 \u0644\u0644\u0645\u0644\u0641 \u062A\u0639\u064A\u062F \u0628\u062F\u0621 \u0627\u0644\u0639\u062F\u0651. \u0643\u0644 \u0636\u063A\u0637\u0629 \u062A\u0639\u0637\u064A \u0641\u062A\u0631\u0629 \u0643\u0627\u0645\u0644\u0629 \u062C\u062F\u064A\u062F\u0629: \u0648\u0644\u0630\u0644\u0643 \u064A\u0645\u0643\u0646 \u0644\u0645\u0646 \u064A\u0635\u0639\u062F \u0627\u0644\u0633\u0644\u0627\u0644\u0645 \u0623\u0646 \u064A\u0636\u063A\u0637 \u0645\u062A\u0649 \u0634\u0627\u0621 \u0645\u0646 \u062F\u0648\u0646 \u0623\u0646 \u064A\u0628\u0642\u0649 \u0641\u064A \u0627\u0644\u0638\u0644\u0627\u0645.",
+    "Il magnetotermico della luce.": "\u0627\u0644\u0642\u0627\u0637\u0639 \u0627\u0644\u0645\u063A\u0646\u0627\u0637\u064A\u0633\u064A \u0627\u0644\u062D\u0631\u0627\u0631\u064A \u0644\u0644\u0625\u0646\u0627\u0631\u0629.",
+    "Il magnetotermico delle prese \xE8 troppo piccolo.": "\u0627\u0644\u0642\u0627\u0637\u0639 \u0627\u0644\u0645\u063A\u0646\u0627\u0637\u064A\u0633\u064A \u0627\u0644\u062D\u0631\u0627\u0631\u064A \u0644\u0644\u0645\u0642\u0627\u0628\u0633 \u0635\u063A\u064A\u0631 \u062C\u062F\u064B\u0627.",
+    "Il magnetotermico protegge i cavi dal sovraccarico e dal cortocircuito.": "\u0627\u0644\u0642\u0627\u0637\u0639 \u0627\u0644\u0645\u063A\u0646\u0627\u0637\u064A\u0633\u064A \u0627\u0644\u062D\u0631\u0627\u0631\u064A \u064A\u062D\u0645\u064A \u0627\u0644\u0643\u0627\u0628\u0644\u0627\u062A \u0645\u0646 \u0627\u0644\u062D\u0645\u0644 \u0627\u0644\u0632\u0627\u0626\u062F \u0648\u0627\u0644\u0642\u0635\u0631.",
+    "Il neutro al primario": "\u0627\u0644\u0645\u062D\u0627\u064A\u062F \u0625\u0644\u0649 \u0627\u0644\u0645\u0644\u0641 \u0627\u0644\u0627\u0628\u062A\u062F\u0627\u0626\u064A",
+    "Il neutro alla lampada 1": "\u0627\u0644\u0645\u062D\u0627\u064A\u062F \u0625\u0644\u0649 \u0627\u0644\u0645\u0635\u0628\u0627\u062D 1",
+    "Il neutro alla lampada 2": "\u0627\u0644\u0645\u062D\u0627\u064A\u062F \u0625\u0644\u0649 \u0627\u0644\u0645\u0635\u0628\u0627\u062D 2",
+    "Il neutro del magnetotermico della luce alla lampada.": "\u0645\u062D\u0627\u064A\u062F \u0627\u0644\u0642\u0627\u0637\u0639 \u0627\u0644\u0645\u063A\u0646\u0627\u0637\u064A\u0633\u064A \u0627\u0644\u062D\u0631\u0627\u0631\u064A \u0644\u0644\u0625\u0646\u0627\u0631\u0629 \u0625\u0644\u0649 \u0627\u0644\u0645\u0635\u0628\u0627\u062D.",
+    "Il neutro del magnetotermico delle prese al morsetto N della presa.": "\u0645\u062D\u0627\u064A\u062F \u0627\u0644\u0642\u0627\u0637\u0639 \u0627\u0644\u0645\u063A\u0646\u0627\u0637\u064A\u0633\u064A \u0627\u0644\u062D\u0631\u0627\u0631\u064A \u0644\u0644\u0645\u0642\u0627\u0628\u0633 \u0625\u0644\u0649 \u0627\u0644\u0645\u0631\u0628\u0637 N \u0641\u064A \u0627\u0644\u0645\u0642\u0628\u0633.",
+    "Il neutro del quadro entra nel differenziale: morsetto N.": "\u064A\u062F\u062E\u0644 \u0645\u062D\u0627\u064A\u062F \u0627\u0644\u0644\u0648\u062D\u0629 \u0625\u0644\u0649 \u0627\u0644\u0642\u0627\u0637\u0639 \u0627\u0644\u062A\u0641\u0627\u0636\u0644\u064A: \u0627\u0644\u0645\u0631\u0628\u0637 N.",
+    "Il neutro della presa \xE8 preso a monte del differenziale: la corrente di ritorno non passa da lui.": "\u0645\u062D\u0627\u064A\u062F \u0627\u0644\u0645\u0642\u0628\u0633 \u0645\u0623\u062E\u0648\u0630 \u0642\u0628\u0644 \u0627\u0644\u0642\u0627\u0637\u0639 \u0627\u0644\u062A\u0641\u0627\u0636\u0644\u064A: \u062A\u064A\u0627\u0631 \u0627\u0644\u0639\u0648\u062F\u0629 \u0644\u0627 \u064A\u0645\u0631 \u0628\u0647.",
+    "Il neutro delle lampade \xE8 sbagliato.": "\u0645\u062D\u0627\u064A\u062F \u0627\u0644\u0645\u0635\u0628\u0627\u062D\u064A\u0646 \u062E\u0627\u0637\u0626.",
+    "Il neutro di ogni carico deve passare dal differenziale, altrimenti scatta senza motivo.": "\u064A\u062C\u0628 \u0623\u0646 \u064A\u0645\u0631 \u0645\u062D\u0627\u064A\u062F \u0643\u0644 \u062D\u0650\u0645\u0644 \u0628\u0627\u0644\u0642\u0627\u0637\u0639 \u0627\u0644\u062A\u0641\u0627\u0636\u0644\u064A\u060C \u0648\u0625\u0644\u0627 \u0641\u0633\u064A\u0641\u0635\u0644 \u0645\u0646 \u062F\u0648\u0646 \u0633\u0628\u0628.",
+    "Il primario del trasformatore (morsetti 1 e 2) si collega alla rete, passando dal pulsante sulla fase: fase al pulsante, dal pulsante al morsetto 1, neutro al morsetto 2.": "\u064A\u0648\u0635\u064E\u0651\u0644 \u0627\u0644\u0645\u0644\u0641 \u0627\u0644\u0627\u0628\u062A\u062F\u0627\u0626\u064A \u0644\u0644\u0645\u062D\u0648\u0651\u0644 (\u0627\u0644\u0645\u0631\u0628\u0637\u0627\u0646 1 \u06482) \u0628\u0627\u0644\u0634\u0628\u0643\u0629 \u0639\u0628\u0631 \u0627\u0644\u0632\u0631 \u0627\u0644\u0645\u0648\u0636\u0648\u0639 \u0639\u0644\u0649 \u0627\u0644\u0637\u0648\u0631: \u0627\u0644\u0637\u0648\u0631 \u0625\u0644\u0649 \u0627\u0644\u0632\u0631\u060C \u0648\u0645\u0646 \u0627\u0644\u0632\u0631 \u0625\u0644\u0649 \u0627\u0644\u0645\u0631\u0628\u0637 1\u060C \u0648\u0627\u0644\u0645\u062D\u0627\u064A\u062F \u0625\u0644\u0649 \u0627\u0644\u0645\u0631\u0628\u0637 2.",
+    "Il pulsante chiude il contatto solo mentre \xE8 premuto. Per mantenere la luce accesa per un tempo, il pulsante deve comandare la bobina del temporizzatore e le lampade devono essere alimentate dal suo contatto.": "\u0627\u0644\u0632\u0631 \u064A\u063A\u0644\u0642 \u0627\u0644\u0645\u0644\u0627\u0645\u0633 \u0645\u0627 \u062F\u0627\u0645 \u0645\u0636\u063A\u0648\u0637\u064B\u0627 \u0641\u0642\u0637. \u0648\u0644\u0625\u0628\u0642\u0627\u0621 \u0627\u0644\u0636\u0648\u0621 \u0645\u0636\u0627\u0621\u064B \u0645\u062F\u0629 \u0645\u0646 \u0627\u0644\u0632\u0645\u0646 \u064A\u062C\u0628 \u0623\u0646 \u064A\u062A\u062D\u0643\u0645 \u0627\u0644\u0632\u0631 \u0628\u0645\u0644\u0641 \u0627\u0644\u0645\u0624\u0642\u0651\u062A\u060C \u0648\u0623\u0646 \u062A\u064F\u063A\u0630\u0651\u0649 \u0627\u0644\u0645\u0635\u0627\u0628\u064A\u062D \u0645\u0646 \u0645\u0644\u0627\u0645\u0633\u0647.",
+    "Il pulsante comanda la bobina: le lampade sono alimentate dal contatto.": "\u0627\u0644\u0632\u0631 \u064A\u062A\u062D\u0643\u0645 \u0628\u0627\u0644\u0645\u0644\u0641: \u0648\u0627\u0644\u0645\u0635\u0627\u0628\u064A\u062D \u062A\u064F\u063A\u0630\u0651\u0649 \u0645\u0646 \u0627\u0644\u0645\u0644\u0627\u0645\u0633.",
+    "Il pulsante invece pu\xF2 stare sul primario, sulla fase, come un normale interruttore. I fili del circuito a bassa tensione, n\xE9 fase n\xE9 neutro, possono essere di altri colori, per esempio bianco.": "\u0623\u0645\u0627 \u0627\u0644\u0632\u0631 \u0641\u064A\u0645\u0643\u0646 \u0623\u0646 \u064A\u0643\u0648\u0646 \u0639\u0644\u0649 \u0627\u0644\u0645\u0644\u0641 \u0627\u0644\u0627\u0628\u062A\u062F\u0627\u0626\u064A\u060C \u0639\u0644\u0649 \u0627\u0644\u0637\u0648\u0631\u060C \u0645\u062B\u0644 \u0623\u064A \u0645\u0641\u062A\u0627\u062D \u0639\u0627\u062F\u064A. \u0648\u0623\u0633\u0644\u0627\u0643 \u062F\u0627\u0626\u0631\u0629 \u0627\u0644\u062C\u0647\u062F \u0627\u0644\u0645\u0646\u062E\u0641\u0636\u060C \u0627\u0644\u062A\u064A \u0644\u064A\u0633\u062A \u0637\u0648\u0631\u064B\u0627 \u0648\u0644\u0627 \u0645\u062D\u0627\u064A\u062F\u064B\u0627\u060C \u064A\u0645\u0643\u0646 \u0623\u0646 \u062A\u0643\u0648\u0646 \u0628\u0623\u0644\u0648\u0627\u0646 \u0623\u062E\u0631\u0649\u060C \u0645\u062B\u0644 \u0627\u0644\u0623\u0628\u064A\u0636.",
+    "Il pulsante non comanda direttamente le lampade: comanda un rel\xE8 temporizzato, che tiene acceso il contatto per un tempo regolabile.": "\u0627\u0644\u0632\u0631 \u0644\u0627 \u064A\u0634\u063A\u0651\u0644 \u0627\u0644\u0645\u0635\u0627\u0628\u064A\u062D \u0645\u0628\u0627\u0634\u0631\u0629: \u0625\u0646\u0647 \u064A\u062A\u062D\u0643\u0645 \u0628\u0645\u0631\u062D\u0651\u0644 \u0632\u0645\u0646\u064A \u064A\u064F\u0628\u0642\u064A \u0627\u0644\u0645\u0644\u0627\u0645\u0633 \u0645\u063A\u0644\u0642\u064B\u0627 \u0644\u0645\u062F\u0629 \u0642\u0627\u0628\u0644\u0629 \u0644\u0644\u0636\u0628\u0637.",
+    "Il pulsante sta sul primario, sulla fase.": "\u0627\u0644\u0632\u0631 \u0645\u0648\u0636\u0648\u0639 \u0639\u0644\u0649 \u0627\u0644\u0645\u0644\u0641 \u0627\u0644\u0627\u0628\u062A\u062F\u0627\u0626\u064A\u060C \u0639\u0644\u0649 \u0627\u0644\u0637\u0648\u0631.",
+    "Il pulsante sta sulla fase del primario. Finch\xE9 \xE8 a riposo il primario non ha tensione e quindi neanche il secondario ne ha: il campanello tace.": "\u0627\u0644\u0632\u0631 \u0645\u0648\u0636\u0648\u0639 \u0639\u0644\u0649 \u0637\u0648\u0631 \u0627\u0644\u0645\u0644\u0641 \u0627\u0644\u0627\u0628\u062A\u062F\u0627\u0626\u064A. \u0648\u0645\u0627 \u062F\u0627\u0645 \u0641\u064A \u0648\u0636\u0639 \u0627\u0644\u0631\u0627\u062D\u0629 \u0644\u0627 \u062C\u0647\u062F \u0639\u0644\u0649 \u0627\u0644\u0645\u0644\u0641 \u0627\u0644\u0627\u0628\u062A\u062F\u0627\u0626\u064A\u060C \u0648\u0628\u0627\u0644\u062A\u0627\u0644\u064A \u0644\u0627 \u062C\u0647\u062F \u0639\u0644\u0649 \u0627\u0644\u062B\u0627\u0646\u0648\u064A: \u0641\u064A\u0628\u0642\u0649 \u0627\u0644\u062C\u0631\u0633 \u0635\u0627\u0645\u062A\u064B\u0627.",
+    "Il pulsante \xE8 collegato al neutro.": "\u0627\u0644\u0632\u0631 \u0645\u0648\u0635\u0648\u0644 \u0628\u0627\u0644\u0645\u062D\u0627\u064A\u062F.",
+    "Il quadro di una casa": "\u0644\u0648\u062D\u0629 \u0627\u0644\u0628\u064A\u062A",
+    "Il quadro elettrico raccoglie le protezioni. All\u2019ingresso c\u2019\xE8 un interruttore differenziale, che protegge le persone. A valle, ogni linea ha il suo magnetotermico, che protegge i cavi dal sovraccarico e dal cortocircuito.": "\u062A\u062C\u0645\u0639 \u0627\u0644\u0644\u0648\u062D\u0629 \u0627\u0644\u0643\u0647\u0631\u0628\u0627\u0626\u064A\u0629 \u0623\u062C\u0647\u0632\u0629 \u0627\u0644\u062D\u0645\u0627\u064A\u0629. \u0639\u0646\u062F \u0627\u0644\u062F\u062E\u0648\u0644 \u064A\u0648\u062C\u062F \u0642\u0627\u0637\u0639 \u062A\u0641\u0627\u0636\u0644\u064A \u064A\u062D\u0645\u064A \u0627\u0644\u0623\u0634\u062E\u0627\u0635. \u0648\u0628\u0639\u062F\u0647 \u064A\u0643\u0648\u0646 \u0644\u0643\u0644 \u062E\u0637 \u0642\u0627\u0637\u0639\u0647 \u0627\u0644\u0645\u063A\u0646\u0627\u0637\u064A\u0633\u064A \u0627\u0644\u062D\u0631\u0627\u0631\u064A\u060C \u0627\u0644\u0630\u064A \u064A\u062D\u0645\u064A \u0627\u0644\u0643\u0627\u0628\u0644\u0627\u062A \u0645\u0646 \u0627\u0644\u062D\u0645\u0644 \u0627\u0644\u0632\u0627\u0626\u062F \u0648\u0627\u0644\u0642\u0635\u0631.",
+    "Il quadro \xE8 alimentato: la presa ha tensione, la lampada \xE8 spenta.": "\u0627\u0644\u0644\u0648\u062D\u0629 \u0645\u063A\u0630\u0651\u0627\u0629: \u0627\u0644\u0645\u0642\u0628\u0633 \u0641\u064A\u0647 \u062C\u0647\u062F \u0648\u0627\u0644\u0645\u0635\u0628\u0627\u062D \u0645\u0637\u0641\u0623.",
+    "Il rel\xE8 temporizzato tiene chiuso il suo contatto per un tempo fissato, dopo che la bobina \xE8 stata eccitata.": "\u064A\u064F\u0628\u0642\u064A \u0627\u0644\u0645\u0631\u062D\u0651\u0644 \u0627\u0644\u0632\u0645\u0646\u064A \u0645\u0644\u0627\u0645\u0633\u0647 \u0645\u063A\u0644\u0642\u064B\u0627 \u0644\u0632\u0645\u0646 \u0645\u062D\u062F\u062F \u0628\u0639\u062F \u062A\u063A\u0630\u064A\u0629 \u0627\u0644\u0645\u0644\u0641.",
+    "Il secondo filo": "\u0627\u0644\u0633\u0644\u0643 \u0627\u0644\u062B\u0627\u0646\u064A",
+    "Il tasto di prova del differenziale va premuto ogni tanto per controllare che funzioni.": "\u064A\u062C\u0628 \u0627\u0644\u0636\u063A\u0637 \u0639\u0644\u0649 \u0632\u0631 \u0627\u0644\u0627\u062E\u062A\u0628\u0627\u0631 \u0641\u064A \u0627\u0644\u0642\u0627\u0637\u0639 \u0627\u0644\u062A\u0641\u0627\u0636\u0644\u064A \u0645\u0646 \u0648\u0642\u062A \u0644\u0622\u062E\u0631 \u0644\u0644\u062A\u0623\u0643\u062F \u0645\u0646 \u0623\u0646\u0647 \u064A\u0639\u0645\u0644.",
+    "Il tempo del temporizzatore \xE8 troppo breve.": "\u0632\u0645\u0646 \u0627\u0644\u0645\u0624\u0642\u0651\u062A \u0642\u0635\u064A\u0631 \u062C\u062F\u064B\u0627.",
+    "Il trasformatore abbassa la tensione: il primario va alla rete, il secondario al campanello.": "\u0627\u0644\u0645\u062D\u0648\u0651\u0644 \u064A\u062E\u0641\u0636 \u0627\u0644\u062C\u0647\u062F: \u0627\u0644\u0645\u0644\u0641 \u0627\u0644\u0627\u0628\u062A\u062F\u0627\u0626\u064A \u0625\u0644\u0649 \u0627\u0644\u0634\u0628\u0643\u0629 \u0648\u0627\u0644\u062B\u0627\u0646\u0648\u064A \u0625\u0644\u0649 \u0627\u0644\u062C\u0631\u0633.",
+    "Il trasformatore \xE8 alimentato ma il pulsante non \xE8 premuto. Il campanello \xE8 collegato al secondario. Che cosa succede?": "\u0627\u0644\u0645\u062D\u0648\u0651\u0644 \u0645\u063A\u0630\u0651\u0649 \u0644\u0643\u0646 \u0627\u0644\u0632\u0631 \u063A\u064A\u0631 \u0645\u0636\u063A\u0648\u0637. \u0648\u0627\u0644\u062C\u0631\u0633 \u0645\u0648\u0635\u0648\u0644 \u0628\u0627\u0644\u0645\u0644\u0641 \u0627\u0644\u062B\u0627\u0646\u0648\u064A. \u0645\u0627\u0630\u0627 \u064A\u062D\u062F\u062B\u061F",
+    "In alto c\u2019\xE8 il differenziale: fase e neutro del quadro entrano nei suoi morsetti in alto (1 e N). Tutto il resto dell\u2019impianto si collega dopo di lui.": "\u0641\u064A \u0627\u0644\u0623\u0639\u0644\u0649 \u0627\u0644\u0642\u0627\u0637\u0639 \u0627\u0644\u062A\u0641\u0627\u0636\u0644\u064A: \u064A\u062F\u062E\u0644 \u0637\u0648\u0631 \u0627\u0644\u0644\u0648\u062D\u0629 \u0648\u0645\u062D\u0627\u064A\u062F\u0647\u0627 \u0641\u064A \u0645\u0631\u0628\u0637\u064A\u0647 \u0627\u0644\u0639\u0644\u0648\u064A\u064A\u0646 (1 \u0648N). \u0648\u0628\u0642\u064A\u0629 \u0627\u0644\u062A\u0645\u062F\u064A\u062F\u0627\u062A \u062A\u064F\u0648\u0635\u064E\u0651\u0644 \u0628\u0639\u062F\u0647.",
+    "In casa un apparecchio della linea prese ha una dispersione verso terra. Che cosa dovrebbe scattare?": "\u0641\u064A \u0627\u0644\u0628\u064A\u062A \u062C\u0647\u0627\u0632 \u0639\u0644\u0649 \u062E\u0637 \u0627\u0644\u0645\u0642\u0627\u0628\u0633 \u0641\u064A\u0647 \u062A\u0633\u0631\u0651\u0628 \u0625\u0644\u0649 \u0627\u0644\u0623\u0631\u0636. \u0645\u0627 \u0627\u0644\u0630\u064A \u064A\u062C\u0628 \u0623\u0646 \u064A\u0641\u0635\u0644\u061F",
+    "Inserisci il temporizzatore: i pulsanti vanno alla bobina e le lampade al contatto del temporizzatore. Poi premi Verifica.": "\u0623\u062F\u062E\u0644 \u0627\u0644\u0645\u0624\u0642\u0651\u062A: \u0627\u0644\u0623\u0632\u0631\u0627\u0631 \u0625\u0644\u0649 \u0627\u0644\u0645\u0644\u0641 \u0648\u0627\u0644\u0645\u0635\u0627\u0628\u064A\u062D \u0625\u0644\u0649 \u0645\u0644\u0627\u0645\u0633 \u0627\u0644\u0645\u0624\u0642\u0651\u062A. \u062B\u0645 \u0627\u0636\u063A\u0637 \u062A\u062D\u0642\u0642.",
+    "Inserisci il trasformatore: pulsante e rete sul primario, campanello sul secondario. Poi premi Verifica.": "\u0623\u062F\u062E\u0644 \u0627\u0644\u0645\u062D\u0648\u0651\u0644: \u0627\u0644\u0632\u0631 \u0648\u0627\u0644\u0634\u0628\u0643\u0629 \u0639\u0644\u0649 \u0627\u0644\u0645\u0644\u0641 \u0627\u0644\u0627\u0628\u062A\u062F\u0627\u0626\u064A\u060C \u0648\u0627\u0644\u062C\u0631\u0633 \u0639\u0644\u0649 \u0627\u0644\u0645\u0644\u0641 \u0627\u0644\u062B\u0627\u0646\u0648\u064A. \u062B\u0645 \u0627\u0636\u063A\u0637 \u062A\u062D\u0642\u0642.",
+    "Interruttore chiuso: la lampada si accende.": "\u0627\u0644\u0645\u0641\u062A\u0627\u062D \u0645\u063A\u0644\u0642: \u064A\u064F\u0636\u0627\u0621 \u0627\u0644\u0645\u0635\u0628\u0627\u062D.",
+    "Interruttore della luce": "\u0645\u0641\u062A\u0627\u062D \u0627\u0644\u0625\u0646\u0627\u0631\u0629",
+    "Interruttore differenziale": "\u0627\u0644\u0642\u0627\u0637\u0639 \u0627\u0644\u062A\u0641\u0627\u0636\u0644\u064A",
+    "La fase al pulsante": "\u0627\u0644\u0637\u0648\u0631 \u0625\u0644\u0649 \u0627\u0644\u0632\u0631",
+    "La fase arriva anche al contatto del temporizzatore: morsetto 1.": "\u064A\u0635\u0644 \u0627\u0644\u0637\u0648\u0631 \u0623\u064A\u0636\u064B\u0627 \u0625\u0644\u0649 \u0645\u0644\u0627\u0645\u0633 \u0627\u0644\u0645\u0624\u0642\u0651\u062A: \u0627\u0644\u0645\u0631\u0628\u0637 1.",
+    "La fase del quadro entra nel differenziale: morsetto 1.": "\u064A\u062F\u062E\u0644 \u0637\u0648\u0631 \u0627\u0644\u0644\u0648\u062D\u0629 \u0625\u0644\u0649 \u0627\u0644\u0642\u0627\u0637\u0639 \u0627\u0644\u062A\u0641\u0627\u0636\u0644\u064A: \u0627\u0644\u0645\u0631\u0628\u0637 1.",
+    "La fase della presa passa dal differenziale, ma il neutro no. Il differenziale vede una corrente che entra e non esce, la interpreta come dispersione e scatta. Il neutro di ogni carico deve essere preso a valle del differenziale.": "\u0637\u0648\u0631 \u0627\u0644\u0645\u0642\u0628\u0633 \u064A\u0645\u0631 \u0628\u0627\u0644\u0642\u0627\u0637\u0639 \u0627\u0644\u062A\u0641\u0627\u0636\u0644\u064A\u060C \u0644\u0643\u0646 \u0627\u0644\u0645\u062D\u0627\u064A\u062F \u0644\u0627. \u0641\u064A\u0631\u0649 \u0627\u0644\u0642\u0627\u0637\u0639 \u0627\u0644\u062A\u0641\u0627\u0636\u0644\u064A \u062A\u064A\u0627\u0631\u064B\u0627 \u064A\u062F\u062E\u0644 \u0648\u0644\u0627 \u064A\u062E\u0631\u062C\u060C \u0648\u064A\u0641\u0633\u0651\u0631\u0647 \u062A\u0633\u0631\u0651\u0628\u064B\u0627 \u0641\u064A\u0641\u0635\u0644. \u064A\u062C\u0628 \u0623\u062E\u0630 \u0645\u062D\u0627\u064A\u062F \u0643\u0644 \u062D\u0650\u0645\u0644 \u0628\u0639\u062F \u0627\u0644\u0642\u0627\u0637\u0639 \u0627\u0644\u062A\u0641\u0627\u0636\u0644\u064A.",
+    "La lampada \xE8 collegata male.": "\u0627\u0644\u0645\u0635\u0628\u0627\u062D \u0645\u0648\u0635\u0648\u0644 \u0628\u0634\u0643\u0644 \u062E\u0627\u0637\u0626.",
+    "La luce che si spegne da sola": "\u0627\u0644\u0636\u0648\u0621 \u0627\u0644\u0630\u064A \u064A\u0646\u0637\u0641\u0626 \u0645\u0646 \u062A\u0644\u0642\u0627\u0621 \u0646\u0641\u0633\u0647",
+    "La luce passa dall\u2019interruttore sulla fase, il neutro va diretto alla lampada. La presa prende fase e neutro dal suo magnetotermico, pi\xF9 la terra del quadro. Il neutro di ogni carico deve passare dal differenziale.": "\u0627\u0644\u0625\u0646\u0627\u0631\u0629 \u062A\u0645\u0631 \u0628\u0627\u0644\u0645\u0641\u062A\u0627\u062D \u0639\u0644\u0649 \u0627\u0644\u0637\u0648\u0631\u060C \u0648\u0627\u0644\u0645\u062D\u0627\u064A\u062F \u064A\u0630\u0647\u0628 \u0645\u0628\u0627\u0634\u0631\u0629 \u0625\u0644\u0649 \u0627\u0644\u0645\u0635\u0628\u0627\u062D. \u0627\u0644\u0645\u0642\u0628\u0633 \u064A\u0623\u062E\u0630 \u0627\u0644\u0637\u0648\u0631 \u0648\u0627\u0644\u0645\u062D\u0627\u064A\u062F \u0645\u0646 \u0642\u0627\u0637\u0639\u0647 \u0627\u0644\u0645\u063A\u0646\u0627\u0637\u064A\u0633\u064A \u0627\u0644\u062D\u0631\u0627\u0631\u064A\u060C \u0625\u0636\u0627\u0641\u0629 \u0625\u0644\u0649 \u0623\u0631\u0636\u064A \u0627\u0644\u0644\u0648\u062D\u0629. \u0648\u064A\u062C\u0628 \u0623\u0646 \u064A\u0645\u0631 \u0645\u062D\u0627\u064A\u062F \u0643\u0644 \u062D\u0650\u0645\u0644 \u0628\u0627\u0644\u0642\u0627\u0637\u0639 \u0627\u0644\u062A\u0641\u0627\u0636\u0644\u064A.",
+    "La luce scale a tempo": "\u0625\u0646\u0627\u0631\u0629 \u0627\u0644\u0633\u0644\u0627\u0644\u0645 \u0627\u0644\u0645\u0624\u0642\u0651\u062A\u0629",
+    "La presa e la terra": "\u0627\u0644\u0645\u0642\u0628\u0633 \u0648\u0627\u0644\u0623\u0631\u0636\u064A",
+    "La presa riceve fase e neutro dal suo magnetotermico, pi\xF9 la terra del quadro.": "\u064A\u0623\u062E\u0630 \u0627\u0644\u0645\u0642\u0628\u0633 \u0627\u0644\u0637\u0648\u0631 \u0648\u0627\u0644\u0645\u062D\u0627\u064A\u062F \u0645\u0646 \u0642\u0627\u0637\u0639\u0647 \u0627\u0644\u0645\u063A\u0646\u0627\u0637\u064A\u0633\u064A \u0627\u0644\u062D\u0631\u0627\u0631\u064A\u060C \u0625\u0636\u0627\u0641\u0629 \u0625\u0644\u0649 \u0623\u0631\u0636\u064A \u0627\u0644\u0644\u0648\u062D\u0629.",
+    "La presa \xE8 alimentata": "\u0627\u0644\u0645\u0642\u0628\u0633 \u0645\u063A\u0630\u0651\u0649",
+    "La rete per\xF2 \xE8 a 230 V. Serve un componente che abbassi la tensione: il trasformatore.": "\u0644\u0643\u0646 \u0627\u0644\u0634\u0628\u0643\u0629 230 \u0641\u0648\u0644\u062A. \u064A\u0644\u0632\u0645 \u0639\u0646\u0635\u0631 \u064A\u062E\u0641\u0636 \u0627\u0644\u062C\u0647\u062F: \u0627\u0644\u0645\u062D\u0648\u0651\u0644.",
+    "La terra del quadro al morsetto PE della presa.": "\u0645\u0646 \u0623\u0631\u0636\u064A \u0627\u0644\u0644\u0648\u062D\u0629 \u0625\u0644\u0649 \u0627\u0644\u0645\u0631\u0628\u0637 PE \u0641\u064A \u0627\u0644\u0645\u0642\u0628\u0633.",
+    "Lampada scala alta": "\u0645\u0635\u0628\u0627\u062D \u0627\u0644\u0633\u0644\u0645 \u0627\u0644\u0639\u0644\u0648\u064A",
+    "Lampada scala bassa": "\u0645\u0635\u0628\u0627\u062D \u0627\u0644\u0633\u0644\u0645 \u0627\u0644\u0633\u0641\u0644\u064A",
+    "Le due linee": "\u0627\u0644\u062E\u0637\u0651\u0627\u0646",
+    "Le lampade non passano dai pulsanti: sono alimentate dal contatto del temporizzatore.": "\u0627\u0644\u0645\u0635\u0627\u0628\u064A\u062D \u0644\u0627 \u062A\u0645\u0631 \u0628\u0627\u0644\u0623\u0632\u0631\u0627\u0631: \u062A\u064F\u063A\u0630\u0651\u0649 \u0645\u0646 \u0645\u0644\u0627\u0645\u0633 \u0627\u0644\u0645\u0624\u0642\u0651\u062A.",
+    "Le lampade si alimentano dal contatto del temporizzatore: la fase arriva al morsetto 1, dal morsetto 2 vanno alle due lampade. I neutri vanno direttamente alle lampade.": "\u062A\u064F\u063A\u0630\u0651\u0649 \u0627\u0644\u0645\u0635\u0627\u0628\u064A\u062D \u0645\u0646 \u0645\u0644\u0627\u0645\u0633 \u0627\u0644\u0645\u0624\u0642\u0651\u062A: \u064A\u0635\u0644 \u0627\u0644\u0637\u0648\u0631 \u0625\u0644\u0649 \u0627\u0644\u0645\u0631\u0628\u0637 1\u060C \u0648\u0645\u0646 \u0627\u0644\u0645\u0631\u0628\u0637 2 \u064A\u0630\u0647\u0628 \u0625\u0644\u0649 \u0627\u0644\u0645\u0635\u0628\u0627\u062D\u064A\u0646. \u0648\u0627\u0644\u0645\u062D\u0627\u064A\u062F\u0627\u0646 \u064A\u0630\u0647\u0628\u0627\u0646 \u0645\u0628\u0627\u0634\u0631\u0629 \u0625\u0644\u0649 \u0627\u0644\u0645\u0635\u0628\u0627\u062D\u064A\u0646.",
+    "Le lampade sono accese da 15 secondi su 20. Premo di nuovo il pulsante. Quanto resteranno accese ancora?": "\u0627\u0644\u0645\u0635\u0627\u0628\u064A\u062D \u0645\u0636\u0627\u0621\u0629 \u0645\u0646\u0630 15 \u062B\u0627\u0646\u064A\u0629 \u0645\u0646 \u0623\u0635\u0644 20. \u0623\u0636\u063A\u0637 \u0627\u0644\u0632\u0631 \u0645\u0646 \u062C\u062F\u064A\u062F. \u0643\u0645 \u0633\u062A\u0628\u0642\u0649 \u0645\u0636\u0627\u0621\u0629 \u0628\u0639\u062F \u0630\u0644\u0643\u061F",
+    "Le lampade sono collegate direttamente ai pulsanti: si accendono solo finch\xE9 si tiene premuto.": "\u0627\u0644\u0645\u0635\u0627\u0628\u064A\u062D \u0645\u0648\u0635\u0648\u0644\u0629 \u0645\u0628\u0627\u0634\u0631\u0629 \u0628\u0627\u0644\u0623\u0632\u0631\u0627\u0631: \u062A\u0636\u064A\u0621 \u0645\u0627 \u062F\u0627\u0645 \u0627\u0644\u0632\u0631 \u0645\u0636\u063A\u0648\u0637\u064B\u0627 \u0641\u0642\u0637.",
+    "Levetta su: il pulsante non \xE8 premuto, il campanello \xE8 silenzioso.": "\u0645\u0641\u062A\u0627\u062D \u0627\u0644\u0644\u0648\u062D\u0629 \u0645\u0631\u0641\u0648\u0639: \u0627\u0644\u0632\u0631 \u063A\u064A\u0631 \u0645\u0636\u063A\u0648\u0637 \u0648\u0627\u0644\u062C\u0631\u0633 \u0635\u0627\u0645\u062A.",
+    "Levetta su: le lampade sono spente.": "\u0645\u0641\u062A\u0627\u062D \u0627\u0644\u0644\u0648\u062D\u0629 \u0645\u0631\u0641\u0648\u0639: \u0627\u0644\u0645\u0635\u0627\u0628\u064A\u062D \u0645\u0637\u0641\u0623\u0629.",
+    "Linee separate con magnetotermici separati: se una si guasta, le altre restano alimentate.": "\u062E\u0637\u0648\u0637 \u0645\u0646\u0641\u0635\u0644\u0629 \u0628\u0642\u0648\u0627\u0637\u0639 \u0645\u063A\u0646\u0627\u0637\u064A\u0633\u064A\u0629 \u062D\u0631\u0627\u0631\u064A\u0629 \u0645\u0646\u0641\u0635\u0644\u0629: \u0625\u0630\u0627 \u062A\u0639\u0637\u0651\u0644 \u0623\u062D\u062F\u0647\u0627 \u0628\u0642\u064A\u062A \u0627\u0644\u0623\u062E\u0631\u0649 \u0645\u063A\u0630\u0651\u0627\u0629.",
+    "Magnetotermico luce": "\u0627\u0644\u0642\u0627\u0637\u0639 \u0627\u0644\u0645\u063A\u0646\u0627\u0637\u064A\u0633\u064A \u0627\u0644\u062D\u0631\u0627\u0631\u064A \u0644\u0644\u0625\u0646\u0627\u0631\u0629",
+    "Magnetotermico prese": "\u0627\u0644\u0642\u0627\u0637\u0639 \u0627\u0644\u0645\u063A\u0646\u0627\u0637\u064A\u0633\u064A \u0627\u0644\u062D\u0631\u0627\u0631\u064A \u0644\u0644\u0645\u0642\u0627\u0628\u0633",
+    "Manca la terra al campanello.": "\u064A\u0646\u0642\u0635 \u0627\u0644\u062C\u0631\u0633 \u0627\u0644\u062A\u0623\u0631\u064A\u0636.",
+    "Nelle scale dei condomini la luce si accende con un pulsante e si spegne da sola dopo qualche decina di secondi. Cos\xEC non resta accesa per dimenticanza e si risparmia energia.": "\u0641\u064A \u0633\u0644\u0627\u0644\u0645 \u0627\u0644\u0639\u0645\u0627\u0631\u0627\u062A \u064A\u064F\u0636\u0627\u0621 \u0627\u0644\u0636\u0648\u0621 \u0628\u0632\u0631 \u0648\u064A\u0646\u0637\u0641\u0626 \u0645\u0646 \u062A\u0644\u0642\u0627\u0621 \u0646\u0641\u0633\u0647 \u0628\u0639\u062F \u0628\u0636\u0639 \u0639\u0634\u0631\u0627\u062A \u0645\u0646 \u0627\u0644\u062B\u0648\u0627\u0646\u064A. \u0648\u0647\u0643\u0630\u0627 \u0644\u0627 \u064A\u0628\u0642\u0649 \u0645\u0636\u0627\u0621\u064B \u0628\u0633\u0628\u0628 \u0627\u0644\u0646\u0633\u064A\u0627\u0646\u060C \u0648\u062A\u064F\u0648\u0641\u064E\u0651\u0631 \u0627\u0644\u0637\u0627\u0642\u0629.",
+    "Nulla: la dispersione non \xE8 pericolosa.": "\u0644\u0627 \u0634\u064A\u0621: \u0627\u0644\u062A\u0633\u0631\u0651\u0628 \u0644\u064A\u0633 \u062E\u0637\u064A\u0631\u064B\u0627.",
+    "Per questo il neutro di ogni carico deve passare dal differenziale. Il tasto di prova simula una dispersione: va premuto ogni tanto per controllare che funzioni.": "\u0644\u0647\u0630\u0627 \u064A\u062C\u0628 \u0623\u0646 \u064A\u0645\u0631 \u0645\u062D\u0627\u064A\u062F \u0643\u0644 \u062D\u0650\u0645\u0644 \u0628\u0627\u0644\u0642\u0627\u0637\u0639 \u0627\u0644\u062A\u0641\u0627\u0636\u0644\u064A. \u0648\u0632\u0631 \u0627\u0644\u0627\u062E\u062A\u0628\u0627\u0631 \u064A\u062D\u0627\u0643\u064A \u062A\u0633\u0631\u0651\u0628\u064B\u0627: \u064A\u062C\u0628 \u0627\u0644\u0636\u063A\u0637 \u0639\u0644\u064A\u0647 \u0645\u0646 \u0648\u0642\u062A \u0644\u0622\u062E\u0631 \u0644\u0644\u062A\u0623\u0643\u062F \u0645\u0646 \u0623\u0646 \u0627\u0644\u0642\u0627\u0637\u0639 \u064A\u0639\u0645\u0644.",
+    "Perch\xE9 il differenziale scatta?": "\u0644\u0645\u0627\u0630\u0627 \u064A\u0641\u0635\u0644 \u0627\u0644\u0642\u0627\u0637\u0639 \u0627\u0644\u062A\u0641\u0627\u0636\u0644\u064A\u061F",
+    "Perch\xE9 la luce non resta accesa?": "\u0644\u0645\u0627\u0630\u0627 \u0644\u0627 \u064A\u0628\u0642\u0649 \u0627\u0644\u0636\u0648\u0621 \u0645\u0636\u0627\u0621\u064B\u061F",
+    "Piano terra": "\u0627\u0644\u0637\u0627\u0628\u0642 \u0627\u0644\u0623\u0631\u0636\u064A",
+    "Porta il neutro della presa a valle del differenziale, passando dal magnetotermico delle prese. Poi premi Verifica.": "\u0627\u0646\u0642\u0644 \u0645\u062D\u0627\u064A\u062F \u0627\u0644\u0645\u0642\u0628\u0633 \u0625\u0644\u0649 \u0645\u0627 \u0628\u0639\u062F \u0627\u0644\u0642\u0627\u0637\u0639 \u0627\u0644\u062A\u0641\u0627\u0636\u0644\u064A\u060C \u0645\u0627\u0631\u064B\u0651\u0627 \u0628\u0627\u0644\u0642\u0627\u0637\u0639 \u0627\u0644\u0645\u063A\u0646\u0627\u0637\u064A\u0633\u064A \u0627\u0644\u062D\u0631\u0627\u0631\u064A \u0644\u0644\u0645\u0642\u0627\u0628\u0633. \u062B\u0645 \u0627\u0636\u063A\u0637 \u062A\u062D\u0642\u0642.",
+    "Premendo di nuovo prima della fine, il tempo riparte da capo.": "\u0625\u0630\u0627 \u0636\u064F\u063A\u0637 \u0627\u0644\u0632\u0631 \u0645\u0646 \u062C\u062F\u064A\u062F \u0642\u0628\u0644 \u0627\u0644\u0646\u0647\u0627\u064A\u0629 \u064A\u0628\u062F\u0623 \u0627\u0644\u0632\u0645\u0646 \u0645\u0646 \u062C\u062F\u064A\u062F.",
+    "Premi Verifica: il controllo simula anche lo scorrere del tempo.": "\u0627\u0636\u063A\u0637 \u062A\u062D\u0642\u0642: \u064A\u062D\u0627\u0643\u064A \u0627\u0644\u0641\u062D\u0635 \u0623\u064A\u0636\u064B\u0627 \u0645\u0631\u0648\u0631 \u0627\u0644\u0632\u0645\u0646.",
+    "Premi il pulsante: il campanello suona": "\u0627\u0636\u063A\u0637 \u0627\u0644\u0632\u0631: \u064A\u0631\u0646\u0651 \u0627\u0644\u062C\u0631\u0633",
+    "Premi un pulsante: le due lampade si accendono": "\u0627\u0636\u063A\u0637 \u0632\u0631\u064B\u0651\u0627: \u064A\u064F\u0636\u0627\u0621 \u0627\u0644\u0645\u0635\u0628\u0627\u062D\u0627\u0646",
+    "Prese": "\u0627\u0644\u0645\u0642\u0627\u0628\u0633",
+    "Primo piano": "\u0627\u0644\u0637\u0627\u0628\u0642 \u0627\u0644\u0623\u0648\u0644",
+    "Prova anche il tasto di prova del differenziale, poi premi Verifica.": "\u062C\u0631\u0651\u0628 \u0623\u064A\u0636\u064B\u0627 \u0632\u0631 \u0627\u0644\u0627\u062E\u062A\u0628\u0627\u0631 \u0641\u064A \u0627\u0644\u0642\u0627\u0637\u0639 \u0627\u0644\u062A\u0641\u0627\u0636\u0644\u064A\u060C \u062B\u0645 \u0627\u0636\u063A\u0637 \u062A\u062D\u0642\u0642.",
+    "Pulsante": "\u0627\u0644\u0632\u0631",
+    "Pulsante del campanello": "\u0632\u0631 \u0627\u0644\u062C\u0631\u0633",
+    "Pulsante piano terra": "\u0632\u0631 \u0627\u0644\u0637\u0627\u0628\u0642 \u0627\u0644\u0623\u0631\u0636\u064A",
+    "Pulsante premuto e rilasciato: le due lampade si accendono.": "\u0627\u0644\u0632\u0631 \u0645\u0636\u063A\u0648\u0637 \u062B\u0645 \u0645\u062D\u0631\u064E\u0651\u0631: \u064A\u064F\u0636\u0627\u0621 \u0627\u0644\u0645\u0635\u0628\u0627\u062D\u0627\u0646.",
+    "Pulsante premuto: il trasformatore \xE8 alimentato e il campanello suona.": "\u0627\u0644\u0632\u0631 \u0645\u0636\u063A\u0648\u0637: \u0627\u0644\u0645\u062D\u0648\u0651\u0644 \u0645\u063A\u0630\u0651\u0649 \u0648\u064A\u0631\u0646\u0651 \u0627\u0644\u062C\u0631\u0633.",
+    "Pulsante primo piano": "\u0632\u0631 \u0627\u0644\u0637\u0627\u0628\u0642 \u0627\u0644\u0623\u0648\u0644",
+    "Pulsanti in parallelo": "\u0627\u0644\u0623\u0632\u0631\u0627\u0631 \u0639\u0644\u0649 \u0627\u0644\u062A\u0648\u0627\u0632\u064A",
+    "Qui il temporizzatore non c\u2019\xE8: i pulsanti comandano direttamente le lampade. Premi un pulsante, aspetta qualche secondo e poi premi Verifica.": "\u0644\u0627 \u064A\u0648\u062C\u062F \u0647\u0646\u0627 \u0645\u0624\u0642\u0651\u062A: \u0627\u0644\u0623\u0632\u0631\u0627\u0631 \u062A\u0634\u063A\u0651\u0644 \u0627\u0644\u0645\u0635\u0627\u0628\u064A\u062D \u0645\u0628\u0627\u0634\u0631\u0629. \u0627\u0636\u063A\u0637 \u0632\u0631\u064B\u0651\u0627\u060C \u0648\u0627\u0646\u062A\u0638\u0631 \u0628\u0636\u0639 \u062B\u0648\u0627\u0646\u064D \u062B\u0645 \u0627\u0636\u063A\u0637 \u062A\u062D\u0642\u0642.",
+    "Rel\xE8 temporizzato": "\u0627\u0644\u0645\u0631\u062D\u0651\u0644 \u0627\u0644\u0632\u0645\u0646\u064A",
+    "Scala alta": "\u0627\u0644\u0633\u0644\u0645 \u0627\u0644\u0639\u0644\u0648\u064A",
+    "Scala bassa": "\u0627\u0644\u0633\u0644\u0645 \u0627\u0644\u0633\u0641\u0644\u064A",
+    "Se premi di nuovo, il tempo riparte da capo": "\u0625\u0630\u0627 \u0636\u063A\u0637\u062A \u0645\u0646 \u062C\u062F\u064A\u062F \u064A\u0628\u062F\u0623 \u0627\u0644\u0632\u0645\u0646 \u0645\u0646 \u0627\u0644\u0628\u062F\u0627\u064A\u0629",
+    "Se un neutro \xE8 preso a monte del differenziale, la corrente non torna da dove \xE8 andata e il differenziale scatta senza motivo.": "\u0625\u0630\u0627 \u0623\u064F\u062E\u0630 \u0627\u0644\u0645\u062D\u0627\u064A\u062F \u0642\u0628\u0644 \u0627\u0644\u0642\u0627\u0637\u0639 \u0627\u0644\u062A\u0641\u0627\u0636\u0644\u064A \u0641\u0644\u0646 \u064A\u0639\u0648\u062F \u0627\u0644\u062A\u064A\u0627\u0631 \u0645\u0646 \u062D\u064A\u062B \u0630\u0647\u0628\u060C \u0648\u064A\u0641\u0635\u0644 \u0627\u0644\u0642\u0627\u0637\u0639 \u0627\u0644\u062A\u0641\u0627\u0636\u0644\u064A \u0645\u0646 \u062F\u0648\u0646 \u0633\u0628\u0628.",
+    "Senza premere il campanello \xE8 silenzioso": "\u0628\u0644\u0627 \u0636\u063A\u0637 \u0639\u0644\u0649 \u0627\u0644\u0632\u0631 \u064A\u0628\u0642\u0649 \u0627\u0644\u062C\u0631\u0633 \u0635\u0627\u0645\u062A\u064B\u0627",
+    "Si spengono subito.": "\u062A\u0646\u0637\u0641\u0626 \u0641\u0648\u0631\u064B\u0627.",
+    "Sono entrambi a valle del differenziale: una dispersione su qualunque linea lo fa scattare.": "\u0643\u0644\u0627\u0647\u0645\u0627 \u0628\u0639\u062F \u0627\u0644\u0642\u0627\u0637\u0639 \u0627\u0644\u062A\u0641\u0627\u0636\u0644\u064A: \u0623\u064A \u062A\u0633\u0631\u0651\u0628 \u0639\u0644\u0649 \u0623\u064A \u062E\u0637 \u064A\u062C\u0639\u0644\u0647 \u064A\u0641\u0635\u0644.",
+    "Tasto di prova del differenziale: luce e presa si spengono": "\u0632\u0631 \u0627\u062E\u062A\u0628\u0627\u0631 \u0627\u0644\u0642\u0627\u0637\u0639 \u0627\u0644\u062A\u0641\u0627\u0636\u0644\u064A: \u064A\u0646\u0637\u0641\u0626 \u0627\u0644\u0636\u0648\u0621 \u0648\u0627\u0644\u0645\u0642\u0628\u0633",
+    "Tasto di prova: il differenziale scatta e tutto si spegne.": "\u0632\u0631 \u0627\u0644\u0627\u062E\u062A\u0628\u0627\u0631: \u064A\u0641\u0635\u0644 \u0627\u0644\u0642\u0627\u0637\u0639 \u0627\u0644\u062A\u0641\u0627\u0636\u0644\u064A \u0648\u064A\u0646\u0637\u0641\u0626 \u0643\u0644 \u0634\u064A\u0621.",
+    "Temporizzatore": "\u0627\u0644\u0645\u0624\u0642\u0651\u062A",
+    "Tocca la levetta del quadro, poi premi il pulsante.": "\u0627\u0644\u0645\u0633 \u0645\u0641\u062A\u0627\u062D \u0627\u0644\u0644\u0648\u062D\u0629 \u062B\u0645 \u0627\u0636\u063A\u0637 \u0627\u0644\u0632\u0631.",
+    "Tocca la levetta del quadro, poi premi un pulsante e osserva le lampade.": "\u0627\u0644\u0645\u0633 \u0645\u0641\u062A\u0627\u062D \u0627\u0644\u0644\u0648\u062D\u0629\u060C \u062B\u0645 \u0627\u0636\u063A\u0637 \u0632\u0631\u064B\u0651\u0627 \u0648\u0631\u0627\u0642\u0628 \u0627\u0644\u0645\u0635\u0627\u0628\u064A\u062D.",
+    "Tra primario e secondario non c\u2019\xE8 nessun collegamento elettrico: l\u2019energia passa attraverso il campo magnetico del nucleo.": "\u0644\u0627 \u064A\u0648\u062C\u062F \u0623\u064A \u0627\u062A\u0635\u0627\u0644 \u0643\u0647\u0631\u0628\u0627\u0626\u064A \u0628\u064A\u0646 \u0627\u0644\u0645\u0644\u0641 \u0627\u0644\u0627\u0628\u062A\u062F\u0627\u0626\u064A \u0648\u0627\u0644\u062B\u0627\u0646\u0648\u064A: \u062A\u0646\u062A\u0642\u0644 \u0627\u0644\u0637\u0627\u0642\u0629 \u0639\u0628\u0631 \u0627\u0644\u0645\u062C\u0627\u0644 \u0627\u0644\u0645\u063A\u0646\u0627\u0637\u064A\u0633\u064A \u0644\u0644\u0642\u0644\u0628.",
+    "Trasformatore": "\u0627\u0644\u0645\u062D\u0648\u0651\u0644",
+    "Trasformatore 230/12 V": "\u0645\u062D\u0648\u0651\u0644 230/12 \u0641\u0648\u0644\u062A",
+    "Un magnetotermico per la luce e uno per le prese: ciascuno interrompe sia la fase sia il neutro della sua linea.": "\u0642\u0627\u0637\u0639 \u0645\u063A\u0646\u0627\u0637\u064A\u0633\u064A \u062D\u0631\u0627\u0631\u064A \u0644\u0644\u0625\u0646\u0627\u0631\u0629 \u0648\u0622\u062E\u0631 \u0644\u0644\u0645\u0642\u0627\u0628\u0633: \u0643\u0644\u064C\u0651 \u0645\u0646\u0647\u0645\u0627 \u064A\u0642\u0637\u0639 \u0627\u0644\u0637\u0648\u0631 \u0648\u0627\u0644\u0645\u062D\u0627\u064A\u062F \u0641\u064A \u062E\u0637\u0647."
+  };
+
   // src/i18n/ar.js
   var ROLE = { "del neutro": "\u0627\u0644\u0645\u062D\u0627\u064A\u062F", "di terra": "\u0627\u0644\u0623\u0631\u0636\u064A", "di fase": "\u0627\u0644\u0637\u0648\u0631", "a bassa tensione": "\u0627\u0644\u062C\u0647\u062F \u0627\u0644\u0645\u0646\u062E\u0641\u0636", "di comando": "\u0627\u0644\u062A\u062D\u0643\u0645" };
   var COLORI = { "blu": "\u0623\u0632\u0631\u0642", "giallo-verde": "\u0623\u0635\u0641\u0631-\u0623\u062E\u0636\u0631", "marrone, nero o grigio": "\u0628\u0646\u064A\u064B\u0651\u0627 \u0623\u0648 \u0623\u0633\u0648\u062F \u0623\u0648 \u0631\u0645\u0627\u062F\u064A\u064B\u0651\u0627", "rosso, marrone, nero o grigio": "\u0623\u062D\u0645\u0631 \u0623\u0648 \u0628\u0646\u064A\u064B\u0651\u0627 \u0623\u0648 \u0623\u0633\u0648\u062F \u0623\u0648 \u0631\u0645\u0627\u062F\u064A\u064B\u0651\u0627", "di un colore diverso da blu e giallo-verde": "\u0628\u0644\u0648\u0646 \u0645\u062E\u062A\u0644\u0641 \u0639\u0646 \u0627\u0644\u0623\u0632\u0631\u0642 \u0648\u0627\u0644\u0623\u0635\u0641\u0631-\u0627\u0644\u0623\u062E\u0636\u0631" };
@@ -7562,7 +8206,7 @@ html[lang="it"] .trnote{display:none}
     [/^(.+): (.+); atteso: (.+)\.$/, (m, t) => `${t(m[1])}: ${t(m[2])}\u061B \u0627\u0644\u0645\u062A\u0648\u0642\u0639: ${t(m[3])}.`],
     [/^Protezioni scattate: (.+)\.$/, (m, t) => `\u062D\u0645\u0627\u064A\u0627\u062A \u0641\u0635\u0644\u062A: ${t(m[1])}.`]
   ];
-  registerLang("ar", { ...ar_1_default, ...ar_2_default, ...ar_3_default, ...ar_4_default, ...ar_5_default, ...ar_6_default, ...ar_7_default, ...ar_8_default, ...ar_9_default, ...ar_10_default, ...ar_11_default, ...ar_12_default }, PAT);
+  registerLang("ar", { ...ar_1_default, ...ar_2_default, ...ar_3_default, ...ar_4_default, ...ar_5_default, ...ar_6_default, ...ar_7_default, ...ar_8_default, ...ar_9_default, ...ar_10_default, ...ar_11_default, ...ar_12_default, ...ar_13_default }, PAT);
 
   // src/trilocale/house.js
   function houseState(session2, on = true) {

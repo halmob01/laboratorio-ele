@@ -48,7 +48,7 @@ test('tratteggio: il primo morsetto di arrivo ancora libero', () => {
 test('dimostrazione: un fotogramma per filo, poi la corrente, e la luce si accende', () => {
   levels.filter(l => l.solution).forEach(l => {
     const f = demoFrames(l, {});
-    const base = l.solution.length + 1 + (l.controls || []).length;
+    const base = l.solution.length + 1 + (l.demoDo ? l.demoDo.length : (l.controls || []).length);
     assert.equal(f.length, base, l.id);
     assert.equal(f[0].snap.wires.length, 1);
     assert.equal(f[l.solution.length - 1].snap.wires.length, l.solution.length);

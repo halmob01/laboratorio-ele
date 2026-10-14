@@ -763,4 +763,303 @@ export const UNITS_V2 = {
       fixSay: 'Collega il finecorsa con il contatto normalmente chiuso: dal morsetto 4 della marcia al morsetto 1 del finecorsa e dal morsetto 2 alla bobina. Poi premi Verifica.',
     },
   },
+
+  'c09-luce-scale': {
+    support: 'passi',
+    lesson: {
+      pages: [
+        {
+          type: 'spiegazione',
+          title: 'La luce che si spegne da sola',
+          paras: [
+            'Nelle scale dei condomini la luce si accende con un pulsante e si spegne da sola dopo qualche decina di secondi. Così non resta accesa per dimenticanza e si risparmia energia.',
+            'Il pulsante non comanda direttamente le lampade: comanda un relè temporizzato, che tiene acceso il contatto per un tempo regolabile.',
+          ],
+        },
+        {
+          type: 'pezzi',
+          title: 'Il relè temporizzato',
+          focus: ['T'],
+          paras: [
+            'Ha una bobina (A1, A2) e un contatto (1, 2). Quando la bobina riceve tensione il contatto si chiude e parte il conteggio del tempo.',
+            'Il contatto resta chiuso fino alla fine del tempo, anche se il pulsante è già stato rilasciato. Se si preme di nuovo prima della fine, il conteggio riparte da capo.',
+          ],
+        },
+        {
+          type: 'pezzi',
+          title: 'Pulsanti in parallelo',
+          focus: ['P1', 'P2'],
+          paras: [
+            'Come nel relè ad impulsi, i pulsanti sono in parallelo: basta premerne uno qualunque per eccitare la bobina. Se ne possono aggiungere quanti servono, uno a ogni piano.',
+            'Le lampade non passano dai pulsanti: sono alimentate dal contatto del temporizzatore.',
+          ],
+        },
+        {
+          type: 'demo',
+          title: 'Guarda come si fa',
+          captions: {
+            wires: [
+              'Filo marrone dalla FASE del quadro al morsetto 3 del primo pulsante.',
+              'Dal morsetto 3 del primo pulsante al morsetto 3 del secondo.',
+              'Dal morsetto 4 del primo pulsante al morsetto 4 del secondo.',
+              'Dal morsetto 4 del secondo pulsante alla bobina del temporizzatore (A1).',
+              'Filo blu dall’altro capo della bobina (A2) al NEUTRO.',
+              'La fase arriva anche al contatto del temporizzatore: morsetto 1.',
+              'Dal morsetto 2 del temporizzatore alla prima lampada.',
+              'Dallo stesso morsetto 2 alla seconda lampada.',
+              'Filo blu dalla prima lampada al NEUTRO.',
+              'Filo blu dalla seconda lampada al NEUTRO.',
+            ],
+            power: 'Levetta su: le lampade sono spente.',
+            controls: ['Pulsante premuto e rilasciato: le due lampade si accendono.', 'Dopo il tempo impostato le lampade si spengono da sole.'],
+          },
+        },
+        {
+          type: 'previsione',
+          question: 'Le lampade sono accese da 15 secondi su 20. Premo di nuovo il pulsante. Quanto resteranno accese ancora?',
+          options: [
+            { id: 'a', text: 'Altri 5 secondi: il tempo non cambia.' },
+            { id: 'b', text: 'Altri 20 secondi: il conteggio riparte da capo.' },
+            { id: 'c', text: 'Si spengono subito.' },
+          ],
+          correct: 'b',
+          why: 'Il fronte di salita della bobina riavvia il conteggio. Ogni pressione dà un nuovo intervallo pieno: per questo chi sale le scale può premere quando vuole senza restare al buio.',
+        },
+        { type: 'sintesi', title: 'Da ricordare' },
+      ],
+    },
+    steps: [
+      { kind: 'wire', from: 'Q.F', to: ['P1.3'], color: 'marrone', short: '1 Fase', title: 'La fase ai pulsanti', text: 'Dalla FASE del quadro al morsetto 3 del primo pulsante.' },
+      { kind: 'wire', from: 'P1.3', to: ['P2.3'], color: 'marrone', short: '2 Parallelo 3', title: 'Pulsanti in parallelo', text: 'Collega tra loro i morsetti 3 dei due pulsanti.' },
+      { kind: 'wire', from: 'P1.4', to: ['P2.4'], color: 'marrone', short: '3 Parallelo 4', title: 'Pulsanti in parallelo', text: 'Collega tra loro i morsetti 4 dei due pulsanti.' },
+      { kind: 'wire', from: 'P2.4', to: ['T.A1'], color: 'marrone', short: '4 Bobina', title: 'Alla bobina', text: 'Dai morsetti 4 dei pulsanti alla bobina del temporizzatore (A1).' },
+      { kind: 'wire', from: 'T.A2', to: ['Q.N'], color: 'blu', short: '5 Neutro bobina', title: 'Il neutro alla bobina', text: 'Dall’altro capo della bobina (A2) al NEUTRO.' },
+      { kind: 'wire', from: 'Q.F', to: ['T.1'], color: 'marrone', short: '6 Contatto', title: 'La fase al contatto', text: 'Dalla FASE del quadro al morsetto 1 del temporizzatore.' },
+      { kind: 'wire', from: 'T.2', to: ['L1.A'], color: 'marrone', short: '7 Lampada 1', title: 'Alla prima lampada', text: 'Dal morsetto 2 del temporizzatore a un morsetto della prima lampada.' },
+      { kind: 'wire', from: 'T.2', to: ['L2.A'], color: 'marrone', short: '8 Lampada 2', title: 'Alla seconda lampada', text: 'Dallo stesso morsetto 2 a un morsetto della seconda lampada.' },
+      { kind: 'wire', from: 'L1.B', to: ['Q.N'], color: 'blu', short: '9 Neutro 1', title: 'Il neutro alla lampada 1', text: 'Dal NEUTRO all’altro morsetto della prima lampada.' },
+      { kind: 'wire', from: 'L2.B', to: ['Q.N'], color: 'blu', short: '10 Neutro 2', title: 'Il neutro alla lampada 2', text: 'Dal NEUTRO all’altro morsetto della seconda lampada.' },
+      { kind: 'power', short: '11 Levetta', title: 'Dai corrente', text: 'Tocca la levetta del quadro, poi premi un pulsante e osserva le lampade.' },
+      { kind: 'verify', short: '12 Verifica', title: 'Controlla l’impianto', text: 'Premi Verifica: il controllo simula anche lo scorrere del tempo.' },
+    ],
+    summary: [
+      'Il relè temporizzato tiene chiuso il suo contatto per un tempo fissato, dopo che la bobina è stata eccitata.',
+      'Il pulsante comanda la bobina: le lampade sono alimentate dal contatto.',
+      'I pulsanti si mettono in parallelo: se ne può aggiungere uno per ogni punto di comando.',
+      'Premendo di nuovo prima della fine, il tempo riparte da capo.',
+    ],
+    fault: {
+      say: 'Qui il temporizzatore non c’è: i pulsanti comandano direttamente le lampade. Premi un pulsante, aspetta qualche secondo e poi premi Verifica.',
+      wires: [
+        ['Q.F', 'P1.3', 'marrone'], ['P1.3', 'P2.3', 'marrone'], ['P1.4', 'P2.4', 'marrone'],
+        ['P2.4', 'L1.A', 'marrone'], ['P2.4', 'L2.A', 'marrone'], ['L1.B', 'Q.N', 'blu'], ['L2.B', 'Q.N', 'blu'],
+      ],
+      diagnosis: {
+        question: 'Perché la luce non resta accesa?',
+        options: [
+          { id: 'a', text: 'Le lampade sono collegate direttamente ai pulsanti: si accendono solo finché si tiene premuto.' },
+          { id: 'b', text: 'Il neutro delle lampade è sbagliato.' },
+          { id: 'c', text: 'Il tempo del temporizzatore è troppo breve.' },
+        ],
+        correct: 'a',
+        why: 'Il pulsante chiude il contatto solo mentre è premuto. Per mantenere la luce accesa per un tempo, il pulsante deve comandare la bobina del temporizzatore e le lampade devono essere alimentate dal suo contatto.',
+      },
+      fixSay: 'Inserisci il temporizzatore: i pulsanti vanno alla bobina e le lampade al contatto del temporizzatore. Poi premi Verifica.',
+    },
+  },
+
+  'c10-campanello': {
+    support: 'passi',
+    lesson: {
+      pages: [
+        {
+          type: 'spiegazione',
+          title: 'Il campanello a bassa tensione',
+          paras: [
+            'Il campanello di casa funziona a bassa tensione, per esempio 12 V. È più sicuro: chi tocca il pulsante accanto alla porta non rischia nulla, e i fili possono essere sottili.',
+            'La rete però è a 230 V. Serve un componente che abbassi la tensione: il trasformatore.',
+          ],
+        },
+        {
+          type: 'pezzi',
+          title: 'Il trasformatore',
+          focus: ['TR'],
+          paras: [
+            'Ha due lati separati. Il primario (morsetti 1 e 2) si collega alla rete a 230 V. Il secondario (morsetti 3 e 4) fornisce i 12 V.',
+            'Tra primario e secondario non c’è nessun collegamento elettrico: l’energia passa attraverso il campo magnetico del nucleo.',
+          ],
+        },
+        {
+          type: 'pezzi',
+          title: 'Il campanello',
+          focus: ['B'],
+          paras: [
+            'Il campanello è fatto per 12 V. Se lo si collega per errore alla rete a 230 V si brucia.',
+            'Il pulsante invece può stare sul primario, sulla fase, come un normale interruttore. I fili del circuito a bassa tensione, né fase né neutro, possono essere di altri colori, per esempio bianco.',
+          ],
+        },
+        {
+          type: 'demo',
+          title: 'Guarda come si fa',
+          captions: {
+            wires: [
+              'Filo marrone dalla FASE del quadro al pulsante.',
+              'Dal pulsante al morsetto 1 del primario del trasformatore.',
+              'Filo blu dal morsetto 2 del primario al NEUTRO.',
+              'Filo bianco dal morsetto 3 del secondario al campanello.',
+              'Filo bianco dal morsetto 4 del secondario all’altro morsetto del campanello.',
+            ],
+            power: 'Levetta su: il pulsante non è premuto, il campanello è silenzioso.',
+            controls: ['Pulsante premuto: il trasformatore è alimentato e il campanello suona.'],
+          },
+        },
+        {
+          type: 'previsione',
+          question: 'Il trasformatore è alimentato ma il pulsante non è premuto. Il campanello è collegato al secondario. Che cosa succede?',
+          options: [
+            { id: 'a', text: 'Il campanello suona: il secondario ha sempre tensione.' },
+            { id: 'b', text: 'Il campanello è silenzioso: il pulsante interrompe il primario.' },
+            { id: 'c', text: 'Il campanello si brucia.' },
+          ],
+          correct: 'b',
+          why: 'Il pulsante sta sulla fase del primario. Finché è a riposo il primario non ha tensione e quindi neanche il secondario ne ha: il campanello tace.',
+        },
+        { type: 'sintesi', title: 'Da ricordare' },
+      ],
+    },
+    steps: [
+      { kind: 'wire', from: 'Q.F', to: ['SB.3'], color: 'marrone', short: '1 Fase', title: 'La fase al pulsante', text: 'Dalla FASE del quadro al morsetto 3 del pulsante.' },
+      { kind: 'wire', from: 'SB.4', to: ['TR.1'], color: 'marrone', short: '2 Primario', title: 'Al primario', text: 'Dal morsetto 4 del pulsante al morsetto 1 del trasformatore.' },
+      { kind: 'wire', from: 'TR.2', to: ['Q.N'], color: 'blu', short: '3 Neutro', title: 'Il neutro al primario', text: 'Dal morsetto 2 del trasformatore al NEUTRO.' },
+      { kind: 'wire', from: 'TR.3', to: ['B.1'], color: 'bianco', short: '4 Secondario', title: 'Dal secondario al campanello', text: 'Dal morsetto 3 del secondario a un morsetto del campanello. Qui puoi usare il bianco.' },
+      { kind: 'wire', from: 'TR.4', to: ['B.2'], color: 'bianco', short: '5 Ritorno', title: 'Il secondo filo', text: 'Dal morsetto 4 del secondario all’altro morsetto del campanello.' },
+      { kind: 'power', short: '6 Levetta', title: 'Dai corrente', text: 'Tocca la levetta del quadro, poi premi il pulsante.' },
+      { kind: 'verify', short: '7 Verifica', title: 'Controlla l’impianto', text: 'Premi Verifica.' },
+    ],
+    summary: [
+      'Il campanello funziona a bassa tensione (12 V): collegato alla rete a 230 V si brucia.',
+      'Il trasformatore abbassa la tensione: il primario va alla rete, il secondario al campanello.',
+      'Il pulsante sta sul primario, sulla fase.',
+      'I fili del circuito a bassa tensione non hanno i colori della rete: si usa, per esempio, il bianco.',
+    ],
+    fault: {
+      say: 'Il campanello è collegato al pulsante senza trasformatore. Premi il pulsante e guarda che cosa succede, poi premi Verifica.',
+      wires: [
+        ['Q.F', 'SB.3', 'marrone'], ['SB.4', 'B.1', 'marrone'], ['B.2', 'Q.N', 'blu'],
+      ],
+      diagnosis: {
+        question: 'Che cosa non va?',
+        options: [
+          { id: 'a', text: 'Il campanello è collegato direttamente alla rete a 230 V: si brucia.' },
+          { id: 'b', text: 'Il pulsante è collegato al neutro.' },
+          { id: 'c', text: 'Manca la terra al campanello.' },
+        ],
+        correct: 'a',
+        why: 'Il campanello è progettato per 12 V. Con 230 V ai capi si brucia. Serve il trasformatore: il campanello va collegato al secondario.',
+      },
+      fixSay: 'Inserisci il trasformatore: pulsante e rete sul primario, campanello sul secondario. Poi premi Verifica.',
+    },
+  },
+
+  'c11-quadro': {
+    support: 'obiettivo',
+    lesson: {
+      pages: [
+        {
+          type: 'spiegazione',
+          title: 'Il quadro di una casa',
+          paras: [
+            'Il quadro elettrico raccoglie le protezioni. All’ingresso c’è un interruttore differenziale, che protegge le persone. A valle, ogni linea ha il suo magnetotermico, che protegge i cavi dal sovraccarico e dal cortocircuito.',
+            'Dividere in linee ha un vantaggio: se si guasta la luce, scatta solo il magnetotermico della luce e le prese restano alimentate.',
+          ],
+        },
+        {
+          type: 'pezzi',
+          title: 'Il differenziale',
+          focus: ['D'],
+          paras: [
+            'Confronta la corrente che entra dalla fase con quella che torna dal neutro. Se non sono uguali, una parte sta tornando per un’altra strada, per esempio attraverso una persona, e il differenziale scatta.',
+            'Per questo il neutro di ogni carico deve passare dal differenziale. Il tasto di prova simula una dispersione: va premuto ogni tanto per controllare che funzioni.',
+          ],
+          warn: 'Se un neutro è preso a monte del differenziale, la corrente non torna da dove è andata e il differenziale scatta senza motivo.',
+        },
+        {
+          type: 'pezzi',
+          title: 'I magnetotermici di linea',
+          focus: ['M1', 'M2'],
+          paras: [
+            'Un magnetotermico per la luce e uno per le prese: ciascuno interrompe sia la fase sia il neutro della sua linea.',
+            'Sono entrambi a valle del differenziale: una dispersione su qualunque linea lo fa scattare.',
+          ],
+        },
+        {
+          type: 'demo',
+          title: 'Guarda come si fa',
+          captions: {
+            wires: [
+              'La fase del quadro entra nel differenziale: morsetto 1.',
+              'Il neutro del quadro entra nel differenziale: morsetto N.',
+              'Dall’uscita fase del differenziale al magnetotermico della luce.',
+              'Dalla stessa uscita al magnetotermico delle prese.',
+              'Dall’uscita neutro del differenziale al magnetotermico della luce.',
+              'Dalla stessa uscita al magnetotermico delle prese.',
+              'Dal magnetotermico della luce all’interruttore.',
+              'Dall’interruttore alla lampada.',
+              'Il neutro del magnetotermico della luce alla lampada.',
+              'Dal magnetotermico delle prese al morsetto L della presa.',
+              'Il neutro del magnetotermico delle prese al morsetto N della presa.',
+              'La terra del quadro al morsetto PE della presa.',
+            ],
+            power: 'Il quadro è alimentato: la presa ha tensione, la lampada è spenta.',
+            controls: ['Interruttore chiuso: la lampada si accende.', 'Tasto di prova: il differenziale scatta e tutto si spegne.'],
+          },
+        },
+        {
+          type: 'previsione',
+          question: 'In casa un apparecchio della linea prese ha una dispersione verso terra. Che cosa dovrebbe scattare?',
+          options: [
+            { id: 'a', text: 'Il magnetotermico della luce.' },
+            { id: 'b', text: 'Il differenziale.' },
+            { id: 'c', text: 'Nulla: la dispersione non è pericolosa.' },
+          ],
+          correct: 'b',
+          why: 'Il differenziale rileva la differenza tra la corrente di andata e quella di ritorno. Una dispersione verso terra è proprio questa differenza. I magnetotermici scattano per sovraccarico o cortocircuito, non per dispersione.',
+        },
+        { type: 'sintesi', title: 'Da ricordare' },
+      ],
+    },
+    steps: [
+      { kind: 'wire', from: 'Q.F', to: ['D.1'], color: 'marrone', short: '1 Ingresso', title: 'Entra nel differenziale', text: 'Fase e neutro del quadro entrano nel differenziale, in alto.' },
+      { kind: 'wire', from: 'D.2', to: ['M1.1', 'M2.1'], color: 'marrone', short: '2 Linee', title: 'Le due linee', text: 'Dal differenziale la fase e il neutro si dividono nelle due linee, luce e prese.' },
+      { kind: 'wire', from: 'M2.N2', to: ['P.N'], color: 'blu', short: '3 Presa', title: 'La presa e la terra', text: 'La presa riceve fase e neutro dal suo magnetotermico, più la terra del quadro.' },
+      { kind: 'verify', short: '4 Verifica', title: 'Controlla l’impianto', text: 'Prova anche il tasto di prova del differenziale, poi premi Verifica.' },
+    ],
+    summary: [
+      'Il differenziale protegge le persone: scatta se la corrente di andata e quella di ritorno sono diverse.',
+      'Il magnetotermico protegge i cavi dal sovraccarico e dal cortocircuito.',
+      'Il neutro di ogni carico deve passare dal differenziale, altrimenti scatta senza motivo.',
+      'Linee separate con magnetotermici separati: se una si guasta, le altre restano alimentate.',
+      'Il tasto di prova del differenziale va premuto ogni tanto per controllare che funzioni.',
+    ],
+    fault: {
+      say: 'Il differenziale scatta appena dai corrente. Rialzalo e osserva, poi premi Verifica.',
+      wires: [
+        ['Q.F', 'D.1', 'marrone'], ['Q.N', 'D.N1', 'blu'],
+        ['D.2', 'M1.1', 'marrone'], ['D.2', 'M2.1', 'marrone'], ['D.N2', 'M1.N1', 'blu'],
+        ['M1.2', 'S.a', 'marrone'], ['S.b', 'L.A', 'marrone'], ['M1.N2', 'L.B', 'blu'],
+        ['M2.2', 'P.L', 'marrone'], ['Q.N', 'P.N', 'blu'], ['Q.PE', 'P.PE', 'gv'],
+      ],
+      diagnosis: {
+        question: 'Perché il differenziale scatta?',
+        options: [
+          { id: 'a', text: 'Il neutro della presa è preso a monte del differenziale: la corrente di ritorno non passa da lui.' },
+          { id: 'b', text: 'Il magnetotermico delle prese è troppo piccolo.' },
+          { id: 'c', text: 'La lampada è collegata male.' },
+        ],
+        correct: 'a',
+        why: 'La fase della presa passa dal differenziale, ma il neutro no. Il differenziale vede una corrente che entra e non esce, la interpreta come dispersione e scatta. Il neutro di ogni carico deve essere preso a valle del differenziale.',
+      },
+      fixSay: 'Porta il neutro della presa a valle del differenziale, passando dal magnetotermico delle prese. Poi premi Verifica.',
+    },
+  },
 };

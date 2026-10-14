@@ -21,9 +21,9 @@ export const MODULES = [
     levels: [
       'c07-presa-comandata',
       'c08-rele-impulsi',
-      { soon: true, id: 'c09-luce-scale', title: 'Luce scale a tempo', blurb: 'La luce si spegne da sola dopo qualche secondo.' },
-      { soon: true, id: 'c10-campanello', title: 'Campanello e trasformatore', blurb: 'Un trasformatore abbassa la tensione per il campanello.' },
-      { soon: true, id: 'c11-quadro', title: 'Il quadro di casa', blurb: 'Differenziale e magnetotermici su luce e prese.' },
+      'c09-luce-scale',
+      'c10-campanello',
+      'c11-quadro',
     ],
   },
   {
