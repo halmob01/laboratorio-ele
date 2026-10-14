@@ -443,3 +443,28 @@ test('quaderno: compaiono anche le sintesi del trilocale', () => {
   assert.match(q(d, '#screen-quaderno').textContent, /Il trilocale/);
   assert.match(q(d, '#screen-quaderno').textContent, /Il bagno/);
 });
+
+/* ---------- lingue ---------- */
+test('il selettore di lingua traduce la pagina, cambia direzione e torna all\'italiano; la scelta si ricorda', async () => {
+  const tick = () => new Promise(r => setTimeout(r, 5));
+  const { w, d, errors } = openPage({ seen: true });
+  const sel = q(d, '#langSel');
+  assert.ok(sel, 'selettore presente');
+  assert.equal(d.documentElement.dir, 'ltr');
+  const before = q(d, '#screen-home h3').textContent;
+  sel.value = 'ar';
+  fire(w, sel, 'change');
+  assert.equal(d.documentElement.dir, 'rtl');
+  assert.equal(d.documentElement.lang, 'ar');
+  assert.notEqual(q(d, '#screen-home h3').textContent, before);
+  assert.match(q(d, '#screen-home').textContent, /[؀-ۿ]/);
+  assert.equal(q(d, '.wordmark').textContent.trim(), 'Fase e Neutro');       // il nome non si traduce
+  assert.equal(w.localStorage.getItem('fase-e-neutro-lingua'), 'ar');
+  go(w, '#/livello/c01-circuito-chiuso'); await tick();                      // anche le schermate nuove vengono tradotte
+  assert.match(q(d, '#lesson h2').textContent, /[؀-ۿ]/);
+  q(d, '#langSel').value = 'it';
+  fire(w, q(d, '#langSel'), 'change'); await tick();
+  assert.equal(d.documentElement.dir, 'ltr');
+  assert.equal(q(d, '#lesson h2').textContent, 'Una lampada al soffitto');
+  assert.deepEqual(errors, []);
+});

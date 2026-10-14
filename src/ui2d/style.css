@@ -177,8 +177,8 @@ svg .ghost{fill:none;stroke-width:5;stroke-linecap:round;stroke-dasharray:3 9;op
 }
 
 /* ---------- nuova pagina: barra in alto, mappa, introduzione, schede ---------- */
-.skip{position:absolute;left:-999px;top:0;background:var(--ink);color:var(--bg);padding:10px 14px;z-index:100;border-radius:0 0 8px 0}
-.skip:focus{left:0}
+.skip{position:absolute;left:0;top:0;transform:translateY(-120%);background:var(--ink);color:var(--bg);padding:10px 14px;z-index:100;border-radius:0 0 8px 0}
+.skip:focus{transform:none}
 a.btn,button.btn{display:inline-flex;align-items:center;justify-content:center;text-decoration:none;font:500 15px/1 'IBM Plex Sans',sans-serif;background:var(--card);color:var(--ink);border:1px solid var(--line);border-radius:8px;padding:11px 14px;min-height:44px;cursor:pointer}
 a.btn:hover,button.btn:hover{border-color:var(--comp-edge)}
 a.btn.primary,button.btn.primary{background:var(--accent);color:var(--on-accent);border-color:var(--accent);font-weight:600}
@@ -264,7 +264,7 @@ button:disabled{cursor:default}
   .fabout p{font-size:14px;color:var(--ink2);margin-top:8px}
   .fcols{display:flex;flex-wrap:wrap;gap:32px 64px}
   .fcol{display:flex;flex-direction:column;gap:8px}
-  .ftitle{font:500 12px/1 'IBM Plex Mono',monospace;letter-spacing:.1em;color:var(--ink2);margin-bottom:2px}
+  .ftitle{text-transform:uppercase;font:500 12px/1 'IBM Plex Mono',monospace;letter-spacing:.1em;color:var(--ink2);margin-bottom:2px}
   .fbtn{min-height:44px;display:flex;align-items:center;gap:6px;padding:0 18px;border:1.5px solid var(--ink);background:var(--card);border-radius:8px;font:600 15px/1 'IBM Plex Sans',sans-serif;color:var(--ink);text-decoration:none;cursor:pointer}
   .fbtn.dis{border-style:dashed;border-color:var(--line);color:var(--ink2);cursor:default}
   .fbtn small{font-weight:500}
@@ -475,3 +475,26 @@ a.tool{display:flex;align-items:center;justify-content:center;text-decoration:no
 @media (max-width:600px){.hlabel.ctl{display:none!important}}
 .hsoon{display:flex;justify-content:space-between;align-items:baseline;padding:10px 12px;border:1.5px dashed var(--line);border-radius:10px;color:var(--ink2);font-size:14px}
 .hsoon small{font:500 12px 'IBM Plex Mono',monospace}
+
+/* ---------- lingue ---------- */
+.langsel{flex:none;min-height:44px;background:transparent;color:var(--ink);border:1.5px solid var(--ink);border-radius:999px;padding:0 10px;font:600 14px/1 'IBM Plex Sans',sans-serif;cursor:pointer;max-width:34vw}
+.top{gap:8px}
+@font-face{font-family:'Cairo';font-style:normal;font-weight:400;font-display:swap;src:url('fonts/cairo-arabic-400-normal.woff2') format('woff2');unicode-range:U+0600-06FF,U+0750-077F,U+0870-088E,U+0890-0891,U+0897-08E1,U+08E3-08FF,U+200C-200E,U+2010-2011,U+204F,U+2E41,U+FB50-FDFF,U+FE70-FE74,U+FE76-FEFC}
+@font-face{font-family:'Cairo';font-style:normal;font-weight:600;font-display:swap;src:url('fonts/cairo-arabic-600-normal.woff2') format('woff2');unicode-range:U+0600-06FF,U+0750-077F,U+0870-088E,U+0890-0891,U+0897-08E1,U+08E3-08FF,U+200C-200E,U+2010-2011,U+204F,U+2E41,U+FB50-FDFF,U+FE70-FE74,U+FE76-FEFC}
+@font-face{font-family:'Cairo';font-style:normal;font-weight:700;font-display:swap;src:url('fonts/cairo-arabic-700-normal.woff2') format('woff2');unicode-range:U+0600-06FF,U+0750-077F,U+0870-088E,U+0890-0891,U+0897-08E1,U+08E3-08FF,U+200C-200E,U+2010-2011,U+204F,U+2E41,U+FB50-FDFF,U+FE70-FE74,U+FE76-FEFC}
+html[lang="ar"] *{font-family:'Cairo','IBM Plex Sans',system-ui,sans-serif}
+html[lang="ar"] .wordmark,html[lang="ar"] .wordmark *{font-family:'Barlow Condensed','IBM Plex Sans',sans-serif}
+html[lang="ar"] *{letter-spacing:0 !important;text-transform:none !important}
+html[lang="ar"] body{line-height:1.7}
+html[dir="rtl"] svg,html[dir="rtl"] .house,html[dir="rtl"] #bench,html[dir="rtl"] .benchmain,html[dir="rtl"] .benchrow svg{direction:ltr}
+@media (max-width:919px){
+  .top{gap:6px}
+  .brand svg{width:22px;height:22px}
+  .wordmark{font-size:19px}
+  .player{padding:0 9px;gap:5px;max-width:40vw}
+  .langsel{padding:0 4px;font-size:13px;max-width:28vw}
+}
+@media (max-width:420px){.player .pxp{display:none}.brand{flex:none}.player{flex:1 1 0;max-width:none;justify-content:center}.langsel{flex:none}}
+.trnote{margin:14px 0 0;font-size:13px;line-height:1.5;color:var(--ink2)}
+.trnote a{color:inherit}
+html[lang="it"] .trnote{display:none}

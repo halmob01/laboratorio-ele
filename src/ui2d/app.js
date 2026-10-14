@@ -8,6 +8,8 @@ import { composeComps } from './layout.js';
 import * as R from './render.js';
 import * as V from './screens.js';
 import { INTRO } from '../content/home.js';
+import { setLang, detect, onLang } from '../i18n/index.js';
+import '../i18n/ar.js';
 import { createHouse, isHouseLevel, firstCircuit } from '../trilocale/page.js';
 
 const $ = s => document.querySelector(s);
@@ -456,7 +458,15 @@ document.addEventListener('click', e => {
   if (e.target.closest('#bPlayer')) { opener = e.target.closest('#bPlayer'); openName(false); }
 });
 
+/* ---------- lingua ---------- */
+document.addEventListener('change', e => {
+  if (e.target.id !== 'langSel') return;
+  setLang(e.target.value);
+  $('#langSel') && $('#langSel').focus();
+});
+
 /* ---------- avvio ---------- */
+setLang(detect(), document.body, false);
 $('#footer').innerHTML = V.footerHTML();
 renderPalette();
 session.start();
