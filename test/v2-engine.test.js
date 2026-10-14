@@ -316,3 +316,22 @@ test('campanello: i fili del secondario dopo il pulsante sono a bassa tensione (
   const r = evaluateV2(L, W('Q.F T.1', 'Q.N T.2 blu', 'T.3 P.3 bianco', 'P.4 B.1 bianco', 'B.2 T.4 bianco'));
   assert.equal(r.color.ok, true, JSON.stringify(r.color));
 });
+
+import { flowV2 } from '../src/engine/v2/index.js';
+
+test('corrente visibile v2: in marcia sono percorsi potenza e comando; a motore fermo nessun filo', () => {
+  const ws = renum(c13Power.concat(c13Ctl));
+  const s = createSim(C13, ws);
+  let f = flowV2(s);
+  assert.equal(f.current, false);
+  assert.ok(Object.values(f.wires).every(w => !w.current));
+  act(s, 'press', 'SB1'); act(s, 'release', 'SB1');
+  f = flowV2(s);
+  assert.equal(f.current, true);
+  const by = (a, b) => ws.find(w => w.a === a && w.b === b).id;
+  assert.equal(f.wires[by('KM.2', 'M.U')].current, true);
+  assert.equal(f.wires[by('KM.A2', 'Q.N')].current, true);
+  assert.equal(f.wires[by('KM.14', 'SB1.4')].current, true);
+  assert.equal(f.wires[by('M.PE', 'Q.PE')].current, false);
+  assert.equal(f.wires[by('KM.2', 'M.U')].net, 'fase');
+});
