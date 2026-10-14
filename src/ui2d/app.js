@@ -296,11 +296,15 @@ window.addEventListener('pointerup', e => {
   const el = document.elementFromPoint ? document.elementFromPoint(e.clientX, e.clientY) : null;
   const t = el && el.closest ? el.closest('[data-term]') : null;
   const up = t ? t.dataset.term : null;
-  if (!moved) {
-    // tocco: completa il filo dal morsetto già scelto, oppure deseleziona toccando di nuovo lo stesso
-    if (prevSel && prevSel !== downTerm) { clearSel(); addWire(prevSel, downTerm); }
-    else if (reselect) clearSel();
-    else hidePrev();
+  if (prevSel && prevSel !== downTerm) {
+    // secondo tocco, con un morsetto gia scelto: collega anche se il dito si e spostato un po'
+    // (un tocco vero sul telefono si sposta spesso di 10-20 px). Vale il morsetto dove si alza il dito,
+    // altrimenti quello premuto.
+    const target = (up && up !== prevSel) ? up : downTerm;
+    clearSel(); addWire(prevSel, target);
+  } else if (!moved) {
+    // tocco: deseleziona toccando di nuovo lo stesso morsetto
+    if (reselect) clearSel(); else hidePrev();
   } else if (up && SEL && up !== SEL && downTerm === SEL) {
     // trascinamento da un morsetto a un altro
     const a = SEL; clearSel(); addWire(a, up);

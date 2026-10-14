@@ -8947,11 +8947,12 @@ html[lang="it"] .trnote{display:none}
     const el = document.elementFromPoint ? document.elementFromPoint(e.clientX, e.clientY) : null;
     const t = el && el.closest ? el.closest("[data-term]") : null;
     const up = t ? t.dataset.term : null;
-    if (!moved) {
-      if (prevSel && prevSel !== downTerm) {
-        clearSel();
-        addWire(prevSel, downTerm);
-      } else if (reselect) clearSel();
+    if (prevSel && prevSel !== downTerm) {
+      const target = up && up !== prevSel ? up : downTerm;
+      clearSel();
+      addWire(prevSel, target);
+    } else if (!moved) {
+      if (reselect) clearSel();
       else hidePrev();
     } else if (up && SEL && up !== SEL && downTerm === SEL) {
       const a = SEL;
