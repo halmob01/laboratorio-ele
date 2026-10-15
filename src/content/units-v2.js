@@ -2271,38 +2271,80 @@ export const UNITS_V2 = {
       pages: [
         {
           type: 'spiegazione',
-          title: 'La logica non è più nei fili',
+          title: 'Perché esiste il PLC',
           paras: [
-            'In marcia e arresto la logica era nel cablaggio: il contatto 13-14 del contattore in parallelo alla marcia faceva l’autoritenuta. Cambiare il comportamento voleva dire cambiare i fili.',
-            'Un PLC sposta la logica in un programma. I fili portano solo i segnali dai pulsanti al PLC e dal PLC al contattore; come si comporta la macchina lo decide il programma, che si può cambiare senza toccare un filo.',
+            'Pensa a marcia e arresto, quando hai cablato l’autoritenuta. Funzionava, ma tutta la logica era nei fili: se il cliente chiedeva "dopo dieci secondi si ferma da solo", bisognava aggiungere un temporizzatore e ricablare.',
+            'Un PLC (controllore a logica programmabile) è un piccolo computer fatto per le macchine. I fili restano gli stessi, ma il comportamento lo decide un programma: per cambiarlo si riscrive il programma, senza toccare un filo.',
           ],
+          table: {
+            head: ['Con i relè e i contattori', 'Con il PLC'],
+            rows: [
+              ['La logica sta nei fili e nei contatti.', 'La logica sta in un programma.'],
+              ['Cambiare comportamento vuol dire ricablare.', 'Cambiare comportamento vuol dire riscrivere il programma.'],
+              ['L’autoritenuta è il contatto 13-14 del contattore.', 'L’autoritenuta è un gradino del programma.'],
+            ],
+          },
+        },
+        {
+          type: 'spiegazione',
+          title: 'Una scatola con tre parti',
+          paras: [
+            'Un PLC fa sempre tre cose, una dopo l’altra: legge gli ingressi, esegue il programma, comanda le uscite. Gli ingressi sono i suoi occhi, il programma il suo cervello, le uscite le sue mani.',
+            'I pulsanti e i sensori si collegano agli ingressi. Le uscite comandano ciò che si deve muovere, per esempio la bobina di un contattore. Il contattore resta indispensabile: porta la potenza al motore, e il PLC comanda solo lui.',
+          ],
+          warn: 'Il PLC non alimenta il motore: comanda il contattore, e il contattore porta la potenza.',
         },
         {
           type: 'pezzi',
-          title: 'Ingressi, uscite, alimentazione',
+          title: 'I morsetti del PLC',
           focus: ['PLC'],
           paras: [
-            'Il PLC si alimenta in A1-A2, come una bobina. Gli ingressi I0, I1, I2 leggono se c’è tensione tra l’ingresso e il comune IC: 230 V valgono 1, niente vale 0.',
-            'Le uscite sono contatti a relè: Q0A-Q0B si chiude quando il programma accende Q0. Al contatto si collega ciò che si vuole comandare, per esempio la bobina di un contattore.',
-          ],
-          warn: 'Le uscite a relè sono solo contatti: non danno tensione da sole. Il contatto va alimentato con una fase.',
-        },
-        {
-          type: 'spiegazione',
-          title: 'Il programma gira in continuazione',
-          paras: [
-            'Il PLC ripete sempre lo stesso ciclo, la scansione: legge gli ingressi, esegue il programma dal primo all’ultimo gradino, poi scrive le uscite. Il ciclo dura pochi millisecondi, quindi per noi è istantaneo.',
-            'Un gradino ha una condizione a sinistra, fatta di contatti, e un’uscita a destra. Il contatto normalmente aperto è vero se il bit vale 1; il contatto normalmente chiuso è vero se il bit vale 0. Contatti in serie sono un E, contatti in parallelo un O.',
+            'In alto ci sono l’alimentazione (A1 e A2), gli ingressi I0, I1, I2 e il loro comune IC. In basso ci sono le uscite: Q0 è il contatto tra Q0A e Q0B, Q1 quello tra Q1A e Q1B.',
+            'I pallini sopra gli ingressi si riempiono quando l’ingresso vale 1. I pallini sulle uscite si riempiono quando il programma ha chiuso il contatto.',
           ],
         },
         {
           type: 'spiegazione',
-          title: 'Il programma di questo livello',
+          title: 'Gli ingressi: come il PLC vede un pulsante',
           paras: [
-            'Gradino 1: Q0 è acceso se (Marcia I1 oppure Q0 stesso) e I0. Q0 che si rilegge è l’autoritenuta: una volta acceso, resta acceso anche a marcia rilasciata.',
-            'I0 è il pulsante di arresto, normalmente chiuso: a riposo porta 230 V e I0 vale 1. Premendo Arresto I0 vale 0 e il gradino si spegne. Gradino 2: la spia Q1 segue Q0. Il programma si vede sotto il banco.',
+            'Un ingresso non "sente" il pulsante: misura se tra l’ingresso e il comune IC c’è tensione. Con 230 V l’ingresso vale 1, senza tensione vale 0. Per misurare serve un secondo punto di riferimento: per questo IC va al neutro.',
+            'Quando premi Marcia, la fase passa dal pulsante e arriva all’ingresso I1: tra I1 e IC ci sono 230 V e I1 vale 1. Quando rilasci, la tensione sparisce e I1 torna a 0.',
           ],
-          warn: 'L’arresto è un contatto NC: se il filo si stacca, l’ingresso vale 0 e la macchina si ferma. È il lato sicuro.',
+          warn: 'Senza il collegamento di IC nessun ingresso può misurare tensione: restano tutti a 0, anche premendo.',
+        },
+        {
+          type: 'spiegazione',
+          title: 'Le uscite: il PLC non dà corrente',
+          paras: [
+            'Un’uscita a relè è solo un contatto, chiuso o aperto, che il programma comanda. Non porta tensione per conto suo: la tensione la porti tu.',
+            'Per questo la fase entra in Q0A. Quando il programma chiude il contatto, la fase esce da Q0B e arriva alla bobina del contattore; l’altro capo della bobina va al neutro. Con il contatto aperto la bobina non riceve niente e il contattore resta aperto.',
+          ],
+        },
+        {
+          type: 'spiegazione',
+          title: 'Perché il PLC ha la sua alimentazione',
+          paras: [
+            'Il PLC è un computer: per funzionare ha bisogno di corrente, come una bobina. Si alimenta tra A1 e A2, fase e neutro.',
+            'Se manca l’alimentazione il programma si ferma e tutte le uscite si aprono: i contattori si aprono e la macchina si ferma. È il comportamento che vogliamo in caso di guasto.',
+          ],
+        },
+        {
+          type: 'spiegazione',
+          title: 'Una scansione, passo per passo',
+          paras: [
+            'Il PLC ripete in continuazione lo stesso ciclo, la scansione: legge gli ingressi, esegue i gradini dal primo all’ultimo, scrive le uscite. Dura pochi millisecondi: per noi è istantaneo.',
+            'Il programma di questo livello ha un gradino principale: il motore Q0 è acceso se (Marcia I1 oppure Q0 stesso) e Arresto I0. Ecco cosa succede nelle quattro situazioni.',
+          ],
+          table: {
+            head: ['Situazione', 'Cosa decide il programma'],
+            rows: [
+              ['A riposo: I0 = 1, I1 = 0, Q0 = 0', '(0 oppure 0) e 1 è falso: Q0 resta 0.'],
+              ['Premi Marcia: I1 = 1', '(1 oppure 0) e 1 è vero: Q0 diventa 1 e il contattore si chiude.'],
+              ['Rilasci Marcia: I1 = 0, Q0 = 1', '(0 oppure 1) e 1 è ancora vero: Q0 resta 1. È l’autoritenuta.'],
+              ['Premi Arresto: I0 = 0', '(…) e 0 è falso: Q0 torna a 0 e il motore si ferma.'],
+            ],
+          },
+          warn: 'L’arresto è un contatto NC: a riposo porta tensione e I0 vale 1. Premendolo, I0 va a 0. Un filo staccato fa lo stesso: la macchina si ferma.',
         },
         {
           type: 'demo',
@@ -2339,6 +2381,17 @@ export const UNITS_V2 = {
         },
         {
           type: 'previsione',
+          question: 'A che cosa serve il collegamento del comune IC al neutro?',
+          options: [
+            { id: 'a', text: 'Dà agli ingressi un secondo punto con cui misurare la tensione: senza, nessun ingresso vale 1.' },
+            { id: 'b', text: 'Alimenta il PLC.' },
+            { id: 'c', text: 'Mette a terra il PLC per sicurezza.' },
+          ],
+          correct: 'a',
+          why: 'Un ingresso misura la tensione tra se stesso e IC. L’alimentazione del PLC è un’altra cosa e passa da A1 e A2. Con IC scollegato non c’è un ritorno e tutti gli ingressi restano a 0.',
+        },
+        {
+          type: 'previsione',
           question: 'Il filo del pulsante di arresto si stacca dall’ingresso I0. Che cosa succede?',
           options: [
             { id: 'a', text: 'Il motore parte lo stesso: l’arresto non serve se non è premuto.' },
@@ -2350,7 +2403,7 @@ export const UNITS_V2 = {
         },
         {
           type: 'previsione',
-          question: 'Perché nel gradino 1 compare anche Q0 oltre a I1?',
+          question: 'Perché nel gradino del motore compare anche Q0 oltre a I1?',
           options: [
             { id: 'a', text: 'Per far partire il motore più forte.' },
             { id: 'b', text: 'Perché Q0 si rilegge e tiene acceso il gradino quando Marcia viene rilasciata: è l’autoritenuta nel programma.' },
@@ -2363,13 +2416,13 @@ export const UNITS_V2 = {
       ],
     },
     steps: [
-      { kind: 'control', id: 'QM', short: '0 Sezionamento', title: 'Apri il salvamotore', text: 'Il salvamotore parte chiuso: aprilo toccando la levetta, così i morsetti a valle sono senza tensione mentre cabli. Lo richiudi solo alla fine, per provare.' },
-      { kind: 'wire', from: 'PLC.A1', to: ['QM.2'], color: 'rosso', short: '1 Alimentazione', title: 'Alimenta il PLC', text: 'Filo rosso da una fase a valle del salvamotore (morsetto 2) ad A1, filo blu da A2 al neutro.' },
-      { kind: 'wire', from: 'SB0.2', to: ['PLC.I0'], color: 'rosso', short: '2 Arresto', title: 'Arresto all’ingresso I0', text: 'Dalla fase al morsetto 1 del pulsante di arresto, dal morsetto 2 all’ingresso I0, in rosso.' },
-      { kind: 'wire', from: 'SB1.4', to: ['PLC.I1'], color: 'rosso', short: '3 Marcia', title: 'Marcia all’ingresso I1', text: 'Dalla fase al morsetto 3 del pulsante di marcia, dal morsetto 4 all’ingresso I1, in rosso.' },
-      { kind: 'wire', from: 'PLC.IC', to: ['Q.N'], color: 'blu', short: '4 Comune', title: 'Il comune degli ingressi', text: 'Il morsetto IC al neutro, in blu: gli ingressi leggono la tensione rispetto a lui.' },
-      { kind: 'wire', from: 'PLC.Q0B', to: ['KM.A1'], color: 'rosso', short: '5 Uscita Q0', title: 'L’uscita Q0 al contattore', text: 'La fase entra in Q0A, esce da Q0B e va ad A1 del contattore. A2 del contattore va al neutro.' },
-      { kind: 'wire', from: 'PLC.Q1B', to: ['H.X1'], color: 'rosso', short: '6 Uscita Q1', title: 'L’uscita Q1 alla spia', text: 'La fase entra in Q1A, esce da Q1B e va alla spia. L’altro capo della spia va al neutro.' },
+      { kind: 'control', id: 'QM', short: '0 Sezionamento', title: 'Apri il salvamotore', text: 'Il salvamotore parte chiuso: aprilo toccando la levetta, così i morsetti a valle sono senza tensione mentre cabli. Perché: collegare fili in tensione è pericoloso. Lo richiudi solo alla fine, per provare.' },
+      { kind: 'wire', from: 'PLC.A1', to: ['QM.2'], color: 'rosso', short: '1 Alimentazione', title: 'Alimenta il PLC', text: 'Filo rosso da una fase a valle del salvamotore (morsetto 2) ad A1, filo blu da A2 al neutro. Perché: il PLC è un computer e ha bisogno di corrente per funzionare, come una bobina.' },
+      { kind: 'wire', from: 'SB0.2', to: ['PLC.I0'], color: 'rosso', short: '2 Arresto', title: 'Arresto all’ingresso I0', text: 'Dalla fase al morsetto 1 del pulsante di arresto, dal morsetto 2 all’ingresso I0, in rosso. Perché: a riposo il pulsante porta tensione e I0 vale 1; premendolo I0 va a 0 e il PLC lo legge come “stop”.' },
+      { kind: 'wire', from: 'SB1.4', to: ['PLC.I1'], color: 'rosso', short: '3 Marcia', title: 'Marcia all’ingresso I1', text: 'Dalla fase al morsetto 3 del pulsante di marcia, dal morsetto 4 all’ingresso I1, in rosso. Perché: premendo Marcia arriva la tensione a I1 e il PLC legge 1; rilasciando torna 0.' },
+      { kind: 'wire', from: 'PLC.IC', to: ['Q.N'], color: 'blu', short: '4 Comune', title: 'Il comune degli ingressi', text: 'Il morsetto IC al neutro, in blu. Perché: gli ingressi misurano la tensione tra se stessi e IC; senza IC non c’è un punto di riferimento e tutti gli ingressi valgono 0.' },
+      { kind: 'wire', from: 'PLC.Q0B', to: ['KM.A1'], color: 'rosso', short: '5 Uscita Q0', title: 'L’uscita Q0 al contattore', text: 'La fase entra in Q0A, esce da Q0B e va ad A1 del contattore. A2 del contattore va al neutro. Perché: l’uscita è solo un contatto, la tensione la porti tu; quando il programma lo chiude la fase arriva alla bobina.' },
+      { kind: 'wire', from: 'PLC.Q1B', to: ['H.X1'], color: 'rosso', short: '6 Uscita Q1', title: 'L’uscita Q1 alla spia', text: 'La fase entra in Q1A, esce da Q1B e va alla spia. L’altro capo della spia va al neutro. Perché: anche la spia è comandata dal PLC, con un’altra uscita.' },
       { kind: 'control', id: 'SB1', short: '7 Prova', title: 'Prova la marcia', text: 'Chiudi il salvamotore e premi Marcia: il motore parte e resta in marcia. Premi Arresto: si ferma.' },
       { kind: 'verify', short: '8 Verifica', title: 'Controlla l’impianto', text: 'Premi Verifica.' },
     ],
@@ -2425,6 +2478,16 @@ export const UNITS_V2 = {
             'Un contatto normalmente aperto lascia passare quando il suo bit vale 1. Un contatto normalmente chiuso lascia passare quando il bit vale 0.',
             'Contatti in serie sono un E: servono tutti. Contatti in parallelo sono un O: ne basta uno. L’autoritenuta è proprio un parallelo: Marcia oppure l’uscita stessa.',
           ],
+          table: {
+            head: ['Elemento del gradino', 'Si comporta così'],
+            rows: [
+              ['Contatto normalmente aperto', 'lascia passare quando il suo bit vale 1'],
+              ['Contatto normalmente chiuso', 'lascia passare quando il suo bit vale 0'],
+              ['Contatti in serie', 'passa solo se passano tutti (E)'],
+              ['Contatti in parallelo', 'passa se passa almeno uno (O)'],
+              ['Bobina', 'il suo bit segue la condizione del gradino'],
+            ],
+          },
         },
         {
           type: 'previsione',
@@ -2450,6 +2513,22 @@ export const UNITS_V2 = {
         },
         {
           type: 'spiegazione',
+          title: 'Costruire il gradino un pezzo alla volta',
+          paras: [
+            'Un gradino si costruisce aggiungendo un elemento per volta e chiedendosi ogni volta che cosa cambia. Ecco il gradino del motore, nell’ordine in cui conviene scriverlo.',
+          ],
+          table: {
+            head: ['Che cosa aggiungi', 'Che effetto ha'],
+            rows: [
+              ['La bobina Q0', 'Il gradino comanda l’uscita che chiude il contattore.'],
+              ['Il contatto di Marcia I1', 'Il motore parte, ma solo finché tieni premuto Marcia.'],
+              ['In parallelo, il contatto di Q0', 'Dopo la partenza Q0 tiene vero il gradino: il motore resta acceso. È l’autoritenuta.'],
+              ['In serie, il contatto di Arresto I0', 'Premendo Arresto il gradino diventa falso e il motore si ferma.'],
+            ],
+          },
+        },
+        {
+          type: 'spiegazione',
           title: 'Come si scrive il programma',
           paras: [
             'Sotto il banco c’è l’editor. Premi Nuovo gradino, poi Aggiungi contatto e scegli quale ingresso o uscita leggere. Toccando un contatto puoi cambiarlo, metterlo normalmente chiuso, affiancarne uno in parallelo o toglierlo. Alla fine scegli la bobina del gradino.',
@@ -2472,8 +2551,8 @@ export const UNITS_V2 = {
       ],
     },
     steps: [
-      { kind: 'program', plc: 'PLC', min: 1, short: '1 Motore', title: 'Il gradino del motore', text: 'Nuovo gradino: Marcia (I1) in parallelo a Q0, in serie con l’arresto (I0), e la bobina Q0.' },
-      { kind: 'program', plc: 'PLC', min: 2, short: '2 Spia', title: 'Il gradino della spia', text: 'Secondo gradino: un contatto Q0 e la bobina Q1.' },
+      { kind: 'program', plc: 'PLC', min: 1, short: '1 Motore', title: 'Il gradino del motore', text: 'Nuovo gradino: la bobina Q0, il contatto Marcia (I1) con Q0 in parallelo, e in serie l’arresto (I0). Perché: Marcia fa partire, Q0 in parallelo tiene acceso, I0 in serie spegne.' },
+      { kind: 'program', plc: 'PLC', min: 2, short: '2 Spia', title: 'Il gradino della spia', text: 'Secondo gradino: un contatto Q0 e la bobina Q1. Perché: la spia deve accendersi quando il motore è acceso, quindi segue Q0.' },
       { kind: 'control', id: 'SB1', short: '3 Prova', title: 'Prova la marcia', text: 'Premi Marcia: il motore parte e resta in marcia. Premi Arresto: si ferma.' },
       { kind: 'verify', short: '4 Verifica', title: 'Controlla il programma', text: 'Premi Verifica.' },
     ],
@@ -2515,6 +2594,316 @@ export const UNITS_V2 = {
         why: 'L’arresto è cablato NC, quindi I0 vale 1 a riposo e 0 solo premendolo. Un contatto normalmente chiuso su I0 lascia passare con I0 a 0: a riposo il gradino è sempre interrotto, e Marcia non basta. Serve un contatto normalmente aperto.',
       },
       fixSay: 'Tocca il contatto di I0 nel gradino 1 e cambialo in normalmente aperto. Poi premi Verifica.',
+    },
+  },
+  'c31-tempo': {
+    support: 'passi',
+    lesson: {
+      pages: [
+        {
+          type: 'spiegazione',
+          title: 'Il tempo nel programma',
+          paras: [
+            'In stella-triangolo il passaggio da stella a triangolo avviene dopo un ritardo, e nel cablaggio lo faceva un temporizzatore a parte, KT. Un PLC non ne ha bisogno: contare il tempo è una funzione del programma.',
+            'Questo livello rifà lo stesso motore, con gli stessi tre contattori, ma senza KT. Il PLC comanda tutti e tre: Q0 la linea (KM1), Q1 la stella (KM2), Q2 il triangolo (KM3).',
+          ],
+        },
+        {
+          type: 'spiegazione',
+          title: 'Il temporizzatore TON',
+          paras: [
+            'Il TON (ritardo all’eccitazione) ha una condizione in ingresso, un tempo impostato e un bit di uscita, per esempio T1. Quando la condizione diventa vera il TON comincia a contare. Passato il tempo, T1 diventa 1 e ci resta finché la condizione resta vera.',
+            'Se la condizione cade, anche per un attimo, il conteggio si azzera subito e T1 torna a 0. Il bit T1 poi si legge come un qualsiasi contatto: normalmente aperto vale se T1 è 1, normalmente chiuso vale se T1 è ancora 0.',
+          ],
+          table: {
+            head: ['Che cosa succede', 'Valore di T1 (tempo 6 s)'],
+            rows: [
+              ['La condizione diventa vera: il conteggio parte', '0'],
+              ['Sono passati 3 secondi, condizione ancora vera', '0'],
+              ['Sono passati 6 secondi, condizione ancora vera', '1'],
+              ['La condizione cade: il conteggio si azzera', '0'],
+            ],
+          },
+        },
+        {
+          type: 'spiegazione',
+          title: 'I tre gradini del programma',
+          paras: [
+            'Oltre al gradino di marcia e arresto, che accende Q0, servono tre gradini: il temporizzatore, la stella, il triangolo. Ognuno risponde a una domanda semplice.',
+          ],
+          table: {
+            head: ['Gradino', 'Quando è vero, e che cosa fa'],
+            rows: [
+              ['Temporizzatore T1', 'Q0 è acceso: parte il conteggio dei 6 secondi.'],
+              ['Stella Q1', 'Q0 è acceso e T1 vale ancora 0: stella per i primi 6 secondi.'],
+              ['Triangolo Q2', 'Q0 è acceso e T1 vale 1: dopo 6 secondi si passa a triangolo.'],
+            ],
+          },
+        },
+        {
+          type: 'spiegazione',
+          title: 'Stella e triangolo non insieme',
+          paras: [
+            'Come in c28, stella e triangolo non devono mai essere chiusi insieme: le tre fasi andrebbero in cortocircuito. Allora c’era l’interblocco dei contatti NC nei fili; ora lo garantisce il programma.',
+            'I due gradini usano T1 in modo opposto: la stella lo vuole a 0, il triangolo lo vuole a 1. Non possono essere veri nello stesso momento, quindi Q1 e Q2 non si accendono mai insieme. È l’interblocco, scritto nel programma.',
+          ],
+          warn: 'Se dimentichi T1 nel gradino della stella, a 6 secondi il triangolo si accende mentre la stella è ancora chiusa: corto circuito.',
+        },
+        {
+          type: 'previsione',
+          question: 'Il motore è in marcia da 3 secondi e il tempo impostato è 6. Quanto vale T1?',
+          options: [
+            { id: 'a', text: '1: il temporizzatore ha già cominciato a contare.' },
+            { id: 'b', text: '0: T1 diventa 1 solo quando il tempo è passato.' },
+            { id: 'c', text: 'Dipende da Marcia.' },
+          ],
+          correct: 'b',
+          why: 'T1 è il bit "tempo scaduto". Resta a 0 durante il conteggio e diventa 1 solo quando sono passati tutti i 6 secondi, con la condizione sempre vera. Per questo la stella resta accesa nei primi 6 secondi.',
+        },
+        {
+          type: 'previsione',
+          question: 'Durante il conteggio premi Arresto, poi di nuovo Marcia. Quanto aspetta il motore prima del triangolo?',
+          options: [
+            { id: 'a', text: 'Solo il tempo che mancava.' },
+            { id: 'b', text: 'Altri 6 secondi pieni: il conteggio riparte da zero.' },
+            { id: 'c', text: 'Va subito in triangolo.' },
+          ],
+          correct: 'b',
+          why: 'Premendo Arresto, Q0 si spegne e la condizione del TON cade: il conteggio si azzera. Alla nuova partenza il motore riparte in stella e il tempo si ricomincia da capo, come richiede un avviamento corretto.',
+        },
+        {
+          type: 'previsione',
+          question: 'Nel gradino della stella c’è solo il contatto Q0, senza T1. Che cosa succede dopo 6 secondi?',
+          options: [
+            { id: 'a', text: 'Il motore passa in triangolo regolarmente.' },
+            { id: 'b', text: 'Stella e triangolo sono chiusi insieme: le fasi vanno in cortocircuito e il salvamotore scatta.' },
+            { id: 'c', text: 'Il motore resta in stella e non cambia niente.' },
+          ],
+          correct: 'b',
+          why: 'Senza T1 la stella resta accesa finché Q0 è acceso, anche dopo i 6 secondi. Allo scadere il triangolo si accende e i due contattori sono chiusi insieme: stella e triangolo uniti mettono in corto le tre fasi.',
+        },
+        {
+          type: 'spiegazione',
+          title: 'Come si inserisce il temporizzatore',
+          paras: [
+            'Nell’editor, un gradino con un temporizzatore ha come uscita non una bobina ma il TON. Aggiungi un gradino, poi Aggiungi uscita, e scegli Temporizzatore: puoi impostare il tempo in secondi.',
+            'Il suo bit, T1, compare poi tra i bit che puoi scegliere nei contatti degli altri gradini. Per averlo normalmente chiuso, cambia il tipo del contatto in Normalmente chiuso.',
+          ],
+        },
+        { type: 'sintesi', title: 'Da ricordare' },
+      ],
+    },
+    steps: [
+      { kind: 'program', plc: 'PLC', min: 2, short: '1 Tempo', title: 'Il temporizzatore', text: 'Nuovo gradino: contatto Q0 e, come uscita, un temporizzatore di 6 secondi. Perché: il conteggio deve partire quando il motore è acceso.' },
+      { kind: 'program', plc: 'PLC', min: 3, short: '2 Stella', title: 'Il gradino della stella', text: 'Contatto Q0 in serie con T1 normalmente chiuso, bobina Q1. Perché: la stella vale solo finché il tempo non è scaduto.' },
+      { kind: 'program', plc: 'PLC', min: 4, short: '3 Triangolo', title: 'Il gradino del triangolo', text: 'Contatto Q0 in serie con T1 normalmente aperto, bobina Q2. Perché: il triangolo parte quando il tempo è scaduto e non si sovrappone alla stella.' },
+      { kind: 'control', id: 'SB1', short: '4 Prova', title: 'Prova l’avviamento', text: 'Premi Marcia: il motore parte in stella e, dopo 6 secondi, passa in triangolo. Premi Arresto: si ferma.' },
+      { kind: 'verify', short: '5 Verifica', title: 'Controlla il programma', text: 'Premi Verifica.' },
+    ],
+    summary: [
+      'Un PLC conta il tempo da solo, con un temporizzatore ritardato (TON): non serve un componente a parte.',
+      'Il TON parte quando la sua condizione è vera, e il suo bit (T1) diventa 1 dopo il tempo impostato. Se la condizione cade, si azzera.',
+      'Stella e triangolo si distinguono con T1: la stella lo vuole a 0, il triangolo a 1.',
+      'Con T1 usato in modo opposto, i due gradini non sono mai veri insieme: è l’interblocco scritto nel programma.',
+      'Dopo un arresto il conteggio riparte da zero e il motore riparte in stella.',
+    ],
+    fault: {
+      say: 'Il programma è già scritto, ma premendo Marcia il motore parte in stella e dopo qualche secondo scatta il salvamotore. Guarda il gradino della stella.',
+      wires: [
+        ['Q.L1', 'QM.1', 'marrone'], ['Q.L2', 'QM.3', 'nero'], ['Q.L3', 'QM.5', 'grigio'],
+        ['QM.2', 'KM1.1', 'marrone'], ['QM.4', 'KM1.3', 'nero'], ['QM.6', 'KM1.5', 'grigio'],
+        ['KM1.2', 'M.U1', 'marrone'], ['KM1.4', 'M.V1', 'nero'], ['KM1.6', 'M.W1', 'grigio'],
+        ['KM2.1', 'M.U2', 'marrone'], ['KM2.3', 'M.V2', 'nero'], ['KM2.5', 'M.W2', 'grigio'],
+        ['KM2.2', 'KM2.4', 'nero'], ['KM2.4', 'KM2.6', 'nero'],
+        ['KM3.1', 'M.U1', 'marrone'], ['KM3.2', 'M.W2', 'grigio'],
+        ['KM3.3', 'M.V1', 'nero'], ['KM3.4', 'M.U2', 'marrone'],
+        ['KM3.5', 'M.W1', 'grigio'], ['KM3.6', 'M.V2', 'nero'],
+        ['M.PE', 'Q.PE', 'gv'],
+        ['QM.2', 'PLC.A1', 'rosso'], ['PLC.A2', 'Q.N', 'blu'],
+        ['QM.2', 'SB0.1', 'rosso'], ['SB0.2', 'PLC.I0', 'rosso'],
+        ['QM.2', 'SB1.3', 'rosso'], ['SB1.4', 'PLC.I1', 'rosso'],
+        ['PLC.IC', 'Q.N', 'blu'],
+        ['QM.2', 'PLC.Q0A', 'rosso'], ['PLC.Q0B', 'KM1.A1', 'rosso'], ['KM1.A2', 'Q.N', 'blu'],
+        ['QM.2', 'PLC.Q1A', 'rosso'], ['PLC.Q1B', 'KM2.A1', 'rosso'], ['KM2.A2', 'Q.N', 'blu'],
+        ['QM.2', 'PLC.Q2A', 'rosso'], ['PLC.Q2B', 'KM3.A1', 'rosso'], ['KM3.A2', 'Q.N', 'blu'],
+      ],
+      programs: {
+        PLC: [
+          { if: ['and', ['or', 'I1', 'Q0'], 'I0'], do: [{ op: 'coil', a: 'Q0' }] },
+          { if: 'Q0', do: [{ op: 'ton', id: 'T1', pt: 6 }] },
+          { if: 'Q0', do: [{ op: 'coil', a: 'Q1' }] },
+          { if: ['and', 'Q0', 'T1'], do: [{ op: 'coil', a: 'Q2' }] },
+        ],
+      },
+      diagnosis: {
+        question: 'Perché scatta il salvamotore dopo qualche secondo?',
+        options: [
+          { id: 'a', text: 'Il gradino della stella non guarda T1: a 6 secondi la stella resta accesa e si accende anche il triangolo, e le fasi vanno in corto.' },
+          { id: 'b', text: 'Il tempo impostato è troppo lungo.' },
+          { id: 'c', text: 'Il motore è in sovraccarico.' },
+        ],
+        correct: 'a',
+        why: 'Il gradino della stella dipende solo da Q0, quindi resta vero anche dopo i 6 secondi. Quando T1 diventa 1 si accende anche il triangolo: stella e triangolo sono chiusi insieme e mettono in corto le tre fasi. Serve T1 normalmente chiuso nel gradino della stella.',
+      },
+      fixSay: 'Nel gradino della stella aggiungi in serie un contatto di T1 e mettilo normalmente chiuso. Poi premi Verifica.',
+    },
+  },
+  'c32-nastro-plc': {
+    support: 'passi',
+    lesson: {
+      pages: [
+        {
+          type: 'spiegazione',
+          title: 'Un nastro che conta',
+          paras: [
+            'Un nastro trasporta pacchi in lotti da tre. Una fotocellula guarda ogni pacco che passa. Quando ne sono passati tre il nastro si ferma e una spia dice "lotto completo"; con Marcia parte il lotto successivo.',
+            'Con i relè servirebbe un contatore elettromeccanico a parte. Con un PLC il conteggio è un’istruzione del programma, e la logica del nastro sta tutta nel ladder.',
+          ],
+        },
+        {
+          type: 'spiegazione',
+          title: 'La fotocellula è un ingresso',
+          paras: [
+            'Una fotocellula è un sensore: quando un pacco interrompe il raggio chiude un contatto, come un pulsante premuto per il tempo in cui il pacco passa. Per il PLC è un ingresso come gli altri: vale 1 mentre il pacco c’è, 0 quando non c’è.',
+            'Nel gioco la fotocellula è un pulsante da tenere premuto per un attimo: ogni pressione e rilascio è un pacco che passa.',
+          ],
+        },
+        {
+          type: 'spiegazione',
+          title: 'Il contatore CTU',
+          paras: [
+            'Il CTU (contatore in avanti) ha una condizione, un numero a cui arrivare e un ingresso di azzeramento. A ogni fronte di salita della condizione, cioè a ogni volta che passa da 0 a 1, aggiunge uno. Quando il conteggio raggiunge il numero, il suo bit C1 diventa 1.',
+            'Conta i fronti, non il tempo in cui la condizione resta vera: un pacco lungo, che tiene la fotocellula a 1 per un secondo, vale uno solo. L’ingresso di azzeramento riporta il conteggio a zero.',
+          ],
+          table: {
+            head: ['Pacchi passati', 'Conteggio e bit C1 (si conta fino a 3)'],
+            rows: [
+              ['Nessuno', 'conteggio 0, C1 = 0'],
+              ['Uno', 'conteggio 1, C1 = 0'],
+              ['Due', 'conteggio 2, C1 = 0'],
+              ['Tre', 'conteggio 3, C1 = 1: lotto completo'],
+              ['Marcia (azzeramento)', 'conteggio 0, C1 = 0: lotto nuovo'],
+            ],
+          },
+        },
+        {
+          type: 'spiegazione',
+          title: 'Fungo e termico restano nei fili',
+          paras: [
+            'In una macchina vera l’emergenza e la protezione del motore non devono mai dipendere dal programma: un programma può avere un errore e un PLC può bloccarsi. Per questo il contatto del fungo e il contatto 95-96 del termico stanno in serie alla bobina del contattore, nei fili.',
+            'Guarda il banco: la fase passa dal fungo, dal termico, poi dall’uscita Q0 del PLC e solo allora arriva alla bobina. Il PLC può solo dire "no" quando vuole fermare il nastro; non può forzare la marcia se fungo o termico sono aperti.',
+          ],
+          table: {
+            head: ['Che cosa', 'Dove sta'],
+            rows: [
+              ['Marcia, arresto, conteggio, spia', 'nel programma'],
+              ['Fungo di emergenza (contatto di potenza del comando)', 'nei fili, in serie alla bobina'],
+              ['Contatto del relè termico', 'nei fili, in serie alla bobina'],
+              ['Informare il PLC che il fungo è premuto', 'un secondo contatto del fungo verso l’ingresso I3'],
+            ],
+          },
+          warn: 'La verifica prova anche questo: forza tutte le uscite del PLC a 1 e controlla che con il fungo premuto il nastro si fermi lo stesso.',
+        },
+        {
+          type: 'spiegazione',
+          title: 'Perché il PLC deve saperlo lo stesso',
+          paras: [
+            'Premendo il fungo la bobina perde la fase e il nastro si ferma subito, anche se il PLC non se ne accorge. Ma il PLC pensa ancora di avere Q0 acceso, per via dell’autoritenuta. Sbloccando il fungo la bobina torna alimentata e il nastro ripartirebbe da solo.',
+            'Per evitarlo il PLC legge lo stato del fungo sull’ingresso I3, e nel gradino del nastro I3 è in serie: con il fungo premuto I3 vale 0, Q0 si spegne e l’autoritenuta si scioglie. Dopo lo sblocco serve un nuovo Marcia.',
+          ],
+        },
+        {
+          type: 'spiegazione',
+          title: 'L’ordine dei gradini conta',
+          paras: [
+            'Il PLC esegue i gradini dall’alto in basso, e un bit scritto in un gradino si legge subito nei gradini successivi della stessa scansione. Per questo il gradino del contatore va per primo.',
+            'Quando passa il terzo pacco, il primo gradino porta C1 a 1 e il gradino del nastro, subito sotto, vede C1 pieno e spegne Q0 nella stessa scansione. Se il contatore stesse dopo, il nastro si fermerebbe con un ciclo di ritardo: pochi millisecondi, ma l’ordine giusto è più chiaro.',
+          ],
+        },
+        {
+          type: 'previsione',
+          question: 'Il fungo è premuto e il PLC si blocca con l’uscita Q0 accesa. Che cosa fa il nastro?',
+          options: [
+            { id: 'a', text: 'Continua a girare: il PLC comanda la bobina.' },
+            { id: 'b', text: 'Si ferma comunque: il fungo apre il comando nei fili, prima della bobina.' },
+            { id: 'c', text: 'Dipende dal programma.' },
+          ],
+          correct: 'b',
+          why: 'Il contatto del fungo è in serie alla bobina, prima dell’uscita del PLC. Anche con Q0 chiuso la fase non arriva alla bobina. È proprio il motivo per cui l’emergenza non passa dal programma.',
+        },
+        {
+          type: 'previsione',
+          question: 'Un pacco lungo tiene la fotocellula a 1 per un secondo intero. Quanti pacchi conta il CTU?',
+          options: [
+            { id: 'a', text: 'Uno: conta i fronti di salita, non il tempo.' },
+            { id: 'b', text: 'Tanti quante sono le scansioni in cui I2 vale 1.' },
+            { id: 'c', text: 'Nessuno: un pacco lungo non si conta.' },
+          ],
+          correct: 'a',
+          why: 'Il CTU aggiunge uno solo nel momento in cui la condizione passa da 0 a 1. Finché resta a 1 non conta altro: un pacco lungo vale uno.',
+        },
+        {
+          type: 'previsione',
+          question: 'Nel programma manca I3 nel gradino del nastro. Premi e sblocchi il fungo. Che cosa succede?',
+          options: [
+            { id: 'a', text: 'Il nastro resta fermo: il fungo lo ha fermato.' },
+            { id: 'b', text: 'Il nastro riparte da solo: il PLC aveva ancora Q0 acceso con l’autoritenuta.' },
+            { id: 'c', text: 'Scatta il termico.' },
+          ],
+          correct: 'b',
+          why: 'Il fungo ha fermato il nastro nei fili, ma per il programma Q0 era ancora acceso. Allo sblocco la bobina riprende corrente e il nastro riparte. Con I3 in serie l’autoritenuta si scioglie quando il fungo è premuto.',
+        },
+        { type: 'sintesi', title: 'Da ricordare' },
+      ],
+    },
+    steps: [
+      { kind: 'program', plc: 'PLC', min: 1, short: '1 Contatore', title: 'Il conteggio dei pacchi', text: 'Primo gradino: contatto della fotocellula (I2) e, come uscita, un contatore a 3, azzerato da Marcia (I1). Perché: va per primo, così il nastro vede subito il contatore pieno.' },
+      { kind: 'program', plc: 'PLC', min: 2, short: '2 Nastro', title: 'Il gradino del nastro', text: 'Bobina Q0. Marcia (I1) in parallelo a Q0, in serie Arresto (I0), emergenza (I3) e C1 normalmente chiuso. Perché: l’autoritenuta tiene acceso, ogni altro contatto può fermare, e a lotto pieno il nastro si ferma.' },
+      { kind: 'program', plc: 'PLC', min: 3, short: '3 Spia', title: 'La spia del lotto', text: 'Contatto C1 e bobina Q1. Perché: la spia si accende quando il contatore è pieno.' },
+      { kind: 'control', id: 'SB1', short: '4 Prova', title: 'Prova il lotto', text: 'Premi Marcia, poi fai passare tre pacchi con la fotocellula: al terzo il nastro si ferma e la spia si accende.' },
+      { kind: 'verify', short: '5 Verifica', title: 'Controlla il programma', text: 'Premi Verifica.' },
+    ],
+    summary: [
+      'Una fotocellula è un ingresso: vale 1 mentre un pacco interrompe il raggio.',
+      'Il CTU conta i fronti di salita della condizione e dà un bit (C1) quando arriva al numero impostato; un ingresso lo azzera.',
+      'Il fungo e il contatto del termico stanno nei fili, in serie alla bobina: il programma non può scavalcarli.',
+      'Il PLC legge comunque il fungo (I3) per sciogliere l’autoritenuta: senza, dopo lo sblocco il nastro ripartirebbe da solo.',
+      'L’ordine dei gradini conta: un bit scritto in alto si legge subito nei gradini sotto.',
+    ],
+    fault: {
+      say: 'Il programma è già scritto e il nastro conta i pacchi. Ma dopo aver premuto e sbloccato il fungo, il nastro riparte da solo. Guarda il gradino del nastro.',
+      wires: [
+        ['Q.L1', 'QM.1', 'marrone'], ['Q.L2', 'QM.3', 'nero'], ['Q.L3', 'QM.5', 'grigio'],
+        ['QM.2', 'KM.1', 'marrone'], ['QM.4', 'KM.3', 'nero'], ['QM.6', 'KM.5', 'grigio'],
+        ['KM.2', 'FR.1', 'marrone'], ['KM.4', 'FR.3', 'nero'], ['KM.6', 'FR.5', 'grigio'],
+        ['FR.2', 'M.U', 'marrone'], ['FR.4', 'M.V', 'nero'], ['FR.6', 'M.W', 'grigio'],
+        ['M.PE', 'Q.PE', 'gv'],
+        ['QM.2', 'PLC.A1', 'rosso'], ['PLC.A2', 'Q.N', 'blu'], ['PLC.IC', 'Q.N', 'blu'],
+        ['QM.2', 'SB0.1', 'rosso'], ['SB0.2', 'PLC.I0', 'rosso'],
+        ['QM.2', 'SB1.3', 'rosso'], ['SB1.4', 'PLC.I1', 'rosso'],
+        ['QM.2', 'PH.3', 'rosso'], ['PH.4', 'PLC.I2', 'rosso'],
+        ['QM.2', 'SBE.3', 'rosso'], ['SBE.4', 'PLC.I3', 'rosso'],
+        ['QM.2', 'SBE.1', 'rosso'], ['SBE.2', 'FR.95', 'rosso'], ['FR.96', 'PLC.Q0A', 'rosso'], ['PLC.Q0B', 'KM.A1', 'rosso'], ['KM.A2', 'Q.N', 'blu'],
+        ['QM.2', 'PLC.Q1A', 'rosso'], ['PLC.Q1B', 'H.X1', 'rosso'], ['H.X2', 'Q.N', 'blu'],
+      ],
+      programs: {
+        PLC: [
+          { if: 'I2', do: [{ op: 'ctu', id: 'C1', pv: 3, r: 'I1' }] },
+          { if: ['and', ['or', 'I1', 'Q0'], 'I0', ['not', 'C1']], do: [{ op: 'coil', a: 'Q0' }] },
+          { if: 'C1', do: [{ op: 'coil', a: 'Q1' }] },
+        ],
+      },
+      diagnosis: {
+        question: 'Perché il nastro riparte da solo dopo l’emergenza?',
+        options: [
+          { id: 'a', text: 'Il programma non legge il fungo (I3): Q0 resta acceso con l’autoritenuta e, sbloccato il fungo, la bobina torna alimentata.' },
+          { id: 'b', text: 'Il contatore non si è azzerato.' },
+          { id: 'c', text: 'Il fungo non è collegato nei fili.' },
+        ],
+        correct: 'a',
+        why: 'Il fungo agisce giustamente nei fili e ferma il nastro, ma il PLC non lo sa: per lui Q0 è ancora acceso grazie all’autoritenuta. Allo sblocco il nastro riparte. Aggiungendo I3 in serie, con il fungo premuto l’autoritenuta si scioglie.',
+      },
+      fixSay: 'Nel gradino del nastro aggiungi in serie il contatto I3 (Emergenza), normalmente aperto. Poi premi Verifica.',
     },
   },
 };

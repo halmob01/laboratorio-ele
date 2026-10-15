@@ -236,3 +236,121 @@ test('c30: sfida guasto con il programma sbagliato (NC su I0), poi si ripara e s
   assert.equal(s.check().pass, true);
   assert.equal(s.snapshot().unit.faultSolved, true);
 });
+
+/* ---------- c31: il temporizzatore nel PLC ---------- */
+const L31 = levels.find(l => l.id === 'c31-tempo');
+const W31 = ws => ws.map(([a, b, c], k) => ({ id: k + 1, a, b, c }));
+const lvProg = (L, prog) => ({ ...L, comps: L.comps.map(c => (c.type === 'plc' ? { ...c, program: prog } : c)) });
+
+test('c31: la soluzione dà tre stelle e passa da stella a triangolo dopo 6 secondi', () => {
+  const r = evaluateV2(L31, W31(L31.solution), { programs: L31.solutionPrograms });
+  assert.equal(r.pass, true, JSON.stringify(r));
+  const s = createSim(lvProg(L31, L31.solutionPrograms.PLC), W31(L31.solution));
+  press(s, 'SB1');
+  assert.equal(observe(s).modes.M, 'star');
+  advance(s, 5);
+  assert.equal(observe(s).modes.M, 'star');
+  advance(s, 1);
+  assert.equal(observe(s).modes.M, 'delta');
+  assert.deepEqual(observe(s).tripped, []);
+});
+
+test('c31: il programma di partenza ha il solo gradino di marcia e il motore resta fermo ma non c\'e\' corto', () => {
+  const s = createSim(lvProg(L31, L31.comps.find(c => c.id === 'PLC').edit.start), W31(L31.solution));
+  press(s, 'SB1');
+  assert.equal(observe(s).motors.M, 'off');
+  assert.equal(evaluateV2(L31, W31(L31.solution), { programs: { PLC: L31.comps.find(c => c.id === 'PLC').edit.start } }).pass, false);
+});
+
+test('c31: senza T1 nel gradino della stella le uscite Q1 e Q2 si accendono insieme e scatta il salvamotore', () => {
+  const bad = L31.unit.fault.programs.PLC;
+  const s = createSim(lvProg(L31, bad), W31(L31.solution));
+  press(s, 'SB1');
+  advance(s, 7);
+  assert.ok(observe(s).tripped.includes('QM') || observe(s).faults.length > 0);
+  assert.equal(evaluateV2(L31, W31(L31.solution), { programs: { PLC: bad } }).pass, false);
+});
+
+test('c31: la regola outputsNeverTogether scopre le due uscite accese insieme anche quando il corto non si vede', () => {
+  // programma che accende Q1 e Q2 insieme ma con la stella che non fa corto da sola: basta la lettura delle uscite
+  const bad = [
+    { if: ['and', ['or', 'I1', 'Q0'], 'I0'], do: [{ op: 'coil', a: 'Q0' }] },
+    { if: 'Q0', do: [{ op: 'ton', id: 'T1', pt: 6 }] },
+    { if: ['and', 'Q0', ['not', 'T1']], do: [{ op: 'coil', a: 'Q1' }] },
+    { if: 'Q0', do: [{ op: 'coil', a: 'Q2' }] },
+  ];
+  const s = createSim(lvProg(L31, bad), W31(L31.solution));
+  press(s, 'SB1');
+  assert.ok(s.qHistory.some(on => on.includes('PLC.Q1') && on.includes('PLC.Q2')));
+});
+
+test('c31: il temporizzatore si azzera se si preme Arresto durante il conteggio', () => {
+  const s = createSim(lvProg(L31, L31.solutionPrograms.PLC), W31(L31.solution));
+  press(s, 'SB1'); advance(s, 4);
+  press(s, 'SB0');
+  press(s, 'SB1'); advance(s, 4);
+  assert.equal(observe(s).modes.M, 'star');
+});
+
+/* ---------- c32: il nastro con il PLC ---------- */
+const L32 = levels.find(l => l.id === 'c32-nastro-plc');
+const W32 = ws => ws.map(([a, b, c], k) => ({ id: k + 1, a, b, c }));
+const sim32 = prog => createSim(lvProg(L32, prog), W32(L32.solution));
+const pacchi = (s, n) => { for (let i = 0; i < n; i++) press(s, 'PH'); };
+
+test('c32: la soluzione dà tre stelle', () => {
+  const r = evaluateV2(L32, W32(L32.solution), { programs: L32.solutionPrograms });
+  assert.equal(r.pass, true, JSON.stringify(r));
+});
+
+test('c32: conta tre pacchi, ferma il nastro e accende la spia; Marcia riparte con un lotto nuovo', () => {
+  const s = sim32(L32.solutionPrograms.PLC);
+  press(s, 'SB1'); pacchi(s, 2);
+  assert.deepEqual([observe(s).motors.M, observe(s).loads.H], ['fwd', 'off']);
+  pacchi(s, 1);
+  assert.deepEqual([observe(s).motors.M, observe(s).loads.H], ['off', 'on']);
+  press(s, 'SB1');
+  assert.deepEqual([observe(s).motors.M, observe(s).loads.H], ['fwd', 'off']);
+  pacchi(s, 2);
+  assert.equal(observe(s).motors.M, 'fwd', 'il conteggio e\' ripartito da zero');
+});
+
+test('c32: un pacco lungo (fotocellula tenuta a 1) conta una volta sola', () => {
+  const s = sim32(L32.solutionPrograms.PLC);
+  press(s, 'SB1');
+  act(s, 'press', 'PH'); advance(s, 3); act(s, 'release', 'PH');
+  pacchi(s, 1);
+  assert.equal(observe(s).motors.M, 'fwd', 'due pacchi, non ancora tre');
+});
+
+test('c32: il fungo ferma il nastro anche con tutte le uscite del PLC forzate, e il termico anche', () => {
+  const s = sim32(L32.solutionPrograms.PLC);
+  s.forcePlc = 'allOn';
+  act(s, 'toggle', 'SBE');
+  assert.equal(observe(s).motors.M, 'off');
+  act(s, 'toggle', 'SBE');
+  act(s, 'press', 'SB1'); act(s, 'release', 'SB1');
+  s.overload = true; advance(s, 5);
+  assert.equal(observe(s).motors.M, 'off');
+  assert.deepEqual(observe(s).tripped, ['FR']);
+});
+
+test('c32: senza I3 il nastro riparte da solo dopo l\'emergenza, e la verifica lo dice', () => {
+  const bad = L32.unit.fault.programs.PLC;
+  const s = sim32(bad);
+  press(s, 'SB1');
+  act(s, 'toggle', 'SBE');
+  assert.equal(observe(s).motors.M, 'off');
+  act(s, 'toggle', 'SBE');
+  assert.equal(observe(s).motors.M, 'fwd', 'riparte da solo');
+  const r = evaluateV2(L32, W32(L32.solution), { programs: { PLC: bad } });
+  assert.equal(r.pass, false);
+  assert.ok(r.safe.items.some(i => i.code === 'safe.restartAfterEmergency'), JSON.stringify(r.safe.items));
+});
+
+test('c32: il contatore va per primo; se sta dopo il nastro si ferma con una scansione di ritardo ma funziona lo stesso', () => {
+  const late = [L32.solutionPrograms.PLC[1], L32.solutionPrograms.PLC[0], L32.solutionPrograms.PLC[2]];
+  const s = sim32(late);
+  press(s, 'SB1'); pacchi(s, 3);
+  assert.equal(observe(s).motors.M, 'off');
+});

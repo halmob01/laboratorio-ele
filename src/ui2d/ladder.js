@@ -142,7 +142,7 @@ export function editorPanelHTML(program, sel, names, addrs, ops, errors, text) {
     const r = program[sel.r];
     body = `<div class="ladrow"><b>Gradino ${sel.r + 1}</b><div class="ladbtns">
       <button class="btn" data-lac="addContact">Aggiungi contatto</button>
-      <button class="btn" data-lac="addOut"${r.do.length >= 3 ? ' disabled' : ''}>Aggiungi bobina</button>
+      <button class="btn" data-lac="addOut"${r.do.length >= 3 ? ' disabled' : ''}>Aggiungi uscita</button>
       <button class="btn" data-lac="up"${sel.r === 0 ? ' disabled' : ''}>Su</button>
       <button class="btn" data-lac="down"${sel.r === program.length - 1 ? ' disabled' : ''}>Giù</button>
       <button class="btn" data-lac="delRung">Elimina gradino</button></div></div>`;
@@ -159,10 +159,15 @@ export function editorPanelHTML(program, sel, names, addrs, ops, errors, text) {
   } else if (sel.kind === 'o') {
     const ins = program[sel.r].do[sel.out];
     if (ins) {
-      body = `<div class="ladrow"><b>Bobina</b>
-        <div class="ladseg" role="group" aria-label="Tipo di uscita">${ops.filter(o => ['coil', 'set', 'reset'].includes(o)).map(o => `<button class="chip seg" data-lac="optype" data-v="${o}" aria-pressed="${ins.op === o}">${{ coil: 'Bobina', set: 'Set', reset: 'Reset' }[o]}</button>`).join('')}</div>
-        <label class="ladsel">Bit <select data-lac="outaddr">${opt(outAddrs, ins.a)}</select></label>
-        <div class="ladbtns"><button class="btn" data-lac="delOut">Elimina bobina</button></div></div>`;
+      const OPN = { coil: 'Bobina', set: 'Set', reset: 'Reset', ton: 'Temporizzatore', ctu: 'Contatore' };
+      let fields = '';
+      if (ins.op === 'ton') fields = `<label class="ladsel">Temporizzatore <select data-lac="outid">${opt(addrs.timers, ins.id)}</select></label><label class="ladsel">Tempo (secondi) <input type="number" inputmode="numeric" min="1" max="600" step="1" value="${ins.pt}" data-lac="pt"></label>`;
+      else if (ins.op === 'ctu') fields = `<label class="ladsel">Contatore <select data-lac="outid">${opt(addrs.counters, ins.id)}</select></label><label class="ladsel">Conta fino a <input type="number" inputmode="numeric" min="1" max="999" step="1" value="${ins.pv}" data-lac="pv"></label><label class="ladsel">Si azzera con <select data-lac="ctur"><option value="">nessun ingresso</option>${opt(addrs.inputs, ins.r)}</select></label>`;
+      else fields = `<label class="ladsel">Bit <select data-lac="outaddr">${opt(outAddrs, ins.a)}</select></label>`;
+      body = `<div class="ladrow"><b>${OPN[ins.op]}</b>
+        <div class="ladseg" role="group" aria-label="Tipo di uscita">${ops.map(o => `<button class="chip seg" data-lac="optype" data-v="${o}" aria-pressed="${ins.op === o}">${OPN[o]}</button>`).join('')}</div>
+        ${fields}
+        <div class="ladbtns"><button class="btn" data-lac="delOut">Elimina</button></div></div>`;
     }
   }
   const errs = errors.length ? `<ul class="laderr">${errors.slice(0, 4).map(e => `<li>${esc(text(e))}</li>`).join('')}</ul>` : '';

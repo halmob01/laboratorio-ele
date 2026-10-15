@@ -286,8 +286,17 @@ function ladderAct(act, data) {
   else if (cur && act === 'delContact') { next = removeContact(prog, sel.r, sel.cell, sel.alt); nsel = { kind: 'r', r: sel.r }; }
   else if (sel.kind === 'o' && prog[sel.r] && prog[sel.r].do[sel.out]) {
     const ins = prog[sel.r].do[sel.out];
-    if (act === 'optype') next = setOut(prog, sel.r, sel.out, { op: data.v, a: ins.a });
+    if (act === 'optype') {
+      const used = new Set(prog.flatMap(r => r.do.map(x => x.id)));
+      next = setOut(prog, sel.r, sel.out, data.v === 'ton' ? { op: 'ton', id: addrs.timers.find(t => !used.has(t)) || addrs.timers[0], pt: 5 }
+        : data.v === 'ctu' ? { op: 'ctu', id: addrs.counters.find(t => !used.has(t)) || addrs.counters[0], pv: 3 }
+        : { op: data.v, a: ins.a && /^[QM]/.test(ins.a) ? ins.a : addrs.outputs[0] });
+    }
     else if (act === 'outaddr') next = setOut(prog, sel.r, sel.out, { op: ins.op, a: data.v });
+    else if (act === 'outid') next = setOut(prog, sel.r, sel.out, { ...ins, id: data.v });
+    else if (act === 'pt') next = setOut(prog, sel.r, sel.out, { ...ins, pt: Math.max(1, Math.min(600, Math.round(Number(data.v)) || 1)) });
+    else if (act === 'pv') next = setOut(prog, sel.r, sel.out, { ...ins, pv: Math.max(1, Math.min(999, Math.round(Number(data.v)) || 1)) });
+    else if (act === 'ctur') { const o = { ...ins }; if (data.v) o.r = data.v; else delete o.r; next = setOut(prog, sel.r, sel.out, o); }
     else if (act === 'delOut') { next = removeOut(prog, sel.r, sel.out); nsel = { kind: 'r', r: sel.r }; }
   }
   if (!next) return;
@@ -305,7 +314,7 @@ $('#ladder').addEventListener('click', e => {
   }
 });
 $('#ladder').addEventListener('change', e => {
-  const a = e.target.closest('select[data-lac]');
+  const a = e.target.closest('select[data-lac], input[data-lac]');
   if (a) ladderAct(a.dataset.lac, { v: a.value });
 });
 $('#ladder').addEventListener('keydown', e => {
