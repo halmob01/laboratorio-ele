@@ -18,6 +18,7 @@ import p14 from './ar-14.js';
 import p15 from './ar-15.js';
 import p16 from './ar-16.js';
 import p17 from './ar-17.js';
+import p18 from './ar-18.js';
 
 const ROLE = { 'del neutro': 'المحايد', 'di terra': 'الأرضي', 'di fase': 'الطور', 'a bassa tensione': 'الجهد المنخفض', 'di comando': 'التحكم' };
 const COLORI = { 'blu': 'أزرق', 'giallo-verde': 'أصفر-أخضر', 'marrone, nero o grigio': 'بنيًّا أو أسود أو رماديًّا', 'rosso, marrone, nero o grigio': 'أحمر أو بنيًّا أو أسود أو رماديًّا', 'di un colore diverso da blu e giallo-verde': 'بلون مختلف عن الأزرق والأصفر-الأخضر' };
@@ -30,6 +31,8 @@ const PAT = [
   [/^(\d+) di (\d+)$/, m => `${iso(m[1])} من ${iso(m[2])}`],
   [/^(\d+) \/ (\d+)$/, m => `${iso(m[1])} / ${iso(m[2])}`],
   [/^(\d+) stelle su (\d+)$/, m => `${m[1] === '1' ? 'نجمة واحدة' : m[1] === '2' ? 'نجمتان' : iso(m[1]) + ' نجوم'} من ${iso(m[2])}`],
+  [/^Livelli del modulo: (\d+) di (\d+)$/, m => `مستويات الوحدة: ${iso(m[1])} من ${iso(m[2])}`],
+  [/^Circuiti: (\d+) di (\d+)$/, m => `الدوائر: ${iso(m[1])} من ${iso(m[2])}`],
   [/^(\d+) circuiti$/, m => `${iso(m[1])} دوائر`],
   [/^Anteprima · (\d+) di (\d+) circuiti$/, m => `معاينة · ${iso(m[1])} من ${iso(m[2])} دوائر`],
   [/^Suggerimento (\d+) di (\d+)$/, m => `تلميح ${iso(m[1])} من ${iso(m[2])}`],
@@ -87,4 +90,4 @@ const PAT = [
   [/^Protezioni scattate: (.+)\.$/, (m, t) => `حمايات فصلت: ${t(m[1])}.`],
 ];
 
-registerLang('ar', { ...p1, ...p2, ...p3, ...p4, ...p5, ...p6, ...p7, ...p8, ...p9, ...p10, ...p11, ...p12, ...p13, ...p14, ...p15, ...p16, ...p17 }, PAT);
+registerLang('ar', { ...p1, ...p2, ...p3, ...p4, ...p5, ...p6, ...p7, ...p8, ...p9, ...p10, ...p11, ...p12, ...p13, ...p14, ...p15, ...p16, ...p17, ...p18 }, PAT);

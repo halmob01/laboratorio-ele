@@ -1,0 +1,23 @@
+// Dizionario arabo, parte 18: schede delle milestone nella mappa (foto della scena, capolinea, strumenti, stanze).
+export default {
+"Milestone": "المحطة الكبرى",
+"Capolinea del modulo": "نهاية الوحدة",
+"Traguardo": "الهدف",
+"Cosa userai": "ما ستستخدمه",
+"Le stanze": "الغرف",
+"Acceso": "مضاء",
+"Da cablare": "بانتظار التوصيل",
+"La scena è in preparazione": "المشهد قيد الإعداد",
+"Magnetotermici": "القواطع المغناطيسية الحرارية",
+"Fungo": "زر الفطر",
+"L’appartamento di notte visto dall’alto: la lampada del corridoio e la stufetta in soggiorno sono le uniche luci": "الشقة ليلًا من الأعلى: مصباح الممر ومدفأة غرفة الجلوس هما الضوءان الوحيدان",
+"L’officina con il nastro trasportatore, la pulsantiera, il quadro e il motore": "الورشة مع السير الناقل ولوحة الأزرار واللوحة الكهربائية والمحرك",
+"Il trilocale visto dall’alto: cucina, bagno e camera": "الشقة من ثلاث غرف من الأعلى: المطبخ والحمام وغرفة النوم",
+"FOTOCELLULA": "الخلية الضوئية",
+"NASTRO": "السير",
+"PANNELLO": "اللوحة",
+"TETTO": "السقف",
+"CASA": "البيت",
+"COLONNINA": "محطة الشحن",
+"LINEA": "الخط",
+};

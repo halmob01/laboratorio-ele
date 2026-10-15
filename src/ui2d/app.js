@@ -531,6 +531,13 @@ $('#bCheck').addEventListener('click', () => {
   (r.pass ? (isHouseLevel(S.level.id) ? $('#house') : $('.roomcard')) : $('#result')).scrollIntoView({ behavior, block: r.pass ? 'start' : 'nearest' });
 });
 $('#bFlow').addEventListener('click', () => session.toggleFlow());
+// miniatura del traguardo nell'intestazione del modulo: porta alla scheda della milestone
+document.addEventListener('click', e => {
+  const g = e.target.closest('[data-goto]');
+  if (!g) return;
+  const t = document.getElementById(g.dataset.goto);
+  if (t) t.scrollIntoView({ behavior: REDUCED.matches ? 'auto' : 'smooth', block: 'center' });
+});
 $('#bDrawerClose').addEventListener('click', () => prova.closeDrawer());
 $('#bMeter').addEventListener('click', () => { clearSel(); session.toggleMeter(); });
 $('#meter').addEventListener('click', e => {

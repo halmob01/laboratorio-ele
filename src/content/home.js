@@ -30,7 +30,7 @@ export const MODULES = [
       'c11-quadro',
       'c23-appartamento-notte',
     ],
-    milestone: { level: 'c23-appartamento-notte', kick: 'Appartamento', name: 'Una notte senza luce', text: 'Un appartamento al buio: il differenziale è scattato e da qualche parte c’è una dispersione. Trova la linea con il quadro e il multimetro.', cta: 'Entra nell’appartamento', again: 'Rifai la prova' },
+    milestone: { level: 'c23-appartamento-notte', kick: 'Appartamento', name: 'Una notte senza luce', text: 'Un appartamento al buio: il differenziale è scattato e da qualche parte c’è una dispersione. Trova la linea con il quadro e il multimetro.', src: 'assets/milestone/appartamento.jpg', alt: 'L’appartamento di notte visto dall’alto: la lampada del corridoio e la stufetta in soggiorno sono le uniche luci', tools: ['Quadro', 'Differenziale', 'Magnetotermici', 'Multimetro'], cta: 'Entra nell’appartamento', again: 'Rifai la prova' },
   },
   {
     tag: 'MODULO 3',
@@ -45,7 +45,7 @@ export const MODULES = [
       'c16-nastro',
       'c24-officina',
     ],
-    milestone: { level: 'c24-officina', kick: 'Officina', name: 'Il nastro da collaudare', text: 'Un nastro trasportatore da collaudare a vista: marcia, arresto, emergenza, finecorsa e termico. Trova perché il nastro non si ferma.', cta: 'Entra nell’officina', again: 'Rifai la prova' },
+    milestone: { level: 'c24-officina', kick: 'Officina', name: 'Il nastro da collaudare', text: 'Un nastro trasportatore da collaudare a vista: marcia, arresto, emergenza, finecorsa e termico. Trova perché il nastro non si ferma.', src: 'assets/milestone/officina.jpg', alt: 'L’officina con il nastro trasportatore, la pulsantiera, il quadro e il motore', tools: ['Pulsantiera', 'Salvamotore', 'Teleruttore', 'Termico', 'Finecorsa', 'Fungo'], cta: 'Entra nell’officina', again: 'Rifai la prova' },
   },
   {
     tag: 'MODULO 4',
@@ -57,7 +57,7 @@ export const MODULES = [
       { soon: true, title: 'Tempo e conteggio', blurb: 'Temporizzatori e contatori nel programma.' },
       { soon: true, title: 'Il nastro con il PLC', blurb: 'Fotocellula e conteggio; fungo e termico restano cablati.' },
     ],
-    milestone: { soon: true, kick: 'Nastro con il PLC', name: 'Un nastro che si comanda da programma', text: 'Fotocellula, conteggio dei pacchi, emergenza e termico che restano cablati.' },
+    milestone: { soon: true, art: 'plc', kick: 'Nastro con il PLC', name: 'Un nastro che si comanda da programma', text: 'Fotocellula, conteggio dei pacchi, emergenza e termico che restano cablati.' },
   },
   {
     tag: 'MODULO 6',
@@ -74,9 +74,18 @@ export const MODULES = [
       { soon: true, title: 'La linea', blurb: 'Una sequenza: attesa, prelievo, deposito.' },
       { soon: true, title: 'Gestione guasti', blurb: 'Tre guasti da risolvere a tempo.' },
     ],
-    milestone: { soon: true, kick: 'Fabbrica', name: 'Una linea da cablare, programmare e mettere in sicurezza', text: 'Il progetto finale: un turno di lavoro con guasti da gestire.' },
+    milestone: { soon: true, art: 'fabbrica', kick: 'Fabbrica', name: 'Una linea da cablare, programmare e mettere in sicurezza', text: 'Il progetto finale: un turno di lavoro con guasti da gestire.' },
   },
 ];
+
+// Scheda del trilocale (Modulo 1): non e' una prova unica ma tre circuiti, ognuno con la sua stanza.
+export const TRILOCALE = {
+  kick: 'Trilocale', name: 'Una casa da cablare',
+  text: 'Una casa vista dall’alto con tre punti luce da cablare: bagno, camera e corridoio. Quando l’impianto funziona, la luce si accende nella stanza.',
+  src: 'assets/milestone/trilocale.jpg', alt: 'Il trilocale visto dall’alto: cucina, bagno e camera',
+  rooms: [['t01-bagno', 'Bagno'], ['t02-camera', 'Camera'], ['t03-corridoio', 'Corridoio']],
+  cta: 'Entra nel trilocale', again: 'Continua nel trilocale',
+};
 
 // Prove dei moduli ancora da costruire, mostrate in fondo alla mappa.
 // `levels` elenca i livelli previsti; `project` e' il progetto 3D che chiude il modulo (stessa scheda degli altri moduli).
@@ -84,7 +93,7 @@ export const UPCOMING = [
   {
     tag: 'MODULO 5', title: 'Impianti del futuro', note: 'Casa automatica, fotovoltaico e ricarica: un ramo facoltativo del percorso.',
     levels: ['Il sensore e l’attuatore', 'La casa col PLC', 'La corrente continua', 'Il pannello fotovoltaico', 'Il contatore e lo scambio', 'L’accumulo', 'La colonnina'],
-    project: { kick: 'Casa del futuro', name: 'Luci, tapparelle, sole e batteria', text: 'La casa che si comanda da sola e produce la sua energia.' },
+    project: { art: 'casa', kick: 'Casa del futuro', name: 'Luci, tapparelle, sole e batteria', text: 'La casa che si comanda da sola e produce la sua energia.' },
   },
 ];
 

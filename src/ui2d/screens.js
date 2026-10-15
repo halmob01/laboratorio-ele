@@ -1,7 +1,7 @@
 // Schermate della pagina oltre al banco: homepage, introduzione, scheda dell'unità, piè di pagina, schede informative.
 // Funzioni pure: ricevono l'istantanea della sessione (e un po' di stato della vista) e restituiscono HTML.
 
-import { MODULES, UPCOMING, INTRO, GLOSSARY, LEGEND, INFO_PRIVACY, FOOTER } from '../content/home.js';
+import { MODULES, UPCOMING, TRILOCALE, INTRO, GLOSSARY, LEGEND, INFO_PRIVACY, FOOTER } from '../content/home.js';
 import { RANK_NAMES, STATUS_NAMES } from '../content/it.js';
 import { CONTACT_EMAIL, GAME_VERSION } from '../config.js';
 import { artHTML } from './art.js';
@@ -68,15 +68,53 @@ export function continueTarget(s) {
   return s.levels.find(l => open(l) && !/^t\d\d-/.test(l.id)) || null;
 }
 
-// Scheda della milestone di un modulo: stessa forma per tutti (scena 3D, stato, un solo pulsante).
-function milestoneHTML(ms, l) {
-  if (ms.soon) return `<div class="tricard milestone soon"><div class="lvhead"><div class="kick">${esc(ms.kick)}</div><span class="pill st-soon">In arrivo</span></div><h3>${esc(ms.name)}</h3><p>${esc(ms.text)}</p></div>`;
+// ---- milestone: la prova 3D che chiude ogni modulo ----
+// Stessa scheda per tutte: la scena in grande, lo stato, cosa si usa, quanto del modulo e' fatto, un solo pulsante.
+// Il binario fase/neutro del modulo piega e finisce qui (capolinea).
+const GO = '<svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h13M13 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+const terminusHTML = () => '<div class="terminus" aria-hidden="true"><span class="flag">Capolinea del modulo</span></div>';
+
+// Disegni tecnici per le milestone non ancora costruite: tratteggiati, su carta millimetrata.
+const BLUEPRINT = {
+  plc: '<path d="M180 190 L470 120 L640 160 L350 230 Z"/><path d="M180 190 L180 210 L350 250 L350 230"/><path d="M350 250 L640 180 L640 160"/><path d="M240 175 L240 120 L270 113 L270 168"/><rect x="540" y="70" width="60" height="70" rx="4"/><path d="M552 88h36M552 104h36M552 120h20"/><circle cx="300" cy="150" r="10"/><path d="M300 140 L300 120"/>',
+  casa: '<path d="M200 200 L400 130 L600 200 L400 270 Z"/><path d="M200 200 L200 230 L400 300 L400 270"/><path d="M400 300 L600 230 L600 200"/><path d="M200 200 L400 90 L600 200"/><rect x="380" y="215" width="40" height="55" rx="3"/><path d="M640 120 L700 100 L700 150 L640 170 Z"/><path d="M650 128 L690 114M650 146 L690 132"/>',
+  fabbrica: '<path d="M140 210 L330 140 L520 210 L330 280 Z"/><path d="M140 210 L140 240 L330 310 L330 280"/><path d="M330 310 L520 240 L520 210"/><path d="M520 180 L660 130 L660 200 L520 250"/><path d="M560 150 L560 110 L590 100 L590 140"/><rect x="190" y="150" width="50" height="30" rx="3"/><path d="M200 160h30M200 170h20"/>',
+};
+function blueprintHTML(kind) {
+  const label = { plc: ['PLC', 'FOTOCELLULA', 'NASTRO'], casa: ['TETTO', 'CASA', 'COLONNINA'], fabbrica: ['LINEA', 'QUADRO', 'PANNELLO'] }[kind] || ['', '', ''];
+  return `<svg viewBox="0 0 800 340" preserveAspectRatio="xMidYMid meet" aria-hidden="true"><g fill="none" stroke="#8CC3F2" stroke-width="2" stroke-dasharray="7 6" stroke-linejoin="round" opacity=".85">${BLUEPRINT[kind] || BLUEPRINT.plc}</g><g fill="#8CC3F2" font-family="IBM Plex Mono,monospace" font-size="13" letter-spacing="1.5"><text x="520" y="60">${label[0]}</text><text x="150" y="105">${label[1]}</text><text x="410" y="318">${label[2]}</text></g></svg>`;
+}
+
+function milestoneCard(o) {
+  // o: { id, kick, name, text, src, alt, art, st, extra, side }
+  const soon = o.st === 'soon';
+  const stName = soon ? 'In arrivo' : STATUS_NAMES[o.st];
+  const scene = soon ? blueprintHTML(o.art) : `<img src="${esc(o.src)}" alt="${esc(o.alt || '')}" width="1200" height="600" loading="lazy" decoding="async">`;
+  return `<article class="msc${soon ? ' soon' : ''}" id="${esc(o.id)}" data-st="${soon ? 'soon' : o.st.replace(' ', '-')}">
+      <div class="msc-scene">${scene}<div class="msc-tags"><span class="msc-3d">Milestone · 3D</span><span class="msc-st">${stName}</span></div></div>
+      <div class="msc-body"><div class="msc-main"><div class="kick">${esc(o.kick)}</div><h3>${esc(o.name)}</h3><p class="msc-txt">${esc(o.text)}</p>${o.extra || ''}</div>
+        <div class="msc-side">${o.side || (soon ? '<span class="msc-ready">La scena è in preparazione</span>' : '')}</div></div>
+    </article>`;
+}
+function progressHTML(label, done, total) {
+  const w = total ? Math.round((done / total) * 100) : 0;
+  return `<span class="msc-ready">${label}: ${done} di ${total}</span><div class="msc-bar" role="img" aria-label="${done} su ${total}"><i style="width:${w}%"></i></div>`;
+}
+const stars = l => (l.status === 'completato' ? `<div class="starrow" role="img" aria-label="${l.stars} stelle su 3">${STAR.repeat(l.stars)}</div>` : '');
+
+function milestoneHTML(ms, l, prog) {
+  if (ms.soon) return terminusHTML() + milestoneCard({ id: 'ms-' + ms.art, kick: ms.kick, name: ms.name, text: ms.text, art: ms.art, st: 'soon' });
   if (!l) return '';
   const st = l.status;
-  const pill = `<span class="pill st-${st.replace(' ', '-')}">${STATUS_NAMES[st]}</span>`;
-  const stars = st === 'completato' ? `<div class="starrow" role="img" aria-label="${l.stars} stelle su 3">${STAR.repeat(l.stars)}</div>` : '';
   const label = st === 'completato' ? ms.again : st === 'in corso' ? 'Continua' : ms.cta;
-  return `<div class="tricard milestone" data-status="${st}"><div class="lvhead"><div class="kick">${esc(ms.kick)}</div>${pill}</div><h3>${esc(ms.name)}</h3><p>${esc(ms.text)}</p>${stars}<a class="btn lamp" href="#/livello/${l.id}">${label}</a></div>`;
+  const tools = ms.tools ? `<ul class="msc-tools" aria-label="Cosa userai">${ms.tools.map(t => `<li>${esc(t)}</li>`).join('')}</ul>` : '';
+  const side = progressHTML('Livelli del modulo', prog.done, prog.total) + stars(l) + `<a class="msc-cta${st === 'completato' ? ' again' : ''}" href="#/livello/${l.id}">${label}${st === 'completato' ? '' : GO}</a>`;
+  return terminusHTML() + milestoneCard({ id: 'ms-' + l.id, kick: ms.kick, name: ms.name, text: ms.text, src: ms.src, alt: ms.alt, st, extra: tools, side });
+}
+// Miniatura accanto al titolo del modulo: il traguardo, visibile prima di scorrere i livelli.
+function teaserHTML(ms) {
+  if (!ms || ms.soon || !ms.src) return '';
+  return `<button class="msteaser" type="button" data-goto="ms-${esc(ms.level)}"><img src="${esc(ms.src)}" alt="" width="56" height="28" loading="lazy" decoding="async"><span><small>Traguardo</small><b>${esc(ms.name)}</b></span></button>`;
 }
 
 export function homeHTML(s) {
@@ -96,21 +134,26 @@ export function homeHTML(s) {
     const rail = have.filter(x => !(ms && x === ms.level));
     const railDone = rail.filter(id => byId[id] && (byId[id].status === 'completato' || byId[id].status === 'saltato')).length;
     return `<section class="module" aria-label="${m.tag}, ${m.title}">
-        <div class="mhead"><div><div class="kick">${m.tag}</div><h2>${m.title}</h2></div><div class="count">${ms ? railDone + ' di ' + rail.length : done + ' di ' + have.length} completati</div></div>
-        <ol class="rail">${items}</ol>${ms ? milestoneHTML(ms, byId[ms.level]) : ''}
+        <div class="mhead"><div><div class="kick">${m.tag}</div><h2>${m.title}</h2></div>${teaserHTML(ms)}<div class="count">${ms ? railDone + ' di ' + rail.length : done + ' di ' + have.length} completati</div></div>
+        <ol class="rail">${items}</ol>${ms ? milestoneHTML(ms, byId[ms.level], { done: railDone, total: rail.length }) : ''}
       </section>`;
   });
   const tri = s.levels.filter(l => /^t\d\d-/.test(l.id));
   const triDone = tri.filter(l => l.stars > 0).length;
+  const T = TRILOCALE;
+  const roomOn = id => { const l = byId[id]; return !!l && l.stars > 0; };
+  const triSt = triDone === 0 ? 'nuovo' : triDone >= tri.length ? 'completato' : 'in corso';
+  const rooms = `<ul class="msc-rooms" aria-label="Le stanze">${T.rooms.map(([id, n]) => `<li class="${roomOn(id) ? 'lit' : ''}"><b>${esc(n)}</b><small>${roomOn(id) ? 'Acceso' : 'Da cablare'}</small></li>`).join('')}</ul>`;
+  const triSide = progressHTML('Circuiti', triDone, tri.length) + `<a class="msc-cta${triSt === 'completato' ? ' again' : ''}" href="#/modulo/1">${triDone ? T.again : T.cta}${triSt === 'completato' ? '' : GO}</a>`;
   const trilocale = `<section class="module trimod" aria-label="Modulo 1, Il trilocale">
         <div class="mhead"><div><div class="kick">MODULO 1</div><h2>Il trilocale</h2></div><div class="count">${triDone} di ${tri.length} circuiti</div></div>
-        <div class="tricard milestone"><div class="kick">Trilocale</div><h3>Una casa da cablare</h3><p>Una casa vista dall’alto con tre punti luce da cablare: bagno, camera e corridoio. Quando l’impianto funziona, la luce si accende nella stanza.</p><a class="btn lamp" href="#/modulo/1">${triDone ? 'Continua nel trilocale' : 'Entra nel trilocale'}</a></div>
+        ${milestoneCard({ id: 'ms-trilocale', kick: T.kick, name: T.name, text: T.text, src: T.src, alt: T.alt, st: triSt, extra: rooms, side: triSide })}
       </section>`;
   const upItems = UPCOMING.map(m => ({ n: Number(m.tag.match(/\d+/)[0]), html: `<section class="module upmod" aria-label="${m.tag}, ${esc(m.title)}">
         <div class="mhead"><div><div class="kick">${m.tag}</div><h2>${esc(m.title)}</h2></div><span class="soonl">In arrivo</span></div>
         <p class="upnote">${esc(m.note)}</p>
         <ol class="uplist">${m.levels.map(x => `<li>${esc(x)}</li>`).join('')}</ol>
-        <div class="tricard milestone soon"><div class="kick">${esc(m.project.kick)}</div><h3>${esc(m.project.name)}</h3><p>${esc(m.project.text)}</p></div>
+        ${terminusHTML()}${milestoneCard({ id: 'ms-' + m.project.art, kick: m.project.kick, name: m.project.name, text: m.project.text, art: m.project.art, st: 'soon' })}
       </section>` }));
   // I moduli, il trilocale e quelli in arrivo stanno in un solo elenco, nell'ordine dei numeri dei moduli.
   const num = tag => Number((tag.match(/\d+/) || [0])[0]);

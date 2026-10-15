@@ -475,13 +475,6 @@ a.tool{display:flex;align-items:center;justify-content:center;text-decoration:no
 .pbrk rect{fill:#2F3A46}
 .pbrk text{fill:#fff;font:700 12px sans-serif}
 .with-house .roomcard{display:none}
-.module .tricard{margin-top:14px}
-.trimod .tricard{margin-top:0}
-.tricard{display:flex;flex-direction:column;gap:12px;align-items:flex-start;background:var(--card);border:1.5px solid var(--line);border-radius:12px;padding:16px}
-.tricard p{margin:0;color:var(--ink2)}
-.tricard h3{margin:0;font:700 24px/1.1 'Barlow Condensed',sans-serif;text-transform:uppercase}
-.tricard .lvhead{width:100%;align-items:center}
-.tricard.milestone{border-color:#2563a8;border-width:2px}
 @media (min-width:920px){
   .with-house .levelgrid{display:grid;grid-template-columns:58% minmax(0,1fr);gap:16px;align-items:start}
   .with-house .house{position:sticky;top:12px;margin:0}
@@ -548,7 +541,6 @@ html[lang="it"] .trnote{display:none}
 .upmod .upnote{margin:0 0 8px;color:var(--ink2)}
 .upmod .uplist{margin:0 0 12px;padding:0 0 0 20px;color:var(--ink2);font-size:14px;columns:2;column-gap:24px}
 .upmod .uplist li{margin:2px 0}
-.tricard.milestone.soon{border-style:dashed;border-color:#9AA1AE}
 @media (max-width:560px){.upmod .uplist{columns:1}}
 
 /* programma ladder (sola lettura) */
@@ -735,6 +727,66 @@ body.ms-intro .milestone .lessoncard{visibility:hidden}
 @media (max-width:760px){.pmod.rcd .pname{padding-right:22px}}
 .drawerclose{display:none}
 .milestone.drawer .drawerclose{display:inline-flex;align-self:flex-end;position:sticky;top:0;z-index:2}
+
+/* ---------- milestone in mappa: la prova 3D che chiude ogni modulo ---------- */
+/* Scheda scura fissa (e' una scena di notte o di officina), in tema chiaro e scuro. */
+.terminus{position:relative;height:62px;margin-top:-16px}
+.terminus::before{content:"";position:absolute;left:9px;top:0;height:40px;width:12px;background:linear-gradient(90deg,var(--fase) 0 5px,transparent 5px 7px,var(--neutro) 7px 12px)}
+.terminus::after{content:"";position:absolute;left:9px;top:38px;width:44px;height:12px;border-bottom-left-radius:12px;background:linear-gradient(180deg,var(--fase) 0 5px,transparent 5px 7px,var(--neutro) 7px 12px)}
+.terminus .flag{position:absolute;left:62px;top:36px;font:500 12px/1 'IBM Plex Mono',ui-monospace,monospace;letter-spacing:.12em;text-transform:uppercase;color:var(--ink2)}
+.trimod .msc{margin-top:0}
+.msc{--m-ink:#F3EFE6;--m-ink2:#C9CFDA;--m-line:#34405A;position:relative;border-radius:16px;overflow:hidden;background:#0E141D;color:var(--m-ink);isolation:isolate}
+.msc-scene{position:relative;aspect-ratio:2/1;overflow:hidden;background:#0A0F16}
+.msc-scene img{display:block;width:100%;height:100%;object-fit:cover;transform:scale(1.02);transition:transform .8s ease}
+.msc:hover .msc-scene img{transform:scale(1.06)}
+.msc-scene::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(14,20,29,0) 45%,#0E141D 100%)}
+.msc-tags{position:absolute;left:14px;top:14px;z-index:1;display:flex;gap:8px;flex-wrap:wrap}
+.msc-3d{font:600 12px/1 'IBM Plex Mono',monospace;letter-spacing:.1em;text-transform:uppercase;padding:7px 9px;border-radius:6px;background:var(--lamp);color:#1B2230}
+.msc-st{font:500 12px/1 'IBM Plex Mono',monospace;padding:7px 9px;border-radius:6px;background:rgba(10,15,22,.74);color:#F3EFE6;border:1px solid rgba(255,255,255,.25)}
+.msc-body{position:relative;z-index:1;margin-top:-64px;padding:0 20px 20px;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:16px 24px;align-items:end}
+.msc .kick{color:#8CC3F2}
+.msc h3{margin:6px 0 0;font:700 40px/.95 'Barlow Condensed',sans-serif;text-transform:uppercase;text-wrap:balance}
+.msc-txt{margin:10px 0 0;color:var(--m-ink2);max-width:56ch}
+.msc-tools,.msc-rooms{list-style:none;margin:14px 0 0;padding:0;display:flex;flex-wrap:wrap;gap:6px}
+.msc-tools li{font:500 12px/1 'IBM Plex Mono',monospace;padding:6px 8px;border-radius:999px;border:1px solid var(--m-line);color:var(--m-ink2)}
+.msc-rooms{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));max-width:460px}
+.msc-rooms li{border:1px solid var(--m-line);border-radius:8px;padding:8px 10px;display:flex;flex-direction:column;gap:2px}
+.msc-rooms b{font:700 16px/1 'Barlow Condensed',sans-serif;text-transform:uppercase}
+.msc-rooms small{font:400 11px/1.2 'IBM Plex Mono',monospace;color:var(--m-ink2)}
+.msc-rooms li.lit{border-color:var(--lamp)}
+.msc-rooms li.lit small{color:var(--lamp)}
+.msc-side{display:flex;flex-direction:column;gap:10px;align-items:stretch;min-width:240px}
+.msc-ready{font:400 12px/1.3 'IBM Plex Mono',monospace;color:var(--m-ink2)}
+.msc-bar{height:6px;border-radius:3px;background:rgba(255,255,255,.14);overflow:hidden}
+.msc-bar i{display:block;height:100%;background:var(--lamp)}
+.msc .starrow svg{width:22px;height:22px}
+.msc-cta{display:inline-flex;align-items:center;justify-content:center;gap:10px;min-height:52px;padding:0 20px;border-radius:10px;background:var(--lamp);color:#1B2230;font:600 17px/1 'IBM Plex Sans',sans-serif;text-decoration:none;white-space:nowrap}
+.msc-cta.again{background:transparent;color:var(--m-ink);border:1.5px solid var(--m-ink)}
+.msc-cta:focus-visible{outline:2px solid #fff;outline-offset:2px}
+.msc[data-st="completato"]{outline:3px solid var(--lamp)}
+.msc.soon{background:#13233A;color:#E3ECF7}
+.msc.soon .msc-scene{aspect-ratio:7/2;background:linear-gradient(rgba(140,195,242,.12) 1px,transparent 1px) 0 0/24px 24px,linear-gradient(90deg,rgba(140,195,242,.12) 1px,transparent 1px) 0 0/24px 24px,#13233A}
+.msc.soon .msc-scene::after{background:linear-gradient(180deg,rgba(19,35,58,0) 40%,#13233A 100%)}
+.msc.soon .msc-scene svg{position:absolute;inset:0;width:100%;height:100%}
+.msc.soon .msc-3d{background:transparent;color:#8CC3F2;border:1.5px dashed #8CC3F2}
+.msc.soon .msc-side{min-width:0}
+.msc.soon .msc-txt{color:#B9C8DC}
+.msteaser{display:flex;align-items:center;gap:10px;color:var(--ink);border:1px solid var(--line);border-radius:10px;padding:4px 10px 4px 4px;background:var(--card);cursor:pointer;text-align:left;font:inherit}
+.msteaser img{width:56px;height:28px;object-fit:cover;border-radius:6px;display:block}
+.msteaser span{display:flex;flex-direction:column;gap:2px}
+.msteaser small{font:400 11px/1 'IBM Plex Mono',monospace;color:var(--ink2);text-transform:uppercase;letter-spacing:.08em}
+.msteaser b{font:700 15px/1 'Barlow Condensed',sans-serif;text-transform:uppercase}
+.msteaser:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+@media (max-width:640px){
+  .msc-scene{aspect-ratio:4/3}
+  .msc.soon .msc-scene{aspect-ratio:16/9}
+  .msc-body{grid-template-columns:minmax(0,1fr);margin-top:-52px;padding:0 16px 16px}
+  .msc h3{font-size:34px}
+  .msc-side{min-width:0}
+  .msteaser{display:none}
+  .msc-rooms{max-width:none}
+}
+@media (prefers-reduced-motion:reduce){.msc-scene img{transition:none}.msc:hover .msc-scene img{transform:scale(1.02)}}
 </style>
 </head>
 <body>
@@ -1250,9 +1302,9 @@ body.ms-intro .milestone .lessoncard{visibility:hidden}
     });
     Object.keys(data).forEach((k) => {
       const m = /^(\d+)(c?)$/.exec(k);
-      const stars = Number(data[k]);
-      if (!m || !byN[m[1]] || !(stars >= 0 && stars <= 3)) return;
-      out.stars[byN[m[1]] + m[2]] = Math.floor(stars);
+      const stars2 = Number(data[k]);
+      if (!m || !byN[m[1]] || !(stars2 >= 0 && stars2 <= 3)) return;
+      out.stars[byN[m[1]] + m[2]] = Math.floor(stars2);
     });
     return out;
   }
@@ -2888,9 +2940,9 @@ body.ms-intro .milestone .lessoncard{visibility:hidden}
         levels: levels2.map((l, i) => {
           const pk = progressKey(l.id);
           const rec = progress.best[pk];
-          const stars = progress.stars[pk] || 0;
-          const status = rec && rec.skipped && stars >= 3 ? "saltato" : stars >= 3 ? "completato" : stars > 0 || rec ? "in corso" : "nuovo";
-          return { index: i, id: l.id, code: l.code, n: l.n, name: l.name, title: l.title, goal: l.goal, blurb: l.blurb, stars, status, xp: xpOf(rec), hasUnit: !!l.unit };
+          const stars2 = progress.stars[pk] || 0;
+          const status = rec && rec.skipped && stars2 >= 3 ? "saltato" : stars2 >= 3 ? "completato" : stars2 > 0 || rec ? "in corso" : "nuovo";
+          return { index: i, id: l.id, code: l.code, n: l.n, name: l.name, title: l.title, goal: l.goal, blurb: l.blurb, stars: stars2, status, xp: xpOf(rec), hasUnit: !!l.unit };
         }),
         last: progress.last,
         player: { xp: total, rank: rankOf(total) },
@@ -8895,7 +8947,7 @@ body.ms-intro .milestone .lessoncard{visibility:hidden}
         "c11-quadro",
         "c23-appartamento-notte"
       ],
-      milestone: { level: "c23-appartamento-notte", kick: "Appartamento", name: "Una notte senza luce", text: "Un appartamento al buio: il differenziale \xE8 scattato e da qualche parte c\u2019\xE8 una dispersione. Trova la linea con il quadro e il multimetro.", cta: "Entra nell\u2019appartamento", again: "Rifai la prova" }
+      milestone: { level: "c23-appartamento-notte", kick: "Appartamento", name: "Una notte senza luce", text: "Un appartamento al buio: il differenziale \xE8 scattato e da qualche parte c\u2019\xE8 una dispersione. Trova la linea con il quadro e il multimetro.", src: "assets/milestone/appartamento.jpg", alt: "L\u2019appartamento di notte visto dall\u2019alto: la lampada del corridoio e la stufetta in soggiorno sono le uniche luci", tools: ["Quadro", "Differenziale", "Magnetotermici", "Multimetro"], cta: "Entra nell\u2019appartamento", again: "Rifai la prova" }
     },
     {
       tag: "MODULO 3",
@@ -8910,7 +8962,7 @@ body.ms-intro .milestone .lessoncard{visibility:hidden}
         "c16-nastro",
         "c24-officina"
       ],
-      milestone: { level: "c24-officina", kick: "Officina", name: "Il nastro da collaudare", text: "Un nastro trasportatore da collaudare a vista: marcia, arresto, emergenza, finecorsa e termico. Trova perch\xE9 il nastro non si ferma.", cta: "Entra nell\u2019officina", again: "Rifai la prova" }
+      milestone: { level: "c24-officina", kick: "Officina", name: "Il nastro da collaudare", text: "Un nastro trasportatore da collaudare a vista: marcia, arresto, emergenza, finecorsa e termico. Trova perch\xE9 il nastro non si ferma.", src: "assets/milestone/officina.jpg", alt: "L\u2019officina con il nastro trasportatore, la pulsantiera, il quadro e il motore", tools: ["Pulsantiera", "Salvamotore", "Teleruttore", "Termico", "Finecorsa", "Fungo"], cta: "Entra nell\u2019officina", again: "Rifai la prova" }
     },
     {
       tag: "MODULO 4",
@@ -8922,7 +8974,7 @@ body.ms-intro .milestone .lessoncard{visibility:hidden}
         { soon: true, title: "Tempo e conteggio", blurb: "Temporizzatori e contatori nel programma." },
         { soon: true, title: "Il nastro con il PLC", blurb: "Fotocellula e conteggio; fungo e termico restano cablati." }
       ],
-      milestone: { soon: true, kick: "Nastro con il PLC", name: "Un nastro che si comanda da programma", text: "Fotocellula, conteggio dei pacchi, emergenza e termico che restano cablati." }
+      milestone: { soon: true, art: "plc", kick: "Nastro con il PLC", name: "Un nastro che si comanda da programma", text: "Fotocellula, conteggio dei pacchi, emergenza e termico che restano cablati." }
     },
     {
       tag: "MODULO 6",
@@ -8939,16 +8991,26 @@ body.ms-intro .milestone .lessoncard{visibility:hidden}
         { soon: true, title: "La linea", blurb: "Una sequenza: attesa, prelievo, deposito." },
         { soon: true, title: "Gestione guasti", blurb: "Tre guasti da risolvere a tempo." }
       ],
-      milestone: { soon: true, kick: "Fabbrica", name: "Una linea da cablare, programmare e mettere in sicurezza", text: "Il progetto finale: un turno di lavoro con guasti da gestire." }
+      milestone: { soon: true, art: "fabbrica", kick: "Fabbrica", name: "Una linea da cablare, programmare e mettere in sicurezza", text: "Il progetto finale: un turno di lavoro con guasti da gestire." }
     }
   ];
+  var TRILOCALE = {
+    kick: "Trilocale",
+    name: "Una casa da cablare",
+    text: "Una casa vista dall\u2019alto con tre punti luce da cablare: bagno, camera e corridoio. Quando l\u2019impianto funziona, la luce si accende nella stanza.",
+    src: "assets/milestone/trilocale.jpg",
+    alt: "Il trilocale visto dall\u2019alto: cucina, bagno e camera",
+    rooms: [["t01-bagno", "Bagno"], ["t02-camera", "Camera"], ["t03-corridoio", "Corridoio"]],
+    cta: "Entra nel trilocale",
+    again: "Continua nel trilocale"
+  };
   var UPCOMING = [
     {
       tag: "MODULO 5",
       title: "Impianti del futuro",
       note: "Casa automatica, fotovoltaico e ricarica: un ramo facoltativo del percorso.",
       levels: ["Il sensore e l\u2019attuatore", "La casa col PLC", "La corrente continua", "Il pannello fotovoltaico", "Il contatore e lo scambio", "L\u2019accumulo", "La colonnina"],
-      project: { kick: "Casa del futuro", name: "Luci, tapparelle, sole e batteria", text: "La casa che si comanda da sola e produce la sua energia." }
+      project: { art: "casa", kick: "Casa del futuro", name: "Luci, tapparelle, sole e batteria", text: "La casa che si comanda da sola e produce la sua energia." }
     }
   ];
   var INTRO = [
@@ -10191,14 +10253,14 @@ body.ms-intro .milestone .lessoncard{visibility:hidden}
   function levelCard(l, s) {
     const st = l.status;
     const pill = `<span class="pill st-${st.replace(" ", "-")}">${STATUS_NAMES[st]}</span>`;
-    const stars = st === "completato" ? `<div class="starrow" role="img" aria-label="${l.stars} stelle su 3">${STAR.repeat(l.stars)}</div>` : "";
+    const stars2 = st === "completato" ? `<div class="starrow" role="img" aria-label="${l.stars} stelle su 3">${STAR.repeat(l.stars)}</div>` : "";
     const main = { nuovo: "Inizia", "in corso": "Continua", completato: "Rigioca", saltato: "Vedi la lezione" }[st];
     const skip = st === "nuovo" || st === "in corso" ? `<a class="btn ghost" href="#/livello/${l.id}/verifica" aria-label="Gi\xE0 lo so: prova di salto per ${esc(l.title)}">Gi\xE0 lo so</a>` : "";
     return `<li class="lvcard ${st === "in corso" ? "cur" : ""}" data-status="${st}">
       <span class="node" aria-hidden="true"></span>
       <div class="lvbody">
         <div class="lvhead"><div><h3>${esc(l.title)}</h3></div>${pill}</div>
-        <p>${esc(l.blurb)}</p>${stars}
+        <p>${esc(l.blurb)}</p>${stars2}
         <div class="lvact"><a class="btn main" href="#/livello/${l.id}">${main}</a>${skip}</div>
       </div>
     </li>`;
@@ -10216,14 +10278,44 @@ body.ms-intro .milestone .lessoncard{visibility:hidden}
     if (s.levels.some((l) => /^t\d\d-/.test(l.id) && open(l))) return null;
     return s.levels.find((l) => open(l) && !/^t\d\d-/.test(l.id)) || null;
   }
-  function milestoneHTML(ms, l) {
-    if (ms.soon) return `<div class="tricard milestone soon"><div class="lvhead"><div class="kick">${esc(ms.kick)}</div><span class="pill st-soon">In arrivo</span></div><h3>${esc(ms.name)}</h3><p>${esc(ms.text)}</p></div>`;
+  var GO = '<svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h13M13 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+  var terminusHTML = () => '<div class="terminus" aria-hidden="true"><span class="flag">Capolinea del modulo</span></div>';
+  var BLUEPRINT = {
+    plc: '<path d="M180 190 L470 120 L640 160 L350 230 Z"/><path d="M180 190 L180 210 L350 250 L350 230"/><path d="M350 250 L640 180 L640 160"/><path d="M240 175 L240 120 L270 113 L270 168"/><rect x="540" y="70" width="60" height="70" rx="4"/><path d="M552 88h36M552 104h36M552 120h20"/><circle cx="300" cy="150" r="10"/><path d="M300 140 L300 120"/>',
+    casa: '<path d="M200 200 L400 130 L600 200 L400 270 Z"/><path d="M200 200 L200 230 L400 300 L400 270"/><path d="M400 300 L600 230 L600 200"/><path d="M200 200 L400 90 L600 200"/><rect x="380" y="215" width="40" height="55" rx="3"/><path d="M640 120 L700 100 L700 150 L640 170 Z"/><path d="M650 128 L690 114M650 146 L690 132"/>',
+    fabbrica: '<path d="M140 210 L330 140 L520 210 L330 280 Z"/><path d="M140 210 L140 240 L330 310 L330 280"/><path d="M330 310 L520 240 L520 210"/><path d="M520 180 L660 130 L660 200 L520 250"/><path d="M560 150 L560 110 L590 100 L590 140"/><rect x="190" y="150" width="50" height="30" rx="3"/><path d="M200 160h30M200 170h20"/>'
+  };
+  function blueprintHTML(kind) {
+    const label = { plc: ["PLC", "FOTOCELLULA", "NASTRO"], casa: ["TETTO", "CASA", "COLONNINA"], fabbrica: ["LINEA", "QUADRO", "PANNELLO"] }[kind] || ["", "", ""];
+    return `<svg viewBox="0 0 800 340" preserveAspectRatio="xMidYMid meet" aria-hidden="true"><g fill="none" stroke="#8CC3F2" stroke-width="2" stroke-dasharray="7 6" stroke-linejoin="round" opacity=".85">${BLUEPRINT[kind] || BLUEPRINT.plc}</g><g fill="#8CC3F2" font-family="IBM Plex Mono,monospace" font-size="13" letter-spacing="1.5"><text x="520" y="60">${label[0]}</text><text x="150" y="105">${label[1]}</text><text x="410" y="318">${label[2]}</text></g></svg>`;
+  }
+  function milestoneCard(o) {
+    const soon = o.st === "soon";
+    const stName = soon ? "In arrivo" : STATUS_NAMES[o.st];
+    const scene = soon ? blueprintHTML(o.art) : `<img src="${esc(o.src)}" alt="${esc(o.alt || "")}" width="1200" height="600" loading="lazy" decoding="async">`;
+    return `<article class="msc${soon ? " soon" : ""}" id="${esc(o.id)}" data-st="${soon ? "soon" : o.st.replace(" ", "-")}">
+      <div class="msc-scene">${scene}<div class="msc-tags"><span class="msc-3d">Milestone \xB7 3D</span><span class="msc-st">${stName}</span></div></div>
+      <div class="msc-body"><div class="msc-main"><div class="kick">${esc(o.kick)}</div><h3>${esc(o.name)}</h3><p class="msc-txt">${esc(o.text)}</p>${o.extra || ""}</div>
+        <div class="msc-side">${o.side || (soon ? '<span class="msc-ready">La scena \xE8 in preparazione</span>' : "")}</div></div>
+    </article>`;
+  }
+  function progressHTML(label, done, total) {
+    const w = total ? Math.round(done / total * 100) : 0;
+    return `<span class="msc-ready">${label}: ${done} di ${total}</span><div class="msc-bar" role="img" aria-label="${done} su ${total}"><i style="width:${w}%"></i></div>`;
+  }
+  var stars = (l) => l.status === "completato" ? `<div class="starrow" role="img" aria-label="${l.stars} stelle su 3">${STAR.repeat(l.stars)}</div>` : "";
+  function milestoneHTML(ms, l, prog) {
+    if (ms.soon) return terminusHTML() + milestoneCard({ id: "ms-" + ms.art, kick: ms.kick, name: ms.name, text: ms.text, art: ms.art, st: "soon" });
     if (!l) return "";
     const st = l.status;
-    const pill = `<span class="pill st-${st.replace(" ", "-")}">${STATUS_NAMES[st]}</span>`;
-    const stars = st === "completato" ? `<div class="starrow" role="img" aria-label="${l.stars} stelle su 3">${STAR.repeat(l.stars)}</div>` : "";
     const label = st === "completato" ? ms.again : st === "in corso" ? "Continua" : ms.cta;
-    return `<div class="tricard milestone" data-status="${st}"><div class="lvhead"><div class="kick">${esc(ms.kick)}</div>${pill}</div><h3>${esc(ms.name)}</h3><p>${esc(ms.text)}</p>${stars}<a class="btn lamp" href="#/livello/${l.id}">${label}</a></div>`;
+    const tools = ms.tools ? `<ul class="msc-tools" aria-label="Cosa userai">${ms.tools.map((t) => `<li>${esc(t)}</li>`).join("")}</ul>` : "";
+    const side = progressHTML("Livelli del modulo", prog.done, prog.total) + stars(l) + `<a class="msc-cta${st === "completato" ? " again" : ""}" href="#/livello/${l.id}">${label}${st === "completato" ? "" : GO}</a>`;
+    return terminusHTML() + milestoneCard({ id: "ms-" + l.id, kick: ms.kick, name: ms.name, text: ms.text, src: ms.src, alt: ms.alt, st, extra: tools, side });
+  }
+  function teaserHTML(ms) {
+    if (!ms || ms.soon || !ms.src) return "";
+    return `<button class="msteaser" type="button" data-goto="ms-${esc(ms.level)}"><img src="${esc(ms.src)}" alt="" width="56" height="28" loading="lazy" decoding="async"><span><small>Traguardo</small><b>${esc(ms.name)}</b></span></button>`;
   }
   function homeHTML(s) {
     const t = continueTarget(s);
@@ -10238,21 +10330,29 @@ body.ms-intro .milestone .lessoncard{visibility:hidden}
       const rail = have.filter((x) => !(ms && x === ms.level));
       const railDone = rail.filter((id) => byId[id] && (byId[id].status === "completato" || byId[id].status === "saltato")).length;
       return `<section class="module" aria-label="${m.tag}, ${m.title}">
-        <div class="mhead"><div><div class="kick">${m.tag}</div><h2>${m.title}</h2></div><div class="count">${ms ? railDone + " di " + rail.length : done + " di " + have.length} completati</div></div>
-        <ol class="rail">${items}</ol>${ms ? milestoneHTML(ms, byId[ms.level]) : ""}
+        <div class="mhead"><div><div class="kick">${m.tag}</div><h2>${m.title}</h2></div>${teaserHTML(ms)}<div class="count">${ms ? railDone + " di " + rail.length : done + " di " + have.length} completati</div></div>
+        <ol class="rail">${items}</ol>${ms ? milestoneHTML(ms, byId[ms.level], { done: railDone, total: rail.length }) : ""}
       </section>`;
     });
     const tri = s.levels.filter((l) => /^t\d\d-/.test(l.id));
     const triDone = tri.filter((l) => l.stars > 0).length;
+    const T2 = TRILOCALE;
+    const roomOn = (id) => {
+      const l = byId[id];
+      return !!l && l.stars > 0;
+    };
+    const triSt = triDone === 0 ? "nuovo" : triDone >= tri.length ? "completato" : "in corso";
+    const rooms = `<ul class="msc-rooms" aria-label="Le stanze">${T2.rooms.map(([id, n]) => `<li class="${roomOn(id) ? "lit" : ""}"><b>${esc(n)}</b><small>${roomOn(id) ? "Acceso" : "Da cablare"}</small></li>`).join("")}</ul>`;
+    const triSide = progressHTML("Circuiti", triDone, tri.length) + `<a class="msc-cta${triSt === "completato" ? " again" : ""}" href="#/modulo/1">${triDone ? T2.again : T2.cta}${triSt === "completato" ? "" : GO}</a>`;
     const trilocale = `<section class="module trimod" aria-label="Modulo 1, Il trilocale">
         <div class="mhead"><div><div class="kick">MODULO 1</div><h2>Il trilocale</h2></div><div class="count">${triDone} di ${tri.length} circuiti</div></div>
-        <div class="tricard milestone"><div class="kick">Trilocale</div><h3>Una casa da cablare</h3><p>Una casa vista dall\u2019alto con tre punti luce da cablare: bagno, camera e corridoio. Quando l\u2019impianto funziona, la luce si accende nella stanza.</p><a class="btn lamp" href="#/modulo/1">${triDone ? "Continua nel trilocale" : "Entra nel trilocale"}</a></div>
+        ${milestoneCard({ id: "ms-trilocale", kick: T2.kick, name: T2.name, text: T2.text, src: T2.src, alt: T2.alt, st: triSt, extra: rooms, side: triSide })}
       </section>`;
     const upItems = UPCOMING.map((m) => ({ n: Number(m.tag.match(/\d+/)[0]), html: `<section class="module upmod" aria-label="${m.tag}, ${esc(m.title)}">
         <div class="mhead"><div><div class="kick">${m.tag}</div><h2>${esc(m.title)}</h2></div><span class="soonl">In arrivo</span></div>
         <p class="upnote">${esc(m.note)}</p>
         <ol class="uplist">${m.levels.map((x) => `<li>${esc(x)}</li>`).join("")}</ol>
-        <div class="tricard milestone soon"><div class="kick">${esc(m.project.kick)}</div><h3>${esc(m.project.name)}</h3><p>${esc(m.project.text)}</p></div>
+        ${terminusHTML()}${milestoneCard({ id: "ms-" + m.project.art, kick: m.project.kick, name: m.project.name, text: m.project.text, art: m.project.art, st: "soon" })}
       </section>` }));
     const num = (tag) => Number((tag.match(/\d+/) || [0])[0]);
     const listed = MODULES.map((m, i) => ({ n: num(m.tag), html: mods[i] })).concat([{ n: 1, html: trilocale }], upItems);
@@ -10413,8 +10513,8 @@ body.ms-intro .milestone .lessoncard{visibility:hidden}
     return `<button class="link" data-act="summary">Sintesi</button><button class="link" data-unit="lesson">Rivedi la lezione</button>`;
   }
   function quadernoHTML(s, levelList) {
-    const stars = {};
-    s.levels.forEach((l) => stars[l.id] = l);
+    const stars2 = {};
+    s.levels.forEach((l) => stars2[l.id] = l);
     const mods = MODULES.map((m) => {
       const items = m.levels.filter((x) => typeof x === "string").map((id) => levelList.find((l) => l.id === id)).filter((l) => l && l.unit && l.unit.summary);
       if (!items.length) return "";
@@ -13382,6 +13482,30 @@ body.ms-intro .milestone .lessoncard{visibility:hidden}
     "Nello schema trovi i controlli che non passano.": "\u062A\u062C\u062F \u0641\u064A \u0627\u0644\u0645\u062E\u0637\u0637 \u0627\u0644\u0641\u062D\u0648\u0635 \u0627\u0644\u062A\u064A \u0644\u0645 \u062A\u0646\u062C\u062D."
   };
 
+  // src/i18n/ar-18.js
+  var ar_18_default = {
+    "Milestone": "\u0627\u0644\u0645\u062D\u0637\u0629 \u0627\u0644\u0643\u0628\u0631\u0649",
+    "Capolinea del modulo": "\u0646\u0647\u0627\u064A\u0629 \u0627\u0644\u0648\u062D\u062F\u0629",
+    "Traguardo": "\u0627\u0644\u0647\u062F\u0641",
+    "Cosa userai": "\u0645\u0627 \u0633\u062A\u0633\u062A\u062E\u062F\u0645\u0647",
+    "Le stanze": "\u0627\u0644\u063A\u0631\u0641",
+    "Acceso": "\u0645\u0636\u0627\u0621",
+    "Da cablare": "\u0628\u0627\u0646\u062A\u0638\u0627\u0631 \u0627\u0644\u062A\u0648\u0635\u064A\u0644",
+    "La scena \xE8 in preparazione": "\u0627\u0644\u0645\u0634\u0647\u062F \u0642\u064A\u062F \u0627\u0644\u0625\u0639\u062F\u0627\u062F",
+    "Magnetotermici": "\u0627\u0644\u0642\u0648\u0627\u0637\u0639 \u0627\u0644\u0645\u063A\u0646\u0627\u0637\u064A\u0633\u064A\u0629 \u0627\u0644\u062D\u0631\u0627\u0631\u064A\u0629",
+    "Fungo": "\u0632\u0631 \u0627\u0644\u0641\u0637\u0631",
+    "L\u2019appartamento di notte visto dall\u2019alto: la lampada del corridoio e la stufetta in soggiorno sono le uniche luci": "\u0627\u0644\u0634\u0642\u0629 \u0644\u064A\u0644\u064B\u0627 \u0645\u0646 \u0627\u0644\u0623\u0639\u0644\u0649: \u0645\u0635\u0628\u0627\u062D \u0627\u0644\u0645\u0645\u0631 \u0648\u0645\u062F\u0641\u0623\u0629 \u063A\u0631\u0641\u0629 \u0627\u0644\u062C\u0644\u0648\u0633 \u0647\u0645\u0627 \u0627\u0644\u0636\u0648\u0621\u0627\u0646 \u0627\u0644\u0648\u062D\u064A\u062F\u0627\u0646",
+    "L\u2019officina con il nastro trasportatore, la pulsantiera, il quadro e il motore": "\u0627\u0644\u0648\u0631\u0634\u0629 \u0645\u0639 \u0627\u0644\u0633\u064A\u0631 \u0627\u0644\u0646\u0627\u0642\u0644 \u0648\u0644\u0648\u062D\u0629 \u0627\u0644\u0623\u0632\u0631\u0627\u0631 \u0648\u0627\u0644\u0644\u0648\u062D\u0629 \u0627\u0644\u0643\u0647\u0631\u0628\u0627\u0626\u064A\u0629 \u0648\u0627\u0644\u0645\u062D\u0631\u0643",
+    "Il trilocale visto dall\u2019alto: cucina, bagno e camera": "\u0627\u0644\u0634\u0642\u0629 \u0645\u0646 \u062B\u0644\u0627\u062B \u063A\u0631\u0641 \u0645\u0646 \u0627\u0644\u0623\u0639\u0644\u0649: \u0627\u0644\u0645\u0637\u0628\u062E \u0648\u0627\u0644\u062D\u0645\u0627\u0645 \u0648\u063A\u0631\u0641\u0629 \u0627\u0644\u0646\u0648\u0645",
+    "FOTOCELLULA": "\u0627\u0644\u062E\u0644\u064A\u0629 \u0627\u0644\u0636\u0648\u0626\u064A\u0629",
+    "NASTRO": "\u0627\u0644\u0633\u064A\u0631",
+    "PANNELLO": "\u0627\u0644\u0644\u0648\u062D\u0629",
+    "TETTO": "\u0627\u0644\u0633\u0642\u0641",
+    "CASA": "\u0627\u0644\u0628\u064A\u062A",
+    "COLONNINA": "\u0645\u062D\u0637\u0629 \u0627\u0644\u0634\u062D\u0646",
+    "LINEA": "\u0627\u0644\u062E\u0637"
+  };
+
   // src/i18n/ar.js
   var ROLE = { "del neutro": "\u0627\u0644\u0645\u062D\u0627\u064A\u062F", "di terra": "\u0627\u0644\u0623\u0631\u0636\u064A", "di fase": "\u0627\u0644\u0637\u0648\u0631", "a bassa tensione": "\u0627\u0644\u062C\u0647\u062F \u0627\u0644\u0645\u0646\u062E\u0641\u0636", "di comando": "\u0627\u0644\u062A\u062D\u0643\u0645" };
   var COLORI = { "blu": "\u0623\u0632\u0631\u0642", "giallo-verde": "\u0623\u0635\u0641\u0631-\u0623\u062E\u0636\u0631", "marrone, nero o grigio": "\u0628\u0646\u064A\u064B\u0651\u0627 \u0623\u0648 \u0623\u0633\u0648\u062F \u0623\u0648 \u0631\u0645\u0627\u062F\u064A\u064B\u0651\u0627", "rosso, marrone, nero o grigio": "\u0623\u062D\u0645\u0631 \u0623\u0648 \u0628\u0646\u064A\u064B\u0651\u0627 \u0623\u0648 \u0623\u0633\u0648\u062F \u0623\u0648 \u0631\u0645\u0627\u062F\u064A\u064B\u0651\u0627", "di un colore diverso da blu e giallo-verde": "\u0628\u0644\u0648\u0646 \u0645\u062E\u062A\u0644\u0641 \u0639\u0646 \u0627\u0644\u0623\u0632\u0631\u0642 \u0648\u0627\u0644\u0623\u0635\u0641\u0631-\u0627\u0644\u0623\u062E\u0636\u0631" };
@@ -13393,6 +13517,8 @@ body.ms-intro .milestone .lessoncard{visibility:hidden}
     [/^(\d+) di (\d+)$/, (m) => `${iso(m[1])} \u0645\u0646 ${iso(m[2])}`],
     [/^(\d+) \/ (\d+)$/, (m) => `${iso(m[1])} / ${iso(m[2])}`],
     [/^(\d+) stelle su (\d+)$/, (m) => `${m[1] === "1" ? "\u0646\u062C\u0645\u0629 \u0648\u0627\u062D\u062F\u0629" : m[1] === "2" ? "\u0646\u062C\u0645\u062A\u0627\u0646" : iso(m[1]) + " \u0646\u062C\u0648\u0645"} \u0645\u0646 ${iso(m[2])}`],
+    [/^Livelli del modulo: (\d+) di (\d+)$/, (m) => `\u0645\u0633\u062A\u0648\u064A\u0627\u062A \u0627\u0644\u0648\u062D\u062F\u0629: ${iso(m[1])} \u0645\u0646 ${iso(m[2])}`],
+    [/^Circuiti: (\d+) di (\d+)$/, (m) => `\u0627\u0644\u062F\u0648\u0627\u0626\u0631: ${iso(m[1])} \u0645\u0646 ${iso(m[2])}`],
     [/^(\d+) circuiti$/, (m) => `${iso(m[1])} \u062F\u0648\u0627\u0626\u0631`],
     [/^Anteprima · (\d+) di (\d+) circuiti$/, (m) => `\u0645\u0639\u0627\u064A\u0646\u0629 \xB7 ${iso(m[1])} \u0645\u0646 ${iso(m[2])} \u062F\u0648\u0627\u0626\u0631`],
     [/^Suggerimento (\d+) di (\d+)$/, (m) => `\u062A\u0644\u0645\u064A\u062D ${iso(m[1])} \u0645\u0646 ${iso(m[2])}`],
@@ -13451,7 +13577,7 @@ body.ms-intro .milestone .lessoncard{visibility:hidden}
     [/^Portata (.+): (\d+) ampere\. Tocca per cambiarla$/, (m, t) => `\u0627\u0644\u0633\u0639\u0629 ${t(m[1])}: ${m[2]} \u0623\u0645\u0628\u064A\u0631. \u0627\u0644\u0645\u0633 \u0644\u062A\u063A\u064A\u064A\u0631\u0647\u0627`],
     [/^Protezioni scattate: (.+)\.$/, (m, t) => `\u062D\u0645\u0627\u064A\u0627\u062A \u0641\u0635\u0644\u062A: ${t(m[1])}.`]
   ];
-  registerLang("ar", { ...ar_1_default, ...ar_2_default, ...ar_3_default, ...ar_4_default, ...ar_5_default, ...ar_6_default, ...ar_7_default, ...ar_8_default, ...ar_9_default, ...ar_10_default, ...ar_11_default, ...ar_12_default, ...ar_13_default, ...ar_14_default, ...ar_15_default, ...ar_16_default, ...ar_17_default }, PAT);
+  registerLang("ar", { ...ar_1_default, ...ar_2_default, ...ar_3_default, ...ar_4_default, ...ar_5_default, ...ar_6_default, ...ar_7_default, ...ar_8_default, ...ar_9_default, ...ar_10_default, ...ar_11_default, ...ar_12_default, ...ar_13_default, ...ar_14_default, ...ar_15_default, ...ar_16_default, ...ar_17_default, ...ar_18_default }, PAT);
 
   // src/trilocale/house.js
   function houseState(session2, on = true) {
@@ -13962,9 +14088,9 @@ body.ms-intro .milestone .lessoncard{visibility:hidden}
       <div class="prow"><button class="pbtn${diag && diag.correct ? " y" : ""}" type="button" data-pui="closeSheet">${diag && diag.correct ? "Torna al quadro" : "Chiudi"}</button></div></div>`;
   }
   var STAR2 = (on) => `<svg width="30" height="30" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2l3 6.9 7.4.7-5.6 4.9 1.7 7.3L12 17.9 5.5 21.8l1.7-7.3L1.6 9.6 9 8.9z" fill="${on ? "#F5B800" : "none"}" stroke="${on ? "#1B2230" : "#7C8494"}" stroke-width="1.5" stroke-linejoin="round"/></svg>`;
-  function finaleHTML(cfg, stars, solved) {
+  function finaleHTML(cfg, stars2, solved) {
     return `<div class="pcard" role="dialog" aria-modal="true" aria-labelledby="pW"><span class="pk">${solved ? "Prova superata" : "Impianto funzionante"}</span><h2 id="pW">${esc5(cfg.win.title)}</h2>
-      <div class="pstars" role="img" aria-label="${stars} stelle su 3">${[0, 1, 2].map((i) => STAR2(i < stars)).join("")}</div>
+      <div class="pstars" role="img" aria-label="${stars2} stelle su 3">${[0, 1, 2].map((i) => STAR2(i < stars2)).join("")}</div>
       <p>${esc5(cfg.win.text)}</p>
       <div class="prow"><a class="pbtn y" href="#/home">Torna alla mappa</a><button class="pbtn" type="button" data-pui="again">Rifai la prova</button><button class="pbtn" type="button" data-pui="summary">Sintesi</button><button class="pbtn" type="button" data-pui="closeSheet">Guarda la casa</button></div></div>`;
   }
@@ -15118,6 +15244,12 @@ body.ms-intro .milestone .lessoncard{visibility:hidden}
     (r.pass ? isHouseLevel(S.level.id) ? $("#house") : $(".roomcard") : $("#result")).scrollIntoView({ behavior, block: r.pass ? "start" : "nearest" });
   });
   $("#bFlow").addEventListener("click", () => session.toggleFlow());
+  document.addEventListener("click", (e) => {
+    const g = e.target.closest("[data-goto]");
+    if (!g) return;
+    const t = document.getElementById(g.dataset.goto);
+    if (t) t.scrollIntoView({ behavior: REDUCED.matches ? "auto" : "smooth", block: "center" });
+  });
   $("#bDrawerClose").addEventListener("click", () => prova.closeDrawer());
   $("#bMeter").addEventListener("click", () => {
     clearSel();

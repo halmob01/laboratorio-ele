@@ -174,3 +174,64 @@ test('pagina: l’officina resta con la scena accanto al banco (cornice non anco
   assert.ok(d.querySelector('#house .htools'));
   assert.deepEqual(errors, []);
 });
+
+/* ---------- schede delle milestone nella mappa ---------- */
+function home(storage) {
+  const errors = [];
+  const dom = new JSDOM(html, {
+    runScripts: 'dangerously', pretendToBeVisual: true, url: 'https://example.test/',
+    beforeParse(w) {
+      w.matchMedia = () => ({ matches: false, addEventListener() {}, removeEventListener() {} });
+      w.scrollTo = () => {};
+      w.addEventListener('error', e => errors.push(e.error || e.message));
+      w.localStorage.setItem('fase-e-neutro-profilo', JSON.stringify({ name: '', introSeen: true, nameAsked: true }));
+      if (storage) w.localStorage.setItem('fase-e-neutro-1', JSON.stringify(storage));
+    },
+  });
+  windows.push(dom.window);
+  return { w: dom.window, d: dom.window.document, errors };
+}
+
+test('mappa: ogni modulo chiude con la scheda della sua milestone, preceduta dal capolinea del binario', () => {
+  const { d, errors } = home();
+  const cards = [...d.querySelectorAll('.msc')];
+  assert.deepEqual(cards.map(c => c.id), ['ms-trilocale', 'ms-c23-appartamento-notte', 'ms-c24-officina', 'ms-plc', 'ms-casa', 'ms-fabbrica']);
+  cards.forEach(c => assert.match(c.textContent, /Milestone · 3D/));
+  assert.equal(d.querySelectorAll('.terminus').length, 5, 'tutte tranne il trilocale, che non ha un binario');
+  assert.ok(!d.querySelector('.tricard'), 'le vecchie schede non ci sono piu');
+  // le tre con una scena vera mostrano la foto, le altre il disegno tecnico
+  assert.deepEqual([...d.querySelectorAll('.msc:not(.soon) img')].map(i => i.getAttribute('src')),
+    ['assets/milestone/trilocale.jpg', 'assets/milestone/appartamento.jpg', 'assets/milestone/officina.jpg']);
+  assert.equal(d.querySelectorAll('.msc.soon svg').length, 3);
+  assert.equal(d.querySelectorAll('.msc.soon a').length, 0, 'in arrivo: niente pulsante');
+  assert.deepEqual(errors, []);
+});
+
+test('mappa: la scheda porta al livello giusto e mostra cosa si usa e quanto del modulo e fatto', () => {
+  const { d } = home();
+  const app = d.querySelector('#ms-c23-appartamento-notte');
+  assert.equal(app.querySelector('a.msc-cta').getAttribute('href'), '#/livello/c23-appartamento-notte');
+  assert.match(app.textContent, /Entra nell’appartamento/);
+  assert.match(app.textContent, /Multimetro/);
+  assert.match(app.textContent, /Livelli del modulo: 0 di 9/);
+  assert.equal(d.querySelector('#ms-trilocale a.msc-cta').getAttribute('href'), '#/modulo/1');
+  assert.equal(d.querySelectorAll('#ms-trilocale .msc-rooms li').length, 3);
+  assert.ok(d.querySelector('[data-goto="ms-c23-appartamento-notte"]'), 'miniatura del traguardo nell\'intestazione del modulo');
+});
+
+test('mappa: stati della milestone: completato con le stelle, in corso, trilocale con le stanze accese', () => {
+  const { d } = home({ v: 2, stars: { 'c24-officina': 3, 'c23-appartamento-notte': 1, 't01-bagno': 3, 't02-camera': 1 } });
+  const off = d.querySelector('#ms-c24-officina');
+  assert.equal(off.dataset.st, 'completato');
+  assert.equal(off.querySelectorAll('.starrow svg').length, 3);
+  assert.match(off.textContent, /Rifai la prova/);
+  assert.match(off.textContent, /Completato/);
+  const app = d.querySelector('#ms-c23-appartamento-notte');
+  assert.equal(app.dataset.st, 'in-corso', 'con meno di tre stelle il livello resta in corso, come tutti gli altri');
+  assert.match(app.querySelector('a.msc-cta').textContent, /Continua/);
+  const tri = d.querySelector('#ms-trilocale');
+  assert.equal(tri.dataset.st, 'in-corso');
+  assert.deepEqual([...tri.querySelectorAll('.msc-rooms li')].map(li => li.classList.contains('lit')), [true, true, false]);
+  assert.match(tri.textContent, /Continua nel trilocale/);
+  assert.match(tri.textContent, /Circuiti: 2 di 3/);
+});
