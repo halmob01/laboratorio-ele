@@ -23,7 +23,7 @@ E premia il metodo: la dispersione si vede solo quando la linea e' isolata (vedi
 ### Atto 1: l'arrivo (5-7 s la prima volta, 2 s quando si rifa', sempre saltabile)
 
 1. **Schermata nera** con il testo della chiamata, al posto del titolo di oggi:
-   - `22:40 · Via dei Tigli 7, interno 3`
+   - `22:40 · Via Roma 7, interno 3`
    - «È saltata la luce e non torna su. Ho provato a rialzarla ma scatta subito.»
    - pulsante **Entra**. Il tocco sblocca l'audio (i browser lo vogliono) e dà il via.
    Dietro, intanto, si carica la scena. Se non e' pronta quando si preme Entra, compare la barra di caricamento.

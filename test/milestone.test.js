@@ -169,7 +169,7 @@ test('pagina: la prova si apre a tutto schermo e si gioca dalla cornice fino al 
   assert.ok($('#screen-level').classList.contains('milestone'));
   assert.ok(d.body.classList.contains('ms-mode'));
   assert.ok($('#pIntro'), 'ingresso');
-  assert.match($('#pIntro').textContent, /Via dei Tigli 7/, 'la chiamata');
+  assert.match($('#pIntro').textContent, /Via Roma 7/, 'la chiamata');
   assert.ok($('#pIntro [data-pui="enter"]'));
   click(w, $('[data-pui="skipIntro"]'));
   click(w, $('[data-unit="skip"]'));
@@ -198,7 +198,7 @@ test('pagina: la prova si apre a tutto schermo e si gioca dalla cornice fino al 
   assert.equal($('#pSheet').hidden, false, 'finale');
   assert.match($('#pSheet').textContent, /Prova superata/);
   assert.match($('#pSheet').textContent, /Rapporto d’intervento/);
-  assert.match($('#pSheet').textContent, /Via dei Tigli 7/);
+  assert.match($('#pSheet').textContent, /Via Roma 7/);
   click(w, $('[data-pui="schema"]'));
   assert.ok($('#screen-level').classList.contains('drawer'), 'lo schema si apre a lato');
   click(w, $('#bDrawerClose'));

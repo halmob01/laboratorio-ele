@@ -21,7 +21,7 @@ export const PROVE = {
     // l'apparecchio difettoso: compare tra i comandi solo dopo la diagnosi giusta (nella scena si tocca sempre)
     device: { id: 'G', name: 'Stufetta del soggiorno', plugged: 'collegata', unplugged: 'scollegata', act: 'Scollega', undo: 'Ricollega', view: 'soggiorno' },
     // la chiamata che apre la prova
-    call: { where: 'Via dei Tigli 7, interno 3', quote: '«È saltata la luce e non torna su. Ho provato a rialzarla ma scatta subito.»' },
+    call: { where: 'Via Roma 7, interno 3', quote: '«È saltata la luce e non torna su. Ho provato a rialzarla ma scatta subito.»' },
     findHint: 'Trova il quadro elettrico: di solito è vicino alla porta d’ingresso.',
     // le tre storie dello scatto (vedi tripStory in src/prove/hud.js)
     story: {

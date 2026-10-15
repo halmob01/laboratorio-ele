@@ -4,7 +4,7 @@ export default {
 "Fili": "الأسلاك",
 "Il metodo": "الطريقة",
 "Trova il quadro": "جد اللوحة الكهربائية",
-"Via dei Tigli 7, interno 3": "شارع الزيزفون 7، الشقة 3",
+"Via Roma 7, interno 3": "شارع روما 7، الشقة 3",
 "«È saltata la luce e non torna su. Ho provato a rialzarla ma scatta subito.»": "«انقطعت الكهرباء ولا تعود. حاولت رفع القاطع لكنه يفصل فورًا.»",
 "Trova il quadro elettrico: di solito è vicino alla porta d’ingresso.": "جد اللوحة الكهربائية: عادةً تكون قرب باب المدخل.",
 "Apri il quadro": "افتح اللوحة",
