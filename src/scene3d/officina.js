@@ -125,7 +125,7 @@ export function createOfficina(container, cb) {
   stage.label('Pulsantiera', 6.4, 2.0, 5.5, 'room');
 
   // ---- animazione continua: nastro, pacco, ventola, tremolio del motore ----
-  let cur = 0, target = 0, belting = false, spinning = 0, humming = false, stop = null;
+  let cur = 0, target = 0, belting = false, spinning = 0, humming = false, stop = null, shadowX = PARCEL_X0;
   const baseY = mo.group.position.y;
   function tickLoop() {
     if (stop) return;
@@ -133,12 +133,16 @@ export function createOfficina(container, cb) {
       const d = target - cur;
       cur += Math.abs(d) < 0.001 ? d : d * Math.min(1, dt * 7);
       pk.position.x = PARCEL_X0 + cur * UNIT;
+      if (Math.abs(pk.position.x - shadowX) > 0.004) { shadowX = pk.position.x; stage.moved(); }   // il pacco si e' spostato: anche la sua ombra
       if (belting) belt.run(UNIT, dt);
       if (spinning) mo.spin(spinning, dt);
       mo.group.position.y = baseY + (humming ? Math.sin(t / 22) * 0.0035 : 0);
       if (!belting && !spinning && !humming && Math.abs(target - cur) < 0.002) { stop(); stop = null; }
     });
   }
+  // pareti, lampade, cornici e strisce a terra non si muovono: si accorpano. Restano a parte le macchine e quello che si tocca.
+  stage.finish([belt.group, pk, fc, mo.group, stack.group, station.group, panel.group]);
+
   // su telefono in verticale il nastro, lungo e basso, sta meglio da piu' vicino
   const viewFor = n => { const v = { ...(VIEWS[n] || VIEWS.insieme) }; if (stage.camera.aspect < 0.9 && (n === 'insieme' || !VIEWS[n])) { v.dist = 10.5; v.yaw = 24; } return v; };
   let first = true;
@@ -149,12 +153,12 @@ export function createOfficina(container, cb) {
     update(s) {
       if (!s) return;
       target = Math.max(0, Math.min(s.length, s.pos));
-      if (first) { cur = target; pk.position.x = PARCEL_X0 + cur * UNIT; first = false; }
+      if (first) { cur = target; pk.position.x = shadowX = PARCEL_X0 + cur * UNIT; first = false; stage.moved(); }
       belting = s.motor === 'fwd' && !s.atEnd;
       spinning = s.motor === 'fwd' ? 6 : 0;
       humming = s.motor === 'hum';
       mo.set({ heat: Math.max(s.thermal.heat * 0.9, s.overload && s.motor !== 'off' ? 0.35 : 0) });
-      arm.rotation.y = s.atEnd ? 0.55 : 0;
+      if (arm.rotation.y !== (s.atEnd ? 0.55 : 0)) { arm.rotation.y = s.atEnd ? 0.55 : 0; stage.moved(); }
       fcLed.material.emissiveIntensity = s.atEnd ? 3 : 0;
       stack.set({ green: s.lamp, red: s.thermal.tripped || s.emergency, yellow: !s.qm && s.supply ? true : (s.overload && !s.thermal.tripped) });
       station.set(s);

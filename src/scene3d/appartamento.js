@@ -17,7 +17,7 @@ const VIEWS = {
 const SCALE = 2.5;            // il centralino e' piu' grande del vero, per poterlo toccare e leggere dal telefono
 
 function extension(ctx, cb) {
-  const { world, pick, addLabel, redraw, FACE_ROT } = ctx;
+  const { world, pick, addLabel, redraw, moved, FACE_ROT } = ctx;
   const K = kitMaterials();
   const grp = new THREE.Group();
   world.add(grp);
@@ -83,7 +83,7 @@ function extension(ctx, cb) {
       rocker.rotation.x = (s.switchOn ? -1 : 1) * 0.25;
       const heaterOn = s.socket && s.heaterPlugged;
       barMat.emissiveIntensity = heaterOn ? 3.5 : 0;
-      cable.visible = s.heaterPlugged;
+      if (cable.visible !== s.heaterPlugged) { cable.visible = s.heaterPlugged; moved(); }
       tvMat.emissive = new THREE.Color(s.socket ? 0x2c5c96 : 0x000000);
       tvMat.emissiveIntensity = s.socket ? 1.1 : 0;
       ovenTxt.material.color.setHex(s.oven ? 0xffffff : 0x1c1c1c);

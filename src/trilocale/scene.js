@@ -10,11 +10,7 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { EXRLoader } from 'three/addons/loaders/EXRLoader.js';
 import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
-import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
-import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
-import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
-import { GTAOPass } from 'three/addons/postprocessing/GTAOPass.js';
-import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+import { createPipeline, mergeStatic, isLite, pixelRatio } from './render.js';
 import { HOUSE } from '../content/trilocale.js';
 import { houseControls } from './house.js';
 import { WALL_H, FACADE_H, ASSETS, makeMaterials, furnish, doors, windows, roof as makeRoof, rbox, plane, MODELS, placeholder } from './props.js';
@@ -44,12 +40,12 @@ export function createScene(container, cb) {
   const night = !!cb.night;
   const BG = night ? BG_NIGHT : BG_DAY;
   // telefono o schermo piccolo: niente occlusione ambientale, ombre piu' leggere
-  const lite = cb.lite !== undefined ? cb.lite : (window.matchMedia && window.matchMedia('(pointer: coarse)').matches) || container.clientWidth < 700;
+  const lite = isLite(container, cb.lite);
   let renderer;
   try {
     renderer = new THREE.WebGLRenderer({ antialias: false, alpha: false, powerPreference: 'high-performance', preserveDrawingBuffer: !!cb.capture });
   } catch (e) { return null; }
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, lite ? 1.25 : 1.75));
+  renderer.setPixelRatio(pixelRatio(lite));
   renderer.setClearColor(BG);
   renderer.toneMapping = THREE.AgXToneMapping;
   renderer.toneMappingExposure = night ? 1.3 : 0.95;
@@ -66,8 +62,8 @@ export function createScene(container, cb) {
   let needs = true, raf = 0, disposed = false;
   const anims = new Set();          // animazioni in corso: funzioni (t) -> true se continuano
   const redraw = () => { needs = true; schedule(); };
-  // Le ombre cambiano solo quando cambia la scena (tetto, luci, oggetti), non quando si muove la telecamera:
-  // si ridisegnano solo allora, e solo per le lampade accese.
+  // Le ombre cambiano solo quando si sposta qualcosa (tetto, oggetti), non quando si muove la telecamera o si accende una luce:
+  // si ridisegnano solo allora. Quella di una lampada si disegna quando la lampada e' accesa e la sua e' vecchia.
   let shadowDirty = true;
   const dirtyShadows = () => { shadowDirty = true; };
 
@@ -160,6 +156,7 @@ export function createScene(container, cb) {
   gltf.setMeshoptDecoder(MeshoptDecoder);
   MODELS.forEach(md => {
     const ph = md.stand ? placeholder(world, M, md.stand) : null;
+    if (ph) ph.userData.placeholder = true;     // se ne va quando arriva il modello: non si accorpa
     gltf.load(ASSETS + md.file, g => {
       if (disposed) return;
       const obj = g.scene;
@@ -170,9 +167,9 @@ export function createScene(container, cb) {
       obj.scale.setScalar(md.scale);
       obj.rotation.y = md.rot;
       obj.position.set(md.x, 0, md.z);
-      world.add(obj);
-      if (ph) world.remove(ph);
-      redraw();
+      // shader preparati prima di mostrarlo: l'arrivo del modello non blocca la scena
+      const show = () => { if (disposed) return; world.add(obj); if (ph) world.remove(ph); dirtyShadows(); redraw(); };
+      (renderer.compileAsync ? renderer.compileAsync(obj, camera, scene) : Promise.resolve()).then(show, show);
     }, undefined, () => {});
   });
 
@@ -197,7 +194,7 @@ export function createScene(container, cb) {
     light.shadow.autoUpdate = false;
     g.add(cord, cap, bulb, light);
     world.add(g);
-    Object.assign(rooms[r.id], { light, bulb: bulbMat, shade: null });
+    Object.assign(rooms[r.id], { light, bulb: bulbMat, shade: null, stale: true });
   });
 
   // ---- comandi sui muri e quadro ----
@@ -264,22 +261,13 @@ export function createScene(container, cb) {
     houseControls().forEach(c => addLabel(c.label, c.x + FACE[c.face][0] * 0.4, WALL_H + 0.25, c.z + FACE[c.face][2] * 0.4, 'ctl'));
     addLabel(bk.label, bk.x + 0.55, WALL_H + 0.25, bk.z, 'ctl');
   }
-  const ext = cb.extend ? cb.extend({ world, M, pick, rooms, addLabel, animate: (ms, step) => animate(ms, k => { dirtyShadows(); return step(k); }), redraw: () => { dirtyShadows(); redraw(); }, lite, FACE, FACE_ROT, T, WALL_H }) : null;
+  // muri, arredi, porte e finestre non si muovono: si accorpano per materiale (la facciata si abbassa col tetto, resta a parte)
+  mergeStatic(world, [facade]);
+  // redraw: si ridisegna; moved: un oggetto aggiunto si e' spostato o e' comparso, anche le ombre vanno rifatte
+  const ext = cb.extend ? cb.extend({ world, M, pick, rooms, addLabel, animate: (ms, step) => animate(ms, k => { dirtyShadows(); return step(k); }), redraw, moved: () => { dirtyShadows(); redraw(); }, lite, FACE, FACE_ROT, T, WALL_H, camera, scene }) : null;
 
   // ---- post-elaborazione: alone delle lampade, occlusione ambientale, colore ----
-  const rt = new THREE.WebGLRenderTarget(1, 1, { type: (renderer.extensions.has('EXT_color_buffer_half_float') || renderer.extensions.has('EXT_color_buffer_float')) ? THREE.HalfFloatType : THREE.UnsignedByteType, samples: lite ? 2 : 4 });
-  const composer = new EffectComposer(renderer, rt);
-  composer.addPass(new RenderPass(scene, camera));
-  let gtao = null;
-  if (!lite) {
-    gtao = new GTAOPass(scene, camera, 1, 1);
-    gtao.blendIntensity = 0.85;
-    gtao.updateGtaoMaterial({ radius: 0.35, distanceExponent: 1.5, thickness: 1, scale: 1 });
-    composer.addPass(gtao);
-  }
-  const bloom = new UnrealBloomPass(new THREE.Vector2(1, 1), 0.45, 0.45, 1.0);
-  composer.addPass(bloom);
-  composer.addPass(new OutputPass());
+  const pipe = createPipeline(renderer, scene, camera, { lite });
 
   // ---- telecamera ----
   function placeCamera() {
@@ -292,7 +280,7 @@ export function createScene(container, cb) {
     renderer.setSize(w, h, false);
     renderer.domElement.style.width = '100%';
     renderer.domElement.style.height = '100%';
-    composer.setSize(w, h);
+    pipe.setSize(w, h);
     camera.aspect = w / h;
     camera.fov = w / h < 0.9 ? 52 : 38;
     camera.updateProjectionMatrix();
@@ -305,9 +293,15 @@ export function createScene(container, cb) {
   function draw() {
     placeCamera();
     sun.shadow.needsUpdate = shadowDirty;
-    Object.values(rooms).forEach(r => { if (r.light) r.light.shadow.needsUpdate = shadowDirty && r.level > 0.01; });
+    Object.values(rooms).forEach(r => {
+      if (!r.light) return;
+      if (shadowDirty) r.stale = true;
+      const up = r.stale && r.level > 0.01;
+      r.light.shadow.needsUpdate = up;
+      if (up) r.stale = false;
+    });
     shadowDirty = false;
-    composer.render();
+    pipe.render();
     const w = container.clientWidth, h = container.clientHeight;
     labels.forEach(l => {
       tmp.copy(l.v).project(camera);
@@ -315,28 +309,14 @@ export function createScene(container, cb) {
       l.el.style.transform = `translate(-50%,-50%) translate(${((tmp.x + 1) / 2) * w}px,${((1 - tmp.y) / 2) * h}px)`;
     });
   }
-  // Qualita' adattiva: se durante le animazioni i fotogrammi restano lenti (computer o telefono con poca grafica),
-  // si spegne l'occlusione ambientale e si scende a risoluzione 1: la scena resta identica nei contenuti.
-  let lastT = 0, slow = 0, seen = 0, degraded = lite;
-  function guard(t) {
-    const dt = t - lastT; lastT = t;
-    if (degraded || !anims.size || dt > 400 || dt <= 0) { if (!anims.size) lastT = 0; return; }
-    seen++; if (dt > 45) slow++;
-    if (seen >= 24) {
-      if (slow >= 10) {
-        degraded = true;
-        if (gtao) gtao.enabled = false;
-        renderer.setPixelRatio(1);
-        composer.setPixelRatio(1);
-        resize();
-      }
-      seen = 0; slow = 0;
-    }
-  }
+  // Il primo disegno aspetta gli shader, preparati in parallelo: niente blocco della pagina all'apertura.
+  let ready = false;
+  (renderer.compileAsync ? renderer.compileAsync(scene, camera) : Promise.resolve()).catch(() => {}).then(() => { ready = true; redraw(); });
   function frame(t) {
     raf = 0;
     if (disposed) return;
-    guard(t);
+    if (!ready) return;
+    pipe.watch(t, anims.size > 0 || !!down);
     if (anims.size) needs = true;       // anche l'ultimo passo di un'animazione va disegnato
     anims.forEach(fn => { if (!fn(t)) anims.delete(fn); });
     if (needs) { needs = false; draw(); }
@@ -352,12 +332,13 @@ export function createScene(container, cb) {
 
   const still = cb.reduced || cb.noIntro;          // niente ingresso animato: parte gia' senza tetto
   let camAnim = null, intro = !still, introTarget = {};
-  function go(to, ms = 900) {
+  function go(to, ms = 650) {
     if (intro) { introTarget = to; return; }      // durante l'ingresso si ricorda solo dove arrivare
     const target = { ...OVERVIEW, ...to };
     if (camera.aspect < 0.9 && target.dist === OVERVIEW.dist) target.dist *= 1.22;   // su telefono la casa deve entrare tutta
     if (camAnim) anims.delete(camAnim);
     if (cb.reduced) { Object.assign(view, target); redraw(); return; }
+    // sotto i due terzi di secondo lo spostamento e' rapido ma si segue ancora
     const from = { ...view };
     camAnim = animate(ms, k => { const e = smooth(k); Object.keys(target).forEach(key => (view[key] = from[key] + (target[key] - from[key]) * e)); });
   }
@@ -429,7 +410,6 @@ export function createScene(container, cb) {
   const LUX = 11;
   function lampLevel(r, k) {
     r.level = k;
-    dirtyShadows();
     if (r.light) {
       r.light.intensity = LUX * k;
       r.bulb.emissiveIntensity = 6 * k;
@@ -455,7 +435,6 @@ export function createScene(container, cb) {
   return {
     // state = houseState(...).rooms; controlStates di ogni circuito e' dentro rooms[id].controls
     update(state) {
-      dirtyShadows();
       if (ext && ext.update) ext.update(state);
       const lit = [];
       Object.keys(rooms).forEach(id => {
@@ -503,7 +482,7 @@ export function createScene(container, cb) {
         if (o2.material) (Array.isArray(o2.material) ? o2.material : [o2.material]).forEach(m => { Object.values(m).forEach(v => v && v.isTexture && v.dispose()); m.dispose(); });
       });
       if (scene.environment) scene.environment.dispose();
-      if (gtao) gtao.dispose(); bloom.dispose(); composer.dispose(); rt.dispose();
+      pipe.dispose();
       renderer.dispose();
       if (renderer.forceContextLoss) renderer.forceContextLoss();
       renderer.domElement.remove();

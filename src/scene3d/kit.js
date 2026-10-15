@@ -4,12 +4,8 @@
 
 import * as THREE from 'three';
 import { EXRLoader } from 'three/addons/loaders/EXRLoader.js';
-import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
-import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
-import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
-import { GTAOPass } from 'three/addons/postprocessing/GTAOPass.js';
-import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { ASSETS } from '../trilocale/props.js';
+import { createPipeline, mergeStatic, isLite, pixelRatio } from '../trilocale/render.js';
 
 export function webglSupported() {
   try {
@@ -28,13 +24,13 @@ const smooth = k => k * k * (3 - 2 * k);
  */
 export function createStage(container, o) {
   if (!webglSupported()) return null;
-  const lite = o.lite !== undefined ? o.lite : (window.matchMedia && window.matchMedia('(pointer: coarse)').matches) || container.clientWidth < 700;
+  const lite = isLite(container, o.lite);
   const bg = o.bg === undefined ? 0x161c26 : o.bg;
   let renderer;
   try {
     renderer = new THREE.WebGLRenderer({ antialias: false, alpha: false, powerPreference: 'high-performance', preserveDrawingBuffer: !!o.capture });
   } catch (e) { return null; }
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, lite ? 1.25 : 1.75));
+  renderer.setPixelRatio(pixelRatio(lite));
   renderer.setClearColor(bg);
   renderer.toneMapping = THREE.AgXToneMapping;
   renderer.toneMappingExposure = o.exposure || 1;
@@ -49,7 +45,13 @@ export function createStage(container, o) {
 
   let needs = true, raf = 0, disposed = false;
   const anims = new Set();
+  const loops = new Set();          // animazioni continue (nastro in marcia): fanno parte di anims
   const redraw = () => { needs = true; schedule(); };
+  // Ombre: si ridisegnano solo quando un oggetto si sposta (moved), non quando si muove la telecamera.
+  // Quella del sole subito; quelle delle lampade (sei viste ciascuna) un fotogramma su tre mentre qualcosa si muove di continuo,
+  // e comunque appena il movimento finisce.
+  let shadowDirty = true, pointStale = true, frameNo = 0;
+  const moved = () => { shadowDirty = true; redraw(); };
 
   const scene = new THREE.Scene();
   scene.background = new THREE.Color(bg);
@@ -72,19 +74,7 @@ export function createStage(container, o) {
   }, undefined, () => {});
 
   // ---- post-elaborazione ----
-  const rt = new THREE.WebGLRenderTarget(1, 1, { type: (renderer.extensions.has('EXT_color_buffer_half_float') || renderer.extensions.has('EXT_color_buffer_float')) ? THREE.HalfFloatType : THREE.UnsignedByteType, samples: lite ? 2 : 4 });
-  const composer = new EffectComposer(renderer, rt);
-  composer.addPass(new RenderPass(scene, camera));
-  let gtao = null;
-  if (!lite) {
-    gtao = new GTAOPass(scene, camera, 1, 1);
-    gtao.blendIntensity = 0.85;
-    gtao.updateGtaoMaterial({ radius: 0.35, distanceExponent: 1.5, thickness: 1, scale: 1 });
-    composer.addPass(gtao);
-  }
-  const bloom = new UnrealBloomPass(new THREE.Vector2(1, 1), o.bloom === undefined ? 0.45 : o.bloom, 0.45, 1.0);
-  composer.addPass(bloom);
-  composer.addPass(new OutputPass());
+  const pipe = createPipeline(renderer, scene, camera, { lite, bloom: o.bloom === undefined ? 0.45 : o.bloom });
 
   // ---- telecamera ----
   const home = { ty: 0.8, ...o.view };
@@ -100,7 +90,7 @@ export function createStage(container, o) {
     renderer.setSize(w, h, false);
     renderer.domElement.style.width = '100%';
     renderer.domElement.style.height = '100%';
-    composer.setSize(w, h);
+    pipe.setSize(w, h);
     camera.aspect = w / h;
     camera.fov = w / h < 0.9 ? 52 : 38;
     camera.updateProjectionMatrix();
@@ -122,9 +112,22 @@ export function createStage(container, o) {
     return l;
   }
 
+  function shadows() {
+    frameNo++;
+    if (shadowDirty) pointStale = true;
+    const pointNow = pointStale && (!loops.size || frameNo % 3 === 0);
+    world.traverse(l => {
+      if (!l.isLight || !l.castShadow) return;
+      l.shadow.autoUpdate = false;
+      l.shadow.needsUpdate = l.isPointLight ? pointNow : shadowDirty;
+    });
+    if (pointNow) pointStale = false;
+    shadowDirty = false;
+  }
   function draw() {
     placeCamera();
-    composer.render();
+    shadows();
+    pipe.render();
     const w = container.clientWidth, h = container.clientHeight;
     labels.forEach(l => {
       tmp.copy(l.v).project(camera);
@@ -132,9 +135,20 @@ export function createStage(container, o) {
       l.el.style.transform = `translate(-50%,-50%) translate(${((tmp.x + 1) / 2) * w}px,${((1 - tmp.y) / 2) * h}px)`;
     });
   }
+  // Il primo disegno aspetta gli shader, preparati in parallelo; la scena e' gia' costruita (le scene la completano subito dopo createStage).
+  let ready = false, compiling = false;
   function frame(t) {
     raf = 0;
     if (disposed) return;
+    if (!ready) {
+      if (!compiling) {
+        compiling = true;
+        (renderer.compileAsync ? renderer.compileAsync(scene, camera) : Promise.resolve()).catch(() => {}).then(() => { ready = true; needs = true; schedule(); });
+      }
+      return;
+    }
+    pipe.watch(t, anims.size > 0 || !!down);
+    if (pointStale && !loops.size) needs = true;      // il movimento e' finito: l'ombra delle lampade si aggiorna
     if (anims.size) needs = true;
     anims.forEach(fn => { if (!fn(t)) anims.delete(fn); });
     if (needs) { needs = false; draw(); }
@@ -151,8 +165,8 @@ export function createStage(container, o) {
   function loop(fn) {
     let last = performance.now();
     const f = t => { const dt = Math.min(0.1, (t - last) / 1000); last = t; fn(t, dt); return true; };
-    anims.add(f); schedule();
-    return () => anims.delete(f);
+    anims.add(f); loops.add(f); schedule();
+    return () => { anims.delete(f); loops.delete(f); redraw(); };
   }
 
   let camAnim = null;
@@ -229,7 +243,9 @@ export function createStage(container, o) {
     THREE_scene: scene, world, camera, renderer, lite, pick, view, home,
     setEnvIntensity(v) { envIntensity = v; if (scene.environment) scene.environmentIntensity = v; },
     add(obj) { world.add(obj); return obj; },
-    label, animate, loop, look, reset, redraw, resize,
+    label, animate, loop, look, reset, redraw, moved, resize,
+    // a scena costruita: accorpa gli oggetti che non si muovono (skip: gruppi che si muovono o si toccano)
+    finish(skip) { mergeStatic(world, skip); moved(); },
     dispose() {
       disposed = true;
       if (raf) cancelAnimationFrame(raf);
@@ -239,8 +255,7 @@ export function createStage(container, o) {
         if (o2.material) (Array.isArray(o2.material) ? o2.material : [o2.material]).forEach(m => { Object.values(m).forEach(v => v && v.isTexture && v.dispose()); m.dispose(); });
       });
       if (scene.environment) scene.environment.dispose();
-      if (gtao) gtao.dispose();
-      bloom.dispose(); composer.dispose(); rt.dispose();
+      pipe.dispose();
       renderer.dispose();
       if (renderer.forceContextLoss) renderer.forceContextLoss();
       renderer.domElement.remove();
