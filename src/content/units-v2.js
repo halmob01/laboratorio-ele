@@ -2271,38 +2271,80 @@ export const UNITS_V2 = {
       pages: [
         {
           type: 'spiegazione',
-          title: 'La logica non è più nei fili',
+          title: 'Perché esiste il PLC',
           paras: [
-            'In marcia e arresto la logica era nel cablaggio: il contatto 13-14 del contattore in parallelo alla marcia faceva l’autoritenuta. Cambiare il comportamento voleva dire cambiare i fili.',
-            'Un PLC sposta la logica in un programma. I fili portano solo i segnali dai pulsanti al PLC e dal PLC al contattore; come si comporta la macchina lo decide il programma, che si può cambiare senza toccare un filo.',
+            'Pensa a marcia e arresto, quando hai cablato l’autoritenuta. Funzionava, ma tutta la logica era nei fili: se il cliente chiedeva "dopo dieci secondi si ferma da solo", bisognava aggiungere un temporizzatore e ricablare.',
+            'Un PLC (controllore a logica programmabile) è un piccolo computer fatto per le macchine. I fili restano gli stessi, ma il comportamento lo decide un programma: per cambiarlo si riscrive il programma, senza toccare un filo.',
           ],
+          table: {
+            head: ['Con i relè e i contattori', 'Con il PLC'],
+            rows: [
+              ['La logica sta nei fili e nei contatti.', 'La logica sta in un programma.'],
+              ['Cambiare comportamento vuol dire ricablare.', 'Cambiare comportamento vuol dire riscrivere il programma.'],
+              ['L’autoritenuta è il contatto 13-14 del contattore.', 'L’autoritenuta è un gradino del programma.'],
+            ],
+          },
+        },
+        {
+          type: 'spiegazione',
+          title: 'Una scatola con tre parti',
+          paras: [
+            'Un PLC fa sempre tre cose, una dopo l’altra: legge gli ingressi, esegue il programma, comanda le uscite. Gli ingressi sono i suoi occhi, il programma il suo cervello, le uscite le sue mani.',
+            'I pulsanti e i sensori si collegano agli ingressi. Le uscite comandano ciò che si deve muovere, per esempio la bobina di un contattore. Il contattore resta indispensabile: porta la potenza al motore, e il PLC comanda solo lui.',
+          ],
+          warn: 'Il PLC non alimenta il motore: comanda il contattore, e il contattore porta la potenza.',
         },
         {
           type: 'pezzi',
-          title: 'Ingressi, uscite, alimentazione',
+          title: 'I morsetti del PLC',
           focus: ['PLC'],
           paras: [
-            'Il PLC si alimenta in A1-A2, come una bobina. Gli ingressi I0, I1, I2 leggono se c’è tensione tra l’ingresso e il comune IC: 230 V valgono 1, niente vale 0.',
-            'Le uscite sono contatti a relè: Q0A-Q0B si chiude quando il programma accende Q0. Al contatto si collega ciò che si vuole comandare, per esempio la bobina di un contattore.',
-          ],
-          warn: 'Le uscite a relè sono solo contatti: non danno tensione da sole. Il contatto va alimentato con una fase.',
-        },
-        {
-          type: 'spiegazione',
-          title: 'Il programma gira in continuazione',
-          paras: [
-            'Il PLC ripete sempre lo stesso ciclo, la scansione: legge gli ingressi, esegue il programma dal primo all’ultimo gradino, poi scrive le uscite. Il ciclo dura pochi millisecondi, quindi per noi è istantaneo.',
-            'Un gradino ha una condizione a sinistra, fatta di contatti, e un’uscita a destra. Il contatto normalmente aperto è vero se il bit vale 1; il contatto normalmente chiuso è vero se il bit vale 0. Contatti in serie sono un E, contatti in parallelo un O.',
+            'In alto ci sono l’alimentazione (A1 e A2), gli ingressi I0, I1, I2 e il loro comune IC. In basso ci sono le uscite: Q0 è il contatto tra Q0A e Q0B, Q1 quello tra Q1A e Q1B.',
+            'I pallini sopra gli ingressi si riempiono quando l’ingresso vale 1. I pallini sulle uscite si riempiono quando il programma ha chiuso il contatto.',
           ],
         },
         {
           type: 'spiegazione',
-          title: 'Il programma di questo livello',
+          title: 'Gli ingressi: come il PLC vede un pulsante',
           paras: [
-            'Gradino 1: Q0 è acceso se (Marcia I1 oppure Q0 stesso) e I0. Q0 che si rilegge è l’autoritenuta: una volta acceso, resta acceso anche a marcia rilasciata.',
-            'I0 è il pulsante di arresto, normalmente chiuso: a riposo porta 230 V e I0 vale 1. Premendo Arresto I0 vale 0 e il gradino si spegne. Gradino 2: la spia Q1 segue Q0. Il programma si vede sotto il banco.',
+            'Un ingresso non "sente" il pulsante: misura se tra l’ingresso e il comune IC c’è tensione. Con 230 V l’ingresso vale 1, senza tensione vale 0. Per misurare serve un secondo punto di riferimento: per questo IC va al neutro.',
+            'Quando premi Marcia, la fase passa dal pulsante e arriva all’ingresso I1: tra I1 e IC ci sono 230 V e I1 vale 1. Quando rilasci, la tensione sparisce e I1 torna a 0.',
           ],
-          warn: 'L’arresto è un contatto NC: se il filo si stacca, l’ingresso vale 0 e la macchina si ferma. È il lato sicuro.',
+          warn: 'Senza il collegamento di IC nessun ingresso può misurare tensione: restano tutti a 0, anche premendo.',
+        },
+        {
+          type: 'spiegazione',
+          title: 'Le uscite: il PLC non dà corrente',
+          paras: [
+            'Un’uscita a relè è solo un contatto, chiuso o aperto, che il programma comanda. Non porta tensione per conto suo: la tensione la porti tu.',
+            'Per questo la fase entra in Q0A. Quando il programma chiude il contatto, la fase esce da Q0B e arriva alla bobina del contattore; l’altro capo della bobina va al neutro. Con il contatto aperto la bobina non riceve niente e il contattore resta aperto.',
+          ],
+        },
+        {
+          type: 'spiegazione',
+          title: 'Perché il PLC ha la sua alimentazione',
+          paras: [
+            'Il PLC è un computer: per funzionare ha bisogno di corrente, come una bobina. Si alimenta tra A1 e A2, fase e neutro.',
+            'Se manca l’alimentazione il programma si ferma e tutte le uscite si aprono: i contattori si aprono e la macchina si ferma. È il comportamento che vogliamo in caso di guasto.',
+          ],
+        },
+        {
+          type: 'spiegazione',
+          title: 'Una scansione, passo per passo',
+          paras: [
+            'Il PLC ripete in continuazione lo stesso ciclo, la scansione: legge gli ingressi, esegue i gradini dal primo all’ultimo, scrive le uscite. Dura pochi millisecondi: per noi è istantaneo.',
+            'Il programma di questo livello ha un gradino principale: il motore Q0 è acceso se (Marcia I1 oppure Q0 stesso) e Arresto I0. Ecco cosa succede nelle quattro situazioni.',
+          ],
+          table: {
+            head: ['Situazione', 'Cosa decide il programma'],
+            rows: [
+              ['A riposo: I0 = 1, I1 = 0, Q0 = 0', '(0 oppure 0) e 1 è falso: Q0 resta 0.'],
+              ['Premi Marcia: I1 = 1', '(1 oppure 0) e 1 è vero: Q0 diventa 1 e il contattore si chiude.'],
+              ['Rilasci Marcia: I1 = 0, Q0 = 1', '(0 oppure 1) e 1 è ancora vero: Q0 resta 1. È l’autoritenuta.'],
+              ['Premi Arresto: I0 = 0', '(…) e 0 è falso: Q0 torna a 0 e il motore si ferma.'],
+            ],
+          },
+          warn: 'L’arresto è un contatto NC: a riposo porta tensione e I0 vale 1. Premendolo, I0 va a 0. Un filo staccato fa lo stesso: la macchina si ferma.',
         },
         {
           type: 'demo',
@@ -2339,6 +2381,17 @@ export const UNITS_V2 = {
         },
         {
           type: 'previsione',
+          question: 'A che cosa serve il collegamento del comune IC al neutro?',
+          options: [
+            { id: 'a', text: 'Dà agli ingressi un secondo punto con cui misurare la tensione: senza, nessun ingresso vale 1.' },
+            { id: 'b', text: 'Alimenta il PLC.' },
+            { id: 'c', text: 'Mette a terra il PLC per sicurezza.' },
+          ],
+          correct: 'a',
+          why: 'Un ingresso misura la tensione tra se stesso e IC. L’alimentazione del PLC è un’altra cosa e passa da A1 e A2. Con IC scollegato non c’è un ritorno e tutti gli ingressi restano a 0.',
+        },
+        {
+          type: 'previsione',
           question: 'Il filo del pulsante di arresto si stacca dall’ingresso I0. Che cosa succede?',
           options: [
             { id: 'a', text: 'Il motore parte lo stesso: l’arresto non serve se non è premuto.' },
@@ -2350,7 +2403,7 @@ export const UNITS_V2 = {
         },
         {
           type: 'previsione',
-          question: 'Perché nel gradino 1 compare anche Q0 oltre a I1?',
+          question: 'Perché nel gradino del motore compare anche Q0 oltre a I1?',
           options: [
             { id: 'a', text: 'Per far partire il motore più forte.' },
             { id: 'b', text: 'Perché Q0 si rilegge e tiene acceso il gradino quando Marcia viene rilasciata: è l’autoritenuta nel programma.' },
@@ -2363,13 +2416,13 @@ export const UNITS_V2 = {
       ],
     },
     steps: [
-      { kind: 'control', id: 'QM', short: '0 Sezionamento', title: 'Apri il salvamotore', text: 'Il salvamotore parte chiuso: aprilo toccando la levetta, così i morsetti a valle sono senza tensione mentre cabli. Lo richiudi solo alla fine, per provare.' },
-      { kind: 'wire', from: 'PLC.A1', to: ['QM.2'], color: 'rosso', short: '1 Alimentazione', title: 'Alimenta il PLC', text: 'Filo rosso da una fase a valle del salvamotore (morsetto 2) ad A1, filo blu da A2 al neutro.' },
-      { kind: 'wire', from: 'SB0.2', to: ['PLC.I0'], color: 'rosso', short: '2 Arresto', title: 'Arresto all’ingresso I0', text: 'Dalla fase al morsetto 1 del pulsante di arresto, dal morsetto 2 all’ingresso I0, in rosso.' },
-      { kind: 'wire', from: 'SB1.4', to: ['PLC.I1'], color: 'rosso', short: '3 Marcia', title: 'Marcia all’ingresso I1', text: 'Dalla fase al morsetto 3 del pulsante di marcia, dal morsetto 4 all’ingresso I1, in rosso.' },
-      { kind: 'wire', from: 'PLC.IC', to: ['Q.N'], color: 'blu', short: '4 Comune', title: 'Il comune degli ingressi', text: 'Il morsetto IC al neutro, in blu: gli ingressi leggono la tensione rispetto a lui.' },
-      { kind: 'wire', from: 'PLC.Q0B', to: ['KM.A1'], color: 'rosso', short: '5 Uscita Q0', title: 'L’uscita Q0 al contattore', text: 'La fase entra in Q0A, esce da Q0B e va ad A1 del contattore. A2 del contattore va al neutro.' },
-      { kind: 'wire', from: 'PLC.Q1B', to: ['H.X1'], color: 'rosso', short: '6 Uscita Q1', title: 'L’uscita Q1 alla spia', text: 'La fase entra in Q1A, esce da Q1B e va alla spia. L’altro capo della spia va al neutro.' },
+      { kind: 'control', id: 'QM', short: '0 Sezionamento', title: 'Apri il salvamotore', text: 'Il salvamotore parte chiuso: aprilo toccando la levetta, così i morsetti a valle sono senza tensione mentre cabli. Perché: collegare fili in tensione è pericoloso. Lo richiudi solo alla fine, per provare.' },
+      { kind: 'wire', from: 'PLC.A1', to: ['QM.2'], color: 'rosso', short: '1 Alimentazione', title: 'Alimenta il PLC', text: 'Filo rosso da una fase a valle del salvamotore (morsetto 2) ad A1, filo blu da A2 al neutro. Perché: il PLC è un computer e ha bisogno di corrente per funzionare, come una bobina.' },
+      { kind: 'wire', from: 'SB0.2', to: ['PLC.I0'], color: 'rosso', short: '2 Arresto', title: 'Arresto all’ingresso I0', text: 'Dalla fase al morsetto 1 del pulsante di arresto, dal morsetto 2 all’ingresso I0, in rosso. Perché: a riposo il pulsante porta tensione e I0 vale 1; premendolo I0 va a 0 e il PLC lo legge come “stop”.' },
+      { kind: 'wire', from: 'SB1.4', to: ['PLC.I1'], color: 'rosso', short: '3 Marcia', title: 'Marcia all’ingresso I1', text: 'Dalla fase al morsetto 3 del pulsante di marcia, dal morsetto 4 all’ingresso I1, in rosso. Perché: premendo Marcia arriva la tensione a I1 e il PLC legge 1; rilasciando torna 0.' },
+      { kind: 'wire', from: 'PLC.IC', to: ['Q.N'], color: 'blu', short: '4 Comune', title: 'Il comune degli ingressi', text: 'Il morsetto IC al neutro, in blu. Perché: gli ingressi misurano la tensione tra se stessi e IC; senza IC non c’è un punto di riferimento e tutti gli ingressi valgono 0.' },
+      { kind: 'wire', from: 'PLC.Q0B', to: ['KM.A1'], color: 'rosso', short: '5 Uscita Q0', title: 'L’uscita Q0 al contattore', text: 'La fase entra in Q0A, esce da Q0B e va ad A1 del contattore. A2 del contattore va al neutro. Perché: l’uscita è solo un contatto, la tensione la porti tu; quando il programma lo chiude la fase arriva alla bobina.' },
+      { kind: 'wire', from: 'PLC.Q1B', to: ['H.X1'], color: 'rosso', short: '6 Uscita Q1', title: 'L’uscita Q1 alla spia', text: 'La fase entra in Q1A, esce da Q1B e va alla spia. L’altro capo della spia va al neutro. Perché: anche la spia è comandata dal PLC, con un’altra uscita.' },
       { kind: 'control', id: 'SB1', short: '7 Prova', title: 'Prova la marcia', text: 'Chiudi il salvamotore e premi Marcia: il motore parte e resta in marcia. Premi Arresto: si ferma.' },
       { kind: 'verify', short: '8 Verifica', title: 'Controlla l’impianto', text: 'Premi Verifica.' },
     ],
@@ -2425,6 +2478,16 @@ export const UNITS_V2 = {
             'Un contatto normalmente aperto lascia passare quando il suo bit vale 1. Un contatto normalmente chiuso lascia passare quando il bit vale 0.',
             'Contatti in serie sono un E: servono tutti. Contatti in parallelo sono un O: ne basta uno. L’autoritenuta è proprio un parallelo: Marcia oppure l’uscita stessa.',
           ],
+          table: {
+            head: ['Elemento del gradino', 'Si comporta così'],
+            rows: [
+              ['Contatto normalmente aperto', 'lascia passare quando il suo bit vale 1'],
+              ['Contatto normalmente chiuso', 'lascia passare quando il suo bit vale 0'],
+              ['Contatti in serie', 'passa solo se passano tutti (E)'],
+              ['Contatti in parallelo', 'passa se passa almeno uno (O)'],
+              ['Bobina', 'il suo bit segue la condizione del gradino'],
+            ],
+          },
         },
         {
           type: 'previsione',
@@ -2450,6 +2513,22 @@ export const UNITS_V2 = {
         },
         {
           type: 'spiegazione',
+          title: 'Costruire il gradino un pezzo alla volta',
+          paras: [
+            'Un gradino si costruisce aggiungendo un elemento per volta e chiedendosi ogni volta che cosa cambia. Ecco il gradino del motore, nell’ordine in cui conviene scriverlo.',
+          ],
+          table: {
+            head: ['Che cosa aggiungi', 'Che effetto ha'],
+            rows: [
+              ['La bobina Q0', 'Il gradino comanda l’uscita che chiude il contattore.'],
+              ['Il contatto di Marcia I1', 'Il motore parte, ma solo finché tieni premuto Marcia.'],
+              ['In parallelo, il contatto di Q0', 'Dopo la partenza Q0 tiene vero il gradino: il motore resta acceso. È l’autoritenuta.'],
+              ['In serie, il contatto di Arresto I0', 'Premendo Arresto il gradino diventa falso e il motore si ferma.'],
+            ],
+          },
+        },
+        {
+          type: 'spiegazione',
           title: 'Come si scrive il programma',
           paras: [
             'Sotto il banco c’è l’editor. Premi Nuovo gradino, poi Aggiungi contatto e scegli quale ingresso o uscita leggere. Toccando un contatto puoi cambiarlo, metterlo normalmente chiuso, affiancarne uno in parallelo o toglierlo. Alla fine scegli la bobina del gradino.',
@@ -2472,8 +2551,8 @@ export const UNITS_V2 = {
       ],
     },
     steps: [
-      { kind: 'program', plc: 'PLC', min: 1, short: '1 Motore', title: 'Il gradino del motore', text: 'Nuovo gradino: Marcia (I1) in parallelo a Q0, in serie con l’arresto (I0), e la bobina Q0.' },
-      { kind: 'program', plc: 'PLC', min: 2, short: '2 Spia', title: 'Il gradino della spia', text: 'Secondo gradino: un contatto Q0 e la bobina Q1.' },
+      { kind: 'program', plc: 'PLC', min: 1, short: '1 Motore', title: 'Il gradino del motore', text: 'Nuovo gradino: la bobina Q0, il contatto Marcia (I1) con Q0 in parallelo, e in serie l’arresto (I0). Perché: Marcia fa partire, Q0 in parallelo tiene acceso, I0 in serie spegne.' },
+      { kind: 'program', plc: 'PLC', min: 2, short: '2 Spia', title: 'Il gradino della spia', text: 'Secondo gradino: un contatto Q0 e la bobina Q1. Perché: la spia deve accendersi quando il motore è acceso, quindi segue Q0.' },
       { kind: 'control', id: 'SB1', short: '3 Prova', title: 'Prova la marcia', text: 'Premi Marcia: il motore parte e resta in marcia. Premi Arresto: si ferma.' },
       { kind: 'verify', short: '4 Verifica', title: 'Controlla il programma', text: 'Premi Verifica.' },
     ],
