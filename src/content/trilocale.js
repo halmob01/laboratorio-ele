@@ -132,3 +132,32 @@ export const TRILOCALE_UNITS = {
     summary: SINTESI_CORRIDOIO,
   },
 };
+
+// Cornice a tutto schermo del trilocale (src/trilocale/page.js): l'ordine di lavoro, il collaudo di ogni stanza, il finale.
+export const TRILOCALE_FRAME = {
+  kick: 'Modulo 1 · il primo impianto',
+  title: 'Il trilocale',
+  order: {
+    label: 'Ordine di lavoro',
+    where: 'Via Roma 12, trilocale nuovo',
+    text: '«La casa è finita, mancano i punti luce: bagno, camera e corridoio. Consegna entro sera.»',
+  },
+  pick: 'Scegli una stanza: tocca la lampada da cablare.',
+  rooms: {
+    't01-bagno': { kind: 'Punto luce interrotto', collaudo: 'Collaudo: accendi e spegni dalla porta.' },
+    't02-camera': { kind: 'Punto luce deviato', collaudo: 'Collaudo: prova dalla porta e dal comodino.' },
+    't03-corridoio': { kind: 'Punto luce invertito', collaudo: 'Collaudo: prova dall’ingresso, dal soggiorno e dalla camera.' },
+  },
+  works: 'Funziona.',
+  collaudoOk: 'Collaudo superato.',
+  next: 'Scegli la prossima stanza.',
+  evening: 'Sera. Tutto acceso.',
+  dico: {
+    title: 'Dichiarazione di conformità',
+    sub: 'dell’impianto alla regola dell’arte',
+    where: 'Via Roma 12, trilocale',
+    work: 'Impianto di illuminazione: punto luce interrotto nel bagno, deviato nella camera, invertito nel corridoio.',
+    ok: 'L’impianto è stato realizzato a regola d’arte e collaudato in ogni stanza.',
+    by: 'L’installatore',
+  },
+};

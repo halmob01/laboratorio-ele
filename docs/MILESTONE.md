@@ -34,6 +34,23 @@ Cambia da prova a prova:
 - i passi del metodo e le frasi del registro;
 - il momento forte (differenziale che scatta, emergenza con il lampeggiante rosso, termico che ferma il nastro, ...).
 
+## Il trilocale (Modulo 1)
+
+Il primo traguardo usa la stessa cornice, al giorno invece che al buio. La casa 3D occupa tutto lo schermo; le tre stanze
+sono le stazioni del binario a sinistra e dei segnaposti sulle lampade.
+
+- **Ordine di lavoro** (Via Roma 12) al posto della chiamata; poi la casa al tramonto, il tetto si alza.
+- **Banco in pannello**: toccando una stanza il banco 2D si apre a destra (sul telefono dal basso) e la camera va sulla stanza.
+- **Fili nei muri**: ogni filo tirato sul banco compare nella casa, dal quadro alla scatola, nel suo colore (`wires3D` in
+  `src/trilocale/house.js`, disegnati da `createWireSet` in `src/scene3d/wiring.js`).
+- **Verifica riuscita**: il pannello si chiude, la corrente corre sui fili, la stanza si accende.
+- **Collaudo**: segnaposti sugli interruttori veri della stanza; si provano tutti.
+- **Finale**: finite le tre stanze scende la sera (`setNight`), la casa accesa da fuori e la Dichiarazione di conformita'
+  firmata col nome di chi gioca.
+
+File: `src/trilocale/page.js` (atti), `src/trilocale/hud.js` (HTML), `TRILOCALE_FRAME` in `src/content/trilocale.js` (testi),
+CSS nella sezione "trilocale a tutto schermo".
+
 ## Dove sta cosa
 
 - `src/content/prove.js`: testi e struttura di ogni prova (titolo, comandi, passi, frasi del registro, finale).

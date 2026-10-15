@@ -36,3 +36,55 @@ export function houseControls() {
   });
   return out;
 }
+
+// ---- fili del banco nella casa 3D ----
+// Ogni componente del circuito ha un punto nella casa: il quadro all'ingresso, le placche sui muri, la lampada al soffitto.
+// Un filo del banco diventa un percorso: sale dal primo punto sopra il taglio dei muri, corre lungo x e poi lungo z, scende al secondo.
+const FACE = { n: [0, -1], s: [0, 1], e: [1, 0], w: [-1, 0] };
+const RUN_Y = 1.52;          // appena sopra il taglio dei muri (1.45): dall'alto i fili si leggono nella sezione
+function anchorsOf(circuit) {
+  const bk = HOUSE.breaker;
+  const out = { Q: [bk.x + 0.09, 1.15, bk.z] };
+  const room = HOUSE.rooms.find(r => r.circuit === circuit);
+  if (room && room.lamp) out.L = [room.lamp[0], 2.0, room.lamp[1]];
+  const ctl = HOUSE.controls[circuit] || {};
+  Object.keys(ctl).forEach(id => { const c = ctl[id], d = FACE[c.face]; out[id] = [c.x + d[0] * 0.09, 1.1, c.z + d[1] * 0.09]; });
+  return out;
+}
+const TERM_SHIFT = { a: -1, b: 1, F: -1, N: 1, C: 0, '1': -1, '2': 1, '3': -1, '4': 1, A: -1, B: 1 };
+
+/**
+ * @param {string} circuit  id del livello (t01-bagno ...)
+ * @param {{id:number, a:string, b:string, c:string}[]} wires  fili del banco
+ * @returns {{id:string, pts:number[][], color:string}[]}
+ */
+export function wires3D(circuit, wires) {
+  const A = anchorsOf(circuit);
+  const at = t => {
+    const [comp, term] = t.split('.');
+    const p = A[comp];
+    if (!p) return null;
+    const s = (TERM_SHIFT[term] || 0) * 0.035;
+    return [p[0] + s, p[1], p[2] + s];
+  };
+  const out = [];
+  wires.forEach((w, i) => {
+    const a = at(w.a), b = at(w.b);
+    if (!a || !b) return;
+    const lane = ((i % 6) - 2.5) * 0.045;          // fili diversi su corsie diverse, per non sovrapporsi
+    const y = RUN_Y + (i % 3) * 0.02;
+    out.push({
+      id: String(w.id),
+      color: w.c,
+      pts: [a, [a[0], y, a[2]], [a[0] + lane, y, a[2] + lane], [b[0] + lane, y, a[2] + lane], [b[0] + lane, y, b[2] + lane], [b[0], y, b[2]], b],
+    });
+  });
+  return out;
+}
+
+// Punti dove la cornice mette i segnaposti: la lampada di ogni stanza, le placche di ogni circuito.
+export function roomPoint(roomId) { const r = HOUSE.rooms.find(x => x.id === roomId); return r && r.lamp ? [r.lamp[0], 1.7, r.lamp[1]] : null; }
+export function controlPoints(circuit) {
+  const ctl = HOUSE.controls[circuit] || {};
+  return Object.keys(ctl).map(id => { const c = ctl[id], d = FACE[c.face]; return { id, label: c.label, pt: [c.x + d[0] * 0.09, 1.35, c.z + d[1] * 0.09] }; });
+}

@@ -479,18 +479,37 @@ test('quaderno: il collegamento dalla mappa porta alle sintesi e il livello c01 
   assert.equal(q(d, '#screen-quaderno').hidden, true);
 });
 
-test('trilocale: la rotta apre il primo circuito con la casa, le linguette e la pianta', () => {
+test('trilocale: a tutto schermo, ordine di lavoro, stanze, banco in pannello', async () => {
+  const tick = () => new Promise(r => setTimeout(r, 5));
   const { w, d, errors } = openPage({ seen: true });
   assert.match(q(d, '#screen-home').textContent, /Il trilocale/);
   go(w, '#/modulo/1');
   assert.match(w.location.hash, /#\/livello\/t01-bagno/);
+  const scr = q(d, '#screen-level');
   assert.equal(q(d, '#house').hidden, false);
-  assert.equal(qa(d, '#house .htab').length, 3);
-  assert.ok(q(d, '#screen-level').classList.contains('with-house'));
+  assert.ok(scr.classList.contains('milestone') && scr.classList.contains('trimode'), 'casa a tutto schermo');
+  assert.ok(d.body.classList.contains('ms-mode'));
+  assert.match(q(d, '#tIntro').textContent, /Ordine di lavoro/);
   assert.ok(q(d, '#house #hPlan svg.plan'), 'la pianta e\' pronta');
-  assert.match(q(d, '#house').textContent, /Caricamento della scena|Pianta/);
+  fire(w, q(d, '#tIntro [data-tui="skip"]'), 'click'); await tick();
+  assert.equal(q(d, '#house').dataset.act, 'house');
+  assert.equal(qa(d, '#tSteps .tstation').length, 3);
+  assert.ok(!scr.classList.contains('bench'), 'il banco e\' chiuso');
+  // la stanza aperta: il banco si apre nel pannello
+  fire(w, q(d, '#tSteps [data-tgo="t01-bagno"]'), 'click'); await tick();
+  assert.ok(scr.classList.contains('bench'), 'banco aperto');
+  assert.equal(q(d, '#house').dataset.act, 'bench');
+  assert.ok(!d.body.classList.contains('ms-intro'), 'la lezione si vede nel pannello');
+  fire(w, q(d, '#bDrawerClose'), 'click'); await tick();
+  assert.ok(!scr.classList.contains('bench'), 'banco richiuso');
+  // un'altra stanza: cambia livello e apre il banco
+  fire(w, q(d, '#tSteps [data-tgo="t02-camera"]'), 'click'); await tick();
+  assert.match(w.location.hash, /t02-camera/);
+  assert.ok(scr.classList.contains('bench'));
   go(w, '#/livello/c01-circuito-chiuso');
   assert.equal(q(d, '#house').hidden, true);
+  assert.ok(!scr.classList.contains('trimode') && !scr.classList.contains('bench'));
+  assert.ok(!d.body.classList.contains('ms-mode'));
   assert.deepEqual(errors, []);
 });
 

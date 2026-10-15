@@ -4,7 +4,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createSession, evaluate } from '../src/engine/index.js';
 import { levels, deriveFull } from '../src/content/index.js';
-import { houseState, houseControls } from '../src/trilocale/house.js';
+import { houseState, houseControls, wires3D, roomPoint, controlPoints } from '../src/trilocale/house.js';
 import { HOUSE } from '../src/content/trilocale.js';
 
 const T = ['t01-bagno', 't02-camera', 't03-corridoio'];
@@ -65,7 +65,7 @@ import { readFileSync, statSync } from 'node:fs';
 test('il pacchetto 3D e\' separato: la pagina principale non contiene three e il pacchetto e\' leggero', () => {
   const index = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
   assert.equal(index.includes('WebGLRenderer'), false);
-  assert.ok(statSync(new URL('../trilocale.js', import.meta.url)).size < 700 * 1024);
+  assert.ok(statSync(new URL('../trilocale.js', import.meta.url)).size < 760 * 1024);
 });
 
 test('i circuiti del trilocale restano sempre dal quadro e la casa non si scollega dal motore', () => {
@@ -93,4 +93,24 @@ test('riaprendo un circuito gia\' verificato (levetta giu\') la sua luce resta a
   assert.equal(s.snapshot().power, false);                       // riaperto: levetta giu'
   assert.equal(houseState(s, true).rooms.bagno.lit, true);       // la casa e' alimentata
   assert.equal(houseState(s, false).rooms.bagno.lit, false);     // ... salvo che l'hai spenta tu
+});
+
+test('i fili del banco finiscono nei muri: ogni filo della soluzione ha un percorso nella casa', () => {
+  T.forEach(id => {
+    const ws = W(lv(id).solution);
+    const out = wires3D(id, ws);
+    assert.equal(out.length, ws.length, id);
+    out.forEach(w => {
+      assert.ok(w.pts.length >= 2 && w.pts.every(p => p.length === 3 && p.every(Number.isFinite)), id + ' ' + w.id);
+      assert.ok(typeof w.color === 'string');
+    });
+  });
+  assert.deepEqual(wires3D('t01-bagno', [{ id: 1, a: 'nessuno.X', b: 'Q.L', c: 'marrone' }]), []);
+});
+
+test('segnaposti del trilocale: ogni stanza ha un punto e ogni circuito i suoi comandi da collaudare', () => {
+  ['bagno', 'camera', 'corridoio'].forEach(r => assert.ok(roomPoint(r).every(Number.isFinite), r));
+  assert.equal(controlPoints('t01-bagno').length, 1);
+  assert.equal(controlPoints('t02-camera').length, 2);
+  assert.equal(controlPoints('t03-corridoio').length, 3);
 });

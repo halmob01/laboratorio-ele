@@ -148,3 +148,65 @@ export function createSparks(env, at, count) {
     stop() { pts.visible = false; env.redraw(); },
   };
 }
+
+// Fili posati dal giocatore (trilocale): seguono i fili del banco. Ogni filo nuovo si stende dal primo morsetto al secondo;
+// alla verifica riuscita la corrente ci corre sopra. Stesso materiale della vista dei fili, colore del filo scelto sul banco.
+const WIRE_HEX = { marrone: 0xff9f45, blu: 0x5ea8ff, gv: 0x8fd14f, nero: 0xb7c0d0, grigio: 0xd6d9df, rosso: 0xff5a5a };
+export function createWireSet(env) {
+  const group = new THREE.Group();
+  group.renderOrder = 20;
+  env.add(group);
+  const wires = new Map();           // id -> { mesh, u, born }
+  let running = false, flowUntil = 0;
+  function tick() {
+    if (running) return;
+    running = true;
+    env.loop(() => {
+      const now = performance.now();
+      let busy = false;
+      wires.forEach(w => {
+        w.u.uTime.value = now / 1000;
+        if (w.born) { const k = Math.min(1, (now - w.born) / 520); w.u.uFront.value = k * k * (3 - 2 * k); if (k >= 1) w.born = 0; else busy = true; }
+        const f = flowUntil > now ? 1 : Math.max(0, 1 - (now - flowUntil) / 600);
+        w.u.uFlow.value = env.reduced ? 0 : f;
+        if (f > 0) busy = true;
+      });
+      if (!busy) { running = false; return false; }
+      return true;
+    });
+  }
+  function make(pts, color) {
+    const path = new THREE.CurvePath();
+    for (let i = 1; i < pts.length; i++) path.add(new THREE.LineCurve3(new THREE.Vector3(...pts[i - 1]), new THREE.Vector3(...pts[i])));
+    const len = path.getLength();
+    const geo = new THREE.TubeGeometry(path, Math.max(16, Math.round(len * 12)), 0.016, 6, false);
+    const u = {
+      uColor: { value: new THREE.Color(WIRE_HEX[color] || 0xffffff) }, uFront: { value: env.reduced ? 1 : 0 }, uFlow: { value: 0 }, uTime: { value: 0 },
+      uDir: { value: 1 }, uLen: { value: len }, uHi: { value: 0 }, uShow: { value: 1 }, uRev: { value: 0 },
+    };
+    const mat = new THREE.ShaderMaterial({ uniforms: u, vertexShader: VS, fragmentShader: FS, transparent: true, blending: THREE.AdditiveBlending, depthTest: false, depthWrite: false });
+    const mesh = new THREE.Mesh(geo, mat);
+    mesh.renderOrder = 20; mesh.frustumCulled = false;
+    return { mesh, u };
+  }
+  return {
+    // list: [{ id, pts, color }]: si aggiungono i nuovi (con la posa animata) e si tolgono quelli che non ci sono piu'
+    sync(list, animateNew = true) {
+      const keep = new Set();
+      list.forEach(w => {
+        keep.add(w.id);
+        if (wires.has(w.id)) return;
+        const m = make(w.pts, w.color);
+        group.add(m.mesh);
+        wires.set(w.id, { ...m, born: animateNew && !env.reduced ? performance.now() : 0 });
+        if (!animateNew || env.reduced) m.u.uFront.value = 1;
+      });
+      wires.forEach((w, id) => { if (!keep.has(id)) { group.remove(w.mesh); w.mesh.geometry.dispose(); w.mesh.material.dispose(); wires.delete(id); } });
+      tick(); env.redraw();
+    },
+    // la corrente corre sui fili posati (verifica riuscita)
+    flow(ms = 2200) { flowUntil = performance.now() + ms; tick(); },
+    setVisible(on) { group.visible = !!on; env.redraw(); },
+    clear() { this.sync([]); },
+  };
+}

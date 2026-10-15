@@ -11,6 +11,7 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { EXRLoader } from 'three/addons/loaders/EXRLoader.js';
 import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
 import { createPipeline, mergeStatic, isLite, pixelRatio } from './render.js';
+import { createWireSet } from '../scene3d/wiring.js';
 import { HOUSE } from '../content/trilocale.js';
 import { houseControls } from './house.js';
 import { WALL_H, FACADE_H, ASSETS, makeMaterials, furnish, doors, windows, roof as makeRoof, rbox, plane, MODELS, placeholder } from './props.js';
@@ -77,11 +78,12 @@ export function createScene(container, cb) {
   const hemi = new THREE.HemisphereLight(0xcdd8ea, 0x6b5a48, night ? 0.06 : 0.9);       // di notte resta buio anche senza la foto
   scene.add(hemi);
   const pmrem = new THREE.PMREMGenerator(renderer);
+  let envReady = false, nightK = night ? 1 : 0;
   new EXRLoader().load(ASSETS + 'ambiente.exr', t => {
     if (disposed) return;
     scene.environment = pmrem.fromEquirectangular(t).texture;
-    scene.environmentIntensity = night ? 0.035 : 0.16;
-    hemi.intensity = night ? 0.03 : 0.12;
+    envReady = true;
+    applyNight();
     t.dispose(); pmrem.dispose();
     redraw();
   }, undefined, () => {});
@@ -150,7 +152,14 @@ export function createScene(container, cb) {
 
   furnish(world, M);
   doors(world, M);
-  windows(world, facade, M, HOUSE.size).forEach(wn => rooms[wn.room] && rooms[wn.room].wins.push(wn.glass));
+  // finestre: si accendono con la lampada della stanza; a sera (finale) tutte, anche delle stanze senza circuito
+  const allWins = windows(world, facade, M, HOUSE.size).map(wn => ({ glass: wn.glass, room: rooms[wn.room] || null }));
+  const WARM = new THREE.Color(0xffb35c);
+  function glowWins() { allWins.forEach(w => w.glass.emissive.copy(WARM).multiplyScalar(Math.max(w.room ? 0.9 * w.room.level : 0, 0.8 * nightK))); }
+  // luce sopra la porta d'ingresso, accesa solo di sera
+  const porch = new THREE.PointLight(0xffb35c, 0, 7, 1.6);
+  porch.position.set(1.4, 2.5, D + 0.7);
+  world.add(porch);
 
   // modelli fotografici: segnaposto subito, modello vero quando arriva
   const gltf = new GLTFLoader();
@@ -267,6 +276,26 @@ export function createScene(container, cb) {
   mergeStatic(world, [facade]);
   // redraw: si ridisegna; moved: un oggetto aggiunto si e' spostato o e' comparso, anche le ombre vanno rifatte
   const ext = cb.extend ? cb.extend({ world, M, pick, rooms, addLabel, animate: (ms, step) => animate(ms, k => { dirtyShadows(); return step(k); }), redraw, moved: () => { dirtyShadows(); redraw(); }, loop: fn => { anims.add(fn); schedule(); }, lite, FACE, FACE_ROT, T, WALL_H, camera, scene }) : null;
+
+  // ---- fili posati dal giocatore (trilocale a tutto schermo) ----
+  const wireSet = cb.wires ? createWireSet({ add: o => world.add(o), loop: fn => { anims.add(fn); schedule(); }, redraw, reduced: !!cb.reduced }) : null;
+
+  // ---- dal tramonto alla notte: luce del sole, cielo, esposizione (k: 0 tramonto, 1 notte) ----
+  const DAY = { sun: new THREE.Color(0xff9f66), sunI: 1.0, env: 0.16, hemi: 0.12, exp: 0.95, bg: new THREE.Color(BG_DAY) };
+  const NIGHT = { sun: new THREE.Color(0x8fa9e6), sunI: 0.34, env: 0.05, hemi: 0.045, exp: 1.3, bg: new THREE.Color(BG_NIGHT) };
+  function applyNight() {
+    const k = nightK, mix = (a, b) => a + (b - a) * k;
+    sun.color.copy(DAY.sun).lerp(NIGHT.sun, k);
+    sun.intensity = mix(DAY.sunI, NIGHT.sunI);
+    renderer.toneMappingExposure = mix(DAY.exp, NIGHT.exp);
+    scene.background.copy(DAY.bg).lerp(NIGHT.bg, k);
+    scene.fog.color.copy(scene.background);
+    renderer.setClearColor(scene.background);
+    if (envReady) { scene.environmentIntensity = mix(DAY.env, NIGHT.env); hemi.intensity = mix(DAY.hemi, NIGHT.hemi); }
+    porch.intensity = 5 * k;
+    glowWins();
+    redraw();
+  }
 
   // ---- post-elaborazione: alone delle lampade, occlusione ambientale, colore ----
   const pipe = createPipeline(renderer, scene, camera, { lite });
@@ -417,7 +446,7 @@ export function createScene(container, cb) {
       r.light.intensity = LUX * k;
       r.bulb.emissiveIntensity = 6 * k;
     }
-    r.wins.forEach(g => g.emissive.setHex(0xffb35c).multiplyScalar(0.9 * k));
+    glowWins();
   }
   function setLit(r, on) {
     const to = on ? 1 : 0;
@@ -463,6 +492,18 @@ export function createScene(container, cb) {
       go({ tx: r.x + r.w / 2, tz: r.z + r.d / 2 + 0.3, dist: 12.5, yaw: 0, pitch: 60 });
     },
     overview() { go({}); },
+    // posizione sullo schermo (pixel nel contenitore) di un punto della casa: per i segnaposti della cornice
+    project(x, y, z) {
+      const v = new THREE.Vector3(x, y, z).project(camera);
+      return { x: ((v.x + 1) / 2) * container.clientWidth, y: ((1 - v.y) / 2) * container.clientHeight, visible: v.z < 1 && v.x > -1.05 && v.x < 1.05 && v.y > -1.05 && v.y < 1.05 };
+    },
+    wires: () => wireSet,
+    // scende la notte (o torna il tramonto) in ms millisecondi
+    setNight(on, ms = 2000) {
+      const from = nightK, to = on ? 1 : 0;
+      if (cb.reduced || ms <= 1) { nightK = to; applyNight(); return; }
+      animate(ms, k => { nightK = from + (to - from) * smooth(k); applyNight(); });
+    },
     look(to, ms) { go(to, ms); },
     // Posizione sullo schermo del primo oggetto toccabile con quell'id (solo oggetti aggiunti da extend): per i test.
     screenOf(id) {

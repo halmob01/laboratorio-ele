@@ -44,7 +44,12 @@ const session = createSession({ levels, deriveFull, storage });
 
 /* ---------- stato della sola vista ---------- */
 let S = null;           // ultima istantanea della sessione
-const house = createHouse(document.querySelector('#house'), { session, go: h => { location.hash = h; }, reduced: () => REDUCED.matches });
+const house = createHouse(document.querySelector('#house'), {
+  session, go: h => { location.hash = h; }, reduced: () => REDUCED.matches,
+  // trilocale a tutto schermo: il banco si apre in un pannello accanto alla casa
+  bench: open => $('#screen-level').classList.toggle('bench', !!open),
+  name: () => profile.name,
+});
 const prova = createProva(document.querySelector('#house'), {
   session, reduced: () => REDUCED.matches,
   // prove a tutto schermo: lo schema (banco, multimetro, esito) si apre a lato; la sintesi nella finestra solita
@@ -186,9 +191,9 @@ function renderLevelScreen() {
   const inLesson = !!S.unit && ph === 'lesson' && S.playMode === 'apprendimento';
   const scr = $('#screen-level');
   const hl = isHouseLevel(S.level.id), pv = isProvaLevel(S.level);
-  const ms = pv && S.playMode !== 'verifica' && prova.framed(S);       // prova con la cornice a tutto schermo
-  const drawer = scr.classList.contains('drawer');
-  scr.className = 'phase-' + (inLesson ? 'learn' : 'play') + (S.playMode === 'verifica' ? ' verify' : '') + (hl || pv ? ' with-house' : '') + (ms ? ' milestone' : '') + (ms && drawer && !inLesson ? ' drawer' : '');
+  const ms = (hl || pv && S.playMode !== 'verifica' && prova.framed(S));     // scena a tutto schermo con la cornice
+  const drawer = scr.classList.contains('drawer'), bench = scr.classList.contains('bench');
+  scr.className = 'phase-' + (inLesson ? 'learn' : 'play') + (S.playMode === 'verifica' ? ' verify' : '') + (hl || pv ? ' with-house' : '') + (ms ? ' milestone' : '') + (hl ? ' trimode' : '') + (hl && bench ? ' bench' : '') + (pv && ms && drawer && !inLesson ? ' drawer' : '');
   document.body.classList.toggle('ms-mode', ms);
   $('#house').hidden = !(hl || pv);
   // prima si smonta la vista che si lascia, poi si monta l'altra (condividono il contenitore)
@@ -527,7 +532,10 @@ $('#bCheck').addEventListener('click', () => {
   const r = session.check();
   const behavior = REDUCED.matches ? 'auto' : 'smooth';
   // se l'impianto funziona si scorre fino alla stanza accesa, altrimenti all'esito dei controlli
-  if (r.pass && isHouseLevel(S.level.id)) house.passed();
+  if (isHouseLevel(S.level.id)) {         // trilocale: la stanza si accende nella casa; se no, l'esito nel pannello
+    if (r.pass) house.passed(); else $('#result').scrollIntoView({ behavior, block: 'nearest' });
+    return;
+  }
   (r.pass ? (isHouseLevel(S.level.id) ? $('#house') : $('.roomcard')) : $('#result')).scrollIntoView({ behavior, block: r.pass ? 'start' : 'nearest' });
 });
 $('#bFlow').addEventListener('click', () => session.toggleFlow());
@@ -538,7 +546,7 @@ document.addEventListener('click', e => {
   const t = document.getElementById(g.dataset.goto);
   if (t) t.scrollIntoView({ behavior: REDUCED.matches ? 'auto' : 'smooth', block: 'center' });
 });
-$('#bDrawerClose').addEventListener('click', () => prova.closeDrawer());
+$('#bDrawerClose').addEventListener('click', () => (house.isMounted() ? house.closeBench() : prova.closeDrawer()));
 $('#bMeter').addEventListener('click', () => { clearSel(); session.toggleMeter(); });
 $('#meter').addEventListener('click', e => {
   const md = e.target.closest('[data-meter-mode]'); if (md) { session.setMeterMode(md.dataset.meterMode); return; }

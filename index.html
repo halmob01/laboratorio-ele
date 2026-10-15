@@ -801,6 +801,60 @@ html[dir="rtl"] .phud,html[dir="rtl"] .psheet,html[dir="rtl"] .pintro,html[dir="
   .psteps li.cur .pnode,.ppin::before{animation:none}
 }
 
+/* ---------- trilocale a tutto schermo: la casa dietro, il banco in un pannello accanto ---------- */
+.trimode{--benchw:min(52vw,760px)}
+.trimode .house .hstage{background:linear-gradient(#2A3346,#141A26)}
+.trimode.bench .house{right:var(--benchw)}
+.trimode .work .unit{display:block}
+.trimode.bench .work{display:flex;position:fixed;z-index:40;top:0;right:0;bottom:0;width:var(--benchw);overflow:auto;padding:14px max(14px,env(safe-area-inset-right,0px)) 40px 14px;background:var(--bg);box-shadow:-12px 0 40px rgba(0,0,0,.45);flex-direction:column;gap:12px;animation:tslide .45s cubic-bezier(.2,.8,.2,1)}
+.trimode.bench .drawerclose{display:inline-flex;align-self:flex-end;position:sticky;top:0;z-index:2}
+.trimode.bench .benchrow{display:block}
+.trimode.bench .benchside .actions{display:grid;grid-template-columns:repeat(3,1fr);margin-top:10px}
+.trimode.bench .benchside .actions .primary{order:0}
+.trimode .lessoncard{left:auto;right:0;top:0;bottom:0;transform:none;width:var(--benchw);max-height:none;border-radius:0;animation:tslide .45s cubic-bezier(.2,.8,.2,1)}
+@keyframes tslide{from{transform:translateX(40px);opacity:0}}
+.trimode.bench .psteps-box{opacity:0;pointer-events:none}
+.trimode.bench .ptop,.trimode.bench .psub{right:var(--benchw)}
+.trimode.bench .psub{left:calc((100vw - var(--benchw)) / 2)}
+.trimode .psub{bottom:calc(34px + env(safe-area-inset-bottom,0px))}
+.trimode .psub b{color:var(--lamp);text-shadow:0 0 30px rgba(245,184,0,.5)}
+.trimode .psub span{font-family:'IBM Plex Sans',sans-serif;font-size:17px;background:rgba(5,8,13,.62);padding:8px 14px;border-radius:999px}
+.house[data-act="order"] .phud,.house[data-act="arrive"] .phud,.house[data-act="order"] .tpins,.house[data-act="arrive"] .tpins{opacity:0;pointer-events:none}
+.house[data-act="finale"] .tstations,.house[data-act="finale"] .ptop,.house[data-act="finale"] .tpins{opacity:0;pointer-events:none}
+.tstations .tstation{color:inherit;text-decoration:none;display:block}
+.tstations .tstation small{display:block;font:500 11px/1.4 'IBM Plex Mono',monospace;color:var(--hud-ink3);text-transform:uppercase;letter-spacing:.06em}
+.tstations li.done .tstation small{color:var(--hud-ok)}
+.tstations li.cur .tstation small{color:var(--lamp)}
+.tstations .tstation:hover b{text-decoration:underline}
+.tpins{position:absolute;inset:0;pointer-events:none;z-index:36;transition:opacity .4s}
+.tpin{pointer-events:auto}
+.tpin small{font:inherit}
+.tpin.ok::before{background:var(--hud-ok);animation:none}
+.tpin.ok span{color:var(--hud-ok)}
+.tpin.next span{background:var(--lamp);color:#1B2230}
+.tdico{width:min(600px,100%);position:relative;animation:tdico .7s cubic-bezier(.2,.8,.2,1)}
+.tdico::after{content:"";position:absolute;right:26px;bottom:14px;width:92px;height:92px;border-radius:50%;border:3px double rgba(143,86,0,.55);transform:rotate(-14deg);background:radial-gradient(circle,rgba(245,184,0,.18),transparent 70%)}
+.tdico-sub{margin:-6px 0 0!important;color:#6A6457!important;font-style:italic}
+.tsign{font:italic 600 22px/1.2 'Barlow Condensed',sans-serif!important;color:#1F3F8C!important}
+@keyframes tdico{from{opacity:0;transform:translateY(30px) rotate(-1.5deg)}}
+@media (max-width:760px){
+  .trimode{--benchw:100vw}
+  .trimode.bench .house{right:0;bottom:62vh}
+  .trimode.bench .work,.trimode .lessoncard{top:38vh;width:100vw;border-radius:16px 16px 0 0;box-shadow:0 -12px 40px rgba(0,0,0,.45);animation-name:tsheet}
+  .trimode.bench .benchside .actions{grid-template-columns:repeat(2,1fr)}
+  .trimode.bench .ptop{display:none}
+  .tstations .tstation small,.tpin small{display:none}
+  .tstations .psteps li{flex:1;width:auto;height:auto;display:flex;flex-direction:column;align-items:center;gap:6px}
+  .tstations .psteps li:first-child{align-items:flex-start}
+  .tstations .psteps li:last-child{align-items:flex-end}
+  .tstations .psteps li .ptxt,.tstations .psteps li.cur .ptxt{display:block;position:static;width:auto;font-size:13px;padding:2px 0}
+  .tdico::after{display:none}
+  @keyframes tsheet{from{transform:translateY(40px);opacity:0}}
+}
+@media (prefers-reduced-motion:reduce){
+  .trimode.bench .work,.trimode .lessoncard,.tdico{transition:none;animation:none}
+}
+
 /* ---------- milestone in mappa: la prova 3D che chiude ogni modulo ---------- */
 /* Scheda scura fissa (e' una scena di notte o di officina), in tema chiaro e scuro. */
 .terminus{position:relative;height:62px;margin-top:-16px}
@@ -8988,6 +9042,33 @@ html[dir="rtl"] .phud,html[dir="rtl"] .psheet,html[dir="rtl"] .pintro,html[dir="
       summary: SINTESI_CORRIDOIO
     }
   };
+  var TRILOCALE_FRAME = {
+    kick: "Modulo 1 \xB7 il primo impianto",
+    title: "Il trilocale",
+    order: {
+      label: "Ordine di lavoro",
+      where: "Via Roma 12, trilocale nuovo",
+      text: "\xABLa casa \xE8 finita, mancano i punti luce: bagno, camera e corridoio. Consegna entro sera.\xBB"
+    },
+    pick: "Scegli una stanza: tocca la lampada da cablare.",
+    rooms: {
+      "t01-bagno": { kind: "Punto luce interrotto", collaudo: "Collaudo: accendi e spegni dalla porta." },
+      "t02-camera": { kind: "Punto luce deviato", collaudo: "Collaudo: prova dalla porta e dal comodino." },
+      "t03-corridoio": { kind: "Punto luce invertito", collaudo: "Collaudo: prova dall\u2019ingresso, dal soggiorno e dalla camera." }
+    },
+    works: "Funziona.",
+    collaudoOk: "Collaudo superato.",
+    next: "Scegli la prossima stanza.",
+    evening: "Sera. Tutto acceso.",
+    dico: {
+      title: "Dichiarazione di conformit\xE0",
+      sub: "dell\u2019impianto alla regola dell\u2019arte",
+      where: "Via Roma 12, trilocale",
+      work: "Impianto di illuminazione: punto luce interrotto nel bagno, deviato nella camera, invertito nel corridoio.",
+      ok: "L\u2019impianto \xE8 stato realizzato a regola d\u2019arte e collaudato in ogni stanza.",
+      by: "L\u2019installatore"
+    }
+  };
 
   // src/content/home.js
   var MODULES = [
@@ -13605,6 +13686,33 @@ html[dir="rtl"] .phud,html[dir="rtl"] .psheet,html[dir="rtl"] .pintro,html[dir="
     "Qualcosa non va ancora: nello schema trovi i controlli che non passano.": "\u0647\u0646\u0627\u0643 \u0634\u064A\u0621 \u0644\u0627 \u064A\u0639\u0645\u0644 \u0628\u0639\u062F: \u062A\u062C\u062F \u0641\u064A \u0627\u0644\u0645\u062E\u0637\u0637 \u0627\u0644\u0641\u062D\u0648\u0635 \u0627\u0644\u062A\u064A \u0644\u0645 \u062A\u0646\u062C\u062D."
   };
 
+  // src/i18n/ar-20.js
+  var ar_20_default = {
+    "Modulo 1": "\u0627\u0644\u0648\u062D\u062F\u0629 1",
+    "il primo impianto": "\u0627\u0644\u062A\u0645\u062F\u064A\u062F \u0627\u0644\u0623\u0648\u0644",
+    "Modulo 1 \xB7 il primo impianto": "\u0627\u0644\u0648\u062D\u062F\u0629 1 \xB7 \u0627\u0644\u062A\u0645\u062F\u064A\u062F \u0627\u0644\u0623\u0648\u0644",
+    "Ordine di lavoro": "\u0623\u0645\u0631 \u0639\u0645\u0644",
+    "Via Roma 12, trilocale nuovo": "\u0634\u0627\u0631\u0639 \u0631\u0648\u0645\u0627 12\u060C \u0634\u0642\u0629 \u062C\u062F\u064A\u062F\u0629 \u0645\u0646 \u062B\u0644\u0627\u062B \u063A\u0631\u0641",
+    "\xABLa casa \xE8 finita, mancano i punti luce: bagno, camera e corridoio. Consegna entro sera.\xBB": "\xAB\u0627\u0644\u0628\u064A\u062A \u062C\u0627\u0647\u0632\u060C \u062A\u0646\u0642\u0635\u0647 \u0646\u0642\u0627\u0637 \u0627\u0644\u0625\u0646\u0627\u0631\u0629: \u0627\u0644\u062D\u0645\u0651\u0627\u0645 \u0648\u063A\u0631\u0641\u0629 \u0627\u0644\u0646\u0648\u0645 \u0648\u0627\u0644\u0645\u0645\u0631. \u0627\u0644\u062A\u0633\u0644\u064A\u0645 \u0642\u0628\u0644 \u0627\u0644\u0645\u0633\u0627\u0621.\xBB",
+    "Scegli una stanza: tocca la lampada da cablare.": "\u0627\u062E\u062A\u0631 \u063A\u0631\u0641\u0629: \u0627\u0644\u0645\u0633 \u0627\u0644\u0645\u0635\u0628\u0627\u062D \u0627\u0644\u0630\u064A \u064A\u062C\u0628 \u062A\u0645\u062F\u064A\u062F\u0647.",
+    "Collaudo: accendi e spegni dalla porta.": "\u0627\u0644\u0627\u062E\u062A\u0628\u0627\u0631: \u0623\u0634\u0639\u0644 \u0648\u0623\u0637\u0641\u0626 \u0645\u0646 \u0639\u0646\u062F \u0627\u0644\u0628\u0627\u0628.",
+    "Collaudo: prova dalla porta e dal comodino.": "\u0627\u0644\u0627\u062E\u062A\u0628\u0627\u0631: \u062C\u0631\u0651\u0628 \u0645\u0646 \u0639\u0646\u062F \u0627\u0644\u0628\u0627\u0628 \u0648\u0645\u0646 \u062C\u0627\u0646\u0628 \u0627\u0644\u0633\u0631\u064A\u0631.",
+    "Collaudo: prova dall\u2019ingresso, dal soggiorno e dalla camera.": "\u0627\u0644\u0627\u062E\u062A\u0628\u0627\u0631: \u062C\u0631\u0651\u0628 \u0645\u0646 \u0627\u0644\u0645\u062F\u062E\u0644 \u0648\u0645\u0646 \u063A\u0631\u0641\u0629 \u0627\u0644\u062C\u0644\u0648\u0633 \u0648\u0645\u0646 \u063A\u0631\u0641\u0629 \u0627\u0644\u0646\u0648\u0645.",
+    "Funziona.": "\u064A\u0639\u0645\u0644.",
+    "Collaudo superato.": "\u0646\u062C\u062D \u0627\u0644\u0627\u062E\u062A\u0628\u0627\u0631.",
+    "Scegli la prossima stanza.": "\u0627\u062E\u062A\u0631 \u0627\u0644\u063A\u0631\u0641\u0629 \u0627\u0644\u062A\u0627\u0644\u064A\u0629.",
+    "Sera. Tutto acceso.": "\u0627\u0644\u0645\u0633\u0627\u0621. \u0643\u0644 \u0634\u064A\u0621 \u0645\u0636\u0627\u0621.",
+    "Dichiarazione di conformit\xE0": "\u0625\u0642\u0631\u0627\u0631 \u0627\u0644\u0645\u0637\u0627\u0628\u0642\u0629",
+    "dell\u2019impianto alla regola dell\u2019arte": "\u0644\u0644\u062A\u0645\u062F\u064A\u062F \u0648\u0641\u0642 \u0623\u0635\u0648\u0644 \u0627\u0644\u0635\u0646\u0639\u0629",
+    "Via Roma 12, trilocale": "\u0634\u0627\u0631\u0639 \u0631\u0648\u0645\u0627 12\u060C \u0634\u0642\u0629 \u0645\u0646 \u062B\u0644\u0627\u062B \u063A\u0631\u0641",
+    "Impianto di illuminazione: punto luce interrotto nel bagno, deviato nella camera, invertito nel corridoio.": "\u062A\u0645\u062F\u064A\u062F \u0627\u0644\u0625\u0646\u0627\u0631\u0629: \u0646\u0642\u0637\u0629 \u0625\u0646\u0627\u0631\u0629 \u0628\u0645\u0641\u062A\u0627\u062D \u0628\u0633\u064A\u0637 \u0641\u064A \u0627\u0644\u062D\u0645\u0651\u0627\u0645\u060C \u0648\u0628\u0645\u0641\u062A\u0627\u062D\u064A\u0646 \u0645\u062A\u0628\u0627\u062F\u0644\u064A\u0646 \u0641\u064A \u063A\u0631\u0641\u0629 \u0627\u0644\u0646\u0648\u0645\u060C \u0648\u0628\u0645\u0641\u062A\u0627\u062D \u0639\u0627\u0643\u0633 \u0641\u064A \u0627\u0644\u0645\u0645\u0631.",
+    "L\u2019impianto \xE8 stato realizzato a regola d\u2019arte e collaudato in ogni stanza.": "\u0646\u064F\u0641\u0651\u0630 \u0627\u0644\u062A\u0645\u062F\u064A\u062F \u0648\u0641\u0642 \u0623\u0635\u0648\u0644 \u0627\u0644\u0635\u0646\u0639\u0629 \u0648\u0627\u062E\u062A\u064F\u0628\u0631 \u0641\u064A \u0643\u0644 \u063A\u0631\u0641\u0629.",
+    "L\u2019installatore": "\u0627\u0644\u0645\u0631\u0643\u0650\u0651\u0628",
+    "Modulo 1 completato": "\u0627\u0643\u062A\u0645\u0644\u062A \u0627\u0644\u0648\u062D\u062F\u0629 1",
+    "Lavori": "\u0627\u0644\u0623\u0639\u0645\u0627\u0644",
+    "Torna alla casa": "\u0639\u064F\u062F \u0625\u0644\u0649 \u0627\u0644\u0628\u064A\u062A"
+  };
+
   // src/i18n/ar.js
   var ROLE = { "del neutro": "\u0627\u0644\u0645\u062D\u0627\u064A\u062F", "di terra": "\u0627\u0644\u0623\u0631\u0636\u064A", "di fase": "\u0627\u0644\u0637\u0648\u0631", "a bassa tensione": "\u0627\u0644\u062C\u0647\u062F \u0627\u0644\u0645\u0646\u062E\u0641\u0636", "di comando": "\u0627\u0644\u062A\u062D\u0643\u0645" };
   var COLORI = { "blu": "\u0623\u0632\u0631\u0642", "giallo-verde": "\u0623\u0635\u0641\u0631-\u0623\u062E\u0636\u0631", "marrone, nero o grigio": "\u0628\u0646\u064A\u064B\u0651\u0627 \u0623\u0648 \u0623\u0633\u0648\u062F \u0623\u0648 \u0631\u0645\u0627\u062F\u064A\u064B\u0651\u0627", "rosso, marrone, nero o grigio": "\u0623\u062D\u0645\u0631 \u0623\u0648 \u0628\u0646\u064A\u064B\u0651\u0627 \u0623\u0648 \u0623\u0633\u0648\u062F \u0623\u0648 \u0631\u0645\u0627\u062F\u064A\u064B\u0651\u0627", "di un colore diverso da blu e giallo-verde": "\u0628\u0644\u0648\u0646 \u0645\u062E\u062A\u0644\u0641 \u0639\u0646 \u0627\u0644\u0623\u0632\u0631\u0642 \u0648\u0627\u0644\u0623\u0635\u0641\u0631-\u0627\u0644\u0623\u062E\u0636\u0631" };
@@ -13676,7 +13784,7 @@ html[dir="rtl"] .phud,html[dir="rtl"] .psheet,html[dir="rtl"] .pintro,html[dir="
     [/^Portata (.+): (\d+) ampere\. Tocca per cambiarla$/, (m, t) => `\u0627\u0644\u0633\u0639\u0629 ${t(m[1])}: ${m[2]} \u0623\u0645\u0628\u064A\u0631. \u0627\u0644\u0645\u0633 \u0644\u062A\u063A\u064A\u064A\u0631\u0647\u0627`],
     [/^Protezioni scattate: (.+)\.$/, (m, t) => `\u062D\u0645\u0627\u064A\u0627\u062A \u0641\u0635\u0644\u062A: ${t(m[1])}.`]
   ];
-  registerLang("ar", { ...ar_1_default, ...ar_2_default, ...ar_3_default, ...ar_4_default, ...ar_5_default, ...ar_6_default, ...ar_7_default, ...ar_8_default, ...ar_9_default, ...ar_10_default, ...ar_11_default, ...ar_12_default, ...ar_13_default, ...ar_14_default, ...ar_15_default, ...ar_16_default, ...ar_17_default, ...ar_18_default, ...ar_19_default }, PAT);
+  registerLang("ar", { ...ar_1_default, ...ar_2_default, ...ar_3_default, ...ar_4_default, ...ar_5_default, ...ar_6_default, ...ar_7_default, ...ar_8_default, ...ar_9_default, ...ar_10_default, ...ar_11_default, ...ar_12_default, ...ar_13_default, ...ar_14_default, ...ar_15_default, ...ar_16_default, ...ar_17_default, ...ar_18_default, ...ar_19_default, ...ar_20_default }, PAT);
 
   // src/trilocale/house.js
   function houseState(session2, on = true) {
@@ -13704,6 +13812,55 @@ html[dir="rtl"] .phud,html[dir="rtl"] .psheet,html[dir="rtl"] .pintro,html[dir="
       Object.keys(map).forEach((id) => out.push({ room: r.id, circuit: r.circuit, id, ...map[id] }));
     });
     return out;
+  }
+  var FACE = { n: [0, -1], s: [0, 1], e: [1, 0], w: [-1, 0] };
+  var RUN_Y = 1.52;
+  function anchorsOf(circuit) {
+    const bk = HOUSE.breaker;
+    const out = { Q: [bk.x + 0.09, 1.15, bk.z] };
+    const room = HOUSE.rooms.find((r) => r.circuit === circuit);
+    if (room && room.lamp) out.L = [room.lamp[0], 2, room.lamp[1]];
+    const ctl = HOUSE.controls[circuit] || {};
+    Object.keys(ctl).forEach((id) => {
+      const c2 = ctl[id], d = FACE[c2.face];
+      out[id] = [c2.x + d[0] * 0.09, 1.1, c2.z + d[1] * 0.09];
+    });
+    return out;
+  }
+  var TERM_SHIFT = { a: -1, b: 1, F: -1, N: 1, C: 0, "1": -1, "2": 1, "3": -1, "4": 1, A: -1, B: 1 };
+  function wires3D(circuit, wires) {
+    const A = anchorsOf(circuit);
+    const at = (t) => {
+      const [comp, term2] = t.split(".");
+      const p = A[comp];
+      if (!p) return null;
+      const s = (TERM_SHIFT[term2] || 0) * 0.035;
+      return [p[0] + s, p[1], p[2] + s];
+    };
+    const out = [];
+    wires.forEach((w, i) => {
+      const a = at(w.a), b = at(w.b);
+      if (!a || !b) return;
+      const lane = (i % 6 - 2.5) * 0.045;
+      const y = RUN_Y + i % 3 * 0.02;
+      out.push({
+        id: String(w.id),
+        color: w.c,
+        pts: [a, [a[0], y, a[2]], [a[0] + lane, y, a[2] + lane], [b[0] + lane, y, a[2] + lane], [b[0] + lane, y, b[2] + lane], [b[0], y, b[2]], b]
+      });
+    });
+    return out;
+  }
+  function roomPoint(roomId) {
+    const r = HOUSE.rooms.find((x) => x.id === roomId);
+    return r && r.lamp ? [r.lamp[0], 1.7, r.lamp[1]] : null;
+  }
+  function controlPoints(circuit) {
+    const ctl = HOUSE.controls[circuit] || {};
+    return Object.keys(ctl).map((id) => {
+      const c2 = ctl[id], d = FACE[c2.face];
+      return { id, label: c2.label, pt: [c2.x + d[0] * 0.09, 1.35, c2.z + d[1] * 0.09] };
+    });
   }
 
   // src/trilocale/plan.js
@@ -13751,13 +13908,213 @@ html[dir="rtl"] .phud,html[dir="rtl"] .psheet,html[dir="rtl"] .pintro,html[dir="
     return o + "</svg>";
   }
 
-  // src/trilocale/page.js
-  var esc4 = (s) => String(s).replace(/[&<>"]/g, (c2) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c2]);
+  // src/trilocale/hud.js
+  var esc4 = (t) => String(t).replace(/[&<>"']/g, (c2) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c2]);
   var CIRCUITS = [
     { id: "t01-bagno", room: "bagno", label: "Bagno" },
     { id: "t02-camera", room: "camera", label: "Camera" },
     { id: "t03-corridoio", room: "corridoio", label: "Corridoio" }
   ];
+  function orderHTML(F) {
+    return `<div class="pcall"><span class="pk">${esc4(F.kick)}</span>
+      <div class="pcall-head"><span class="pcall-time">${esc4(F.order.label)}</span><span class="pcall-where">${esc4(F.order.where)}</span></div>
+      <h2>${esc4(F.title)}</h2>
+      <p class="pcall-quote">${esc4(F.order.text)}</p>
+      <button class="pbtn y pgo" type="button" data-tui="start">Inizia</button>
+      <span class="pload" aria-hidden="true"><i></i></span></div>
+    <button class="pskip" type="button" data-tui="skip">Salta</button>`;
+  }
+  function topHTML(F, ui2) {
+    const t = (k, label, pressed) => `<button class="pchip" type="button" data-tui="${k}"${pressed === void 0 ? "" : ` aria-pressed="${!!pressed}"`}>${label}</button>`;
+    return `<a class="pmap" href="#/home">&larr; Mappa</a>
+    <div class="ptitle"><span class="pk">${esc4(F.kick)}</span><b>${esc4(F.title)}</b></div>
+    <div class="ptools">${ui2.bench ? t("house", "Torna alla casa") : ""}${t("wires", "Fili", ui2.wires)}${ui2.plan !== null ? t("plan", "Pianta", ui2.plan) : ""}${t("sound", "Suono", ui2.sound)}</div>`;
+  }
+  function stationsHTML(F, hs, current) {
+    const li = CIRCUITS.map((c2) => {
+      const st = hs.rooms[c2.room].state;
+      const cls = st === "funziona" ? "done" : c2.id === current ? "cur" : "";
+      return `<li class="${cls}"><span class="pnode" aria-hidden="true"></span><a class="ptxt tstation" href="#/livello/${c2.id}" data-tgo="${c2.id}"><b>${esc4(c2.label)}</b> <small>${esc4(F.rooms[c2.id].kind)} \xB7 ${esc4(st)}</small></a></li>`;
+    }).join("");
+    return `<h2 class="vh">Le stanze</h2><ol class="psteps">${li}</ol>`;
+  }
+  function pinsHTML(pins) {
+    return pins.map((p) => `<button class="ppin tpin ${p.cls || ""}" type="button" ${p.act} style="transform:translate(${Math.round(p.x)}px,${Math.round(p.y)}px)"><span>${esc4(p.label)}${p.sub ? `<small> \xB7 ${esc4(p.sub)}</small>` : ""}</span></button>`).join("");
+  }
+  function dicoHTML(F, name, when) {
+    const D = F.dico;
+    return `<div class="pcard preport tdico" role="dialog" aria-modal="true" aria-labelledby="tD">
+      <div class="prep-head"><span class="pk">Modulo 1 completato</span><span class="prep-time">${esc4(when)}</span></div>
+      <h2 id="tD">${esc4(D.title)}</h2><p class="tdico-sub">${esc4(D.sub)}</p>
+      <dl class="prep">
+        <dt>Dove</dt><dd>${esc4(D.where)}</dd>
+        <dt>Lavori</dt><dd>${esc4(D.work)}</dd>
+        <dt>Esito</dt><dd>${esc4(D.ok)}</dd>
+        <dt>${esc4(D.by)}</dt><dd class="tsign"${name ? " data-notr" : ""}>${esc4(name || "Giocatore")}</dd>
+      </dl>
+      <div class="prow"><a class="pbtn y" href="#/home">Torna alla mappa</a><button class="pbtn" type="button" data-tui="closeSheet">Guarda la casa</button></div></div>`;
+  }
+
+  // src/prove/sound.js
+  var ac = null;
+  var master = null;
+  var enabled = true;
+  var hums = {};
+  function ctx() {
+    if (ac) return ac;
+    try {
+      ac = new (window.AudioContext || window.webkitAudioContext)();
+      master = ac.createGain();
+      master.gain.value = 0.9;
+      master.connect(ac.destination);
+    } catch (e) {
+      ac = null;
+    }
+    return ac;
+  }
+  function burst(dur, gain, freq, q = 1, type = "bandpass") {
+    const a = ctx();
+    if (!a || !enabled) return;
+    const n = Math.floor(a.sampleRate * dur), b = a.createBuffer(1, n, a.sampleRate), d = b.getChannelData(0);
+    for (let i = 0; i < n; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / n, 4);
+    const s = a.createBufferSource();
+    s.buffer = b;
+    const f = a.createBiquadFilter();
+    f.type = type;
+    f.frequency.value = freq;
+    f.Q.value = q;
+    const g = a.createGain();
+    g.gain.value = gain;
+    s.connect(f);
+    f.connect(g);
+    g.connect(master);
+    s.start();
+  }
+  function thump(freq, gain, dur) {
+    const a = ctx();
+    if (!a || !enabled) return;
+    const o = a.createOscillator(), g = a.createGain(), t = a.currentTime;
+    o.frequency.setValueAtTime(freq, t);
+    o.frequency.exponentialRampToValueAtTime(freq * 0.5, t + dur);
+    g.gain.setValueAtTime(gain, t);
+    g.gain.exponentialRampToValueAtTime(1e-4, t + dur);
+    o.connect(g);
+    g.connect(master);
+    o.start(t);
+    o.stop(t + dur + 0.02);
+  }
+  function makeHum(kind) {
+    const a = ctx();
+    if (!a) return null;
+    const g = a.createGain();
+    g.gain.value = 0;
+    g.connect(master);
+    const nodes = [];
+    if (kind === "frigo") {
+      [50, 100, 150].forEach((f, i) => {
+        const o = a.createOscillator();
+        o.frequency.value = f;
+        const og = a.createGain();
+        og.gain.value = [0.5, 0.35, 0.12][i];
+        o.connect(og);
+        og.connect(g);
+        o.start();
+        nodes.push(o);
+      });
+    } else {
+      const n = a.sampleRate * 2, b = a.createBuffer(1, n, a.sampleRate), d = b.getChannelData(0);
+      for (let i = 0; i < n; i++) d[i] = Math.random() * 2 - 1;
+      const s = a.createBufferSource();
+      s.buffer = b;
+      s.loop = true;
+      const f = a.createBiquadFilter();
+      f.type = "bandpass";
+      f.frequency.value = kind === "tv" ? 1800 : 300;
+      f.Q.value = kind === "tv" ? 0.6 : 0.4;
+      s.connect(f);
+      f.connect(g);
+      s.start();
+      nodes.push(s);
+      if (kind === "tv") {
+        const lfo = a.createOscillator(), lg = a.createGain();
+        lfo.frequency.value = 0.7;
+        lg.gain.value = 4e-3;
+        lfo.connect(lg);
+        lg.connect(g.gain);
+        lfo.start();
+        nodes.push(lfo);
+      }
+    }
+    return { g, level: { frigo: 0.018, tv: 8e-3, stufa: 0.01 }[kind] };
+  }
+  var sound = {
+    // da chiamare dentro un tocco: sblocca l'audio
+    unlock() {
+      const a = ctx();
+      if (a && a.state === "suspended") a.resume();
+    },
+    setEnabled(on) {
+      enabled = !!on;
+      if (!enabled) Object.keys(hums).forEach((k) => this.hum(k, false, true));
+    },
+    enabled: () => enabled,
+    click() {
+      burst(0.04, 0.5, 2400, 1.2);
+      thump(140, 0.15, 0.06);
+    },
+    tac() {
+      burst(0.16, 1.4, 900, 0.9);
+      thump(90, 0.6, 0.18);
+      burst(0.05, 0.6, 3200, 2);
+    },
+    chime(i = 0) {
+      const a = ctx();
+      if (!a || !enabled) return;
+      const o = a.createOscillator(), g = a.createGain(), t = a.currentTime;
+      o.type = "sine";
+      o.frequency.value = [660, 880, 1100][i % 3];
+      g.gain.setValueAtTime(1e-4, t);
+      g.gain.exponentialRampToValueAtTime(0.12, t + 0.02);
+      g.gain.exponentialRampToValueAtTime(1e-4, t + 0.5);
+      o.connect(g);
+      g.connect(master);
+      o.start(t);
+      o.stop(t + 0.55);
+    },
+    // acceso o spento un ronzio; instant: si ferma di colpo (lo scatto)
+    hum(kind, on, instant) {
+      const a = ctx();
+      if (!a) return;
+      if (!hums[kind]) {
+        if (!on) return;
+        hums[kind] = makeHum(kind);
+      }
+      const h = hums[kind];
+      if (!h) return;
+      const t = a.currentTime, v = on && enabled ? h.level : 0;
+      h.g.gain.cancelScheduledValues(t);
+      if (instant) h.g.gain.setValueAtTime(v, t);
+      else {
+        h.g.gain.setValueAtTime(h.g.gain.value, t);
+        h.g.gain.linearRampToValueAtTime(v, t + 0.6);
+      }
+    },
+    silence() {
+      Object.keys(hums).forEach((k) => this.hum(k, false, true));
+    },
+    vibrate(p) {
+      try {
+        if (navigator.vibrate) navigator.vibrate(p);
+      } catch (e) {
+      }
+    }
+  };
+
+  // src/trilocale/page.js
+  var CIRCUITS2 = CIRCUITS;
+  var EXT = { tx: 4.5, tz: 4.2, ty: 0.8, yaw: -24, pitch: 22, dist: 21 };
+  var FAR = { tx: 4.5, tz: 4.2, ty: 0.8, yaw: -34, pitch: 18, dist: 30 };
+  var SOUND_KEY = "fase-e-neutro-suono";
   var scriptPromise = null;
   function loadScript() {
     if (window.FaseNeutroScene) return Promise.resolve(true);
@@ -13780,56 +14137,363 @@ html[dir="rtl"] .phud,html[dir="rtl"] .psheet,html[dir="rtl"] .pintro,html[dir="
     return /^t\d\d-/.test(id || "");
   }
   function firstCircuit(session2) {
-    const pending = CIRCUITS.find((c2) => {
+    const pending = CIRCUITS2.find((c2) => {
       const p = session2.peek(c2.id);
       return p && !p.passed;
     });
-    return (pending || CIRCUITS[0]).id;
+    return (pending || CIRCUITS2[0]).id;
   }
   function createHouse(host2, env) {
-    let scene = null, sceneState = "idle", view = "scene", lastLevel = null, mounted = false, mountToken = 0;
-    let lastSnap = null, houseOn = true, prevPower = false;
-    let sceneEl = null, planEl = null, tabsEl = null;
+    let scene = null, sceneState = "idle", lastLevel = null, mounted = false, mountToken = 0;
+    let lastSnap = null, houseOn = true, prevPower = false, prevWireKey = null;
+    let el = {}, act2 = null, wantBench = false, used = /* @__PURE__ */ new Set(), sheet = null, pinLoop = 0;
+    const timers = /* @__PURE__ */ new Set();
+    const ui2 = { wires: true, plan: false, sound: true, bench: false };
+    try {
+      ui2.sound = localStorage.getItem(SOUND_KEY) !== "0";
+    } catch (e) {
+    }
+    const reduced = () => !!(env.reduced && env.reduced());
+    const later = (ms, fn) => {
+      const t = setTimeout(() => {
+        timers.delete(t);
+        if (mounted) fn();
+      }, reduced() ? 0 : ms);
+      timers.add(t);
+      return t;
+    };
+    const clearLater = () => {
+      timers.forEach(clearTimeout);
+      timers.clear();
+    };
+    const inLesson = () => !!(lastSnap && lastSnap.unit && lastSnap.unit.phase === "lesson");
+    const circuitOf = (id) => CIRCUITS2.find((c2) => c2.id === id);
+    const hs = () => houseState(env.session, houseOn);
+    const allDone = () => CIRCUITS2.every((c2) => hs().rooms[c2.room].state === "funziona");
     function build() {
-      host2.innerHTML = `<div class="hstage"><div class="hscene" id="hScene"></div><div class="hplan" id="hPlan" hidden></div>
-        <div class="htools"><button class="btn small" data-h="plan" aria-pressed="false">Pianta</button><button class="btn small" data-h="over">Vista d\u2019insieme</button><button class="btn small" data-h="roof" aria-pressed="true">Tetto</button></div>
-        <div class="hmsg" id="hMsg" role="status" hidden></div></div>
-      <nav class="htabs" aria-label="Circuiti della casa"></nav>
-      <div class="hsoon"><b>Collaudo finale</b><small>in arrivo</small></div>`;
-      tabsEl = host2.querySelector(".htabs");
-      sceneEl = host2.querySelector("#hScene");
-      planEl = host2.querySelector("#hPlan");
-      host2.onclick = (e) => {
-        const b = e.target.closest("[data-h]");
-        if (b) {
-          if (b.dataset.h === "plan") {
-            view = view === "plan" ? "scene" : "plan";
-            apply();
-          } else if (b.dataset.h === "over") {
-            view = "scene";
-            apply();
-            if (scene) scene.overview();
-          } else if (b.dataset.h === "roof" && scene && scene.setRoof) {
-            view = "scene";
-            apply();
-            scene.setRoof(!scene.roof());
-            syncRoof();
-          }
-          return;
+      host2.innerHTML = `<div class="hstage"><div class="hscene" id="hScene"></div><div class="hplan" id="hPlan" hidden></div><div class="hmsg" id="hMsg" role="status" hidden></div><div class="pvig"></div></div>
+      <header class="phud ptop" id="tTop"></header>
+      <nav class="phud psteps-box tstations" id="tSteps" aria-label="Le stanze"></nav>
+      <div class="tpins" id="tPins"></div>
+      <div class="psub" id="tSub" aria-live="polite"></div>
+      <div class="psheet" id="tSheet" hidden></div>
+      <div class="pintro" id="tIntro" hidden></div>`;
+      ["hScene", "hPlan", "hMsg", "tTop", "tSteps", "tPins", "tSub", "tSheet", "tIntro"].forEach((id) => el[id] = host2.querySelector("#" + id));
+      host2.onclick = onClick;
+      el.hScene.addEventListener("pointermove", (e) => {
+        if (e.buttons) placePins();
+      });
+      el.hScene.addEventListener("wheel", () => placePins(), { passive: true });
+    }
+    function onClick(e) {
+      const go = e.target.closest("[data-tgo]");
+      if (go) {
+        e.preventDefault();
+        pickRoom(go.dataset.tgo);
+        return;
+      }
+      const ct = e.target.closest("[data-tctl]");
+      if (ct) {
+        const [c3, id] = ct.dataset.tctl.split("|");
+        control(c3, id);
+        return;
+      }
+      const r = e.target.closest("[data-room]");
+      if (r) {
+        const hit = HOUSE.rooms.find((x) => x.id === r.dataset.room);
+        if (hit && hit.circuit) pickRoom(hit.circuit);
+        return;
+      }
+      if (e.target.closest("[data-breaker]")) {
+        if (!inLesson()) env.session.toggleBreaker();
+        return;
+      }
+      const c2 = e.target.closest("[data-circuit]");
+      if (c2) {
+        control(c2.dataset.circuit, c2.dataset.ctl);
+        return;
+      }
+      const u = e.target.closest("[data-tui]");
+      if (!u) return;
+      const k = u.dataset.tui;
+      if (k === "start") {
+        sound.unlock();
+        arrive();
+      } else if (k === "skip") {
+        sound.unlock();
+        skipArrive();
+      } else if (k === "house") closeBench();
+      else if (k === "wires") {
+        ui2.wires = !ui2.wires;
+        const w = wireSet();
+        if (w) w.setVisible(ui2.wires);
+        render2();
+      } else if (k === "plan") {
+        ui2.plan = !ui2.plan;
+        apply();
+        render2();
+      } else if (k === "sound") {
+        ui2.sound = !ui2.sound;
+        sound.setEnabled(ui2.sound);
+        if (ui2.sound) sound.unlock();
+        try {
+          localStorage.setItem(SOUND_KEY, ui2.sound ? "1" : "0");
+        } catch (x) {
         }
-        const r = e.target.closest("[data-room]");
-        if (r) {
-          const hit = HOUSE.rooms.find((x) => x.id === r.dataset.room);
-          if (hit && hit.circuit) env.go("#/livello/" + hit.circuit);
-          return;
+        render2();
+      } else if (k === "closeSheet") {
+        sheet = null;
+        render2();
+        backInside();
+      }
+    }
+    const wireSet = () => scene && scene.wires ? scene.wires() : null;
+    function pickRoom(circuit) {
+      if (act2 === "order" || act2 === "arrive") return;
+      if (circuit === lastLevel) {
+        openBench();
+        return;
+      }
+      wantBench = true;
+      env.go("#/livello/" + circuit);
+    }
+    function openBench() {
+      setAct("bench");
+      ui2.bench = true;
+      if (env.bench) env.bench(true);
+      const c2 = circuitOf(lastLevel);
+      if (scene && c2) scene.focusRoom(c2.room);
+      sound.click();
+      sub("", "", 1);
+      render2();
+      followPins(900);
+    }
+    function closeBench() {
+      ui2.bench = false;
+      if (env.bench) env.bench(false);
+      if (act2 === "bench") {
+        setAct("house");
+        if (scene) scene.overview();
+        hintPick();
+      }
+      render2();
+      followPins(900);
+    }
+    function control(circuit, id) {
+      if (circuit !== lastLevel) {
+        pickRoom(circuit);
+        return;
+      }
+      if (inLesson()) return;
+      env.session.toggleControl(id);
+      sound.click();
+      if (act2 === "collaudo") {
+        used.add(id);
+        const need = controlPoints(circuit).length;
+        if (used.size >= need) {
+          sound.chime(2);
+          sub(TRILOCALE_FRAME.collaudoOk, "", 2200);
+          setAct("house");
+          later(1400, () => {
+            if (allDone()) finale();
+            else {
+              if (scene) scene.overview();
+              hintPick(TRILOCALE_FRAME.next);
+              followPins(900);
+            }
+          });
         }
-        if (e.target.closest("[data-breaker]")) {
-          if (!inLesson()) env.session.toggleBreaker();
-          return;
-        }
-        const c2 = e.target.closest("[data-circuit]");
-        if (c2) control(c2.dataset.circuit, c2.dataset.ctl);
+        render2();
+      }
+    }
+    function sub(big, small, ms) {
+      const n = el.tSub;
+      if (!n) return;
+      n.innerHTML = `${big ? `<b>${big}</b>` : ""}${small ? `<span>${small}</span>` : ""}`;
+      n.classList.toggle("go", !!(big || small));
+      clearTimeout(n._h);
+      if (ms && (big || small)) n._h = setTimeout(() => n.classList.remove("go"), ms);
+    }
+    function hintPick(text2) {
+      sub("", text2 || TRILOCALE_FRAME.pick, 0);
+    }
+    function pins() {
+      if (!scene || !scene.project || ui2.plan) return [];
+      if (act2 === "house") {
+        const h = hs(), next = CIRCUITS2.find((c2) => h.rooms[c2.room].state !== "funziona");
+        return CIRCUITS2.map((c2) => {
+          const p = scene.project(...roomPoint(c2.room)), st = h.rooms[c2.room].state;
+          return p.visible ? { x: p.x, y: p.y, label: c2.label, sub: st, act: `data-tgo="${c2.id}"`, cls: st === "funziona" ? "ok" : next && next.id === c2.id ? "next" : "" } : null;
+        }).filter(Boolean);
+      }
+      if (act2 === "collaudo") {
+        return controlPoints(lastLevel).map((c2) => {
+          const p = scene.project(...c2.pt);
+          return p.visible ? { x: p.x, y: p.y, label: c2.label, act: `data-tctl="${lastLevel}|${c2.id}"`, cls: used.has(c2.id) ? "ok" : "next" } : null;
+        }).filter(Boolean);
+      }
+      return [];
+    }
+    let pinKey = "";
+    function placePins() {
+      if (!el.tPins) return;
+      const list = pins(), key = list.map((p) => p.act + p.label + p.sub + p.cls).join("|");
+      if (key !== pinKey) {
+        pinKey = key;
+        el.tPins.innerHTML = pinsHTML(list);
+        return;
+      }
+      [...el.tPins.children].forEach((n, i) => {
+        n.style.transform = `translate(${Math.round(list[i].x)}px,${Math.round(list[i].y)}px)`;
+      });
+    }
+    function followPins(ms) {
+      placePins();
+      if (reduced() || typeof requestAnimationFrame === "undefined") return;
+      const end = performance.now() + ms;
+      cancelAnimationFrame(pinLoop);
+      const step = () => {
+        placePins();
+        if (performance.now() < end && mounted) pinLoop = requestAnimationFrame(step);
       };
+      pinLoop = requestAnimationFrame(step);
+    }
+    function setAct(a) {
+      act2 = a;
+      host2.dataset.act = a;
+      document.body.classList.toggle("ms-intro", a !== "bench");
+    }
+    function startOrder() {
+      setAct("order");
+      el.tIntro.innerHTML = orderHTML(TRILOCALE_FRAME);
+      el.tIntro.hidden = false;
+      el.tIntro.classList.remove("out");
+      const b = el.tIntro.querySelector('[data-tui="start"]');
+      if (b && b.focus) b.focus({ preventScroll: true });
+    }
+    function hideOrder() {
+      el.tIntro.classList.add("out");
+      later(900, () => {
+        if (el.tIntro) el.tIntro.hidden = true;
+      });
+    }
+    function prepareOutside() {
+      if (scene && act2 === "order") {
+        scene.setRoof(true, true, 1);
+        scene.look(FAR, 1);
+      }
+    }
+    function arrive() {
+      if (act2 !== "order") return;
+      if (sceneState === "loading") {
+        el.tIntro.classList.add("waiting");
+        const t = setTimeout(() => {
+          timers.delete(t);
+          if (mounted) arrive();
+        }, 200);
+        timers.add(t);
+        return;
+      }
+      hideOrder();
+      if (!scene) {
+        toHouse();
+        return;
+      }
+      setAct("arrive");
+      scene.look(EXT, 2200);
+      later(2300, () => {
+        scene.setRoof(false, true, 1400);
+        sound.click();
+      });
+      later(2700, () => scene.look({}, 1600));
+      later(4400, toHouse);
+    }
+    function skipArrive() {
+      clearLater();
+      hideOrder();
+      if (scene) {
+        scene.setRoof(false, true, 1);
+        scene.look({}, 1);
+      }
+      toHouse();
+    }
+    function toHouse() {
+      setAct("house");
+      if (wantBench) {
+        wantBench = false;
+        openBench();
+        return;
+      }
+      hintPick();
+      render2();
+      followPins(400);
+    }
+    function lit() {
+      ui2.bench = false;
+      if (env.bench) env.bench(false);
+      setAct("lit");
+      const c2 = circuitOf(lastLevel);
+      if (scene && c2) scene.focusRoom(c2.room);
+      const w = wireSet();
+      if (w) w.flow(2400);
+      later(500, () => {
+        sound.chime(0);
+        sub(TRILOCALE_FRAME.works, TRILOCALE_FRAME.rooms[lastLevel].kind, 2e3);
+      });
+      later(2400, () => {
+        if (!scene) {
+          if (allDone()) finale();
+          else {
+            setAct("house");
+            hintPick(TRILOCALE_FRAME.next);
+          }
+          render2();
+          return;
+        }
+        used = /* @__PURE__ */ new Set();
+        setAct("collaudo");
+        if (controlPoints(lastLevel).length > 1) scene.overview();
+        sub("", TRILOCALE_FRAME.rooms[lastLevel].collaudo, 0);
+        render2();
+        followPins(1400);
+      });
+      render2();
+    }
+    function finale() {
+      setAct("finale");
+      sub("", "", 1);
+      if (scene) {
+        scene.update(shown(hs()));
+        const w = wireSet();
+        if (w) w.setVisible(false);
+        scene.setNight(true, 2600);
+        later(400, () => {
+          scene.setRoof(true, true, 1800);
+          scene.look(EXT, 2600);
+        });
+        later(1800, () => sub(TRILOCALE_FRAME.evening, "", 2600));
+      }
+      later(scene ? 4200 : 0, () => {
+        sheet = "dico";
+        render2();
+        for (let i = 0; i < 3; i++) later(300 + i * 280, () => sound.chime(i));
+        const b = el.tSheet.querySelector("a,button");
+        if (b && b.focus) b.focus({ preventScroll: true });
+      });
+      render2();
+    }
+    function backInside() {
+      setAct("house");
+      const w = wireSet();
+      if (w) w.setVisible(ui2.wires);
+      if (scene) scene.update(hs());
+      if (scene) {
+        scene.setRoof(false, true, 1100);
+        scene.look({}, 1300);
+      }
+      hintPick();
+      followPins(1400);
+      render2();
     }
     function loadScene() {
       if (sceneState !== "idle") return;
@@ -13837,73 +14501,90 @@ html[dir="rtl"] .phud,html[dir="rtl"] .psheet,html[dir="rtl"] .pintro,html[dir="
       const token = ++mountToken;
       loadScript().then((ok) => {
         if (!mounted || token !== mountToken) return;
-        const api = ok && window.FaseNeutroScene && window.FaseNeutroScene.createScene(sceneEl, {
-          reduced: env.reduced(),
+        el.hScene.hidden = false;
+        const api = ok && window.FaseNeutroScene && window.FaseNeutroScene.createScene(el.hScene, {
+          reduced: reduced(),
+          noIntro: true,
+          startRoof: act2 === "order",
+          start: act2 === "order" ? FAR : void 0,
+          wires: true,
           onBreaker: () => {
             if (!inLesson()) env.session.toggleBreaker();
           },
           onControl: (circuit, id) => control(circuit, id),
-          onRoof: () => syncRoof(),
+          onRoof: () => {
+          },
           onRoom: (room) => {
             const hit = HOUSE.rooms.find((x) => x.id === room);
-            if (hit && hit.circuit) env.go("#/livello/" + hit.circuit);
+            if (hit && hit.circuit) pickRoom(hit.circuit);
           }
         });
         if (api) {
           scene = api;
           sceneState = "ready";
-          syncRoof();
-          if (lastLevel) focus(lastLevel);
+          prevWireKey = null;
+          if (act2 !== "order") {
+            const c2 = circuitOf(lastLevel);
+            if (act2 === "bench" && c2) scene.focusRoom(c2.room);
+          }
         } else {
           sceneState = "failed";
-          view = "plan";
+          ui2.plan = null;
         }
         apply();
         refresh();
+        followPins(800);
+        if (act2 === "order") {
+          prepareOutside();
+          const l = el.tIntro.querySelector(".pload");
+          if (l) l.classList.add("done");
+        }
       });
     }
-    function syncRoof() {
-      const b = host2.querySelector('[data-h="roof"]');
-      if (b && scene && scene.roof) b.setAttribute("aria-pressed", String(scene.roof()));
-    }
-    const inLesson = () => !!(lastSnap && lastSnap.unit && lastSnap.unit.phase === "lesson");
-    function control(circuit, id) {
-      if (circuit !== lastLevel) {
-        env.go("#/livello/" + circuit);
-        return;
-      }
-      if (!inLesson()) env.session.toggleControl(id);
-    }
-    function focus(levelId, instant) {
-      const c2 = CIRCUITS.find((x) => x.id === levelId);
-      if (scene && c2) scene.focusRoom(c2.room);
-    }
     function apply() {
-      const usePlan = view === "plan" || sceneState === "failed";
-      planEl.hidden = !usePlan;
-      sceneEl.hidden = usePlan || sceneState !== "ready";
-      const msg = host2.querySelector("#hMsg");
-      msg.hidden = !(sceneState === "loading" || sceneState === "failed");
-      msg.textContent = sceneState === "loading" ? "Caricamento della scena" : "La scena 3D non \xE8 disponibile su questo dispositivo: ecco la pianta.";
-      const pb = host2.querySelector('[data-h="plan"]');
-      pb.textContent = usePlan && sceneState === "ready" ? "Scena 3D" : "Pianta";
-      pb.hidden = sceneState === "failed";
-      host2.querySelector('[data-h="over"]').hidden = usePlan;
+      const usePlan = ui2.plan || sceneState === "failed";
+      el.hPlan.hidden = !usePlan;
+      el.hScene.hidden = usePlan || sceneState !== "ready";
+      el.hMsg.hidden = !(sceneState === "loading" && act2 !== "order");
+      el.hMsg.textContent = "Caricamento della scena";
+      host2.classList.toggle("noscene", sceneState === "failed");
+    }
+    function render2() {
+      if (!mounted || !el.tTop) return;
+      const h = hs();
+      el.tTop.innerHTML = topHTML(TRILOCALE_FRAME, ui2);
+      el.tSteps.innerHTML = stationsHTML(TRILOCALE_FRAME, h, lastLevel);
+      el.tSheet.hidden = sheet !== "dico";
+      el.tSheet.innerHTML = sheet === "dico" ? dicoHTML(TRILOCALE_FRAME, env.name ? env.name() : "", "Ore " + (/* @__PURE__ */ new Date()).toTimeString().slice(0, 5)) : "";
+      placePins();
+    }
+    function shown(h) {
+      if (act2 !== "finale") return h;
+      const rooms = {};
+      Object.keys(h.rooms).forEach((k) => {
+        rooms[k] = h.rooms[k].circuit ? { ...h.rooms[k], lit: true } : h.rooms[k];
+      });
+      return { ...h, rooms };
     }
     function refresh() {
       if (!mounted) return;
-      const hs = houseState(env.session, houseOn);
-      if (scene) scene.update(hs);
-      planEl.innerHTML = planHTML(hs, { select: lastLevel });
-      tabsEl.innerHTML = CIRCUITS.map((c2) => {
-        const st = hs.rooms[c2.room].state;
-        return `<a class="htab" href="#/livello/${c2.id}" data-sel="${c2.id === lastLevel}"${c2.id === lastLevel ? ' aria-current="page"' : ""}><b>${esc4(c2.label)}</b><small class="st-${st === "funziona" ? "ok" : st === "in corso" ? "run" : "new"}">${esc4(st)}</small></a>`;
-      }).join("");
+      const h = hs();
+      if (scene) scene.update(shown(h));
+      el.hPlan.innerHTML = planHTML(h, { select: lastLevel });
+      const w = wireSet();
+      if (w && lastSnap) {
+        const list = wires3D(lastLevel, (lastSnap.wires || []).filter((x) => !x.fixed));
+        const key = lastLevel;
+        w.sync(list, key === prevWireKey);
+        prevWireKey = key;
+      }
+      render2();
     }
     return {
       // Chiamata a ogni ridisegno della pagina con il livello aperto.
       sync(snapshot) {
-        if (!mounted) {
+        const first = !mounted;
+        if (first) {
           mounted = true;
           build();
           apply();
@@ -13914,25 +14595,49 @@ html[dir="rtl"] .phud,html[dir="rtl"] .psheet,html[dir="rtl"] .pintro,html[dir="
         prevPower = !!snapshot.power;
         lastSnap = snapshot;
         lastLevel = snapshot.level.id;
+        if (first) {
+          if (allDone()) {
+            setAct("house");
+            hintPick();
+          } else startOrder();
+        }
         if (sceneState === "idle") loadScene();
+        if (!first && prev !== lastLevel) {
+          if (wantBench && act2 !== "order" && act2 !== "arrive") {
+            wantBench = false;
+            openBench();
+          } else if (act2 === "bench") openBench();
+        }
         refresh();
-        if (prev !== lastLevel) focus(lastLevel);
       },
-      // Dopo una verifica riuscita la telecamera torna sulla stanza che si accende.
+      // Dopo una verifica riuscita la stanza si accende e parte il collaudo.
       passed() {
-        if (scene && lastLevel) focus(lastLevel);
+        lit();
       },
+      closeBench,
+      framed: () => true,
       unmount() {
+        clearLater();
+        cancelAnimationFrame(pinLoop);
         if (scene) {
           scene.dispose();
           scene = null;
         }
+        if (ui2.bench && env.bench) env.bench(false);
+        document.body.classList.remove("ms-intro");
         sceneState = "idle";
         mounted = false;
         lastLevel = null;
-        view = "scene";
         mountToken++;
+        act2 = null;
+        ui2.bench = false;
+        ui2.plan = false;
+        sheet = null;
+        wantBench = false;
+        pinKey = "";
         host2.innerHTML = "";
+        host2.onclick = null;
+        delete host2.dataset.act;
       },
       isMounted: () => mounted
     };
@@ -14147,7 +14852,7 @@ html[dir="rtl"] .phud,html[dir="rtl"] .psheet,html[dir="rtl"] .pintro,html[dir="
       <span class="pload${ready ? " done" : ""}" aria-hidden="true"><i></i></span></div>
     <button class="pskip" type="button" data-pui="skipIntro">Salta</button>`;
   }
-  function topHTML(cfg, clock, ui2) {
+  function topHTML2(cfg, clock, ui2) {
     const t = (k, label, pressed) => `<button class="pchip" type="button" data-pui="${k}"${pressed === void 0 ? "" : ` aria-pressed="${!!pressed}"`}>${label}</button>`;
     return `<a class="pmap" href="#/home">&larr; Mappa</a>
     <div class="ptitle"><span class="pk">${esc5(cfg.kick)}</span><b>${esc5(cfg.title)}</b></div>
@@ -14232,161 +14937,6 @@ html[dir="rtl"] .phud,html[dir="rtl"] .psheet,html[dir="rtl"] .pintro,html[dir="
       <div class="prow"><a class="pbtn y" href="#/home">Torna alla mappa</a><button class="pbtn" type="button" data-pui="again">Rifai la prova</button><button class="pbtn" type="button" data-pui="summary">Sintesi</button><button class="pbtn" type="button" data-pui="closeSheet">Guarda la casa</button></div></div>`;
   }
 
-  // src/prove/sound.js
-  var ac = null;
-  var master = null;
-  var enabled = true;
-  var hums = {};
-  function ctx() {
-    if (ac) return ac;
-    try {
-      ac = new (window.AudioContext || window.webkitAudioContext)();
-      master = ac.createGain();
-      master.gain.value = 0.9;
-      master.connect(ac.destination);
-    } catch (e) {
-      ac = null;
-    }
-    return ac;
-  }
-  function burst(dur, gain, freq, q = 1, type = "bandpass") {
-    const a = ctx();
-    if (!a || !enabled) return;
-    const n = Math.floor(a.sampleRate * dur), b = a.createBuffer(1, n, a.sampleRate), d = b.getChannelData(0);
-    for (let i = 0; i < n; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / n, 4);
-    const s = a.createBufferSource();
-    s.buffer = b;
-    const f = a.createBiquadFilter();
-    f.type = type;
-    f.frequency.value = freq;
-    f.Q.value = q;
-    const g = a.createGain();
-    g.gain.value = gain;
-    s.connect(f);
-    f.connect(g);
-    g.connect(master);
-    s.start();
-  }
-  function thump(freq, gain, dur) {
-    const a = ctx();
-    if (!a || !enabled) return;
-    const o = a.createOscillator(), g = a.createGain(), t = a.currentTime;
-    o.frequency.setValueAtTime(freq, t);
-    o.frequency.exponentialRampToValueAtTime(freq * 0.5, t + dur);
-    g.gain.setValueAtTime(gain, t);
-    g.gain.exponentialRampToValueAtTime(1e-4, t + dur);
-    o.connect(g);
-    g.connect(master);
-    o.start(t);
-    o.stop(t + dur + 0.02);
-  }
-  function makeHum(kind) {
-    const a = ctx();
-    if (!a) return null;
-    const g = a.createGain();
-    g.gain.value = 0;
-    g.connect(master);
-    const nodes = [];
-    if (kind === "frigo") {
-      [50, 100, 150].forEach((f, i) => {
-        const o = a.createOscillator();
-        o.frequency.value = f;
-        const og = a.createGain();
-        og.gain.value = [0.5, 0.35, 0.12][i];
-        o.connect(og);
-        og.connect(g);
-        o.start();
-        nodes.push(o);
-      });
-    } else {
-      const n = a.sampleRate * 2, b = a.createBuffer(1, n, a.sampleRate), d = b.getChannelData(0);
-      for (let i = 0; i < n; i++) d[i] = Math.random() * 2 - 1;
-      const s = a.createBufferSource();
-      s.buffer = b;
-      s.loop = true;
-      const f = a.createBiquadFilter();
-      f.type = "bandpass";
-      f.frequency.value = kind === "tv" ? 1800 : 300;
-      f.Q.value = kind === "tv" ? 0.6 : 0.4;
-      s.connect(f);
-      f.connect(g);
-      s.start();
-      nodes.push(s);
-      if (kind === "tv") {
-        const lfo = a.createOscillator(), lg = a.createGain();
-        lfo.frequency.value = 0.7;
-        lg.gain.value = 4e-3;
-        lfo.connect(lg);
-        lg.connect(g.gain);
-        lfo.start();
-        nodes.push(lfo);
-      }
-    }
-    return { g, level: { frigo: 0.018, tv: 8e-3, stufa: 0.01 }[kind] };
-  }
-  var sound = {
-    // da chiamare dentro un tocco: sblocca l'audio
-    unlock() {
-      const a = ctx();
-      if (a && a.state === "suspended") a.resume();
-    },
-    setEnabled(on) {
-      enabled = !!on;
-      if (!enabled) Object.keys(hums).forEach((k) => this.hum(k, false, true));
-    },
-    enabled: () => enabled,
-    click() {
-      burst(0.04, 0.5, 2400, 1.2);
-      thump(140, 0.15, 0.06);
-    },
-    tac() {
-      burst(0.16, 1.4, 900, 0.9);
-      thump(90, 0.6, 0.18);
-      burst(0.05, 0.6, 3200, 2);
-    },
-    chime(i = 0) {
-      const a = ctx();
-      if (!a || !enabled) return;
-      const o = a.createOscillator(), g = a.createGain(), t = a.currentTime;
-      o.type = "sine";
-      o.frequency.value = [660, 880, 1100][i % 3];
-      g.gain.setValueAtTime(1e-4, t);
-      g.gain.exponentialRampToValueAtTime(0.12, t + 0.02);
-      g.gain.exponentialRampToValueAtTime(1e-4, t + 0.5);
-      o.connect(g);
-      g.connect(master);
-      o.start(t);
-      o.stop(t + 0.55);
-    },
-    // acceso o spento un ronzio; instant: si ferma di colpo (lo scatto)
-    hum(kind, on, instant) {
-      const a = ctx();
-      if (!a) return;
-      if (!hums[kind]) {
-        if (!on) return;
-        hums[kind] = makeHum(kind);
-      }
-      const h = hums[kind];
-      if (!h) return;
-      const t = a.currentTime, v = on && enabled ? h.level : 0;
-      h.g.gain.cancelScheduledValues(t);
-      if (instant) h.g.gain.setValueAtTime(v, t);
-      else {
-        h.g.gain.setValueAtTime(h.g.gain.value, t);
-        h.g.gain.linearRampToValueAtTime(v, t + 0.6);
-      }
-    },
-    silence() {
-      Object.keys(hums).forEach((k) => this.hum(k, false, true));
-    },
-    vibrate(p) {
-      try {
-        if (navigator.vibrate) navigator.vibrate(p);
-      } catch (e) {
-      }
-    }
-  };
-
   // src/prove/page.js
   var VIEW_LABEL = {
     insieme: "Vista d\u2019insieme",
@@ -14396,7 +14946,7 @@ html[dir="rtl"] .phud,html[dir="rtl"] .psheet,html[dir="rtl"] .pintro,html[dir="
     pulsantiera: "Pulsantiera",
     motore: "Motore"
   };
-  var SOUND_KEY = "fase-e-neutro-suono";
+  var SOUND_KEY2 = "fase-e-neutro-suono";
   var LOAD_MAX = 8e3;
   var scriptPromise2 = null;
   function loadScript2() {
@@ -14425,7 +14975,7 @@ html[dir="rtl"] .phud,html[dir="rtl"] .psheet,html[dir="rtl"] .pintro,html[dir="
     let act2 = null, override = null, story = null, t0clock = 0, callT0 = 0;
     const ui2 = { schema: false, torch: false, sound: true, wires: true, log: false, delta: false };
     try {
-      ui2.sound = localStorage.getItem(SOUND_KEY) !== "0";
+      ui2.sound = localStorage.getItem(SOUND_KEY2) !== "0";
     } catch (e) {
     }
     sound.setEnabled(ui2.sound);
@@ -14598,7 +15148,7 @@ html[dir="rtl"] .phud,html[dir="rtl"] .psheet,html[dir="rtl"] .pintro,html[dir="
           hums2();
         }
         try {
-          localStorage.setItem(SOUND_KEY, ui2.sound ? "1" : "0");
+          localStorage.setItem(SOUND_KEY2, ui2.sound ? "1" : "0");
         } catch (x) {
         }
         renderHud();
@@ -14957,7 +15507,7 @@ html[dir="rtl"] .phud,html[dir="rtl"] .psheet,html[dir="rtl"] .pintro,html[dir="
       host2.classList.toggle("lesson", inLesson() || act2 === "brief");
       if (!ps) return;
       const steps = stepsOf(name, ps, unit, mem);
-      setHTML(el.pTop, topHTML(c2, clockText(c2, minutes), ui2));
+      setHTML(el.pTop, topHTML2(c2, clockText(c2, minutes), ui2));
       setHTML(el.pSteps, stepsHTML(steps) + (unit.phase === "fault" && act2 === "play" ? `<p class="phint">${hintOf(name, steps)}</p>` : ""));
       setHTML(el.pDock, dockHTML(c2, ps, unit, ui2));
       el.pLog.hidden = !ui2.log;
@@ -15124,9 +15674,16 @@ html[dir="rtl"] .phud,html[dir="rtl"] .psheet,html[dir="rtl"] .pintro,html[dir="
   var saveProfile = () => write(PROFILE_KEY, profile);
   var session = createSession({ levels, deriveFull, storage });
   var S = null;
-  var house = createHouse(document.querySelector("#house"), { session, go: (h) => {
-    location.hash = h;
-  }, reduced: () => REDUCED.matches });
+  var house = createHouse(document.querySelector("#house"), {
+    session,
+    go: (h) => {
+      location.hash = h;
+    },
+    reduced: () => REDUCED.matches,
+    // trilocale a tutto schermo: il banco si apre in un pannello accanto alla casa
+    bench: (open) => $("#screen-level").classList.toggle("bench", !!open),
+    name: () => profile.name
+  });
   var prova = createProva(document.querySelector("#house"), {
     session,
     reduced: () => REDUCED.matches,
@@ -15289,9 +15846,9 @@ html[dir="rtl"] .phud,html[dir="rtl"] .psheet,html[dir="rtl"] .pintro,html[dir="
     const inLesson = !!S.unit && ph === "lesson" && S.playMode === "apprendimento";
     const scr = $("#screen-level");
     const hl = isHouseLevel(S.level.id), pv = isProvaLevel(S.level);
-    const ms = pv && S.playMode !== "verifica" && prova.framed(S);
-    const drawer = scr.classList.contains("drawer");
-    scr.className = "phase-" + (inLesson ? "learn" : "play") + (S.playMode === "verifica" ? " verify" : "") + (hl || pv ? " with-house" : "") + (ms ? " milestone" : "") + (ms && drawer && !inLesson ? " drawer" : "");
+    const ms = hl || pv && S.playMode !== "verifica" && prova.framed(S);
+    const drawer = scr.classList.contains("drawer"), bench2 = scr.classList.contains("bench");
+    scr.className = "phase-" + (inLesson ? "learn" : "play") + (S.playMode === "verifica" ? " verify" : "") + (hl || pv ? " with-house" : "") + (ms ? " milestone" : "") + (hl ? " trimode" : "") + (hl && bench2 ? " bench" : "") + (pv && ms && drawer && !inLesson ? " drawer" : "");
     document.body.classList.toggle("ms-mode", ms);
     $("#house").hidden = !(hl || pv);
     if (!hl && house.isMounted()) house.unmount();
@@ -15795,7 +16352,11 @@ html[dir="rtl"] .phud,html[dir="rtl"] .psheet,html[dir="rtl"] .pintro,html[dir="
   $("#bCheck").addEventListener("click", () => {
     const r = session.check();
     const behavior = REDUCED.matches ? "auto" : "smooth";
-    if (r.pass && isHouseLevel(S.level.id)) house.passed();
+    if (isHouseLevel(S.level.id)) {
+      if (r.pass) house.passed();
+      else $("#result").scrollIntoView({ behavior, block: "nearest" });
+      return;
+    }
     (r.pass ? isHouseLevel(S.level.id) ? $("#house") : $(".roomcard") : $("#result")).scrollIntoView({ behavior, block: r.pass ? "start" : "nearest" });
   });
   $("#bFlow").addEventListener("click", () => session.toggleFlow());
@@ -15805,7 +16366,7 @@ html[dir="rtl"] .phud,html[dir="rtl"] .psheet,html[dir="rtl"] .pintro,html[dir="
     const t = document.getElementById(g.dataset.goto);
     if (t) t.scrollIntoView({ behavior: REDUCED.matches ? "auto" : "smooth", block: "center" });
   });
-  $("#bDrawerClose").addEventListener("click", () => prova.closeDrawer());
+  $("#bDrawerClose").addEventListener("click", () => house.isMounted() ? house.closeBench() : prova.closeDrawer());
   $("#bMeter").addEventListener("click", () => {
     clearSel();
     session.toggleMeter();
