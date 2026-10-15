@@ -124,4 +124,5 @@ export default {
 "Fotocellula, conteggio dei pacchi, emergenza e termico che restano cablati.": "خلية ضوئية وعدّ للطرود؛ ويبقى زر الطوارئ والحراري موصولين بالأسلاك.",
 "Il guasto di isolamento": "عطل العزل",
 "Simula un apparecchio che disperde una piccola corrente verso terra, come se l’isolante avesse ceduto. Il differenziale se ne accorge anche se la lampada o il motore funzionano ancora.": "يحاكي جهازًا يسرّب تيارًا صغيرًا نحو الأرض كما لو أن العازل قد تلف. والقاطع التفاضلي يلاحظ ذلك حتى لو كان المصباح أو المحرك لا يزال يعمل.",
+"Con l’interruttore chiuso la lampada è accesa": "عندما يكون المفتاح مغلقًا يكون المصباح مضاءً",
 };

@@ -66,6 +66,10 @@ export function createScene(container, cb) {
   let needs = true, raf = 0, disposed = false;
   const anims = new Set();          // animazioni in corso: funzioni (t) -> true se continuano
   const redraw = () => { needs = true; schedule(); };
+  // Le ombre cambiano solo quando cambia la scena (tetto, luci, oggetti), non quando si muove la telecamera:
+  // si ridisegnano solo allora, e solo per le lampade accese.
+  let shadowDirty = true;
+  const dirtyShadows = () => { shadowDirty = true; };
 
   const scene = new THREE.Scene();
   scene.background = new THREE.Color(BG);
@@ -95,6 +99,7 @@ export function createScene(container, cb) {
   sun.shadow.bias = -0.0004;
   sun.shadow.normalBias = 0.02;
   sun.shadow.radius = 5;
+  sun.shadow.autoUpdate = false;
   scene.add(sun, sun.target);
 
   const camera = new THREE.PerspectiveCamera(38, 1, 0.1, 120);
@@ -189,6 +194,7 @@ export function createScene(container, cb) {
     light.shadow.mapSize.set(512, 512);
     light.shadow.bias = -0.002;
     light.shadow.radius = 4;
+    light.shadow.autoUpdate = false;
     g.add(cord, cap, bulb, light);
     world.add(g);
     Object.assign(rooms[r.id], { light, bulb: bulbMat, shade: null });
@@ -228,6 +234,7 @@ export function createScene(container, cb) {
   let roofOn = true;
   let roofK = 1;               // 1 = tetto al suo posto, 0 = sollevato e sparito
   function applyRoof() {
+    dirtyShadows();
     const top = WALL_H + (FACADE_H - WALL_H) * Math.min(1, roofK * 1.4);
     facade.scale.y = top / FACADE_H;
     roofG.position.y = top + (1 - roofK) * 3.2;
@@ -251,7 +258,7 @@ export function createScene(container, cb) {
     houseControls().forEach(c => addLabel(c.label, c.x + FACE[c.face][0] * 0.4, WALL_H + 0.25, c.z + FACE[c.face][2] * 0.4, 'ctl'));
     addLabel(bk.label, bk.x + 0.55, WALL_H + 0.25, bk.z, 'ctl');
   }
-  const ext = cb.extend ? cb.extend({ world, M, pick, rooms, addLabel, animate, redraw, lite, FACE, FACE_ROT, T, WALL_H }) : null;
+  const ext = cb.extend ? cb.extend({ world, M, pick, rooms, addLabel, animate: (ms, step) => animate(ms, k => { dirtyShadows(); return step(k); }), redraw: () => { dirtyShadows(); redraw(); }, lite, FACE, FACE_ROT, T, WALL_H }) : null;
 
   // ---- post-elaborazione: alone delle lampade, occlusione ambientale, colore ----
   const rt = new THREE.WebGLRenderTarget(1, 1, { type: (renderer.extensions.has('EXT_color_buffer_half_float') || renderer.extensions.has('EXT_color_buffer_float')) ? THREE.HalfFloatType : THREE.UnsignedByteType, samples: lite ? 2 : 4 });
@@ -291,6 +298,9 @@ export function createScene(container, cb) {
   const tmp = new THREE.Vector3();
   function draw() {
     placeCamera();
+    sun.shadow.needsUpdate = shadowDirty;
+    Object.values(rooms).forEach(r => { if (r.light) r.light.shadow.needsUpdate = shadowDirty && r.level > 0.01; });
+    shadowDirty = false;
     composer.render();
     const w = container.clientWidth, h = container.clientHeight;
     labels.forEach(l => {
@@ -299,9 +309,28 @@ export function createScene(container, cb) {
       l.el.style.transform = `translate(-50%,-50%) translate(${((tmp.x + 1) / 2) * w}px,${((1 - tmp.y) / 2) * h}px)`;
     });
   }
+  // Qualita' adattiva: se durante le animazioni i fotogrammi restano lenti (computer o telefono con poca grafica),
+  // si spegne l'occlusione ambientale e si scende a risoluzione 1: la scena resta identica nei contenuti.
+  let lastT = 0, slow = 0, seen = 0, degraded = lite;
+  function guard(t) {
+    const dt = t - lastT; lastT = t;
+    if (degraded || !anims.size || dt > 400 || dt <= 0) { if (!anims.size) lastT = 0; return; }
+    seen++; if (dt > 45) slow++;
+    if (seen >= 24) {
+      if (slow >= 10) {
+        degraded = true;
+        if (gtao) gtao.enabled = false;
+        renderer.setPixelRatio(1);
+        composer.setPixelRatio(1);
+        resize();
+      }
+      seen = 0; slow = 0;
+    }
+  }
   function frame(t) {
     raf = 0;
     if (disposed) return;
+    guard(t);
     if (anims.size) needs = true;       // anche l'ultimo passo di un'animazione va disegnato
     anims.forEach(fn => { if (!fn(t)) anims.delete(fn); });
     if (needs) { needs = false; draw(); }
@@ -394,6 +423,7 @@ export function createScene(container, cb) {
   const LUX = 11;
   function lampLevel(r, k) {
     r.level = k;
+    dirtyShadows();
     if (r.light) {
       r.light.intensity = LUX * k;
       r.bulb.emissiveIntensity = 6 * k;
@@ -419,6 +449,7 @@ export function createScene(container, cb) {
   return {
     // state = houseState(...).rooms; controlStates di ogni circuito e' dentro rooms[id].controls
     update(state) {
+      dirtyShadows();
       if (ext && ext.update) ext.update(state);
       const lit = [];
       Object.keys(rooms).forEach(id => {

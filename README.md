@@ -61,7 +61,7 @@ gioco da sola e aprono la pagina costruita in un browser simulato.
 
 ## Come si prova
 
-Aprire `index.html` in un browser (nessun server necessario). Per il trilocale in 3D serve `trilocale.js` nella stessa cartella; senza, compare la pianta 2D. Rotte utili: `#/livello/c04-parallelo`, `#/modulo/1` (trilocale).
+Aprire `index.html` in un browser (nessun server necessario). Per il trilocale in 3D serve `trilocale.js` nella stessa cartella; senza, compare la pianta 2D. Le scene 3D caricano anche i file di `assets/` (texture, modelli): aprendo `index.html` direttamente dal disco (file://) Chrome li blocca e le superfici restano senza texture. Per vederle come online conviene un server locale (`python3 -m http.server`). Rotte utili: `#/livello/c04-parallelo`, `#/modulo/1` (trilocale).
 
 ## Come si aggiunge un livello
 

@@ -556,7 +556,7 @@ export const LEVELS_V2 = [
       C('M1', 'mt', 'Luce', 'Magnetotermico luce', { '1': { l: '1' }, N1: { l: 'N' }, '2': { l: '2' }, N2: { l: 'N' } }, { rank: 2 }),
       C('M2', 'mt', 'Prese', 'Magnetotermico prese', { '1': { l: '1' }, N1: { l: 'N' }, '2': { l: '2' }, N2: { l: 'N' } }, { rank: 2 }),
       C('M3', 'mt', 'Cucina', 'Magnetotermico cucina', { '1': { l: '1' }, N1: { l: 'N' }, '2': { l: '2' }, N2: { l: 'N' } }, { rank: 2 }),
-      C('S', 'sw', 'Interruttore', 'Interruttore della luce', { a: { l: '1' }, b: { l: '2' } }),
+      C('S', 'sw', 'Interruttore', 'Interruttore della luce', { a: { l: '1' }, b: { l: '2' } }, { init: 1 }),   // la luce era accesa quando e' saltato il differenziale
       C('L', 'lamp', 'Lampada', 'Portalampada', { B: { l: 'B' }, A: { l: 'A' } }),
       C('P', 'presa', 'Presa', 'Presa del soggiorno', { L: { l: 'L' }, PE: { l: 'PE' }, N: { l: 'N' } }),
       C('PF', 'presa', 'Forno', 'Presa del forno', { L: { l: 'L' }, PE: { l: 'PE' }, N: { l: 'N' } }),
@@ -565,8 +565,8 @@ export const LEVELS_V2 = [
     controls: ['D', 'M1', 'M2', 'M3', 'S', 'G'],
     checks: [
       { id: 'prese', label: 'Le prese del soggiorno e del forno sono alimentate', do: [], expect: { loads: { P: 'on', PF: 'on' } } },
-      { id: 'luce', label: 'Chiudi l’interruttore: la lampada si accende', do: ['toggle S'], expect: { loads: { L: 'on' } } },
-      { id: 'prova', label: 'Tasto di prova del differenziale: tutto si spegne', do: ['toggle S', 'test D'], expect: { loads: { L: 'off', P: 'off', PF: 'off' }, tripped: ['D'] } },
+      { id: 'luce', label: 'Con l’interruttore chiuso la lampada è accesa', do: [], expect: { loads: { L: 'on' } } },
+      { id: 'prova', label: 'Tasto di prova del differenziale: tutto si spegne', do: ['test D'], expect: { loads: { L: 'off', P: 'off', PF: 'off' }, tripped: ['D'] } },
     ],
     safety: { earth: [['P.PE', 'Q.PE'], ['PF.PE', 'Q.PE']], phaseSwitched: ['P', 'L', 'PF'], pol: ['P.L', 'P.N'], rcdCovers: ['L', 'P', 'PF'], protectedBy: { L: 'M1', P: 'M2', PF: 'M3' } },
     solution: [

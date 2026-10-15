@@ -18,8 +18,9 @@ test('c23: lo stato della scena segue il quadro e la dispersione', () => {
   assert.equal(st.heaterPlugged, true);
   ['M1', 'M2', 'M3'].forEach(id => s.toggleControl(id));
   s.toggleControl('D');
-  s.toggleControl('M1'); s.toggleControl('S');
+  s.toggleControl('M1');   // l'interruttore del corridoio e' gia' chiuso: la luce era accesa quando il differenziale e' scattato
   st = provaState(s.snapshot());
+  assert.equal(st.switchOn, true);
   assert.equal(st.rcd.on, true);
   assert.equal(st.lines.luce.on, true);
   assert.equal(st.lines.prese.on, false);

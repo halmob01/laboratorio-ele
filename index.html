@@ -4820,7 +4820,8 @@ html[lang="it"] .trnote{display:none}
         C("M1", "mt", "Luce", "Magnetotermico luce", { "1": { l: "1" }, N1: { l: "N" }, "2": { l: "2" }, N2: { l: "N" } }, { rank: 2 }),
         C("M2", "mt", "Prese", "Magnetotermico prese", { "1": { l: "1" }, N1: { l: "N" }, "2": { l: "2" }, N2: { l: "N" } }, { rank: 2 }),
         C("M3", "mt", "Cucina", "Magnetotermico cucina", { "1": { l: "1" }, N1: { l: "N" }, "2": { l: "2" }, N2: { l: "N" } }, { rank: 2 }),
-        C("S", "sw", "Interruttore", "Interruttore della luce", { a: { l: "1" }, b: { l: "2" } }),
+        C("S", "sw", "Interruttore", "Interruttore della luce", { a: { l: "1" }, b: { l: "2" } }, { init: 1 }),
+        // la luce era accesa quando e' saltato il differenziale
         C("L", "lamp", "Lampada", "Portalampada", { B: { l: "B" }, A: { l: "A" } }),
         C("P", "presa", "Presa", "Presa del soggiorno", { L: { l: "L" }, PE: { l: "PE" }, N: { l: "N" } }),
         C("PF", "presa", "Forno", "Presa del forno", { L: { l: "L" }, PE: { l: "PE" }, N: { l: "N" } }),
@@ -4829,8 +4830,8 @@ html[lang="it"] .trnote{display:none}
       controls: ["D", "M1", "M2", "M3", "S", "G"],
       checks: [
         { id: "prese", label: "Le prese del soggiorno e del forno sono alimentate", do: [], expect: { loads: { P: "on", PF: "on" } } },
-        { id: "luce", label: "Chiudi l\u2019interruttore: la lampada si accende", do: ["toggle S"], expect: { loads: { L: "on" } } },
-        { id: "prova", label: "Tasto di prova del differenziale: tutto si spegne", do: ["toggle S", "test D"], expect: { loads: { L: "off", P: "off", PF: "off" }, tripped: ["D"] } }
+        { id: "luce", label: "Con l\u2019interruttore chiuso la lampada \xE8 accesa", do: [], expect: { loads: { L: "on" } } },
+        { id: "prova", label: "Tasto di prova del differenziale: tutto si spegne", do: ["test D"], expect: { loads: { L: "off", P: "off", PF: "off" }, tripped: ["D"] } }
       ],
       safety: { earth: [["P.PE", "Q.PE"], ["PF.PE", "Q.PE"]], phaseSwitched: ["P", "L", "PF"], pol: ["P.L", "P.N"], rcdCovers: ["L", "P", "PF"], protectedBy: { L: "M1", P: "M2", PF: "M3" } },
       solution: [
@@ -12018,7 +12019,8 @@ html[lang="it"] .trnote{display:none}
     "Un nastro che si comanda da programma": "\u0633\u064A\u0631 \u064A\u064F\u062A\u062D\u0643\u064E\u0651\u0645 \u0628\u0647 \u0628\u0628\u0631\u0646\u0627\u0645\u062C",
     "Fotocellula, conteggio dei pacchi, emergenza e termico che restano cablati.": "\u062E\u0644\u064A\u0629 \u0636\u0648\u0626\u064A\u0629 \u0648\u0639\u062F\u0651 \u0644\u0644\u0637\u0631\u0648\u062F\u061B \u0648\u064A\u0628\u0642\u0649 \u0632\u0631 \u0627\u0644\u0637\u0648\u0627\u0631\u0626 \u0648\u0627\u0644\u062D\u0631\u0627\u0631\u064A \u0645\u0648\u0635\u0648\u0644\u064A\u0646 \u0628\u0627\u0644\u0623\u0633\u0644\u0627\u0643.",
     "Il guasto di isolamento": "\u0639\u0637\u0644 \u0627\u0644\u0639\u0632\u0644",
-    "Simula un apparecchio che disperde una piccola corrente verso terra, come se l\u2019isolante avesse ceduto. Il differenziale se ne accorge anche se la lampada o il motore funzionano ancora.": "\u064A\u062D\u0627\u0643\u064A \u062C\u0647\u0627\u0632\u064B\u0627 \u064A\u0633\u0631\u0651\u0628 \u062A\u064A\u0627\u0631\u064B\u0627 \u0635\u063A\u064A\u0631\u064B\u0627 \u0646\u062D\u0648 \u0627\u0644\u0623\u0631\u0636 \u0643\u0645\u0627 \u0644\u0648 \u0623\u0646 \u0627\u0644\u0639\u0627\u0632\u0644 \u0642\u062F \u062A\u0644\u0641. \u0648\u0627\u0644\u0642\u0627\u0637\u0639 \u0627\u0644\u062A\u0641\u0627\u0636\u0644\u064A \u064A\u0644\u0627\u062D\u0638 \u0630\u0644\u0643 \u062D\u062A\u0649 \u0644\u0648 \u0643\u0627\u0646 \u0627\u0644\u0645\u0635\u0628\u0627\u062D \u0623\u0648 \u0627\u0644\u0645\u062D\u0631\u0643 \u0644\u0627 \u064A\u0632\u0627\u0644 \u064A\u0639\u0645\u0644."
+    "Simula un apparecchio che disperde una piccola corrente verso terra, come se l\u2019isolante avesse ceduto. Il differenziale se ne accorge anche se la lampada o il motore funzionano ancora.": "\u064A\u062D\u0627\u0643\u064A \u062C\u0647\u0627\u0632\u064B\u0627 \u064A\u0633\u0631\u0651\u0628 \u062A\u064A\u0627\u0631\u064B\u0627 \u0635\u063A\u064A\u0631\u064B\u0627 \u0646\u062D\u0648 \u0627\u0644\u0623\u0631\u0636 \u0643\u0645\u0627 \u0644\u0648 \u0623\u0646 \u0627\u0644\u0639\u0627\u0632\u0644 \u0642\u062F \u062A\u0644\u0641. \u0648\u0627\u0644\u0642\u0627\u0637\u0639 \u0627\u0644\u062A\u0641\u0627\u0636\u0644\u064A \u064A\u0644\u0627\u062D\u0638 \u0630\u0644\u0643 \u062D\u062A\u0649 \u0644\u0648 \u0643\u0627\u0646 \u0627\u0644\u0645\u0635\u0628\u0627\u062D \u0623\u0648 \u0627\u0644\u0645\u062D\u0631\u0643 \u0644\u0627 \u064A\u0632\u0627\u0644 \u064A\u0639\u0645\u0644.",
+    "Con l\u2019interruttore chiuso la lampada \xE8 accesa": "\u0639\u0646\u062F\u0645\u0627 \u064A\u0643\u0648\u0646 \u0627\u0644\u0645\u0641\u062A\u0627\u062D \u0645\u063A\u0644\u0642\u064B\u0627 \u064A\u0643\u0648\u0646 \u0627\u0644\u0645\u0635\u0628\u0627\u062D \u0645\u0636\u0627\u0621\u064B"
   };
 
   // src/i18n/ar.js
