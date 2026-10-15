@@ -106,7 +106,12 @@ export function homeHTML(s) {
         <div class="tricard milestone"><div class="kick">Trilocale</div><h3>Una casa da cablare</h3><p>Una casa vista dall’alto con tre punti luce da cablare: bagno, camera e corridoio. Quando l’impianto funziona, la luce si accende nella stanza.</p><a class="btn lamp" href="#/modulo/1">${triDone ? 'Continua nel trilocale' : 'Entra nel trilocale'}</a></div>
       </section>`;
   const ordered = mods[0] + trilocale + mods.slice(1).join('');      // Modulo 0, Modulo 1 (trilocale), poi gli altri
-  const up = UPCOMING.map(m => `<div class="upc"><div class="uphead"><span class="kick">${m.tag}</span><span class="soonl">In arrivo</span></div><h3>${m.title}</h3><p>${m.note}</p></div>`).join('');
+  const up = UPCOMING.map(m => `<section class="module upmod" aria-label="${m.tag}, ${esc(m.title)}">
+        <div class="mhead"><div><div class="kick">${m.tag}</div><h2>${esc(m.title)}</h2></div><span class="soonl">In arrivo</span></div>
+        <p class="upnote">${esc(m.note)}</p>
+        <ol class="uplist">${m.levels.map(x => `<li>${esc(x)}</li>`).join('')}</ol>
+        <div class="tricard milestone soon"><div class="kick">${esc(m.project.kick)}</div><h3>${esc(m.project.name)}</h3><p>${esc(m.project.text)}</p></div>
+      </section>`).join('');
   return `<div class="homegrid">
       <div class="homemain">${cont.replace('class="cont"', 'class="cont only-narrow"')}${ordered}<div class="upcoming">${up}</div>${trNoteHTML()}</div>
       <aside class="homeside">${cont}${toolsHTML()}</aside>

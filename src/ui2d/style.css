@@ -531,3 +531,10 @@ html[lang="it"] .trnote{display:none}
 .meter .msub{margin:2px 0 8px;font-size:13px;line-height:1.35}
 .heatbar{display:inline-block;width:64px;height:8px;border-radius:4px;background:rgba(0,0,0,.12);vertical-align:middle;margin:0 6px;overflow:hidden}
 .heatbar i{display:block;height:100%;background:#E5484D}
+
+.upmod{opacity:.92}
+.upmod .upnote{margin:0 0 8px;color:var(--ink2)}
+.upmod .uplist{margin:0 0 12px;padding:0 0 0 20px;color:var(--ink2);font-size:14px;columns:2;column-gap:24px}
+.upmod .uplist li{margin:2px 0}
+.tricard.milestone.soon{border-style:dashed;border-color:#9AA1AE}
+@media (max-width:560px){.upmod .uplist{columns:1}}

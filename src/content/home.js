@@ -50,7 +50,23 @@ export const MODULES = [
 ];
 
 // Prove dei moduli ancora da costruire, mostrate in fondo alla mappa.
+// `levels` elenca i livelli previsti; `project` e' il progetto 3D che chiude il modulo (stessa scheda degli altri moduli).
 export const UPCOMING = [
+  {
+    tag: 'MODULO 4', title: 'Automazione', note: 'Dal cablaggio al programma: il PLC prende il posto dei relè.',
+    levels: ['Inversione e interblocco', 'Stella-triangolo', 'Dal relè al PLC', 'Ladder: l’autoritenuta', 'Tempo e conteggio', 'Il nastro con il PLC'],
+    project: { kick: 'Nastro con il PLC', name: 'Un nastro che si comanda da programma', text: 'Fotocellula, conteggio dei pacchi, emergenza e termico che restano cablati.' },
+  },
+  {
+    tag: 'MODULO 5', title: 'Impianti del futuro', note: 'Casa automatica, fotovoltaico e ricarica: un ramo facoltativo del percorso.',
+    levels: ['Il sensore e l’attuatore', 'La casa col PLC', 'La corrente continua', 'Il pannello fotovoltaico', 'Il contatore e lo scambio', 'L’accumulo', 'La colonnina'],
+    project: { kick: 'Casa del futuro', name: 'Luci, tapparelle, sole e batteria', text: 'La casa che si comanda da sola e produce la sua energia.' },
+  },
+  {
+    tag: 'MODULO 6', title: 'La fabbrica', note: 'Sicurezza, regolazione e una linea completa da mettere in funzione.',
+    levels: ['Il fungo a due canali', 'Il relè di sicurezza', 'Portella e barriera', 'Il sensore 4-20 mA', 'Il variatore', 'Il serbatoio', 'Il PID', 'Il pannello operatore', 'La linea', 'Gestione guasti'],
+    project: { kick: 'Fabbrica', name: 'Una linea da cablare, programmare e mettere in sicurezza', text: 'Il progetto finale: un turno di lavoro con guasti da gestire.' },
+  },
 ];
 
 // Introduzione animata: una scena per voce. `art` e' la chiave del disegno (src/ui2d/art.js).

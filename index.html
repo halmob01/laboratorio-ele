@@ -541,6 +541,13 @@ html[lang="it"] .trnote{display:none}
 .meter .msub{margin:2px 0 8px;font-size:13px;line-height:1.35}
 .heatbar{display:inline-block;width:64px;height:8px;border-radius:4px;background:rgba(0,0,0,.12);vertical-align:middle;margin:0 6px;overflow:hidden}
 .heatbar i{display:block;height:100%;background:#E5484D}
+
+.upmod{opacity:.92}
+.upmod .upnote{margin:0 0 8px;color:var(--ink2)}
+.upmod .uplist{margin:0 0 12px;padding:0 0 0 20px;color:var(--ink2);font-size:14px;columns:2;column-gap:24px}
+.upmod .uplist li{margin:2px 0}
+.tricard.milestone.soon{border-style:dashed;border-color:#9AA1AE}
+@media (max-width:560px){.upmod .uplist{columns:1}}
 </style>
 </head>
 <body>
@@ -7049,7 +7056,29 @@ html[lang="it"] .trnote{display:none}
       milestone: { level: "c24-officina", kick: "Officina", name: "Il nastro da collaudare", text: "Un nastro trasportatore da collaudare a vista: marcia, arresto, emergenza, finecorsa e termico. Trova perch\xE9 il nastro non si ferma.", cta: "Entra nell\u2019officina", again: "Rifai la prova" }
     }
   ];
-  var UPCOMING = [];
+  var UPCOMING = [
+    {
+      tag: "MODULO 4",
+      title: "Automazione",
+      note: "Dal cablaggio al programma: il PLC prende il posto dei rel\xE8.",
+      levels: ["Inversione e interblocco", "Stella-triangolo", "Dal rel\xE8 al PLC", "Ladder: l\u2019autoritenuta", "Tempo e conteggio", "Il nastro con il PLC"],
+      project: { kick: "Nastro con il PLC", name: "Un nastro che si comanda da programma", text: "Fotocellula, conteggio dei pacchi, emergenza e termico che restano cablati." }
+    },
+    {
+      tag: "MODULO 5",
+      title: "Impianti del futuro",
+      note: "Casa automatica, fotovoltaico e ricarica: un ramo facoltativo del percorso.",
+      levels: ["Il sensore e l\u2019attuatore", "La casa col PLC", "La corrente continua", "Il pannello fotovoltaico", "Il contatore e lo scambio", "L\u2019accumulo", "La colonnina"],
+      project: { kick: "Casa del futuro", name: "Luci, tapparelle, sole e batteria", text: "La casa che si comanda da sola e produce la sua energia." }
+    },
+    {
+      tag: "MODULO 6",
+      title: "La fabbrica",
+      note: "Sicurezza, regolazione e una linea completa da mettere in funzione.",
+      levels: ["Il fungo a due canali", "Il rel\xE8 di sicurezza", "Portella e barriera", "Il sensore 4-20 mA", "Il variatore", "Il serbatoio", "Il PID", "Il pannello operatore", "La linea", "Gestione guasti"],
+      project: { kick: "Fabbrica", name: "Una linea da cablare, programmare e mettere in sicurezza", text: "Il progetto finale: un turno di lavoro con guasti da gestire." }
+    }
+  ];
   var INTRO = [
     { art: "lampada", text: ["Una lampada, un interruttore, due fili nel muro. Per farla funzionare serve capire dove passa la corrente."] },
     { art: "giro", text: ["La corrente circola in un percorso chiuso: esce dalla rete, attraversa la lampada e torna indietro."] },
@@ -8259,7 +8288,12 @@ html[lang="it"] .trnote{display:none}
         <div class="tricard milestone"><div class="kick">Trilocale</div><h3>Una casa da cablare</h3><p>Una casa vista dall\u2019alto con tre punti luce da cablare: bagno, camera e corridoio. Quando l\u2019impianto funziona, la luce si accende nella stanza.</p><a class="btn lamp" href="#/modulo/1">${triDone ? "Continua nel trilocale" : "Entra nel trilocale"}</a></div>
       </section>`;
     const ordered = mods[0] + trilocale + mods.slice(1).join("");
-    const up = UPCOMING.map((m) => `<div class="upc"><div class="uphead"><span class="kick">${m.tag}</span><span class="soonl">In arrivo</span></div><h3>${m.title}</h3><p>${m.note}</p></div>`).join("");
+    const up = UPCOMING.map((m) => `<section class="module upmod" aria-label="${m.tag}, ${esc(m.title)}">
+        <div class="mhead"><div><div class="kick">${m.tag}</div><h2>${esc(m.title)}</h2></div><span class="soonl">In arrivo</span></div>
+        <p class="upnote">${esc(m.note)}</p>
+        <ol class="uplist">${m.levels.map((x) => `<li>${esc(x)}</li>`).join("")}</ol>
+        <div class="tricard milestone soon"><div class="kick">${esc(m.project.kick)}</div><h3>${esc(m.project.name)}</h3><p>${esc(m.project.text)}</p></div>
+      </section>`).join("");
     return `<div class="homegrid">
       <div class="homemain">${cont.replace('class="cont"', 'class="cont only-narrow"')}${ordered}<div class="upcoming">${up}</div>${trNoteHTML()}</div>
       <aside class="homeside">${cont}${toolsHTML()}</aside>
