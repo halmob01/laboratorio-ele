@@ -10,6 +10,7 @@ import { composeComps } from './layout.js';
 const colsFor = lv => (!MQ.matches && lv.engine === 2 && lv.comps.length >= 5 ? 2 : 1);
 import * as R from './render.js';
 import * as V from './screens.js';
+import { ladderHTML } from './ladder.js';
 import { INTRO } from '../content/home.js';
 import { setLang, detect, onLang } from '../i18n/index.js';
 import '../i18n/ar.js';
@@ -210,8 +211,19 @@ function renderLevelScreen() {
   mp.hidden = !(S.meter && S.meter.on);
   mp.innerHTML = S.meter && S.meter.on ? R.meterHTML(S.meter, t => termName(S.level, t)) : '';
   renderBench();
+  renderLadder();
   renderStatus();
   renderResult();
+}
+
+// Il programma del PLC del livello, con lo stato della scansione (solo lettura).
+function renderLadder() {
+  const el = $('#ladder');
+  const plc = S.level.comps && S.level.comps.find(c => c.type === 'plc' && c.program);
+  el.hidden = !plc;
+  if (!plc) { el.innerHTML = ''; return; }
+  const st = S.obs && S.obs.plc && S.obs.plc[plc.id];
+  el.innerHTML = `<div class="ladhead"><b>Programma del PLC</b><span>${st && st.powered ? 'in esecuzione' : 'spento'}</span></div><div class="ladscroll">${ladderHTML(plc.program, st, plc.symbols || {})}</div>`;
 }
 
 function render() {

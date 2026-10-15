@@ -7,6 +7,7 @@
 
 import { makeUF } from '../circuit.js';
 import { PARTS, partOf, loadVolt } from './parts.js';
+import { scan, newMem } from './plc.js';
 
 const PHASES = ['F', 'L1', 'L2', 'L3'];
 const isPhase = p => PHASES.includes(p);
@@ -35,6 +36,9 @@ export function createSim(level, wires = []) {
     kmHistory: [],         // insiemi di contattori chiusi visti durante l'assestamento (interblocco)
     cableHeat: 0,          // riscaldamento del cavo della linea (level.cable), in secondi di sovracorrente
     cableBurnt: false,
+    programs: {},          // programmi dei PLC scritti dall'allievo: { idPLC: [gradini] }; senza, vale quello del livello
+    plcDt: 0,              // secondi da consegnare alla prossima scansione
+    forcePlc: null,        // 'allOn': prova di sicurezza, tutte le uscite dei PLC forzate a 1
   };
   settle(sim);
   return sim;
@@ -191,7 +195,15 @@ function analyse(sim, open) {
     const s = sim.parts[c.id];
     if (c.type === 'gu' && s && s.on && isPhase(potAt(c.at))) leaks.push({ id: c.id, mA: s.mA });
   });
-  return { uf, pots, potAt, volt, faults, loads, coils, motors, modes, trafoOn, burntNow, leaks };
+  // ingressi dei PLC: 1 se il PLC e' alimentato e tra l'ingresso e il comune ci sono 230 V
+  const plcIn = {};
+  level.comps.filter(c => c.type === 'plc').forEach(c => {
+    const on = !!coils[c.id];
+    const bits = {};
+    Object.keys(c.terms).filter(t => /^I\d+$/.test(t)).forEach(t => { bits[t] = on && volt(c.id + '.' + t, c.id + '.IC') === 230; });
+    plcIn[c.id] = bits;
+  });
+  return { uf, pots, potAt, volt, faults, loads, coils, motors, modes, plcIn, trafoOn, burntNow, leaks };
 }
 
 
@@ -275,6 +287,31 @@ function machineSwitches(sim) {
   if (m.endRev && sim.parts[m.endRev]) sim.parts[m.endRev].act = sim.pos <= 0;
 }
 
+export const programOf = (sim, c) => sim.programs[c.id] || c.program || [];
+
+// Una scansione di ogni PLC alimentato (a circuito assestato). Ritorna true se un'uscita e' cambiata.
+function plcScan(sim, an) {
+  let changed = false;
+  const dt = sim.plcDt;
+  sim.plcDt = 0;
+  sim.level.comps.forEach(c => {
+    if (c.type !== 'plc') return;
+    const s = sim.parts[c.id];
+    if (!an.coils[c.id]) {
+      // senza alimentazione il PLC perde memoria e uscite
+      if (Object.keys(s.q).length || s.mem) { s.q = {}; s.mem = null; s.rungs = []; s.inputs = {}; changed = true; }
+      return;
+    }
+    const r = scan(programOf(sim, c), an.plcIn[c.id], s.mem || newMem(), dt);
+    let q = r.outputs;
+    if (sim.forcePlc === 'allOn') q = Object.fromEntries(Object.keys(c.terms).filter(t => /^Q\d+A$/.test(t)).map(t => [t.slice(0, -1), true]));
+    const same = Object.keys({ ...q, ...s.q }).every(k => !!q[k] === !!s.q[k]);
+    s.mem = r.mem; s.rungs = r.rungs; s.inputs = an.plcIn[c.id];
+    if (!same) { s.q = q; changed = true; }
+  });
+  return changed;
+}
+
 export function settle(sim) {
   const comps = sim.level.comps;
   for (let it = 0; it < MAX_ITER; it++) {
@@ -325,6 +362,7 @@ export function settle(sim) {
       }
       if (changed) break;
     }
+    if (!changed && plcScan(sim, an)) changed = true;
     if (!changed) { sim.unstable = false; return; }
   }
   sim.unstable = true;
@@ -420,8 +458,17 @@ export function advance(sim, seconds) {
       if (dir === 'fwd') sim.pos = Math.min(m.length, sim.pos + v);
       if (dir === 'rev') sim.pos = Math.max(0, sim.pos - v);
     }
+    sim.plcDt = STEP;
     settle(sim);
   }
+}
+
+// Il programma dell'allievo cambia: la memoria del PLC riparte da zero.
+export function setProgram(sim, id, program) {
+  sim.programs[id] = program;
+  const s = sim.parts[id];
+  if (s) { s.mem = null; s.q = {}; s.rungs = []; }
+  settle(sim);
 }
 
 /* ---------- osservazione ---------- */
@@ -453,7 +500,8 @@ export function observe(sim) {
     loads: { ...an.loads, ...Object.fromEntries(Object.keys(sim.burnt).filter(id => !(id in an.loads)).map(id => [id, 'burnt'])) },
     motors: an.motors,
     modes: an.modes,
-    coils: an.coils,
+    plc: Object.fromEntries(sim.level.comps.filter(c => c.type === 'plc').map(c => [c.id, { powered: !!an.coils[c.id], inputs: an.plcIn[c.id], q: { ...sim.parts[c.id].q }, rungs: sim.parts[c.id].rungs.slice(), bits: { ...((sim.parts[c.id].mem && sim.parts[c.id].mem.bits) || {}) }, timers: { ...((sim.parts[c.id].mem && sim.parts[c.id].mem.timers) || {}) }, counters: { ...((sim.parts[c.id].mem && sim.parts[c.id].mem.counters) || {}) } }])),
+    coils: Object.fromEntries(Object.entries(an.coils).filter(([id]) => !sim.level.comps.some(c => c.id === id && c.type === 'plc'))),
     parts,
     machine: sim.level.machine ? { pos: sim.pos, atStart: sim.pos <= 0, atEnd: sim.pos >= sim.level.machine.length } : null,
     potential: term => { const p = an.potAt(term); return p === 'mix' ? null : p; },
@@ -476,7 +524,7 @@ export function stillOnIfOpen(sim, id, protIds) {
 
 /* ---------- multimetro ---------- */
 // Resistenze nominali usate per la lettura Ohm (valori didattici).
-const OHM = { lamp: 530, spia: 8000, presa: 60, bell: 30, ri: 1500, rel: 1500, tmr: 1500, km: 1200, kt: 1500, motor3: 12, motor6: 12 };
+const OHM = { lamp: 530, spia: 8000, presa: 60, bell: 30, ri: 1500, rel: 1500, tmr: 1500, km: 1200, kt: 1500, plc: 4000, motor3: 12, motor6: 12 };
 
 // Elementi che il multimetro attraversa: carichi, bobine e avvolgimenti dei motori.
 function windings(sim) {

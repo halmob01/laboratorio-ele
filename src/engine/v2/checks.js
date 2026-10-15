@@ -3,7 +3,7 @@
 
 import { makeUF } from '../circuit.js';
 import { PHASE_COLORS } from '../wires.js';
-import { act, advance, rewind, createSim, observe, setSupply, sourcesOf, stillOnIfOpen } from './sim.js';
+import { act, advance, rewind, createSim, observe, setSupply, sourcesOf, stillOnIfOpen, settle } from './sim.js';
 import { partOf, POWER_PATH } from './parts.js';
 import { measureMatches } from '../steps.js';
 
@@ -92,7 +92,7 @@ export function runCheck(level, wires, check) {
 
 /* ---------- ruoli dei fili per i colori ---------- */
 
-const CTL_TYPES = new Set(['pb', 'pbnc', 'fungo', 'port', 'spia', 'fc', 'ri', 'tmr', 'kt', 'rs']);
+const CTL_TYPES = new Set(['pb', 'pbnc', 'fungo', 'port', 'spia', 'fc', 'ri', 'tmr', 'kt', 'rs', 'plc']);
 function isCtlTerm(level, term) {
   const [id, t] = term.split('.');
   const c = level.comps.find(x => x.id === id);
@@ -151,8 +151,13 @@ const withRatings = (level, ratings) => (ratings && Object.keys(ratings).length
   ? { ...level, comps: level.comps.map(c => (ratings[c.id] ? { ...c, in: ratings[c.id] } : c)) }
   : level);
 
+// I programmi scritti dall'allievo (ctx.programs: { idPLC: [gradini] }) prendono il posto di quelli del livello.
+const withPrograms = (level, programs) => (programs && Object.keys(programs).length
+  ? { ...level, comps: level.comps.map(c => (c.type === 'plc' && programs[c.id] ? { ...c, program: programs[c.id] } : c)) }
+  : level);
+
 export function evaluateV2(level, wires, ctx = {}) {
-  level = withRatings(level, ctx.ratings);
+  level = withPrograms(withRatings(level, ctx.ratings), ctx.programs);
   const out = { work: section(), color: section(), safe: section() };
   const add = (sec, code, params) => out[sec].items.push(params ? { code, ...params } : { code });
 
@@ -246,6 +251,18 @@ export function evaluateV2(level, wires, ctx = {}) {
         if (s3.kmHistory.some(on => S.never.some(pair => pair.every(id => on.includes(id))))) both3 = true;
       }));
       if (both || both2 || both3) fail('safe.interlock');
+    }
+    if (S.emergencyHardwired) {
+      // l'arresto di emergenza non passa dal programma: con le uscite del PLC forzate tutte a 1 la macchina si ferma lo stesso
+      const { stop, start = [] } = S.emergencyHardwired;
+      const sim = createSim(level, wires);
+      sim.forcePlc = 'allOn';
+      settle(sim);
+      start.forEach(a => { act(sim, 'press', a); act(sim, 'release', a); });
+      act(sim, 'toggle', stop);
+      const o = observe(sim);
+      const contactorOn = level.comps.some(c => c.type === 'km' && o.coils[c.id]);
+      if (Object.values(o.motors).some(m => m !== 'off') || contactorOn) fail('safe.emergencyInProgram');
     }
     if (S.weldedInterlock) {
       // un contattore incollato non deve lasciar chiudere l'altro: il contatto NC di ciascuno sta nel circuito di comando dell'altro

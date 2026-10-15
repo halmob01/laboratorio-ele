@@ -142,6 +142,26 @@ export function schemV2(c, s, L, ui) {
       o += lab(xn, h - 6, '12 NC') + lab(xa, h - 6, '14 NA');
       break;
     }
+    case 'plc': {
+      // PLC: alimentazione e ingressi in alto (il pallino e' pieno se l'ingresso vale 1), uscite a relè in basso
+      const st = (obs.plc && obs.plc[c.id]) || { powered: false, inputs: {}, q: {} };
+      o += `<rect x="${w * .06}" y="${mid - 40}" width="${w * .88}" height="${h * .34}" rx="6" fill="none" stroke="${st.powered ? '#2E9E5B' : 'var(--sch)'}" stroke-width="2.6"/>`;
+      o += lab(w / 2, mid - 8, st.powered ? 'PLC · RUN' : 'PLC · SPENTO');
+      ['A1', 'A2'].forEach(t => { if (has(c, t)) { const x = w * c.terms[t].f; o += ln(x, 22, x, mid - 40, L(t)); } });
+      Object.keys(c.terms).filter(t => /^I\d+$/.test(t) || t === 'IC').forEach(t => {
+        const x = w * c.terms[t].f;
+        o += ln(x, 22, x, mid - 40, L(t));
+        if (t !== 'IC') o += `<circle cx="${x}" cy="${mid - 30}" r="4.5" fill="${st.inputs[t] ? '#F59F00' : 'none'}" stroke="var(--sch)" stroke-width="1.6"/>`;
+      });
+      Object.keys(c.terms).filter(t => /^Q\d+A$/.test(t)).forEach(a => {
+        const k = a.slice(0, -1), b = k + 'B', on = !!st.q[k];
+        const xa = w * c.terms[a].f, xb = w * c.terms[b].f, ym = h - 54;
+        o += ln(xa, ym, xa, h - 22, L(a)) + ln(xb, ym, xb, h - 22, L(b)) + dot(xa, ym) + dot(xb, ym);
+        o += on ? ln(xa, ym, xb, ym, L(a) && L(b)) : ln(xa, ym, xb - 12, ym - 12, false);
+        o += `<circle cx="${(xa + xb) / 2}" cy="${mid + 22}" r="4.5" fill="${on ? '#F59F00' : 'none'}" stroke="var(--sch)" stroke-width="1.6"/>` + lab((xa + xb) / 2, mid + 40, k);
+      });
+      break;
+    }
     case 'kt': {
       // temporizzatore ritardato all'eccitazione: bobina in alto, contatto di scambio 15 comune, 16 a riposo, 18 dopo il ritardo
       const x1 = w * c.terms.A1.f, x2 = w * c.terms.A2.f, xc = w * c.terms['15'].f, xn = w * c.terms['16'].f, xa = w * c.terms['18'].f;
@@ -275,7 +295,7 @@ export function schemV2(c, s, L, ui) {
 }
 
 // Tipi che il disegno v2 gestisce al posto di quelli del motore v1 (sw, dev e inv restano come nel v1).
-export const V2_TYPES = new Set(['quadro', 'mt', 'rcd', 'mt3', 'sez', 'pb', 'pbnc', 'fungo', 'port', 'rs', 'ri', 'rel', 'tmr', 'km', 'ft', 'fc', 'trafo', 'bell', 'spia', 'lamp', 'presa', 'motor3', 'motor6', 'kt', 'gu']);
+export const V2_TYPES = new Set(['quadro', 'mt', 'rcd', 'mt3', 'sez', 'pb', 'pbnc', 'fungo', 'port', 'rs', 'ri', 'rel', 'tmr', 'km', 'ft', 'fc', 'trafo', 'bell', 'spia', 'lamp', 'presa', 'motor3', 'motor6', 'kt', 'plc', 'gu']);
 
 /* ---------- scena della stanza / della macchina (livelli v2) ---------- */
 const DEV = new Set(['lamp', 'spia', 'bell', 'presa', 'motor3', 'motor6']);

@@ -32,6 +32,7 @@ export const HELP = {
   km: ['Il contattore', 'Ha una bobina (A1 e A2) e dei contatti. Con la bobina alimentata si chiudono i tre poli di potenza (1-2, 3-4, 5-6) e il contatto ausiliario normalmente aperto (13-14); si apre quello normalmente chiuso (21-22). Il circuito di comando e quello di potenza sono separati.'],
   kt: ['Il temporizzatore all’eccitazione', 'Ha una bobina (A1 e A2) e un contatto di scambio: 15 è il comune, 16 è chiuso a riposo, 18 si chiude dopo il tempo impostato. Se la bobina si diseccita torna subito a riposo. Serve per passare da stella a triangolo.'],
   motor6: ['Il motore a sei morsetti', 'Ha tre avvolgimenti: U1-U2, V1-V2, W1-W2, più il morsetto PE. A stella si uniscono U2, V2, W2 e ogni avvolgimento riceve 230 V. A triangolo U1 va con W2, V1 con U2, W1 con V2 e ogni avvolgimento riceve 400 V.'],
+  plc: ['Il PLC', 'È un piccolo computer per le macchine. Si alimenta in A1-A2. Gli ingressi I0, I1, I2 leggono se c’è tensione rispetto al comune IC (1 se ci sono 230 V). Ogni uscita Q è un contatto a relè, per esempio Q0A-Q0B, che si chiude quando il programma lo decide. Il programma si ripete in continuazione: legge gli ingressi, esegue i gradini, scrive le uscite.'],
   ft: ['Il relè termico', 'Sta in serie al motore e si scalda se il motore assorbe troppa corrente. Dopo un po’ scatta: apre il contatto 95-96 del comando e il motore si ferma. Si riarma a mano con il tasto Reset.'],
   mt: ['L’interruttore magnetotermico', 'Protegge la linea da sovraccarico e cortocircuito: scatta da solo. Levetta su: chiuso. Levetta giù: aperto. Ha un polo per la fase e uno per il neutro.'],
   mt3: ['Il salvamotore magnetotermico trifase', 'Protegge il motore e i circuiti collegati dopo di lui. Ha tre poli, uno per fase. Levetta su: chiuso. Scatta in caso di cortocircuito.'],
@@ -144,6 +145,7 @@ export function itemText(item, level) {
     case 'safe.notProtected': return 'Un componente (' + nameOf(level, item.comp) + ') non è a valle della protezione (' + nameOf(level, item.by) + '): in caso di guasto nessuno lo stacca.';
     case 'safe.coilReturn': return 'Il comando è sul lato del neutro: la bobina (' + nameOf(level, item.comp) + ') ha il capo A2 che non va direttamente al neutro. I comandi stanno sul lato della fase.';
     case 'safe.motorLive': return 'A comandi rilasciati il motore (' + nameOf(level, item.comp) + ') ha una fase sui suoi morsetti: una fase salta il contattore o la protezione.';
+    case 'safe.emergencyInProgram': return 'L’emergenza passa solo dal programma del PLC: se il PLC sbaglia, la macchina non si ferma. Il fungo deve interrompere il comando anche con le uscite del PLC accese.';
     case 'safe.interlock': return 'I due contattori possono chiudersi insieme: manca l’interblocco, e le fasi andrebbero in cortocircuito.';
     case 'safe.stopNotPriority': return 'Tenendo premuto l’arresto, la marcia avvia lo stesso: l’arresto deve prevalere sempre.';
     case 'safe.emergency': return 'Con il pulsante di emergenza premuto qualcosa resta alimentato: l’emergenza deve fermare tutto.';

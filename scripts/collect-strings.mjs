@@ -6,7 +6,7 @@ import { levels } from '../src/content/index.js';
 import * as home from '../src/content/home.js';
 import * as it from '../src/content/it.js';
 
-const SKIP_KEYS = new Set(['id', 'code', 'type', 'kind', 'color', 'c', 'room', 'art', 'flow', 'support', 'engine', 'correct', 'from', 'to', 'sample', 'href', 'mail', 'tag', 'status', 'phase', 'focus', 'comp', 'comps', 'terms', 'load', 'loads', 'solution', 'src', 'safety', 'checks', 'do', 'caption', 'machine', 'l', 'start', 'stop', 'pairs']);
+const SKIP_KEYS = new Set(['id', 'code', 'type', 'kind', 'color', 'c', 'room', 'art', 'flow', 'support', 'engine', 'correct', 'from', 'to', 'sample', 'href', 'mail', 'tag', 'status', 'phase', 'focus', 'comp', 'comps', 'terms', 'load', 'loads', 'solution', 'src', 'safety', 'checks', 'do', 'caption', 'machine', 'l', 'start', 'stop', 'pairs', 'program']);
 const isPhrase = s => typeof s === 'string' && /[A-Za-zÀ-ÿ]{2}/.test(s) && !/^[a-z0-9_.\-|:]+$/.test(s);
 
 export function collectContent() {
