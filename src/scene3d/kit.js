@@ -63,7 +63,7 @@ export function createStage(container, o) {
   const pmrem = new THREE.PMREMGenerator(renderer);
   let envIntensity = 0.16;
   new EXRLoader().load(ASSETS + 'ambiente.exr', t => {
-    if (disposed) return;
+    if (disposed) { t.dispose(); pmrem.dispose(); return; }
     scene.environment = pmrem.fromEquirectangular(t).texture;
     scene.environmentIntensity = envIntensity;
     hemi.intensity = 0.12;
@@ -171,7 +171,7 @@ export function createStage(container, o) {
   const pick = [];
   const el = renderer.domElement;
   el.style.touchAction = 'pan-y';
-  let down = null, held = null;
+  let down = null, held = null, heldId = null;
   const hitAt = e => {
     const rc = el.getBoundingClientRect();
     ndc.set(((e.clientX - rc.left) / rc.width) * 2 - 1, -((e.clientY - rc.top) / rc.height) * 2 + 1);
@@ -180,10 +180,11 @@ export function createStage(container, o) {
     return hit && hit.object.userData && hit.object.userData.id ? hit.object.userData : null;
   };
   el.addEventListener('pointerdown', e => {
+    if (held) return;       // un secondo dito mentre un pulsante e' tenuto premuto non cambia niente
     down = { x: e.clientX, y: e.clientY, yaw: view.yaw, pitch: view.pitch, moved: false, u: hitAt(e) };
     try { el.setPointerCapture(e.pointerId); } catch (x) { /* ok */ }
     // i pulsanti da tenere premuti partono subito, non aspettano il rilascio
-    if (down.u && down.u.hold && o.onPress) { held = down.u; o.onPress(held); }
+    if (down.u && down.u.hold && o.onPress) { held = down.u; heldId = e.pointerId; o.onPress(held); }
   });
   el.addEventListener('pointermove', e => {
     if (!down || held) return;
@@ -197,13 +198,14 @@ export function createStage(container, o) {
     }
   });
   const end = e => {
+    if (held && e.pointerId !== heldId) return;
     const d = down; down = null;
     if (held) { const h = held; held = null; if (o.onRelease) o.onRelease(h); return; }
     if (!d || d.moved || !d.u) return;
     if (o.onTap) o.onTap(d.u);
   };
   el.addEventListener('pointerup', end);
-  el.addEventListener('pointercancel', () => { down = null; if (held) { const h = held; held = null; if (o.onRelease) o.onRelease(h); } });
+  el.addEventListener('pointercancel', e => { if (held && e.pointerId !== heldId) return; down = null; if (held) { const h = held; held = null; if (o.onRelease) o.onRelease(h); } });
   el.addEventListener('wheel', e => {
     if (!e.ctrlKey) return;
     e.preventDefault();

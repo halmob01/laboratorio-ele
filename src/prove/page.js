@@ -65,6 +65,7 @@ export function createProva(host, env) {
     name = snap.level.prova.scene;
     loadScript().then(ok => {
       if (!mounted || my !== token) return;
+      sceneEl.hidden = false;       // la scena misura il contenitore: va mostrato prima di crearla
       const api = ok && window.FaseNeutroProve && window.FaseNeutroProve.createScene(name, sceneEl, { reduced: env.reduced(), onTap: tap, onPress: press, onRelease: release });
       if (api) {
         scene = api; sceneState = 'ready'; host._scene = api;     // per i test della pagina
@@ -98,6 +99,7 @@ export function createProva(host, env) {
   return {
     // Chiamata a ogni ridisegno della pagina con il livello aperto.
     sync(snapshot) {
+      if (mounted && name && snapshot.level.prova && snapshot.level.prova.scene !== name) this.unmount();   // da una prova a un'altra: scena nuova
       if (!mounted) { mounted = true; build(); apply(); }
       lastSnap = snapshot;
       if (sceneState === 'idle') loadScene(snapshot);
@@ -107,6 +109,7 @@ export function createProva(host, env) {
       holding.forEach(id => { try { s().release(id); } catch (e) { /* si lascia la pagina */ } });
       holding.clear();
       if (scene) { scene.dispose(); scene = null; }
+      host._scene = null; name = null;
       sceneState = 'idle'; mounted = false; lastSnap = null; token++;
       host.innerHTML = ''; host.onclick = null;
     },

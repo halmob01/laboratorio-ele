@@ -178,8 +178,11 @@ function renderLevelScreen() {
   const hl = isHouseLevel(S.level.id), pv = isProvaLevel(S.level);
   scr.className = 'phase-' + (inLesson ? 'learn' : 'play') + (S.playMode === 'verifica' ? ' verify' : '') + (hl || pv ? ' with-house' : '');
   $('#house').hidden = !(hl || pv);
-  if (hl) house.sync(S); else if (house.isMounted()) house.unmount();
-  if (pv) prova.sync(S); else if (prova.isMounted()) prova.unmount();
+  // prima si smonta la vista che si lascia, poi si monta l'altra (condividono il contenitore)
+  if (!hl && house.isMounted()) house.unmount();
+  if (!pv && prova.isMounted()) prova.unmount();
+  if (hl) house.sync(S);
+  if (pv) prova.sync(S);
   $('#lesson').hidden = !inLesson;
   $('#work').hidden = inLesson;
   if (inLesson) { renderLesson(); return; }

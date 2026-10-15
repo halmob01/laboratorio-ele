@@ -374,6 +374,7 @@ export function createSession({ levels, deriveFull, storage = memoryStorage(), i
     // sezionamenti che la sfida apre in partenza (si ripara senza tensione)
     if (v2(level)) (level.unit.fault.open || []).forEach(id => { const s0 = simFor().parts[id]; if (s0 && s0.on) act(simFor(), 'toggle', id); });
     us.diag = null;
+    if (level.prova) us.diagWrong = false;       // nella prova si puo' rifare da capo; nelle sfide guasto l'errore resta
   }
   // Livelli "prova" (scena 3D): l'impianto e' gia' cablato e guasto, senza il cablaggio da fare. Parte da solo, una volta.
   function armProva() {
@@ -386,6 +387,8 @@ export function createSession({ levels, deriveFull, storage = memoryStorage(), i
   }
   // Finita la lezione: si passa al cablaggio, o per una prova direttamente all'impianto guasto.
   function toPlay(us) {
+    if (levelAt().prova && us.back === 'done') { us.phase = 'done'; delete us.back; return; }   // prova gia' superata: si torna alla fine
+    delete us.back;
     us.phase = levelAt().prova ? 'fault' : 'build';
     if (us.phase === 'fault') armProva();
   }
@@ -827,6 +830,7 @@ export function createSession({ levels, deriveFull, storage = memoryStorage(), i
     showLesson() {
       if (!levelAt().unit || playMode === 'verifica' || mode !== 'quadro') return;
       const us = unitState();
+      if (levelAt().prova && us.phase === 'done') us.back = 'done';
       us.phase = 'lesson';
       us.page = 0;
       emit();

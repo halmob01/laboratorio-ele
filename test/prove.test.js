@@ -129,3 +129,30 @@ test('la prova si puo’ rifare dopo averla superata', () => {
   assert.equal(sn.unit.phase, 'fault');
   assert.equal(tripped(s), 'D');
 });
+
+test('c23: dopo una diagnosi sbagliata la prova rifatta bene da capo vale', () => {
+  const s = open('c23-appartamento-notte');
+  s.skipLesson();
+  s.answerDiagnosis('a');
+  s.leaveFault();
+  s.selectLevel('c23-appartamento-notte');
+  assert.equal(s.snapshot().unit.phase, 'fault');
+  s.answerDiagnosis('b');
+  assert.equal(s.snapshot().unit.diag.correct, true);
+});
+
+test('c23: rivedere la lezione dopo aver superato la prova riporta alla fine e non azzera niente', () => {
+  const s = open('c23-appartamento-notte');
+  s.skipLesson();
+  s.answerDiagnosis('b');
+  s.toggleControl('G');
+  assert.equal(s.check().pass, true);
+  assert.equal(s.snapshot().unit.phase, 'done');
+  s.showLesson();
+  s.skipLesson();
+  assert.equal(s.snapshot().unit.phase, 'done');
+  s.selectLevel('c24-officina');
+  s.selectLevel('c23-appartamento-notte');
+  assert.equal(s.snapshot().unit.phase, 'done');
+  assert.equal(s.snapshot().unit.faultSolved, true);
+});

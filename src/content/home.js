@@ -49,7 +49,6 @@ export const MODULES = [
 
 // Prove dei moduli ancora da costruire, mostrate in fondo alla mappa.
 export const UPCOMING = [
-  { tag: 'PROVE DEI MODULI', title: 'Appartamento e nastro', note: 'Un appartamento di notte e un nastro trasportatore, in 3D' },
 ];
 
 // Introduzione animata: una scena per voce. `art` e' la chiave del disegno (src/ui2d/art.js).

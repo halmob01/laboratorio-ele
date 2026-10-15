@@ -429,7 +429,7 @@ export default {
 "Il contatto 95-96 del termico deve stare in serie nel circuito di comando, prima del fungo di emergenza.": "يجب أن يكون الملامس 95-96 للمرحّل الحراري على التسلسل في دائرة التحكم، قبل زر الطوارئ.",
 "Il contatto 95-96 del termico non comanda la bobina del contattore.": "الملامس 95-96 للمرحّل الحراري لا يتحكم في ملف الكونتاكتور.",
 "Il differenziale scatta per le dispersioni, i magnetotermici per sovraccarico e cortocircuito: capire chi è scattato dice già dove guardare.": "يفصل القاطع التفاضلي عند التسرّب، وتفصل القواطع المغناطيسية الحرارية عند الحمل الزائد والدائرة القصيرة: معرفة من فصل تدلّك على مكان البحث.",
-"Il differenziale scatta per una dispersione, non per un cortocircuito: in un cortocircuito scatterebbe il magnetotermico. Resta armato con le altre linee, quindi funziona: la dispersione è sulla linea che lo fa scattare.": "يفصل القاطع التفاضلي بسبب تسرّب وليس بسبب دائرة قصيرة: في الدائرة القصيرة يفصل القاطع المغناطيسي الحراري. يبقى مُسلَّحًا مع الخطوط الأخرى، أي أنه يعمل: التسرّب في الخط الذي يجعله يفصل.",
+"Il differenziale scatta per una dispersione, non per un cortocircuito: in un cortocircuito tra fase e neutro scatterebbe il magnetotermico. Resta armato con le altre linee, quindi funziona: la dispersione è sulla linea che lo fa scattare.": "يفصل القاطع التفاضلي بسبب تسرّب وليس بسبب دائرة قصيرة: في دائرة قصيرة بين الطور والحياد يفصل القاطع المغناطيسي الحراري. يبقى مُسلَّحًا مع الخطوط الأخرى، أي أنه يعمل: التسرّب في الخط الذي يجعله يفصل.",
 "Il differenziale scatta quando una linea disperde. Apri i tre magnetotermici, riarma il differenziale e richiudi una linea alla volta.": "يفصل القاطع التفاضلي عندما يتسرّب أحد الخطوط. افتح القواطع المغناطيسية الحرارية الثلاثة، وأعد تسليح القاطع التفاضلي، ثم أغلق خطًا واحدًا في كل مرة.",
 "Il differenziale è guasto.": "القاطع التفاضلي معطّل.",
 "Il differenziale è scattato e al buio non si vede niente. Apri i tre magnetotermici, riarma il differenziale e richiudi una linea alla volta. Quando hai trovato la linea, rispondi.": "فصل القاطع التفاضلي ولا يُرى شيء في العتمة. افتح القواطع المغناطيسية الحرارية الثلاثة، وأعد تسليح القاطع التفاضلي، ثم أغلق خطًا واحدًا في كل مرة. عندما تجد الخط، أجب.",
@@ -481,4 +481,7 @@ export default {
 "Pulsantiera": "لوحة الأزرار",
 "Rifai la prova": "أعد التجربة",
 "La scena 3D non è disponibile su questo dispositivo: l’esercizio funziona con il banco qui sotto.": "المشهد ثلاثي الأبعاد غير متاح على هذا الجهاز: يعمل التمرين بالطاولة الموجودة في الأسفل.",
+"Stufetta": "المدفأة الكهربائية",
+"Nastro": "السير الناقل",
+"TV": "التلفزيون",
 };

@@ -1668,7 +1668,7 @@ export const UNITS_V2 = {
             { id: 'c', text: 'La linea delle prese è in cortocircuito.' },
           ],
           correct: 'a',
-          why: 'Il differenziale scatta per una dispersione, non per un cortocircuito: in un cortocircuito scatterebbe il magnetotermico. Resta armato con le altre linee, quindi funziona: la dispersione è sulla linea che lo fa scattare.',
+          why: 'Il differenziale scatta per una dispersione, non per un cortocircuito: in un cortocircuito tra fase e neutro scatterebbe il magnetotermico. Resta armato con le altre linee, quindi funziona: la dispersione è sulla linea che lo fa scattare.',
         },
         { type: 'sintesi', title: 'Da ricordare' },
       ],
