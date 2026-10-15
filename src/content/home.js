@@ -55,7 +55,7 @@ export const MODULES = [
       'c28-stella-triangolo',
       'c29-plc',
       'c30-ladder',
-      { soon: true, title: 'Tempo e conteggio', blurb: 'Temporizzatori e contatori nel programma.' },
+      'c31-tempo',
       { soon: true, title: 'Il nastro con il PLC', blurb: 'Fotocellula e conteggio; fungo e termico restano cablati.' },
     ],
     milestone: { soon: true, art: 'plc', kick: 'Nastro con il PLC', name: 'Un nastro che si comanda da programma', text: 'Fotocellula, conteggio dei pacchi, emergenza e termico che restano cablati.' },

@@ -71,8 +71,11 @@ function programUI(w, d, level) {
     if (c.rise) lac('type', 'rise'); else if (c.not) lac('type', 'not');
     setSel(q(d, 'select[data-lac="addr"]'), c.a);
   };
-  Object.values(level.solutionPrograms || {}).forEach(prog => {
+  Object.entries(level.solutionPrograms || {}).forEach(([pid, prog]) => {
+    const plc = level.comps.find(c => c.id === pid);
+    const skip = (plc && plc.edit && plc.edit.start ? plc.edit.start : []).length;   // gradini gia' scritti dal livello
     prog.forEach((r, i) => {
+      if (i < skip) return;
       lac('addRung');
       const cells = toCells(r.if) || [];
       cells.forEach(cell => {
@@ -84,7 +87,10 @@ function programUI(w, d, level) {
       r.do.forEach(ins => {
         click(w, q(d, `[data-lad="r"][data-r="${i}"]`));
         lac('addOut');
-        setSel(q(d, 'select[data-lac="outaddr"]'), ins.a);
+        if (ins.op === 'ton') {
+          lac('optype', 'ton');
+          const inp = q(d, 'input[data-lac="pt"]'); inp.value = String(ins.pt); inp.dispatchEvent(new w.Event('change', { bubbles: true }));
+        } else setSel(q(d, 'select[data-lac="outaddr"]'), ins.a);
       });
     });
   });

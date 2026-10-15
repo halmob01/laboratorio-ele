@@ -146,6 +146,7 @@ export function itemText(item, level) {
     case 'safe.coilReturn': return 'Il comando è sul lato del neutro: la bobina (' + nameOf(level, item.comp) + ') ha il capo A2 che non va direttamente al neutro. I comandi stanno sul lato della fase.';
     case 'safe.motorLive': return 'A comandi rilasciati il motore (' + nameOf(level, item.comp) + ') ha una fase sui suoi morsetti: una fase salta il contattore o la protezione.';
     case 'safe.emergencyInProgram': return 'L’emergenza passa solo dal programma del PLC: se il PLC sbaglia, la macchina non si ferma. Il fungo deve interrompere il comando anche con le uscite del PLC accese.';
+    case 'safe.outputsTogether': return 'Il programma accende insieme due uscite che non devono mai essere accese insieme (per esempio stella e triangolo): le fasi andrebbero in cortocircuito. Una delle due deve spegnersi prima che l’altra si accenda.';
     case 'safe.interlock': return 'I due contattori possono chiudersi insieme: manca l’interblocco, e le fasi andrebbero in cortocircuito.';
     case 'safe.stopNotPriority': return 'Tenendo premuto l’arresto, la marcia avvia lo stesso: l’arresto deve prevalere sempre.';
     case 'safe.emergency': return 'Con il pulsante di emergenza premuto qualcosa resta alimentato: l’emergenza deve fermare tutto.';

@@ -2596,4 +2596,156 @@ export const UNITS_V2 = {
       fixSay: 'Tocca il contatto di I0 nel gradino 1 e cambialo in normalmente aperto. Poi premi Verifica.',
     },
   },
+  'c31-tempo': {
+    support: 'passi',
+    lesson: {
+      pages: [
+        {
+          type: 'spiegazione',
+          title: 'Il tempo nel programma',
+          paras: [
+            'In stella-triangolo il passaggio da stella a triangolo avviene dopo un ritardo, e nel cablaggio lo faceva un temporizzatore a parte, KT. Un PLC non ne ha bisogno: contare il tempo è una funzione del programma.',
+            'Questo livello rifà lo stesso motore, con gli stessi tre contattori, ma senza KT. Il PLC comanda tutti e tre: Q0 la linea (KM1), Q1 la stella (KM2), Q2 il triangolo (KM3).',
+          ],
+        },
+        {
+          type: 'spiegazione',
+          title: 'Il temporizzatore TON',
+          paras: [
+            'Il TON (ritardo all’eccitazione) ha una condizione in ingresso, un tempo impostato e un bit di uscita, per esempio T1. Quando la condizione diventa vera il TON comincia a contare. Passato il tempo, T1 diventa 1 e ci resta finché la condizione resta vera.',
+            'Se la condizione cade, anche per un attimo, il conteggio si azzera subito e T1 torna a 0. Il bit T1 poi si legge come un qualsiasi contatto: normalmente aperto vale se T1 è 1, normalmente chiuso vale se T1 è ancora 0.',
+          ],
+          table: {
+            head: ['Che cosa succede', 'Valore di T1 (tempo 6 s)'],
+            rows: [
+              ['La condizione diventa vera: il conteggio parte', '0'],
+              ['Sono passati 3 secondi, condizione ancora vera', '0'],
+              ['Sono passati 6 secondi, condizione ancora vera', '1'],
+              ['La condizione cade: il conteggio si azzera', '0'],
+            ],
+          },
+        },
+        {
+          type: 'spiegazione',
+          title: 'I tre gradini del programma',
+          paras: [
+            'Oltre al gradino di marcia e arresto, che accende Q0, servono tre gradini: il temporizzatore, la stella, il triangolo. Ognuno risponde a una domanda semplice.',
+          ],
+          table: {
+            head: ['Gradino', 'Quando è vero, e che cosa fa'],
+            rows: [
+              ['Temporizzatore T1', 'Q0 è acceso: parte il conteggio dei 6 secondi.'],
+              ['Stella Q1', 'Q0 è acceso e T1 vale ancora 0: stella per i primi 6 secondi.'],
+              ['Triangolo Q2', 'Q0 è acceso e T1 vale 1: dopo 6 secondi si passa a triangolo.'],
+            ],
+          },
+        },
+        {
+          type: 'spiegazione',
+          title: 'Stella e triangolo non insieme',
+          paras: [
+            'Come in c28, stella e triangolo non devono mai essere chiusi insieme: le tre fasi andrebbero in cortocircuito. Allora c’era l’interblocco dei contatti NC nei fili; ora lo garantisce il programma.',
+            'I due gradini usano T1 in modo opposto: la stella lo vuole a 0, il triangolo lo vuole a 1. Non possono essere veri nello stesso momento, quindi Q1 e Q2 non si accendono mai insieme. È l’interblocco, scritto nel programma.',
+          ],
+          warn: 'Se dimentichi T1 nel gradino della stella, a 6 secondi il triangolo si accende mentre la stella è ancora chiusa: corto circuito.',
+        },
+        {
+          type: 'previsione',
+          question: 'Il motore è in marcia da 3 secondi e il tempo impostato è 6. Quanto vale T1?',
+          options: [
+            { id: 'a', text: '1: il temporizzatore ha già cominciato a contare.' },
+            { id: 'b', text: '0: T1 diventa 1 solo quando il tempo è passato.' },
+            { id: 'c', text: 'Dipende da Marcia.' },
+          ],
+          correct: 'b',
+          why: 'T1 è il bit "tempo scaduto". Resta a 0 durante il conteggio e diventa 1 solo quando sono passati tutti i 6 secondi, con la condizione sempre vera. Per questo la stella resta accesa nei primi 6 secondi.',
+        },
+        {
+          type: 'previsione',
+          question: 'Durante il conteggio premi Arresto, poi di nuovo Marcia. Quanto aspetta il motore prima del triangolo?',
+          options: [
+            { id: 'a', text: 'Solo il tempo che mancava.' },
+            { id: 'b', text: 'Altri 6 secondi pieni: il conteggio riparte da zero.' },
+            { id: 'c', text: 'Va subito in triangolo.' },
+          ],
+          correct: 'b',
+          why: 'Premendo Arresto, Q0 si spegne e la condizione del TON cade: il conteggio si azzera. Alla nuova partenza il motore riparte in stella e il tempo si ricomincia da capo, come richiede un avviamento corretto.',
+        },
+        {
+          type: 'previsione',
+          question: 'Nel gradino della stella c’è solo il contatto Q0, senza T1. Che cosa succede dopo 6 secondi?',
+          options: [
+            { id: 'a', text: 'Il motore passa in triangolo regolarmente.' },
+            { id: 'b', text: 'Stella e triangolo sono chiusi insieme: le fasi vanno in cortocircuito e il salvamotore scatta.' },
+            { id: 'c', text: 'Il motore resta in stella e non cambia niente.' },
+          ],
+          correct: 'b',
+          why: 'Senza T1 la stella resta accesa finché Q0 è acceso, anche dopo i 6 secondi. Allo scadere il triangolo si accende e i due contattori sono chiusi insieme: stella e triangolo uniti mettono in corto le tre fasi.',
+        },
+        {
+          type: 'spiegazione',
+          title: 'Come si inserisce il temporizzatore',
+          paras: [
+            'Nell’editor, un gradino con un temporizzatore ha come uscita non una bobina ma il TON. Aggiungi un gradino, poi Aggiungi uscita, e scegli Temporizzatore: puoi impostare il tempo in secondi.',
+            'Il suo bit, T1, compare poi tra i bit che puoi scegliere nei contatti degli altri gradini. Per averlo normalmente chiuso, cambia il tipo del contatto in Normalmente chiuso.',
+          ],
+        },
+        { type: 'sintesi', title: 'Da ricordare' },
+      ],
+    },
+    steps: [
+      { kind: 'program', plc: 'PLC', min: 2, short: '1 Tempo', title: 'Il temporizzatore', text: 'Nuovo gradino: contatto Q0 e, come uscita, un temporizzatore di 6 secondi. Perché: il conteggio deve partire quando il motore è acceso.' },
+      { kind: 'program', plc: 'PLC', min: 3, short: '2 Stella', title: 'Il gradino della stella', text: 'Contatto Q0 in serie con T1 normalmente chiuso, bobina Q1. Perché: la stella vale solo finché il tempo non è scaduto.' },
+      { kind: 'program', plc: 'PLC', min: 4, short: '3 Triangolo', title: 'Il gradino del triangolo', text: 'Contatto Q0 in serie con T1 normalmente aperto, bobina Q2. Perché: il triangolo parte quando il tempo è scaduto e non si sovrappone alla stella.' },
+      { kind: 'control', id: 'SB1', short: '4 Prova', title: 'Prova l’avviamento', text: 'Premi Marcia: il motore parte in stella e, dopo 6 secondi, passa in triangolo. Premi Arresto: si ferma.' },
+      { kind: 'verify', short: '5 Verifica', title: 'Controlla il programma', text: 'Premi Verifica.' },
+    ],
+    summary: [
+      'Un PLC conta il tempo da solo, con un temporizzatore ritardato (TON): non serve un componente a parte.',
+      'Il TON parte quando la sua condizione è vera, e il suo bit (T1) diventa 1 dopo il tempo impostato. Se la condizione cade, si azzera.',
+      'Stella e triangolo si distinguono con T1: la stella lo vuole a 0, il triangolo a 1.',
+      'Con T1 usato in modo opposto, i due gradini non sono mai veri insieme: è l’interblocco scritto nel programma.',
+      'Dopo un arresto il conteggio riparte da zero e il motore riparte in stella.',
+    ],
+    fault: {
+      say: 'Il programma è già scritto, ma premendo Marcia il motore parte in stella e dopo qualche secondo scatta il salvamotore. Guarda il gradino della stella.',
+      wires: [
+        ['Q.L1', 'QM.1', 'marrone'], ['Q.L2', 'QM.3', 'nero'], ['Q.L3', 'QM.5', 'grigio'],
+        ['QM.2', 'KM1.1', 'marrone'], ['QM.4', 'KM1.3', 'nero'], ['QM.6', 'KM1.5', 'grigio'],
+        ['KM1.2', 'M.U1', 'marrone'], ['KM1.4', 'M.V1', 'nero'], ['KM1.6', 'M.W1', 'grigio'],
+        ['KM2.1', 'M.U2', 'marrone'], ['KM2.3', 'M.V2', 'nero'], ['KM2.5', 'M.W2', 'grigio'],
+        ['KM2.2', 'KM2.4', 'nero'], ['KM2.4', 'KM2.6', 'nero'],
+        ['KM3.1', 'M.U1', 'marrone'], ['KM3.2', 'M.W2', 'grigio'],
+        ['KM3.3', 'M.V1', 'nero'], ['KM3.4', 'M.U2', 'marrone'],
+        ['KM3.5', 'M.W1', 'grigio'], ['KM3.6', 'M.V2', 'nero'],
+        ['M.PE', 'Q.PE', 'gv'],
+        ['QM.2', 'PLC.A1', 'rosso'], ['PLC.A2', 'Q.N', 'blu'],
+        ['QM.2', 'SB0.1', 'rosso'], ['SB0.2', 'PLC.I0', 'rosso'],
+        ['QM.2', 'SB1.3', 'rosso'], ['SB1.4', 'PLC.I1', 'rosso'],
+        ['PLC.IC', 'Q.N', 'blu'],
+        ['QM.2', 'PLC.Q0A', 'rosso'], ['PLC.Q0B', 'KM1.A1', 'rosso'], ['KM1.A2', 'Q.N', 'blu'],
+        ['QM.2', 'PLC.Q1A', 'rosso'], ['PLC.Q1B', 'KM2.A1', 'rosso'], ['KM2.A2', 'Q.N', 'blu'],
+        ['QM.2', 'PLC.Q2A', 'rosso'], ['PLC.Q2B', 'KM3.A1', 'rosso'], ['KM3.A2', 'Q.N', 'blu'],
+      ],
+      programs: {
+        PLC: [
+          { if: ['and', ['or', 'I1', 'Q0'], 'I0'], do: [{ op: 'coil', a: 'Q0' }] },
+          { if: 'Q0', do: [{ op: 'ton', id: 'T1', pt: 6 }] },
+          { if: 'Q0', do: [{ op: 'coil', a: 'Q1' }] },
+          { if: ['and', 'Q0', 'T1'], do: [{ op: 'coil', a: 'Q2' }] },
+        ],
+      },
+      diagnosis: {
+        question: 'Perché scatta il salvamotore dopo qualche secondo?',
+        options: [
+          { id: 'a', text: 'Il gradino della stella non guarda T1: a 6 secondi la stella resta accesa e si accende anche il triangolo, e le fasi vanno in corto.' },
+          { id: 'b', text: 'Il tempo impostato è troppo lungo.' },
+          { id: 'c', text: 'Il motore è in sovraccarico.' },
+        ],
+        correct: 'a',
+        why: 'Il gradino della stella dipende solo da Q0, quindi resta vero anche dopo i 6 secondi. Quando T1 diventa 1 si accende anche il triangolo: stella e triangolo sono chiusi insieme e mettono in corto le tre fasi. Serve T1 normalmente chiuso nel gradino della stella.',
+      },
+      fixSay: 'Nel gradino della stella aggiungi in serie un contatto di T1 e mettilo normalmente chiuso. Poi premi Verifica.',
+    },
+  },
 };

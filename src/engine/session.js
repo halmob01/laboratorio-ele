@@ -71,9 +71,11 @@ export function createSession({ levels, deriveFull, storage = memoryStorage(), i
   const blank = (i = levelIndex, m = mode) => fixedOf(levelAt(i, m));
   const wires = () => wiresByKey[keyOf()] || (wiresByKey[keyOf()] = blank());
   // Programmi dei PLC: quelli dell'allievo prendono il posto del programma del livello (un PLC con `edit` parte vuoto).
-  const programsOf = (i = levelIndex, m = mode) => programsByKey[keyOf(i, m)] || {};
+  // `edit.start` e' il programma da cui parte l'allievo (se il livello ne dà uno); Annulla tutto vi riporta.
+  const initialPrograms = lv => Object.fromEntries(lv.comps.filter(c => c.type === 'plc' && c.edit && c.edit.start).map(c => [c.id, JSON.parse(JSON.stringify(c.edit.start))]));
+  const programsOf = (i = levelIndex, m = mode) => programsByKey[keyOf(i, m)] || initialPrograms(levelAt(i, m));
   const withProg = (lv, k = keyOf()) => {
-    const pr = programsByKey[k];
+    const pr = programsByKey[k] || initialPrograms(lv);
     return pr && lv.comps.some(c => c.type === 'plc' && pr[c.id]) ? { ...lv, comps: lv.comps.map(c => (c.type === 'plc' && pr[c.id] ? { ...c, program: pr[c.id] } : c)) } : lv;
   };
   const states = () => statesByKey[keyOf()] || (statesByKey[keyOf()] = {});
@@ -277,7 +279,7 @@ export function createSession({ levels, deriveFull, storage = memoryStorage(), i
     const rs = mode === 'quadro' ? ratingsOf() : {};
     l.comps.forEach(c => { if (rs[c.id] && rs[c.id] !== c.in) rt[c.id] = rs[c.id]; });
     const ms = (measuredBy[keyOf()] || []).slice(0, 100);
-    const pg = programsOf();
+    const pg = programsByKey[keyOf()] || {};     // si salva solo cio' che l'allievo ha cambiato
     const lv_ = (liveEditsBy[keyOf()] || []).slice(0, 20);
     const iso_ = mode === 'quadro' ? isoOf() : {};
     if (ws.length || Object.keys(st).length || Object.keys(rt).length || ms.length || lv_.length || Object.keys(iso_).length || Object.keys(pg).length) {

@@ -264,6 +264,11 @@ export function evaluateV2(level, wires, ctx = {}) {
       const contactorOn = level.comps.some(c => c.type === 'km' && o.coils[c.id]);
       if (Object.values(o.motors).some(m => m !== 'off') || contactorOn) fail('safe.emergencyInProgram');
     }
+    if (S.outputsNeverTogether) {
+      // uscite del PLC che non devono mai essere accese insieme (stella e triangolo): in nessuna prova, nemmeno per una scansione
+      const bad = runs.some(x => x.r.sim.qHistory.some(on => S.outputsNeverTogether.some(pair => pair.every(id => on.includes(id)))));
+      if (bad) fail('safe.outputsTogether');
+    }
     if (S.weldedInterlock) {
       // un contattore incollato non deve lasciar chiudere l'altro: il contatto NC di ciascuno sta nel circuito di comando dell'altro
       const { pairs, start = [], stop = [] } = S.weldedInterlock;

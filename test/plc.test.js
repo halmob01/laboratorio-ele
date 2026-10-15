@@ -236,3 +236,58 @@ test('c30: sfida guasto con il programma sbagliato (NC su I0), poi si ripara e s
   assert.equal(s.check().pass, true);
   assert.equal(s.snapshot().unit.faultSolved, true);
 });
+
+/* ---------- c31: il temporizzatore nel PLC ---------- */
+const L31 = levels.find(l => l.id === 'c31-tempo');
+const W31 = ws => ws.map(([a, b, c], k) => ({ id: k + 1, a, b, c }));
+const lvProg = (L, prog) => ({ ...L, comps: L.comps.map(c => (c.type === 'plc' ? { ...c, program: prog } : c)) });
+
+test('c31: la soluzione dà tre stelle e passa da stella a triangolo dopo 6 secondi', () => {
+  const r = evaluateV2(L31, W31(L31.solution), { programs: L31.solutionPrograms });
+  assert.equal(r.pass, true, JSON.stringify(r));
+  const s = createSim(lvProg(L31, L31.solutionPrograms.PLC), W31(L31.solution));
+  press(s, 'SB1');
+  assert.equal(observe(s).modes.M, 'star');
+  advance(s, 5);
+  assert.equal(observe(s).modes.M, 'star');
+  advance(s, 1);
+  assert.equal(observe(s).modes.M, 'delta');
+  assert.deepEqual(observe(s).tripped, []);
+});
+
+test('c31: il programma di partenza ha il solo gradino di marcia e il motore resta fermo ma non c\'e\' corto', () => {
+  const s = createSim(lvProg(L31, L31.comps.find(c => c.id === 'PLC').edit.start), W31(L31.solution));
+  press(s, 'SB1');
+  assert.equal(observe(s).motors.M, 'off');
+  assert.equal(evaluateV2(L31, W31(L31.solution), { programs: { PLC: L31.comps.find(c => c.id === 'PLC').edit.start } }).pass, false);
+});
+
+test('c31: senza T1 nel gradino della stella le uscite Q1 e Q2 si accendono insieme e scatta il salvamotore', () => {
+  const bad = L31.unit.fault.programs.PLC;
+  const s = createSim(lvProg(L31, bad), W31(L31.solution));
+  press(s, 'SB1');
+  advance(s, 7);
+  assert.ok(observe(s).tripped.includes('QM') || observe(s).faults.length > 0);
+  assert.equal(evaluateV2(L31, W31(L31.solution), { programs: { PLC: bad } }).pass, false);
+});
+
+test('c31: la regola outputsNeverTogether scopre le due uscite accese insieme anche quando il corto non si vede', () => {
+  // programma che accende Q1 e Q2 insieme ma con la stella che non fa corto da sola: basta la lettura delle uscite
+  const bad = [
+    { if: ['and', ['or', 'I1', 'Q0'], 'I0'], do: [{ op: 'coil', a: 'Q0' }] },
+    { if: 'Q0', do: [{ op: 'ton', id: 'T1', pt: 6 }] },
+    { if: ['and', 'Q0', ['not', 'T1']], do: [{ op: 'coil', a: 'Q1' }] },
+    { if: 'Q0', do: [{ op: 'coil', a: 'Q2' }] },
+  ];
+  const s = createSim(lvProg(L31, bad), W31(L31.solution));
+  press(s, 'SB1');
+  assert.ok(s.qHistory.some(on => on.includes('PLC.Q1') && on.includes('PLC.Q2')));
+});
+
+test('c31: il temporizzatore si azzera se si preme Arresto durante il conteggio', () => {
+  const s = createSim(lvProg(L31, L31.solutionPrograms.PLC), W31(L31.solution));
+  press(s, 'SB1'); advance(s, 4);
+  press(s, 'SB0');
+  press(s, 'SB1'); advance(s, 4);
+  assert.equal(observe(s).modes.M, 'star');
+});

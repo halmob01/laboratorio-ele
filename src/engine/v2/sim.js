@@ -39,6 +39,7 @@ export function createSim(level, wires = []) {
     programs: {},          // programmi dei PLC scritti dall'allievo: { idPLC: [gradini] }; senza, vale quello del livello
     plcDt: 0,              // secondi da consegnare alla prossima scansione
     forcePlc: null,        // 'allOn': prova di sicurezza, tutte le uscite dei PLC forzate a 1
+    qHistory: [],          // uscite accese dopo ogni scansione (regola outputsNeverTogether)
   };
   settle(sim);
   return sim;
@@ -50,6 +51,7 @@ export function setWires(sim, wires) {
   sim.unstable = false;
   sim.mainTrip = false;
   sim.kmHistory = [];
+  sim.qHistory = [];
   sim.cableHeat = 0; sim.cableBurnt = false;
   settle(sim);
 }
@@ -307,7 +309,11 @@ function plcScan(sim, an) {
     if (sim.forcePlc === 'allOn') q = Object.fromEntries(Object.keys(c.terms).filter(t => /^Q\d+A$/.test(t)).map(t => [t.slice(0, -1), true]));
     const same = Object.keys({ ...q, ...s.q }).every(k => !!q[k] === !!s.q[k]);
     s.mem = r.mem; s.rungs = r.rungs; s.inputs = an.plcIn[c.id];
-    if (!same) { s.q = q; changed = true; }
+    if (!same) {
+      s.q = q; changed = true;
+      sim.qHistory.push(Object.keys(q).filter(k => q[k]).map(k => c.id + '.' + k));
+      if (sim.qHistory.length > 200) sim.qHistory.splice(0, sim.qHistory.length - 200);
+    }
   });
   return changed;
 }
@@ -322,9 +328,13 @@ export function settle(sim) {
     if (sim.kmHistory.length > 200) sim.kmHistory.splice(0, sim.kmHistory.length - 200);
     sim.kmHistory.push(comps.filter(c => c.type === 'km' && sim.parts[c.id].on).map(c => c.id));
     if (protect(sim, an)) continue;
-    // bobine una alla volta, in ordine di livello
+    // bobine una alla volta, in ordine di livello. Prima si aprono i contattori che devono cadere, poi si chiudono gli altri
+    // (apre prima di chiudere: stella e triangolo cambiati nella stessa scansione non si sovrappongono mai).
     let changed = false;
+    const drops = c => (c.type === 'km' || c.type === 'rel') && !an.coils[c.id] && sim.parts[c.id].on && !sim.parts[c.id].welded;
+    for (const pass of [0, 1]) {
     for (const c of comps) {
+      if (pass === 0 && !drops(c)) continue;
       const p = partOf(c);
       if (!p.coil) continue;
       const s = sim.parts[c.id];
@@ -361,6 +371,8 @@ export function settle(sim) {
         if (en !== s.coil) { s.coil = en; changed = true; }
       }
       if (changed) break;
+    }
+    if (changed) break;
     }
     if (!changed && plcScan(sim, an)) changed = true;
     if (!changed) { sim.unstable = false; return; }

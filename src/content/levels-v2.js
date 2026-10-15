@@ -872,3 +872,56 @@ LEVELS_V2.push({
     'Il gradino 2 è semplice: un contatto Q0 e la bobina Q1, la spia.',
   ],
 });
+
+// c31: stella-triangolo comandato dal PLC. La potenza e il cablaggio sono fatti; il programma parte con il gradino del motore (come c30)
+// e l'allievo aggiunge il temporizzatore, la stella e il triangolo.
+const C28 = LEVELS_V2.find(l => l.id === 'c28-stella-triangolo');
+const PLC_WIRES_31 = [
+  ['QM.2', 'PLC.A1', 'rosso'], ['PLC.A2', 'Q.N', 'blu'],
+  ['QM.2', 'SB0.1', 'rosso'], ['SB0.2', 'PLC.I0', 'rosso'],
+  ['QM.2', 'SB1.3', 'rosso'], ['SB1.4', 'PLC.I1', 'rosso'],
+  ['PLC.IC', 'Q.N', 'blu'],
+  ['QM.2', 'PLC.Q0A', 'rosso'], ['PLC.Q0B', 'KM1.A1', 'rosso'], ['KM1.A2', 'Q.N', 'blu'],
+  ['QM.2', 'PLC.Q1A', 'rosso'], ['PLC.Q1B', 'KM2.A1', 'rosso'], ['KM2.A2', 'Q.N', 'blu'],
+  ['QM.2', 'PLC.Q2A', 'rosso'], ['PLC.Q2B', 'KM3.A1', 'rosso'], ['KM3.A2', 'Q.N', 'blu'],
+];
+const POWER_31 = C28.fixed.map(w => w.slice());
+const PROG_31 = [
+  { if: ['and', ['or', 'I1', 'Q0'], 'I0'], do: [{ op: 'coil', a: 'Q0' }] },
+  { if: 'Q0', do: [{ op: 'ton', id: 'T1', pt: 6 }] },
+  { if: ['and', 'Q0', ['not', 'T1']], do: [{ op: 'coil', a: 'Q1' }] },
+  { if: ['and', 'Q0', 'T1'], do: [{ op: 'coil', a: 'Q2' }] },
+];
+LEVELS_V2.push({
+  ...C28,
+  id: 'c31-tempo', code: 'c31',
+  name: 'Il temporizzatore', title: 'Il temporizzatore nel PLC',
+  blurb: 'Stella-triangolo senza temporizzatore a parte: il tempo sta nel programma.',
+  goal: 'È il motore di stella-triangolo, ma ora i tre contattori li comanda un PLC e il temporizzatore KT non c’è più: il tempo si conta nel programma. Il PLC ha già il gradino di marcia e arresto, che accende Q0 (la linea KM1). Aggiungi tu un temporizzatore di 6 secondi, e due gradini: Q1 (stella, KM2) per i primi 6 secondi, Q2 (triangolo, KM3) dopo. Stella e triangolo non devono mai essere accesi insieme.',
+  fixed: POWER_31.concat(PLC_WIRES_31),
+  comps: [
+    C28.comps.find(c => c.id === 'Q'),
+    C28.comps.find(c => c.id === 'QM'),
+    { ...C28.comps.find(c => c.id === 'KM1'), terms: T('A1', 'A2', ...T6) },
+    { ...C28.comps.find(c => c.id === 'KM2'), terms: T('A1', 'A2', ...T6) },
+    { ...C28.comps.find(c => c.id === 'KM3'), terms: T('A1', 'A2', ...T6) },
+    C('PLC', 'plc', 'PLC', 'PLC (programma da completare)', T('A1', 'A2', 'I0', 'I1', 'I2', 'IC', 'Q0A', 'Q0B', 'Q1A', 'Q1B', 'Q2A', 'Q2B'), {
+      symbols: { I0: 'Arresto', I1: 'Marcia', Q0: 'Linea KM1', Q1: 'Stella KM2', Q2: 'Triangolo KM3', T1: 'Ritardo' },
+      edit: { markers: 0, timers: 1, counters: 0, ops: ['coil', 'ton'], start: [PROG_31[0]] },
+    }),
+    C28.comps.find(c => c.id === 'SB0'),
+    C28.comps.find(c => c.id === 'SB1'),
+    C28.comps.find(c => c.id === 'M'),
+  ],
+  demoDo: undefined,
+  checks: C28.checks,
+  safety: { deadWork: ['QM'], earth: [['M.PE', 'Q.PE']], stopWins: 'SB0', never: [['KM2', 'KM3']], outputsNeverTogether: [['PLC.Q1', 'PLC.Q2']], coilReturn: ['KM1', 'KM2', 'KM3', 'PLC'], protectedBy: { M: 'QM', KM1: 'QM' } },
+  solution: POWER_31.concat(PLC_WIRES_31),
+  solutionPrograms: { PLC: PROG_31 },
+  hints: [
+    'Il gradino 1 c’è già: accende Q0 con Marcia, Arresto e autoritenuta. Gli altri tre li aggiungi tu.',
+    'Il temporizzatore parte quando Q0 è acceso: un gradino con il contatto Q0 e, come uscita, il temporizzatore T1 impostato a 6 secondi. T1 diventa 1 solo dopo 6 secondi.',
+    'La stella (Q1) è accesa mentre Q0 è acceso e T1 vale ancora 0: contatto Q0 in serie con T1 normalmente chiuso, bobina Q1.',
+    'Il triangolo (Q2) è acceso quando Q0 è acceso e T1 vale 1: contatto Q0 in serie con T1 normalmente aperto, bobina Q2. Così stella e triangolo non sono mai accesi insieme.',
+  ],
+});
