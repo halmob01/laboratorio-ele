@@ -236,7 +236,7 @@ export function benchHTML(s, comps, ui) {
       const k = is2 ? (isLive(pot) ? (String(pot).includes(':') ? 'b' : 'f') : pot === 'N' ? 'n' : '') : s.power && pot === 'F' ? 'f' : s.power && pot === 'N' ? 'n' : '';
       if (k) fl = `<path class="flow ${k}" d="${d}"/>`;
     }
-    o += `<g data-wire="${w.id}"${ui.newWire === w.id ? ' class="newwire"' : ''}>${halo}<path class="w-hit" d="${d}"/><path class="w-edge" d="${d}"/><path class="w-col" d="${d}" stroke="${q.base}"${ui.newWire === w.id ? ' pathLength="100"' : ''}/>${q.dash ? `<path class="w-col dash" d="${d}" stroke="${q.dash}"/>` : ''}${fl}</g>`;
+    o += `<g data-wire="${w.id}"${ui.newWire === w.id ? ' class="newwire"' : w.fixed ? ' class="fixedwire"' : ''}>${halo}<path class="w-hit" d="${d}"/><path class="w-edge" d="${d}"/><path class="w-col" d="${d}" stroke="${q.base}"${ui.newWire === w.id ? ' pathLength="100"' : ''}/>${q.dash ? `<path class="w-col dash" d="${d}" stroke="${q.dash}"/>` : ''}${fl}</g>`;
   });
   if (fv && !s.lit) {
     s.flow.deadEnds.forEach(t => {

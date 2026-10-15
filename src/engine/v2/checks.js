@@ -25,12 +25,12 @@ export function runAction(sim, step) {
 
 // Confronta l'osservazione con l'atteso; ritorna null se va bene, altrimenti { want, got } della prima differenza.
 function mismatch(obs, expect) {
-  for (const group of ['motors', 'loads', 'coils']) {
+  for (const group of ['motors', 'modes', 'loads', 'coils']) {
     const want = expect[group];
     if (!want) continue;
     for (const [id, v] of Object.entries(want)) {
       const got = obs[group][id];
-      if (got !== v) return { comp: id, want: v, got: got === undefined ? null : got };
+      if (got !== v) return { comp: group === 'modes' ? id + '.mode' : id, want: v, got: got === undefined ? null : got };
     }
   }
   if (expect.tripped) {
@@ -92,7 +92,7 @@ export function runCheck(level, wires, check) {
 
 /* ---------- ruoli dei fili per i colori ---------- */
 
-const CTL_TYPES = new Set(['pb', 'pbnc', 'fungo', 'port', 'spia', 'fc', 'ri', 'tmr', 'rs']);
+const CTL_TYPES = new Set(['pb', 'pbnc', 'fungo', 'port', 'spia', 'fc', 'ri', 'tmr', 'kt', 'rs']);
 function isCtlTerm(level, term) {
   const [id, t] = term.split('.');
   const c = level.comps.find(x => x.id === id);
@@ -247,6 +247,24 @@ export function evaluateV2(level, wires, ctx = {}) {
       }));
       if (both || both2 || both3) fail('safe.interlock');
     }
+    if (S.weldedInterlock) {
+      // un contattore incollato non deve lasciar chiudere l'altro: il contatto NC di ciascuno sta nel circuito di comando dell'altro
+      const { pairs, start = [], stop = [] } = S.weldedInterlock;
+      let bad = false;
+      pairs.forEach(([a, b]) => [[a, b], [b, a]].forEach(([x, y]) => {
+        const sim = createSim(level, wires);
+        start.forEach(st => runAction(sim, st));
+        for (let i = 0; i < 20 && !sim.parts[x].on; i++) advance(sim, 1);
+        if (!sim.parts[x].on) return;
+        act(sim, 'weld', x);
+        advance(sim, 10);
+        stop.forEach(st => runAction(sim, st));
+        start.forEach(st => runAction(sim, st));
+        advance(sim, 10);
+        if (sim.kmHistory.some(on => on.includes(x) && on.includes(y)) || sim.parts[y].on) bad = true;
+      }));
+      if (bad) fail('safe.interlock');
+    }
     if (S.coilReturn) {
       // il comando sta sul lato fase: il capo A2 di ogni bobina va direttamente al neutro
       const uf = makeUF();
@@ -254,13 +272,13 @@ export function evaluateV2(level, wires, ctx = {}) {
       const n = sourcesOf(level).N;
       S.coilReturn.forEach(id => { if (uf.f(id + '.A2') !== uf.f(n)) fail('safe.coilReturn', { comp: id }); });
     }
-    if (level.comps.some(c => c.type === 'motor3')) {
+    if (level.comps.some(c => c.type === 'motor3' || c.type === 'motor6')) {
       // a riposo (comandi rilasciati) nessun morsetto del motore e' in tensione
       const sim = createSim(level, wires);
       setSupply(sim, true);
       const o = observe(sim);
       const PH = ['L1', 'L2', 'L3'];
-      const live = level.comps.filter(c => c.type === 'motor3').find(c => ['U', 'V', 'W'].some(t => PH.includes(o.potential(c.id + '.' + t))));
+      const live = level.comps.filter(c => c.type === 'motor3' || c.type === 'motor6').find(c => partOf(c).motor.some(t => PH.includes(o.potential(c.id + '.' + t))));
       if (live) fail('safe.motorLive', { comp: live.id });
     }
     if (S.stopWins) {

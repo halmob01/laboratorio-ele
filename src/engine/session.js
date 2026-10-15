@@ -65,7 +65,10 @@ export function createSession({ levels, deriveFull, storage = memoryStorage(), i
     const k = keyOf(i, m);
     return levelCache[k] || (levelCache[k] = m === 'contatore' ? deriveFull(levels[i]) : levels[i]);
   };
-  const wires = () => wiresByKey[keyOf()] || (wiresByKey[keyOf()] = []);
+  // Fili gia' posati dal livello (`fixed`): non si tolgono ne' si salvano. Gli id negativi li distinguono dai fili dell'allievo.
+  const fixedOf = lv => (lv.fixed || []).map(([a, b, c], n) => ({ id: -(n + 1), a, b, c, fixed: true }));
+  const blank = (i = levelIndex, m = mode) => fixedOf(levelAt(i, m));
+  const wires = () => wiresByKey[keyOf()] || (wiresByKey[keyOf()] = blank());
   const states = () => statesByKey[keyOf()] || (statesByKey[keyOf()] = {});
   const usage = () => usageByKey[keyOf()] || (usageByKey[keyOf()] = { hints: 0, solution: false, checks: 0 });
   const startPhase = (i = levelIndex) => {
@@ -260,7 +263,7 @@ export function createSession({ levels, deriveFull, storage = memoryStorage(), i
     const l = levels[levelIndex];
     const u = unitByKey[levelIndex];
     if (u && u.phase === 'fault') return;
-    const ws = (wiresByKey[keyOf()] || []).map(x => ({ id: x.id, a: x.a, b: x.b, c: x.c }));
+    const ws = (wiresByKey[keyOf()] || []).filter(x => !x.fixed).map(x => ({ id: x.id, a: x.a, b: x.b, c: x.c }));
     const st = { ...(statesByKey[keyOf()] || {}) };
     const rt = {};
     const rs = mode === 'quadro' ? ratingsOf() : {};
@@ -299,7 +302,9 @@ export function createSession({ levels, deriveFull, storage = memoryStorage(), i
         const lv = levelAt(i, m);
         const known = new Set(lv.comps.flatMap(c => Object.keys(c.terms).map(t => c.id + '.' + t)));
         const seen = new Set();
-        const ws = [];
+        const ws = fixedOf(lv);
+        const seenFixed = new Set(ws.map(x => [x.a, x.b].sort().join('~')));
+        seenFixed.forEach(k => seen.add(k));
         (Array.isArray(e.wires) ? e.wires.slice(0, MAX_WORK_WIRES) : []).forEach(x => {
           if (!isObj(x) || !known.has(x.a) || !known.has(x.b) || x.a === x.b || !ALL_COLORS.includes(x.c)) return;
           const k = [x.a, x.b].sort().join('~');
@@ -311,7 +316,7 @@ export function createSession({ levels, deriveFull, storage = memoryStorage(), i
         if (isObj(e.states)) lv.controls.forEach(id => { if (e.states[id] === 1) st[id] = 1; });
         wiresByKey[keyOf(i, m)] = ws;
         statesByKey[keyOf(i, m)] = st;
-        const entry = { wires: ws.map(x => ({ ...x })), states: { ...st } };
+        const entry = { wires: ws.filter(x => !x.fixed).map(x => ({ ...x })), states: { ...st } };
         if (isObj(e.ratings)) {
           const rt = {};
           lv.comps.forEach(c => { if (c.type === 'mt' && c.ratings && c.ratings.includes(e.ratings[c.id])) rt[c.id] = e.ratings[c.id]; });
@@ -365,7 +370,8 @@ export function createSession({ levels, deriveFull, storage = memoryStorage(), i
     resetLevelState();
     delete measuredBy[keyOf()];
     delete liveEditsBy[keyOf()];
-    wiresByKey[keyOf()] = level.unit.fault.wires.map(([a, b, c]) => ({ id: nextWireId++, a, b, c }));
+    const fx = fixedOf(level), fxKeys = new Set(fx.map(x => [x.a, x.b].sort().join('~')));
+    wiresByKey[keyOf()] = fx.concat(level.unit.fault.wires.filter(([a, b]) => !fxKeys.has([a, b].sort().join('~'))).map(([a, b, c]) => ({ id: nextWireId++, a, b, c })));
     statesByKey[keyOf()] = {};
     resultsByKey[keyOf()] = null;
     us.phase = 'fault';
@@ -400,7 +406,7 @@ export function createSession({ levels, deriveFull, storage = memoryStorage(), i
     // una prova non riuscita non lascia niente: alla riapertura riparte da capo
     if (levelAt().prova && !us.before) {
       unitByKey[levelIndex] = { phase: 'fault', page: 0, pred: us.pred, diag: null, faultSolved: false };   // niente lezione da capo: si riarma all'apertura
-      wiresByKey[keyOf(levelIndex, 'quadro')] = [];
+      wiresByKey[keyOf(levelIndex, 'quadro')] = blank(levelIndex, 'quadro');
       statesByKey[keyOf(levelIndex, 'quadro')] = {};
       resultsByKey[keyOf(levelIndex, 'quadro')] = null;
       delete measuredBy[keyOf(levelIndex, 'quadro')];
@@ -535,7 +541,7 @@ export function createSession({ levels, deriveFull, storage = memoryStorage(), i
       const i = indexOf(x);
       if (i < 0 || i >= levels.length) return null;
       const lv = levelAt(i, 'quadro');
-      if (isV2(lv)) return { id: levels[i].id, lit: false, wired: (wiresByKey[keyOf(i, 'quadro')] || []).length, controls: {}, passed: (progress.stars[levels[i].id] || 0) > 0, open: i === levelIndex, power: false };
+      if (isV2(lv)) return { id: levels[i].id, lit: false, wired: (wiresByKey[keyOf(i, 'quadro')] || []).filter(w => !w.fixed).length, controls: {}, passed: (progress.stars[levels[i].id] || 0) > 0, open: i === levelIndex, power: false };
       const k = keyOf(i, 'quadro');
       const w = wiresByKey[k] || [], st = statesByKey[k] || {};
       const id = levels[i].id;
@@ -572,7 +578,7 @@ export function createSession({ levels, deriveFull, storage = memoryStorage(), i
       resetLevelState();
       if (opts.verify) {
         // si riparte da zero, anche se il livello era stato cablato prima
-        wiresByKey[keyOf()] = [];
+        wiresByKey[keyOf()] = blank();
         statesByKey[keyOf()] = {};
         resultsByKey[keyOf()] = null;
         usageByKey[keyOf()] = { hints: 0, solution: false, checks: 0 };
@@ -605,6 +611,7 @@ export function createSession({ levels, deriveFull, storage = memoryStorage(), i
       if (!inBuildOrFault()) return;
       const ws = wires();
       const k = ws.findIndex(w => (w.a === a && w.b === b) || (w.a === b && w.b === a));
+      if (k >= 0 && ws[k].fixed) return;
       const fresh = noteLive([a, b]);
       wiresChanged();
       if (k >= 0) ws.splice(k, 1);
@@ -617,7 +624,7 @@ export function createSession({ levels, deriveFull, storage = memoryStorage(), i
       if (!inBuildOrFault()) return;
       const ws = wires();
       const k = ws.findIndex(x => x.id === id);
-      if (k < 0) return;
+      if (k < 0 || ws[k].fixed) return;
       const fresh = noteLive([ws[k].a, ws[k].b]);
       wiresChanged();
       ws.splice(k, 1);
@@ -626,8 +633,9 @@ export function createSession({ levels, deriveFull, storage = memoryStorage(), i
       emit();
     },
     undo() {
-      if (!wires().length || !inBuildOrFault()) return;
+      if (!inBuildOrFault()) return;
       const lw = wires()[wires().length - 1];
+      if (!lw || lw.fixed) return;
       const fresh = noteLive([lw.a, lw.b]);
       wiresChanged();
       wires().pop();
@@ -637,10 +645,10 @@ export function createSession({ levels, deriveFull, storage = memoryStorage(), i
     },
     clear() {
       if (!inBuildOrFault()) return;
-      if (!wires().length) { delete liveEditsBy[keyOf()]; return; }
+      if (!wires().some(w => !w.fixed)) { delete liveEditsBy[keyOf()]; return; }
       wiresChanged();
       delete liveEditsBy[keyOf()];   // si ricomincia da capo
-      wiresByKey[keyOf()] = [];
+      wiresByKey[keyOf()] = blank();
       statesByKey[keyOf()] = {};
       emit();
     },

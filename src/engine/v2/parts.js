@@ -40,6 +40,9 @@ export const PARTS = {
   // `welded` (guasto): i contatti restano incollati in posizione di lavoro anche a bobina spenta
   rel: { coil: ['A1', 'A2'], contacts: (c, s) => (s.on ? [['11', '14']] : [['11', '12']]), init: () => ({ on: false, coil: false, welded: false }), actions: ['weld'] },
   tmr: { coil: ['A1', 'A2'], contacts: (c, s) => pole(s.left > 0, [['1', '2']]), init: () => ({ left: 0, coil: false }) },
+  // temporizzatore ritardato all'eccitazione con contatto di scambio: 15 comune, 16 chiuso a riposo, 18 chiuso dopo `time` secondi di bobina alimentata.
+  // Appena la bobina si diseccita torna subito a riposo (stella-triangolo, avviamento a ritardo).
+  kt: { coil: ['A1', 'A2'], contacts: (c, s) => (s.on ? [['15', '18']] : [['15', '16']]), init: () => ({ on: false, coil: false, acc: 0 }) },
   km: {
     coil: ['A1', 'A2'],
     contacts: (c, s) => (s.on ? [['1', '2'], ['3', '4'], ['5', '6'], ['13', '14']] : [['21', '22']]),
@@ -64,6 +67,9 @@ export const PARTS = {
   presa: { load: ['L', 'N'], contacts: () => [] },
   bell: { load: ['1', '2'], volt: 12, contacts: () => [] },
   motor3: { motor: ['U', 'V', 'W'], contacts: () => [] },
+  // motore a sei morsetti (targa 400/690 V): tre avvolgimenti U1-U2, V1-V2, W1-W2. Stella: U2 V2 W2 uniti. Triangolo: U1-W2, V1-U2, W1-V2.
+  // `starT` = secondi consecutivi in stella (in stella non puo' dare la coppia piena: troppo a lungo scalda il termico).
+  motor6: { motor: ['U1', 'V1', 'W1', 'U2', 'V2', 'W2'], windings: [['U1', 'U2'], ['V1', 'V2'], ['W1', 'W2']], contacts: () => [], init: () => ({ starT: 0 }) },
 };
 
 // Componenti i cui contatti di potenza si considerano chiusi per stabilire il ruolo dei fili (colori).

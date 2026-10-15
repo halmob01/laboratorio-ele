@@ -142,6 +142,21 @@ export function schemV2(c, s, L, ui) {
       o += lab(xn, h - 6, '12 NC') + lab(xa, h - 6, '14 NA');
       break;
     }
+    case 'kt': {
+      // temporizzatore ritardato all'eccitazione: bobina in alto, contatto di scambio 15 comune, 16 a riposo, 18 dopo il ritardo
+      const x1 = w * c.terms.A1.f, x2 = w * c.terms.A2.f, xc = w * c.terms['15'].f, xn = w * c.terms['16'].f, xa = w * c.terms['18'].f;
+      const on = !!part.on;
+      o += `<rect x="${x1 - 14}" y="40" width="${x2 - x1 + 28}" height="${h * .3}" rx="4" fill="none" stroke="${obs.coils[c.id] ? '#F59F00' : 'var(--sch)'}" stroke-width="2.6"/>`;
+      o += ln(x1, 22, x1, 40, L('A1')) + ln(x2, 22, x2, 40, L('A2'));
+      o += lab((x1 + x2) / 2, 40 + h * .19, `${c.time || ''} s`);
+      if (obs.coils[c.id] && !on && c.time) o += `<rect x="${x1 - 14}" y="${40 + h * .3 + 4}" width="${(x2 - x1 + 28) * Math.min(1, part.acc / c.time)}" height="5" rx="2" fill="#F59F00"/>`;
+      const yt = h * .5, yb = h - 40;
+      o += ln(xc, 22, xc, yt, L('15')) + ln(xn, yb, xn, h - 22, L('16')) + ln(xa, yb, xa, h - 22, L('18'));
+      o += dot(xc, yt) + dot(xn, yb) + dot(xa, yb);
+      o += ln(xc, yt, on ? xa : xn, yb, L('15') && (on ? L('18') : L('16')));
+      o += lab(xn, h - 6, '16 NC') + lab(xa, h - 6, '18 NA');
+      break;
+    }
     case 'tmr': {
       o += `<rect x="${w * .3}" y="40" width="${w * .4}" height="${h * .36}" rx="4" fill="none" stroke="${obs.coils[c.id] ? '#F59F00' : 'var(--sch)'}" stroke-width="2.6"/>`;
       o += ln(w * c.terms.A1.f, 22, w * c.terms.A1.f, 40, L('A1')) + ln(w * c.terms.A2.f, 22, w * c.terms.A2.f, 40, L('A2'));
@@ -232,6 +247,16 @@ export function schemV2(c, s, L, ui) {
       o += lab(cx, h - 6, on ? 'APPARECCHIO ALIMENTATO' : 'VISTA DA DIETRO');
       break;
     }
+    case 'motor6': {
+      // sei morsetti: in alto W2 U2 V2 (e PE), in basso U1 V1 W1. In stella si uniscono U2 V2 W2, in triangolo ogni U1 va con W2, V1 con U2, W1 con V2.
+      const cx = w / 2, cy = mid + 4, dir = obs.motors[c.id] || 'off', mode = obs.modes && obs.modes[c.id];
+      ['W2', 'U2', 'V2', 'PE'].forEach(t => { const x = w * c.terms[t].f; o += ln(x, 22, x, cy - 30, L(t)); });
+      ['U1', 'V1', 'W1'].forEach(t => { const x = w * c.terms[t].f; o += ln(x, cy + 30, x, h - 22, L(t)); });
+      o += `<circle cx="${cx}" cy="${cy}" r="34" fill="${dir === 'fwd' || dir === 'rev' ? '#E9F4EC' : '#F0EBDD'}" stroke="var(--comp-edge)" stroke-width="2"/><text x="${cx}" y="${cy + 6}" text-anchor="middle" style="font:600 18px 'IBM Plex Mono',monospace;fill:var(--ink)">M</text>`;
+      if (dir === 'fwd' || dir === 'rev') o += `<path d="M${cx - 20} ${cy - 27} A27 27 0 0 ${dir === 'fwd' ? 1 : 0} ${cx + 20} ${cy - 27}" fill="none" stroke="#2E9E5B" stroke-width="3"/>`;
+      o += lab(cx, h - 6, mode === 'star' ? 'STELLA' : mode === 'delta' ? 'TRIANGOLO' : dir === 'hum' ? 'RONZA E NON PARTE' : 'FERMO');
+      break;
+    }
     case 'motor3': {
       const cx = w / 2, cy = mid + 6, dir = obs.motors[c.id] || 'off';
       const term = ['U', 'V', 'W'];
@@ -250,10 +275,10 @@ export function schemV2(c, s, L, ui) {
 }
 
 // Tipi che il disegno v2 gestisce al posto di quelli del motore v1 (sw, dev e inv restano come nel v1).
-export const V2_TYPES = new Set(['quadro', 'mt', 'rcd', 'mt3', 'sez', 'pb', 'pbnc', 'fungo', 'port', 'rs', 'ri', 'rel', 'tmr', 'km', 'ft', 'fc', 'trafo', 'bell', 'spia', 'lamp', 'presa', 'motor3', 'gu']);
+export const V2_TYPES = new Set(['quadro', 'mt', 'rcd', 'mt3', 'sez', 'pb', 'pbnc', 'fungo', 'port', 'rs', 'ri', 'rel', 'tmr', 'km', 'ft', 'fc', 'trafo', 'bell', 'spia', 'lamp', 'presa', 'motor3', 'motor6', 'kt', 'gu']);
 
 /* ---------- scena della stanza / della macchina (livelli v2) ---------- */
-const DEV = new Set(['lamp', 'spia', 'bell', 'presa', 'motor3']);
+const DEV = new Set(['lamp', 'spia', 'bell', 'presa', 'motor3', 'motor6']);
 const WALLCTL = { sw: 'tog', dev: 'tog', inv: 'tog', pb: 'hold', pbnc: 'hold', fungo: 'mush', port: 'tog' };
 
 // Struttura fissa della scena (gli id servono a updateRoomV2, che cambia solo classi e posizioni).
@@ -276,10 +301,10 @@ export function roomV2HTML(level) {
       o += `<path id="ld-${c.id}" class="bellb" d="M${x - 18} ${y + 14} Q${x - 18} ${y - 16} ${x} ${y - 16} Q${x + 18} ${y - 16} ${x + 18} ${y + 14} Z" fill="#C8A04A" stroke="#7A5E1C" stroke-width="2"/><circle cx="${x}" cy="${y + 18}" r="4" fill="#7A5E1C"/>`;
     } else if (c.type === 'presa') {
       o += `<rect class="plate" x="${x - 26}" y="${y - 22}" width="52" height="44" rx="6"/><circle class="hole" cx="${x - 10}" cy="${y}" r="3.6"/><circle class="hole" cx="${x}" cy="${y}" r="3.2"/><circle class="hole" cx="${x + 10}" cy="${y}" r="3.6"/><circle id="ld-${c.id}" class="led" cx="${x + 18}" cy="${y - 14}" r="3.5"/>`;
-    } else if (c.type === 'motor3') {
+    } else if (c.type === 'motor3' || c.type === 'motor6') {
       o += fanSVG(c.id, x, y);
     }
-    o += `<text x="${x}" y="${y + (c.type === 'motor3' ? 64 : 40)}" text-anchor="middle" style="font:600 11px 'IBM Plex Sans',sans-serif;fill:var(--ink2)">${c.short || c.id}</text></g>`;
+    o += `<text x="${x}" y="${y + (c.type === 'motor3' || c.type === 'motor6' ? 64 : 40)}" text-anchor="middle" style="font:600 11px 'IBM Plex Sans',sans-serif;fill:var(--ink2)">${c.short || c.id}</text></g>`;
   });
   if (m) {
     const mt = level.comps.find(c => c.id === m.motor);
@@ -327,7 +352,7 @@ export function updateRoomV2(root, s) {
       set('ld-' + c.id, 'bellb' + (st === 'on' ? ' ring' : ''));
     } else if (c.type === 'presa') {
       set('ld-' + c.id, 'led' + (st === 'on' ? ' on' : ''));
-    } else if (c.type === 'motor3') {
+    } else if (c.type === 'motor3' || c.type === 'motor6') {
       const d = o.motors[c.id] || 'off';
       set('fan-' + c.id, 'fan' + (d === 'fwd' ? ' fwd' : d === 'rev' ? ' rev' : d === 'hum' ? ' hum' : ''));
       const t = root.querySelector('#mt-' + c.id); if (t) t.textContent = MOTOR_TXT[d];

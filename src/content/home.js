@@ -48,6 +48,18 @@ export const MODULES = [
     milestone: { level: 'c24-officina', kick: 'Officina', name: 'Il nastro da collaudare', text: 'Un nastro trasportatore da collaudare a vista: marcia, arresto, emergenza, finecorsa e termico. Trova perché il nastro non si ferma.', cta: 'Entra nell’officina', again: 'Rifai la prova' },
   },
   {
+    tag: 'MODULO 4',
+    title: 'Automazione',
+    levels: [
+      'c28-stella-triangolo',
+      { soon: true, title: 'Dal relè al PLC', blurb: 'La marcia e arresto di prima, rifatta con ingressi, uscite e un programma.' },
+      { soon: true, title: 'Ladder: l’autoritenuta', blurb: 'Contatti, bobine e la scansione del programma.' },
+      { soon: true, title: 'Tempo e conteggio', blurb: 'Temporizzatori e contatori nel programma.' },
+      { soon: true, title: 'Il nastro con il PLC', blurb: 'Fotocellula e conteggio; fungo e termico restano cablati.' },
+    ],
+    milestone: { soon: true, kick: 'Nastro con il PLC', name: 'Un nastro che si comanda da programma', text: 'Fotocellula, conteggio dei pacchi, emergenza e termico che restano cablati.' },
+  },
+  {
     tag: 'MODULO 6',
     title: 'La fabbrica',
     levels: [
@@ -69,11 +81,6 @@ export const MODULES = [
 // Prove dei moduli ancora da costruire, mostrate in fondo alla mappa.
 // `levels` elenca i livelli previsti; `project` e' il progetto 3D che chiude il modulo (stessa scheda degli altri moduli).
 export const UPCOMING = [
-  {
-    tag: 'MODULO 4', title: 'Automazione', note: 'Dal cablaggio al programma: il PLC prende il posto dei relè.',
-    levels: ['Inversione e interblocco', 'Stella-triangolo', 'Dal relè al PLC', 'Ladder: l’autoritenuta', 'Tempo e conteggio', 'Il nastro con il PLC'],
-    project: { kick: 'Nastro con il PLC', name: 'Un nastro che si comanda da programma', text: 'Fotocellula, conteggio dei pacchi, emergenza e termico che restano cablati.' },
-  },
   {
     tag: 'MODULO 5', title: 'Impianti del futuro', note: 'Casa automatica, fotovoltaico e ricarica: un ramo facoltativo del percorso.',
     levels: ['Il sensore e l’attuatore', 'La casa col PLC', 'La corrente continua', 'Il pannello fotovoltaico', 'Il contatore e lo scambio', 'L’accumulo', 'La colonnina'],

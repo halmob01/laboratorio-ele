@@ -25,9 +25,13 @@ export const HELP = {
   fungo: ['Il pulsante di emergenza a fungo', 'Ha un contatto normalmente chiuso (o due, nel modello a due canali: 1-2 e 3-4). Premuto, si apre e resta bloccato: la macchina si ferma e non riparte finché non lo sblocchi.'],
   port: ['La portella (o la barriera)', 'Ha due contatti normalmente chiusi, 1-2 e 3-4, uno per canale. Chiusa, i contatti sono chiusi; aperta, si aprono tutti e due. Toccala per aprirla o chiuderla. La barriera a raggi funziona allo stesso modo: interrotta, apre i contatti.'],
   rs: ['Il relè di sicurezza', 'Si alimenta in A1-A2 e controlla due canali d’ingresso (S12 e S22): se uno cade, le uscite 13-14 e 23-24 si aprono. Per riarmarlo servono i due canali chiusi e un impulso sul morsetto R: il relè si arma quando il pulsante di riarmo viene rilasciato. Il riarmo passa dai contatti NC dei contattori, che controllano se si sono staccati.'],
+  rel: ['Il relè', 'Ha una bobina (A1 e A2) e un contatto di scambio: 11 è il comune, 12 è chiuso a riposo, 14 si chiude quando la bobina è alimentata. Con un comando piccolo ne apre uno e ne chiude un altro.'],
+  gu: ['Il guasto di isolamento', 'Simula un apparecchio che disperde una piccola corrente verso terra, come se l’isolante avesse ceduto. Il differenziale se ne accorge anche se la lampada o il motore funzionano ancora.'],
   ri: ['Il relè ad impulsi', 'Ha una bobina (A1 e A2) e un contatto (1 e 2). A ogni impulso sulla bobina il contatto cambia stato e lo mantiene: aperto, chiuso, aperto. Serve a comandare una luce da molti punti.'],
   tmr: ['Il relè temporizzato', 'Ha una bobina (A1 e A2) e un contatto (1 e 2). Dopo un impulso il contatto resta chiuso per il tempo impostato, poi si riapre da solo.'],
   km: ['Il contattore', 'Ha una bobina (A1 e A2) e dei contatti. Con la bobina alimentata si chiudono i tre poli di potenza (1-2, 3-4, 5-6) e il contatto ausiliario normalmente aperto (13-14); si apre quello normalmente chiuso (21-22). Il circuito di comando e quello di potenza sono separati.'],
+  kt: ['Il temporizzatore all’eccitazione', 'Ha una bobina (A1 e A2) e un contatto di scambio: 15 è il comune, 16 è chiuso a riposo, 18 si chiude dopo il tempo impostato. Se la bobina si diseccita torna subito a riposo. Serve per passare da stella a triangolo.'],
+  motor6: ['Il motore a sei morsetti', 'Ha tre avvolgimenti: U1-U2, V1-V2, W1-W2, più il morsetto PE. A stella si uniscono U2, V2, W2 e ogni avvolgimento riceve 230 V. A triangolo U1 va con W2, V1 con U2, W1 con V2 e ogni avvolgimento riceve 400 V.'],
   ft: ['Il relè termico', 'Sta in serie al motore e si scalda se il motore assorbe troppa corrente. Dopo un po’ scatta: apre il contatto 95-96 del comando e il motore si ferma. Si riarma a mano con il tasto Reset.'],
   mt: ['L’interruttore magnetotermico', 'Protegge la linea da sovraccarico e cortocircuito: scatta da solo. Levetta su: chiuso. Levetta giù: aperto. Ha un polo per la fase e uno per il neutro.'],
   mt3: ['Il salvamotore magnetotermico trifase', 'Protegge il motore e i circuiti collegati dopo di lui. Ha tre poli, uno per fase. Levetta su: chiuso. Scatta in caso di cortocircuito.'],
@@ -80,6 +84,8 @@ const STATE_TEXT = {
 };
 const stateText = v => STATE_TEXT[String(v)] || String(v);
 // Posizione del pacco sul nastro (prove con `expect.machine`).
+// Collegamento del motore a sei morsetti (prove con `expect.modes`).
+const MODE_TEXT = { star: 'a stella', delta: 'a triangolo', null: 'né a stella né a triangolo' };
 const MACHINE_TEXT = { 'machine.atEnd': 'Fine corsa', 'machine.atStart': 'Inizio del nastro' };
 
 // Un elemento del risultato (codice + parametri) in una frase.
@@ -106,6 +112,7 @@ export function itemText(item, level) {
         ? itemText({ code: item.cause, comp: item.comp }, level)
         : (item.comp === 'tripped' ? 'Protezioni scattate: ' + (item.got || 'nessuna') + '.'
           : MACHINE_TEXT[item.comp] ? MACHINE_TEXT[item.comp] + ': ' + (item.got ? 'raggiunto' : 'non raggiunto') + '; atteso: ' + (item.want ? 'raggiunto' : 'non raggiunto') + '.'
+          : String(item.comp).endsWith('.mode') ? nameOf(level, item.comp.slice(0, -5)) + ': collegato ' + MODE_TEXT[String(item.got)] + '; atteso: ' + MODE_TEXT[String(item.want)] + '.'
           : nameOf(level, item.comp) + ': ' + stateText(item.got) + '; atteso: ' + stateText(item.want) + '.');
       return 'Prova non superata: ' + item.label + '. ' + why;
     }

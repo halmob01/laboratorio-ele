@@ -138,7 +138,7 @@ function analyse(sim, open) {
   });
 
   // carichi, bobine, motori
-  const loads = {}, coils = {}, motors = {};
+  const loads = {}, coils = {}, motors = {}, modes = {};
   level.comps.forEach(c => {
     const p = partOf(c);
     const id = c.id;
@@ -157,7 +157,23 @@ function analyse(sim, open) {
       if (v > 0 && (px === 'PE' || py === 'PE')) faults.push({ code: 'caricoTerra', comp: id });
       if (st === 'burnt') loads[id] = loads[id] || 'burnt';
     }
-    if (p.motor) {
+    if (c.type === 'motor6') {
+      const net = t => uf.f(id + '.' + t);
+      const idx = ['U1', 'V1', 'W1'].map(t => ['L1', 'L2', 'L3'].indexOf(potAt(id + '.' + t)));
+      const distinct = new Set(idx.filter(i => i >= 0));
+      // collegamenti completati: ponte di stella (U2 V2 W2 uniti: 0, 1 o 3 coppie) e anello di triangolo (U1-W2, V1-U2, W1-V2)
+      const starLinks = (net('U2') === net('V2')) + (net('V2') === net('W2')) + (net('U2') === net('W2'));
+      const deltaLinks = (net('U1') === net('W2')) + (net('V1') === net('U2')) + (net('W1') === net('V2'));
+      const star = starLinks === 3 && deltaLinks === 0, delta = deltaLinks === 3 && starLinks === 0;
+      let st = 'off';
+      if (distinct.size === 3 && (star || delta)) {
+        const cyc = (idx[1] - idx[0] + 3) % 3 === 1 && (idx[2] - idx[1] + 3) % 3 === 1;
+        st = cyc ? 'fwd' : 'rev';
+        modes[id] = star ? 'star' : 'delta';
+      } else if (distinct.size >= 2 && (star || delta || starLinks === 1 || (deltaLinks > 0 && deltaLinks < 3))) st = 'hum';
+      else if (distinct.size === 3 && (starLinks === 1 || (deltaLinks > 0 && deltaLinks < 3))) st = 'hum';
+      motors[id] = st;
+    } else if (p.motor) {
       const ph = p.motor.map(t => potAt(id + '.' + t));
       const idx = ph.map(x => ['L1', 'L2', 'L3'].indexOf(x));
       const distinct = new Set(idx.filter(i => i >= 0));
@@ -175,7 +191,7 @@ function analyse(sim, open) {
     const s = sim.parts[c.id];
     if (c.type === 'gu' && s && s.on && isPhase(potAt(c.at))) leaks.push({ id: c.id, mA: s.mA });
   });
-  return { uf, pots, potAt, volt, faults, loads, coils, motors, trafoOn, burntNow, leaks };
+  return { uf, pots, potAt, volt, faults, loads, coils, motors, modes, trafoOn, burntNow, leaks };
 }
 
 
@@ -299,6 +315,10 @@ export function settle(sim) {
         if (en) s.on = !s.on;
         s.coil = en;
         changed = true;
+      } else if (c.type === 'kt') {
+        // senza bobina il ritardo riparte da zero e il contatto torna subito a riposo
+        if (!en && (s.on || s.acc)) { s.on = false; s.acc = 0; changed = true; }
+        if (en !== s.coil) { s.coil = en; changed = true; }
       } else if (c.type === 'tmr') {
         if (en && s.left !== (c.time || 60)) { s.left = c.time || 60; changed = true; }
         if (en !== s.coil) { s.coil = en; changed = true; }
@@ -364,11 +384,15 @@ export function advance(sim, seconds) {
     sim.level.comps.forEach(c => {
       const s = sim.parts[c.id];
       if (c.type === 'tmr' && !an.coils[c.id] && s.left > 0) s.left = Math.max(0, s.left - STEP);
+      if (c.type === 'kt' && an.coils[c.id] && !s.on) { s.acc += STEP; if (s.acc >= (c.time || 5)) s.on = true; }
+      if (c.type === 'motor6') s.starT = an.modes[c.id] === 'star' ? s.starT + STEP : 0;
       if (c.type === 'ft' && !s.tripped) {
         // scalda solo per i motori che passano davvero dai suoi poli
         const without = analyse(sim, { [c.id]: 'power' });
         const mine = Object.keys(an.motors).filter(mid => an.motors[mid] !== without.motors[mid]);
-        const hot = mine.some(mid => an.motors[mid] === 'hum' || (sim.overload && (an.motors[mid] === 'fwd' || an.motors[mid] === 'rev')));
+        // un motore a sei morsetti che resta in stella oltre il tempo di avviamento scalda come sotto sovraccarico
+        const stuck = mid => an.modes[mid] === 'star' && sim.parts[mid].starT > (sim.level.starLimit || 12);
+        const hot = mine.some(mid => an.motors[mid] === 'hum' || stuck(mid) || (sim.overload && (an.motors[mid] === 'fwd' || an.motors[mid] === 'rev')));
         s.heat = hot ? s.heat + STEP : Math.max(0, s.heat - STEP);
         if (s.heat >= (c.tripAfter || 3)) s.tripped = true;
       }
@@ -428,6 +452,7 @@ export function observe(sim) {
     tripped: sim.level.comps.filter(c => sim.parts[c.id].tripped).map(c => c.id),
     loads: { ...an.loads, ...Object.fromEntries(Object.keys(sim.burnt).filter(id => !(id in an.loads)).map(id => [id, 'burnt'])) },
     motors: an.motors,
+    modes: an.modes,
     coils: an.coils,
     parts,
     machine: sim.level.machine ? { pos: sim.pos, atStart: sim.pos <= 0, atEnd: sim.pos >= sim.level.machine.length } : null,
@@ -451,7 +476,7 @@ export function stillOnIfOpen(sim, id, protIds) {
 
 /* ---------- multimetro ---------- */
 // Resistenze nominali usate per la lettura Ohm (valori didattici).
-const OHM = { lamp: 530, spia: 8000, presa: 60, bell: 30, ri: 1500, rel: 1500, tmr: 1500, km: 1200, motor3: 12 };
+const OHM = { lamp: 530, spia: 8000, presa: 60, bell: 30, ri: 1500, rel: 1500, tmr: 1500, km: 1200, kt: 1500, motor3: 12, motor6: 12 };
 
 // Elementi che il multimetro attraversa: carichi, bobine e avvolgimenti dei motori.
 function windings(sim) {
@@ -460,7 +485,8 @@ function windings(sim) {
     const p = partOf(c);
     const ohm = c.ohm || OHM[c.type] || 500;
     if (p.load || p.coil) { const [x, y] = p.load || p.coil; out.push({ a: c.id + '.' + x, b: c.id + '.' + y, ohm, id: c.id }); }
-    if (p.motor) for (let i = 0; i < p.motor.length; i++) for (let j = i + 1; j < p.motor.length; j++) out.push({ a: c.id + '.' + p.motor[i], b: c.id + '.' + p.motor[j], ohm, id: c.id });
+    if (p.windings) p.windings.forEach(([x, y]) => out.push({ a: c.id + '.' + x, b: c.id + '.' + y, ohm, id: c.id }));
+    else if (p.motor) for (let i = 0; i < p.motor.length; i++) for (let j = i + 1; j < p.motor.length; j++) out.push({ a: c.id + '.' + p.motor[i], b: c.id + '.' + p.motor[j], ohm, id: c.id });
   });
   return out;
 }

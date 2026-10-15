@@ -22,7 +22,9 @@ export function flowV2(sim) {
     p.contacts(c, sim.parts[c.id] || {}).forEach(([x, y]) => edges.push({ a: c.id + '.' + x, b: c.id + '.' + y, kind: 'contact', key: c.id + '.' + x + '-' + y }));
     const on = (p.load && an.loads[c.id] === 'on') || (p.coil && an.coils[c.id]);
     if (on) { const [x, y] = p.load || p.coil; edges.push({ a: c.id + '.' + x, b: c.id + '.' + y, kind: 'load' }); }
-    if (p.motor && an.motors[c.id] && an.motors[c.id] !== 'off') {
+    if (p.windings && an.motors[c.id] && an.motors[c.id] !== 'off') {
+      p.windings.forEach(([x, y]) => edges.push({ a: c.id + '.' + x, b: c.id + '.' + y, kind: 'load' }));
+    } else if (p.motor && an.motors[c.id] && an.motors[c.id] !== 'off') {
       const [u, v, w] = p.motor.map(t => c.id + '.' + t);
       [[u, v], [v, w], [w, u]].forEach(([x, y]) => edges.push({ a: x, b: y, kind: 'load' }));
     }
