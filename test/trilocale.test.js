@@ -83,3 +83,14 @@ test('dopo un ricaricamento un circuito verificato si vede acceso con la sua sol
   assert.equal(houseState(s, true).rooms.bagno.lit, true);
   assert.equal(houseState(s, false).rooms.bagno.lit, false);   // quadro generale spento
 });
+
+test('riaprendo un circuito gia\' verificato (levetta giu\') la sua luce resta accesa, a meno che tu non spenga il quadro generale', () => {
+  const s = createSession({ levels, deriveFull, initialLevel: 't01-bagno' });
+  s.skipLesson();
+  lv('t01-bagno').solution.forEach(([a, b, c]) => s.addWire(a, b, c));
+  s.toggleBreaker(); s.toggleControl('S'); s.check();
+  s.selectLevel('t02-camera'); s.selectLevel('t01-bagno');
+  assert.equal(s.snapshot().power, false);                       // riaperto: levetta giu'
+  assert.equal(houseState(s, true).rooms.bagno.lit, true);       // la casa e' alimentata
+  assert.equal(houseState(s, false).rooms.bagno.lit, false);     // ... salvo che l'hai spenta tu
+});
