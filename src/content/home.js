@@ -30,6 +30,7 @@ export const MODULES = [
       'c11-quadro',
       'c23-appartamento-notte',
     ],
+    milestone: { level: 'c23-appartamento-notte', kick: 'Appartamento', name: 'Una notte senza luce', text: 'Un appartamento al buio: il differenziale è scattato e da qualche parte c’è una dispersione. Trova la linea con il quadro e il multimetro.', cta: 'Entra nell’appartamento', again: 'Rifai la prova' },
   },
   {
     tag: 'MODULO 3',
@@ -44,6 +45,7 @@ export const MODULES = [
       'c16-nastro',
       'c24-officina',
     ],
+    milestone: { level: 'c24-officina', kick: 'Officina', name: 'Il nastro da collaudare', text: 'Un nastro trasportatore da collaudare a vista: marcia, arresto, emergenza, finecorsa e termico. Trova perché il nastro non si ferma.', cta: 'Entra nell’officina', again: 'Rifai la prova' },
   },
 ];
 

@@ -68,6 +68,16 @@ export function continueTarget(s) {
   return s.levels.find(l => open(l) && !/^t\d\d-/.test(l.id)) || null;
 }
 
+// Scheda della milestone di un modulo: stessa forma per tutti (scena 3D, stato, un solo pulsante).
+function milestoneHTML(ms, l) {
+  if (!l) return '';
+  const st = l.status;
+  const pill = `<span class="pill st-${st.replace(' ', '-')}">${STATUS_NAMES[st]}</span>`;
+  const stars = st === 'completato' ? `<div class="starrow" role="img" aria-label="${l.stars} stelle su 3">${STAR.repeat(l.stars)}</div>` : '';
+  const label = st === 'completato' ? ms.again : st === 'in corso' ? 'Continua' : ms.cta;
+  return `<div class="tricard milestone" data-status="${st}"><div class="lvhead"><div class="kick">${esc(ms.kick)}</div>${pill}</div><h3>${esc(ms.name)}</h3><p>${esc(ms.text)}</p>${stars}<a class="btn lamp" href="#/livello/${l.id}">${label}</a></div>`;
+}
+
 export function homeHTML(s) {
   const t = continueTarget(s);
   const byId = {};
@@ -80,21 +90,25 @@ export function homeHTML(s) {
   const mods = MODULES.map(m => {
     const have = m.levels.filter(x => typeof x === 'string');
     const done = have.filter(id => byId[id] && (byId[id].status === 'completato' || byId[id].status === 'saltato')).length;
-    const items = m.levels.map(x => (typeof x === 'string' ? levelCard(byId[x], s) : soonCard(x))).join('');
+    const ms = m.milestone;
+    const items = m.levels.filter(x => !(ms && x === ms.level)).map(x => (typeof x === 'string' ? levelCard(byId[x], s) : soonCard(x))).join('');
+    const rail = have.filter(x => !(ms && x === ms.level));
+    const railDone = rail.filter(id => byId[id] && (byId[id].status === 'completato' || byId[id].status === 'saltato')).length;
     return `<section class="module" aria-label="${m.tag}, ${m.title}">
-        <div class="mhead"><div><div class="kick">${m.tag}</div><h2>${m.title}</h2></div><div class="count">${done} di ${have.length} completati</div></div>
-        <ol class="rail">${items}</ol>
+        <div class="mhead"><div><div class="kick">${m.tag}</div><h2>${m.title}</h2></div><div class="count">${ms ? railDone + ' di ' + rail.length : done + ' di ' + have.length} completati</div></div>
+        <ol class="rail">${items}</ol>${ms ? milestoneHTML(ms, byId[ms.level]) : ''}
       </section>`;
-  }).join('');
+  });
   const tri = s.levels.filter(l => /^t\d\d-/.test(l.id));
   const triDone = tri.filter(l => l.stars > 0).length;
   const trilocale = `<section class="module trimod" aria-label="Modulo 1, Il trilocale">
-        <div class="mhead"><div><div class="kick">MODULO 1</div><h2>Il trilocale</h2></div><div class="count">Anteprima · ${triDone} di ${tri.length} circuiti</div></div>
-        <div class="tricard"><p>Una casa vista dall’alto con tre punti luce da cablare: bagno, camera e corridoio. Quando l’impianto funziona, la luce si accende nella stanza.</p><a class="btn lamp" href="#/modulo/1">${triDone ? 'Continua nel trilocale' : 'Entra nel trilocale'}</a></div>
+        <div class="mhead"><div><div class="kick">MODULO 1</div><h2>Il trilocale</h2></div><div class="count">${triDone} di ${tri.length} circuiti</div></div>
+        <div class="tricard milestone"><div class="kick">Trilocale</div><h3>Una casa da cablare</h3><p>Una casa vista dall’alto con tre punti luce da cablare: bagno, camera e corridoio. Quando l’impianto funziona, la luce si accende nella stanza.</p><a class="btn lamp" href="#/modulo/1">${triDone ? 'Continua nel trilocale' : 'Entra nel trilocale'}</a></div>
       </section>`;
+  const ordered = mods[0] + trilocale + mods.slice(1).join('');      // Modulo 0, Modulo 1 (trilocale), poi gli altri
   const up = UPCOMING.map(m => `<div class="upc"><div class="uphead"><span class="kick">${m.tag}</span><span class="soonl">In arrivo</span></div><h3>${m.title}</h3><p>${m.note}</p></div>`).join('');
   return `<div class="homegrid">
-      <div class="homemain">${cont.replace('class="cont"', 'class="cont only-narrow"')}${mods}${trilocale}<div class="upcoming">${up}</div>${trNoteHTML()}</div>
+      <div class="homemain">${cont.replace('class="cont"', 'class="cont only-narrow"')}${ordered}<div class="upcoming">${up}</div>${trNoteHTML()}</div>
       <aside class="homeside">${cont}${toolsHTML()}</aside>
     </div>`;
 }

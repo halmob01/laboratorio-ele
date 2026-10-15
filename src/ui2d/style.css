@@ -463,8 +463,13 @@ a.tool{display:flex;align-items:center;justify-content:center;text-decoration:no
 .pbrk rect{fill:#2F3A46}
 .pbrk text{fill:#fff;font:700 12px sans-serif}
 .with-house .roomcard{display:none}
-.trimod .tricard{display:flex;flex-direction:column;gap:12px;align-items:flex-start;background:var(--card);border:1.5px solid var(--line);border-radius:12px;padding:16px}
-.trimod .tricard p{margin:0;color:var(--ink2)}
+.module .tricard{margin-top:14px}
+.trimod .tricard{margin-top:0}
+.tricard{display:flex;flex-direction:column;gap:12px;align-items:flex-start;background:var(--card);border:1.5px solid var(--line);border-radius:12px;padding:16px}
+.tricard p{margin:0;color:var(--ink2)}
+.tricard h3{margin:0;font:700 24px/1.1 'Barlow Condensed',sans-serif;text-transform:uppercase}
+.tricard .lvhead{width:100%;align-items:center}
+.tricard.milestone{border-color:#2563a8;border-width:2px}
 @media (min-width:920px){
   .with-house .levelgrid{display:grid;grid-template-columns:58% minmax(0,1fr);gap:16px;align-items:start}
   .with-house .house{position:sticky;top:12px;margin:0}
