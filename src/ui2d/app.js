@@ -657,6 +657,7 @@ document.addEventListener('click', e => {
 document.addEventListener('change', e => {
   if (e.target.id !== 'langSel') return;
   setLang(e.target.value);
+  const c = $('.langpick .langcode'); if (c) c.textContent = e.target.value.toUpperCase();
   $('#langSel') && $('#langSel').focus();
 });
 

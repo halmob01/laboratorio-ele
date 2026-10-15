@@ -238,7 +238,11 @@ test('mappa: ogni modulo chiude con la scheda della sua milestone, preceduta dal
   const cards = [...d.querySelectorAll('.msc')];
   assert.deepEqual(cards.map(c => c.id), ['ms-trilocale', 'ms-c23-appartamento-notte', 'ms-c24-officina', 'ms-plc', 'ms-casa', 'ms-fabbrica']);
   cards.forEach(c => assert.doesNotMatch(c.textContent, /Milestone/));
-  assert.equal(d.querySelectorAll('.terminus').length, 5, 'tutte tranne il trilocale, che non ha un binario');
+  assert.equal(d.querySelectorAll('.terminus').length, 6);
+  // il binario delle Fondamenta finisce al capolinea del trilocale
+  const fond = d.querySelector('section.module[aria-label*="Fondamenta"]');
+  assert.ok(fond.querySelector('.rail + .terminus + #ms-trilocale'), 'Fondamenta: binario, capolinea, trilocale');
+  assert.ok(fond.querySelector('.msteaser[data-goto="ms-trilocale"]'));
   assert.ok(!d.querySelector('.tricard'), 'le vecchie schede non ci sono piu');
   // le tre con una scena vera mostrano la foto, le altre il disegno tecnico
   assert.deepEqual([...d.querySelectorAll('.msc:not(.soon) img')].map(i => i.getAttribute('src')),

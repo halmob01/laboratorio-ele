@@ -6,6 +6,7 @@ export const MODULES = [
   {
     tag: 'MODULO 0',
     title: 'Fondamenta',
+    leadsTo: 'trilocale',          // il binario finisce al capolinea del trilocale (Modulo 1)
     levels: [
       'c01-circuito-chiuso',
       'c02-presa',
@@ -80,7 +81,7 @@ export const MODULES = [
 
 // Scheda del trilocale (Modulo 1): non e' una prova unica ma tre circuiti, ognuno con la sua stanza.
 export const TRILOCALE = {
-  kick: 'Trilocale', name: 'Una casa da cablare',
+  kick: 'Modulo 1 · Il trilocale', name: 'Una casa da cablare',
   text: 'Una casa vista dall’alto con tre punti luce da cablare: bagno, camera e corridoio. Quando l’impianto funziona, la luce si accende nella stanza.',
   src: 'assets/milestone/trilocale.jpg', alt: 'Il trilocale visto dall’alto: cucina, bagno e camera',
   rooms: [['t01-bagno', 'Bagno'], ['t02-camera', 'Camera'], ['t03-corridoio', 'Corridoio']],

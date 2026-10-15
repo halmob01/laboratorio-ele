@@ -490,7 +490,9 @@ a.tool{display:flex;align-items:center;justify-content:center;text-decoration:no
 .hsoon small{font:500 12px 'IBM Plex Mono',monospace}
 
 /* ---------- lingue ---------- */
-.langsel{flex:none;min-height:44px;background:transparent;color:var(--ink);border:1.5px solid var(--ink);border-radius:999px;padding:0 10px;font:600 14px/1 'IBM Plex Sans',sans-serif;cursor:pointer;max-width:34vw}
+.langpick{position:relative;flex:none;display:inline-flex;align-items:center;gap:6px;min-height:44px;padding:0 12px;border:1.5px solid var(--ink);border-radius:999px;color:var(--ink);font:600 14px/1 'IBM Plex Mono',ui-monospace,monospace;letter-spacing:.06em;cursor:pointer}
+.langpick:focus-within{outline:2px solid var(--lamp);outline-offset:2px}
+.langsel{position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer;font-size:16px;border:0}
 .top{gap:8px}
 @font-face{font-family:'Cairo';font-style:normal;font-weight:400;font-display:swap;src:url('fonts/cairo-arabic-400-normal.woff2') format('woff2');unicode-range:U+0600-06FF,U+0750-077F,U+0870-088E,U+0890-0891,U+0897-08E1,U+08E3-08FF,U+200C-200E,U+2010-2011,U+204F,U+2E41,U+FB50-FDFF,U+FE70-FE74,U+FE76-FEFC}
 @font-face{font-family:'Cairo';font-style:normal;font-weight:600;font-display:swap;src:url('fonts/cairo-arabic-600-normal.woff2') format('woff2');unicode-range:U+0600-06FF,U+0750-077F,U+0870-088E,U+0890-0891,U+0897-08E1,U+08E3-08FF,U+200C-200E,U+2010-2011,U+204F,U+2E41,U+FB50-FDFF,U+FE70-FE74,U+FE76-FEFC}
@@ -505,9 +507,9 @@ html[dir="rtl"] svg,html[dir="rtl"] .house,html[dir="rtl"] #bench,html[dir="rtl"
   .brand svg{width:22px;height:22px}
   .wordmark{font-size:19px}
   .player{padding:0 9px;gap:5px;max-width:40vw}
-  .langsel{padding:0 4px;font-size:13px;max-width:28vw}
+  .langpick{padding:0 9px;gap:4px;font-size:13px}
 }
-@media (max-width:420px){.player .pxp{display:none}.brand{flex:none}.player{flex:1 1 0;max-width:none;justify-content:center}.langsel{flex:none}}
+@media (max-width:420px){.player .pxp{display:none}.brand{flex:none}.player{flex:1 1 0;max-width:none;justify-content:center}.langpick{flex:none}}
 .trnote{margin:14px 0 0;font-size:13px;line-height:1.5;color:var(--ink2)}
 .trnote a{color:inherit}
 html[lang="it"] .trnote{display:none}
@@ -9075,6 +9077,8 @@ html[dir="rtl"] .phud,html[dir="rtl"] .psheet,html[dir="rtl"] .pintro,html[dir="
     {
       tag: "MODULO 0",
       title: "Fondamenta",
+      leadsTo: "trilocale",
+      // il binario finisce al capolinea del trilocale (Modulo 1)
       levels: [
         "c01-circuito-chiuso",
         "c02-presa",
@@ -9147,7 +9151,7 @@ html[dir="rtl"] .phud,html[dir="rtl"] .psheet,html[dir="rtl"] .pintro,html[dir="
     }
   ];
   var TRILOCALE = {
-    kick: "Trilocale",
+    kick: "Modulo 1 \xB7 Il trilocale",
     name: "Una casa da cablare",
     text: "Una casa vista dall\u2019alto con tre punti luce da cablare: bagno, camera e corridoio. Quando l\u2019impianto funziona, la luce si accende nella stanza.",
     src: "assets/milestone/trilocale.jpg",
@@ -10385,9 +10389,12 @@ html[dir="rtl"] .phud,html[dir="rtl"] .psheet,html[dir="rtl"] .pintro,html[dir="
   // src/ui2d/screens.js
   var esc = (t) => String(t).replace(/[&<>"']/g, (c2) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c2]);
   var STAR = '<svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2l3 6.9 7.4.7-5.6 4.9 1.7 7.3L12 17.9 5.5 21.8l1.7-7.3L1.6 9.6 9 8.9z" fill="#F5B800" stroke="#1B2230" stroke-width="1.5" stroke-linejoin="round"/></svg>';
+  var GLOBE = '<svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9.5"/><path d="M2.5 12h19M12 2.5c2.8 2.6 4.2 5.8 4.2 9.5s-1.4 6.9-4.2 9.5c-2.8-2.6-4.2-5.8-4.2-9.5s1.4-6.9 4.2-9.5z"/></svg>';
   function langSelectHTML() {
-    const opts = Object.keys(LANGS).filter(hasLang).map((k) => `<option value="${k}"${k === getLang() ? " selected" : ""}>${LANGS[k].name}</option>`).join("");
-    return Object.keys(LANGS).filter(hasLang).length < 2 ? "" : `<select class="langsel" id="langSel" data-notr aria-label="Lingua / Language / \u0627\u0644\u0644\u063A\u0629">${opts}</select>`;
+    const keys = Object.keys(LANGS).filter(hasLang);
+    if (keys.length < 2) return "";
+    const opts = keys.map((k) => `<option value="${k}"${k === getLang() ? " selected" : ""}>${k.toUpperCase()} \xB7 ${LANGS[k].name}</option>`).join("");
+    return `<label class="langpick" data-notr title="Lingua \xB7 Language \xB7 \u0627\u0644\u0644\u063A\u0629">${GLOBE}<span class="langcode" dir="ltr">${getLang().toUpperCase()}</span><select class="langsel" id="langSel" data-notr aria-label="Lingua / Language / \u0627\u0644\u0644\u063A\u0629">${opts}</select></label>`;
   }
   function trNoteHTML() {
     const link = CONTACT_EMAIL ? ` <a href="mailto:${esc(CONTACT_EMAIL)}?subject=${encodeURIComponent("Traduzione - Fase e Neutro " + GAME_VERSION)}">Segnala un errore di traduzione</a>` : "";
@@ -10474,18 +10481,6 @@ html[dir="rtl"] .phud,html[dir="rtl"] .psheet,html[dir="rtl"] .pintro,html[dir="
     const byId = {};
     s.levels.forEach((l) => byId[l.id] = l);
     const cont = t ? `<section class="cont" aria-label="Continua"><div class="kick">${t.status === "nuovo" ? "COMINCIA DA QUI" : "RIPRENDI DA QUI"}</div><h2>${esc(t.title)}</h2><p>${esc(t.blurb)}</p><a class="btn lamp" href="#/livello/${t.id}">${t.status === "nuovo" ? "Inizia" : "Continua"}</a></section>` : s.levels.some((l) => /^t\d\d-/.test(l.id) && l.status !== "completato" && l.status !== "saltato") ? `<section class="cont" aria-label="Continua"><div class="kick">PROSSIMO MODULO</div><h2>Il trilocale</h2><p>Tre circuiti da cablare in una casa: quando l\u2019impianto funziona, la luce si accende nella stanza.</p><a class="btn lamp" href="#/modulo/1">Entra nel trilocale</a></section>` : `<section class="cont"><div class="kick">COMPLETATO</div><h2>Hai completato i livelli disponibili</h2><p>Altri livelli sono in preparazione.</p></section>`;
-    const mods = MODULES.map((m) => {
-      const have = m.levels.filter((x) => typeof x === "string");
-      const done = have.filter((id) => byId[id] && (byId[id].status === "completato" || byId[id].status === "saltato")).length;
-      const ms = m.milestone;
-      const items = m.levels.filter((x) => !(ms && x === ms.level)).map((x) => typeof x === "string" ? levelCard(byId[x], s) : soonCard(x)).join("");
-      const rail = have.filter((x) => !(ms && x === ms.level));
-      const railDone = rail.filter((id) => byId[id] && (byId[id].status === "completato" || byId[id].status === "saltato")).length;
-      return `<section class="module" aria-label="${m.tag}, ${m.title}">
-        <div class="mhead"><div><div class="kick">${m.tag}</div><h2>${m.title}</h2></div>${teaserHTML(ms)}<div class="count">${ms ? railDone + " di " + rail.length : done + " di " + have.length} completati</div></div>
-        <ol class="rail">${items}</ol>${ms ? milestoneHTML(ms, byId[ms.level], { done: railDone, total: rail.length }) : ""}
-      </section>`;
-    });
     const tri = s.levels.filter((l) => /^t\d\d-/.test(l.id));
     const triDone = tri.filter((l) => l.stars > 0).length;
     const T2 = TRILOCALE;
@@ -10496,10 +10491,20 @@ html[dir="rtl"] .phud,html[dir="rtl"] .psheet,html[dir="rtl"] .pintro,html[dir="
     const triSt = triDone === 0 ? "nuovo" : triDone >= tri.length ? "completato" : "in corso";
     const rooms = `<ul class="msc-rooms" aria-label="Le stanze">${T2.rooms.map(([id, n]) => `<li class="${roomOn(id) ? "lit" : ""}"><b>${esc(n)}</b><small>${roomOn(id) ? "Acceso" : "Da cablare"}</small></li>`).join("")}</ul>`;
     const triSide = progressHTML("Circuiti", triDone, tri.length) + `<a class="msc-cta${triSt === "completato" ? " again" : ""}" href="#/modulo/1">${triDone ? T2.again : T2.cta}${triSt === "completato" ? "" : GO}</a>`;
-    const trilocale = `<section class="module trimod" aria-label="Modulo 1, Il trilocale">
-        <div class="mhead"><div><div class="kick">MODULO 1</div><h2>Il trilocale</h2></div><div class="count">${triDone} di ${tri.length} circuiti</div></div>
-        ${milestoneCard({ id: "ms-trilocale", kick: T2.kick, name: T2.name, text: T2.text, src: T2.src, alt: T2.alt, st: triSt, extra: rooms, side: triSide })}
+    const trilocale = terminusHTML() + milestoneCard({ id: "ms-trilocale", kick: T2.kick, name: T2.name, text: T2.text, src: T2.src, alt: T2.alt, st: triSt, extra: rooms, side: triSide });
+    const triTeaser = `<button class="msteaser" type="button" data-goto="ms-trilocale"><img src="${esc(T2.src)}" alt="" width="56" height="28" loading="lazy" decoding="async"><span><small>Traguardo</small><b>${esc(T2.name)}</b></span></button>`;
+    const mods = MODULES.map((m) => {
+      const have = m.levels.filter((x) => typeof x === "string");
+      const done = have.filter((id) => byId[id] && (byId[id].status === "completato" || byId[id].status === "saltato")).length;
+      const ms = m.milestone;
+      const items = m.levels.filter((x) => !(ms && x === ms.level)).map((x) => typeof x === "string" ? levelCard(byId[x], s) : soonCard(x)).join("");
+      const rail = have.filter((x) => !(ms && x === ms.level));
+      const railDone = rail.filter((id) => byId[id] && (byId[id].status === "completato" || byId[id].status === "saltato")).length;
+      return `<section class="module" aria-label="${m.tag}, ${m.title}">
+        <div class="mhead"><div><div class="kick">${m.tag}</div><h2>${m.title}</h2></div>${m.leadsTo === "trilocale" ? triTeaser : teaserHTML(ms)}<div class="count">${ms ? railDone + " di " + rail.length : done + " di " + have.length} completati</div></div>
+        <ol class="rail">${items}</ol>${ms ? milestoneHTML(ms, byId[ms.level], { done: railDone, total: rail.length }) : m.leadsTo === "trilocale" ? trilocale : ""}
       </section>`;
+    });
     const upItems = UPCOMING.map((m) => ({ n: Number(m.tag.match(/\d+/)[0]), html: `<section class="module upmod" aria-label="${m.tag}, ${esc(m.title)}">
         <div class="mhead"><div><div class="kick">${m.tag}</div><h2>${esc(m.title)}</h2></div><span class="soonl">In arrivo</span></div>
         <p class="upnote">${esc(m.note)}</p>
@@ -10507,7 +10512,7 @@ html[dir="rtl"] .phud,html[dir="rtl"] .psheet,html[dir="rtl"] .pintro,html[dir="
         ${terminusHTML()}${milestoneCard({ id: "ms-" + m.project.art, kick: m.project.kick, name: m.project.name, text: m.project.text, art: m.project.art, st: "soon" })}
       </section>` }));
     const num = (tag) => Number((tag.match(/\d+/) || [0])[0]);
-    const listed = MODULES.map((m, i) => ({ n: num(m.tag), html: mods[i] })).concat([{ n: 1, html: trilocale }], upItems);
+    const listed = MODULES.map((m, i) => ({ n: num(m.tag), html: mods[i] })).concat(upItems);
     const ordered = listed.sort((a, b) => a.n - b.n).map((x) => x.html).join("");
     return `<div class="homegrid">
       <div class="homemain">${cont.replace('class="cont"', 'class="cont only-narrow"')}${ordered}${trNoteHTML()}</div>
@@ -16553,6 +16558,8 @@ html[dir="rtl"] .phud,html[dir="rtl"] .psheet,html[dir="rtl"] .pintro,html[dir="
   document.addEventListener("change", (e) => {
     if (e.target.id !== "langSel") return;
     setLang(e.target.value);
+    const c2 = $(".langpick .langcode");
+    if (c2) c2.textContent = e.target.value.toUpperCase();
     $("#langSel") && $("#langSel").focus();
   });
   setLang(detect(), document.body, false);

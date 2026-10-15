@@ -532,6 +532,8 @@ test('il selettore di lingua traduce la pagina, cambia direzione e torna all\'it
   fire(w, sel, 'change');
   assert.equal(d.documentElement.dir, 'rtl');
   assert.equal(d.documentElement.lang, 'ar');
+  assert.equal(q(d, '.langpick .langcode').textContent, 'AR', 'il codice in lettere latine resta leggibile');
+  assert.ok(q(d, '.langpick svg'), 'il globo');
   assert.notEqual(q(d, '#screen-home h3').textContent, before);
   assert.match(q(d, '#screen-home').textContent, /[؀-ۿ]/);
   assert.equal(q(d, '.wordmark').textContent.trim(), 'Fase e Neutro');       // il nome non si traduce

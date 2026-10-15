@@ -12,9 +12,14 @@ export const esc = t => String(t).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<':
 const STAR = '<svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2l3 6.9 7.4.7-5.6 4.9 1.7 7.3L12 17.9 5.5 21.8l1.7-7.3L1.6 9.6 9 8.9z" fill="#F5B800" stroke="#1B2230" stroke-width="1.5" stroke-linejoin="round"/></svg>';
 
 /* ---------- lingua ---------- */
+// Un globo con il codice della lingua in lettere latine (IT, AR, EN): si riconosce anche senza leggere la lingua attiva.
+// Sopra c'e' il menu nativo, trasparente: tastiera, lettori di schermo e telefoni lo usano come sempre.
+const GLOBE = '<svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9.5"/><path d="M2.5 12h19M12 2.5c2.8 2.6 4.2 5.8 4.2 9.5s-1.4 6.9-4.2 9.5c-2.8-2.6-4.2-5.8-4.2-9.5s1.4-6.9 4.2-9.5z"/></svg>';
 export function langSelectHTML() {
-  const opts = Object.keys(LANGS).filter(hasLang).map(k => `<option value="${k}"${k === getLang() ? ' selected' : ''}>${LANGS[k].name}</option>`).join('');
-  return Object.keys(LANGS).filter(hasLang).length < 2 ? '' : `<select class="langsel" id="langSel" data-notr aria-label="Lingua / Language / اللغة">${opts}</select>`;
+  const keys = Object.keys(LANGS).filter(hasLang);
+  if (keys.length < 2) return '';
+  const opts = keys.map(k => `<option value="${k}"${k === getLang() ? ' selected' : ''}>${k.toUpperCase()} · ${LANGS[k].name}</option>`).join('');
+  return `<label class="langpick" data-notr title="Lingua · Language · اللغة">${GLOBE}<span class="langcode" dir="ltr">${getLang().toUpperCase()}</span><select class="langsel" id="langSel" data-notr aria-label="Lingua / Language / اللغة">${opts}</select></label>`;
 }
 
 // Avviso sulle traduzioni: visibile solo fuori dall'italiano (vedi style.css).
@@ -126,6 +131,16 @@ export function homeHTML(s) {
     : s.levels.some(l => /^t\d\d-/.test(l.id) && l.status !== 'completato' && l.status !== 'saltato')
       ? `<section class="cont" aria-label="Continua"><div class="kick">PROSSIMO MODULO</div><h2>Il trilocale</h2><p>Tre circuiti da cablare in una casa: quando l’impianto funziona, la luce si accende nella stanza.</p><a class="btn lamp" href="#/modulo/1">Entra nel trilocale</a></section>`
       : `<section class="cont"><div class="kick">COMPLETATO</div><h2>Hai completato i livelli disponibili</h2><p>Altri livelli sono in preparazione.</p></section>`;
+  const tri = s.levels.filter(l => /^t\d\d-/.test(l.id));
+  const triDone = tri.filter(l => l.stars > 0).length;
+  const T = TRILOCALE;
+  const roomOn = id => { const l = byId[id]; return !!l && l.stars > 0; };
+  const triSt = triDone === 0 ? 'nuovo' : triDone >= tri.length ? 'completato' : 'in corso';
+  const rooms = `<ul class="msc-rooms" aria-label="Le stanze">${T.rooms.map(([id, n]) => `<li class="${roomOn(id) ? 'lit' : ''}"><b>${esc(n)}</b><small>${roomOn(id) ? 'Acceso' : 'Da cablare'}</small></li>`).join('')}</ul>`;
+  const triSide = progressHTML('Circuiti', triDone, tri.length) + `<a class="msc-cta${triSt === 'completato' ? ' again' : ''}" href="#/modulo/1">${triDone ? T.again : T.cta}${triSt === 'completato' ? '' : GO}</a>`;
+  // il trilocale (Modulo 1) e' il capolinea del binario delle Fondamenta
+  const trilocale = terminusHTML() + milestoneCard({ id: 'ms-trilocale', kick: T.kick, name: T.name, text: T.text, src: T.src, alt: T.alt, st: triSt, extra: rooms, side: triSide });
+  const triTeaser = `<button class="msteaser" type="button" data-goto="ms-trilocale"><img src="${esc(T.src)}" alt="" width="56" height="28" loading="lazy" decoding="async"><span><small>Traguardo</small><b>${esc(T.name)}</b></span></button>`;
   const mods = MODULES.map(m => {
     const have = m.levels.filter(x => typeof x === 'string');
     const done = have.filter(id => byId[id] && (byId[id].status === 'completato' || byId[id].status === 'saltato')).length;
@@ -134,21 +149,10 @@ export function homeHTML(s) {
     const rail = have.filter(x => !(ms && x === ms.level));
     const railDone = rail.filter(id => byId[id] && (byId[id].status === 'completato' || byId[id].status === 'saltato')).length;
     return `<section class="module" aria-label="${m.tag}, ${m.title}">
-        <div class="mhead"><div><div class="kick">${m.tag}</div><h2>${m.title}</h2></div>${teaserHTML(ms)}<div class="count">${ms ? railDone + ' di ' + rail.length : done + ' di ' + have.length} completati</div></div>
-        <ol class="rail">${items}</ol>${ms ? milestoneHTML(ms, byId[ms.level], { done: railDone, total: rail.length }) : ''}
+        <div class="mhead"><div><div class="kick">${m.tag}</div><h2>${m.title}</h2></div>${m.leadsTo === 'trilocale' ? triTeaser : teaserHTML(ms)}<div class="count">${ms ? railDone + ' di ' + rail.length : done + ' di ' + have.length} completati</div></div>
+        <ol class="rail">${items}</ol>${ms ? milestoneHTML(ms, byId[ms.level], { done: railDone, total: rail.length }) : m.leadsTo === 'trilocale' ? trilocale : ''}
       </section>`;
   });
-  const tri = s.levels.filter(l => /^t\d\d-/.test(l.id));
-  const triDone = tri.filter(l => l.stars > 0).length;
-  const T = TRILOCALE;
-  const roomOn = id => { const l = byId[id]; return !!l && l.stars > 0; };
-  const triSt = triDone === 0 ? 'nuovo' : triDone >= tri.length ? 'completato' : 'in corso';
-  const rooms = `<ul class="msc-rooms" aria-label="Le stanze">${T.rooms.map(([id, n]) => `<li class="${roomOn(id) ? 'lit' : ''}"><b>${esc(n)}</b><small>${roomOn(id) ? 'Acceso' : 'Da cablare'}</small></li>`).join('')}</ul>`;
-  const triSide = progressHTML('Circuiti', triDone, tri.length) + `<a class="msc-cta${triSt === 'completato' ? ' again' : ''}" href="#/modulo/1">${triDone ? T.again : T.cta}${triSt === 'completato' ? '' : GO}</a>`;
-  const trilocale = `<section class="module trimod" aria-label="Modulo 1, Il trilocale">
-        <div class="mhead"><div><div class="kick">MODULO 1</div><h2>Il trilocale</h2></div><div class="count">${triDone} di ${tri.length} circuiti</div></div>
-        ${milestoneCard({ id: 'ms-trilocale', kick: T.kick, name: T.name, text: T.text, src: T.src, alt: T.alt, st: triSt, extra: rooms, side: triSide })}
-      </section>`;
   const upItems = UPCOMING.map(m => ({ n: Number(m.tag.match(/\d+/)[0]), html: `<section class="module upmod" aria-label="${m.tag}, ${esc(m.title)}">
         <div class="mhead"><div><div class="kick">${m.tag}</div><h2>${esc(m.title)}</h2></div><span class="soonl">In arrivo</span></div>
         <p class="upnote">${esc(m.note)}</p>
@@ -157,7 +161,7 @@ export function homeHTML(s) {
       </section>` }));
   // I moduli, il trilocale e quelli in arrivo stanno in un solo elenco, nell'ordine dei numeri dei moduli.
   const num = tag => Number((tag.match(/\d+/) || [0])[0]);
-  const listed = MODULES.map((m, i) => ({ n: num(m.tag), html: mods[i] })).concat([{ n: 1, html: trilocale }], upItems);
+  const listed = MODULES.map((m, i) => ({ n: num(m.tag), html: mods[i] })).concat(upItems);
   const ordered = listed.sort((a, b) => a.n - b.n).map(x => x.html).join('');
   return `<div class="homegrid">
       <div class="homemain">${cont.replace('class="cont"', 'class="cont only-narrow"')}${ordered}${trNoteHTML()}</div>
