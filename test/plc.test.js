@@ -165,3 +165,74 @@ test('regola emergencyHardwired: l\'emergenza deve agire sul cablaggio, non sul 
   assert.deepEqual(codes(evaluateV2(base, W29(good))).includes('safe.emergencyInProgram'), false);
   assert.ok(codes(evaluateV2(base, W29(bad))).includes('safe.emergencyInProgram'));
 });
+
+/* ---------- l'editor nella sessione: c30 ---------- */
+import { createSession } from '../src/engine/index.js';
+import { deriveFull } from '../src/content/index.js';
+
+const L30 = levels.find(l => l.id === 'c30-ladder');
+const openC30 = (storage) => { const s = createSession({ levels, deriveFull, initialLevel: 'c01-circuito-chiuso', ...(storage ? { storage } : {}) }); s.start(); s.selectLevel('c30-ladder'); s.skipLesson(); return s; };
+
+test('c30: cablaggio gia\' fatto e programma vuoto: il motore non parte finche\' non si scrive il programma', () => {
+  const s = openC30();
+  assert.equal(s.snapshot().wires.length, L30.fixed.length);
+  assert.deepEqual(s.snapshot().programs, {});
+  s.press('SB1'); s.release('SB1');
+  assert.equal(s.snapshot().obs.motors.M, 'off');
+  assert.equal(s.check().pass, false);
+});
+
+test('c30: scrivere il programma lo carica nel PLC e fa funzionare la macchina', () => {
+  const s = openC30();
+  s.setProgram('PLC', L30.solutionPrograms.PLC);
+  s.press('SB1'); s.release('SB1');
+  assert.equal(s.snapshot().obs.motors.M, 'fwd');
+  assert.equal(s.snapshot().obs.plc.PLC.rungs.every(Boolean), true);
+  assert.equal(s.check().pass, true);
+});
+
+test('c30: un programma storto non rompe il motore (viene ripulito) e la verifica non passa', () => {
+  const s = openC30();
+  s.setProgram('PLC', [{ if: ['and', 'I1', { x: 1 }], do: [{ op: 'coil', a: 'Q0' }, { op: 'boom' }] }, 'zzz', null]);
+  const p = s.snapshot().programs.PLC;
+  assert.equal(p.length, 1);
+  assert.deepEqual(p[0].do, [{ op: 'coil', a: 'Q0' }]);
+  assert.equal(s.check().pass, false);
+});
+
+test('c30: il programma si salva e si ritrova dopo il ricaricamento; Annulla tutto lo azzera', () => {
+  let saved = null;
+  const storage = { saveWork: w => { saved = JSON.parse(JSON.stringify(w)); }, loadWork: () => saved };
+  const s = openC30(storage);
+  s.setProgram('PLC', L30.solutionPrograms.PLC);
+  assert.ok(saved && Object.values(saved.w).some(e => e.programs && e.programs.PLC));
+  const s2 = createSession({ levels, deriveFull, initialLevel: 'c30-ladder', storage });
+  s2.start();
+  assert.deepEqual(s2.snapshot().programs.PLC, L30.solutionPrograms.PLC);
+  s2.skipLesson();
+  s2.clear();
+  assert.deepEqual(s2.snapshot().programs, {});
+});
+
+test('c30: un programma salvato manomesso viene ripulito', () => {
+  const saved = { v: 1, w: { 'c30-ladder|quadro': { wires: [], states: {}, programs: { PLC: [{ if: 'I1', do: [{ op: 'coil', a: 'Q0' }, { op: 'hack' }] }, { zzz: 1 }], OTHER: [] } } }, u: {} };
+  const s = createSession({ levels, deriveFull, initialLevel: 'c30-ladder', storage: { saveWork() {}, loadWork: () => saved } });
+  s.start();
+  const p = s.snapshot().programs;
+  assert.deepEqual(Object.keys(p), ['PLC']);
+  assert.deepEqual(p.PLC[0], { if: 'I1', do: [{ op: 'coil', a: 'Q0' }] });
+});
+
+test('c30: sfida guasto con il programma sbagliato (NC su I0), poi si ripara e si torna al programma scritto', () => {
+  const s = openC30();
+  s.setProgram('PLC', L30.solutionPrograms.PLC);
+  assert.equal(s.check().pass, true);
+  s.startFault();
+  assert.equal(s.snapshot().unit.phase, 'fault');
+  assert.deepEqual(s.snapshot().programs.PLC, L30.unit.fault.programs.PLC);
+  assert.equal(s.check().pass, false);
+  s.answerDiagnosis('a');
+  s.setProgram('PLC', L30.solutionPrograms.PLC);
+  assert.equal(s.check().pass, true);
+  assert.equal(s.snapshot().unit.faultSolved, true);
+});

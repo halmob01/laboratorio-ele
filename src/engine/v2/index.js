@@ -4,4 +4,4 @@ export { evaluateV2, runCheck, runAction, wireRoles, allowedColorsV2 } from './c
 export { PARTS, partOf, loadVolt } from './parts.js';
 export { flowV2 } from './flow.js';
 export { isV2, selfPowered, viewOf, controlStates, needsClock, MANUAL, HOLD } from './view.js';
-export { scan, newMem, validateProgram } from './plc.js';
+export { scan, newMem, validateProgram, sanitizeProgram } from './plc.js';

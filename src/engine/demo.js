@@ -36,6 +36,8 @@ function frame(level, wires, power, states, caption, newWire) {
 // Motore v2: stessi fotogrammi, ma con la simulazione a stato. `level.demoDo` = [{ do: ['press SB1', 'release SB1'], caption }]
 // elenca le azioni mostrate dopo l'alimentazione; senza, si aziona ciascun comando una volta.
 function demoFramesV2(level, captions) {
+  // livelli in cui l'allievo scrive il programma: la dimostrazione usa quello di soluzione
+  const simLevel = level.solutionPrograms ? { ...level, comps: level.comps.map(c => (c.type === 'plc' && level.solutionPrograms[c.id] ? { ...c, program: level.solutionPrograms[c.id] } : c)) } : level;
   const wires = level.solution.map(([a, b, c], i) => ({ id: i + 1, a, b, c }));
   const self = selfPowered(level);
   const snapOf = (sim, w, power, caption, newWire) => ({
@@ -49,11 +51,11 @@ function demoFramesV2(level, captions) {
   const out = [];
   for (let k = 1; k <= wires.length; k++) {
     const w = wires.slice(0, k);
-    const sim = createSim(level, w);
+    const sim = createSim(simLevel, w);
     if (!self) setSupply(sim, false);
     out.push(snapOf(sim, w, self, (captions.wires || [])[k - 1] || '', k));
   }
-  const sim = createSim(level, wires);
+  const sim = createSim(simLevel, wires);
   setSupply(sim, true);
   out.push(snapOf(sim, wires, true, captions.power || '', null));
   const steps = level.demoDo || (level.controls || []).map((id, i) => {

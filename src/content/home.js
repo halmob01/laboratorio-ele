@@ -53,7 +53,7 @@ export const MODULES = [
     levels: [
       'c28-stella-triangolo',
       'c29-plc',
-      { soon: true, title: 'Ladder: l’autoritenuta', blurb: 'Contatti, bobine e la scansione del programma.' },
+      'c30-ladder',
       { soon: true, title: 'Tempo e conteggio', blurb: 'Temporizzatori e contatori nel programma.' },
       { soon: true, title: 'Il nastro con il PLC', blurb: 'Fotocellula e conteggio; fungo e termico restano cablati.' },
     ],

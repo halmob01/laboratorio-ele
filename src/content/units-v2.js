@@ -2406,4 +2406,115 @@ export const UNITS_V2 = {
       fixSay: 'Collega il morsetto IC del PLC al neutro del quadro, in blu, con il salvamotore aperto. Poi premi Verifica.',
     },
   },
+  'c30-ladder': {
+    support: 'passi',
+    lesson: {
+      pages: [
+        {
+          type: 'spiegazione',
+          title: 'Il ladder: lo schema a scala',
+          paras: [
+            'Il ladder (schema a contatti) si legge come uno schema elettrico a relè: due montanti verticali, e tra l’uno e l’altro i gradini. Ogni gradino ha a sinistra dei contatti e a destra una bobina.',
+            'La corrente "passa" nel gradino da sinistra a destra se i contatti lasciano passare. Quando passa, la bobina si accende: nel PLC la bobina è un’uscita (Q0, Q1) o un bit interno.',
+          ],
+        },
+        {
+          type: 'spiegazione',
+          title: 'Contatti in serie e in parallelo',
+          paras: [
+            'Un contatto normalmente aperto lascia passare quando il suo bit vale 1. Un contatto normalmente chiuso lascia passare quando il bit vale 0.',
+            'Contatti in serie sono un E: servono tutti. Contatti in parallelo sono un O: ne basta uno. L’autoritenuta è proprio un parallelo: Marcia oppure l’uscita stessa.',
+          ],
+        },
+        {
+          type: 'previsione',
+          question: 'Un gradino ha un contatto normalmente aperto su I1 e la bobina Q0. Che cosa succede se I1 vale 1?',
+          options: [
+            { id: 'a', text: 'Q0 si accende, e si spegne quando I1 torna a 0.' },
+            { id: 'b', text: 'Q0 si accende e resta acceso per sempre.' },
+            { id: 'c', text: 'Non succede niente: serve un contatto normalmente chiuso.' },
+          ],
+          correct: 'a',
+          why: 'Una bobina segue la condizione del suo gradino: la condizione è vera quando I1 vale 1, quindi Q0 vale 1, e torna a 0 quando I1 torna a 0. Per farlo restare acceso serve l’autoritenuta.',
+        },
+        {
+          type: 'previsione',
+          question: 'Marcia è un impulso e deve far restare acceso Q0 anche dopo il rilascio. Come si aggiunge il contatto di Q0 al contatto di Marcia?',
+          options: [
+            { id: 'a', text: 'In serie: servono tutti e due.' },
+            { id: 'b', text: 'In parallelo: ne basta uno dei due.' },
+            { id: 'c', text: 'Non serve: il PLC ricorda l’ultimo valore.' },
+          ],
+          correct: 'b',
+          why: 'All’inizio Q0 vale 0, quindi serve Marcia. Una volta acceso, Q0 vale 1 e tiene vero il gradino anche con Marcia a 0. Due contatti dei quali basta uno sono in parallelo.',
+        },
+        {
+          type: 'spiegazione',
+          title: 'Come si scrive il programma',
+          paras: [
+            'Sotto il banco c’è l’editor. Premi Nuovo gradino, poi Aggiungi contatto e scegli quale ingresso o uscita leggere. Toccando un contatto puoi cambiarlo, metterlo normalmente chiuso, affiancarne uno in parallelo o toglierlo. Alla fine scegli la bobina del gradino.',
+            'Il PLC è acceso e il programma gira: prova subito Marcia e Arresto e guarda i contatti che si colorano.',
+          ],
+          warn: 'L’arresto è cablato come contatto NC: a riposo porta tensione e I0 vale 1. Nel programma il suo contatto serve normalmente aperto, perché deve lasciar passare quando I0 vale 1.',
+        },
+        {
+          type: 'previsione',
+          question: 'Con l’arresto cablato NC, quale contatto di I0 metti nel gradino del motore?',
+          options: [
+            { id: 'a', text: 'Normalmente aperto: lascia passare quando I0 vale 1, cioè a riposo.' },
+            { id: 'b', text: 'Normalmente chiuso: così si ferma quando viene premuto.' },
+            { id: 'c', text: 'Nessuno: l’arresto non serve nel programma.' },
+          ],
+          correct: 'a',
+          why: 'È facile sbagliare: "arresto = contatto chiuso". Ma è l’ingresso I0 a valere 1 a riposo, perché il pulsante cablato NC porta tensione. Premendo, I0 va a 0 e un contatto normalmente aperto smette di lasciar passare: il motore si ferma.',
+        },
+        { type: 'sintesi', title: 'Da ricordare' },
+      ],
+    },
+    steps: [
+      { kind: 'program', plc: 'PLC', min: 1, short: '1 Motore', title: 'Il gradino del motore', text: 'Nuovo gradino: Marcia (I1) in parallelo a Q0, in serie con l’arresto (I0), e la bobina Q0.' },
+      { kind: 'program', plc: 'PLC', min: 2, short: '2 Spia', title: 'Il gradino della spia', text: 'Secondo gradino: un contatto Q0 e la bobina Q1.' },
+      { kind: 'control', id: 'SB1', short: '3 Prova', title: 'Prova la marcia', text: 'Premi Marcia: il motore parte e resta in marcia. Premi Arresto: si ferma.' },
+      { kind: 'verify', short: '4 Verifica', title: 'Controlla il programma', text: 'Premi Verifica.' },
+    ],
+    summary: [
+      'Un gradino ha i contatti a sinistra e la bobina a destra: la bobina segue la condizione.',
+      'Contatti in serie sono un E, contatti in parallelo un O.',
+      'L’autoritenuta è l’uscita stessa messa in parallelo al contatto di marcia.',
+      'Un contatto normalmente aperto lascia passare con il bit a 1: con l’arresto cablato NC, I0 vale 1 a riposo.',
+      'Il programma si prova subito: il PLC gira e i contatti si colorano.',
+    ],
+    fault: {
+      say: 'Il programma è già scritto, ma premendo Marcia il motore non parte. Guarda i contatti nel ladder: quale non si colora?',
+      wires: [
+        ['Q.L1', 'QM.1', 'marrone'], ['Q.L2', 'QM.3', 'nero'], ['Q.L3', 'QM.5', 'grigio'],
+        ['QM.2', 'KM.1', 'marrone'], ['QM.4', 'KM.3', 'nero'], ['QM.6', 'KM.5', 'grigio'],
+        ['KM.2', 'M.U', 'marrone'], ['KM.4', 'M.V', 'nero'], ['KM.6', 'M.W', 'grigio'],
+        ['M.PE', 'Q.PE', 'gv'],
+        ['QM.2', 'PLC.A1', 'rosso'], ['PLC.A2', 'Q.N', 'blu'],
+        ['QM.2', 'SB0.1', 'rosso'], ['SB0.2', 'PLC.I0', 'rosso'],
+        ['QM.2', 'SB1.3', 'rosso'], ['SB1.4', 'PLC.I1', 'rosso'],
+        ['PLC.IC', 'Q.N', 'blu'],
+        ['QM.2', 'PLC.Q0A', 'rosso'], ['PLC.Q0B', 'KM.A1', 'rosso'], ['KM.A2', 'Q.N', 'blu'],
+        ['QM.2', 'PLC.Q1A', 'rosso'], ['PLC.Q1B', 'H.X1', 'rosso'], ['H.X2', 'Q.N', 'blu'],
+      ],
+      programs: {
+        PLC: [
+          { if: ['and', ['or', 'I1', 'Q0'], ['not', 'I0']], do: [{ op: 'coil', a: 'Q0' }] },
+          { if: 'Q0', do: [{ op: 'coil', a: 'Q1' }] },
+        ],
+      },
+      diagnosis: {
+        question: 'Perché il motore non parte?',
+        options: [
+          { id: 'a', text: 'Il contatto di I0 è normalmente chiuso, ma I0 vale 1 a riposo: il gradino non è mai vero.' },
+          { id: 'b', text: 'Manca l’autoritenuta.' },
+          { id: 'c', text: 'Il pulsante di marcia è rotto.' },
+        ],
+        correct: 'a',
+        why: 'L’arresto è cablato NC, quindi I0 vale 1 a riposo e 0 solo premendolo. Un contatto normalmente chiuso su I0 lascia passare con I0 a 0: a riposo il gradino è sempre interrotto, e Marcia non basta. Serve un contatto normalmente aperto.',
+      },
+      fixSay: 'Tocca il contatto di I0 nel gradino 1 e cambialo in normalmente aperto. Poi premi Verifica.',
+    },
+  },
 };

@@ -217,3 +217,18 @@ export function flowMessage(flow, level) {
   const t = flow.deadEnds[0];
   return 'La tensione arriva fino a ' + termName(level, t) + ' e lì si ferma.';
 }
+
+// Problemi di un programma del PLC (validateProgram) in una frase, per l'editor.
+export function progText(e) {
+  switch (e.code) {
+    case 'prog.tooLong': return 'Il programma è troppo lungo: ' + e.n + ' gradini.';
+    case 'prog.rungEmpty': return 'Il gradino ' + e.rung + ' non ha ancora una bobina: aggiungine una.';
+    case 'prog.noCondition': return 'Il gradino ' + e.rung + ' non ha contatti: la bobina non si accenderà mai.';
+    case 'prog.badAddr': return 'Il gradino ' + e.rung + ' usa un indirizzo non valido (' + e.addr + ').';
+    case 'prog.noSuchIo': return 'Il gradino ' + e.rung + ' usa ' + e.addr + ', che questo PLC non ha.';
+    case 'prog.writeInput': return 'Il gradino ' + e.rung + ' prova a scrivere su ' + e.addr + ': gli ingressi si possono solo leggere.';
+    case 'prog.doubleCoil': return 'La bobina ' + e.addr + ' è usata in due gradini: l’ultima vince e il primo non serve. Una bobina per uscita.';
+    case 'prog.badPreset': return 'Il gradino ' + e.rung + ' ha un tempo o un conteggio non valido.';
+    default: return 'Il programma ha un errore nel gradino ' + (e.rung || '?') + '.';
+  }
+}

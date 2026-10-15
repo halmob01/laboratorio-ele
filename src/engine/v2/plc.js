@@ -121,3 +121,31 @@ export function scan(program, inputs, mem, dt = 0) {
   Object.keys(bits).forEach(k => { if (k[0] === 'Q') outputs[k] = !!bits[k]; });
   return { mem: m, outputs, rungs };
 }
+
+// Pulizia di un programma che arriva da fuori (lavoro salvato, interfaccia): tiene solo la forma attesa, taglia l'eccesso.
+// Non controlla il significato (lo fa validateProgram): garantisce solo che scan non si rompa.
+export function sanitizeProgram(program) {
+  const addr = a => (typeof a === 'string' && ADDR.test(a) ? a : null);
+  const expr = (e, depth = 0) => {
+    if (depth > 4) return null;
+    if (typeof e === 'string') return addr(e);
+    if (!Array.isArray(e) || !['not', 'and', 'or', 'rise'].includes(e[0])) return null;
+    const kids = e.slice(1, 9).map(x => expr(x, depth + 1));
+    if (!kids.length || kids.some(k => k === null)) return null;
+    return [e[0], ...(e[0] === 'not' || e[0] === 'rise' ? kids.slice(0, 1) : kids)];
+  };
+  const ins = i => {
+    if (!i || typeof i !== 'object') return null;
+    if (['coil', 'set', 'reset'].includes(i.op)) return addr(i.a) ? { op: i.op, a: i.a } : null;
+    if (i.op === 'ton') return /^T\d{1,2}$/.test(i.id) && i.pt > 0 && i.pt <= 600 ? { op: 'ton', id: i.id, pt: Number(i.pt) } : null;
+    if (i.op === 'ctu') return /^C\d{1,2}$/.test(i.id) && i.pv > 0 && i.pv <= 999 ? { op: 'ctu', id: i.id, pv: Math.floor(Number(i.pv)), ...(addr(i.r) ? { r: i.r } : {}) } : null;
+    return null;
+  };
+  if (!Array.isArray(program)) return [];
+  return program.slice(0, MAX_RUNGS).filter(r => r && typeof r === 'object').map(r => {
+    const out = { do: (Array.isArray(r.do) ? r.do.slice(0, 6) : []).map(ins).filter(Boolean) };
+    const c = r.if === undefined || r.if === null ? null : expr(r.if);
+    if (c !== null) out.if = c;
+    return out;
+  });
+}

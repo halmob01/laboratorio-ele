@@ -561,3 +561,21 @@ svg.ladder{display:block;min-width:360px;width:100%;max-width:640px;height:auto}
 .lad-num{font:600 11px 'IBM Plex Mono',monospace;fill:var(--ink2)}
 .lad-box{fill:none;stroke:var(--ink2);stroke-width:2}
 .lad-box.lad-done{stroke:#F59F00}
+
+/* editor del ladder */
+.lad-hit{fill:transparent;stroke:none;cursor:pointer;outline:none}
+.lad-hit:hover{fill:rgba(245,159,0,.10)}
+.lad-hit:focus-visible,.lad-hit.lad-sel{stroke:var(--accent,#2563B0);stroke-width:2.5;fill:rgba(37,99,176,.10)}
+.lad-numsel{fill:var(--accent,#2563B0);font-weight:700}
+.ladpanel{margin-top:10px;display:flex;flex-direction:column;gap:10px}
+.ladrow{display:flex;flex-direction:column;gap:8px;padding:10px;border:1px solid var(--line);border-radius:10px;background:var(--chip)}
+.ladrow b{font:600 14px 'IBM Plex Sans',sans-serif}
+.ladbtns{display:flex;flex-wrap:wrap;gap:8px}
+.ladbtns .btn{min-height:44px}
+.ladseg{display:flex;flex-wrap:wrap;gap:6px}
+.ladsel{display:flex;align-items:center;gap:8px;font:500 14px 'IBM Plex Sans',sans-serif}
+.ladsel select{min-height:44px;font:500 15px 'IBM Plex Sans',sans-serif;border:1.5px solid var(--line);border-radius:8px;padding:0 8px;background:var(--card);color:var(--ink);max-width:100%}
+.ladhelp{margin:0;font:500 14px 'IBM Plex Sans',sans-serif;color:var(--ink2)}
+.laderr{margin:0;padding-left:18px;font:500 13px 'IBM Plex Sans',sans-serif;color:var(--bad)}
+.btn[disabled]{opacity:.45;cursor:default}
+.work.lad-first .ladcard{order:2}.work.lad-first .benchcard{order:3}

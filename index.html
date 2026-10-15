@@ -571,6 +571,24 @@ svg.ladder{display:block;min-width:360px;width:100%;max-width:640px;height:auto}
 .lad-num{font:600 11px 'IBM Plex Mono',monospace;fill:var(--ink2)}
 .lad-box{fill:none;stroke:var(--ink2);stroke-width:2}
 .lad-box.lad-done{stroke:#F59F00}
+
+/* editor del ladder */
+.lad-hit{fill:transparent;stroke:none;cursor:pointer;outline:none}
+.lad-hit:hover{fill:rgba(245,159,0,.10)}
+.lad-hit:focus-visible,.lad-hit.lad-sel{stroke:var(--accent,#2563B0);stroke-width:2.5;fill:rgba(37,99,176,.10)}
+.lad-numsel{fill:var(--accent,#2563B0);font-weight:700}
+.ladpanel{margin-top:10px;display:flex;flex-direction:column;gap:10px}
+.ladrow{display:flex;flex-direction:column;gap:8px;padding:10px;border:1px solid var(--line);border-radius:10px;background:var(--chip)}
+.ladrow b{font:600 14px 'IBM Plex Sans',sans-serif}
+.ladbtns{display:flex;flex-wrap:wrap;gap:8px}
+.ladbtns .btn{min-height:44px}
+.ladseg{display:flex;flex-wrap:wrap;gap:6px}
+.ladsel{display:flex;align-items:center;gap:8px;font:500 14px 'IBM Plex Sans',sans-serif}
+.ladsel select{min-height:44px;font:500 15px 'IBM Plex Sans',sans-serif;border:1.5px solid var(--line);border-radius:8px;padding:0 8px;background:var(--card);color:var(--ink);max-width:100%}
+.ladhelp{margin:0;font:500 14px 'IBM Plex Sans',sans-serif;color:var(--ink2)}
+.laderr{margin:0;padding-left:18px;font:500 13px 'IBM Plex Sans',sans-serif;color:var(--bad)}
+.btn[disabled]{opacity:.45;cursor:default}
+.work.lad-first .ladcard{order:2}.work.lad-first .benchcard{order:3}
 </style>
 </head>
 <body>
@@ -1014,8 +1032,8 @@ svg.ladder{display:block;min-width:360px;width:100%;max-width:640px;height:auto}
     return step.to.some((t) => uf.f(step.from) === uf.f(t));
   };
   function measureMatches(st, m) {
-    const same = m.a === st.between[0] && m.b === st.between[1] || m.a === st.between[1] && m.b === st.between[0];
-    if (!same || m.mode !== (st.mode || "V")) return false;
+    const same2 = m.a === st.between[0] && m.b === st.between[1] || m.a === st.between[1] && m.b === st.between[0];
+    if (!same2 || m.mode !== (st.mode || "V")) return false;
     if (st.value !== void 0 && m.value !== st.value) return false;
     if (st.reading !== void 0 && m.kind !== st.reading) return false;
     if (st.live !== void 0 && m.live !== st.live) return false;
@@ -1031,6 +1049,7 @@ svg.ladder{display:block;min-width:360px;width:100%;max-width:640px;height:auto}
       else if (st.kind === "control") d = operated.has(st.id);
       else if (st.kind === "measure") d = (ctx.measured || []).some((m) => measureMatches(st, m));
       else if (st.kind === "rate") d = !!ctx.ratings && ctx.ratings[st.id] === st.value;
+      else if (st.kind === "program") d = ((ctx.programs || {})[st.plc] || []).filter((r) => r.do && r.do.length && r.if !== void 0).length >= (st.min || 1);
       else if (st.kind === "verify") d = !!(ctx.result && ctx.result.pass);
       else d = false;
       ok = ok && d;
@@ -1198,8 +1217,62 @@ svg.ladder{display:block;min-width:360px;width:100%;max-width:640px;height:auto}
   var loadVolt = (c2) => c2.volt || partOf(c2).volt || 230;
 
   // src/engine/v2/plc.js
+  var MAX_RUNGS = 24;
+  var ADDR = /^[IQMTC]\d{1,2}$/;
   var newMem = () => ({ bits: {}, timers: {}, counters: {}, prev: {} });
   var cloneMem = (m) => JSON.parse(JSON.stringify(m));
+  function addrsOf(e, out = []) {
+    if (typeof e === "string") out.push(e);
+    else if (Array.isArray(e)) e.slice(1).forEach((x) => addrsOf(x, out));
+    return out;
+  }
+  function validateProgram(program, known = { I: 8, Q: 8 }) {
+    const errs = [];
+    if (!Array.isArray(program)) return [{ code: "prog.notList" }];
+    if (program.length > MAX_RUNGS) errs.push({ code: "prog.tooLong", n: program.length });
+    const writers = /* @__PURE__ */ new Set();
+    program.forEach((r, i) => {
+      if (!r || typeof r !== "object" || !Array.isArray(r.do) || !r.do.length) {
+        errs.push({ code: "prog.rungEmpty", rung: i + 1 });
+        return;
+      }
+      const chk = (a) => {
+        if (typeof a !== "string" || !ADDR.test(a)) {
+          errs.push({ code: "prog.badAddr", rung: i + 1, addr: String(a) });
+          return;
+        }
+        const k = a[0], n = Number(a.slice(1));
+        if (k === "I" && n >= known.I || k === "Q" && n >= known.Q) errs.push({ code: "prog.noSuchIo", rung: i + 1, addr: a });
+      };
+      try {
+        addrsOf(r.if).forEach(chk);
+      } catch (e) {
+        errs.push({ code: "prog.badExpr", rung: i + 1 });
+      }
+      if (r.if === void 0 || r.if === null) errs.push({ code: "prog.noCondition", rung: i + 1 });
+      r.do.forEach((ins) => {
+        if (!ins || !["coil", "set", "reset", "ton", "ctu"].includes(ins.op)) {
+          errs.push({ code: "prog.badOp", rung: i + 1 });
+          return;
+        }
+        if (ins.op === "ton" || ins.op === "ctu") {
+          if (typeof ins.id !== "string" || !/^[TC]\d{1,2}$/.test(ins.id) || ins.id[0] !== (ins.op === "ton" ? "T" : "C")) errs.push({ code: "prog.badAddr", rung: i + 1, addr: String(ins.id) });
+          if (ins.op === "ton" && !(ins.pt > 0)) errs.push({ code: "prog.badPreset", rung: i + 1 });
+          if (ins.op === "ctu" && !(ins.pv > 0)) errs.push({ code: "prog.badPreset", rung: i + 1 });
+          if (ins.op === "ctu" && ins.r) chk(ins.r);
+          writers.add(ins.id);
+        } else {
+          chk(ins.a);
+          if (typeof ins.a === "string" && (ins.a[0] === "I" || ins.a[0] === "T" || ins.a[0] === "C")) errs.push({ code: "prog.writeInput", rung: i + 1, addr: ins.a });
+          if (ins.op === "coil" && typeof ins.a === "string") {
+            if (writers.has(ins.a)) errs.push({ code: "prog.doubleCoil", rung: i + 1, addr: ins.a });
+            writers.add(ins.a);
+          }
+        }
+      });
+    });
+    return errs;
+  }
   function ev(e, bits, prev) {
     if (typeof e === "string") return !!bits[e];
     if (!Array.isArray(e)) return false;
@@ -1246,6 +1319,31 @@ svg.ladder{display:block;min-width:360px;width:100%;max-width:640px;height:auto}
       if (k[0] === "Q") outputs[k] = !!bits[k];
     });
     return { mem: m, outputs, rungs };
+  }
+  function sanitizeProgram(program) {
+    const addr = (a) => typeof a === "string" && ADDR.test(a) ? a : null;
+    const expr = (e, depth = 0) => {
+      if (depth > 4) return null;
+      if (typeof e === "string") return addr(e);
+      if (!Array.isArray(e) || !["not", "and", "or", "rise"].includes(e[0])) return null;
+      const kids = e.slice(1, 9).map((x) => expr(x, depth + 1));
+      if (!kids.length || kids.some((k) => k === null)) return null;
+      return [e[0], ...e[0] === "not" || e[0] === "rise" ? kids.slice(0, 1) : kids];
+    };
+    const ins = (i) => {
+      if (!i || typeof i !== "object") return null;
+      if (["coil", "set", "reset"].includes(i.op)) return addr(i.a) ? { op: i.op, a: i.a } : null;
+      if (i.op === "ton") return /^T\d{1,2}$/.test(i.id) && i.pt > 0 && i.pt <= 600 ? { op: "ton", id: i.id, pt: Number(i.pt) } : null;
+      if (i.op === "ctu") return /^C\d{1,2}$/.test(i.id) && i.pv > 0 && i.pv <= 999 ? { op: "ctu", id: i.id, pv: Math.floor(Number(i.pv)), ...addr(i.r) ? { r: i.r } : {} } : null;
+      return null;
+    };
+    if (!Array.isArray(program)) return [];
+    return program.slice(0, MAX_RUNGS).filter((r) => r && typeof r === "object").map((r) => {
+      const out = { do: (Array.isArray(r.do) ? r.do.slice(0, 6) : []).map(ins).filter(Boolean) };
+      const c2 = r.if === void 0 || r.if === null ? null : expr(r.if);
+      if (c2 !== null) out.if = c2;
+      return out;
+    });
   }
 
   // src/engine/v2/sim.js
@@ -1539,11 +1637,11 @@ svg.ladder{display:block;min-width:360px;width:100%;max-width:640px;height:auto}
       const r = scan(programOf(sim, c2), an.plcIn[c2.id], s.mem || newMem(), dt);
       let q = r.outputs;
       if (sim.forcePlc === "allOn") q = Object.fromEntries(Object.keys(c2.terms).filter((t) => /^Q\d+A$/.test(t)).map((t) => [t.slice(0, -1), true]));
-      const same = Object.keys({ ...q, ...s.q }).every((k) => !!q[k] === !!s.q[k]);
+      const same2 = Object.keys({ ...q, ...s.q }).every((k) => !!q[k] === !!s.q[k]);
       s.mem = r.mem;
       s.rungs = r.rungs;
       s.inputs = an.plcIn[c2.id];
-      if (!same) {
+      if (!same2) {
         s.q = q;
         changed = true;
       }
@@ -2425,6 +2523,7 @@ svg.ladder{display:block;min-width:360px;width:100%;max-width:640px;height:auto}
     const liveEditsBy = {};
     const measuredBy = {};
     const operatedByKey = {};
+    const programsByKey = {};
     const simsByKey = {};
     let nextWireId = 1;
     let progress;
@@ -2453,6 +2552,11 @@ svg.ladder{display:block;min-width:360px;width:100%;max-width:640px;height:auto}
     const fixedOf = (lv) => (lv.fixed || []).map(([a, b, c2], n) => ({ id: -(n + 1), a, b, c: c2, fixed: true }));
     const blank = (i = levelIndex, m = mode) => fixedOf(levelAt(i, m));
     const wires = () => wiresByKey[keyOf()] || (wiresByKey[keyOf()] = blank());
+    const programsOf = (i = levelIndex, m = mode) => programsByKey[keyOf(i, m)] || {};
+    const withProg = (lv, k = keyOf()) => {
+      const pr = programsByKey[k];
+      return pr && lv.comps.some((c2) => c2.type === "plc" && pr[c2.id]) ? { ...lv, comps: lv.comps.map((c2) => c2.type === "plc" && pr[c2.id] ? { ...c2, program: pr[c2.id] } : c2) } : lv;
+    };
     const states = () => statesByKey[keyOf()] || (statesByKey[keyOf()] = {});
     const usage = () => usageByKey[keyOf()] || (usageByKey[keyOf()] = { hints: 0, solution: false, checks: 0 });
     const startPhase = (i = levelIndex) => {
@@ -2529,7 +2633,7 @@ svg.ladder{display:block;min-width:360px;width:100%;max-width:640px;height:auto}
     function simFor() {
       const k = keyOf();
       if (!simsByKey[k]) {
-        const sim = createSim(levelAt(), wires());
+        const sim = createSim(withProg(levelAt(), k), wires());
         const sr = ratingsSaved[k];
         delete ratingsSaved[k];
         const iso2 = isoSaved[k];
@@ -2577,7 +2681,7 @@ svg.ladder{display:block;min-width:360px;width:100%;max-width:640px;height:auto}
     function stepsPart(level, phase) {
       const u = level.unit;
       if (!u || !u.steps || playMode !== "apprendimento" || phase === "lesson") return { steps: null, ghost: null };
-      const st = stepsState(u.steps, wires(), { power, operated: operated(), result: resultsByKey[keyOf()] || null, fault: !!analysisOf(level).fault, measured: measuredBy[keyOf()] || [], ratings: ratingsOf() });
+      const st = stepsState(u.steps, wires(), { power, operated: operated(), result: resultsByKey[keyOf()] || null, fault: !!analysisOf(level).fault, measured: measuredBy[keyOf()] || [], ratings: ratingsOf(), programs: programsOf() });
       const cur = st.current === null ? null : u.steps[st.current];
       const ghost = phase === "build" && u.support === "guidato" && cur ? ghostFor(cur, wires()) : null;
       return { steps: { list: u.steps, done: st.done, current: st.current }, ghost };
@@ -2598,6 +2702,7 @@ svg.ladder{display:block;min-width:360px;width:100%;max-width:640px;height:auto}
         mode,
         playMode,
         wires: wires().slice(),
+        programs: JSON.parse(JSON.stringify(programsOf())),
         controlStates: is2 ? view2.controlStates : { ...states() },
         power,
         trip: trip2,
@@ -2662,14 +2767,16 @@ svg.ladder{display:block;min-width:360px;width:100%;max-width:640px;height:auto}
         if (rs[c2.id] && rs[c2.id] !== c2.in) rt[c2.id] = rs[c2.id];
       });
       const ms = (measuredBy[keyOf()] || []).slice(0, 100);
+      const pg = programsOf();
       const lv_ = (liveEditsBy[keyOf()] || []).slice(0, 20);
       const iso_ = mode === "quadro" ? isoOf() : {};
-      if (ws.length || Object.keys(st).length || Object.keys(rt).length || ms.length || lv_.length || Object.keys(iso_).length) {
+      if (ws.length || Object.keys(st).length || Object.keys(rt).length || ms.length || lv_.length || Object.keys(iso_).length || Object.keys(pg).length) {
         const e = { wires: ws, states: st };
         if (Object.keys(rt).length) e.ratings = rt;
         if (ms.length) e.measured = ms;
         if (lv_.length) e.live = lv_;
         if (Object.keys(iso_).length) e.iso = iso_;
+        if (Object.keys(pg).length) e.programs = pg;
         work.w[workKeyOf(levelIndex, mode)] = e;
       } else delete work.w[workKeyOf(levelIndex, mode)];
       if (u && l.unit) {
@@ -2733,6 +2840,16 @@ svg.ladder{display:block;min-width:360px;width:100%;max-width:640px;height:auto}
               entry.ratings = { ...rt };
             }
           }
+          if (isObj(e2.programs)) {
+            const pr = {};
+            lv.comps.forEach((c2) => {
+              if (c2.type === "plc" && c2.edit && Array.isArray(e2.programs[c2.id])) pr[c2.id] = sanitizeProgram(e2.programs[c2.id]);
+            });
+            if (Object.keys(pr).length) {
+              programsByKey[keyOf(i, m)] = pr;
+              entry.programs = JSON.parse(JSON.stringify(pr));
+            }
+          }
           if (Array.isArray(e2.measured)) {
             const ms = e2.measured.slice(0, 100).filter((x) => isObj(x) && typeof x.a === "string" && typeof x.b === "string" && typeof x.mode === "string" && typeof x.kind === "string" && known.has(x.a) && known.has(x.b)).map((x) => ({ a: x.a, b: x.b, mode: x.mode, kind: x.kind, value: typeof x.value === "number" ? x.value : null, ohm: typeof x.ohm === "number" ? x.ohm : null, live: !!x.live }));
             if (ms.length) {
@@ -2774,7 +2891,7 @@ svg.ladder{display:block;min-width:360px;width:100%;max-width:640px;height:auto}
         if (phase === "done") {
           const ws = wiresByKey[keyOf(i, "quadro")] || [];
           if (!(progress.stars[progressKey(l.id, "quadro")] > 0) || !ws.length) phase = "build";
-          else result = isV2(levelAt(i, "quadro")) ? evaluateV2(levelAt(i, "quadro"), ws, { measured: measuredBy[keyOf(i, "quadro")] || [], ratings: ratingsOf(i), liveEdits: liveEditsBy[keyOf(i, "quadro")] || [] }) : evaluate(levelAt(i, "quadro"), ws);
+          else result = isV2(levelAt(i, "quadro")) ? evaluateV2(levelAt(i, "quadro"), ws, { measured: measuredBy[keyOf(i, "quadro")] || [], ratings: ratingsOf(i), programs: programsOf(i, "quadro"), liveEdits: liveEditsBy[keyOf(i, "quadro")] || [] }) : evaluate(levelAt(i, "quadro"), ws);
           if (result && !result.pass) {
             phase = "build";
             result = null;
@@ -2798,6 +2915,8 @@ svg.ladder{display:block;min-width:360px;width:100%;max-width:640px;height:auto}
       wiresByKey[keyOf()] = fx.concat(level.unit.fault.wires.filter(([a, b]) => !fxKeys.has([a, b].sort().join("~"))).map(([a, b, c2]) => ({ id: nextWireId++, a, b, c: c2 })));
       statesByKey[keyOf()] = {};
       resultsByKey[keyOf()] = null;
+      if (level.unit.fault.programs) programsByKey[keyOf()] = JSON.parse(JSON.stringify(level.unit.fault.programs));
+      else delete programsByKey[keyOf()];
       us.phase = "fault";
       if (v2(level)) (level.unit.fault.on || []).forEach((id) => act(simFor(), "toggle", id));
       if (v2(level)) (level.unit.fault.open || []).forEach((id) => {
@@ -2831,6 +2950,7 @@ svg.ladder{display:block;min-width:360px;width:100%;max-width:640px;height:auto}
       if (levelAt().prova && !us.before) {
         unitByKey[levelIndex] = { phase: "fault", page: 0, pred: us.pred, diag: null, faultSolved: false };
         wiresByKey[keyOf(levelIndex, "quadro")] = blank(levelIndex, "quadro");
+        delete programsByKey[keyOf(levelIndex, "quadro")];
         statesByKey[keyOf(levelIndex, "quadro")] = {};
         resultsByKey[keyOf(levelIndex, "quadro")] = null;
         delete measuredBy[keyOf(levelIndex, "quadro")];
@@ -2845,6 +2965,8 @@ svg.ladder{display:block;min-width:360px;width:100%;max-width:640px;height:auto}
         statesByKey[keyOf(levelIndex, "quadro")] = us.before.states;
         resultsByKey[keyOf(levelIndex, "quadro")] = us.before.result;
         measuredBy[keyOf(levelIndex, "quadro")] = us.before.measured || [];
+        if (us.before.programs && Object.keys(us.before.programs).length) programsByKey[keyOf(levelIndex, "quadro")] = us.before.programs;
+        else delete programsByKey[keyOf(levelIndex, "quadro")];
         if (us.before.ratings && Object.keys(us.before.ratings).length) ratingsSaved[keyOf(levelIndex, "quadro")] = us.before.ratings;
         us.before = null;
       }
@@ -2852,7 +2974,8 @@ svg.ladder{display:block;min-width:360px;width:100%;max-width:640px;height:auto}
     const verifyStash = {};
     function stashForVerify() {
       const k = keyOf();
-      verifyStash[levelIndex] = { key: k, wires: (wiresByKey[k] || []).slice(), states: { ...statesByKey[k] || {} }, result: resultsByKey[k] || null, usage: usageByKey[k] || null, unit: unitByKey[levelIndex] || null, measured: (measuredBy[k] || []).slice(), live: (liveEditsBy[k] || []).slice(), ratings: ratingsOf(), iso: isoOf() };
+      verifyStash[levelIndex] = { key: k, wires: (wiresByKey[k] || []).slice(), states: { ...statesByKey[k] || {} }, result: resultsByKey[k] || null, usage: usageByKey[k] || null, unit: unitByKey[levelIndex] || null, measured: (measuredBy[k] || []).slice(), live: (liveEditsBy[k] || []).slice(), ratings: ratingsOf(), iso: isoOf(), programs: JSON.parse(JSON.stringify(programsByKey[k] || {})) };
+      delete programsByKey[k];
       delete measuredBy[k];
       delete liveEditsBy[k];
       delete ratingsSaved[k];
@@ -2869,6 +2992,8 @@ svg.ladder{display:block;min-width:360px;width:100%;max-width:640px;height:auto}
       resultsByKey[st.key] = st.result;
       measuredBy[st.key] = st.measured;
       liveEditsBy[st.key] = st.live;
+      if (st.programs && Object.keys(st.programs).length) programsByKey[st.key] = st.programs;
+      else delete programsByKey[st.key];
       delete ratingsSaved[st.key];
       delete isoSaved[st.key];
       if (Object.keys(st.ratings).length) ratingsSaved[st.key] = st.ratings;
@@ -3020,6 +3145,7 @@ svg.ladder{display:block;min-width:360px;width:100%;max-width:640px;height:auto}
         resetLevelState();
         if (opts.verify) {
           wiresByKey[keyOf()] = blank();
+          delete programsByKey[keyOf()];
           statesByKey[keyOf()] = {};
           resultsByKey[keyOf()] = null;
           usageByKey[keyOf()] = { hints: 0, solution: false, checks: 0 };
@@ -3072,6 +3198,17 @@ svg.ladder{display:block;min-width:360px;width:100%;max-width:640px;height:auto}
         if (fresh) message = { code: "liveWorkNow" };
         emit();
       },
+      // Programma di un PLC (livelli con `edit`): sostituisce quello attuale. Il PLC riparte da zero, come dopo un nuovo caricamento.
+      setProgram(id, program) {
+        if (!inBuildOrFault()) return;
+        const c2 = levelAt().comps.find((x) => x.id === id && x.type === "plc" && x.edit);
+        if (!c2) return;
+        programsByKey[keyOf()] = { ...programsOf(), [id]: sanitizeProgram(program) };
+        resultsByKey[keyOf()] = null;
+        rewireSim();
+        applyLive2();
+        emit();
+      },
       undo() {
         if (!inBuildOrFault()) return;
         const lw = wires()[wires().length - 1];
@@ -3085,10 +3222,11 @@ svg.ladder{display:block;min-width:360px;width:100%;max-width:640px;height:auto}
       },
       clear() {
         if (!inBuildOrFault()) return;
-        if (!wires().some((w) => !w.fixed)) {
+        if (!wires().some((w) => !w.fixed) && !Object.keys(programsOf()).length) {
           delete liveEditsBy[keyOf()];
           return;
         }
+        delete programsByKey[keyOf()];
         wiresChanged();
         delete liveEditsBy[keyOf()];
         wiresByKey[keyOf()] = blank();
@@ -3238,7 +3376,7 @@ svg.ladder{display:block;min-width:360px;width:100%;max-width:640px;height:auto}
       check() {
         const level = levelAt();
         const faultOn = v2(level) && level.unit && level.unit.fault && unitState().phase === "fault" ? (level.unit.fault.on || []).filter((id) => simFor().parts[id] && simFor().parts[id].on) : [];
-        const r = v2(level) ? evaluateV2(level, wires(), { measured: measuredBy[keyOf()] || [], ratings: ratingsOf(), faultOn, liveEdits: liveEditsBy[keyOf()] || [] }) : evaluate(level, wires());
+        const r = v2(level) ? evaluateV2(level, wires(), { measured: measuredBy[keyOf()] || [], ratings: ratingsOf(), programs: programsOf(), faultOn, liveEdits: liveEditsBy[keyOf()] || [] }) : evaluate(level, wires());
         resultsByKey[keyOf()] = r;
         const u = usage();
         u.checks++;
@@ -3335,7 +3473,7 @@ svg.ladder{display:block;min-width:360px;width:100%;max-width:640px;height:auto}
         const level = levelAt();
         const us = level.unit && level.unit.fault && unitState();
         if (!us || !["done", "fault"].includes(us.phase) || playMode === "verifica" || mode !== "quadro") return;
-        if (us.phase === "done") us.before = { wires: (wiresByKey[keyOf()] || []).slice(), states: { ...statesByKey[keyOf()] || {} }, result: resultsByKey[keyOf()] || null, measured: (measuredBy[keyOf()] || []).slice(), ratings: ratingsOf() };
+        if (us.phase === "done") us.before = { wires: (wiresByKey[keyOf()] || []).slice(), states: { ...statesByKey[keyOf()] || {} }, result: resultsByKey[keyOf()] || null, measured: (measuredBy[keyOf()] || []).slice(), ratings: ratingsOf(), programs: JSON.parse(JSON.stringify(programsOf())) };
         loadFaultPlant(level, us);
         emit();
       },
@@ -3382,6 +3520,7 @@ svg.ladder{display:block;min-width:360px;width:100%;max-width:640px;height:auto}
     };
   }
   function demoFramesV2(level, captions) {
+    const simLevel = level.solutionPrograms ? { ...level, comps: level.comps.map((c2) => c2.type === "plc" && level.solutionPrograms[c2.id] ? { ...c2, program: level.solutionPrograms[c2.id] } : c2) } : level;
     const wires = level.solution.map(([a, b, c2], i) => ({ id: i + 1, a, b, c: c2 }));
     const self = selfPowered(level);
     const snapOf = (sim2, w, power, caption, newWire) => ({
@@ -3404,11 +3543,11 @@ svg.ladder{display:block;min-width:360px;width:100%;max-width:640px;height:auto}
     const out = [];
     for (let k = 1; k <= wires.length; k++) {
       const w = wires.slice(0, k);
-      const sim2 = createSim(level, w);
+      const sim2 = createSim(simLevel, w);
       if (!self) setSupply(sim2, false);
       out.push(snapOf(sim2, w, self, (captions.wires || [])[k - 1] || "", k));
     }
-    const sim = createSim(level, wires);
+    const sim = createSim(simLevel, wires);
     setSupply(sim, true);
     out.push(snapOf(sim, wires, true, captions.power || "", null));
     const steps = level.demoDo || (level.controls || []).map((id, i) => {
@@ -5408,6 +5547,30 @@ svg.ladder{display:block;min-width:360px;width:100%;max-width:640px;height:auto}
       ]
     }
   ];
+  var C29 = LEVELS_V2.find((l) => l.id === "c29-plc");
+  LEVELS_V2.push({
+    ...C29,
+    id: "c30-ladder",
+    code: "c30",
+    name: "Ladder: l\u2019autoritenuta",
+    title: "Ladder: l\u2019autoritenuta",
+    blurb: "Scrivi tu il programma: marcia, arresto e spia.",
+    goal: "L\u2019impianto \xE8 cablato e il PLC \xE8 acceso, ma il programma \xE8 vuoto. Scrivilo tu: con Marcia il motore parte e resta in marcia a pulsante rilasciato, con Arresto si ferma, e la spia segue il motore. Ricorda che l\u2019arresto \xE8 un contatto normalmente chiuso: a riposo porta tensione e l\u2019ingresso I0 vale 1.",
+    fixed: C29.solution.map((w) => w.slice()),
+    comps: C29.comps.map((c2) => c2.type === "plc" ? { ...c2, program: void 0, title: "PLC (programma da scrivere)", edit: { markers: 0, timers: 0, counters: 0, ops: ["coil"] } } : c2),
+    solutionPrograms: {
+      PLC: [
+        { if: ["and", ["or", "I1", "Q0"], "I0"], do: [{ op: "coil", a: "Q0" }] },
+        { if: "Q0", do: [{ op: "coil", a: "Q1" }] }
+      ]
+    },
+    hints: [
+      "Un gradino ha i contatti a sinistra e la bobina a destra. Il motore \xE8 l\u2019uscita Q0: la sua bobina sta a destra del gradino 1.",
+      "Per far partire il motore serve il contatto di Marcia, I1. Ma Marcia \xE8 un impulso: appena lo rilasci vale 0. Per tenere acceso Q0 aggiungi in parallelo a I1 il contatto di Q0 stesso.",
+      "L\u2019arresto \xE8 collegato come contatto NC, quindi I0 vale 1 a riposo e vale 0 solo premendolo: in serie metti I0 come contatto normalmente aperto, non chiuso.",
+      "Il gradino 2 \xE8 semplice: un contatto Q0 e la bobina Q1, la spia."
+    ]
+  });
 
   // src/content/units-v2.js
   var UNITS_V2 = {
@@ -8024,6 +8187,130 @@ svg.ladder{display:block;min-width:360px;width:100%;max-width:640px;height:auto}
         },
         fixSay: "Collega il morsetto IC del PLC al neutro del quadro, in blu, con il salvamotore aperto. Poi premi Verifica."
       }
+    },
+    "c30-ladder": {
+      support: "passi",
+      lesson: {
+        pages: [
+          {
+            type: "spiegazione",
+            title: "Il ladder: lo schema a scala",
+            paras: [
+              "Il ladder (schema a contatti) si legge come uno schema elettrico a rel\xE8: due montanti verticali, e tra l\u2019uno e l\u2019altro i gradini. Ogni gradino ha a sinistra dei contatti e a destra una bobina.",
+              'La corrente "passa" nel gradino da sinistra a destra se i contatti lasciano passare. Quando passa, la bobina si accende: nel PLC la bobina \xE8 un\u2019uscita (Q0, Q1) o un bit interno.'
+            ]
+          },
+          {
+            type: "spiegazione",
+            title: "Contatti in serie e in parallelo",
+            paras: [
+              "Un contatto normalmente aperto lascia passare quando il suo bit vale 1. Un contatto normalmente chiuso lascia passare quando il bit vale 0.",
+              "Contatti in serie sono un E: servono tutti. Contatti in parallelo sono un O: ne basta uno. L\u2019autoritenuta \xE8 proprio un parallelo: Marcia oppure l\u2019uscita stessa."
+            ]
+          },
+          {
+            type: "previsione",
+            question: "Un gradino ha un contatto normalmente aperto su I1 e la bobina Q0. Che cosa succede se I1 vale 1?",
+            options: [
+              { id: "a", text: "Q0 si accende, e si spegne quando I1 torna a 0." },
+              { id: "b", text: "Q0 si accende e resta acceso per sempre." },
+              { id: "c", text: "Non succede niente: serve un contatto normalmente chiuso." }
+            ],
+            correct: "a",
+            why: "Una bobina segue la condizione del suo gradino: la condizione \xE8 vera quando I1 vale 1, quindi Q0 vale 1, e torna a 0 quando I1 torna a 0. Per farlo restare acceso serve l\u2019autoritenuta."
+          },
+          {
+            type: "previsione",
+            question: "Marcia \xE8 un impulso e deve far restare acceso Q0 anche dopo il rilascio. Come si aggiunge il contatto di Q0 al contatto di Marcia?",
+            options: [
+              { id: "a", text: "In serie: servono tutti e due." },
+              { id: "b", text: "In parallelo: ne basta uno dei due." },
+              { id: "c", text: "Non serve: il PLC ricorda l\u2019ultimo valore." }
+            ],
+            correct: "b",
+            why: "All\u2019inizio Q0 vale 0, quindi serve Marcia. Una volta acceso, Q0 vale 1 e tiene vero il gradino anche con Marcia a 0. Due contatti dei quali basta uno sono in parallelo."
+          },
+          {
+            type: "spiegazione",
+            title: "Come si scrive il programma",
+            paras: [
+              "Sotto il banco c\u2019\xE8 l\u2019editor. Premi Nuovo gradino, poi Aggiungi contatto e scegli quale ingresso o uscita leggere. Toccando un contatto puoi cambiarlo, metterlo normalmente chiuso, affiancarne uno in parallelo o toglierlo. Alla fine scegli la bobina del gradino.",
+              "Il PLC \xE8 acceso e il programma gira: prova subito Marcia e Arresto e guarda i contatti che si colorano."
+            ],
+            warn: "L\u2019arresto \xE8 cablato come contatto NC: a riposo porta tensione e I0 vale 1. Nel programma il suo contatto serve normalmente aperto, perch\xE9 deve lasciar passare quando I0 vale 1."
+          },
+          {
+            type: "previsione",
+            question: "Con l\u2019arresto cablato NC, quale contatto di I0 metti nel gradino del motore?",
+            options: [
+              { id: "a", text: "Normalmente aperto: lascia passare quando I0 vale 1, cio\xE8 a riposo." },
+              { id: "b", text: "Normalmente chiuso: cos\xEC si ferma quando viene premuto." },
+              { id: "c", text: "Nessuno: l\u2019arresto non serve nel programma." }
+            ],
+            correct: "a",
+            why: '\xC8 facile sbagliare: "arresto = contatto chiuso". Ma \xE8 l\u2019ingresso I0 a valere 1 a riposo, perch\xE9 il pulsante cablato NC porta tensione. Premendo, I0 va a 0 e un contatto normalmente aperto smette di lasciar passare: il motore si ferma.'
+          },
+          { type: "sintesi", title: "Da ricordare" }
+        ]
+      },
+      steps: [
+        { kind: "program", plc: "PLC", min: 1, short: "1 Motore", title: "Il gradino del motore", text: "Nuovo gradino: Marcia (I1) in parallelo a Q0, in serie con l\u2019arresto (I0), e la bobina Q0." },
+        { kind: "program", plc: "PLC", min: 2, short: "2 Spia", title: "Il gradino della spia", text: "Secondo gradino: un contatto Q0 e la bobina Q1." },
+        { kind: "control", id: "SB1", short: "3 Prova", title: "Prova la marcia", text: "Premi Marcia: il motore parte e resta in marcia. Premi Arresto: si ferma." },
+        { kind: "verify", short: "4 Verifica", title: "Controlla il programma", text: "Premi Verifica." }
+      ],
+      summary: [
+        "Un gradino ha i contatti a sinistra e la bobina a destra: la bobina segue la condizione.",
+        "Contatti in serie sono un E, contatti in parallelo un O.",
+        "L\u2019autoritenuta \xE8 l\u2019uscita stessa messa in parallelo al contatto di marcia.",
+        "Un contatto normalmente aperto lascia passare con il bit a 1: con l\u2019arresto cablato NC, I0 vale 1 a riposo.",
+        "Il programma si prova subito: il PLC gira e i contatti si colorano."
+      ],
+      fault: {
+        say: "Il programma \xE8 gi\xE0 scritto, ma premendo Marcia il motore non parte. Guarda i contatti nel ladder: quale non si colora?",
+        wires: [
+          ["Q.L1", "QM.1", "marrone"],
+          ["Q.L2", "QM.3", "nero"],
+          ["Q.L3", "QM.5", "grigio"],
+          ["QM.2", "KM.1", "marrone"],
+          ["QM.4", "KM.3", "nero"],
+          ["QM.6", "KM.5", "grigio"],
+          ["KM.2", "M.U", "marrone"],
+          ["KM.4", "M.V", "nero"],
+          ["KM.6", "M.W", "grigio"],
+          ["M.PE", "Q.PE", "gv"],
+          ["QM.2", "PLC.A1", "rosso"],
+          ["PLC.A2", "Q.N", "blu"],
+          ["QM.2", "SB0.1", "rosso"],
+          ["SB0.2", "PLC.I0", "rosso"],
+          ["QM.2", "SB1.3", "rosso"],
+          ["SB1.4", "PLC.I1", "rosso"],
+          ["PLC.IC", "Q.N", "blu"],
+          ["QM.2", "PLC.Q0A", "rosso"],
+          ["PLC.Q0B", "KM.A1", "rosso"],
+          ["KM.A2", "Q.N", "blu"],
+          ["QM.2", "PLC.Q1A", "rosso"],
+          ["PLC.Q1B", "H.X1", "rosso"],
+          ["H.X2", "Q.N", "blu"]
+        ],
+        programs: {
+          PLC: [
+            { if: ["and", ["or", "I1", "Q0"], ["not", "I0"]], do: [{ op: "coil", a: "Q0" }] },
+            { if: "Q0", do: [{ op: "coil", a: "Q1" }] }
+          ]
+        },
+        diagnosis: {
+          question: "Perch\xE9 il motore non parte?",
+          options: [
+            { id: "a", text: "Il contatto di I0 \xE8 normalmente chiuso, ma I0 vale 1 a riposo: il gradino non \xE8 mai vero." },
+            { id: "b", text: "Manca l\u2019autoritenuta." },
+            { id: "c", text: "Il pulsante di marcia \xE8 rotto." }
+          ],
+          correct: "a",
+          why: "L\u2019arresto \xE8 cablato NC, quindi I0 vale 1 a riposo e 0 solo premendolo. Un contatto normalmente chiuso su I0 lascia passare con I0 a 0: a riposo il gradino \xE8 sempre interrotto, e Marcia non basta. Serve un contatto normalmente aperto."
+        },
+        fixSay: "Tocca il contatto di I0 nel gradino 1 e cambialo in normalmente aperto. Poi premi Verifica."
+      }
     }
   };
 
@@ -8275,6 +8562,28 @@ svg.ladder{display:block;min-width:360px;width:100%;max-width:640px;height:auto}
     const t = flow.deadEnds[0];
     return "La tensione arriva fino a " + termName(level, t) + " e l\xEC si ferma.";
   }
+  function progText(e) {
+    switch (e.code) {
+      case "prog.tooLong":
+        return "Il programma \xE8 troppo lungo: " + e.n + " gradini.";
+      case "prog.rungEmpty":
+        return "Il gradino " + e.rung + " non ha ancora una bobina: aggiungine una.";
+      case "prog.noCondition":
+        return "Il gradino " + e.rung + " non ha contatti: la bobina non si accender\xE0 mai.";
+      case "prog.badAddr":
+        return "Il gradino " + e.rung + " usa un indirizzo non valido (" + e.addr + ").";
+      case "prog.noSuchIo":
+        return "Il gradino " + e.rung + " usa " + e.addr + ", che questo PLC non ha.";
+      case "prog.writeInput":
+        return "Il gradino " + e.rung + " prova a scrivere su " + e.addr + ": gli ingressi si possono solo leggere.";
+      case "prog.doubleCoil":
+        return "La bobina " + e.addr + " \xE8 usata in due gradini: l\u2019ultima vince e il primo non serve. Una bobina per uscita.";
+      case "prog.badPreset":
+        return "Il gradino " + e.rung + " ha un tempo o un conteggio non valido.";
+      default:
+        return "Il programma ha un errore nel gradino " + (e.rung || "?") + ".";
+    }
+  }
 
   // src/content/trilocale.js
   var base = (id) => LEVELS.find((l) => l.id === id);
@@ -8462,7 +8771,7 @@ svg.ladder{display:block;min-width:360px;width:100%;max-width:640px;height:auto}
       levels: [
         "c28-stella-triangolo",
         "c29-plc",
-        { soon: true, title: "Ladder: l\u2019autoritenuta", blurb: "Contatti, bobine e la scansione del programma." },
+        "c30-ladder",
         { soon: true, title: "Tempo e conteggio", blurb: "Temporizzatori e contatori nel programma." },
         { soon: true, title: "Il nastro con il PLC", blurb: "Fotocellula e conteggio; fungo e termico restano cablati." }
       ],
@@ -9970,6 +10279,100 @@ svg.ladder{display:block;min-width:360px;width:100%;max-width:640px;height:auto}
     return `<div class="levelbar"><a class="back" href="#/home">&larr; Mappa</a></div><div class="card quaderno"><div class="qhead"><h1>Quaderno</h1><button class="btn" data-act="print">Stampa</button></div><p class="note">Le sintesi dei livelli, da ripassare o stampare. Sono sempre consultabili, anche per i livelli non ancora giocati.</p>${mods}${triHTML}</div>`;
   }
 
+  // src/engine/ladder-edit.js
+  var contactExpr = (c2) => c2.rise ? ["rise", c2.a] : c2.not ? ["not", c2.a] : c2.a;
+  function parseContact(e) {
+    if (typeof e === "string") return { a: e };
+    if (Array.isArray(e) && e.length === 2 && typeof e[1] === "string") {
+      if (e[0] === "not") return { a: e[1], not: true };
+      if (e[0] === "rise") return { a: e[1], rise: true };
+    }
+    return null;
+  }
+  function toCells(expr) {
+    if (expr === void 0 || expr === null) return [];
+    const one = parseContact(expr);
+    if (one) return [{ alts: [one] }];
+    if (!Array.isArray(expr)) return null;
+    const cellOf = (e) => {
+      const c3 = parseContact(e);
+      if (c3) return { alts: [c3] };
+      if (Array.isArray(e) && e[0] === "or") {
+        const alts = e.slice(1).map(parseContact);
+        return alts.length && alts.every(Boolean) ? { alts } : null;
+      }
+      return null;
+    };
+    if (expr[0] === "and") {
+      const cells = expr.slice(1).map(cellOf);
+      return cells.every(Boolean) ? cells : null;
+    }
+    const c2 = cellOf(expr);
+    return c2 ? [c2] : null;
+  }
+  function fromCells(cells) {
+    if (!cells.length) return void 0;
+    const cell = (c2) => c2.alts.length === 1 ? contactExpr(c2.alts[0]) : ["or", ...c2.alts.map(contactExpr)];
+    return cells.length === 1 ? cell(cells[0]) : ["and", ...cells.map(cell)];
+  }
+  var clone = (p) => JSON.parse(JSON.stringify(p || []));
+  var withRung = (p, i, fn) => {
+    const q = clone(p);
+    if (!q[i]) return q;
+    const r = q[i];
+    const cells = toCells(r.if);
+    if (cells === null) return q;
+    const out = fn(r, cells);
+    if (out) r.if = fromCells(out);
+    if (r.if === void 0) delete r.if;
+    return q;
+  };
+  var emptyRung = () => ({ do: [] });
+  var addRung = (p) => clone(p).concat([emptyRung()]);
+  var removeRung = (p, i) => clone(p).filter((_, k) => k !== i);
+  function moveRung(p, i, dir) {
+    const q = clone(p), j = i + dir;
+    if (j < 0 || j >= q.length) return q;
+    [q[i], q[j]] = [q[j], q[i]];
+    return q;
+  }
+  var addContact = (p, i, contact) => withRung(p, i, (r, cells) => cells.concat([{ alts: [contact] }]));
+  var setContact = (p, i, cell, alt, contact) => withRung(p, i, (r, cells) => {
+    if (cells[cell] && cells[cell].alts[alt]) cells[cell].alts[alt] = contact;
+    return cells;
+  });
+  var removeContact = (p, i, cell, alt) => withRung(p, i, (r, cells) => {
+    if (!cells[cell]) return cells;
+    cells[cell].alts.splice(alt, 1);
+    return cells.filter((c2) => c2.alts.length);
+  });
+  var addParallel = (p, i, cell, contact) => withRung(p, i, (r, cells) => {
+    if (cells[cell]) cells[cell].alts.push(contact);
+    return cells;
+  });
+  function setOut(p, i, k, ins) {
+    const q = clone(p);
+    if (q[i] && q[i].do[k]) q[i].do[k] = ins;
+    return q;
+  }
+  function addOut(p, i, ins) {
+    const q = clone(p);
+    if (q[i]) q[i].do.push(ins);
+    return q;
+  }
+  function removeOut(p, i, k) {
+    const q = clone(p);
+    if (q[i]) q[i].do = q[i].do.filter((_, n) => n !== k);
+    return q;
+  }
+  function addressesFor(plcComp, opts = {}) {
+    const terms = Object.keys(plcComp && plcComp.terms || {});
+    const inputs = terms.filter((t) => /^I\d+$/.test(t)).sort();
+    const outputs = terms.filter((t) => /^Q\d+A$/.test(t)).map((t) => t.slice(0, -1)).sort();
+    const n = (k) => Array.from({ length: opts[k] || 0 }, (_, i) => (k === "markers" ? "M" : k === "timers" ? "T" : "C") + (k === "markers" ? i : i + 1));
+    return { inputs, outputs, markers: n("markers"), timers: n("timers"), counters: n("counters") };
+  }
+
   // src/ui2d/ladder.js
   var CW = 68;
   var CH = 54;
@@ -9986,82 +10389,140 @@ svg.ladder{display:block;min-width:360px;width:100%;max-width:640px;height:auto}
     if (op === "rise") return !!bits[a[0]];
     return false;
   }
+  var isLeaf = (e) => typeof e === "string" || Array.isArray(e) && (e[0] === "not" || e[0] === "rise");
   function size(e) {
-    if (typeof e === "string" || Array.isArray(e) && (e[0] === "not" || e[0] === "rise")) return { w: CW, h: CH };
+    if (e === void 0 || e === null) return { w: CW, h: CH };
+    if (isLeaf(e)) return { w: CW, h: CH };
     const kids = e.slice(1).map(size);
     if (e[0] === "and") return { w: kids.reduce((s, k) => s + k.w, 0), h: Math.max(...kids.map((k) => k.h)) };
     return { w: Math.max(...kids.map((k) => k.w)) + 2 * PAD, h: kids.reduce((s, k) => s + k.h, 0) };
   }
-  function draw(e, x, y, w, bits, names, on) {
+  var same = (a, b) => a && b && a.kind === b.kind && a.r === b.r && a.cell === b.cell && a.alt === b.alt && a.out === b.out;
+  function draw(e, x, y, w, bits, names, on, cx, path = []) {
     const my = y + CH / 2;
-    if (typeof e === "string" || Array.isArray(e) && (e[0] === "not" || e[0] === "rise")) {
+    if (isLeaf(e)) {
       const addr = typeof e === "string" ? e : e[1], nc = Array.isArray(e) && e[0] === "not", rise = Array.isArray(e) && e[0] === "rise";
       const v = evalBits(e, bits);
-      const cx = x + w / 2;
+      const mx = x + w / 2;
       const col = v ? "lad-on" : "lad-off";
-      let o2 = `<path class="lad-wire ${on ? "lad-on" : ""}" d="M${x} ${my}H${cx - 11}M${cx + 11} ${my}H${x + w}"/>`;
-      o2 += `<path class="lad-c ${col}" d="M${cx - 11} ${my - 13}V${my + 13}M${cx + 11} ${my - 13}V${my + 13}"/>`;
-      if (nc) o2 += `<path class="lad-c ${col}" d="M${cx - 15} ${my + 14}L${cx + 15} ${my - 14}"/>`;
-      if (rise) o2 += `<text class="lad-s" x="${cx}" y="${my + 4}" text-anchor="middle">P</text>`;
-      o2 += `<text class="lad-n" x="${cx}" y="${y + 8}" text-anchor="middle">${esc2(names[addr] || "")}</text>`;
-      o2 += `<text class="lad-a" x="${cx}" y="${y + CH - 2}" text-anchor="middle">${addr}</text>`;
+      let o2 = `<path class="lad-wire ${on ? "lad-on" : ""}" d="M${x} ${my}H${mx - 11}M${mx + 11} ${my}H${x + w}"/>`;
+      o2 += `<path class="lad-c ${col}" d="M${mx - 11} ${my - 13}V${my + 13}M${mx + 11} ${my - 13}V${my + 13}"/>`;
+      if (nc) o2 += `<path class="lad-c ${col}" d="M${mx - 15} ${my + 14}L${mx + 15} ${my - 14}"/>`;
+      if (rise) o2 += `<text class="lad-s" x="${mx}" y="${my + 4}" text-anchor="middle">P</text>`;
+      o2 += `<text class="lad-n" x="${mx}" y="${y + 8}" text-anchor="middle">${esc2(names[addr] || "")}</text>`;
+      o2 += `<text class="lad-a" x="${mx}" y="${y + CH - 2}" text-anchor="middle">${addr}</text>`;
+      if (cx.edit) {
+        const t = { kind: "c", r: cx.r, cell: path.length ? path[0] : 0, alt: path.length > 1 ? path[1] : 0 };
+        o2 += `<rect class="lad-hit${same(cx.sel, t) ? " lad-sel" : ""}" data-lad="c" data-r="${t.r}" data-cell="${t.cell}" data-alt="${t.alt}" x="${x + 4}" y="${y + 2}" width="${w - 8}" height="${CH - 4}" rx="8" tabindex="0" role="button" aria-label="Contatto ${esc2(names[addr] || addr)}${nc ? ", normalmente chiuso" : ""}"/>`;
+      }
       return o2;
     }
     const [op, ...kids] = e;
     if (op === "and") {
-      let o2 = "", cx = x;
+      let o2 = "", px2 = x;
       const sizes = kids.map(size);
       const extra = (w - sizes.reduce((s, k) => s + k.w, 0)) / kids.length;
       kids.forEach((k, i) => {
         const kw = sizes[i].w + extra;
-        o2 += draw(k, cx, y, kw, bits, names, on);
-        cx += kw;
+        o2 += draw(k, px2, y, kw, bits, names, on, cx, path.length ? path : [i]);
+        px2 += kw;
       });
       return o2;
     }
-    let o = "", cy = y;
+    let o = "", py = y;
     const rows = [];
-    kids.forEach((k) => {
+    kids.forEach((k, j) => {
       const s = size(k);
-      rows.push(cy + CH / 2);
-      o += `<path class="lad-wire ${on ? "lad-on" : ""}" d="M${x} ${cy + CH / 2}H${x + PAD}M${x + w - PAD} ${cy + CH / 2}H${x + w}"/>`;
-      o += draw(k, x + PAD, cy, w - 2 * PAD, bits, names, on);
-      cy += s.h;
+      rows.push(py + CH / 2);
+      o += `<path class="lad-wire ${on ? "lad-on" : ""}" d="M${x} ${py + CH / 2}H${x + PAD}M${x + w - PAD} ${py + CH / 2}H${x + w}"/>`;
+      o += draw(k, x + PAD, py, w - 2 * PAD, bits, names, on, cx, path.length ? path.concat([j]) : [0, j]);
+      py += s.h;
     });
     o += `<path class="lad-wire ${on ? "lad-on" : ""}" d="M${x} ${rows[0]}V${rows[rows.length - 1]}M${x + w} ${rows[0]}V${rows[rows.length - 1]}"/>`;
     return o;
   }
   var OUT_TXT = { coil: "( )", set: "(S)", reset: "(R)" };
-  function drawOut(ins, x, y, bits, names, on) {
+  function drawOut(ins, x, y, bits, names, on, cx, k) {
     const my = y + CH / 2;
+    const hit = cx.edit ? `<rect class="lad-hit${same(cx.sel, { kind: "o", r: cx.r, out: k }) ? " lad-sel" : ""}" data-lad="o" data-r="${cx.r}" data-out="${k}" x="${x + 6}" y="${y + 2}" width="${OUT_W - 8}" height="${CH - 4}" rx="8" tabindex="0" role="button" aria-label="Uscita ${esc2(names[ins.a || ins.id] || ins.a || ins.id)}"/>` : "";
     if (ins.op === "ton" || ins.op === "ctu") {
       const t = ins.op === "ton" ? `TON ${ins.pt} s` : `CTU ${ins.pv}`;
-      return `<path class="lad-wire ${on ? "lad-on" : ""}" d="M${x} ${my}H${x + 10}"/><rect class="lad-box ${bits[ins.id] ? "lad-done" : ""}" x="${x + 10}" y="${y + 6}" width="${OUT_W - 10}" height="${CH - 12}" rx="5"/><text class="lad-s" x="${x + 10 + (OUT_W - 10) / 2}" y="${my - 1}" text-anchor="middle">${t}</text><text class="lad-a" x="${x + 10 + (OUT_W - 10) / 2}" y="${my + 12}" text-anchor="middle">${ins.id}</text>`;
+      return `<path class="lad-wire ${on ? "lad-on" : ""}" d="M${x} ${my}H${x + 10}"/><rect class="lad-box ${bits[ins.id] ? "lad-done" : ""}" x="${x + 10}" y="${y + 6}" width="${OUT_W - 10}" height="${CH - 12}" rx="5"/><text class="lad-s" x="${x + 10 + (OUT_W - 10) / 2}" y="${my - 1}" text-anchor="middle">${t}</text><text class="lad-a" x="${x + 10 + (OUT_W - 10) / 2}" y="${my + 12}" text-anchor="middle">${ins.id}</text>${hit}`;
     }
     const v = !!bits[ins.a];
-    const cx = x + OUT_W / 2;
-    return `<path class="lad-wire ${on ? "lad-on" : ""}" d="M${x} ${my}H${cx - 13}"/><text class="lad-coil ${v ? "lad-on" : "lad-off"}" x="${cx}" y="${my + 8}" text-anchor="middle">${OUT_TXT[ins.op]}</text><text class="lad-n" x="${cx}" y="${y + 8}" text-anchor="middle">${esc2(names[ins.a] || "")}</text><text class="lad-a" x="${cx}" y="${y + CH - 2}" text-anchor="middle">${ins.a}</text>`;
+    const mx = x + OUT_W / 2;
+    return `<path class="lad-wire ${on ? "lad-on" : ""}" d="M${x} ${my}H${mx - 13}"/><text class="lad-coil ${v ? "lad-on" : "lad-off"}" x="${mx}" y="${my + 8}" text-anchor="middle">${OUT_TXT[ins.op]}</text><text class="lad-n" x="${mx}" y="${y + 8}" text-anchor="middle">${esc2(names[ins.a] || "")}</text><text class="lad-a" x="${mx}" y="${y + CH - 2}" text-anchor="middle">${ins.a}</text>${hit}`;
   }
   function ladderHTML(program, st, names = {}, opt = {}) {
     const bits = st && st.bits || {};
     const rungs = st && st.rungs || [];
+    if (!program.length) {
+      return `<svg class="ladder" viewBox="0 0 360 70" role="img" aria-label="Programma vuoto"><path class="lad-rail" d="M22 6V64M330 6V64"/><text class="lad-a" x="176" y="40" text-anchor="middle">Programma vuoto</text></svg>`;
+    }
     const rows = program.map((r) => ({ r, s: size(r.if) }));
     const W = Math.max(...rows.map((x) => x.s.w)) + OUT_W + 52;
     let y = 6, body = "";
     rows.forEach(({ r, s }, i) => {
-      const h = Math.max(s.h, r.do.length * CH);
+      const outs = r.do.length ? r.do : [null];
+      const h = Math.max(s.h, outs.length * CH);
       const on = !!rungs[i];
       const x0 = 22, w = Math.max(...rows.map((q) => q.s.w));
-      body += `<text class="lad-num" x="2" y="${y + CH / 2 + 4}">${i + 1}</text>`;
+      const cx = { edit: !!opt.edit, sel: opt.sel || null, r: i };
+      const rungSel = opt.sel && opt.sel.kind === "r" && opt.sel.r === i;
+      body += `<text class="lad-num${rungSel ? " lad-numsel" : ""}" x="2" y="${y + CH / 2 + 4}">${i + 1}</text>`;
+      if (opt.edit) body += `<rect class="lad-hit${rungSel ? " lad-sel" : ""}" data-lad="r" data-r="${i}" x="0" y="${y}" width="20" height="${h}" rx="6" tabindex="0" role="button" aria-label="Gradino ${i + 1}"/>`;
       body += `<path class="lad-rail" d="M${x0} ${y}V${y + h}M${x0 + w + OUT_W + 8} ${y}V${y + h}"/>`;
-      body += `<g>${draw(r.if, x0, y, w, bits, names, on)}</g>`;
-      body += `<path class="lad-wire ${on ? "lad-on" : ""}" d="M${x0 + s.w} ${y + CH / 2}H${x0 + w + 4}"/>`;
-      r.do.forEach((ins, k) => {
-        body += drawOut(ins, x0 + w + 4, y + k * CH, bits, names, on);
+      if (r.if === void 0 || r.if === null) {
+        body += `<path class="lad-wire" d="M${x0} ${y + CH / 2}H${x0 + w + 4}" stroke-dasharray="4 6"/><text class="lad-a" x="${x0 + 10}" y="${y + CH / 2 - 8}">nessun contatto</text>`;
+      } else {
+        body += `<g>${draw(r.if, x0, y, w, bits, names, on, cx)}</g>`;
+        body += `<path class="lad-wire ${on ? "lad-on" : ""}" d="M${x0 + s.w} ${y + CH / 2}H${x0 + w + 4}"/>`;
+      }
+      if (r.do.length) r.do.forEach((ins, k) => {
+        body += drawOut(ins, x0 + w + 4, y + k * CH, bits, names, on, cx, k);
       });
+      else body += `<text class="lad-a" x="${x0 + w + 10}" y="${y + CH / 2 + 4}">nessuna uscita</text>`;
       y += h + 14;
     });
     return `<svg class="ladder" viewBox="0 0 ${W} ${y}" role="img" aria-label="Programma del PLC, ${program.length} gradini" preserveAspectRatio="xMinYMin meet">${body}</svg>`;
+  }
+  function editorPanelHTML(program, sel, names, addrs, ops, errors, text2) {
+    const label = (a) => `${a}${names[a] ? " \xB7 " + esc2(names[a]) : ""}`;
+    const opt = (list, cur) => list.map((a) => `<option value="${a}"${a === cur ? " selected" : ""}>${label(a)}</option>`).join("");
+    const contactAddrs = [...addrs.inputs, ...addrs.outputs, ...addrs.markers, ...addrs.timers, ...addrs.counters];
+    const outAddrs = [...addrs.outputs, ...addrs.markers];
+    let body = "";
+    if (!sel) body = '<p class="ladhelp">Tocca un gradino (il numero a sinistra) o un contatto per modificarlo.</p>';
+    else if (!program[sel.r]) body = "";
+    else if (sel.kind === "r") {
+      const r = program[sel.r];
+      body = `<div class="ladrow"><b>Gradino ${sel.r + 1}</b><div class="ladbtns">
+      <button class="btn" data-lac="addContact">Aggiungi contatto</button>
+      <button class="btn" data-lac="addOut"${r.do.length >= 3 ? " disabled" : ""}>Aggiungi bobina</button>
+      <button class="btn" data-lac="up"${sel.r === 0 ? " disabled" : ""}>Su</button>
+      <button class="btn" data-lac="down"${sel.r === program.length - 1 ? " disabled" : ""}>Gi\xF9</button>
+      <button class="btn" data-lac="delRung">Elimina gradino</button></div></div>`;
+    } else if (sel.kind === "c") {
+      const cells = toCells(program[sel.r].if) || [];
+      const c2 = cells[sel.cell] && cells[sel.cell].alts[sel.alt];
+      if (c2) {
+        const t = c2.rise ? "rise" : c2.not ? "not" : "no";
+        body = `<div class="ladrow"><b>Contatto</b>
+        <div class="ladseg" role="group" aria-label="Tipo di contatto">${[["no", "Normalmente aperto"], ["not", "Normalmente chiuso"], ["rise", "Fronte di salita"]].map(([v, l]) => `<button class="chip seg" data-lac="type" data-v="${v}" aria-pressed="${t === v}">${l}</button>`).join("")}</div>
+        <label class="ladsel">Bit <select data-lac="addr">${opt(contactAddrs, c2.a)}</select></label>
+        <div class="ladbtns"><button class="btn" data-lac="parallel">In parallelo</button><button class="btn" data-lac="delContact">Elimina contatto</button></div></div>`;
+      }
+    } else if (sel.kind === "o") {
+      const ins = program[sel.r].do[sel.out];
+      if (ins) {
+        body = `<div class="ladrow"><b>Bobina</b>
+        <div class="ladseg" role="group" aria-label="Tipo di uscita">${ops.filter((o) => ["coil", "set", "reset"].includes(o)).map((o) => `<button class="chip seg" data-lac="optype" data-v="${o}" aria-pressed="${ins.op === o}">${{ coil: "Bobina", set: "Set", reset: "Reset" }[o]}</button>`).join("")}</div>
+        <label class="ladsel">Bit <select data-lac="outaddr">${opt(outAddrs, ins.a)}</select></label>
+        <div class="ladbtns"><button class="btn" data-lac="delOut">Elimina bobina</button></div></div>`;
+      }
+    }
+    const errs = errors.length ? `<ul class="laderr">${errors.slice(0, 4).map((e) => `<li>${esc2(text2(e))}</li>`).join("")}</ul>` : "";
+    return `<div class="ladpanel">${body}<div class="ladbtns"><button class="btn primary" data-lac="addRung">Nuovo gradino</button></div>${errs}</div>`;
   }
 
   // src/i18n/ar-1.js
@@ -12620,7 +13081,80 @@ svg.ladder{display:block;min-width:360px;width:100%;max-width:640px;height:auto}
     "Collega il morsetto IC del PLC al neutro del quadro, in blu, con il salvamotore aperto. Poi premi Verifica.": "\u0635\u0650\u0644 \u0627\u0644\u0645\u0631\u0628\u0637 IC \u0641\u064A \u0627\u0644\u0640PLC \u0628\u0645\u062D\u0627\u064A\u062F \u0627\u0644\u0644\u0648\u062D\u0629 \u0628\u0633\u0644\u0643 \u0623\u0632\u0631\u0642\u060C \u0648\u0627\u0644\u0642\u0627\u0637\u0639 \u0645\u0641\u062A\u0648\u062D. \u062B\u0645 \u0627\u0636\u063A\u0637 \u062A\u062D\u0642\u0642.",
     "\xC8 un piccolo computer per le macchine. Si alimenta in A1-A2. Gli ingressi I0, I1, I2 leggono se c\u2019\xE8 tensione rispetto al comune IC (1 se ci sono 230 V). Ogni uscita Q \xE8 un contatto a rel\xE8, per esempio Q0A-Q0B, che si chiude quando il programma lo decide. Il programma si ripete in continuazione: legge gli ingressi, esegue i gradini, scrive le uscite.": "\u062D\u0627\u0633\u0648\u0628 \u0635\u063A\u064A\u0631 \u0644\u0644\u0622\u0644\u0627\u062A. \u064A\u064F\u063A\u0630\u0651\u0649 \u0639\u0628\u0631 A1-A2. \u0648\u062A\u0642\u0631\u0623 \u0627\u0644\u0645\u062F\u0627\u062E\u0644 I0 \u0648I1 \u0648I2 \u0647\u0644 \u064A\u0648\u062C\u062F \u062C\u0647\u062F \u0628\u0627\u0644\u0646\u0633\u0628\u0629 \u0625\u0644\u0649 \u0627\u0644\u0645\u0634\u062A\u0631\u0643 IC (\u0627\u0644\u0642\u064A\u0645\u0629 1 \u0639\u0646\u062F \u0648\u062C\u0648\u062F 230 V). \u0648\u0643\u0644 \u0645\u062E\u0631\u062C Q \u0647\u0648 \u0645\u0644\u0627\u0645\u0633 \u0645\u0631\u062D\u0651\u0644\u060C \u0645\u062B\u0644 Q0A-Q0B\u060C \u064A\u0646\u063A\u0644\u0642 \u0639\u0646\u062F\u0645\u0627 \u064A\u0642\u0631\u0631 \u0627\u0644\u0628\u0631\u0646\u0627\u0645\u062C \u0630\u0644\u0643. \u0648\u064A\u062A\u0643\u0631\u0631 \u0627\u0644\u0628\u0631\u0646\u0627\u0645\u062C \u0628\u0627\u0633\u062A\u0645\u0631\u0627\u0631: \u064A\u0642\u0631\u0623 \u0627\u0644\u0645\u062F\u0627\u062E\u0644 \u0648\u064A\u0646\u0641\u0630 \u0627\u0644\u062F\u0631\u062C\u0627\u062A \u0648\u064A\u0643\u062A\u0628 \u0627\u0644\u0645\u062E\u0627\u0631\u062C.",
     "L\u2019emergenza passa solo dal programma del PLC: se il PLC sbaglia, la macchina non si ferma. Il fungo deve interrompere il comando anche con le uscite del PLC accese.": "\u0627\u0644\u0637\u0648\u0627\u0631\u0626 \u062A\u0645\u0631 \u0639\u0628\u0631 \u0628\u0631\u0646\u0627\u0645\u062C \u0627\u0644\u0640PLC \u0641\u0642\u0637: \u0648\u0625\u0630\u0627 \u0623\u062E\u0637\u0623 \u0627\u0644\u0640PLC \u0641\u0644\u0646 \u062A\u062A\u0648\u0642\u0641 \u0627\u0644\u0622\u0644\u0629. \u064A\u062C\u0628 \u0623\u0646 \u064A\u0642\u0637\u0639 \u0632\u0631 \u0627\u0644\u0637\u0648\u0627\u0631\u0626 \u062F\u0627\u0626\u0631\u0629 \u0627\u0644\u062A\u062D\u0643\u0645 \u062D\u062A\u0649 \u0645\u0639 \u062A\u0634\u063A\u064A\u0644 \u0645\u062E\u0627\u0631\u062C \u0627\u0644\u0640PLC.",
-    "Dal contatto Q0 alla bobina del contattore": "\u0645\u0646 \u0627\u0644\u0645\u0644\u0627\u0645\u0633 Q0 \u0625\u0644\u0649 \u0645\u0644\u0641 \u0627\u0644\u0643\u0648\u0646\u062A\u0627\u0643\u062A\u0648\u0631"
+    "Dal contatto Q0 alla bobina del contattore": "\u0645\u0646 \u0627\u0644\u0645\u0644\u0627\u0645\u0633 Q0 \u0625\u0644\u0649 \u0645\u0644\u0641 \u0627\u0644\u0643\u0648\u0646\u062A\u0627\u0643\u062A\u0648\u0631",
+    "All\u2019inizio Q0 vale 0, quindi serve Marcia. Una volta acceso, Q0 vale 1 e tiene vero il gradino anche con Marcia a 0. Due contatti dei quali basta uno sono in parallelo.": "\u0641\u064A \u0627\u0644\u0628\u062F\u0627\u064A\u0629 \u0642\u064A\u0645\u0629 Q0 \u0635\u0641\u0631\u060C \u0641\u064A\u0644\u0632\u0645 \u0627\u0644\u062A\u0634\u063A\u064A\u0644. \u0648\u0628\u0639\u062F \u0627\u0644\u062A\u0634\u063A\u064A\u0644 \u062A\u0635\u0628\u062D \u0642\u064A\u0645\u0629 Q0 \u0648\u0627\u062D\u062F\u064B\u0627 \u0641\u062A\u064F\u0628\u0642\u064A \u0627\u0644\u062F\u0631\u062C\u0629 \u0635\u062D\u064A\u062D\u0629 \u062D\u062A\u0649 \u0645\u0639 \u0643\u0648\u0646 \u0627\u0644\u062A\u0634\u063A\u064A\u0644 \u0635\u0641\u0631\u064B\u0627. \u0648\u0645\u0644\u0627\u0645\u0633\u0627\u0646 \u064A\u0643\u0641\u064A \u0623\u062D\u062F\u0647\u0645\u0627 \u064A\u0643\u0648\u0646\u0627\u0646 \u0639\u0644\u0649 \u0627\u0644\u062A\u0648\u0627\u0632\u064A.",
+    "Come si scrive il programma": "\u0643\u064A\u0641 \u064A\u064F\u0643\u062A\u0628 \u0627\u0644\u0628\u0631\u0646\u0627\u0645\u062C",
+    "Con l\u2019arresto cablato NC, quale contatto di I0 metti nel gradino del motore?": "\u0645\u0639 \u0627\u0644\u0625\u064A\u0642\u0627\u0641 \u0627\u0644\u0645\u0648\u0635\u0648\u0644 \u0643\u0645\u0644\u0627\u0645\u0633 NC\u060C \u0623\u064A \u0645\u0644\u0627\u0645\u0633 \u0644\u0640 I0 \u062A\u0636\u0639 \u0641\u064A \u062F\u0631\u062C\u0629 \u0627\u0644\u0645\u062D\u0631\u0643\u061F",
+    "Contatti in serie e in parallelo": "\u0645\u0644\u0627\u0645\u0633\u0627\u062A \u0639\u0644\u0649 \u0627\u0644\u062A\u0648\u0627\u0644\u064A \u0648\u0639\u0644\u0649 \u0627\u0644\u062A\u0648\u0627\u0632\u064A",
+    "Contatti in serie sono un E, contatti in parallelo un O.": "\u0627\u0644\u0645\u0644\u0627\u0645\u0633\u0627\u062A \u0639\u0644\u0649 \u0627\u0644\u062A\u0648\u0627\u0644\u064A \u062A\u0639\u0646\u064A \xAB\u0648\xBB\u060C \u0648\u0639\u0644\u0649 \u0627\u0644\u062A\u0648\u0627\u0632\u064A \u062A\u0639\u0646\u064A \xAB\u0623\u0648\xBB.",
+    "Contatti in serie sono un E: servono tutti. Contatti in parallelo sono un O: ne basta uno. L\u2019autoritenuta \xE8 proprio un parallelo: Marcia oppure l\u2019uscita stessa.": "\u0627\u0644\u0645\u0644\u0627\u0645\u0633\u0627\u062A \u0639\u0644\u0649 \u0627\u0644\u062A\u0648\u0627\u0644\u064A \u062A\u0639\u0646\u064A \xAB\u0648\xBB: \u064A\u0644\u0632\u0645 \u0643\u0644\u0647\u0627. \u0648\u0639\u0644\u0649 \u0627\u0644\u062A\u0648\u0627\u0632\u064A \u062A\u0639\u0646\u064A \xAB\u0623\u0648\xBB: \u064A\u0643\u0641\u064A \u0648\u0627\u062D\u062F. \u0648\u0627\u0644\u062A\u062B\u0628\u064A\u062A \u0627\u0644\u0630\u0627\u062A\u064A \u0647\u0648 \u0628\u0627\u0644\u0636\u0628\u0637 \u062A\u0648\u0627\u0632\u064D: \u0627\u0644\u062A\u0634\u063A\u064A\u0644 \u0623\u0648 \u0627\u0644\u0645\u062E\u0631\u062C \u0646\u0641\u0633\u0647.",
+    "Controlla il programma": "\u0627\u0641\u062D\u0635 \u0627\u0644\u0628\u0631\u0646\u0627\u0645\u062C",
+    "Il PLC \xE8 acceso e il programma gira: prova subito Marcia e Arresto e guarda i contatti che si colorano.": "\u0627\u0644\u0640PLC \u064A\u0639\u0645\u0644 \u0648\u0627\u0644\u0628\u0631\u0646\u0627\u0645\u062C \u0642\u064A\u062F \u0627\u0644\u062A\u0646\u0641\u064A\u0630: \u062C\u0631\u0651\u0628 \u0627\u0644\u062A\u0634\u063A\u064A\u0644 \u0648\u0627\u0644\u0625\u064A\u0642\u0627\u0641 \u0641\u0648\u0631\u064B\u0627 \u0648\u0627\u0646\u0638\u0631 \u0625\u0644\u0649 \u0627\u0644\u0645\u0644\u0627\u0645\u0633\u0627\u062A \u0627\u0644\u062A\u064A \u062A\u062A\u0644\u0648\u0651\u0646.",
+    "Il contatto di I0 \xE8 normalmente chiuso, ma I0 vale 1 a riposo: il gradino non \xE8 mai vero.": "\u0645\u0644\u0627\u0645\u0633 I0 \u0645\u063A\u0644\u0642 \u0639\u0627\u062F\u0629\u064B\u060C \u0644\u0643\u0646 \u0642\u064A\u0645\u0629 I0 \u0647\u064A 1 \u0641\u064A \u0627\u0644\u0631\u0627\u062D\u0629: \u0641\u0627\u0644\u062F\u0631\u062C\u0629 \u0644\u0627 \u062A\u0643\u0648\u0646 \u0635\u062D\u064A\u062D\u0629 \u0623\u0628\u062F\u064B\u0627.",
+    "Il gradino 2 \xE8 semplice: un contatto Q0 e la bobina Q1, la spia.": "\u0627\u0644\u062F\u0631\u062C\u0629 2 \u0628\u0633\u064A\u0637\u0629: \u0645\u0644\u0627\u0645\u0633 Q0 \u0648\u0627\u0644\u0645\u0644\u0641 Q1\u060C \u0623\u064A \u0644\u0645\u0628\u0629 \u0627\u0644\u0625\u0634\u0627\u0631\u0629.",
+    "Il gradino del motore": "\u062F\u0631\u062C\u0629 \u0627\u0644\u0645\u062D\u0631\u0643",
+    "Il gradino della spia": "\u062F\u0631\u062C\u0629 \u0644\u0645\u0628\u0629 \u0627\u0644\u0625\u0634\u0627\u0631\u0629",
+    "Il ladder (schema a contatti) si legge come uno schema elettrico a rel\xE8: due montanti verticali, e tra l\u2019uno e l\u2019altro i gradini. Ogni gradino ha a sinistra dei contatti e a destra una bobina.": "\u064A\u064F\u0642\u0631\u0623 \u0645\u062E\u0637\u0637 \u0627\u0644\u0633\u0644\u0651\u0645 (\u0645\u062E\u0637\u0637 \u0627\u0644\u0645\u0644\u0627\u0645\u0633\u0627\u062A) \u0645\u062B\u0644 \u0627\u0644\u0645\u062E\u0637\u0637 \u0627\u0644\u0643\u0647\u0631\u0628\u0627\u0626\u064A \u0644\u0644\u0645\u0631\u062D\u0651\u0644\u0627\u062A: \u0639\u0645\u0648\u062F\u0627\u0646 \u0631\u0623\u0633\u064A\u0627\u0646 \u0648\u0628\u064A\u0646\u0647\u0645\u0627 \u0627\u0644\u062F\u0631\u062C\u0627\u062A. \u0648\u0644\u0643\u0644 \u062F\u0631\u062C\u0629 \u0645\u0644\u0627\u0645\u0633\u0627\u062A \u0639\u0644\u0649 \u0627\u0644\u064A\u0633\u0627\u0631 \u0648\u0645\u0644\u0641 \u0639\u0644\u0649 \u0627\u0644\u064A\u0645\u064A\u0646.",
+    "Il ladder: lo schema a scala": "\u0627\u0644\u0633\u0644\u0651\u0645: \u0627\u0644\u0645\u062E\u0637\u0637 \u0639\u0644\u0649 \u0634\u0643\u0644 \u0633\u0644\u0645",
+    "Il programma si prova subito: il PLC gira e i contatti si colorano.": "\u064A\u064F\u062C\u0631\u064E\u0651\u0628 \u0627\u0644\u0628\u0631\u0646\u0627\u0645\u062C \u0641\u0648\u0631\u064B\u0627: \u0627\u0644\u0640PLC \u064A\u0639\u0645\u0644 \u0648\u0627\u0644\u0645\u0644\u0627\u0645\u0633\u0627\u062A \u062A\u062A\u0644\u0648\u0651\u0646.",
+    "Il programma \xE8 gi\xE0 scritto, ma premendo Marcia il motore non parte. Guarda i contatti nel ladder: quale non si colora?": "\u0627\u0644\u0628\u0631\u0646\u0627\u0645\u062C \u0645\u0643\u062A\u0648\u0628 \u0623\u0635\u0644\u064B\u0627\u060C \u0644\u0643\u0646 \u0639\u0646\u062F \u0627\u0644\u0636\u063A\u0637 \u0639\u0644\u0649 \u0627\u0644\u062A\u0634\u063A\u064A\u0644 \u0644\u0627 \u064A\u0628\u062F\u0623 \u0627\u0644\u0645\u062D\u0631\u0643. \u0627\u0646\u0638\u0631 \u0625\u0644\u0649 \u0627\u0644\u0645\u0644\u0627\u0645\u0633\u0627\u062A \u0641\u064A \u0645\u062E\u0637\u0637 \u0627\u0644\u0633\u0644\u0651\u0645: \u0623\u064A\u0647\u0627 \u0644\u0627 \u064A\u062A\u0644\u0648\u0651\u0646\u061F",
+    "Il pulsante di marcia \xE8 rotto.": "\u0632\u0631 \u0627\u0644\u062A\u0634\u063A\u064A\u0644 \u0645\u0639\u0637\u0651\u0644.",
+    "In parallelo: ne basta uno dei due.": "\u0639\u0644\u0649 \u0627\u0644\u062A\u0648\u0627\u0632\u064A: \u064A\u0643\u0641\u064A \u0648\u0627\u062D\u062F \u0645\u0646 \u0627\u0644\u0627\u062B\u0646\u064A\u0646.",
+    "In serie: servono tutti e due.": "\u0639\u0644\u0649 \u0627\u0644\u062A\u0648\u0627\u0644\u064A: \u064A\u0644\u0632\u0645 \u0627\u0644\u0627\u062B\u0646\u0627\u0646 \u0645\u0639\u064B\u0627.",
+    'La corrente "passa" nel gradino da sinistra a destra se i contatti lasciano passare. Quando passa, la bobina si accende: nel PLC la bobina \xE8 un\u2019uscita (Q0, Q1) o un bit interno.': "\xAB\u064A\u0645\u0631\xBB \u0627\u0644\u062A\u064A\u0627\u0631 \u0641\u064A \u0627\u0644\u062F\u0631\u062C\u0629 \u0645\u0646 \u0627\u0644\u064A\u0633\u0627\u0631 \u0625\u0644\u0649 \u0627\u0644\u064A\u0645\u064A\u0646 \u0625\u0630\u0627 \u0633\u0645\u062D\u062A \u0627\u0644\u0645\u0644\u0627\u0645\u0633\u0627\u062A \u0628\u0630\u0644\u0643. \u0648\u0639\u0646\u062F\u0645\u0627 \u064A\u0645\u0631 \u064A\u0639\u0645\u0644 \u0627\u0644\u0645\u0644\u0641: \u0648\u0641\u064A \u0627\u0644\u0640PLC \u064A\u0643\u0648\u0646 \u0627\u0644\u0645\u0644\u0641 \u0645\u062E\u0631\u062C\u064B\u0627 (Q0 \u0648Q1) \u0623\u0648 \u0628\u062A\u064B\u0627 \u062F\u0627\u062E\u0644\u064A\u064B\u0627.",
+    "L\u2019arresto \xE8 cablato NC, quindi I0 vale 1 a riposo e 0 solo premendolo. Un contatto normalmente chiuso su I0 lascia passare con I0 a 0: a riposo il gradino \xE8 sempre interrotto, e Marcia non basta. Serve un contatto normalmente aperto.": "\u0627\u0644\u0625\u064A\u0642\u0627\u0641 \u0645\u0648\u0635\u0648\u0644 \u0643\u0645\u0644\u0627\u0645\u0633 NC\u060C \u0641\u0642\u064A\u0645\u0629 I0 \u0647\u064A 1 \u0641\u064A \u0627\u0644\u0631\u0627\u062D\u0629 \u06480 \u0639\u0646\u062F \u0627\u0644\u0636\u063A\u0637 \u0641\u0642\u0637. \u0648\u0627\u0644\u0645\u0644\u0627\u0645\u0633 \u0627\u0644\u0645\u063A\u0644\u0642 \u0639\u0627\u062F\u0629\u064B \u0639\u0644\u0649 I0 \u064A\u0633\u0645\u062D \u0628\u0627\u0644\u0645\u0631\u0648\u0631 \u0639\u0646\u062F\u0645\u0627 \u062A\u0643\u0648\u0646 I0 \u0635\u0641\u0631\u064B\u0627: \u0641\u0641\u064A \u0627\u0644\u0631\u0627\u062D\u0629 \u062A\u0628\u0642\u0649 \u0627\u0644\u062F\u0631\u062C\u0629 \u0645\u0642\u0637\u0648\u0639\u0629 \u062F\u0627\u0626\u0645\u064B\u0627 \u0648\u0644\u0627 \u064A\u0643\u0641\u064A \u0627\u0644\u062A\u0634\u063A\u064A\u0644. \u064A\u0644\u0632\u0645 \u0645\u0644\u0627\u0645\u0633 \u0645\u0641\u062A\u0648\u062D \u0639\u0627\u062F\u0629\u064B.",
+    "L\u2019arresto \xE8 cablato come contatto NC: a riposo porta tensione e I0 vale 1. Nel programma il suo contatto serve normalmente aperto, perch\xE9 deve lasciar passare quando I0 vale 1.": "\u0627\u0644\u0625\u064A\u0642\u0627\u0641 \u0645\u0648\u0635\u0648\u0644 \u0643\u0645\u0644\u0627\u0645\u0633 NC: \u0641\u064A \u0627\u0644\u0631\u0627\u062D\u0629 \u064A\u062D\u0645\u0644 \u062C\u0647\u062F\u064B\u0627 \u0648\u0642\u064A\u0645\u0629 I0 \u0647\u064A 1. \u0648\u0641\u064A \u0627\u0644\u0628\u0631\u0646\u0627\u0645\u062C \u064A\u0644\u0632\u0645 \u0623\u0646 \u064A\u0643\u0648\u0646 \u0645\u0644\u0627\u0645\u0633\u0647 \u0645\u0641\u062A\u0648\u062D\u064B\u0627 \u0639\u0627\u062F\u0629\u064B\u060C \u0644\u0623\u0646\u0647 \u064A\u062C\u0628 \u0623\u0646 \u064A\u0633\u0645\u062D \u0628\u0627\u0644\u0645\u0631\u0648\u0631 \u0639\u0646\u062F\u0645\u0627 \u062A\u0643\u0648\u0646 I0 \u0645\u0633\u0627\u0648\u064A\u0629 1.",
+    "L\u2019arresto \xE8 collegato come contatto NC, quindi I0 vale 1 a riposo e vale 0 solo premendolo: in serie metti I0 come contatto normalmente aperto, non chiuso.": "\u0627\u0644\u0625\u064A\u0642\u0627\u0641 \u0645\u0648\u0635\u0648\u0644 \u0643\u0645\u0644\u0627\u0645\u0633 NC\u060C \u0641\u0642\u064A\u0645\u0629 I0 \u0647\u064A 1 \u0641\u064A \u0627\u0644\u0631\u0627\u062D\u0629 \u06480 \u0639\u0646\u062F \u0627\u0644\u0636\u063A\u0637 \u0641\u0642\u0637: \u0636\u0639 I0 \u0639\u0644\u0649 \u0627\u0644\u062A\u0648\u0627\u0644\u064A \u0643\u0645\u0644\u0627\u0645\u0633 \u0645\u0641\u062A\u0648\u062D \u0639\u0627\u062F\u0629\u064B\u060C \u0644\u0627 \u0645\u063A\u0644\u0642.",
+    "L\u2019autoritenuta \xE8 l\u2019uscita stessa messa in parallelo al contatto di marcia.": "\u0627\u0644\u062A\u062B\u0628\u064A\u062A \u0627\u0644\u0630\u0627\u062A\u064A \u0647\u0648 \u0627\u0644\u0645\u062E\u0631\u062C \u0646\u0641\u0633\u0647 \u0645\u0648\u0636\u0648\u0639\u064B\u0627 \u0639\u0644\u0649 \u0627\u0644\u062A\u0648\u0627\u0632\u064A \u0645\u0639 \u0645\u0644\u0627\u0645\u0633 \u0627\u0644\u062A\u0634\u063A\u064A\u0644.",
+    "L\u2019impianto \xE8 cablato e il PLC \xE8 acceso, ma il programma \xE8 vuoto. Scrivilo tu: con Marcia il motore parte e resta in marcia a pulsante rilasciato, con Arresto si ferma, e la spia segue il motore. Ricorda che l\u2019arresto \xE8 un contatto normalmente chiuso: a riposo porta tensione e l\u2019ingresso I0 vale 1.": "\u0627\u0644\u062A\u0631\u0643\u064A\u0628 \u0645\u0648\u0635\u0648\u0644 \u0648\u0627\u0644\u0640PLC \u064A\u0639\u0645\u0644\u060C \u0644\u0643\u0646 \u0627\u0644\u0628\u0631\u0646\u0627\u0645\u062C \u0641\u0627\u0631\u063A. \u0627\u0643\u062A\u0628\u0647 \u0623\u0646\u062A: \u0639\u0646\u062F \u0627\u0644\u062A\u0634\u063A\u064A\u0644 \u064A\u0628\u062F\u0623 \u0627\u0644\u0645\u062D\u0631\u0643 \u0648\u064A\u0628\u0642\u0649 \u064A\u0639\u0645\u0644 \u0628\u0639\u062F \u062A\u062D\u0631\u064A\u0631 \u0627\u0644\u0632\u0631\u060C \u0648\u0639\u0646\u062F \u0627\u0644\u0625\u064A\u0642\u0627\u0641 \u064A\u062A\u0648\u0642\u0641\u060C \u0648\u062A\u062A\u0628\u0639 \u0644\u0645\u0628\u0629 \u0627\u0644\u0625\u0634\u0627\u0631\u0629 \u0627\u0644\u0645\u062D\u0631\u0643. \u062A\u0630\u0643\u0651\u0631 \u0623\u0646 \u0627\u0644\u0625\u064A\u0642\u0627\u0641 \u0645\u0644\u0627\u0645\u0633 \u0645\u063A\u0644\u0642 \u0639\u0627\u062F\u0629\u064B: \u0641\u064A \u0627\u0644\u0631\u0627\u062D\u0629 \u064A\u062D\u0645\u0644 \u062C\u0647\u062F\u064B\u0627 \u0648\u0642\u064A\u0645\u0629 \u0627\u0644\u0645\u062F\u062E\u0644 I0 \u0647\u064A 1.",
+    "Manca l\u2019autoritenuta.": "\u0627\u0644\u062A\u062B\u0628\u064A\u062A \u0627\u0644\u0630\u0627\u062A\u064A \u0646\u0627\u0642\u0635.",
+    "Marcia \xE8 un impulso e deve far restare acceso Q0 anche dopo il rilascio. Come si aggiunge il contatto di Q0 al contatto di Marcia?": "\u0627\u0644\u062A\u0634\u063A\u064A\u0644 \u0646\u0628\u0636\u0629 \u0648\u064A\u062C\u0628 \u0623\u0646 \u064A\u064F\u0628\u0642\u064A Q0 \u0645\u0634\u063A\u064E\u0651\u0644\u064B\u0627 \u062D\u062A\u0649 \u0628\u0639\u062F \u0627\u0644\u062A\u062D\u0631\u064A\u0631. \u0643\u064A\u0641 \u0646\u0636\u064A\u0641 \u0645\u0644\u0627\u0645\u0633 Q0 \u0625\u0644\u0649 \u0645\u0644\u0627\u0645\u0633 \u0627\u0644\u062A\u0634\u063A\u064A\u0644\u061F",
+    "Nessuno: l\u2019arresto non serve nel programma.": "\u0644\u0627 \u0634\u064A\u0621: \u0627\u0644\u0625\u064A\u0642\u0627\u0641 \u063A\u064A\u0631 \u0644\u0627\u0632\u0645 \u0641\u064A \u0627\u0644\u0628\u0631\u0646\u0627\u0645\u062C.",
+    "Non serve: il PLC ricorda l\u2019ultimo valore.": "\u0644\u0627 \u062D\u0627\u062C\u0629: \u0627\u0644\u0640PLC \u064A\u062A\u0630\u0643\u0631 \u0622\u062E\u0631 \u0642\u064A\u0645\u0629.",
+    "Non succede niente: serve un contatto normalmente chiuso.": "\u0644\u0627 \u064A\u062D\u062F\u062B \u0634\u064A\u0621: \u064A\u0644\u0632\u0645 \u0645\u0644\u0627\u0645\u0633 \u0645\u063A\u0644\u0642 \u0639\u0627\u062F\u0629\u064B.",
+    "Normalmente aperto: lascia passare quando I0 vale 1, cio\xE8 a riposo.": "\u0645\u0641\u062A\u0648\u062D \u0639\u0627\u062F\u0629\u064B: \u064A\u0633\u0645\u062D \u0628\u0627\u0644\u0645\u0631\u0648\u0631 \u0639\u0646\u062F\u0645\u0627 \u062A\u0643\u0648\u0646 I0 \u0645\u0633\u0627\u0648\u064A\u0629 1\u060C \u0623\u064A \u0641\u064A \u0627\u0644\u0631\u0627\u062D\u0629.",
+    "Normalmente chiuso: cos\xEC si ferma quando viene premuto.": "\u0645\u063A\u0644\u0642 \u0639\u0627\u062F\u0629\u064B: \u0648\u0647\u0643\u0630\u0627 \u064A\u062A\u0648\u0642\u0641 \u0639\u0646\u062F \u0627\u0644\u0636\u063A\u0637 \u0639\u0644\u064A\u0647.",
+    "Nuovo gradino": "\u062F\u0631\u062C\u0629 \u062C\u062F\u064A\u062F\u0629",
+    "Nuovo gradino: Marcia (I1) in parallelo a Q0, in serie con l\u2019arresto (I0), e la bobina Q0.": "\u062F\u0631\u062C\u0629 \u062C\u062F\u064A\u062F\u0629: \u0627\u0644\u062A\u0634\u063A\u064A\u0644 (I1) \u0639\u0644\u0649 \u0627\u0644\u062A\u0648\u0627\u0632\u064A \u0645\u0639 Q0\u060C \u0648\u0639\u0644\u0649 \u0627\u0644\u062A\u0648\u0627\u0644\u064A \u0645\u0639 \u0627\u0644\u0625\u064A\u0642\u0627\u0641 (I0)\u060C \u0648\u0627\u0644\u0645\u0644\u0641 Q0.",
+    "PLC (programma da scrivere)": "PLC (\u0627\u0644\u0628\u0631\u0646\u0627\u0645\u062C \u0627\u0644\u0645\u0637\u0644\u0648\u0628 \u0643\u062A\u0627\u0628\u062A\u0647)",
+    "PLC.IC": "PLC.IC",
+    "Per far partire il motore serve il contatto di Marcia, I1. Ma Marcia \xE8 un impulso: appena lo rilasci vale 0. Per tenere acceso Q0 aggiungi in parallelo a I1 il contatto di Q0 stesso.": "\u0644\u062A\u0634\u063A\u064A\u0644 \u0627\u0644\u0645\u062D\u0631\u0643 \u064A\u0644\u0632\u0645 \u0645\u0644\u0627\u0645\u0633 \u0627\u0644\u062A\u0634\u063A\u064A\u0644 I1. \u0644\u0643\u0646 \u0627\u0644\u062A\u0634\u063A\u064A\u0644 \u0646\u0628\u0636\u0629: \u0648\u0645\u0627 \u0625\u0646 \u062A\u062D\u0631\u0631\u0647 \u062A\u0635\u0628\u062D \u0642\u064A\u0645\u062A\u0647 0. \u0648\u0644\u0625\u0628\u0642\u0627\u0621 Q0 \u0645\u0634\u063A\u064E\u0651\u0644\u064B\u0627 \u0623\u0636\u0641 \u0639\u0644\u0649 \u0627\u0644\u062A\u0648\u0627\u0632\u064A \u0645\u0639 I1 \u0645\u0644\u0627\u0645\u0633 Q0 \u0646\u0641\u0633\u0647.",
+    "Premi Marcia: il motore parte e resta in marcia. Premi Arresto: si ferma.": "\u0627\u0636\u063A\u0637 \u0639\u0644\u0649 \u0627\u0644\u062A\u0634\u063A\u064A\u0644: \u064A\u0628\u062F\u0623 \u0627\u0644\u0645\u062D\u0631\u0643 \u0648\u064A\u0628\u0642\u0649 \u064A\u0639\u0645\u0644. \u0627\u0636\u063A\u0637 \u0639\u0644\u0649 \u0627\u0644\u0625\u064A\u0642\u0627\u0641: \u064A\u062A\u0648\u0642\u0641.",
+    "Programma vuoto": "\u0628\u0631\u0646\u0627\u0645\u062C \u0641\u0627\u0631\u063A",
+    "Q0 si accende e resta acceso per sempre.": "\u064A\u0639\u0645\u0644 Q0 \u0648\u064A\u0628\u0642\u0649 \u0645\u0634\u063A\u064E\u0651\u0644\u064B\u0627 \u0625\u0644\u0649 \u0627\u0644\u0623\u0628\u062F.",
+    "Q0 si accende, e si spegne quando I1 torna a 0.": "\u064A\u0639\u0645\u0644 Q0 \u062B\u0645 \u064A\u0646\u0637\u0641\u0626 \u0639\u0646\u062F\u0645\u0627 \u062A\u0639\u0648\u062F I1 \u0625\u0644\u0649 0.",
+    "Scrivi il programma del PLC": "\u0627\u0643\u062A\u0628 \u0628\u0631\u0646\u0627\u0645\u062C \u0627\u0644\u0640PLC",
+    "Scrivi tu il programma: marcia, arresto e spia.": "\u0627\u0643\u062A\u0628 \u0623\u0646\u062A \u0627\u0644\u0628\u0631\u0646\u0627\u0645\u062C: \u0627\u0644\u062A\u0634\u063A\u064A\u0644 \u0648\u0627\u0644\u0625\u064A\u0642\u0627\u0641 \u0648\u0644\u0645\u0628\u0629 \u0627\u0644\u0625\u0634\u0627\u0631\u0629.",
+    "Secondo gradino: un contatto Q0 e la bobina Q1.": "\u0627\u0644\u062F\u0631\u062C\u0629 \u0627\u0644\u062B\u0627\u0646\u064A\u0629: \u0645\u0644\u0627\u0645\u0633 Q0 \u0648\u0627\u0644\u0645\u0644\u0641 Q1.",
+    "Soluzione": "\u0627\u0644\u062D\u0644",
+    "Sotto il banco c\u2019\xE8 l\u2019editor. Premi Nuovo gradino, poi Aggiungi contatto e scegli quale ingresso o uscita leggere. Toccando un contatto puoi cambiarlo, metterlo normalmente chiuso, affiancarne uno in parallelo o toglierlo. Alla fine scegli la bobina del gradino.": "\u062A\u062D\u062A \u0627\u0644\u0644\u0648\u062D\u0629 \u064A\u0648\u062C\u062F \u0627\u0644\u0645\u062D\u0631\u0631. \u0627\u0636\u063A\u0637 \xAB\u062F\u0631\u062C\u0629 \u062C\u062F\u064A\u062F\u0629\xBB \u062B\u0645 \xAB\u0625\u0636\u0627\u0641\u0629 \u0645\u0644\u0627\u0645\u0633\xBB \u0648\u0627\u062E\u062A\u0631 \u0623\u064A \u0645\u062F\u062E\u0644 \u0623\u0648 \u0645\u062E\u0631\u062C \u062A\u0631\u064A\u062F \u0642\u0631\u0627\u0621\u062A\u0647. \u0648\u0639\u0646\u062F \u0644\u0645\u0633 \u0645\u0644\u0627\u0645\u0633 \u064A\u0645\u0643\u0646\u0643 \u062A\u063A\u064A\u064A\u0631\u0647 \u0623\u0648 \u062C\u0639\u0644\u0647 \u0645\u063A\u0644\u0642\u064B\u0627 \u0639\u0627\u062F\u0629\u064B \u0623\u0648 \u0648\u0636\u0639 \u0622\u062E\u0631 \u0628\u062C\u0627\u0646\u0628\u0647 \u0639\u0644\u0649 \u0627\u0644\u062A\u0648\u0627\u0632\u064A \u0623\u0648 \u062D\u0630\u0641\u0647. \u0648\u0641\u064A \u0627\u0644\u0646\u0647\u0627\u064A\u0629 \u0627\u062E\u062A\u0631 \u0645\u0644\u0641 \u0627\u0644\u062F\u0631\u062C\u0629.",
+    "Tocca il contatto di I0 nel gradino 1 e cambialo in normalmente aperto. Poi premi Verifica.": "\u0627\u0644\u0645\u0633 \u0645\u0644\u0627\u0645\u0633 I0 \u0641\u064A \u0627\u0644\u062F\u0631\u062C\u0629 1 \u0648\u063A\u064A\u0651\u0631\u0647 \u0625\u0644\u0649 \u0645\u0641\u062A\u0648\u062D \u0639\u0627\u062F\u0629\u064B. \u062B\u0645 \u0627\u0636\u063A\u0637 \u062A\u062D\u0642\u0642.",
+    "Tocca un gradino (il numero a sinistra) o un contatto per modificarlo.": "\u0627\u0644\u0645\u0633 \u062F\u0631\u062C\u0629 (\u0627\u0644\u0631\u0642\u0645 \u0639\u0644\u0649 \u0627\u0644\u064A\u0633\u0627\u0631) \u0623\u0648 \u0645\u0644\u0627\u0645\u0633\u064B\u0627 \u0644\u062A\u0639\u062F\u064A\u0644\u0647.",
+    "Un contatto normalmente aperto lascia passare con il bit a 1: con l\u2019arresto cablato NC, I0 vale 1 a riposo.": "\u0627\u0644\u0645\u0644\u0627\u0645\u0633 \u0627\u0644\u0645\u0641\u062A\u0648\u062D \u0639\u0627\u062F\u0629\u064B \u064A\u0633\u0645\u062D \u0628\u0627\u0644\u0645\u0631\u0648\u0631 \u0639\u0646\u062F\u0645\u0627 \u064A\u0643\u0648\u0646 \u0627\u0644\u0628\u062A 1: \u0648\u0645\u0639 \u0627\u0644\u0625\u064A\u0642\u0627\u0641 \u0627\u0644\u0645\u0648\u0635\u0648\u0644 \u0643\u0640NC \u062A\u0643\u0648\u0646 I0 \u0645\u0633\u0627\u0648\u064A\u0629 1 \u0641\u064A \u0627\u0644\u0631\u0627\u062D\u0629.",
+    "Un contatto normalmente aperto lascia passare quando il suo bit vale 1. Un contatto normalmente chiuso lascia passare quando il bit vale 0.": "\u0627\u0644\u0645\u0644\u0627\u0645\u0633 \u0627\u0644\u0645\u0641\u062A\u0648\u062D \u0639\u0627\u062F\u0629\u064B \u064A\u0633\u0645\u062D \u0628\u0627\u0644\u0645\u0631\u0648\u0631 \u0639\u0646\u062F\u0645\u0627 \u062A\u0643\u0648\u0646 \u0642\u064A\u0645\u0629 \u0628\u062A\u0647 1. \u0648\u0627\u0644\u0645\u0644\u0627\u0645\u0633 \u0627\u0644\u0645\u063A\u0644\u0642 \u0639\u0627\u062F\u0629\u064B \u064A\u0633\u0645\u062D \u0628\u0627\u0644\u0645\u0631\u0648\u0631 \u0639\u0646\u062F\u0645\u0627 \u064A\u0643\u0648\u0646 \u0627\u0644\u0628\u062A 0.",
+    "Un gradino ha i contatti a sinistra e la bobina a destra. Il motore \xE8 l\u2019uscita Q0: la sua bobina sta a destra del gradino 1.": "\u0644\u0644\u062F\u0631\u062C\u0629 \u0645\u0644\u0627\u0645\u0633\u0627\u062A \u0639\u0644\u0649 \u0627\u0644\u064A\u0633\u0627\u0631 \u0648\u0645\u0644\u0641 \u0639\u0644\u0649 \u0627\u0644\u064A\u0645\u064A\u0646. \u0648\u0627\u0644\u0645\u062D\u0631\u0643 \u0647\u0648 \u0627\u0644\u0645\u062E\u0631\u062C Q0: \u0648\u0645\u0644\u0641\u0647 \u0639\u0644\u0649 \u064A\u0645\u064A\u0646 \u0627\u0644\u062F\u0631\u062C\u0629 1.",
+    "Un gradino ha i contatti a sinistra e la bobina a destra: la bobina segue la condizione.": "\u0644\u0644\u062F\u0631\u062C\u0629 \u0645\u0644\u0627\u0645\u0633\u0627\u062A \u0639\u0644\u0649 \u0627\u0644\u064A\u0633\u0627\u0631 \u0648\u0645\u0644\u0641 \u0639\u0644\u0649 \u0627\u0644\u064A\u0645\u064A\u0646: \u0648\u0627\u0644\u0645\u0644\u0641 \u064A\u062A\u0628\u0639 \u0627\u0644\u0634\u0631\u0637.",
+    "Un gradino ha un contatto normalmente aperto su I1 e la bobina Q0. Che cosa succede se I1 vale 1?": "\u0641\u064A \u062F\u0631\u062C\u0629 \u0645\u0644\u0627\u0645\u0633 \u0645\u0641\u062A\u0648\u062D \u0639\u0627\u062F\u0629\u064B \u0639\u0644\u0649 I1 \u0648\u0627\u0644\u0645\u0644\u0641 Q0. \u0645\u0627\u0630\u0627 \u064A\u062D\u062F\u062B \u0625\u0630\u0627 \u0643\u0627\u0646\u062A I1 \u0645\u0633\u0627\u0648\u064A\u0629 1\u061F",
+    "Una bobina segue la condizione del suo gradino: la condizione \xE8 vera quando I1 vale 1, quindi Q0 vale 1, e torna a 0 quando I1 torna a 0. Per farlo restare acceso serve l\u2019autoritenuta.": "\u064A\u062A\u0628\u0639 \u0627\u0644\u0645\u0644\u0641 \u0634\u0631\u0637 \u062F\u0631\u062C\u062A\u0647: \u0648\u0627\u0644\u0634\u0631\u0637 \u0635\u062D\u064A\u062D \u0639\u0646\u062F\u0645\u0627 \u062A\u0643\u0648\u0646 I1 \u0645\u0633\u0627\u0648\u064A\u0629 1\u060C \u0641\u062A\u0635\u0628\u062D Q0 \u0645\u0633\u0627\u0648\u064A\u0629 1\u060C \u0648\u062A\u0639\u0648\u062F \u0625\u0644\u0649 0 \u0639\u0646\u062F\u0645\u0627 \u062A\u0639\u0648\u062F I1 \u0625\u0644\u0649 0. \u0648\u0644\u0625\u0628\u0642\u0627\u0626\u0647 \u0645\u0634\u063A\u064E\u0651\u0644\u064B\u0627 \u064A\u0644\u0632\u0645 \u0627\u0644\u062A\u062B\u0628\u064A\u062A \u0627\u0644\u0630\u0627\u062A\u064A.",
+    '\xC8 facile sbagliare: "arresto = contatto chiuso". Ma \xE8 l\u2019ingresso I0 a valere 1 a riposo, perch\xE9 il pulsante cablato NC porta tensione. Premendo, I0 va a 0 e un contatto normalmente aperto smette di lasciar passare: il motore si ferma.': "\u0645\u0646 \u0627\u0644\u0633\u0647\u0644 \u0623\u0646 \u0646\u062E\u0637\u0626: \xAB\u0627\u0644\u0625\u064A\u0642\u0627\u0641 = \u0645\u0644\u0627\u0645\u0633 \u0645\u063A\u0644\u0642\xBB. \u0644\u0643\u0646 \u0627\u0644\u0645\u062F\u062E\u0644 I0 \u0647\u0648 \u0627\u0644\u0630\u064A \u062A\u0643\u0648\u0646 \u0642\u064A\u0645\u062A\u0647 1 \u0641\u064A \u0627\u0644\u0631\u0627\u062D\u0629\u060C \u0644\u0623\u0646 \u0627\u0644\u0632\u0631 \u0627\u0644\u0645\u0648\u0635\u0648\u0644 \u0643\u0640NC \u064A\u062D\u0645\u0644 \u062C\u0647\u062F\u064B\u0627. \u0648\u0639\u0646\u062F \u0627\u0644\u0636\u063A\u0637 \u062A\u0635\u0628\u062D I0 \u0635\u0641\u0631\u064B\u0627 \u0648\u064A\u062A\u0648\u0642\u0641 \u0627\u0644\u0645\u0644\u0627\u0645\u0633 \u0627\u0644\u0645\u0641\u062A\u0648\u062D \u0639\u0627\u062F\u0629\u064B \u0639\u0646 \u0627\u0644\u0633\u0645\u0627\u062D \u0628\u0627\u0644\u0645\u0631\u0648\u0631: \u0641\u064A\u062A\u0648\u0642\u0641 \u0627\u0644\u0645\u062D\u0631\u0643.",
+    "Aggiungi contatto": "\u0625\u0636\u0627\u0641\u0629 \u0645\u0644\u0627\u0645\u0633",
+    "Aggiungi bobina": "\u0625\u0636\u0627\u0641\u0629 \u0645\u0644\u0641",
+    "Su": "\u0623\u0639\u0644\u0649",
+    "Gi\xF9": "\u0623\u0633\u0641\u0644",
+    "Elimina gradino": "\u062D\u0630\u0641 \u0627\u0644\u062F\u0631\u062C\u0629",
+    "Elimina contatto": "\u062D\u0630\u0641 \u0627\u0644\u0645\u0644\u0627\u0645\u0633",
+    "Elimina bobina": "\u062D\u0630\u0641 \u0627\u0644\u0645\u0644\u0641",
+    "In parallelo": "\u0639\u0644\u0649 \u0627\u0644\u062A\u0648\u0627\u0632\u064A",
+    "Contatto": "\u0645\u0644\u0627\u0645\u0633",
+    "Bobina": "\u0645\u0644\u0641",
+    "Normalmente aperto": "\u0645\u0641\u062A\u0648\u062D \u0639\u0627\u062F\u0629\u064B",
+    "Normalmente chiuso": "\u0645\u063A\u0644\u0642 \u0639\u0627\u062F\u0629\u064B",
+    "Fronte di salita": "\u062D\u0627\u0641\u0629 \u0635\u0627\u0639\u062F\u0629",
+    "Bit": "\u0628\u062A",
+    "Set": "Set",
+    "Reset": "Reset",
+    "nessun contatto": "\u0644\u0627 \u0645\u0644\u0627\u0645\u0633",
+    "nessuna uscita": "\u0644\u0627 \u0645\u062E\u0631\u062C"
   };
 
   // src/i18n/ar.js
@@ -12670,6 +13204,17 @@ svg.ladder{display:block;min-width:360px;width:100%;max-width:640px;height:auto}
     [/^Il comando è sul lato del neutro: la bobina \((.+)\) ha il capo A2 che non va direttamente al neutro\. I comandi stanno sul lato della fase\.$/, (m, t) => `\u0627\u0644\u062A\u062D\u0643\u0645 \u0639\u0644\u0649 \u062C\u0627\u0646\u0628 \u0627\u0644\u0645\u062D\u0627\u064A\u062F: \u0627\u0644\u0637\u0631\u0641 A2 \u0641\u064A \u0627\u0644\u0645\u0644\u0641 (${t(m[1])}) \u0644\u0627 \u064A\u0630\u0647\u0628 \u0645\u0628\u0627\u0634\u0631\u0629 \u0625\u0644\u0649 \u0627\u0644\u0645\u062D\u0627\u064A\u062F. \u0623\u062C\u0647\u0632\u0629 \u0627\u0644\u062A\u062D\u0643\u0645 \u062A\u0643\u0648\u0646 \u0639\u0644\u0649 \u062C\u0627\u0646\u0628 \u0627\u0644\u0637\u0648\u0631.`],
     [/^A comandi rilasciati il motore \((.+)\) ha una fase sui suoi morsetti: una fase salta il contattore o la protezione\.$/, (m, t) => `\u0648\u0627\u0644\u0623\u0632\u0631\u0627\u0631 \u0645\u062D\u0631\u064E\u0651\u0631\u0629 \u064A\u0648\u062C\u062F \u0637\u0648\u0631 \u0639\u0644\u0649 \u0645\u0631\u0627\u0628\u0637 \u0627\u0644\u0645\u062D\u0631\u0643 (${t(m[1])}): \u0637\u0648\u0631 \u064A\u062A\u062C\u0627\u0648\u0632 \u0627\u0644\u0643\u0648\u0646\u062A\u0627\u0643\u062A\u0648\u0631 \u0623\u0648 \u0627\u0644\u062D\u0645\u0627\u064A\u0629.`],
     [/^Un componente \((.+)\) non è a valle della protezione \((.+)\): in caso di guasto nessuno lo stacca\.$/, (m, t) => `\u0645\u0643\u0648\u0651\u0646 (${t(m[1])}) \u0644\u064A\u0633 \u0628\u0639\u062F \u0627\u0644\u062D\u0645\u0627\u064A\u0629 (${t(m[2])}): \u0641\u064A \u062D\u0627\u0644 \u0627\u0644\u0639\u0637\u0644 \u0644\u0627 \u064A\u0641\u0635\u0644\u0647 \u0623\u062D\u062F.`],
+    [/^Il gradino (\d+) non ha ancora una bobina: aggiungine una\.$/, (m) => `\u0627\u0644\u062F\u0631\u062C\u0629 ${iso(m[1])} \u0644\u064A\u0633 \u0644\u0647\u0627 \u0645\u0644\u0641 \u0628\u0639\u062F: \u0623\u0636\u0641 \u0648\u0627\u062D\u062F\u064B\u0627.`],
+    [/^Il gradino (\d+) non ha contatti: la bobina non si accenderà mai\.$/, (m) => `\u0627\u0644\u062F\u0631\u062C\u0629 ${iso(m[1])} \u0628\u0644\u0627 \u0645\u0644\u0627\u0645\u0633\u0627\u062A: \u0641\u0644\u0646 \u064A\u0639\u0645\u0644 \u0645\u0644\u0641\u0647\u0627 \u0623\u0628\u062F\u064B\u0627.`],
+    [/^Il gradino (\d+) usa un indirizzo non valido \((.+)\)\.$/, (m) => `\u0627\u0644\u062F\u0631\u062C\u0629 ${iso(m[1])} \u062A\u0633\u062A\u062E\u062F\u0645 \u0639\u0646\u0648\u0627\u0646\u064B\u0627 \u063A\u064A\u0631 \u0635\u0627\u0644\u062D (${m[2]}).`],
+    [/^Il gradino (\d+) usa (.+), che questo PLC non ha\.$/, (m) => `\u0627\u0644\u062F\u0631\u062C\u0629 ${iso(m[1])} \u062A\u0633\u062A\u062E\u062F\u0645 ${m[2]} \u0648\u0647\u0630\u0627 \u0627\u0644\u0640PLC \u0644\u0627 \u064A\u0645\u0644\u0643\u0647.`],
+    [/^Il gradino (\d+) prova a scrivere su (.+): gli ingressi si possono solo leggere\.$/, (m) => `\u0627\u0644\u062F\u0631\u062C\u0629 ${iso(m[1])} \u062A\u062D\u0627\u0648\u0644 \u0627\u0644\u0643\u062A\u0627\u0628\u0629 \u0639\u0644\u0649 ${m[2]}: \u0627\u0644\u0645\u062F\u0627\u062E\u0644 \u062A\u064F\u0642\u0631\u0623 \u0641\u0642\u0637.`],
+    [/^La bobina (.+) è usata in due gradini: l’ultima vince e il primo non serve\. Una bobina per uscita\.$/, (m) => `\u0627\u0644\u0645\u0644\u0641 ${m[1]} \u0645\u0633\u062A\u062E\u062F\u0645 \u0641\u064A \u062F\u0631\u062C\u062A\u064A\u0646: \u0627\u0644\u0623\u062E\u064A\u0631\u0629 \u0647\u064A \u0627\u0644\u062A\u064A \u062A\u063A\u0644\u0628 \u0648\u0627\u0644\u0623\u0648\u0644\u0649 \u0628\u0644\u0627 \u0641\u0627\u0626\u062F\u0629. \u0645\u0644\u0641 \u0648\u0627\u062D\u062F \u0644\u0643\u0644 \u0645\u062E\u0631\u062C.`],
+    [/^Il gradino (\d+) ha un tempo o un conteggio non valido\.$/, (m) => `\u0627\u0644\u062F\u0631\u062C\u0629 ${iso(m[1])} \u0641\u064A\u0647\u0627 \u0632\u0645\u0646 \u0623\u0648 \u0639\u062F\u0651 \u063A\u064A\u0631 \u0635\u0627\u0644\u062D.`],
+    [/^Il programma è troppo lungo: (\d+) gradini\.$/, (m) => `\u0627\u0644\u0628\u0631\u0646\u0627\u0645\u062C \u0637\u0648\u064A\u0644 \u062C\u062F\u064B\u0627: ${iso(m[1])} \u062F\u0631\u062C\u0629.`],
+    [/^Il programma ha un errore nel gradino (.+)\.$/, (m) => `\u0641\u064A \u0627\u0644\u0628\u0631\u0646\u0627\u0645\u062C \u062E\u0637\u0623 \u0641\u064A \u0627\u0644\u062F\u0631\u062C\u0629 ${m[1]}.`],
+    [/^Gradino (\d+)$/, (m) => `\u0627\u0644\u062F\u0631\u062C\u0629 ${iso(m[1])}`],
+    [/^Programma del PLC, (\d+) gradini$/, (m) => `\u0628\u0631\u0646\u0627\u0645\u062C \u0627\u0644\u0640PLC\u060C ${iso(m[1])} \u062F\u0631\u062C\u0627\u062A`],
     [/^Prova non superata: (.+?)\. (.+)$/, (m, t) => `\u0627\u062E\u062A\u0628\u0627\u0631 \u0644\u0645 \u064A\u064F\u062C\u062A\u0632: ${t(m[1])}. ${t(m[2])}`],
     [/^(.+): (.+); atteso: (.+)\.$/, (m, t) => `${t(m[1])}: ${t(m[2])}\u061B \u0627\u0644\u0645\u062A\u0648\u0642\u0639: ${t(m[3])}.`],
     [/^Prima di verificare serve ancora una misura con il multimetro: (.+)\.$/, (m, t) => `\u0642\u0628\u0644 \u0627\u0644\u062A\u062D\u0642\u0642 \u0645\u0627 \u0632\u0627\u0644 \u0645\u0637\u0644\u0648\u0628\u064B\u0627 \u0642\u064A\u0627\u0633 \u0628\u062C\u0647\u0627\u0632 \u0627\u0644\u0642\u064A\u0627\u0633 \u0627\u0644\u0645\u062A\u0639\u062F\u062F: ${t(m[1])}.`],
@@ -13226,6 +13771,7 @@ svg.ladder{display:block;min-width:360px;width:100%;max-width:640px;height:auto}
   }
   function onLevelChange() {
     stopDemo();
+    LADSEL = null;
     comps = composeComps(S.level, colsFor(S.level));
     SEL = null;
     renderPalette();
@@ -13373,17 +13919,109 @@ svg.ladder{display:block;min-width:360px;width:100%;max-width:640px;height:auto}
     renderStatus();
     renderResult();
   }
+  var LADSEL = null;
+  var ladPlc = () => S.level.comps && S.level.comps.find((c2) => c2.type === "plc" && (c2.program || c2.edit));
+  var ladProgram = (plc) => plc.edit ? S.programs && S.programs[plc.id] || [] : plc.program;
   function renderLadder() {
     const el = $("#ladder");
-    const plc = S.level.comps && S.level.comps.find((c2) => c2.type === "plc" && c2.program);
+    const plc = ladPlc();
     el.hidden = !plc;
+    $("#work").classList.toggle("lad-first", !!(plc && plc.edit));
     if (!plc) {
       el.innerHTML = "";
       return;
     }
     const st = S.obs && S.obs.plc && S.obs.plc[plc.id];
-    el.innerHTML = `<div class="ladhead"><b>Programma del PLC</b><span>${st && st.powered ? "in esecuzione" : "spento"}</span></div><div class="ladscroll">${ladderHTML(plc.program, st, plc.symbols || {})}</div>`;
+    const prog = ladProgram(plc);
+    const names = plc.symbols || {};
+    const ed = !!plc.edit;
+    const head = `<div class="ladhead"><b>${ed ? "Scrivi il programma del PLC" : "Programma del PLC"}</b><span>${st && st.powered ? "in esecuzione" : "spento"}</span></div>`;
+    let html = head + `<div class="ladscroll">${ladderHTML(prog, st, names, { edit: ed, sel: LADSEL })}</div>`;
+    if (ed) {
+      const addrs = addressesFor(plc, plc.edit);
+      const errors = validateProgram(prog, { I: addrs.inputs.length, Q: addrs.outputs.length });
+      if (LADSEL && !prog[LADSEL.r]) LADSEL = null;
+      html += editorPanelHTML(prog, LADSEL, names, addrs, plc.edit.ops || ["coil"], errors, (e) => progText(e));
+      if (S.solutionShown && S.level.solutionPrograms && S.level.solutionPrograms[plc.id]) {
+        html += `<div class="ladhead" style="margin-top:12px"><b>Soluzione</b></div><div class="ladscroll">${ladderHTML(S.level.solutionPrograms[plc.id], st, names)}</div>`;
+      }
+    }
+    el.innerHTML = html;
   }
+  function ladderAct(act2, data) {
+    const plc = ladPlc();
+    if (!plc || !plc.edit) return;
+    const prog = ladProgram(plc);
+    const addrs = addressesFor(plc, plc.edit);
+    const sel = LADSEL;
+    let next = null, nsel = sel;
+    const cells = sel && prog[sel.r] ? toCells(prog[sel.r].if) || [] : [];
+    const cur = sel && sel.kind === "c" && cells[sel.cell] ? cells[sel.cell].alts[sel.alt] : null;
+    if (act2 === "addRung") {
+      next = addRung(prog);
+      nsel = { kind: "r", r: next.length - 1 };
+    } else if (!sel) return;
+    else if (act2 === "addContact") {
+      next = addContact(prog, sel.r, { a: addrs.inputs[0] });
+      nsel = { kind: "c", r: sel.r, cell: cells.length, alt: 0 };
+    } else if (act2 === "addOut") {
+      const used = new Set(prog.flatMap((r) => r.do.map((x) => x.a)));
+      const a = addrs.outputs.find((x) => !used.has(x)) || addrs.outputs[0];
+      next = addOut(prog, sel.r, { op: "coil", a });
+      nsel = { kind: "o", r: sel.r, out: prog[sel.r].do.length };
+    } else if (act2 === "up" || act2 === "down") {
+      const d = act2 === "up" ? -1 : 1;
+      next = moveRung(prog, sel.r, d);
+      nsel = { kind: "r", r: sel.r + d };
+    } else if (act2 === "delRung") {
+      next = removeRung(prog, sel.r);
+      nsel = null;
+    } else if (cur && act2 === "type") next = setContact(prog, sel.r, sel.cell, sel.alt, { a: cur.a, ...data.v === "not" ? { not: true } : data.v === "rise" ? { rise: true } : {} });
+    else if (cur && act2 === "addr") next = setContact(prog, sel.r, sel.cell, sel.alt, { ...cur, a: data.v });
+    else if (cur && act2 === "parallel") {
+      next = addParallel(prog, sel.r, sel.cell, { a: cur.a });
+      nsel = { kind: "c", r: sel.r, cell: sel.cell, alt: cells[sel.cell].alts.length };
+    } else if (cur && act2 === "delContact") {
+      next = removeContact(prog, sel.r, sel.cell, sel.alt);
+      nsel = { kind: "r", r: sel.r };
+    } else if (sel.kind === "o" && prog[sel.r] && prog[sel.r].do[sel.out]) {
+      const ins = prog[sel.r].do[sel.out];
+      if (act2 === "optype") next = setOut(prog, sel.r, sel.out, { op: data.v, a: ins.a });
+      else if (act2 === "outaddr") next = setOut(prog, sel.r, sel.out, { op: ins.op, a: data.v });
+      else if (act2 === "delOut") {
+        next = removeOut(prog, sel.r, sel.out);
+        nsel = { kind: "r", r: sel.r };
+      }
+    }
+    if (!next) return;
+    LADSEL = nsel;
+    session.setProgram(plc.id, next);
+  }
+  $("#ladder").addEventListener("click", (e) => {
+    const a = e.target.closest("[data-lac]");
+    if (a && !a.disabled && a.tagName !== "SELECT") {
+      ladderAct(a.dataset.lac, { v: a.dataset.v });
+      return;
+    }
+    const t = e.target.closest("[data-lad]");
+    if (t) {
+      const d = t.dataset;
+      LADSEL = d.lad === "r" ? { kind: "r", r: +d.r } : d.lad === "c" ? { kind: "c", r: +d.r, cell: +d.cell, alt: +d.alt } : { kind: "o", r: +d.r, out: +d.out };
+      renderLadder();
+    }
+  });
+  $("#ladder").addEventListener("change", (e) => {
+    const a = e.target.closest("select[data-lac]");
+    if (a) ladderAct(a.dataset.lac, { v: a.value });
+  });
+  $("#ladder").addEventListener("keydown", (e) => {
+    if (e.key !== "Enter" && e.key !== " ") return;
+    const t = e.target.closest("[data-lad]");
+    if (t) {
+      e.preventDefault();
+      t.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    }
+  });
   function render() {
     if (!S) return;
     renderChrome();

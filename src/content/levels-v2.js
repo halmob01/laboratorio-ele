@@ -846,3 +846,29 @@ export const LEVELS_V2 = [
     ],
   },
 ];
+
+// c30: stessa macchina di c29, ma tutto il cablaggio e' gia' fatto e il programma del PLC lo scrive l'allievo.
+const C29 = LEVELS_V2.find(l => l.id === 'c29-plc');
+LEVELS_V2.push({
+  ...C29,
+  id: 'c30-ladder', code: 'c30',
+  name: 'Ladder: l’autoritenuta', title: 'Ladder: l’autoritenuta',
+  blurb: 'Scrivi tu il programma: marcia, arresto e spia.',
+  goal: 'L’impianto è cablato e il PLC è acceso, ma il programma è vuoto. Scrivilo tu: con Marcia il motore parte e resta in marcia a pulsante rilasciato, con Arresto si ferma, e la spia segue il motore. Ricorda che l’arresto è un contatto normalmente chiuso: a riposo porta tensione e l’ingresso I0 vale 1.',
+  fixed: C29.solution.map(w => w.slice()),
+  comps: C29.comps.map(c => (c.type === 'plc'
+    ? { ...c, program: undefined, title: 'PLC (programma da scrivere)', edit: { markers: 0, timers: 0, counters: 0, ops: ['coil'] } }
+    : c)),
+  solutionPrograms: {
+    PLC: [
+      { if: ['and', ['or', 'I1', 'Q0'], 'I0'], do: [{ op: 'coil', a: 'Q0' }] },
+      { if: 'Q0', do: [{ op: 'coil', a: 'Q1' }] },
+    ],
+  },
+  hints: [
+    'Un gradino ha i contatti a sinistra e la bobina a destra. Il motore è l’uscita Q0: la sua bobina sta a destra del gradino 1.',
+    'Per far partire il motore serve il contatto di Marcia, I1. Ma Marcia è un impulso: appena lo rilasci vale 0. Per tenere acceso Q0 aggiungi in parallelo a I1 il contatto di Q0 stesso.',
+    'L’arresto è collegato come contatto NC, quindi I0 vale 1 a riposo e vale 0 solo premendolo: in serie metti I0 come contatto normalmente aperto, non chiuso.',
+    'Il gradino 2 è semplice: un contatto Q0 e la bobina Q1, la spia.',
+  ],
+});

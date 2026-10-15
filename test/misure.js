@@ -27,3 +27,8 @@ export function doRatings(s, L) {
 export function openIsolators(s, L) {
   ((L.safety && L.safety.deadWork) || []).forEach(id => { if (s.snapshot().controlStates[id] === 1) s.toggleControl(id); });
 }
+
+// Programma di soluzione dei livelli in cui l'allievo scrive il ladder (level.solutionPrograms).
+export function doPrograms(s, L) {
+  Object.entries(L.solutionPrograms || {}).forEach(([id, prog]) => s.setProgram(id, prog));
+}

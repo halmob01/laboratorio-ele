@@ -7,6 +7,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { JSDOM } from 'jsdom';
 import { levels, deriveFull } from '../src/content/index.js';
+import { toCells } from '../src/engine/ladder-edit.js';
 
 const html = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
 const lv = id => levels.find(l => l.id === id);
@@ -61,6 +62,33 @@ const solve = (w, d, level) => {
   level.solution.forEach(([a, b, c]) => wire(w, d, a, b, c));
 };
 // Le letture del multimetro che il livello pretende, fatte dall'interfaccia: puntali sui morsetti, quadro e comandi come richiesto.
+
+// Scrive il programma di soluzione con l'editor del ladder, toccando come farebbe l'allievo.
+function programUI(w, d, level) {
+  const setSel = (sel, v) => { sel.value = v; sel.dispatchEvent(new w.Event('change', { bubbles: true })); };
+  const lac = (a, v) => click(w, q(d, v ? `[data-lac="${a}"][data-v="${v}"]` : `[data-lac="${a}"]`));
+  const contact = (c, first) => {
+    if (c.rise) lac('type', 'rise'); else if (c.not) lac('type', 'not');
+    setSel(q(d, 'select[data-lac="addr"]'), c.a);
+  };
+  Object.values(level.solutionPrograms || {}).forEach(prog => {
+    prog.forEach((r, i) => {
+      lac('addRung');
+      const cells = toCells(r.if) || [];
+      cells.forEach(cell => {
+        click(w, q(d, `[data-lad="r"][data-r="${i}"]`));
+        lac('addContact');
+        contact(cell.alts[0]);
+        cell.alts.slice(1).forEach(alt => { lac('parallel'); contact(alt); });
+      });
+      r.do.forEach(ins => {
+        click(w, q(d, `[data-lad="r"][data-r="${i}"]`));
+        lac('addOut');
+        setSel(q(d, 'select[data-lac="outaddr"]'), ins.a);
+      });
+    });
+  });
+}
 function rateUI(w, d, level) {
   Object.entries(level.solutionRatings || {}).forEach(([id, want]) => {
     for (let i = 0; i < 8 && q(d, `[data-rate="${id}"] text`).textContent !== want + ' A'; i++) click(w, q(d, `[data-rate="${id}"]`));
@@ -283,6 +311,7 @@ test('si superano tutti i livelli cablando la soluzione (quadro e contatore)', (
       assert.equal(qa(d, '#bench [data-wire]').length, lvl.solution.length, base.id + ' ' + mode);
       measureUI(w, d, lvl);
       rateUI(w, d, lvl);
+      programUI(w, d, lvl);
       click(w, q(d, '#bCheck'));
       assert.match(q(d, '#result h3').textContent, /Impianto funzionante/, base.id + ' ' + mode);
       assert.equal(qa(d, '#result .row:not(.chk) > .mark.ok').length, 3);
