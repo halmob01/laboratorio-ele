@@ -2748,4 +2748,162 @@ export const UNITS_V2 = {
       fixSay: 'Nel gradino della stella aggiungi in serie un contatto di T1 e mettilo normalmente chiuso. Poi premi Verifica.',
     },
   },
+  'c32-nastro-plc': {
+    support: 'passi',
+    lesson: {
+      pages: [
+        {
+          type: 'spiegazione',
+          title: 'Un nastro che conta',
+          paras: [
+            'Un nastro trasporta pacchi in lotti da tre. Una fotocellula guarda ogni pacco che passa. Quando ne sono passati tre il nastro si ferma e una spia dice "lotto completo"; con Marcia parte il lotto successivo.',
+            'Con i relè servirebbe un contatore elettromeccanico a parte. Con un PLC il conteggio è un’istruzione del programma, e la logica del nastro sta tutta nel ladder.',
+          ],
+        },
+        {
+          type: 'spiegazione',
+          title: 'La fotocellula è un ingresso',
+          paras: [
+            'Una fotocellula è un sensore: quando un pacco interrompe il raggio chiude un contatto, come un pulsante premuto per il tempo in cui il pacco passa. Per il PLC è un ingresso come gli altri: vale 1 mentre il pacco c’è, 0 quando non c’è.',
+            'Nel gioco la fotocellula è un pulsante da tenere premuto per un attimo: ogni pressione e rilascio è un pacco che passa.',
+          ],
+        },
+        {
+          type: 'spiegazione',
+          title: 'Il contatore CTU',
+          paras: [
+            'Il CTU (contatore in avanti) ha una condizione, un numero a cui arrivare e un ingresso di azzeramento. A ogni fronte di salita della condizione, cioè a ogni volta che passa da 0 a 1, aggiunge uno. Quando il conteggio raggiunge il numero, il suo bit C1 diventa 1.',
+            'Conta i fronti, non il tempo in cui la condizione resta vera: un pacco lungo, che tiene la fotocellula a 1 per un secondo, vale uno solo. L’ingresso di azzeramento riporta il conteggio a zero.',
+          ],
+          table: {
+            head: ['Pacchi passati', 'Conteggio e bit C1 (si conta fino a 3)'],
+            rows: [
+              ['Nessuno', 'conteggio 0, C1 = 0'],
+              ['Uno', 'conteggio 1, C1 = 0'],
+              ['Due', 'conteggio 2, C1 = 0'],
+              ['Tre', 'conteggio 3, C1 = 1: lotto completo'],
+              ['Marcia (azzeramento)', 'conteggio 0, C1 = 0: lotto nuovo'],
+            ],
+          },
+        },
+        {
+          type: 'spiegazione',
+          title: 'Fungo e termico restano nei fili',
+          paras: [
+            'In una macchina vera l’emergenza e la protezione del motore non devono mai dipendere dal programma: un programma può avere un errore e un PLC può bloccarsi. Per questo il contatto del fungo e il contatto 95-96 del termico stanno in serie alla bobina del contattore, nei fili.',
+            'Guarda il banco: la fase passa dal fungo, dal termico, poi dall’uscita Q0 del PLC e solo allora arriva alla bobina. Il PLC può solo dire "no" quando vuole fermare il nastro; non può forzare la marcia se fungo o termico sono aperti.',
+          ],
+          table: {
+            head: ['Che cosa', 'Dove sta'],
+            rows: [
+              ['Marcia, arresto, conteggio, spia', 'nel programma'],
+              ['Fungo di emergenza (contatto di potenza del comando)', 'nei fili, in serie alla bobina'],
+              ['Contatto del relè termico', 'nei fili, in serie alla bobina'],
+              ['Informare il PLC che il fungo è premuto', 'un secondo contatto del fungo verso l’ingresso I3'],
+            ],
+          },
+          warn: 'La verifica prova anche questo: forza tutte le uscite del PLC a 1 e controlla che con il fungo premuto il nastro si fermi lo stesso.',
+        },
+        {
+          type: 'spiegazione',
+          title: 'Perché il PLC deve saperlo lo stesso',
+          paras: [
+            'Premendo il fungo la bobina perde la fase e il nastro si ferma subito, anche se il PLC non se ne accorge. Ma il PLC pensa ancora di avere Q0 acceso, per via dell’autoritenuta. Sbloccando il fungo la bobina torna alimentata e il nastro ripartirebbe da solo.',
+            'Per evitarlo il PLC legge lo stato del fungo sull’ingresso I3, e nel gradino del nastro I3 è in serie: con il fungo premuto I3 vale 0, Q0 si spegne e l’autoritenuta si scioglie. Dopo lo sblocco serve un nuovo Marcia.',
+          ],
+        },
+        {
+          type: 'spiegazione',
+          title: 'L’ordine dei gradini conta',
+          paras: [
+            'Il PLC esegue i gradini dall’alto in basso, e un bit scritto in un gradino si legge subito nei gradini successivi della stessa scansione. Per questo il gradino del contatore va per primo.',
+            'Quando passa il terzo pacco, il primo gradino porta C1 a 1 e il gradino del nastro, subito sotto, vede C1 pieno e spegne Q0 nella stessa scansione. Se il contatore stesse dopo, il nastro si fermerebbe con un ciclo di ritardo: pochi millisecondi, ma l’ordine giusto è più chiaro.',
+          ],
+        },
+        {
+          type: 'previsione',
+          question: 'Il fungo è premuto e il PLC si blocca con l’uscita Q0 accesa. Che cosa fa il nastro?',
+          options: [
+            { id: 'a', text: 'Continua a girare: il PLC comanda la bobina.' },
+            { id: 'b', text: 'Si ferma comunque: il fungo apre il comando nei fili, prima della bobina.' },
+            { id: 'c', text: 'Dipende dal programma.' },
+          ],
+          correct: 'b',
+          why: 'Il contatto del fungo è in serie alla bobina, prima dell’uscita del PLC. Anche con Q0 chiuso la fase non arriva alla bobina. È proprio il motivo per cui l’emergenza non passa dal programma.',
+        },
+        {
+          type: 'previsione',
+          question: 'Un pacco lungo tiene la fotocellula a 1 per un secondo intero. Quanti pacchi conta il CTU?',
+          options: [
+            { id: 'a', text: 'Uno: conta i fronti di salita, non il tempo.' },
+            { id: 'b', text: 'Tanti quante sono le scansioni in cui I2 vale 1.' },
+            { id: 'c', text: 'Nessuno: un pacco lungo non si conta.' },
+          ],
+          correct: 'a',
+          why: 'Il CTU aggiunge uno solo nel momento in cui la condizione passa da 0 a 1. Finché resta a 1 non conta altro: un pacco lungo vale uno.',
+        },
+        {
+          type: 'previsione',
+          question: 'Nel programma manca I3 nel gradino del nastro. Premi e sblocchi il fungo. Che cosa succede?',
+          options: [
+            { id: 'a', text: 'Il nastro resta fermo: il fungo lo ha fermato.' },
+            { id: 'b', text: 'Il nastro riparte da solo: il PLC aveva ancora Q0 acceso con l’autoritenuta.' },
+            { id: 'c', text: 'Scatta il termico.' },
+          ],
+          correct: 'b',
+          why: 'Il fungo ha fermato il nastro nei fili, ma per il programma Q0 era ancora acceso. Allo sblocco la bobina riprende corrente e il nastro riparte. Con I3 in serie l’autoritenuta si scioglie quando il fungo è premuto.',
+        },
+        { type: 'sintesi', title: 'Da ricordare' },
+      ],
+    },
+    steps: [
+      { kind: 'program', plc: 'PLC', min: 1, short: '1 Contatore', title: 'Il conteggio dei pacchi', text: 'Primo gradino: contatto della fotocellula (I2) e, come uscita, un contatore a 3, azzerato da Marcia (I1). Perché: va per primo, così il nastro vede subito il contatore pieno.' },
+      { kind: 'program', plc: 'PLC', min: 2, short: '2 Nastro', title: 'Il gradino del nastro', text: 'Bobina Q0. Marcia (I1) in parallelo a Q0, in serie Arresto (I0), emergenza (I3) e C1 normalmente chiuso. Perché: l’autoritenuta tiene acceso, ogni altro contatto può fermare, e a lotto pieno il nastro si ferma.' },
+      { kind: 'program', plc: 'PLC', min: 3, short: '3 Spia', title: 'La spia del lotto', text: 'Contatto C1 e bobina Q1. Perché: la spia si accende quando il contatore è pieno.' },
+      { kind: 'control', id: 'SB1', short: '4 Prova', title: 'Prova il lotto', text: 'Premi Marcia, poi fai passare tre pacchi con la fotocellula: al terzo il nastro si ferma e la spia si accende.' },
+      { kind: 'verify', short: '5 Verifica', title: 'Controlla il programma', text: 'Premi Verifica.' },
+    ],
+    summary: [
+      'Una fotocellula è un ingresso: vale 1 mentre un pacco interrompe il raggio.',
+      'Il CTU conta i fronti di salita della condizione e dà un bit (C1) quando arriva al numero impostato; un ingresso lo azzera.',
+      'Il fungo e il contatto del termico stanno nei fili, in serie alla bobina: il programma non può scavalcarli.',
+      'Il PLC legge comunque il fungo (I3) per sciogliere l’autoritenuta: senza, dopo lo sblocco il nastro ripartirebbe da solo.',
+      'L’ordine dei gradini conta: un bit scritto in alto si legge subito nei gradini sotto.',
+    ],
+    fault: {
+      say: 'Il programma è già scritto e il nastro conta i pacchi. Ma dopo aver premuto e sbloccato il fungo, il nastro riparte da solo. Guarda il gradino del nastro.',
+      wires: [
+        ['Q.L1', 'QM.1', 'marrone'], ['Q.L2', 'QM.3', 'nero'], ['Q.L3', 'QM.5', 'grigio'],
+        ['QM.2', 'KM.1', 'marrone'], ['QM.4', 'KM.3', 'nero'], ['QM.6', 'KM.5', 'grigio'],
+        ['KM.2', 'FR.1', 'marrone'], ['KM.4', 'FR.3', 'nero'], ['KM.6', 'FR.5', 'grigio'],
+        ['FR.2', 'M.U', 'marrone'], ['FR.4', 'M.V', 'nero'], ['FR.6', 'M.W', 'grigio'],
+        ['M.PE', 'Q.PE', 'gv'],
+        ['QM.2', 'PLC.A1', 'rosso'], ['PLC.A2', 'Q.N', 'blu'], ['PLC.IC', 'Q.N', 'blu'],
+        ['QM.2', 'SB0.1', 'rosso'], ['SB0.2', 'PLC.I0', 'rosso'],
+        ['QM.2', 'SB1.3', 'rosso'], ['SB1.4', 'PLC.I1', 'rosso'],
+        ['QM.2', 'PH.3', 'rosso'], ['PH.4', 'PLC.I2', 'rosso'],
+        ['QM.2', 'SBE.3', 'rosso'], ['SBE.4', 'PLC.I3', 'rosso'],
+        ['QM.2', 'SBE.1', 'rosso'], ['SBE.2', 'FR.95', 'rosso'], ['FR.96', 'PLC.Q0A', 'rosso'], ['PLC.Q0B', 'KM.A1', 'rosso'], ['KM.A2', 'Q.N', 'blu'],
+        ['QM.2', 'PLC.Q1A', 'rosso'], ['PLC.Q1B', 'H.X1', 'rosso'], ['H.X2', 'Q.N', 'blu'],
+      ],
+      programs: {
+        PLC: [
+          { if: 'I2', do: [{ op: 'ctu', id: 'C1', pv: 3, r: 'I1' }] },
+          { if: ['and', ['or', 'I1', 'Q0'], 'I0', ['not', 'C1']], do: [{ op: 'coil', a: 'Q0' }] },
+          { if: 'C1', do: [{ op: 'coil', a: 'Q1' }] },
+        ],
+      },
+      diagnosis: {
+        question: 'Perché il nastro riparte da solo dopo l’emergenza?',
+        options: [
+          { id: 'a', text: 'Il programma non legge il fungo (I3): Q0 resta acceso con l’autoritenuta e, sbloccato il fungo, la bobina torna alimentata.' },
+          { id: 'b', text: 'Il contatore non si è azzerato.' },
+          { id: 'c', text: 'Il fungo non è collegato nei fili.' },
+        ],
+        correct: 'a',
+        why: 'Il fungo agisce giustamente nei fili e ferma il nastro, ma il PLC non lo sa: per lui Q0 è ancora acceso grazie all’autoritenuta. Allo sblocco il nastro riparte. Aggiungendo I3 in serie, con il fungo premuto l’autoritenuta si scioglie.',
+      },
+      fixSay: 'Nel gradino del nastro aggiungi in serie il contatto I3 (Emergenza), normalmente aperto. Poi premi Verifica.',
+    },
+  },
 };

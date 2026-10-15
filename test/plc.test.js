@@ -291,3 +291,66 @@ test('c31: il temporizzatore si azzera se si preme Arresto durante il conteggio'
   press(s, 'SB1'); advance(s, 4);
   assert.equal(observe(s).modes.M, 'star');
 });
+
+/* ---------- c32: il nastro con il PLC ---------- */
+const L32 = levels.find(l => l.id === 'c32-nastro-plc');
+const W32 = ws => ws.map(([a, b, c], k) => ({ id: k + 1, a, b, c }));
+const sim32 = prog => createSim(lvProg(L32, prog), W32(L32.solution));
+const pacchi = (s, n) => { for (let i = 0; i < n; i++) press(s, 'PH'); };
+
+test('c32: la soluzione dà tre stelle', () => {
+  const r = evaluateV2(L32, W32(L32.solution), { programs: L32.solutionPrograms });
+  assert.equal(r.pass, true, JSON.stringify(r));
+});
+
+test('c32: conta tre pacchi, ferma il nastro e accende la spia; Marcia riparte con un lotto nuovo', () => {
+  const s = sim32(L32.solutionPrograms.PLC);
+  press(s, 'SB1'); pacchi(s, 2);
+  assert.deepEqual([observe(s).motors.M, observe(s).loads.H], ['fwd', 'off']);
+  pacchi(s, 1);
+  assert.deepEqual([observe(s).motors.M, observe(s).loads.H], ['off', 'on']);
+  press(s, 'SB1');
+  assert.deepEqual([observe(s).motors.M, observe(s).loads.H], ['fwd', 'off']);
+  pacchi(s, 2);
+  assert.equal(observe(s).motors.M, 'fwd', 'il conteggio e\' ripartito da zero');
+});
+
+test('c32: un pacco lungo (fotocellula tenuta a 1) conta una volta sola', () => {
+  const s = sim32(L32.solutionPrograms.PLC);
+  press(s, 'SB1');
+  act(s, 'press', 'PH'); advance(s, 3); act(s, 'release', 'PH');
+  pacchi(s, 1);
+  assert.equal(observe(s).motors.M, 'fwd', 'due pacchi, non ancora tre');
+});
+
+test('c32: il fungo ferma il nastro anche con tutte le uscite del PLC forzate, e il termico anche', () => {
+  const s = sim32(L32.solutionPrograms.PLC);
+  s.forcePlc = 'allOn';
+  act(s, 'toggle', 'SBE');
+  assert.equal(observe(s).motors.M, 'off');
+  act(s, 'toggle', 'SBE');
+  act(s, 'press', 'SB1'); act(s, 'release', 'SB1');
+  s.overload = true; advance(s, 5);
+  assert.equal(observe(s).motors.M, 'off');
+  assert.deepEqual(observe(s).tripped, ['FR']);
+});
+
+test('c32: senza I3 il nastro riparte da solo dopo l\'emergenza, e la verifica lo dice', () => {
+  const bad = L32.unit.fault.programs.PLC;
+  const s = sim32(bad);
+  press(s, 'SB1');
+  act(s, 'toggle', 'SBE');
+  assert.equal(observe(s).motors.M, 'off');
+  act(s, 'toggle', 'SBE');
+  assert.equal(observe(s).motors.M, 'fwd', 'riparte da solo');
+  const r = evaluateV2(L32, W32(L32.solution), { programs: { PLC: bad } });
+  assert.equal(r.pass, false);
+  assert.ok(r.safe.items.some(i => i.code === 'safe.restartAfterEmergency'), JSON.stringify(r.safe.items));
+});
+
+test('c32: il contatore va per primo; se sta dopo il nastro si ferma con una scansione di ritardo ma funziona lo stesso', () => {
+  const late = [L32.solutionPrograms.PLC[1], L32.solutionPrograms.PLC[0], L32.solutionPrograms.PLC[2]];
+  const s = sim32(late);
+  press(s, 'SB1'); pacchi(s, 3);
+  assert.equal(observe(s).motors.M, 'off');
+});

@@ -56,7 +56,7 @@ export const MODULES = [
       'c29-plc',
       'c30-ladder',
       'c31-tempo',
-      { soon: true, title: 'Il nastro con il PLC', blurb: 'Fotocellula e conteggio; fungo e termico restano cablati.' },
+      'c32-nastro-plc',
     ],
     milestone: { soon: true, art: 'plc', kick: 'Nastro con il PLC', name: 'Un nastro che si comanda da programma', text: 'Fotocellula, conteggio dei pacchi, emergenza e termico che restano cablati.' },
   },

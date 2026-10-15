@@ -5973,6 +5973,97 @@ html[dir="rtl"] .phud,html[dir="rtl"] .psheet,html[dir="rtl"] .pintro,html[dir="
       "Il triangolo (Q2) \xE8 acceso quando Q0 \xE8 acceso e T1 vale 1: contatto Q0 in serie con T1 normalmente aperto, bobina Q2. Cos\xEC stella e triangolo non sono mai accesi insieme."
     ]
   });
+  var W32_POWER = [
+    ["Q.L1", "QM.1", "marrone"],
+    ["Q.L2", "QM.3", "nero"],
+    ["Q.L3", "QM.5", "grigio"],
+    ["QM.2", "KM.1", "marrone"],
+    ["QM.4", "KM.3", "nero"],
+    ["QM.6", "KM.5", "grigio"],
+    ["KM.2", "FR.1", "marrone"],
+    ["KM.4", "FR.3", "nero"],
+    ["KM.6", "FR.5", "grigio"],
+    ["FR.2", "M.U", "marrone"],
+    ["FR.4", "M.V", "nero"],
+    ["FR.6", "M.W", "grigio"],
+    ["M.PE", "Q.PE", "gv"]
+  ];
+  var W32_PLC = [
+    ["QM.2", "PLC.A1", "rosso"],
+    ["PLC.A2", "Q.N", "blu"],
+    ["PLC.IC", "Q.N", "blu"],
+    ["QM.2", "SB0.1", "rosso"],
+    ["SB0.2", "PLC.I0", "rosso"],
+    ["QM.2", "SB1.3", "rosso"],
+    ["SB1.4", "PLC.I1", "rosso"],
+    ["QM.2", "PH.3", "rosso"],
+    ["PH.4", "PLC.I2", "rosso"],
+    ["QM.2", "SBE.3", "rosso"],
+    ["SBE.4", "PLC.I3", "rosso"],
+    // il comando del contattore passa dal fungo e dal termico, nei fili: il programma non puo' saltarli
+    ["QM.2", "SBE.1", "rosso"],
+    ["SBE.2", "FR.95", "rosso"],
+    ["FR.96", "PLC.Q0A", "rosso"],
+    ["PLC.Q0B", "KM.A1", "rosso"],
+    ["KM.A2", "Q.N", "blu"],
+    ["QM.2", "PLC.Q1A", "rosso"],
+    ["PLC.Q1B", "H.X1", "rosso"],
+    ["H.X2", "Q.N", "blu"]
+  ];
+  var PROG_32 = [
+    { if: "I2", do: [{ op: "ctu", id: "C1", pv: 3, r: "I1" }] },
+    { if: ["and", ["or", "I1", "Q0"], "I0", "I3", ["not", "C1"]], do: [{ op: "coil", a: "Q0" }] },
+    { if: "C1", do: [{ op: "coil", a: "Q1" }] }
+  ];
+  var batch = (n) => Array.from({ length: n }, () => press("PH")).flat();
+  LEVELS_V2.push({
+    id: "c32-nastro-plc",
+    code: "c32",
+    n: 0,
+    ...IND,
+    flow: "onDemand",
+    name: "Il nastro con il PLC",
+    title: "Il nastro con il PLC",
+    blurb: "Una fotocellula conta i pacchi: a tre il nastro si ferma. Fungo e termico restano nei fili.",
+    goal: "Un nastro trasporta pacchi in lotti da tre. Una fotocellula vede passare ogni pacco; dopo il terzo il nastro si ferma e una spia segnala il lotto completo. Con Marcia parte un lotto nuovo. L\u2019impianto \xE8 cablato: il fungo di emergenza e il rel\xE8 termico passano dai fili, in serie alla bobina del contattore, e il PLC li legge soltanto. Scrivi il programma.",
+    fixed: W32_POWER.concat(W32_PLC),
+    comps: [
+      Q3,
+      C("QM", "mt3", "Salvamotore", "Salvamotore magnetotermico", T(...T6)),
+      C("KM", "km", "Contattore", "Contattore KM", T("A1", "A2", ...T6)),
+      C("FR", "ft", "Termico", "Rel\xE8 termico", T(...T6, "95", "96"), { tripAfter: 3 }),
+      C("PLC", "plc", "PLC", "PLC (programma da scrivere)", T("A1", "A2", "I0", "I1", "I2", "I3", "IC", "Q0A", "Q0B", "Q1A", "Q1B"), {
+        symbols: { I0: "Arresto", I1: "Marcia", I2: "Fotocellula", I3: "Emergenza", Q0: "Nastro", Q1: "Lotto pieno", C1: "Pacchi" },
+        edit: { markers: 0, timers: 0, counters: 1, ops: ["coil", "ctu"] }
+      }),
+      C("SBE", "fungo", "Emergenza", "Pulsante di emergenza a due contatti", T("1", "2", "3", "4")),
+      C("SB0", "pbnc", "Arresto", "Pulsante di arresto (NC)", T("1", "2")),
+      C("SB1", "pb", "Marcia", "Pulsante di marcia (NA)", T("3", "4")),
+      C("PH", "pb", "Fotocellula", "Fotocellula: un pacco in transito (NA)", T("3", "4")),
+      C("H", "spia", "Lotto pieno", "Spia di lotto completo", T("X1", "X2")),
+      C("M", "motor3", "Nastro", "Motore del nastro", T("U", "V", "W", "PE"))
+    ],
+    controls: ["SBE", "SB0", "SB1", "PH"],
+    demoDo: [{ do: press("SB1"), say: "" }],
+    checks: [
+      { id: "marcia", label: "Premi Marcia: il nastro parte e resta in marcia", do: press("SB1"), expect: { motors: { M: "fwd" }, loads: { H: "off" } } },
+      { id: "due", label: "Passano due pacchi: il nastro continua", do: press("SB1").concat(batch(2)), expect: { motors: { M: "fwd" }, loads: { H: "off" } } },
+      { id: "tre", label: "Passa il terzo pacco: il nastro si ferma e la spia si accende", do: press("SB1").concat(batch(3)), expect: { motors: { M: "off" }, loads: { H: "on" } } },
+      { id: "nuovo", label: "Con Marcia parte un lotto nuovo e la spia si spegne", steps: [{ do: press("SB1").concat(batch(3)), expect: { motors: { M: "off" }, loads: { H: "on" } } }, { do: press("SB1"), expect: { motors: { M: "fwd" }, loads: { H: "off" } } }] },
+      { id: "arresto", label: "Premi Arresto: il nastro si ferma", steps: [{ do: press("SB1"), expect: { motors: { M: "fwd" } } }, { do: press("SB0"), expect: { motors: { M: "off" } } }] },
+      { id: "termico", label: "Con un sovraccarico il termico scatta e il nastro si ferma", steps: [{ do: press("SB1"), expect: { motors: { M: "fwd" } } }, { do: ["overload on", "wait 5"], expect: { motors: { M: "off" }, tripped: ["FR"] } }] },
+      { id: "fermo", label: "Senza comandi il nastro \xE8 fermo", do: [], expect: { motors: { M: "off" } } }
+    ],
+    safety: { deadWork: ["QM"], earth: [["M.PE", "Q.PE"]], stopWins: "SB0", emergency: "SBE", emergencyHardwired: { stop: "SBE", start: ["SB1"] }, coilReturn: ["KM", "PLC"], protectedBy: { M: "QM", KM: "QM" } },
+    solution: W32_POWER.concat(W32_PLC),
+    solutionPrograms: { PLC: PROG_32 },
+    hints: [
+      "Il conteggio: un gradino con il contatto della fotocellula I2 e, come uscita, un contatore a 3. Si azzera con Marcia (I1).",
+      "Il gradino del contatore va per primo: cos\xEC, quando passa il terzo pacco, il gradino del nastro vede subito il contatore pieno.",
+      "Il nastro Q0: Marcia (I1) in parallelo a Q0 per l\u2019autoritenuta; in serie Arresto (I0), emergenza (I3), e il contatore C1 normalmente chiuso, perch\xE9 a lotto pieno il nastro si ferma.",
+      "La spia Q1 segue il contatore: contatto C1 e bobina Q1."
+    ]
+  });
 
   // src/content/units-v2.js
   var UNITS_V2 = {
@@ -8965,6 +9056,184 @@ html[dir="rtl"] .phud,html[dir="rtl"] .psheet,html[dir="rtl"] .pintro,html[dir="
         },
         fixSay: "Nel gradino della stella aggiungi in serie un contatto di T1 e mettilo normalmente chiuso. Poi premi Verifica."
       }
+    },
+    "c32-nastro-plc": {
+      support: "passi",
+      lesson: {
+        pages: [
+          {
+            type: "spiegazione",
+            title: "Un nastro che conta",
+            paras: [
+              'Un nastro trasporta pacchi in lotti da tre. Una fotocellula guarda ogni pacco che passa. Quando ne sono passati tre il nastro si ferma e una spia dice "lotto completo"; con Marcia parte il lotto successivo.',
+              "Con i rel\xE8 servirebbe un contatore elettromeccanico a parte. Con un PLC il conteggio \xE8 un\u2019istruzione del programma, e la logica del nastro sta tutta nel ladder."
+            ]
+          },
+          {
+            type: "spiegazione",
+            title: "La fotocellula \xE8 un ingresso",
+            paras: [
+              "Una fotocellula \xE8 un sensore: quando un pacco interrompe il raggio chiude un contatto, come un pulsante premuto per il tempo in cui il pacco passa. Per il PLC \xE8 un ingresso come gli altri: vale 1 mentre il pacco c\u2019\xE8, 0 quando non c\u2019\xE8.",
+              "Nel gioco la fotocellula \xE8 un pulsante da tenere premuto per un attimo: ogni pressione e rilascio \xE8 un pacco che passa."
+            ]
+          },
+          {
+            type: "spiegazione",
+            title: "Il contatore CTU",
+            paras: [
+              "Il CTU (contatore in avanti) ha una condizione, un numero a cui arrivare e un ingresso di azzeramento. A ogni fronte di salita della condizione, cio\xE8 a ogni volta che passa da 0 a 1, aggiunge uno. Quando il conteggio raggiunge il numero, il suo bit C1 diventa 1.",
+              "Conta i fronti, non il tempo in cui la condizione resta vera: un pacco lungo, che tiene la fotocellula a 1 per un secondo, vale uno solo. L\u2019ingresso di azzeramento riporta il conteggio a zero."
+            ],
+            table: {
+              head: ["Pacchi passati", "Conteggio e bit C1 (si conta fino a 3)"],
+              rows: [
+                ["Nessuno", "conteggio 0, C1 = 0"],
+                ["Uno", "conteggio 1, C1 = 0"],
+                ["Due", "conteggio 2, C1 = 0"],
+                ["Tre", "conteggio 3, C1 = 1: lotto completo"],
+                ["Marcia (azzeramento)", "conteggio 0, C1 = 0: lotto nuovo"]
+              ]
+            }
+          },
+          {
+            type: "spiegazione",
+            title: "Fungo e termico restano nei fili",
+            paras: [
+              "In una macchina vera l\u2019emergenza e la protezione del motore non devono mai dipendere dal programma: un programma pu\xF2 avere un errore e un PLC pu\xF2 bloccarsi. Per questo il contatto del fungo e il contatto 95-96 del termico stanno in serie alla bobina del contattore, nei fili.",
+              'Guarda il banco: la fase passa dal fungo, dal termico, poi dall\u2019uscita Q0 del PLC e solo allora arriva alla bobina. Il PLC pu\xF2 solo dire "no" quando vuole fermare il nastro; non pu\xF2 forzare la marcia se fungo o termico sono aperti.'
+            ],
+            table: {
+              head: ["Che cosa", "Dove sta"],
+              rows: [
+                ["Marcia, arresto, conteggio, spia", "nel programma"],
+                ["Fungo di emergenza (contatto di potenza del comando)", "nei fili, in serie alla bobina"],
+                ["Contatto del rel\xE8 termico", "nei fili, in serie alla bobina"],
+                ["Informare il PLC che il fungo \xE8 premuto", "un secondo contatto del fungo verso l\u2019ingresso I3"]
+              ]
+            },
+            warn: "La verifica prova anche questo: forza tutte le uscite del PLC a 1 e controlla che con il fungo premuto il nastro si fermi lo stesso."
+          },
+          {
+            type: "spiegazione",
+            title: "Perch\xE9 il PLC deve saperlo lo stesso",
+            paras: [
+              "Premendo il fungo la bobina perde la fase e il nastro si ferma subito, anche se il PLC non se ne accorge. Ma il PLC pensa ancora di avere Q0 acceso, per via dell\u2019autoritenuta. Sbloccando il fungo la bobina torna alimentata e il nastro ripartirebbe da solo.",
+              "Per evitarlo il PLC legge lo stato del fungo sull\u2019ingresso I3, e nel gradino del nastro I3 \xE8 in serie: con il fungo premuto I3 vale 0, Q0 si spegne e l\u2019autoritenuta si scioglie. Dopo lo sblocco serve un nuovo Marcia."
+            ]
+          },
+          {
+            type: "spiegazione",
+            title: "L\u2019ordine dei gradini conta",
+            paras: [
+              "Il PLC esegue i gradini dall\u2019alto in basso, e un bit scritto in un gradino si legge subito nei gradini successivi della stessa scansione. Per questo il gradino del contatore va per primo.",
+              "Quando passa il terzo pacco, il primo gradino porta C1 a 1 e il gradino del nastro, subito sotto, vede C1 pieno e spegne Q0 nella stessa scansione. Se il contatore stesse dopo, il nastro si fermerebbe con un ciclo di ritardo: pochi millisecondi, ma l\u2019ordine giusto \xE8 pi\xF9 chiaro."
+            ]
+          },
+          {
+            type: "previsione",
+            question: "Il fungo \xE8 premuto e il PLC si blocca con l\u2019uscita Q0 accesa. Che cosa fa il nastro?",
+            options: [
+              { id: "a", text: "Continua a girare: il PLC comanda la bobina." },
+              { id: "b", text: "Si ferma comunque: il fungo apre il comando nei fili, prima della bobina." },
+              { id: "c", text: "Dipende dal programma." }
+            ],
+            correct: "b",
+            why: "Il contatto del fungo \xE8 in serie alla bobina, prima dell\u2019uscita del PLC. Anche con Q0 chiuso la fase non arriva alla bobina. \xC8 proprio il motivo per cui l\u2019emergenza non passa dal programma."
+          },
+          {
+            type: "previsione",
+            question: "Un pacco lungo tiene la fotocellula a 1 per un secondo intero. Quanti pacchi conta il CTU?",
+            options: [
+              { id: "a", text: "Uno: conta i fronti di salita, non il tempo." },
+              { id: "b", text: "Tanti quante sono le scansioni in cui I2 vale 1." },
+              { id: "c", text: "Nessuno: un pacco lungo non si conta." }
+            ],
+            correct: "a",
+            why: "Il CTU aggiunge uno solo nel momento in cui la condizione passa da 0 a 1. Finch\xE9 resta a 1 non conta altro: un pacco lungo vale uno."
+          },
+          {
+            type: "previsione",
+            question: "Nel programma manca I3 nel gradino del nastro. Premi e sblocchi il fungo. Che cosa succede?",
+            options: [
+              { id: "a", text: "Il nastro resta fermo: il fungo lo ha fermato." },
+              { id: "b", text: "Il nastro riparte da solo: il PLC aveva ancora Q0 acceso con l\u2019autoritenuta." },
+              { id: "c", text: "Scatta il termico." }
+            ],
+            correct: "b",
+            why: "Il fungo ha fermato il nastro nei fili, ma per il programma Q0 era ancora acceso. Allo sblocco la bobina riprende corrente e il nastro riparte. Con I3 in serie l\u2019autoritenuta si scioglie quando il fungo \xE8 premuto."
+          },
+          { type: "sintesi", title: "Da ricordare" }
+        ]
+      },
+      steps: [
+        { kind: "program", plc: "PLC", min: 1, short: "1 Contatore", title: "Il conteggio dei pacchi", text: "Primo gradino: contatto della fotocellula (I2) e, come uscita, un contatore a 3, azzerato da Marcia (I1). Perch\xE9: va per primo, cos\xEC il nastro vede subito il contatore pieno." },
+        { kind: "program", plc: "PLC", min: 2, short: "2 Nastro", title: "Il gradino del nastro", text: "Bobina Q0. Marcia (I1) in parallelo a Q0, in serie Arresto (I0), emergenza (I3) e C1 normalmente chiuso. Perch\xE9: l\u2019autoritenuta tiene acceso, ogni altro contatto pu\xF2 fermare, e a lotto pieno il nastro si ferma." },
+        { kind: "program", plc: "PLC", min: 3, short: "3 Spia", title: "La spia del lotto", text: "Contatto C1 e bobina Q1. Perch\xE9: la spia si accende quando il contatore \xE8 pieno." },
+        { kind: "control", id: "SB1", short: "4 Prova", title: "Prova il lotto", text: "Premi Marcia, poi fai passare tre pacchi con la fotocellula: al terzo il nastro si ferma e la spia si accende." },
+        { kind: "verify", short: "5 Verifica", title: "Controlla il programma", text: "Premi Verifica." }
+      ],
+      summary: [
+        "Una fotocellula \xE8 un ingresso: vale 1 mentre un pacco interrompe il raggio.",
+        "Il CTU conta i fronti di salita della condizione e d\xE0 un bit (C1) quando arriva al numero impostato; un ingresso lo azzera.",
+        "Il fungo e il contatto del termico stanno nei fili, in serie alla bobina: il programma non pu\xF2 scavalcarli.",
+        "Il PLC legge comunque il fungo (I3) per sciogliere l\u2019autoritenuta: senza, dopo lo sblocco il nastro ripartirebbe da solo.",
+        "L\u2019ordine dei gradini conta: un bit scritto in alto si legge subito nei gradini sotto."
+      ],
+      fault: {
+        say: "Il programma \xE8 gi\xE0 scritto e il nastro conta i pacchi. Ma dopo aver premuto e sbloccato il fungo, il nastro riparte da solo. Guarda il gradino del nastro.",
+        wires: [
+          ["Q.L1", "QM.1", "marrone"],
+          ["Q.L2", "QM.3", "nero"],
+          ["Q.L3", "QM.5", "grigio"],
+          ["QM.2", "KM.1", "marrone"],
+          ["QM.4", "KM.3", "nero"],
+          ["QM.6", "KM.5", "grigio"],
+          ["KM.2", "FR.1", "marrone"],
+          ["KM.4", "FR.3", "nero"],
+          ["KM.6", "FR.5", "grigio"],
+          ["FR.2", "M.U", "marrone"],
+          ["FR.4", "M.V", "nero"],
+          ["FR.6", "M.W", "grigio"],
+          ["M.PE", "Q.PE", "gv"],
+          ["QM.2", "PLC.A1", "rosso"],
+          ["PLC.A2", "Q.N", "blu"],
+          ["PLC.IC", "Q.N", "blu"],
+          ["QM.2", "SB0.1", "rosso"],
+          ["SB0.2", "PLC.I0", "rosso"],
+          ["QM.2", "SB1.3", "rosso"],
+          ["SB1.4", "PLC.I1", "rosso"],
+          ["QM.2", "PH.3", "rosso"],
+          ["PH.4", "PLC.I2", "rosso"],
+          ["QM.2", "SBE.3", "rosso"],
+          ["SBE.4", "PLC.I3", "rosso"],
+          ["QM.2", "SBE.1", "rosso"],
+          ["SBE.2", "FR.95", "rosso"],
+          ["FR.96", "PLC.Q0A", "rosso"],
+          ["PLC.Q0B", "KM.A1", "rosso"],
+          ["KM.A2", "Q.N", "blu"],
+          ["QM.2", "PLC.Q1A", "rosso"],
+          ["PLC.Q1B", "H.X1", "rosso"],
+          ["H.X2", "Q.N", "blu"]
+        ],
+        programs: {
+          PLC: [
+            { if: "I2", do: [{ op: "ctu", id: "C1", pv: 3, r: "I1" }] },
+            { if: ["and", ["or", "I1", "Q0"], "I0", ["not", "C1"]], do: [{ op: "coil", a: "Q0" }] },
+            { if: "C1", do: [{ op: "coil", a: "Q1" }] }
+          ]
+        },
+        diagnosis: {
+          question: "Perch\xE9 il nastro riparte da solo dopo l\u2019emergenza?",
+          options: [
+            { id: "a", text: "Il programma non legge il fungo (I3): Q0 resta acceso con l\u2019autoritenuta e, sbloccato il fungo, la bobina torna alimentata." },
+            { id: "b", text: "Il contatore non si \xE8 azzerato." },
+            { id: "c", text: "Il fungo non \xE8 collegato nei fili." }
+          ],
+          correct: "a",
+          why: "Il fungo agisce giustamente nei fili e ferma il nastro, ma il PLC non lo sa: per lui Q0 \xE8 ancora acceso grazie all\u2019autoritenuta. Allo sblocco il nastro riparte. Aggiungendo I3 in serie, con il fungo premuto l\u2019autoritenuta si scioglie."
+        },
+        fixSay: "Nel gradino del nastro aggiungi in serie il contatto I3 (Emergenza), normalmente aperto. Poi premi Verifica."
+      }
     }
   };
 
@@ -9458,7 +9727,7 @@ html[dir="rtl"] .phud,html[dir="rtl"] .psheet,html[dir="rtl"] .pintro,html[dir="
         "c29-plc",
         "c30-ladder",
         "c31-tempo",
-        { soon: true, title: "Il nastro con il PLC", blurb: "Fotocellula e conteggio; fungo e termico restano cablati." }
+        "c32-nastro-plc"
       ],
       milestone: { soon: true, art: "plc", kick: "Nastro con il PLC", name: "Un nastro che si comanda da programma", text: "Fotocellula, conteggio dei pacchi, emergenza e termico che restano cablati." }
     },
@@ -9662,7 +9931,7 @@ html[dir="rtl"] .phud,html[dir="rtl"] .psheet,html[dir="rtl"] .pintro,html[dir="
     gu: [HALF, 112, [], []],
     rel: [HALF, 150, ["A1", "A2", "11"], ["12", "14"]],
     kt: [HALF, 150, ["A1", "A2", "15"], ["16", "18"]],
-    plc: [FULL, 200, ["A1", "A2", "I0", "I1", "I2", "IC"], ["Q0A", "Q0B", "Q1A", "Q1B", "Q2A", "Q2B"]],
+    plc: [FULL, 200, ["A1", "A2", "I0", "I1", "I2", "I3", "IC"], ["Q0A", "Q0B", "Q1A", "Q1B", "Q2A", "Q2B"]],
     km: [FULL, 190, ["A1", "1", "3", "5", "13", "21"], ["A2", "2", "4", "6", "14", "22"]],
     ft: [FULL, 150, ["1", "3", "5", "95", "97"], ["2", "4", "6", "96", "98"], 0.3],
     fc: [HALF, 110, ["1", "3"], ["2", "4"]],
@@ -14237,6 +14506,108 @@ html[dir="rtl"] .phud,html[dir="rtl"] .psheet,html[dir="rtl"] .pintro,html[dir="
     "Il programma accende insieme due uscite che non devono mai essere accese insieme (per esempio stella e triangolo): le fasi andrebbero in cortocircuito. Una delle due deve spegnersi prima che l\u2019altra si accenda.": "\u064A\u0634\u063A\u0651\u0644 \u0627\u0644\u0628\u0631\u0646\u0627\u0645\u062C \u0645\u0639\u064B\u0627 \u0645\u062E\u0631\u062C\u064A\u0646 \u064A\u062C\u0628 \u0623\u0644\u0651\u0627 \u064A\u0639\u0645\u0644\u0627 \u0645\u0639\u064B\u0627 \u0623\u0628\u062F\u064B\u0627 (\u0645\u062B\u0644 \u0627\u0644\u0646\u062C\u0645\u0629 \u0648\u0627\u0644\u062F\u0644\u062A\u0627): \u0641\u062A\u062A\u0639\u0631\u0636 \u0627\u0644\u0623\u0637\u0648\u0627\u0631 \u0644\u0642\u0635\u0631 \u0627\u0644\u062F\u0627\u0626\u0631\u0629. \u064A\u062C\u0628 \u0623\u0646 \u064A\u0646\u0637\u0641\u0626 \u0623\u062D\u062F\u0647\u0645\u0627 \u0642\u0628\u0644 \u0623\u0646 \u064A\u0639\u0645\u0644 \u0627\u0644\u0622\u062E\u0631."
   };
 
+  // src/i18n/ar-23.js
+  var ar_23_default = {
+    "Bobina Q0. Marcia (I1) in parallelo a Q0, in serie Arresto (I0), emergenza (I3) e C1 normalmente chiuso. Perch\xE9: l\u2019autoritenuta tiene acceso, ogni altro contatto pu\xF2 fermare, e a lotto pieno il nastro si ferma.": "\u0627\u0644\u0645\u0644\u0641 Q0. \u0627\u0644\u062A\u0634\u063A\u064A\u0644 (I1) \u0639\u0644\u0649 \u0627\u0644\u062A\u0648\u0627\u0632\u064A \u0645\u0639 Q0\u060C \u0648\u0639\u0644\u0649 \u0627\u0644\u062A\u0648\u0627\u0644\u064A \u0627\u0644\u0625\u064A\u0642\u0627\u0641 (I0) \u0648\u0627\u0644\u0637\u0648\u0627\u0631\u0626 (I3) \u0648C1 \u0645\u063A\u0644\u0642\u064B\u0627 \u0639\u0627\u062F\u0629\u064B. \u0627\u0644\u0633\u0628\u0628: \u0627\u0644\u062A\u062B\u0628\u064A\u062A \u0627\u0644\u0630\u0627\u062A\u064A \u064A\u064F\u0628\u0642\u064A \u0627\u0644\u062A\u0634\u063A\u064A\u0644\u060C \u0648\u0623\u064A \u0645\u0644\u0627\u0645\u0633 \u0622\u062E\u0631 \u064A\u0645\u0643\u0646\u0647 \u0627\u0644\u0625\u064A\u0642\u0627\u0641\u060C \u0648\u0639\u0646\u062F \u0627\u0643\u062A\u0645\u0627\u0644 \u0627\u0644\u062F\u0641\u0639\u0629 \u064A\u062A\u0648\u0642\u0641 \u0627\u0644\u0633\u064A\u0631.",
+    "CTU 3": "CTU 3",
+    "Che cosa": "\u0645\u0627\u0630\u0627",
+    "Con Marcia parte un lotto nuovo e la spia si spegne": "\u0639\u0646\u062F \u0627\u0644\u062A\u0634\u063A\u064A\u0644 \u062A\u0628\u062F\u0623 \u062F\u0641\u0639\u0629 \u062C\u062F\u064A\u062F\u0629 \u0648\u062A\u0646\u0637\u0641\u0626 \u0644\u0645\u0628\u0629 \u0627\u0644\u0625\u0634\u0627\u0631\u0629",
+    "Con i rel\xE8 servirebbe un contatore elettromeccanico a parte. Con un PLC il conteggio \xE8 un\u2019istruzione del programma, e la logica del nastro sta tutta nel ladder.": "\u0645\u0639 \u0627\u0644\u0645\u0631\u062D\u0651\u0644\u0627\u062A \u0643\u0646\u0627 \u0633\u0646\u062D\u062A\u0627\u062C \u0625\u0644\u0649 \u0639\u062F\u0651\u0627\u062F \u0643\u0647\u0631\u0648\u0645\u064A\u0643\u0627\u0646\u064A\u0643\u064A \u0645\u0646\u0641\u0635\u0644. \u0623\u0645\u0627 \u0645\u0639 \u0627\u0644\u0640PLC \u0641\u0627\u0644\u0639\u062F\u0651 \u062A\u0639\u0644\u064A\u0645\u0629 \u0641\u064A \u0627\u0644\u0628\u0631\u0646\u0627\u0645\u062C\u060C \u0648\u0645\u0646\u0637\u0642 \u0627\u0644\u0633\u064A\u0631 \u0643\u0644\u0647 \u0641\u064A \u0645\u062E\u0637\u0637 \u0627\u0644\u0633\u0644\u0651\u0645.",
+    "Conta i fronti, non il tempo in cui la condizione resta vera: un pacco lungo, che tiene la fotocellula a 1 per un secondo, vale uno solo. L\u2019ingresso di azzeramento riporta il conteggio a zero.": "\u064A\u0639\u062F\u0651 \u0627\u0644\u062D\u0648\u0627\u0641 \u0627\u0644\u0635\u0627\u0639\u062F\u0629 \u0644\u0627 \u0627\u0644\u0632\u0645\u0646 \u0627\u0644\u0630\u064A \u064A\u0628\u0642\u0649 \u0641\u064A\u0647 \u0627\u0644\u0634\u0631\u0637 \u0635\u062D\u064A\u062D\u064B\u0627: \u0641\u0627\u0644\u0637\u0631\u062F \u0627\u0644\u0637\u0648\u064A\u0644 \u0627\u0644\u0630\u064A \u064A\u064F\u0628\u0642\u064A \u0627\u0644\u062E\u0644\u064A\u0629 \u0627\u0644\u0636\u0648\u0626\u064A\u0629 \u0639\u0644\u0649 1 \u0644\u0645\u062F\u0629 \u062B\u0627\u0646\u064A\u0629 \u064A\u064F\u062D\u0633\u0628 \u0648\u0627\u062D\u062F\u064B\u0627 \u0641\u0642\u0637. \u0648\u0645\u062F\u062E\u0644 \u0627\u0644\u062A\u0635\u0641\u064A\u0631 \u064A\u0639\u064A\u062F \u0627\u0644\u0639\u062F\u0651 \u0625\u0644\u0649 \u0627\u0644\u0635\u0641\u0631.",
+    "Contatto C1 e bobina Q1. Perch\xE9: la spia si accende quando il contatore \xE8 pieno.": "\u0645\u0644\u0627\u0645\u0633 C1 \u0648\u0627\u0644\u0645\u0644\u0641 Q1. \u0627\u0644\u0633\u0628\u0628: \u062A\u0636\u064A\u0621 \u0644\u0645\u0628\u0629 \u0627\u0644\u0625\u0634\u0627\u0631\u0629 \u0639\u0646\u062F\u0645\u0627 \u064A\u0643\u062A\u0645\u0644 \u0627\u0644\u0639\u062F\u0651\u0627\u062F.",
+    "Contatto del rel\xE8 termico": "\u0645\u0644\u0627\u0645\u0633 \u0627\u0644\u0645\u0631\u062D\u0651\u0644 \u0627\u0644\u062D\u0631\u0627\u0631\u064A",
+    "Conteggio e bit C1 (si conta fino a 3)": "\u0627\u0644\u0639\u062F\u0651 \u0648\u0627\u0644\u0628\u062A C1 (\u0627\u0644\u0639\u062F\u0651 \u062D\u062A\u0649 3)",
+    "Continua a girare: il PLC comanda la bobina.": "\u064A\u0633\u062A\u0645\u0631 \u0641\u064A \u0627\u0644\u062F\u0648\u0631\u0627\u0646: \u0641\u0627\u0644\u0640PLC \u0647\u0648 \u0627\u0644\u0630\u064A \u064A\u062A\u062D\u0643\u0645 \u0628\u0627\u0644\u0645\u0644\u0641.",
+    "Dipende dal programma.": "\u064A\u0639\u062A\u0645\u062F \u0639\u0644\u0649 \u0627\u0644\u0628\u0631\u0646\u0627\u0645\u062C.",
+    "Dove sta": "\u0623\u064A\u0646 \u064A\u0648\u062C\u062F",
+    "Due": "\u0627\u062B\u0646\u0627\u0646",
+    "Fotocellula": "\u062E\u0644\u064A\u0629 \u0636\u0648\u0626\u064A\u0629",
+    "Fotocellula: un pacco in transito (NA)": "\u062E\u0644\u064A\u0629 \u0636\u0648\u0626\u064A\u0629: \u0637\u0631\u062F \u0639\u0627\u0628\u0631 (NA)",
+    "Fotocellula: un pacco in transito (NA), tieni premuto": "\u062E\u0644\u064A\u0629 \u0636\u0648\u0626\u064A\u0629: \u0637\u0631\u062F \u0639\u0627\u0628\u0631 (NA)\u060C \u0623\u0628\u0642\u0650 \u0627\u0644\u0636\u063A\u0637",
+    "Fungo di emergenza (contatto di potenza del comando)": "\u0632\u0631 \u0627\u0644\u0637\u0648\u0627\u0631\u0626 (\u0645\u0644\u0627\u0645\u0633 \u062F\u0627\u0626\u0631\u0629 \u0627\u0644\u062A\u062D\u0643\u0645)",
+    "Fungo e termico restano nei fili": "\u0632\u0631 \u0627\u0644\u0637\u0648\u0627\u0631\u0626 \u0648\u0627\u0644\u062D\u0631\u0627\u0631\u064A \u064A\u0628\u0642\u064A\u0627\u0646 \u0641\u064A \u0627\u0644\u0623\u0633\u0644\u0627\u0643",
+    'Guarda il banco: la fase passa dal fungo, dal termico, poi dall\u2019uscita Q0 del PLC e solo allora arriva alla bobina. Il PLC pu\xF2 solo dire "no" quando vuole fermare il nastro; non pu\xF2 forzare la marcia se fungo o termico sono aperti.': "\u0627\u0646\u0638\u0631 \u0625\u0644\u0649 \u0627\u0644\u0644\u0648\u062D\u0629: \u064A\u0645\u0631 \u0627\u0644\u0637\u0648\u0631 \u0639\u0628\u0631 \u0632\u0631 \u0627\u0644\u0637\u0648\u0627\u0631\u0626 \u062B\u0645 \u0627\u0644\u062D\u0631\u0627\u0631\u064A \u062B\u0645 \u0645\u062E\u0631\u062C \u0627\u0644\u0640PLC Q0 \u0648\u0639\u0646\u062F\u0647\u0627 \u0641\u0642\u0637 \u064A\u0635\u0644 \u0625\u0644\u0649 \u0627\u0644\u0645\u0644\u0641. \u064A\u0633\u062A\u0637\u064A\u0639 \u0627\u0644\u0640PLC \u0623\u0646 \u064A\u0642\u0648\u0644 \xAB\u0644\u0627\xBB \u0641\u0642\u0637 \u0639\u0646\u062F\u0645\u0627 \u064A\u0631\u064A\u062F \u0625\u064A\u0642\u0627\u0641 \u0627\u0644\u0633\u064A\u0631\u061B \u0648\u0644\u0627 \u064A\u0633\u062A\u0637\u064A\u0639 \u0641\u0631\u0636 \u0627\u0644\u062A\u0634\u063A\u064A\u0644 \u0625\u0630\u0627 \u0643\u0627\u0646 \u0632\u0631 \u0627\u0644\u0637\u0648\u0627\u0631\u0626 \u0623\u0648 \u0627\u0644\u062D\u0631\u0627\u0631\u064A \u0645\u0641\u062A\u0648\u062D\u064B\u0627.",
+    "Il CTU (contatore in avanti) ha una condizione, un numero a cui arrivare e un ingresso di azzeramento. A ogni fronte di salita della condizione, cio\xE8 a ogni volta che passa da 0 a 1, aggiunge uno. Quando il conteggio raggiunge il numero, il suo bit C1 diventa 1.": "\u0644\u0644\u0639\u062F\u0651\u0627\u062F CTU (\u0627\u0644\u0639\u062F\u0651\u0627\u062F \u0627\u0644\u062A\u0635\u0627\u0639\u062F\u064A) \u0634\u0631\u0637 \u0648\u0631\u0642\u0645 \u064A\u0635\u0644 \u0625\u0644\u064A\u0647 \u0648\u0645\u062F\u062E\u0644 \u062A\u0635\u0641\u064A\u0631. \u0648\u0639\u0646\u062F \u0643\u0644 \u062D\u0627\u0641\u0629 \u0635\u0627\u0639\u062F\u0629 \u0644\u0644\u0634\u0631\u0637\u060C \u0623\u064A \u0643\u0644\u0645\u0627 \u0627\u0646\u062A\u0642\u0644 \u0645\u0646 0 \u0625\u0644\u0649 1\u060C \u064A\u0636\u064A\u0641 \u0648\u0627\u062D\u062F\u064B\u0627. \u0648\u0639\u0646\u062F\u0645\u0627 \u064A\u0628\u0644\u063A \u0627\u0644\u0639\u062F\u0651 \u0627\u0644\u0631\u0642\u0645 \u064A\u0635\u0628\u062D \u0628\u062A\u0647 C1 \u0645\u0633\u0627\u0648\u064A\u064B\u0627 1.",
+    "Il CTU aggiunge uno solo nel momento in cui la condizione passa da 0 a 1. Finch\xE9 resta a 1 non conta altro: un pacco lungo vale uno.": "\u064A\u0636\u064A\u0641 CTU \u0648\u0627\u062D\u062F\u064B\u0627 \u0641\u0642\u0637 \u0641\u064A \u0627\u0644\u0644\u062D\u0638\u0629 \u0627\u0644\u062A\u064A \u064A\u0646\u062A\u0642\u0644 \u0641\u064A\u0647\u0627 \u0627\u0644\u0634\u0631\u0637 \u0645\u0646 0 \u0625\u0644\u0649 1. \u0648\u0645\u0627 \u062F\u0627\u0645 \u0628\u0627\u0642\u064A\u064B\u0627 \u0639\u0644\u0649 1 \u0644\u0627 \u064A\u0639\u062F\u0651 \u0634\u064A\u0626\u064B\u0627 \u0622\u062E\u0631: \u0641\u0627\u0644\u0637\u0631\u062F \u0627\u0644\u0637\u0648\u064A\u0644 \u064A\u064F\u062D\u0633\u0628 \u0648\u0627\u062D\u062F\u064B\u0627.",
+    "Il CTU conta i fronti di salita della condizione e d\xE0 un bit (C1) quando arriva al numero impostato; un ingresso lo azzera.": "\u064A\u0639\u062F\u0651 CTU \u0627\u0644\u062D\u0648\u0627\u0641 \u0627\u0644\u0635\u0627\u0639\u062F\u0629 \u0644\u0644\u0634\u0631\u0637 \u0648\u064A\u0639\u0637\u064A \u0628\u062A\u064B\u0627 (C1) \u0639\u0646\u062F\u0645\u0627 \u064A\u0628\u0644\u063A \u0627\u0644\u0631\u0642\u0645 \u0627\u0644\u0645\u0636\u0628\u0648\u0637\u061B \u0648\u0645\u062F\u062E\u0644 \u064A\u0635\u0641\u0651\u0631\u0647.",
+    "Il PLC esegue i gradini dall\u2019alto in basso, e un bit scritto in un gradino si legge subito nei gradini successivi della stessa scansione. Per questo il gradino del contatore va per primo.": "\u064A\u0646\u0641\u0630 \u0627\u0644\u0640PLC \u0627\u0644\u062F\u0631\u062C\u0627\u062A \u0645\u0646 \u0627\u0644\u0623\u0639\u0644\u0649 \u0625\u0644\u0649 \u0627\u0644\u0623\u0633\u0641\u0644\u060C \u0648\u0627\u0644\u0628\u062A \u0627\u0644\u0645\u0643\u062A\u0648\u0628 \u0641\u064A \u062F\u0631\u062C\u0629 \u064A\u064F\u0642\u0631\u0623 \u0641\u0648\u0631\u064B\u0627 \u0641\u064A \u0627\u0644\u062F\u0631\u062C\u0627\u062A \u0627\u0644\u062A\u0627\u0644\u064A\u0629 \u0645\u0646 \u0627\u0644\u0645\u0633\u062D \u0646\u0641\u0633\u0647. \u0648\u0644\u0647\u0630\u0627 \u062A\u0623\u062A\u064A \u062F\u0631\u062C\u0629 \u0627\u0644\u0639\u062F\u0651\u0627\u062F \u0623\u0648\u0644\u064B\u0627.",
+    "Il PLC legge comunque il fungo (I3) per sciogliere l\u2019autoritenuta: senza, dopo lo sblocco il nastro ripartirebbe da solo.": "\u064A\u0642\u0631\u0623 \u0627\u0644\u0640PLC \u0645\u0639 \u0630\u0644\u0643 \u0632\u0631 \u0627\u0644\u0637\u0648\u0627\u0631\u0626 (I3) \u0644\u0641\u0643 \u0627\u0644\u062A\u062B\u0628\u064A\u062A \u0627\u0644\u0630\u0627\u062A\u064A: \u0648\u0628\u062F\u0648\u0646\u0647 \u0633\u064A\u0639\u0627\u0648\u062F \u0627\u0644\u0633\u064A\u0631 \u0627\u0644\u0639\u0645\u0644 \u0648\u062D\u062F\u0647 \u0628\u0639\u062F \u0627\u0644\u062A\u062D\u0631\u064A\u0631.",
+    "Il contatore CTU": "\u0627\u0644\u0639\u062F\u0651\u0627\u062F CTU",
+    "Il contatore non si \xE8 azzerato.": "\u0627\u0644\u0639\u062F\u0651\u0627\u062F \u0644\u0645 \u064A\u064F\u0635\u0641\u064E\u0651\u0631.",
+    "Il contatto del fungo \xE8 in serie alla bobina, prima dell\u2019uscita del PLC. Anche con Q0 chiuso la fase non arriva alla bobina. \xC8 proprio il motivo per cui l\u2019emergenza non passa dal programma.": "\u0645\u0644\u0627\u0645\u0633 \u0632\u0631 \u0627\u0644\u0637\u0648\u0627\u0631\u0626 \u0639\u0644\u0649 \u0627\u0644\u062A\u0648\u0627\u0644\u064A \u0645\u0639 \u0627\u0644\u0645\u0644\u0641\u060C \u0642\u0628\u0644 \u0645\u062E\u0631\u062C \u0627\u0644\u0640PLC. \u0648\u062D\u062A\u0649 \u0645\u0639 \u0625\u063A\u0644\u0627\u0642 Q0 \u0644\u0627 \u064A\u0635\u0644 \u0627\u0644\u0637\u0648\u0631 \u0625\u0644\u0649 \u0627\u0644\u0645\u0644\u0641. \u0648\u0647\u0630\u0627 \u0647\u0648 \u0633\u0628\u0628 \u0623\u0646 \u0627\u0644\u0637\u0648\u0627\u0631\u0626 \u0644\u0627 \u062A\u0645\u0631 \u0639\u0628\u0631 \u0627\u0644\u0628\u0631\u0646\u0627\u0645\u062C.",
+    "Il conteggio dei pacchi": "\u0639\u062F\u0651 \u0627\u0644\u0637\u0631\u0648\u062F",
+    "Il conteggio: un gradino con il contatto della fotocellula I2 e, come uscita, un contatore a 3. Si azzera con Marcia (I1).": "\u0627\u0644\u0639\u062F\u0651: \u062F\u0631\u062C\u0629 \u0641\u064A\u0647\u0627 \u0645\u0644\u0627\u0645\u0633 \u0627\u0644\u062E\u0644\u064A\u0629 \u0627\u0644\u0636\u0648\u0626\u064A\u0629 I2 \u0648\u0643\u0645\u062E\u0631\u062C \u0639\u062F\u0651\u0627\u062F \u062D\u062A\u0649 3. \u0648\u064A\u064F\u0635\u0641\u064E\u0651\u0631 \u0628\u0627\u0644\u062A\u0634\u063A\u064A\u0644 (I1).",
+    "Il fungo agisce giustamente nei fili e ferma il nastro, ma il PLC non lo sa: per lui Q0 \xE8 ancora acceso grazie all\u2019autoritenuta. Allo sblocco il nastro riparte. Aggiungendo I3 in serie, con il fungo premuto l\u2019autoritenuta si scioglie.": "\u064A\u0639\u0645\u0644 \u0632\u0631 \u0627\u0644\u0637\u0648\u0627\u0631\u0626 \u0628\u0634\u0643\u0644 \u0635\u062D\u064A\u062D \u0641\u064A \u0627\u0644\u0623\u0633\u0644\u0627\u0643 \u0648\u064A\u0648\u0642\u0641 \u0627\u0644\u0633\u064A\u0631\u060C \u0644\u0643\u0646 \u0627\u0644\u0640PLC \u0644\u0627 \u064A\u0639\u0644\u0645: \u0641\u0628\u0627\u0644\u0646\u0633\u0628\u0629 \u0625\u0644\u064A\u0647 Q0 \u0645\u0627 \u0632\u0627\u0644 \u0645\u0634\u063A\u064E\u0651\u0644\u064B\u0627 \u0628\u0641\u0636\u0644 \u0627\u0644\u062A\u062B\u0628\u064A\u062A \u0627\u0644\u0630\u0627\u062A\u064A. \u0648\u0639\u0646\u062F \u0627\u0644\u062A\u062D\u0631\u064A\u0631 \u064A\u0639\u0627\u0648\u062F \u0627\u0644\u0633\u064A\u0631 \u0627\u0644\u0639\u0645\u0644. \u0648\u0628\u0625\u0636\u0627\u0641\u0629 I3 \u0639\u0644\u0649 \u0627\u0644\u062A\u0648\u0627\u0644\u064A \u064A\u0646\u0641\u0643 \u0627\u0644\u062A\u062B\u0628\u064A\u062A \u0627\u0644\u0630\u0627\u062A\u064A \u0639\u0646\u062F \u0636\u063A\u0637 \u0627\u0644\u0632\u0631.",
+    "Il fungo e il contatto del termico stanno nei fili, in serie alla bobina: il programma non pu\xF2 scavalcarli.": "\u0632\u0631 \u0627\u0644\u0637\u0648\u0627\u0631\u0626 \u0648\u0645\u0644\u0627\u0645\u0633 \u0627\u0644\u062D\u0631\u0627\u0631\u064A \u0645\u0648\u062C\u0648\u062F\u0627\u0646 \u0641\u064A \u0627\u0644\u0623\u0633\u0644\u0627\u0643\u060C \u0639\u0644\u0649 \u0627\u0644\u062A\u0648\u0627\u0644\u064A \u0645\u0639 \u0627\u0644\u0645\u0644\u0641: \u0648\u0644\u0627 \u064A\u0633\u062A\u0637\u064A\u0639 \u0627\u0644\u0628\u0631\u0646\u0627\u0645\u062C \u062A\u062C\u0627\u0648\u0632\u0647\u0645\u0627.",
+    "Il fungo ha fermato il nastro nei fili, ma per il programma Q0 era ancora acceso. Allo sblocco la bobina riprende corrente e il nastro riparte. Con I3 in serie l\u2019autoritenuta si scioglie quando il fungo \xE8 premuto.": "\u0623\u0648\u0642\u0641 \u0632\u0631 \u0627\u0644\u0637\u0648\u0627\u0631\u0626 \u0627\u0644\u0633\u064A\u0631 \u0641\u064A \u0627\u0644\u0623\u0633\u0644\u0627\u0643\u060C \u0644\u0643\u0646 Q0 \u0643\u0627\u0646 \u0645\u0627 \u0632\u0627\u0644 \u0645\u0634\u063A\u064E\u0651\u0644\u064B\u0627 \u0628\u0627\u0644\u0646\u0633\u0628\u0629 \u0644\u0644\u0628\u0631\u0646\u0627\u0645\u062C. \u0648\u0639\u0646\u062F \u0627\u0644\u062A\u062D\u0631\u064A\u0631 \u064A\u0639\u0648\u062F \u0627\u0644\u062A\u064A\u0627\u0631 \u0625\u0644\u0649 \u0627\u0644\u0645\u0644\u0641 \u0648\u064A\u0639\u0627\u0648\u062F \u0627\u0644\u0633\u064A\u0631 \u0627\u0644\u0639\u0645\u0644. \u0648\u0645\u0639 I3 \u0639\u0644\u0649 \u0627\u0644\u062A\u0648\u0627\u0644\u064A \u064A\u0646\u0641\u0643 \u0627\u0644\u062A\u062B\u0628\u064A\u062A \u0627\u0644\u0630\u0627\u062A\u064A \u0639\u0646\u062F \u0636\u063A\u0637 \u0627\u0644\u0632\u0631.",
+    "Il fungo non \xE8 collegato nei fili.": "\u0632\u0631 \u0627\u0644\u0637\u0648\u0627\u0631\u0626 \u063A\u064A\u0631 \u0645\u0648\u0635\u0648\u0644 \u0641\u064A \u0627\u0644\u0623\u0633\u0644\u0627\u0643.",
+    "Il fungo \xE8 premuto e il PLC si blocca con l\u2019uscita Q0 accesa. Che cosa fa il nastro?": "\u0632\u0631 \u0627\u0644\u0637\u0648\u0627\u0631\u0626 \u0645\u0636\u063A\u0648\u0637 \u0648\u0627\u0644\u0640PLC \u064A\u062A\u062C\u0645\u062F \u0648\u0627\u0644\u0645\u062E\u0631\u062C Q0 \u0645\u0634\u063A\u064E\u0651\u0644. \u0645\u0627\u0630\u0627 \u064A\u0641\u0639\u0644 \u0627\u0644\u0633\u064A\u0631\u061F",
+    "Il gradino del contatore va per primo: cos\xEC, quando passa il terzo pacco, il gradino del nastro vede subito il contatore pieno.": "\u062A\u0623\u062A\u064A \u062F\u0631\u062C\u0629 \u0627\u0644\u0639\u062F\u0651\u0627\u062F \u0623\u0648\u0644\u064B\u0627: \u0641\u0639\u0646\u062F\u0645\u0627 \u064A\u0645\u0631 \u0627\u0644\u0637\u0631\u062F \u0627\u0644\u062B\u0627\u0644\u062B \u062A\u0631\u0649 \u062F\u0631\u062C\u0629 \u0627\u0644\u0633\u064A\u0631 \u0641\u0648\u0631\u064B\u0627 \u0623\u0646 \u0627\u0644\u0639\u062F\u0651\u0627\u062F \u0642\u062F \u0627\u0643\u062A\u0645\u0644.",
+    "Il gradino del nastro": "\u062F\u0631\u062C\u0629 \u0627\u0644\u0633\u064A\u0631",
+    "Il nastro Q0: Marcia (I1) in parallelo a Q0 per l\u2019autoritenuta; in serie Arresto (I0), emergenza (I3), e il contatore C1 normalmente chiuso, perch\xE9 a lotto pieno il nastro si ferma.": "\u0627\u0644\u0633\u064A\u0631 Q0: \u0627\u0644\u062A\u0634\u063A\u064A\u0644 (I1) \u0639\u0644\u0649 \u0627\u0644\u062A\u0648\u0627\u0632\u064A \u0645\u0639 Q0 \u0644\u0644\u062A\u062B\u0628\u064A\u062A \u0627\u0644\u0630\u0627\u062A\u064A\u061B \u0648\u0639\u0644\u0649 \u0627\u0644\u062A\u0648\u0627\u0644\u064A \u0627\u0644\u0625\u064A\u0642\u0627\u0641 (I0) \u0648\u0627\u0644\u0637\u0648\u0627\u0631\u0626 (I3) \u0648\u0627\u0644\u0639\u062F\u0651\u0627\u062F C1 \u0645\u063A\u0644\u0642\u064B\u0627 \u0639\u0627\u062F\u0629\u064B\u060C \u0644\u0623\u0646 \u0627\u0644\u0633\u064A\u0631 \u064A\u062A\u0648\u0642\u0641 \u0639\u0646\u062F \u0627\u0643\u062A\u0645\u0627\u0644 \u0627\u0644\u062F\u0641\u0639\u0629.",
+    "Il nastro resta fermo: il fungo lo ha fermato.": "\u064A\u0628\u0642\u0649 \u0627\u0644\u0633\u064A\u0631 \u0645\u062A\u0648\u0642\u0641\u064B\u0627: \u0644\u0642\u062F \u0623\u0648\u0642\u0641\u0647 \u0632\u0631 \u0627\u0644\u0637\u0648\u0627\u0631\u0626.",
+    "Il nastro riparte da solo: il PLC aveva ancora Q0 acceso con l\u2019autoritenuta.": "\u064A\u0639\u0627\u0648\u062F \u0627\u0644\u0633\u064A\u0631 \u0627\u0644\u0639\u0645\u0644 \u0648\u062D\u062F\u0647: \u0643\u0627\u0646 \u0627\u0644\u0640PLC \u0645\u0627 \u0632\u0627\u0644 \u064A\u064F\u0628\u0642\u064A Q0 \u0645\u0634\u063A\u064E\u0651\u0644\u064B\u0627 \u0628\u0627\u0644\u062A\u062B\u0628\u064A\u062A \u0627\u0644\u0630\u0627\u062A\u064A.",
+    "Il programma non legge il fungo (I3): Q0 resta acceso con l\u2019autoritenuta e, sbloccato il fungo, la bobina torna alimentata.": "\u0627\u0644\u0628\u0631\u0646\u0627\u0645\u062C \u0644\u0627 \u064A\u0642\u0631\u0623 \u0632\u0631 \u0627\u0644\u0637\u0648\u0627\u0631\u0626 (I3): \u0641\u064A\u0628\u0642\u0649 Q0 \u0645\u0634\u063A\u064E\u0651\u0644\u064B\u0627 \u0628\u0627\u0644\u062A\u062B\u0628\u064A\u062A \u0627\u0644\u0630\u0627\u062A\u064A\u060C \u0648\u0639\u0646\u062F \u062A\u062D\u0631\u064A\u0631 \u0627\u0644\u0632\u0631 \u064A\u0639\u0648\u062F \u0627\u0644\u0645\u0644\u0641 \u0625\u0644\u0649 \u0627\u0644\u062A\u063A\u0630\u064A\u0629.",
+    "Il programma \xE8 gi\xE0 scritto e il nastro conta i pacchi. Ma dopo aver premuto e sbloccato il fungo, il nastro riparte da solo. Guarda il gradino del nastro.": "\u0627\u0644\u0628\u0631\u0646\u0627\u0645\u062C \u0645\u0643\u062A\u0648\u0628 \u0623\u0635\u0644\u064B\u0627 \u0648\u0627\u0644\u0633\u064A\u0631 \u064A\u0639\u062F\u0651 \u0627\u0644\u0637\u0631\u0648\u062F. \u0644\u0643\u0646 \u0628\u0639\u062F \u0627\u0644\u0636\u063A\u0637 \u0639\u0644\u0649 \u0632\u0631 \u0627\u0644\u0637\u0648\u0627\u0631\u0626 \u0648\u062A\u062D\u0631\u064A\u0631\u0647 \u064A\u0639\u0627\u0648\u062F \u0627\u0644\u0633\u064A\u0631 \u0627\u0644\u0639\u0645\u0644 \u0648\u062D\u062F\u0647. \u0627\u0646\u0638\u0631 \u0625\u0644\u0649 \u062F\u0631\u062C\u0629 \u0627\u0644\u0633\u064A\u0631.",
+    "In una macchina vera l\u2019emergenza e la protezione del motore non devono mai dipendere dal programma: un programma pu\xF2 avere un errore e un PLC pu\xF2 bloccarsi. Per questo il contatto del fungo e il contatto 95-96 del termico stanno in serie alla bobina del contattore, nei fili.": "\u0641\u064A \u0627\u0644\u0622\u0644\u0629 \u0627\u0644\u062D\u0642\u064A\u0642\u064A\u0629 \u064A\u062C\u0628 \u0623\u0644\u0651\u0627 \u062A\u0639\u062A\u0645\u062F \u0627\u0644\u0637\u0648\u0627\u0631\u0626 \u0648\u062D\u0645\u0627\u064A\u0629 \u0627\u0644\u0645\u062D\u0631\u0643 \u0639\u0644\u0649 \u0627\u0644\u0628\u0631\u0646\u0627\u0645\u062C \u0623\u0628\u062F\u064B\u0627: \u0641\u0642\u062F \u064A\u062D\u062A\u0648\u064A \u0627\u0644\u0628\u0631\u0646\u0627\u0645\u062C \u0639\u0644\u0649 \u062E\u0637\u0623 \u0648\u0642\u062F \u064A\u062A\u062C\u0645\u062F \u0627\u0644\u0640PLC. \u0648\u0644\u0647\u0630\u0627 \u064A\u0643\u0648\u0646 \u0645\u0644\u0627\u0645\u0633 \u0632\u0631 \u0627\u0644\u0637\u0648\u0627\u0631\u0626 \u0648\u0627\u0644\u0645\u0644\u0627\u0645\u0633 95-96 \u0641\u064A \u0627\u0644\u062D\u0631\u0627\u0631\u064A \u0639\u0644\u0649 \u0627\u0644\u062A\u0648\u0627\u0644\u064A \u0645\u0639 \u0645\u0644\u0641 \u0627\u0644\u0643\u0648\u0646\u062A\u0627\u0643\u062A\u0648\u0631\u060C \u0641\u064A \u0627\u0644\u0623\u0633\u0644\u0627\u0643.",
+    "Informare il PLC che il fungo \xE8 premuto": "\u0625\u0628\u0644\u0627\u063A \u0627\u0644\u0640PLC \u0628\u0623\u0646 \u0632\u0631 \u0627\u0644\u0637\u0648\u0627\u0631\u0626 \u0645\u0636\u063A\u0648\u0637",
+    "La fotocellula \xE8 un ingresso": "\u0627\u0644\u062E\u0644\u064A\u0629 \u0627\u0644\u0636\u0648\u0626\u064A\u0629 \u0645\u062F\u062E\u0644",
+    "La spia Q1 segue il contatore: contatto C1 e bobina Q1.": "\u0644\u0645\u0628\u0629 \u0627\u0644\u0625\u0634\u0627\u0631\u0629 Q1 \u062A\u062A\u0628\u0639 \u0627\u0644\u0639\u062F\u0651\u0627\u062F: \u0645\u0644\u0627\u0645\u0633 C1 \u0648\u0627\u0644\u0645\u0644\u0641 Q1.",
+    "La spia del lotto": "\u0644\u0645\u0628\u0629 \u0627\u0644\u062F\u0641\u0639\u0629",
+    "La verifica prova anche questo: forza tutte le uscite del PLC a 1 e controlla che con il fungo premuto il nastro si fermi lo stesso.": "\u064A\u062E\u062A\u0628\u0631 \u0627\u0644\u062A\u062D\u0642\u0642 \u0647\u0630\u0627 \u0623\u064A\u0636\u064B\u0627: \u064A\u0641\u0631\u0636 \u0643\u0644 \u0645\u062E\u0627\u0631\u062C \u0627\u0644\u0640PLC \u0639\u0644\u0649 1 \u0648\u064A\u062A\u0623\u0643\u062F \u0645\u0646 \u0623\u0646 \u0627\u0644\u0633\u064A\u0631 \u064A\u062A\u0648\u0642\u0641 \u0639\u0646\u062F \u0636\u063A\u0637 \u0632\u0631 \u0627\u0644\u0637\u0648\u0627\u0631\u0626 \u0645\u0639 \u0630\u0644\u0643.",
+    "Lotto pieno": "\u0627\u0644\u062F\u0641\u0639\u0629 \u0645\u0643\u062A\u0645\u0644\u0629",
+    "L\u2019ordine dei gradini conta": "\u062A\u0631\u062A\u064A\u0628 \u0627\u0644\u062F\u0631\u062C\u0627\u062A \u0645\u0647\u0645",
+    "L\u2019ordine dei gradini conta: un bit scritto in alto si legge subito nei gradini sotto.": "\u062A\u0631\u062A\u064A\u0628 \u0627\u0644\u062F\u0631\u062C\u0627\u062A \u0645\u0647\u0645: \u0627\u0644\u0628\u062A \u0627\u0644\u0645\u0643\u062A\u0648\u0628 \u0641\u064A \u0627\u0644\u0623\u0639\u0644\u0649 \u064A\u064F\u0642\u0631\u0623 \u0641\u0648\u0631\u064B\u0627 \u0641\u064A \u0627\u0644\u062F\u0631\u062C\u0627\u062A \u0627\u0644\u062A\u064A \u062A\u062D\u062A\u0647.",
+    "Marcia (azzeramento)": "\u0627\u0644\u062A\u0634\u063A\u064A\u0644 (\u062A\u0635\u0641\u064A\u0631)",
+    "Marcia, arresto, conteggio, spia": "\u0627\u0644\u062A\u0634\u063A\u064A\u0644 \u0648\u0627\u0644\u0625\u064A\u0642\u0627\u0641 \u0648\u0627\u0644\u0639\u062F\u0651 \u0648\u0644\u0645\u0628\u0629 \u0627\u0644\u0625\u0634\u0627\u0631\u0629",
+    "Nel gioco la fotocellula \xE8 un pulsante da tenere premuto per un attimo: ogni pressione e rilascio \xE8 un pacco che passa.": "\u0641\u064A \u0627\u0644\u0644\u0639\u0628\u0629 \u0627\u0644\u062E\u0644\u064A\u0629 \u0627\u0644\u0636\u0648\u0626\u064A\u0629 \u0632\u0631 \u064A\u064F\u0636\u063A\u0637 \u0644\u0644\u062D\u0638\u0629: \u0648\u0643\u0644 \u0636\u063A\u0637\u0629 \u0648\u062A\u062D\u0631\u064A\u0631 \u062A\u0639\u0646\u064A \u0645\u0631\u0648\u0631 \u0637\u0631\u062F.",
+    "Nel gradino del nastro aggiungi in serie il contatto I3 (Emergenza), normalmente aperto. Poi premi Verifica.": "\u0641\u064A \u062F\u0631\u062C\u0629 \u0627\u0644\u0633\u064A\u0631 \u0623\u0636\u0641 \u0639\u0644\u0649 \u0627\u0644\u062A\u0648\u0627\u0644\u064A \u0645\u0644\u0627\u0645\u0633 I3 (\u0627\u0644\u0637\u0648\u0627\u0631\u0626) \u0645\u0641\u062A\u0648\u062D\u064B\u0627 \u0639\u0627\u062F\u0629\u064B. \u062B\u0645 \u0627\u0636\u063A\u0637 \u062A\u062D\u0642\u0642.",
+    "Nel programma manca I3 nel gradino del nastro. Premi e sblocchi il fungo. Che cosa succede?": "\u0641\u064A \u0627\u0644\u0628\u0631\u0646\u0627\u0645\u062C I3 \u0646\u0627\u0642\u0635 \u0641\u064A \u062F\u0631\u062C\u0629 \u0627\u0644\u0633\u064A\u0631. \u062A\u0636\u063A\u0637 \u0639\u0644\u0649 \u0632\u0631 \u0627\u0644\u0637\u0648\u0627\u0631\u0626 \u0648\u062A\u062D\u0631\u0631\u0647. \u0645\u0627\u0630\u0627 \u064A\u062D\u062F\u062B\u061F",
+    "Nessuno": "\u0644\u0627 \u0623\u062D\u062F",
+    "Nessuno: un pacco lungo non si conta.": "\u0644\u0627 \u0634\u064A\u0621: \u0627\u0644\u0637\u0631\u062F \u0627\u0644\u0637\u0648\u064A\u0644 \u0644\u0627 \u064A\u064F\u0639\u062F\u0651.",
+    "PLC.I2": "PLC.I2",
+    "PLC.I3": "PLC.I3",
+    "Pacchi": "\u0627\u0644\u0637\u0631\u0648\u062F",
+    "Pacchi passati": "\u0627\u0644\u0637\u0631\u0648\u062F \u0627\u0644\u062A\u064A \u0645\u0631\u0651\u062A",
+    "Passa il terzo pacco: il nastro si ferma e la spia si accende": "\u064A\u0645\u0631 \u0627\u0644\u0637\u0631\u062F \u0627\u0644\u062B\u0627\u0644\u062B: \u064A\u062A\u0648\u0642\u0641 \u0627\u0644\u0633\u064A\u0631 \u0648\u062A\u0636\u064A\u0621 \u0644\u0645\u0628\u0629 \u0627\u0644\u0625\u0634\u0627\u0631\u0629",
+    "Passano due pacchi: il nastro continua": "\u064A\u0645\u0631 \u0637\u0631\u062F\u0627\u0646: \u064A\u0633\u062A\u0645\u0631 \u0627\u0644\u0633\u064A\u0631",
+    "Per evitarlo il PLC legge lo stato del fungo sull\u2019ingresso I3, e nel gradino del nastro I3 \xE8 in serie: con il fungo premuto I3 vale 0, Q0 si spegne e l\u2019autoritenuta si scioglie. Dopo lo sblocco serve un nuovo Marcia.": "\u0648\u0644\u062A\u062C\u0646\u0628 \u0630\u0644\u0643 \u064A\u0642\u0631\u0623 \u0627\u0644\u0640PLC \u062D\u0627\u0644\u0629 \u0632\u0631 \u0627\u0644\u0637\u0648\u0627\u0631\u0626 \u0639\u0644\u0649 \u0627\u0644\u0645\u062F\u062E\u0644 I3\u060C \u0648\u0641\u064A \u062F\u0631\u062C\u0629 \u0627\u0644\u0633\u064A\u0631 \u064A\u0643\u0648\u0646 I3 \u0639\u0644\u0649 \u0627\u0644\u062A\u0648\u0627\u0644\u064A: \u0641\u0639\u0646\u062F \u0636\u063A\u0637 \u0627\u0644\u0632\u0631 \u062A\u0635\u0628\u062D I3 \u0635\u0641\u0631\u064B\u0627 \u0648\u064A\u0646\u0637\u0641\u0626 Q0 \u0648\u064A\u0646\u0641\u0643 \u0627\u0644\u062A\u062B\u0628\u064A\u062A \u0627\u0644\u0630\u0627\u062A\u064A. \u0648\u0628\u0639\u062F \u0627\u0644\u062A\u062D\u0631\u064A\u0631 \u064A\u0644\u0632\u0645 \u062A\u0634\u063A\u064A\u0644 \u062C\u062F\u064A\u062F.",
+    "Perch\xE9 il PLC deve saperlo lo stesso": "\u0644\u0645\u0627\u0630\u0627 \u064A\u062C\u0628 \u0623\u0646 \u064A\u0639\u0644\u0645 \u0627\u0644\u0640PLC \u0628\u0630\u0644\u0643 \u0645\u0639 \u0630\u0644\u0643",
+    "Perch\xE9 il nastro riparte da solo dopo l\u2019emergenza?": "\u0644\u0645\u0627\u0630\u0627 \u064A\u0639\u0627\u0648\u062F \u0627\u0644\u0633\u064A\u0631 \u0627\u0644\u0639\u0645\u0644 \u0648\u062D\u062F\u0647 \u0628\u0639\u062F \u0627\u0644\u0637\u0648\u0627\u0631\u0626\u061F",
+    "Premendo il fungo la bobina perde la fase e il nastro si ferma subito, anche se il PLC non se ne accorge. Ma il PLC pensa ancora di avere Q0 acceso, per via dell\u2019autoritenuta. Sbloccando il fungo la bobina torna alimentata e il nastro ripartirebbe da solo.": "\u0639\u0646\u062F \u0636\u063A\u0637 \u0632\u0631 \u0627\u0644\u0637\u0648\u0627\u0631\u0626 \u064A\u0641\u0642\u062F \u0627\u0644\u0645\u0644\u0641 \u0627\u0644\u0637\u0648\u0631 \u0648\u064A\u062A\u0648\u0642\u0641 \u0627\u0644\u0633\u064A\u0631 \u0641\u0648\u0631\u064B\u0627\u060C \u062D\u062A\u0649 \u0644\u0648 \u0644\u0645 \u064A\u0646\u062A\u0628\u0647 \u0627\u0644\u0640PLC. \u0644\u0643\u0646 \u0627\u0644\u0640PLC \u0645\u0627 \u0632\u0627\u0644 \u064A\u0638\u0646 \u0623\u0646 Q0 \u0645\u0634\u063A\u064E\u0651\u0644 \u0628\u0633\u0628\u0628 \u0627\u0644\u062A\u062B\u0628\u064A\u062A \u0627\u0644\u0630\u0627\u062A\u064A. \u0648\u0639\u0646\u062F \u062A\u062D\u0631\u064A\u0631 \u0627\u0644\u0632\u0631 \u064A\u0639\u0648\u062F \u0627\u0644\u0645\u0644\u0641 \u0625\u0644\u0649 \u0627\u0644\u062A\u063A\u0630\u064A\u0629 \u0641\u064A\u0639\u0627\u0648\u062F \u0627\u0644\u0633\u064A\u0631 \u0627\u0644\u0639\u0645\u0644 \u0648\u062D\u062F\u0647.",
+    "Premi Marcia, poi fai passare tre pacchi con la fotocellula: al terzo il nastro si ferma e la spia si accende.": "\u0627\u0636\u063A\u0637 \u0639\u0644\u0649 \u0627\u0644\u062A\u0634\u063A\u064A\u0644 \u062B\u0645 \u0645\u0631\u0651\u0631 \u062B\u0644\u0627\u062B\u0629 \u0637\u0631\u0648\u062F \u0639\u0628\u0631 \u0627\u0644\u062E\u0644\u064A\u0629 \u0627\u0644\u0636\u0648\u0626\u064A\u0629: \u0639\u0646\u062F \u0627\u0644\u062B\u0627\u0644\u062B \u064A\u062A\u0648\u0642\u0641 \u0627\u0644\u0633\u064A\u0631 \u0648\u062A\u0636\u064A\u0621 \u0644\u0645\u0628\u0629 \u0627\u0644\u0625\u0634\u0627\u0631\u0629.",
+    "Premi Marcia: il nastro parte e resta in marcia": "\u0627\u0636\u063A\u0637 \u0639\u0644\u0649 \u0627\u0644\u062A\u0634\u063A\u064A\u0644: \u064A\u0628\u062F\u0623 \u0627\u0644\u0633\u064A\u0631 \u0648\u064A\u0628\u0642\u0649 \u064A\u0639\u0645\u0644",
+    "Primo gradino: contatto della fotocellula (I2) e, come uscita, un contatore a 3, azzerato da Marcia (I1). Perch\xE9: va per primo, cos\xEC il nastro vede subito il contatore pieno.": "\u0627\u0644\u062F\u0631\u062C\u0629 \u0627\u0644\u0623\u0648\u0644\u0649: \u0645\u0644\u0627\u0645\u0633 \u0627\u0644\u062E\u0644\u064A\u0629 \u0627\u0644\u0636\u0648\u0626\u064A\u0629 (I2) \u0648\u0643\u0645\u062E\u0631\u062C \u0639\u062F\u0651\u0627\u062F \u062D\u062A\u0649 3 \u064A\u064F\u0635\u0641\u064E\u0651\u0631 \u0628\u0627\u0644\u062A\u0634\u063A\u064A\u0644 (I1). \u0627\u0644\u0633\u0628\u0628: \u062A\u0623\u062A\u064A \u0623\u0648\u0644\u064B\u0627 \u0644\u064A\u0631\u0649 \u0627\u0644\u0633\u064A\u0631 \u0641\u0648\u0631\u064B\u0627 \u0623\u0646 \u0627\u0644\u0639\u062F\u0651\u0627\u062F \u0642\u062F \u0627\u0643\u062A\u0645\u0644.",
+    "Prova il lotto": "\u062C\u0631\u0651\u0628 \u0627\u0644\u062F\u0641\u0639\u0629",
+    "Pulsante di emergenza a due contatti": "\u0632\u0631 \u0637\u0648\u0627\u0631\u0626 \u0628\u0645\u0644\u0627\u0645\u0633\u064A\u0646",
+    "Pulsante di emergenza a due contatti, premi per bloccare o sbloccare": "\u0632\u0631 \u0637\u0648\u0627\u0631\u0626 \u0628\u0645\u0644\u0627\u0645\u0633\u064A\u0646\u060C \u0627\u0636\u063A\u0637 \u0644\u0644\u062A\u062B\u0628\u064A\u062A \u0623\u0648 \u0644\u0644\u062A\u062D\u0631\u064A\u0631",
+    "Quando passa il terzo pacco, il primo gradino porta C1 a 1 e il gradino del nastro, subito sotto, vede C1 pieno e spegne Q0 nella stessa scansione. Se il contatore stesse dopo, il nastro si fermerebbe con un ciclo di ritardo: pochi millisecondi, ma l\u2019ordine giusto \xE8 pi\xF9 chiaro.": "\u0639\u0646\u062F\u0645\u0627 \u064A\u0645\u0631 \u0627\u0644\u0637\u0631\u062F \u0627\u0644\u062B\u0627\u0644\u062B \u062A\u062C\u0639\u0644 \u0627\u0644\u062F\u0631\u062C\u0629 \u0627\u0644\u0623\u0648\u0644\u0649 C1 \u064A\u0633\u0627\u0648\u064A 1 \u0641\u062A\u0631\u0649 \u062F\u0631\u062C\u0629 \u0627\u0644\u0633\u064A\u0631 \u0627\u0644\u062A\u064A \u062A\u062D\u062A\u0647\u0627 \u0627\u0644\u0639\u062F\u0651\u0627\u062F \u0645\u0643\u062A\u0645\u0644\u064B\u0627 \u0648\u062A\u064F\u0637\u0641\u0626 Q0 \u0641\u064A \u0627\u0644\u0645\u0633\u062D \u0646\u0641\u0633\u0647. \u0648\u0644\u0648 \u062C\u0627\u0621 \u0627\u0644\u0639\u062F\u0651\u0627\u062F \u0628\u0639\u062F\u0647\u0627 \u0644\u062A\u0648\u0642\u0641 \u0627\u0644\u0633\u064A\u0631 \u0628\u0639\u062F \u062F\u0648\u0631\u0629 \u0648\u0627\u062D\u062F\u0629: \u0628\u0636\u0639\u0629 \u0623\u062C\u0632\u0627\u0621 \u0645\u0646 \u0627\u0644\u062B\u0627\u0646\u064A\u0629\u060C \u0644\u0643\u0646 \u0627\u0644\u062A\u0631\u062A\u064A\u0628 \u0627\u0644\u0635\u062D\u064A\u062D \u0623\u0648\u0636\u062D.",
+    "SBE.3": "SBE.3",
+    "SBE.4": "SBE.4",
+    "Senza comandi il nastro \xE8 fermo": "\u0628\u062F\u0648\u0646 \u0623\u0648\u0627\u0645\u0631 \u064A\u0643\u0648\u0646 \u0627\u0644\u0633\u064A\u0631 \u0645\u062A\u0648\u0642\u0641\u064B\u0627",
+    "Si ferma comunque: il fungo apre il comando nei fili, prima della bobina.": "\u064A\u062A\u0648\u0642\u0641 \u0639\u0644\u0649 \u0623\u064A \u062D\u0627\u0644: \u0641\u0632\u0631 \u0627\u0644\u0637\u0648\u0627\u0631\u0626 \u064A\u0641\u062A\u062D \u062F\u0627\u0626\u0631\u0629 \u0627\u0644\u062A\u062D\u0643\u0645 \u0641\u064A \u0627\u0644\u0623\u0633\u0644\u0627\u0643 \u0642\u0628\u0644 \u0627\u0644\u0645\u0644\u0641.",
+    "Spia di lotto completo": "\u0644\u0645\u0628\u0629 \u0627\u0643\u062A\u0645\u0627\u0644 \u0627\u0644\u062F\u0641\u0639\u0629",
+    "Tanti quante sono le scansioni in cui I2 vale 1.": "\u0628\u0639\u062F\u062F \u0645\u0631\u0627\u062A \u0627\u0644\u0645\u0633\u062D \u0627\u0644\u062A\u064A \u062A\u0643\u0648\u0646 \u0641\u064A\u0647\u0627 I2 \u0645\u0633\u0627\u0648\u064A\u0629 1.",
+    "Tre": "\u062B\u0644\u0627\u062B\u0629",
+    "Un nastro che conta": "\u0633\u064A\u0631 \u064A\u0639\u062F\u0651",
+    'Un nastro trasporta pacchi in lotti da tre. Una fotocellula guarda ogni pacco che passa. Quando ne sono passati tre il nastro si ferma e una spia dice "lotto completo"; con Marcia parte il lotto successivo.': "\u064A\u0646\u0642\u0644 \u0633\u064A\u0631 \u0637\u0631\u0648\u062F\u064B\u0627 \u0641\u064A \u062F\u0641\u0639\u0627\u062A \u0645\u0646 \u062B\u0644\u0627\u062B\u0629. \u0648\u062A\u0631\u0627\u0642\u0628 \u062E\u0644\u064A\u0629 \u0636\u0648\u0626\u064A\u0629 \u0643\u0644 \u0637\u0631\u062F \u064A\u0645\u0631. \u0648\u0639\u0646\u062F\u0645\u0627 \u064A\u0645\u0631 \u062B\u0644\u0627\u062B\u0629 \u064A\u062A\u0648\u0642\u0641 \u0627\u0644\u0633\u064A\u0631 \u0648\u062A\u0642\u0648\u0644 \u0644\u0645\u0628\u0629 \u0627\u0644\u0625\u0634\u0627\u0631\u0629 \xAB\u0627\u0644\u062F\u0641\u0639\u0629 \u0645\u0643\u062A\u0645\u0644\u0629\xBB\u061B \u0648\u0628\u0627\u0644\u062A\u0634\u063A\u064A\u0644 \u062A\u0628\u062F\u0623 \u0627\u0644\u062F\u0641\u0639\u0629 \u0627\u0644\u062A\u0627\u0644\u064A\u0629.",
+    "Un nastro trasporta pacchi in lotti da tre. Una fotocellula vede passare ogni pacco; dopo il terzo il nastro si ferma e una spia segnala il lotto completo. Con Marcia parte un lotto nuovo. L\u2019impianto \xE8 cablato: il fungo di emergenza e il rel\xE8 termico passano dai fili, in serie alla bobina del contattore, e il PLC li legge soltanto. Scrivi il programma.": "\u064A\u0646\u0642\u0644 \u0633\u064A\u0631 \u0637\u0631\u0648\u062F\u064B\u0627 \u0641\u064A \u062F\u0641\u0639\u0627\u062A \u0645\u0646 \u062B\u0644\u0627\u062B\u0629. \u0648\u062A\u0631\u0649 \u062E\u0644\u064A\u0629 \u0636\u0648\u0626\u064A\u0629 \u0643\u0644 \u0637\u0631\u062F \u064A\u0645\u0631\u061B \u0648\u0628\u0639\u062F \u0627\u0644\u062B\u0627\u0644\u062B \u064A\u062A\u0648\u0642\u0641 \u0627\u0644\u0633\u064A\u0631 \u0648\u062A\u0634\u064A\u0631 \u0644\u0645\u0628\u0629 \u0625\u0644\u0649 \u0627\u0643\u062A\u0645\u0627\u0644 \u0627\u0644\u062F\u0641\u0639\u0629. \u0648\u0628\u0627\u0644\u062A\u0634\u063A\u064A\u0644 \u062A\u0628\u062F\u0623 \u062F\u0641\u0639\u0629 \u062C\u062F\u064A\u062F\u0629. \u0627\u0644\u062A\u0631\u0643\u064A\u0628 \u0645\u0648\u0635\u0648\u0644: \u0632\u0631 \u0627\u0644\u0637\u0648\u0627\u0631\u0626 \u0648\u0627\u0644\u0645\u0631\u062D\u0651\u0644 \u0627\u0644\u062D\u0631\u0627\u0631\u064A \u064A\u0645\u0631\u0627\u0646 \u0639\u0628\u0631 \u0627\u0644\u0623\u0633\u0644\u0627\u0643 \u0639\u0644\u0649 \u0627\u0644\u062A\u0648\u0627\u0644\u064A \u0645\u0639 \u0645\u0644\u0641 \u0627\u0644\u0643\u0648\u0646\u062A\u0627\u0643\u062A\u0648\u0631\u060C \u0648\u0627\u0644\u0640PLC \u064A\u0642\u0631\u0623\u0647\u0645\u0627 \u0641\u0642\u0637. \u0627\u0643\u062A\u0628 \u0627\u0644\u0628\u0631\u0646\u0627\u0645\u062C.",
+    "Un pacco lungo tiene la fotocellula a 1 per un secondo intero. Quanti pacchi conta il CTU?": "\u0637\u0631\u062F \u0637\u0648\u064A\u0644 \u064A\u064F\u0628\u0642\u064A \u0627\u0644\u062E\u0644\u064A\u0629 \u0627\u0644\u0636\u0648\u0626\u064A\u0629 \u0639\u0644\u0649 1 \u0644\u062B\u0627\u0646\u064A\u0629 \u0643\u0627\u0645\u0644\u0629. \u0643\u0645 \u0637\u0631\u062F\u064B\u0627 \u064A\u0639\u062F\u0651 CTU\u061F",
+    "Una fotocellula conta i pacchi: a tre il nastro si ferma. Fungo e termico restano nei fili.": "\u062E\u0644\u064A\u0629 \u0636\u0648\u0626\u064A\u0629 \u062A\u0639\u062F\u0651 \u0627\u0644\u0637\u0631\u0648\u062F: \u0648\u0639\u0646\u062F \u0627\u0644\u062B\u0627\u0644\u062B \u064A\u062A\u0648\u0642\u0641 \u0627\u0644\u0633\u064A\u0631. \u0648\u0632\u0631 \u0627\u0644\u0637\u0648\u0627\u0631\u0626 \u0648\u0627\u0644\u062D\u0631\u0627\u0631\u064A \u064A\u0628\u0642\u064A\u0627\u0646 \u0641\u064A \u0627\u0644\u0623\u0633\u0644\u0627\u0643.",
+    "Una fotocellula \xE8 un ingresso: vale 1 mentre un pacco interrompe il raggio.": "\u0627\u0644\u062E\u0644\u064A\u0629 \u0627\u0644\u0636\u0648\u0626\u064A\u0629 \u0645\u062F\u062E\u0644: \u0642\u064A\u0645\u062A\u0647\u0627 1 \u0628\u064A\u0646\u0645\u0627 \u064A\u0642\u0637\u0639 \u0637\u0631\u062F \u0627\u0644\u0634\u0639\u0627\u0639.",
+    "Una fotocellula \xE8 un sensore: quando un pacco interrompe il raggio chiude un contatto, come un pulsante premuto per il tempo in cui il pacco passa. Per il PLC \xE8 un ingresso come gli altri: vale 1 mentre il pacco c\u2019\xE8, 0 quando non c\u2019\xE8.": "\u0627\u0644\u062E\u0644\u064A\u0629 \u0627\u0644\u0636\u0648\u0626\u064A\u0629 \u0645\u0633\u062A\u0634\u0639\u0631: \u0639\u0646\u062F\u0645\u0627 \u064A\u0642\u0637\u0639 \u0637\u0631\u062F \u0627\u0644\u0634\u0639\u0627\u0639 \u062A\u063A\u0644\u0642 \u0645\u0644\u0627\u0645\u0633\u064B\u0627\u060C \u0645\u062B\u0644 \u0632\u0631 \u0645\u0636\u063A\u0648\u0637 \u0637\u0648\u0627\u0644 \u0645\u0631\u0648\u0631 \u0627\u0644\u0637\u0631\u062F. \u0648\u0647\u064A \u0628\u0627\u0644\u0646\u0633\u0628\u0629 \u0644\u0644\u0640PLC \u0645\u062F\u062E\u0644 \u0643\u063A\u064A\u0631\u0647: \u0642\u064A\u0645\u062A\u0647\u0627 1 \u0628\u064A\u0646\u0645\u0627 \u0627\u0644\u0637\u0631\u062F \u0645\u0648\u062C\u0648\u062F \u06480 \u0639\u0646\u062F\u0645\u0627 \u0644\u0627 \u064A\u0643\u0648\u0646.",
+    "Uno": "\u0648\u0627\u062D\u062F",
+    "Uno: conta i fronti di salita, non il tempo.": "\u0648\u0627\u062D\u062F: \u064A\u0639\u062F\u0651 \u0627\u0644\u062D\u0648\u0627\u0641 \u0627\u0644\u0635\u0627\u0639\u062F\u0629 \u0644\u0627 \u0627\u0644\u0632\u0645\u0646.",
+    "conteggio 0, C1 = 0": "\u0627\u0644\u0639\u062F\u0651 0\u060C C1 = 0",
+    "conteggio 0, C1 = 0: lotto nuovo": "\u0627\u0644\u0639\u062F\u0651 0\u060C C1 = 0: \u062F\u0641\u0639\u0629 \u062C\u062F\u064A\u062F\u0629",
+    "conteggio 1, C1 = 0": "\u0627\u0644\u0639\u062F\u0651 1\u060C C1 = 0",
+    "conteggio 2, C1 = 0": "\u0627\u0644\u0639\u062F\u0651 2\u060C C1 = 0",
+    "conteggio 3, C1 = 1: lotto completo": "\u0627\u0644\u0639\u062F\u0651 3\u060C C1 = 1: \u0627\u0644\u062F\u0641\u0639\u0629 \u0645\u0643\u062A\u0645\u0644\u0629",
+    "nei fili, in serie alla bobina": "\u0641\u064A \u0627\u0644\u0623\u0633\u0644\u0627\u0643\u060C \u0639\u0644\u0649 \u0627\u0644\u062A\u0648\u0627\u0644\u064A \u0645\u0639 \u0627\u0644\u0645\u0644\u0641",
+    "nel programma": "\u0641\u064A \u0627\u0644\u0628\u0631\u0646\u0627\u0645\u062C",
+    "un secondo contatto del fungo verso l\u2019ingresso I3": "\u0645\u0644\u0627\u0645\u0633 \u062B\u0627\u0646\u064D \u0641\u064A \u0632\u0631 \u0627\u0644\u0637\u0648\u0627\u0631\u0626 \u0646\u062D\u0648 \u0627\u0644\u0645\u062F\u062E\u0644 I3"
+  };
+
   // src/i18n/ar.js
   var ROLE = { "del neutro": "\u0627\u0644\u0645\u062D\u0627\u064A\u062F", "di terra": "\u0627\u0644\u0623\u0631\u0636\u064A", "di fase": "\u0627\u0644\u0637\u0648\u0631", "a bassa tensione": "\u0627\u0644\u062C\u0647\u062F \u0627\u0644\u0645\u0646\u062E\u0641\u0636", "di comando": "\u0627\u0644\u062A\u062D\u0643\u0645" };
   var COLORI = { "blu": "\u0623\u0632\u0631\u0642", "giallo-verde": "\u0623\u0635\u0641\u0631-\u0623\u062E\u0636\u0631", "marrone, nero o grigio": "\u0628\u0646\u064A\u064B\u0651\u0627 \u0623\u0648 \u0623\u0633\u0648\u062F \u0623\u0648 \u0631\u0645\u0627\u062F\u064A\u064B\u0651\u0627", "rosso, marrone, nero o grigio": "\u0623\u062D\u0645\u0631 \u0623\u0648 \u0628\u0646\u064A\u064B\u0651\u0627 \u0623\u0648 \u0623\u0633\u0648\u062F \u0623\u0648 \u0631\u0645\u0627\u062F\u064A\u064B\u0651\u0627", "di un colore diverso da blu e giallo-verde": "\u0628\u0644\u0648\u0646 \u0645\u062E\u062A\u0644\u0641 \u0639\u0646 \u0627\u0644\u0623\u0632\u0631\u0642 \u0648\u0627\u0644\u0623\u0635\u0641\u0631-\u0627\u0644\u0623\u062E\u0636\u0631" };
@@ -14308,7 +14679,7 @@ html[dir="rtl"] .phud,html[dir="rtl"] .psheet,html[dir="rtl"] .pintro,html[dir="
     [/^Portata (.+): (\d+) ampere\. Tocca per cambiarla$/, (m, t) => `\u0627\u0644\u0633\u0639\u0629 ${t(m[1])}: ${m[2]} \u0623\u0645\u0628\u064A\u0631. \u0627\u0644\u0645\u0633 \u0644\u062A\u063A\u064A\u064A\u0631\u0647\u0627`],
     [/^Protezioni scattate: (.+)\.$/, (m, t) => `\u062D\u0645\u0627\u064A\u0627\u062A \u0641\u0635\u0644\u062A: ${t(m[1])}.`]
   ];
-  registerLang("ar", { ...ar_1_default, ...ar_2_default, ...ar_3_default, ...ar_4_default, ...ar_5_default, ...ar_6_default, ...ar_7_default, ...ar_8_default, ...ar_9_default, ...ar_10_default, ...ar_11_default, ...ar_12_default, ...ar_13_default, ...ar_14_default, ...ar_15_default, ...ar_16_default, ...ar_17_default, ...ar_18_default, ...ar_19_default, ...ar_20_default, ...ar_21_default, ...ar_22_default }, PAT);
+  registerLang("ar", { ...ar_1_default, ...ar_2_default, ...ar_3_default, ...ar_4_default, ...ar_5_default, ...ar_6_default, ...ar_7_default, ...ar_8_default, ...ar_9_default, ...ar_10_default, ...ar_11_default, ...ar_12_default, ...ar_13_default, ...ar_14_default, ...ar_15_default, ...ar_16_default, ...ar_17_default, ...ar_18_default, ...ar_19_default, ...ar_20_default, ...ar_21_default, ...ar_22_default, ...ar_23_default }, PAT);
 
   // src/trilocale/house.js
   function houseState(session2, on = true) {

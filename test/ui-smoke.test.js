@@ -90,6 +90,10 @@ function programUI(w, d, level) {
         if (ins.op === 'ton') {
           lac('optype', 'ton');
           const inp = q(d, 'input[data-lac="pt"]'); inp.value = String(ins.pt); inp.dispatchEvent(new w.Event('change', { bubbles: true }));
+        } else if (ins.op === 'ctu') {
+          lac('optype', 'ctu');
+          const inp = q(d, 'input[data-lac="pv"]'); inp.value = String(ins.pv); inp.dispatchEvent(new w.Event('change', { bubbles: true }));
+          if (ins.r) setSel(q(d, 'select[data-lac="ctur"]'), ins.r);
         } else setSel(q(d, 'select[data-lac="outaddr"]'), ins.a);
       });
     });

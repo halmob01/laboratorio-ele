@@ -925,3 +925,71 @@ LEVELS_V2.push({
     'Il triangolo (Q2) è acceso quando Q0 è acceso e T1 vale 1: contatto Q0 in serie con T1 normalmente aperto, bobina Q2. Così stella e triangolo non sono mai accesi insieme.',
   ],
 });
+
+// c32: il nastro con il PLC. Fotocellula e conteggio nel programma; fungo e termico restano cablati in serie alla bobina del contattore.
+const W32_POWER = [
+  ['Q.L1', 'QM.1', 'marrone'], ['Q.L2', 'QM.3', 'nero'], ['Q.L3', 'QM.5', 'grigio'],
+  ['QM.2', 'KM.1', 'marrone'], ['QM.4', 'KM.3', 'nero'], ['QM.6', 'KM.5', 'grigio'],
+  ['KM.2', 'FR.1', 'marrone'], ['KM.4', 'FR.3', 'nero'], ['KM.6', 'FR.5', 'grigio'],
+  ['FR.2', 'M.U', 'marrone'], ['FR.4', 'M.V', 'nero'], ['FR.6', 'M.W', 'grigio'],
+  ['M.PE', 'Q.PE', 'gv'],
+];
+const W32_PLC = [
+  ['QM.2', 'PLC.A1', 'rosso'], ['PLC.A2', 'Q.N', 'blu'], ['PLC.IC', 'Q.N', 'blu'],
+  ['QM.2', 'SB0.1', 'rosso'], ['SB0.2', 'PLC.I0', 'rosso'],
+  ['QM.2', 'SB1.3', 'rosso'], ['SB1.4', 'PLC.I1', 'rosso'],
+  ['QM.2', 'PH.3', 'rosso'], ['PH.4', 'PLC.I2', 'rosso'],
+  ['QM.2', 'SBE.3', 'rosso'], ['SBE.4', 'PLC.I3', 'rosso'],
+  // il comando del contattore passa dal fungo e dal termico, nei fili: il programma non puo' saltarli
+  ['QM.2', 'SBE.1', 'rosso'], ['SBE.2', 'FR.95', 'rosso'], ['FR.96', 'PLC.Q0A', 'rosso'], ['PLC.Q0B', 'KM.A1', 'rosso'], ['KM.A2', 'Q.N', 'blu'],
+  ['QM.2', 'PLC.Q1A', 'rosso'], ['PLC.Q1B', 'H.X1', 'rosso'], ['H.X2', 'Q.N', 'blu'],
+];
+const PROG_32 = [
+  { if: 'I2', do: [{ op: 'ctu', id: 'C1', pv: 3, r: 'I1' }] },
+  { if: ['and', ['or', 'I1', 'Q0'], 'I0', 'I3', ['not', 'C1']], do: [{ op: 'coil', a: 'Q0' }] },
+  { if: 'C1', do: [{ op: 'coil', a: 'Q1' }] },
+];
+const batch = n => Array.from({ length: n }, () => press('PH')).flat();
+LEVELS_V2.push({
+  id: 'c32-nastro-plc', code: 'c32', n: 0, ...IND, flow: 'onDemand',
+  name: 'Il nastro con il PLC', title: 'Il nastro con il PLC',
+  blurb: 'Una fotocellula conta i pacchi: a tre il nastro si ferma. Fungo e termico restano nei fili.',
+  goal: 'Un nastro trasporta pacchi in lotti da tre. Una fotocellula vede passare ogni pacco; dopo il terzo il nastro si ferma e una spia segnala il lotto completo. Con Marcia parte un lotto nuovo. L’impianto è cablato: il fungo di emergenza e il relè termico passano dai fili, in serie alla bobina del contattore, e il PLC li legge soltanto. Scrivi il programma.',
+  fixed: W32_POWER.concat(W32_PLC),
+  comps: [
+    Q3,
+    C('QM', 'mt3', 'Salvamotore', 'Salvamotore magnetotermico', T(...T6)),
+    C('KM', 'km', 'Contattore', 'Contattore KM', T('A1', 'A2', ...T6)),
+    C('FR', 'ft', 'Termico', 'Relè termico', T(...T6, '95', '96'), { tripAfter: 3 }),
+    C('PLC', 'plc', 'PLC', 'PLC (programma da scrivere)', T('A1', 'A2', 'I0', 'I1', 'I2', 'I3', 'IC', 'Q0A', 'Q0B', 'Q1A', 'Q1B'), {
+      symbols: { I0: 'Arresto', I1: 'Marcia', I2: 'Fotocellula', I3: 'Emergenza', Q0: 'Nastro', Q1: 'Lotto pieno', C1: 'Pacchi' },
+      edit: { markers: 0, timers: 0, counters: 1, ops: ['coil', 'ctu'] },
+    }),
+    C('SBE', 'fungo', 'Emergenza', 'Pulsante di emergenza a due contatti', T('1', '2', '3', '4')),
+    C('SB0', 'pbnc', 'Arresto', 'Pulsante di arresto (NC)', T('1', '2')),
+    C('SB1', 'pb', 'Marcia', 'Pulsante di marcia (NA)', T('3', '4')),
+    C('PH', 'pb', 'Fotocellula', 'Fotocellula: un pacco in transito (NA)', T('3', '4')),
+    C('H', 'spia', 'Lotto pieno', 'Spia di lotto completo', T('X1', 'X2')),
+    C('M', 'motor3', 'Nastro', 'Motore del nastro', T('U', 'V', 'W', 'PE')),
+  ],
+  controls: ['SBE', 'SB0', 'SB1', 'PH'],
+  demoDo: [{ do: press('SB1'), say: '' }],
+  checks: [
+    { id: 'marcia', label: 'Premi Marcia: il nastro parte e resta in marcia', do: press('SB1'), expect: { motors: { M: 'fwd' }, loads: { H: 'off' } } },
+    { id: 'due', label: 'Passano due pacchi: il nastro continua', do: press('SB1').concat(batch(2)), expect: { motors: { M: 'fwd' }, loads: { H: 'off' } } },
+    { id: 'tre', label: 'Passa il terzo pacco: il nastro si ferma e la spia si accende', do: press('SB1').concat(batch(3)), expect: { motors: { M: 'off' }, loads: { H: 'on' } } },
+    { id: 'nuovo', label: 'Con Marcia parte un lotto nuovo e la spia si spegne', steps: [{ do: press('SB1').concat(batch(3)), expect: { motors: { M: 'off' }, loads: { H: 'on' } } }, { do: press('SB1'), expect: { motors: { M: 'fwd' }, loads: { H: 'off' } } }] },
+    { id: 'arresto', label: 'Premi Arresto: il nastro si ferma', steps: [{ do: press('SB1'), expect: { motors: { M: 'fwd' } } }, { do: press('SB0'), expect: { motors: { M: 'off' } } }] },
+    { id: 'termico', label: 'Con un sovraccarico il termico scatta e il nastro si ferma', steps: [{ do: press('SB1'), expect: { motors: { M: 'fwd' } } }, { do: ['overload on', 'wait 5'], expect: { motors: { M: 'off' }, tripped: ['FR'] } }] },
+    { id: 'fermo', label: 'Senza comandi il nastro è fermo', do: [], expect: { motors: { M: 'off' } } },
+  ],
+  safety: { deadWork: ['QM'], earth: [['M.PE', 'Q.PE']], stopWins: 'SB0', emergency: 'SBE', emergencyHardwired: { stop: 'SBE', start: ['SB1'] }, coilReturn: ['KM', 'PLC'], protectedBy: { M: 'QM', KM: 'QM' } },
+  solution: W32_POWER.concat(W32_PLC),
+  solutionPrograms: { PLC: PROG_32 },
+  hints: [
+    'Il conteggio: un gradino con il contatto della fotocellula I2 e, come uscita, un contatore a 3. Si azzera con Marcia (I1).',
+    'Il gradino del contatore va per primo: così, quando passa il terzo pacco, il gradino del nastro vede subito il contatore pieno.',
+    'Il nastro Q0: Marcia (I1) in parallelo a Q0 per l’autoritenuta; in serie Arresto (I0), emergenza (I3), e il contatore C1 normalmente chiuso, perché a lotto pieno il nastro si ferma.',
+    'La spia Q1 segue il contatore: contatto C1 e bobina Q1.',
+  ],
+});
