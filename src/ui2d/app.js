@@ -10,7 +10,11 @@ import { composeComps } from './layout.js';
 const colsFor = lv => (!MQ.matches && lv.engine === 2 && lv.comps.length >= 5 ? 2 : 1);
 import * as R from './render.js';
 import * as V from './screens.js';
+import { ladderHTML, editorPanelHTML } from './ladder.js';
+import { addRung, removeRung, moveRung, addContact, setContact, removeContact, addParallel, addOut, setOut, removeOut, toCells, addressesFor } from '../engine/ladder-edit.js';
+import { validateProgram } from '../engine/v2/plc.js';
 import { INTRO } from '../content/home.js';
+import { progText } from '../content/it.js';
 import { setLang, detect, onLang } from '../i18n/index.js';
 import '../i18n/ar.js';
 import { createHouse, isHouseLevel, firstCircuit } from '../trilocale/page.js';
@@ -92,6 +96,7 @@ function showHint() {
 
 function onLevelChange() {
   stopDemo();
+  LADSEL = null;
   comps = composeComps(S.level, colsFor(S.level));
   SEL = null;
   renderPalette();
@@ -218,9 +223,91 @@ function renderLevelScreen() {
   mp.hidden = !(S.meter && S.meter.on);
   mp.innerHTML = S.meter && S.meter.on ? R.meterHTML(S.meter, t => termName(S.level, t)) : '';
   renderBench();
+  renderLadder();
   renderStatus();
   renderResult();
 }
+
+// Il programma del PLC del livello: in sola lettura se il programma e' del livello, modificabile se e' dell'allievo (comp.edit).
+let LADSEL = null;   // elemento scelto nell'editor: { kind: 'r'|'c'|'o', r, cell, alt, out }
+const ladPlc = () => S.level.comps && S.level.comps.find(c => c.type === 'plc' && (c.program || c.edit));
+const ladProgram = plc => (plc.edit ? (S.programs && S.programs[plc.id]) || [] : plc.program);
+function renderLadder() {
+  const el = $('#ladder');
+  const plc = ladPlc();
+  el.hidden = !plc;
+  $('#work').classList.toggle('lad-first', !!(plc && plc.edit));   // se il programma si scrive, l'editor viene prima del banco
+  if (!plc) { el.innerHTML = ''; return; }
+  const st = S.obs && S.obs.plc && S.obs.plc[plc.id];
+  const prog = ladProgram(plc);
+  const names = plc.symbols || {};
+  const ed = !!plc.edit;
+  const head = `<div class="ladhead"><b>${ed ? 'Scrivi il programma del PLC' : 'Programma del PLC'}</b><span>${st && st.powered ? 'in esecuzione' : 'spento'}</span></div>`;
+  let html = head + `<div class="ladscroll">${ladderHTML(prog, st, names, { edit: ed, sel: LADSEL })}</div>`;
+  if (ed) {
+    const addrs = addressesFor(plc, plc.edit);
+    const errors = validateProgram(prog, { I: addrs.inputs.length, Q: addrs.outputs.length });
+    if (LADSEL && !prog[LADSEL.r]) LADSEL = null;
+    html += editorPanelHTML(prog, LADSEL, names, addrs, plc.edit.ops || ['coil'], errors, e => progText(e));
+    if (S.solutionShown && S.level.solutionPrograms && S.level.solutionPrograms[plc.id]) {
+      html += `<div class="ladhead" style="margin-top:12px"><b>Soluzione</b></div><div class="ladscroll">${ladderHTML(S.level.solutionPrograms[plc.id], st, names)}</div>`;
+    }
+  }
+  el.innerHTML = html;
+}
+// Modifica del programma: ogni azione dell'editor calcola il programma nuovo e lo consegna alla sessione.
+function ladderAct(act, data) {
+  const plc = ladPlc();
+  if (!plc || !plc.edit) return;
+  const prog = ladProgram(plc);
+  const addrs = addressesFor(plc, plc.edit);
+  const sel = LADSEL;
+  let next = null, nsel = sel;
+  const cells = sel && prog[sel.r] ? toCells(prog[sel.r].if) || [] : [];
+  const cur = sel && sel.kind === 'c' && cells[sel.cell] ? cells[sel.cell].alts[sel.alt] : null;
+  if (act === 'addRung') { next = addRung(prog); nsel = { kind: 'r', r: next.length - 1 }; }
+  else if (!sel) return;
+  else if (act === 'addContact') { next = addContact(prog, sel.r, { a: addrs.inputs[0] }); nsel = { kind: 'c', r: sel.r, cell: cells.length, alt: 0 }; }
+  else if (act === 'addOut') {
+    const used = new Set(prog.flatMap(r => r.do.map(x => x.a)));
+    const a = addrs.outputs.find(x => !used.has(x)) || addrs.outputs[0];
+    next = addOut(prog, sel.r, { op: 'coil', a }); nsel = { kind: 'o', r: sel.r, out: prog[sel.r].do.length };
+  }
+  else if (act === 'up' || act === 'down') { const d = act === 'up' ? -1 : 1; next = moveRung(prog, sel.r, d); nsel = { kind: 'r', r: sel.r + d }; }
+  else if (act === 'delRung') { next = removeRung(prog, sel.r); nsel = null; }
+  else if (cur && act === 'type') next = setContact(prog, sel.r, sel.cell, sel.alt, { a: cur.a, ...(data.v === 'not' ? { not: true } : data.v === 'rise' ? { rise: true } : {}) });
+  else if (cur && act === 'addr') next = setContact(prog, sel.r, sel.cell, sel.alt, { ...cur, a: data.v });
+  else if (cur && act === 'parallel') { next = addParallel(prog, sel.r, sel.cell, { a: cur.a }); nsel = { kind: 'c', r: sel.r, cell: sel.cell, alt: cells[sel.cell].alts.length }; }
+  else if (cur && act === 'delContact') { next = removeContact(prog, sel.r, sel.cell, sel.alt); nsel = { kind: 'r', r: sel.r }; }
+  else if (sel.kind === 'o' && prog[sel.r] && prog[sel.r].do[sel.out]) {
+    const ins = prog[sel.r].do[sel.out];
+    if (act === 'optype') next = setOut(prog, sel.r, sel.out, { op: data.v, a: ins.a });
+    else if (act === 'outaddr') next = setOut(prog, sel.r, sel.out, { op: ins.op, a: data.v });
+    else if (act === 'delOut') { next = removeOut(prog, sel.r, sel.out); nsel = { kind: 'r', r: sel.r }; }
+  }
+  if (!next) return;
+  LADSEL = nsel;
+  session.setProgram(plc.id, next);
+}
+$('#ladder').addEventListener('click', e => {
+  const a = e.target.closest('[data-lac]');
+  if (a && !a.disabled && a.tagName !== 'SELECT') { ladderAct(a.dataset.lac, { v: a.dataset.v }); return; }
+  const t = e.target.closest('[data-lad]');
+  if (t) {
+    const d = t.dataset;
+    LADSEL = d.lad === 'r' ? { kind: 'r', r: +d.r } : d.lad === 'c' ? { kind: 'c', r: +d.r, cell: +d.cell, alt: +d.alt } : { kind: 'o', r: +d.r, out: +d.out };
+    renderLadder();
+  }
+});
+$('#ladder').addEventListener('change', e => {
+  const a = e.target.closest('select[data-lac]');
+  if (a) ladderAct(a.dataset.lac, { v: a.value });
+});
+$('#ladder').addEventListener('keydown', e => {
+  if (e.key !== 'Enter' && e.key !== ' ') return;
+  const t = e.target.closest('[data-lad]');
+  if (t) { e.preventDefault(); t.dispatchEvent(new MouseEvent('click', { bubbles: true })); }
+});
 
 function render() {
   if (!S) return;

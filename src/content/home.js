@@ -52,8 +52,8 @@ export const MODULES = [
     title: 'Automazione',
     levels: [
       'c28-stella-triangolo',
-      { soon: true, title: 'Dal relè al PLC', blurb: 'La marcia e arresto di prima, rifatta con ingressi, uscite e un programma.' },
-      { soon: true, title: 'Ladder: l’autoritenuta', blurb: 'Contatti, bobine e la scansione del programma.' },
+      'c29-plc',
+      'c30-ladder',
       { soon: true, title: 'Tempo e conteggio', blurb: 'Temporizzatori e contatori nel programma.' },
       { soon: true, title: 'Il nastro con il PLC', blurb: 'Fotocellula e conteggio; fungo e termico restano cablati.' },
     ],

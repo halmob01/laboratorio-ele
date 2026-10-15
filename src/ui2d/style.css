@@ -352,7 +352,7 @@ button:disabled{cursor:default}
 .work{display:flex;flex-direction:column;gap:12px;max-width:1040px;margin:0 auto}
 .work[hidden],.lessoncard[hidden]{display:none}
 .work .task{order:1;padding:12px 14px;border-left:5px solid var(--lamp)}
-.work .benchcard{order:2}
+.work .benchcard,.work .ladcard{order:2}
 .work .res{order:3}.work.passed .res{order:5}
 .work .roomcard{order:4}
 .work .info{order:6}
@@ -540,6 +540,45 @@ html[lang="it"] .trnote{display:none}
 .upmod .uplist li{margin:2px 0}
 .tricard.milestone.soon{border-style:dashed;border-color:#9AA1AE}
 @media (max-width:560px){.upmod .uplist{columns:1}}
+
+/* programma ladder (sola lettura) */
+.ladcard{padding:12px 14px}
+.ladhead{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px;font:500 13px 'IBM Plex Sans',sans-serif;color:var(--ink2)}
+.ladhead b{font:600 15px 'IBM Plex Sans',sans-serif;color:var(--ink)}
+.ladscroll{overflow-x:auto;-webkit-overflow-scrolling:touch}
+svg.ladder{display:block;min-width:360px;width:100%;max-width:640px;height:auto}
+.lad-rail{stroke:var(--ink2);stroke-width:3;fill:none}
+.lad-wire{stroke:var(--line);stroke-width:2.4;fill:none}
+.lad-wire.lad-on{stroke:#F59F00}
+.lad-c{stroke-width:3;fill:none;stroke-linecap:round}
+.lad-c.lad-off,.lad-coil.lad-off{stroke:var(--ink2);fill:var(--ink2)}
+.lad-c.lad-on{stroke:#F59F00}
+.lad-coil{font:600 22px 'IBM Plex Mono',monospace;stroke:none}
+.lad-coil.lad-on{fill:#F59F00}
+.lad-n{font:600 10.5px 'IBM Plex Sans',sans-serif;fill:var(--ink)}
+.lad-a{font:500 10px 'IBM Plex Mono',monospace;fill:var(--ink2)}
+.lad-s{font:600 11px 'IBM Plex Mono',monospace;fill:var(--ink)}
+.lad-num{font:600 11px 'IBM Plex Mono',monospace;fill:var(--ink2)}
+.lad-box{fill:none;stroke:var(--ink2);stroke-width:2}
+.lad-box.lad-done{stroke:#F59F00}
+
+/* editor del ladder */
+.lad-hit{fill:transparent;stroke:none;cursor:pointer;outline:none}
+.lad-hit:hover{fill:rgba(245,159,0,.10)}
+.lad-hit:focus-visible,.lad-hit.lad-sel{stroke:var(--accent,#2563B0);stroke-width:2.5;fill:rgba(37,99,176,.10)}
+.lad-numsel{fill:var(--accent,#2563B0);font-weight:700}
+.ladpanel{margin-top:10px;display:flex;flex-direction:column;gap:10px}
+.ladrow{display:flex;flex-direction:column;gap:8px;padding:10px;border:1px solid var(--line);border-radius:10px;background:var(--chip)}
+.ladrow b{font:600 14px 'IBM Plex Sans',sans-serif}
+.ladbtns{display:flex;flex-wrap:wrap;gap:8px}
+.ladbtns .btn{min-height:44px}
+.ladseg{display:flex;flex-wrap:wrap;gap:6px}
+.ladsel{display:flex;align-items:center;gap:8px;font:500 14px 'IBM Plex Sans',sans-serif}
+.ladsel select{min-height:44px;font:500 15px 'IBM Plex Sans',sans-serif;border:1.5px solid var(--line);border-radius:8px;padding:0 8px;background:var(--card);color:var(--ink);max-width:100%}
+.ladhelp{margin:0;font:500 14px 'IBM Plex Sans',sans-serif;color:var(--ink2)}
+.laderr{margin:0;padding-left:18px;font:500 13px 'IBM Plex Sans',sans-serif;color:var(--bad)}
+.btn[disabled]{opacity:.45;cursor:default}
+.work.lad-first .ladcard{order:2}.work.lad-first .benchcard{order:3}
 
 /* ---------- prove 3D a tutto schermo (milestone): scena dietro, cornice sopra ---------- */
 /* Colori fissi scuri, scelti: e' sempre notte o capannone, in tema chiaro e scuro. */

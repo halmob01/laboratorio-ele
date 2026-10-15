@@ -58,6 +58,17 @@ export const PARTS = {
   },
   fc: { contacts: (c, s) => (s.act ? [['3', '4']] : [['1', '2']]), init: () => ({ act: false }) },
 
+  // PLC con ingressi a 230 V e uscite a relè (come un LOGO! 230RC). A1-A2: alimentazione (e' una bobina: 230 V, si brucia con 400 V).
+  // Un ingresso In vale 1 se tra In e IC ci sono 230 V. Ogni uscita Qk e' un contatto Qk A - Qk B (chiuso quando il bit di uscita e' 1).
+  // `q` = bit delle uscite, `mem` = memoria della scansione (plc.js). Il programma sta nel livello (`program`) o nella sessione.
+  plc: {
+    coil: ['A1', 'A2'],
+    inputs: n => Array.from({ length: n }, (_, i) => 'I' + i),
+    common: 'IC',
+    contacts: (c, s) => Object.keys(s.q || {}).filter(k => s.q[k] && c.terms && c.terms[k + 'A'] && c.terms[k + 'B']).map(k => [k + 'A', k + 'B']),
+    init: () => ({ q: {}, mem: null, coil: false, rungs: [], inputs: {} }),
+  },
+
   // sorgente derivata
   trafo: { contacts: () => [], primary: ['1', '2'], secondary: ['3', '4'] },
 

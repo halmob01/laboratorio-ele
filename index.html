@@ -362,7 +362,7 @@ button:disabled{cursor:default}
 .work{display:flex;flex-direction:column;gap:12px;max-width:1040px;margin:0 auto}
 .work[hidden],.lessoncard[hidden]{display:none}
 .work .task{order:1;padding:12px 14px;border-left:5px solid var(--lamp)}
-.work .benchcard{order:2}
+.work .benchcard,.work .ladcard{order:2}
 .work .res{order:3}.work.passed .res{order:5}
 .work .roomcard{order:4}
 .work .info{order:6}
@@ -550,6 +550,45 @@ html[lang="it"] .trnote{display:none}
 .upmod .uplist li{margin:2px 0}
 .tricard.milestone.soon{border-style:dashed;border-color:#9AA1AE}
 @media (max-width:560px){.upmod .uplist{columns:1}}
+
+/* programma ladder (sola lettura) */
+.ladcard{padding:12px 14px}
+.ladhead{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px;font:500 13px 'IBM Plex Sans',sans-serif;color:var(--ink2)}
+.ladhead b{font:600 15px 'IBM Plex Sans',sans-serif;color:var(--ink)}
+.ladscroll{overflow-x:auto;-webkit-overflow-scrolling:touch}
+svg.ladder{display:block;min-width:360px;width:100%;max-width:640px;height:auto}
+.lad-rail{stroke:var(--ink2);stroke-width:3;fill:none}
+.lad-wire{stroke:var(--line);stroke-width:2.4;fill:none}
+.lad-wire.lad-on{stroke:#F59F00}
+.lad-c{stroke-width:3;fill:none;stroke-linecap:round}
+.lad-c.lad-off,.lad-coil.lad-off{stroke:var(--ink2);fill:var(--ink2)}
+.lad-c.lad-on{stroke:#F59F00}
+.lad-coil{font:600 22px 'IBM Plex Mono',monospace;stroke:none}
+.lad-coil.lad-on{fill:#F59F00}
+.lad-n{font:600 10.5px 'IBM Plex Sans',sans-serif;fill:var(--ink)}
+.lad-a{font:500 10px 'IBM Plex Mono',monospace;fill:var(--ink2)}
+.lad-s{font:600 11px 'IBM Plex Mono',monospace;fill:var(--ink)}
+.lad-num{font:600 11px 'IBM Plex Mono',monospace;fill:var(--ink2)}
+.lad-box{fill:none;stroke:var(--ink2);stroke-width:2}
+.lad-box.lad-done{stroke:#F59F00}
+
+/* editor del ladder */
+.lad-hit{fill:transparent;stroke:none;cursor:pointer;outline:none}
+.lad-hit:hover{fill:rgba(245,159,0,.10)}
+.lad-hit:focus-visible,.lad-hit.lad-sel{stroke:var(--accent,#2563B0);stroke-width:2.5;fill:rgba(37,99,176,.10)}
+.lad-numsel{fill:var(--accent,#2563B0);font-weight:700}
+.ladpanel{margin-top:10px;display:flex;flex-direction:column;gap:10px}
+.ladrow{display:flex;flex-direction:column;gap:8px;padding:10px;border:1px solid var(--line);border-radius:10px;background:var(--chip)}
+.ladrow b{font:600 14px 'IBM Plex Sans',sans-serif}
+.ladbtns{display:flex;flex-wrap:wrap;gap:8px}
+.ladbtns .btn{min-height:44px}
+.ladseg{display:flex;flex-wrap:wrap;gap:6px}
+.ladsel{display:flex;align-items:center;gap:8px;font:500 14px 'IBM Plex Sans',sans-serif}
+.ladsel select{min-height:44px;font:500 15px 'IBM Plex Sans',sans-serif;border:1.5px solid var(--line);border-radius:8px;padding:0 8px;background:var(--card);color:var(--ink);max-width:100%}
+.ladhelp{margin:0;font:500 14px 'IBM Plex Sans',sans-serif;color:var(--ink2)}
+.laderr{margin:0;padding-left:18px;font:500 13px 'IBM Plex Sans',sans-serif;color:var(--bad)}
+.btn[disabled]{opacity:.45;cursor:default}
+.work.lad-first .ladcard{order:2}.work.lad-first .benchcard{order:3}
 
 /* ---------- prove 3D a tutto schermo (milestone): scena dietro, cornice sopra ---------- */
 /* Colori fissi scuri, scelti: e' sempre notte o capannone, in tema chiaro e scuro. */
@@ -740,6 +779,7 @@ body.ms-intro .milestone .lessoncard{visibility:hidden}
             </div>
           </div>
         </div>
+        <div class="card ladcard" id="ladder" hidden></div>
         <div class="card res" id="result" aria-live="polite"></div>
         <div class="card roomcard">
           <div class="roomhead"><span>La stanza</span></div>
@@ -1139,8 +1179,8 @@ body.ms-intro .milestone .lessoncard{visibility:hidden}
     return step.to.some((t) => uf.f(step.from) === uf.f(t));
   };
   function measureMatches(st, m) {
-    const same = m.a === st.between[0] && m.b === st.between[1] || m.a === st.between[1] && m.b === st.between[0];
-    if (!same || m.mode !== (st.mode || "V")) return false;
+    const same2 = m.a === st.between[0] && m.b === st.between[1] || m.a === st.between[1] && m.b === st.between[0];
+    if (!same2 || m.mode !== (st.mode || "V")) return false;
     if (st.value !== void 0 && m.value !== st.value) return false;
     if (st.reading !== void 0 && m.kind !== st.reading) return false;
     if (st.live !== void 0 && m.live !== st.live) return false;
@@ -1156,6 +1196,7 @@ body.ms-intro .milestone .lessoncard{visibility:hidden}
       else if (st.kind === "control") d = operated.has(st.id);
       else if (st.kind === "measure") d = (ctx.measured || []).some((m) => measureMatches(st, m));
       else if (st.kind === "rate") d = !!ctx.ratings && ctx.ratings[st.id] === st.value;
+      else if (st.kind === "program") d = ((ctx.programs || {})[st.plc] || []).filter((r) => r.do && r.do.length && r.if !== void 0).length >= (st.min || 1);
       else if (st.kind === "verify") d = !!(ctx.result && ctx.result.pass);
       else d = false;
       ok = ok && d;
@@ -1296,6 +1337,16 @@ body.ms-intro .milestone .lessoncard{visibility:hidden}
       actions: ["reset"]
     },
     fc: { contacts: (c2, s) => s.act ? [["3", "4"]] : [["1", "2"]], init: () => ({ act: false }) },
+    // PLC con ingressi a 230 V e uscite a relè (come un LOGO! 230RC). A1-A2: alimentazione (e' una bobina: 230 V, si brucia con 400 V).
+    // Un ingresso In vale 1 se tra In e IC ci sono 230 V. Ogni uscita Qk e' un contatto Qk A - Qk B (chiuso quando il bit di uscita e' 1).
+    // `q` = bit delle uscite, `mem` = memoria della scansione (plc.js). Il programma sta nel livello (`program`) o nella sessione.
+    plc: {
+      coil: ["A1", "A2"],
+      inputs: (n) => Array.from({ length: n }, (_, i) => "I" + i),
+      common: "IC",
+      contacts: (c2, s) => Object.keys(s.q || {}).filter((k) => s.q[k] && c2.terms && c2.terms[k + "A"] && c2.terms[k + "B"]).map((k) => [k + "A", k + "B"]),
+      init: () => ({ q: {}, mem: null, coil: false, rungs: [], inputs: {} })
+    },
     // sorgente derivata
     trafo: { contacts: () => [], primary: ["1", "2"], secondary: ["3", "4"] },
     // carichi
@@ -1311,6 +1362,136 @@ body.ms-intro .milestone .lessoncard{visibility:hidden}
   var POWER_PATH = /* @__PURE__ */ new Set(["mt", "mt3", "sez", "rcd", "km", "ft"]);
   var partOf = (c2) => PARTS[c2.type] || PARTS.quadro;
   var loadVolt = (c2) => c2.volt || partOf(c2).volt || 230;
+
+  // src/engine/v2/plc.js
+  var MAX_RUNGS = 24;
+  var ADDR = /^[IQMTC]\d{1,2}$/;
+  var newMem = () => ({ bits: {}, timers: {}, counters: {}, prev: {} });
+  var cloneMem = (m) => JSON.parse(JSON.stringify(m));
+  function addrsOf(e, out = []) {
+    if (typeof e === "string") out.push(e);
+    else if (Array.isArray(e)) e.slice(1).forEach((x) => addrsOf(x, out));
+    return out;
+  }
+  function validateProgram(program, known = { I: 8, Q: 8 }) {
+    const errs = [];
+    if (!Array.isArray(program)) return [{ code: "prog.notList" }];
+    if (program.length > MAX_RUNGS) errs.push({ code: "prog.tooLong", n: program.length });
+    const writers = /* @__PURE__ */ new Set();
+    program.forEach((r, i) => {
+      if (!r || typeof r !== "object" || !Array.isArray(r.do) || !r.do.length) {
+        errs.push({ code: "prog.rungEmpty", rung: i + 1 });
+        return;
+      }
+      const chk = (a) => {
+        if (typeof a !== "string" || !ADDR.test(a)) {
+          errs.push({ code: "prog.badAddr", rung: i + 1, addr: String(a) });
+          return;
+        }
+        const k = a[0], n = Number(a.slice(1));
+        if (k === "I" && n >= known.I || k === "Q" && n >= known.Q) errs.push({ code: "prog.noSuchIo", rung: i + 1, addr: a });
+      };
+      try {
+        addrsOf(r.if).forEach(chk);
+      } catch (e) {
+        errs.push({ code: "prog.badExpr", rung: i + 1 });
+      }
+      if (r.if === void 0 || r.if === null) errs.push({ code: "prog.noCondition", rung: i + 1 });
+      r.do.forEach((ins) => {
+        if (!ins || !["coil", "set", "reset", "ton", "ctu"].includes(ins.op)) {
+          errs.push({ code: "prog.badOp", rung: i + 1 });
+          return;
+        }
+        if (ins.op === "ton" || ins.op === "ctu") {
+          if (typeof ins.id !== "string" || !/^[TC]\d{1,2}$/.test(ins.id) || ins.id[0] !== (ins.op === "ton" ? "T" : "C")) errs.push({ code: "prog.badAddr", rung: i + 1, addr: String(ins.id) });
+          if (ins.op === "ton" && !(ins.pt > 0)) errs.push({ code: "prog.badPreset", rung: i + 1 });
+          if (ins.op === "ctu" && !(ins.pv > 0)) errs.push({ code: "prog.badPreset", rung: i + 1 });
+          if (ins.op === "ctu" && ins.r) chk(ins.r);
+          writers.add(ins.id);
+        } else {
+          chk(ins.a);
+          if (typeof ins.a === "string" && (ins.a[0] === "I" || ins.a[0] === "T" || ins.a[0] === "C")) errs.push({ code: "prog.writeInput", rung: i + 1, addr: ins.a });
+          if (ins.op === "coil" && typeof ins.a === "string") {
+            if (writers.has(ins.a)) errs.push({ code: "prog.doubleCoil", rung: i + 1, addr: ins.a });
+            writers.add(ins.a);
+          }
+        }
+      });
+    });
+    return errs;
+  }
+  function ev(e, bits, prev) {
+    if (typeof e === "string") return !!bits[e];
+    if (!Array.isArray(e)) return false;
+    const [op, ...a] = e;
+    if (op === "not") return !ev(a[0], bits, prev);
+    if (op === "and") return a.every((x) => ev(x, bits, prev));
+    if (op === "or") return a.some((x) => ev(x, bits, prev));
+    if (op === "rise") return !!bits[a[0]] && !prev[a[0]];
+    return false;
+  }
+  function scan(program, inputs, mem, dt = 0) {
+    const m = cloneMem(mem || newMem());
+    const bits = m.bits;
+    Object.keys(bits).forEach((k) => {
+      if (k[0] === "I") delete bits[k];
+    });
+    Object.entries(inputs || {}).forEach(([k, v]) => bits[k] = !!v);
+    const rungs = [];
+    (program || []).forEach((r) => {
+      const on = ev(r.if, bits, m.prev);
+      rungs.push(on);
+      (r.do || []).forEach((ins) => {
+        if (ins.op === "coil") bits[ins.a] = on;
+        else if (ins.op === "set") {
+          if (on) bits[ins.a] = true;
+        } else if (ins.op === "reset") {
+          if (on) bits[ins.a] = false;
+        } else if (ins.op === "ton") {
+          const t = m.timers[ins.id] || (m.timers[ins.id] = { acc: 0 });
+          t.acc = on ? Math.min(ins.pt, t.acc + dt) : 0;
+          bits[ins.id] = t.acc >= ins.pt;
+        } else if (ins.op === "ctu") {
+          const c2 = m.counters[ins.id] || (m.counters[ins.id] = { cv: 0 });
+          if (ins.r && ev(ins.r, bits, m.prev)) c2.cv = 0;
+          else if (on && !m.prev["@" + ins.id]) c2.cv = Math.min(ins.pv, c2.cv + 1);
+          m.prev["@" + ins.id] = on;
+          bits[ins.id] = c2.cv >= ins.pv;
+        }
+      });
+    });
+    m.prev = { ...bits, ...Object.fromEntries(Object.entries(m.prev).filter(([k]) => k[0] === "@")) };
+    const outputs = {};
+    Object.keys(bits).forEach((k) => {
+      if (k[0] === "Q") outputs[k] = !!bits[k];
+    });
+    return { mem: m, outputs, rungs };
+  }
+  function sanitizeProgram(program) {
+    const addr = (a) => typeof a === "string" && ADDR.test(a) ? a : null;
+    const expr = (e, depth = 0) => {
+      if (depth > 4) return null;
+      if (typeof e === "string") return addr(e);
+      if (!Array.isArray(e) || !["not", "and", "or", "rise"].includes(e[0])) return null;
+      const kids = e.slice(1, 9).map((x) => expr(x, depth + 1));
+      if (!kids.length || kids.some((k) => k === null)) return null;
+      return [e[0], ...e[0] === "not" || e[0] === "rise" ? kids.slice(0, 1) : kids];
+    };
+    const ins = (i) => {
+      if (!i || typeof i !== "object") return null;
+      if (["coil", "set", "reset"].includes(i.op)) return addr(i.a) ? { op: i.op, a: i.a } : null;
+      if (i.op === "ton") return /^T\d{1,2}$/.test(i.id) && i.pt > 0 && i.pt <= 600 ? { op: "ton", id: i.id, pt: Number(i.pt) } : null;
+      if (i.op === "ctu") return /^C\d{1,2}$/.test(i.id) && i.pv > 0 && i.pv <= 999 ? { op: "ctu", id: i.id, pv: Math.floor(Number(i.pv)), ...addr(i.r) ? { r: i.r } : {} } : null;
+      return null;
+    };
+    if (!Array.isArray(program)) return [];
+    return program.slice(0, MAX_RUNGS).filter((r) => r && typeof r === "object").map((r) => {
+      const out = { do: (Array.isArray(r.do) ? r.do.slice(0, 6) : []).map(ins).filter(Boolean) };
+      const c2 = r.if === void 0 || r.if === null ? null : expr(r.if);
+      if (c2 !== null) out.if = c2;
+      return out;
+    });
+  }
 
   // src/engine/v2/sim.js
   var PHASES = ["F", "L1", "L2", "L3"];
@@ -1344,7 +1525,13 @@ body.ms-intro .milestone .lessoncard{visibility:hidden}
       // insiemi di contattori chiusi visti durante l'assestamento (interblocco)
       cableHeat: 0,
       // riscaldamento del cavo della linea (level.cable), in secondi di sovracorrente
-      cableBurnt: false
+      cableBurnt: false,
+      programs: {},
+      // programmi dei PLC scritti dall'allievo: { idPLC: [gradini] }; senza, vale quello del livello
+      plcDt: 0,
+      // secondi da consegnare alla prossima scansione
+      forcePlc: null
+      // 'allOn': prova di sicurezza, tutte le uscite dei PLC forzate a 1
     };
     settle(sim);
     return sim;
@@ -1489,7 +1676,16 @@ body.ms-intro .milestone .lessoncard{visibility:hidden}
       const s = sim.parts[c2.id];
       if (c2.type === "gu" && s && s.on && isPhase(potAt(c2.at))) leaks.push({ id: c2.id, mA: s.mA });
     });
-    return { uf, pots, potAt, volt, faults, loads, coils, motors, modes, trafoOn, burntNow, leaks };
+    const plcIn = {};
+    level.comps.filter((c2) => c2.type === "plc").forEach((c2) => {
+      const on = !!coils[c2.id];
+      const bits = {};
+      Object.keys(c2.terms).filter((t) => /^I\d+$/.test(t)).forEach((t) => {
+        bits[t] = on && volt(c2.id + "." + t, c2.id + ".IC") === 230;
+      });
+      plcIn[c2.id] = bits;
+    });
+    return { uf, pots, potAt, volt, faults, loads, coils, motors, modes, plcIn, trafoOn, burntNow, leaks };
   }
   var RCD_TRIP_MA = 30;
   var OVERLOAD_TRIP = 1.45;
@@ -1566,6 +1762,38 @@ body.ms-intro .milestone .lessoncard{visibility:hidden}
     if (!m) return;
     if (m.endFwd && sim.parts[m.endFwd]) sim.parts[m.endFwd].act = sim.pos >= m.length;
     if (m.endRev && sim.parts[m.endRev]) sim.parts[m.endRev].act = sim.pos <= 0;
+  }
+  var programOf = (sim, c2) => sim.programs[c2.id] || c2.program || [];
+  function plcScan(sim, an) {
+    let changed = false;
+    const dt = sim.plcDt;
+    sim.plcDt = 0;
+    sim.level.comps.forEach((c2) => {
+      if (c2.type !== "plc") return;
+      const s = sim.parts[c2.id];
+      if (!an.coils[c2.id]) {
+        if (Object.keys(s.q).length || s.mem) {
+          s.q = {};
+          s.mem = null;
+          s.rungs = [];
+          s.inputs = {};
+          changed = true;
+        }
+        return;
+      }
+      const r = scan(programOf(sim, c2), an.plcIn[c2.id], s.mem || newMem(), dt);
+      let q = r.outputs;
+      if (sim.forcePlc === "allOn") q = Object.fromEntries(Object.keys(c2.terms).filter((t) => /^Q\d+A$/.test(t)).map((t) => [t.slice(0, -1), true]));
+      const same2 = Object.keys({ ...q, ...s.q }).every((k) => !!q[k] === !!s.q[k]);
+      s.mem = r.mem;
+      s.rungs = r.rungs;
+      s.inputs = an.plcIn[c2.id];
+      if (!same2) {
+        s.q = q;
+        changed = true;
+      }
+    });
+    return changed;
   }
   function settle(sim) {
     const comps2 = sim.level.comps;
@@ -1648,6 +1876,7 @@ body.ms-intro .milestone .lessoncard{visibility:hidden}
         }
         if (changed) break;
       }
+      if (!changed && plcScan(sim, an)) changed = true;
       if (!changed) {
         sim.unstable = false;
         return;
@@ -1750,6 +1979,7 @@ body.ms-intro .milestone .lessoncard{visibility:hidden}
         if (dir === "fwd") sim.pos = Math.min(m.length, sim.pos + v);
         if (dir === "rev") sim.pos = Math.max(0, sim.pos - v);
       }
+      sim.plcDt = STEP;
       settle(sim);
     }
   }
@@ -1778,7 +2008,8 @@ body.ms-intro .milestone .lessoncard{visibility:hidden}
       loads: { ...an.loads, ...Object.fromEntries(Object.keys(sim.burnt).filter((id) => !(id in an.loads)).map((id) => [id, "burnt"])) },
       motors: an.motors,
       modes: an.modes,
-      coils: an.coils,
+      plc: Object.fromEntries(sim.level.comps.filter((c2) => c2.type === "plc").map((c2) => [c2.id, { powered: !!an.coils[c2.id], inputs: an.plcIn[c2.id], q: { ...sim.parts[c2.id].q }, rungs: sim.parts[c2.id].rungs.slice(), bits: { ...sim.parts[c2.id].mem && sim.parts[c2.id].mem.bits || {} }, timers: { ...sim.parts[c2.id].mem && sim.parts[c2.id].mem.timers || {} }, counters: { ...sim.parts[c2.id].mem && sim.parts[c2.id].mem.counters || {} } }])),
+      coils: Object.fromEntries(Object.entries(an.coils).filter(([id]) => !sim.level.comps.some((c2) => c2.id === id && c2.type === "plc"))),
       parts,
       machine: sim.level.machine ? { pos: sim.pos, atStart: sim.pos <= 0, atEnd: sim.pos >= sim.level.machine.length } : null,
       potential: (term2) => {
@@ -1799,7 +2030,7 @@ body.ms-intro .milestone .lessoncard{visibility:hidden}
     const an = analyse2(sim, open);
     return an.loads[id] === "on" || an.coils[id] === true || an.motors[id] !== void 0 && an.motors[id] !== "off";
   }
-  var OHM = { lamp: 530, spia: 8e3, presa: 60, bell: 30, ri: 1500, rel: 1500, tmr: 1500, km: 1200, kt: 1500, motor3: 12, motor6: 12 };
+  var OHM = { lamp: 530, spia: 8e3, presa: 60, bell: 30, ri: 1500, rel: 1500, tmr: 1500, km: 1200, kt: 1500, plc: 4e3, motor3: 12, motor6: 12 };
   function windings(sim) {
     const out = [];
     sim.level.comps.forEach((c2) => {
@@ -1952,7 +2183,7 @@ body.ms-intro .milestone .lessoncard{visibility:hidden}
     }
     return { ok: true, sim, states };
   }
-  var CTL_TYPES = /* @__PURE__ */ new Set(["pb", "pbnc", "fungo", "port", "spia", "fc", "ri", "tmr", "kt", "rs"]);
+  var CTL_TYPES = /* @__PURE__ */ new Set(["pb", "pbnc", "fungo", "port", "spia", "fc", "ri", "tmr", "kt", "rs", "plc"]);
   function isCtlTerm(level, term2) {
     const [id, t] = term2.split(".");
     const c2 = level.comps.find((x) => x.id === id);
@@ -2004,8 +2235,9 @@ body.ms-intro .milestone .lessoncard{visibility:hidden}
     return PHASE_COLORS.concat(red);
   }
   var withRatings = (level, ratings) => ratings && Object.keys(ratings).length ? { ...level, comps: level.comps.map((c2) => ratings[c2.id] ? { ...c2, in: ratings[c2.id] } : c2) } : level;
+  var withPrograms = (level, programs) => programs && Object.keys(programs).length ? { ...level, comps: level.comps.map((c2) => c2.type === "plc" && programs[c2.id] ? { ...c2, program: programs[c2.id] } : c2) } : level;
   function evaluateV2(level, wires, ctx = {}) {
-    level = withRatings(level, ctx.ratings);
+    level = withPrograms(withRatings(level, ctx.ratings), ctx.programs);
     const out = { work: section2(), color: section2(), safe: section2() };
     const add = (sec, code, params) => out[sec].items.push(params ? { code, ...params } : { code });
     if (!wires.length) {
@@ -2104,6 +2336,20 @@ body.ms-intro .milestone .lessoncard{visibility:hidden}
           if (s3.kmHistory.some((on) => S2.never.some((pair) => pair.every((id) => on.includes(id))))) both3 = true;
         }));
         if (both || both2 || both3) fail("safe.interlock");
+      }
+      if (S2.emergencyHardwired) {
+        const { stop, start = [] } = S2.emergencyHardwired;
+        const sim = createSim(level, wires);
+        sim.forcePlc = "allOn";
+        settle(sim);
+        start.forEach((a) => {
+          act(sim, "press", a);
+          act(sim, "release", a);
+        });
+        act(sim, "toggle", stop);
+        const o = observe(sim);
+        const contactorOn = level.comps.some((c2) => c2.type === "km" && o.coils[c2.id]);
+        if (Object.values(o.motors).some((m) => m !== "off") || contactorOn) fail("safe.emergencyInProgram");
       }
       if (S2.weldedInterlock) {
         const { pairs, start = [], stop = [] } = S2.weldedInterlock;
@@ -2381,6 +2627,7 @@ body.ms-intro .milestone .lessoncard{visibility:hidden}
       if (!s) return false;
       if (c2.type === "tmr") return s.left > 0;
       if (c2.type === "kt") return !!obs2.coils[c2.id] && !s.on;
+      if (c2.type === "plc") return !!s.mem && Object.entries(s.mem.timers || {}).some(([id, t]) => t.acc > 0 && !(s.mem.bits || {})[id]);
       if (c2.type === "motor6") return obs2.modes[c2.id] === "star" || s.starT > 0;
       if (c2.type === "mt") return s.heat > 0 || obs2.cable && !obs2.cable.burnt && (obs2.cable.heat > 0 || obs2.cable.amps > obs2.cable.iz) || !!s.in && !!s.on && !s.tripped && !!(obs2.lines && obs2.lines[c2.id] && obs2.lines[c2.id].ratio > 1.45);
       if (c2.type === "ft") return !s.tripped && (s.heat > 0 || Object.values(obs2.motors).some((m) => m === "hum" || obs2.overload && running(m)));
@@ -2423,6 +2670,7 @@ body.ms-intro .milestone .lessoncard{visibility:hidden}
     const liveEditsBy = {};
     const measuredBy = {};
     const operatedByKey = {};
+    const programsByKey = {};
     const simsByKey = {};
     let nextWireId = 1;
     let progress;
@@ -2451,6 +2699,11 @@ body.ms-intro .milestone .lessoncard{visibility:hidden}
     const fixedOf = (lv) => (lv.fixed || []).map(([a, b, c2], n) => ({ id: -(n + 1), a, b, c: c2, fixed: true }));
     const blank = (i = levelIndex, m = mode) => fixedOf(levelAt(i, m));
     const wires = () => wiresByKey[keyOf()] || (wiresByKey[keyOf()] = blank());
+    const programsOf = (i = levelIndex, m = mode) => programsByKey[keyOf(i, m)] || {};
+    const withProg = (lv, k = keyOf()) => {
+      const pr = programsByKey[k];
+      return pr && lv.comps.some((c2) => c2.type === "plc" && pr[c2.id]) ? { ...lv, comps: lv.comps.map((c2) => c2.type === "plc" && pr[c2.id] ? { ...c2, program: pr[c2.id] } : c2) } : lv;
+    };
     const states = () => statesByKey[keyOf()] || (statesByKey[keyOf()] = {});
     const usage = () => usageByKey[keyOf()] || (usageByKey[keyOf()] = { hints: 0, solution: false, checks: 0 });
     const startPhase = (i = levelIndex) => {
@@ -2527,7 +2780,7 @@ body.ms-intro .milestone .lessoncard{visibility:hidden}
     function simFor() {
       const k = keyOf();
       if (!simsByKey[k]) {
-        const sim = createSim(levelAt(), wires());
+        const sim = createSim(withProg(levelAt(), k), wires());
         const sr = ratingsSaved[k];
         delete ratingsSaved[k];
         const iso2 = isoSaved[k];
@@ -2575,7 +2828,7 @@ body.ms-intro .milestone .lessoncard{visibility:hidden}
     function stepsPart(level, phase) {
       const u = level.unit;
       if (!u || !u.steps || playMode !== "apprendimento" || phase === "lesson") return { steps: null, ghost: null };
-      const st = stepsState(u.steps, wires(), { power, operated: operated(), result: resultsByKey[keyOf()] || null, fault: !!analysisOf(level).fault, measured: measuredBy[keyOf()] || [], ratings: ratingsOf() });
+      const st = stepsState(u.steps, wires(), { power, operated: operated(), result: resultsByKey[keyOf()] || null, fault: !!analysisOf(level).fault, measured: measuredBy[keyOf()] || [], ratings: ratingsOf(), programs: programsOf() });
       const cur = st.current === null ? null : u.steps[st.current];
       const ghost = phase === "build" && u.support === "guidato" && cur ? ghostFor(cur, wires()) : null;
       return { steps: { list: u.steps, done: st.done, current: st.current }, ghost };
@@ -2596,6 +2849,7 @@ body.ms-intro .milestone .lessoncard{visibility:hidden}
         mode,
         playMode,
         wires: wires().slice(),
+        programs: JSON.parse(JSON.stringify(programsOf())),
         controlStates: is2 ? view2.controlStates : { ...states() },
         power,
         trip: trip2,
@@ -2660,14 +2914,16 @@ body.ms-intro .milestone .lessoncard{visibility:hidden}
         if (rs[c2.id] && rs[c2.id] !== c2.in) rt[c2.id] = rs[c2.id];
       });
       const ms = (measuredBy[keyOf()] || []).slice(0, 100);
+      const pg = programsOf();
       const lv_ = (liveEditsBy[keyOf()] || []).slice(0, 20);
       const iso_ = mode === "quadro" ? isoOf() : {};
-      if (ws.length || Object.keys(st).length || Object.keys(rt).length || ms.length || lv_.length || Object.keys(iso_).length) {
+      if (ws.length || Object.keys(st).length || Object.keys(rt).length || ms.length || lv_.length || Object.keys(iso_).length || Object.keys(pg).length) {
         const e = { wires: ws, states: st };
         if (Object.keys(rt).length) e.ratings = rt;
         if (ms.length) e.measured = ms;
         if (lv_.length) e.live = lv_;
         if (Object.keys(iso_).length) e.iso = iso_;
+        if (Object.keys(pg).length) e.programs = pg;
         work.w[workKeyOf(levelIndex, mode)] = e;
       } else delete work.w[workKeyOf(levelIndex, mode)];
       if (u && l.unit) {
@@ -2731,6 +2987,16 @@ body.ms-intro .milestone .lessoncard{visibility:hidden}
               entry.ratings = { ...rt };
             }
           }
+          if (isObj(e2.programs)) {
+            const pr = {};
+            lv.comps.forEach((c2) => {
+              if (c2.type === "plc" && c2.edit && Array.isArray(e2.programs[c2.id])) pr[c2.id] = sanitizeProgram(e2.programs[c2.id]);
+            });
+            if (Object.keys(pr).length) {
+              programsByKey[keyOf(i, m)] = pr;
+              entry.programs = JSON.parse(JSON.stringify(pr));
+            }
+          }
           if (Array.isArray(e2.measured)) {
             const ms = e2.measured.slice(0, 100).filter((x) => isObj(x) && typeof x.a === "string" && typeof x.b === "string" && typeof x.mode === "string" && typeof x.kind === "string" && known.has(x.a) && known.has(x.b)).map((x) => ({ a: x.a, b: x.b, mode: x.mode, kind: x.kind, value: typeof x.value === "number" ? x.value : null, ohm: typeof x.ohm === "number" ? x.ohm : null, live: !!x.live }));
             if (ms.length) {
@@ -2772,7 +3038,7 @@ body.ms-intro .milestone .lessoncard{visibility:hidden}
         if (phase === "done") {
           const ws = wiresByKey[keyOf(i, "quadro")] || [];
           if (!(progress.stars[progressKey(l.id, "quadro")] > 0) || !ws.length) phase = "build";
-          else result = isV2(levelAt(i, "quadro")) ? evaluateV2(levelAt(i, "quadro"), ws, { measured: measuredBy[keyOf(i, "quadro")] || [], ratings: ratingsOf(i), liveEdits: liveEditsBy[keyOf(i, "quadro")] || [] }) : evaluate(levelAt(i, "quadro"), ws);
+          else result = isV2(levelAt(i, "quadro")) ? evaluateV2(levelAt(i, "quadro"), ws, { measured: measuredBy[keyOf(i, "quadro")] || [], ratings: ratingsOf(i), programs: programsOf(i, "quadro"), liveEdits: liveEditsBy[keyOf(i, "quadro")] || [] }) : evaluate(levelAt(i, "quadro"), ws);
           if (result && !result.pass) {
             phase = "build";
             result = null;
@@ -2796,6 +3062,8 @@ body.ms-intro .milestone .lessoncard{visibility:hidden}
       wiresByKey[keyOf()] = fx.concat(level.unit.fault.wires.filter(([a, b]) => !fxKeys.has([a, b].sort().join("~"))).map(([a, b, c2]) => ({ id: nextWireId++, a, b, c: c2 })));
       statesByKey[keyOf()] = {};
       resultsByKey[keyOf()] = null;
+      if (level.unit.fault.programs) programsByKey[keyOf()] = JSON.parse(JSON.stringify(level.unit.fault.programs));
+      else delete programsByKey[keyOf()];
       us.phase = "fault";
       if (v2(level)) (level.unit.fault.on || []).forEach((id) => act(simFor(), "toggle", id));
       if (v2(level)) (level.unit.fault.open || []).forEach((id) => {
@@ -2829,6 +3097,7 @@ body.ms-intro .milestone .lessoncard{visibility:hidden}
       if (levelAt().prova && !us.before) {
         unitByKey[levelIndex] = { phase: "fault", page: 0, pred: us.pred, diag: null, faultSolved: false };
         wiresByKey[keyOf(levelIndex, "quadro")] = blank(levelIndex, "quadro");
+        delete programsByKey[keyOf(levelIndex, "quadro")];
         statesByKey[keyOf(levelIndex, "quadro")] = {};
         resultsByKey[keyOf(levelIndex, "quadro")] = null;
         delete measuredBy[keyOf(levelIndex, "quadro")];
@@ -2843,6 +3112,8 @@ body.ms-intro .milestone .lessoncard{visibility:hidden}
         statesByKey[keyOf(levelIndex, "quadro")] = us.before.states;
         resultsByKey[keyOf(levelIndex, "quadro")] = us.before.result;
         measuredBy[keyOf(levelIndex, "quadro")] = us.before.measured || [];
+        if (us.before.programs && Object.keys(us.before.programs).length) programsByKey[keyOf(levelIndex, "quadro")] = us.before.programs;
+        else delete programsByKey[keyOf(levelIndex, "quadro")];
         if (us.before.ratings && Object.keys(us.before.ratings).length) ratingsSaved[keyOf(levelIndex, "quadro")] = us.before.ratings;
         us.before = null;
       }
@@ -2850,7 +3121,8 @@ body.ms-intro .milestone .lessoncard{visibility:hidden}
     const verifyStash = {};
     function stashForVerify() {
       const k = keyOf();
-      verifyStash[levelIndex] = { key: k, wires: (wiresByKey[k] || []).slice(), states: { ...statesByKey[k] || {} }, result: resultsByKey[k] || null, usage: usageByKey[k] || null, unit: unitByKey[levelIndex] || null, measured: (measuredBy[k] || []).slice(), live: (liveEditsBy[k] || []).slice(), ratings: ratingsOf(), iso: isoOf() };
+      verifyStash[levelIndex] = { key: k, wires: (wiresByKey[k] || []).slice(), states: { ...statesByKey[k] || {} }, result: resultsByKey[k] || null, usage: usageByKey[k] || null, unit: unitByKey[levelIndex] || null, measured: (measuredBy[k] || []).slice(), live: (liveEditsBy[k] || []).slice(), ratings: ratingsOf(), iso: isoOf(), programs: JSON.parse(JSON.stringify(programsByKey[k] || {})) };
+      delete programsByKey[k];
       delete measuredBy[k];
       delete liveEditsBy[k];
       delete ratingsSaved[k];
@@ -2867,6 +3139,8 @@ body.ms-intro .milestone .lessoncard{visibility:hidden}
       resultsByKey[st.key] = st.result;
       measuredBy[st.key] = st.measured;
       liveEditsBy[st.key] = st.live;
+      if (st.programs && Object.keys(st.programs).length) programsByKey[st.key] = st.programs;
+      else delete programsByKey[st.key];
       delete ratingsSaved[st.key];
       delete isoSaved[st.key];
       if (Object.keys(st.ratings).length) ratingsSaved[st.key] = st.ratings;
@@ -3018,6 +3292,7 @@ body.ms-intro .milestone .lessoncard{visibility:hidden}
         resetLevelState();
         if (opts.verify) {
           wiresByKey[keyOf()] = blank();
+          delete programsByKey[keyOf()];
           statesByKey[keyOf()] = {};
           resultsByKey[keyOf()] = null;
           usageByKey[keyOf()] = { hints: 0, solution: false, checks: 0 };
@@ -3070,6 +3345,17 @@ body.ms-intro .milestone .lessoncard{visibility:hidden}
         if (fresh) message = { code: "liveWorkNow" };
         emit();
       },
+      // Programma di un PLC (livelli con `edit`): sostituisce quello attuale. Il PLC riparte da zero, come dopo un nuovo caricamento.
+      setProgram(id, program) {
+        if (!inBuildOrFault()) return;
+        const c2 = levelAt().comps.find((x) => x.id === id && x.type === "plc" && x.edit);
+        if (!c2) return;
+        programsByKey[keyOf()] = { ...programsOf(), [id]: sanitizeProgram(program) };
+        resultsByKey[keyOf()] = null;
+        rewireSim();
+        applyLive2();
+        emit();
+      },
       undo() {
         if (!inBuildOrFault()) return;
         const lw = wires()[wires().length - 1];
@@ -3083,10 +3369,11 @@ body.ms-intro .milestone .lessoncard{visibility:hidden}
       },
       clear() {
         if (!inBuildOrFault()) return;
-        if (!wires().some((w) => !w.fixed)) {
+        if (!wires().some((w) => !w.fixed) && !Object.keys(programsOf()).length) {
           delete liveEditsBy[keyOf()];
           return;
         }
+        delete programsByKey[keyOf()];
         wiresChanged();
         delete liveEditsBy[keyOf()];
         wiresByKey[keyOf()] = blank();
@@ -3236,7 +3523,7 @@ body.ms-intro .milestone .lessoncard{visibility:hidden}
       check() {
         const level = levelAt();
         const faultOn = v2(level) && level.unit && level.unit.fault && unitState().phase === "fault" ? (level.unit.fault.on || []).filter((id) => simFor().parts[id] && simFor().parts[id].on) : [];
-        const r = v2(level) ? evaluateV2(level, wires(), { measured: measuredBy[keyOf()] || [], ratings: ratingsOf(), faultOn, liveEdits: liveEditsBy[keyOf()] || [] }) : evaluate(level, wires());
+        const r = v2(level) ? evaluateV2(level, wires(), { measured: measuredBy[keyOf()] || [], ratings: ratingsOf(), programs: programsOf(), faultOn, liveEdits: liveEditsBy[keyOf()] || [] }) : evaluate(level, wires());
         resultsByKey[keyOf()] = r;
         const u = usage();
         u.checks++;
@@ -3333,7 +3620,7 @@ body.ms-intro .milestone .lessoncard{visibility:hidden}
         const level = levelAt();
         const us = level.unit && level.unit.fault && unitState();
         if (!us || !["done", "fault"].includes(us.phase) || playMode === "verifica" || mode !== "quadro") return;
-        if (us.phase === "done") us.before = { wires: (wiresByKey[keyOf()] || []).slice(), states: { ...statesByKey[keyOf()] || {} }, result: resultsByKey[keyOf()] || null, measured: (measuredBy[keyOf()] || []).slice(), ratings: ratingsOf() };
+        if (us.phase === "done") us.before = { wires: (wiresByKey[keyOf()] || []).slice(), states: { ...statesByKey[keyOf()] || {} }, result: resultsByKey[keyOf()] || null, measured: (measuredBy[keyOf()] || []).slice(), ratings: ratingsOf(), programs: JSON.parse(JSON.stringify(programsOf())) };
         loadFaultPlant(level, us);
         emit();
       },
@@ -3380,6 +3667,7 @@ body.ms-intro .milestone .lessoncard{visibility:hidden}
     };
   }
   function demoFramesV2(level, captions) {
+    const simLevel = level.solutionPrograms ? { ...level, comps: level.comps.map((c2) => c2.type === "plc" && level.solutionPrograms[c2.id] ? { ...c2, program: level.solutionPrograms[c2.id] } : c2) } : level;
     const wires = level.solution.map(([a, b, c2], i) => ({ id: i + 1, a, b, c: c2 }));
     const self = selfPowered(level);
     const snapOf = (sim2, w, power, caption, newWire) => ({
@@ -3402,11 +3690,11 @@ body.ms-intro .milestone .lessoncard{visibility:hidden}
     const out = [];
     for (let k = 1; k <= wires.length; k++) {
       const w = wires.slice(0, k);
-      const sim2 = createSim(level, w);
+      const sim2 = createSim(simLevel, w);
       if (!self) setSupply(sim2, false);
       out.push(snapOf(sim2, w, self, (captions.wires || [])[k - 1] || "", k));
     }
-    const sim = createSim(level, wires);
+    const sim = createSim(simLevel, wires);
     setSupply(sim, true);
     out.push(snapOf(sim, wires, true, captions.power || "", null));
     const steps = level.demoDo || (level.controls || []).map((id, i) => {
@@ -5327,8 +5615,109 @@ body.ms-intro .milestone .lessoncard{visibility:hidden}
         "Stella: dal contatto 16 (chiuso a riposo) passando dal contatto NC 21-22 di KM3 alla bobina di KM2. Triangolo: dal contatto 18 (chiuso dopo il ritardo) passando dal contatto NC 21-22 di KM2 alla bobina di KM3.",
         "I due contatti NC incrociati sono l\u2019interblocco: KM3 non pu\xF2 chiudere finch\xE9 KM2 \xE8 chiuso, e viceversa. Senza interblocco, un attimo con i due insieme mette in corto le tre fasi."
       ]
+    },
+    {
+      id: "c29-plc",
+      code: "c29",
+      n: 0,
+      ...IND,
+      flow: "onDemand",
+      name: "Dal rel\xE8 al PLC",
+      title: "Dal rel\xE8 al PLC",
+      blurb: "Marcia e arresto di prima: la logica passa dai fili a un programma.",
+      goal: "Stessa macchina di marcia e arresto, ma la logica non \xE8 pi\xF9 nei fili: la fa un PLC con un programma gi\xE0 scritto. Il circuito di potenza \xE8 gi\xE0 cablato. Collega il PLC: l\u2019alimentazione, il pulsante di arresto (NC) all\u2019ingresso I0, la marcia (NA) a I1, il comune IC al neutro, l\u2019uscita Q0 alla bobina del contattore e Q1 alla spia. Il circuito di comando va in rosso.",
+      fixed: [
+        ["Q.L1", "QM.1", "marrone"],
+        ["Q.L2", "QM.3", "nero"],
+        ["Q.L3", "QM.5", "grigio"],
+        ["QM.2", "KM.1", "marrone"],
+        ["QM.4", "KM.3", "nero"],
+        ["QM.6", "KM.5", "grigio"],
+        ["KM.2", "M.U", "marrone"],
+        ["KM.4", "M.V", "nero"],
+        ["KM.6", "M.W", "grigio"],
+        ["M.PE", "Q.PE", "gv"]
+      ],
+      comps: [
+        Q3,
+        C("QM", "mt3", "Salvamotore", "Salvamotore magnetotermico", T(...T6)),
+        C("KM", "km", "Contattore", "Contattore KM", T("A1", "A2", ...T6)),
+        C("PLC", "plc", "PLC", "PLC a 4 ingressi e 2 uscite", T("A1", "A2", "I0", "I1", "I2", "IC", "Q0A", "Q0B", "Q1A", "Q1B"), {
+          program: [
+            { if: ["and", ["or", "I1", "Q0"], "I0"], do: [{ op: "coil", a: "Q0" }] },
+            { if: "Q0", do: [{ op: "coil", a: "Q1" }] }
+          ],
+          symbols: { I0: "Arresto", I1: "Marcia", Q0: "Motore", Q1: "Spia" }
+        }),
+        C("SB0", "pbnc", "Arresto", "Pulsante di arresto (NC)", T("1", "2")),
+        C("SB1", "pb", "Marcia", "Pulsante di marcia (NA)", T("3", "4")),
+        C("H", "spia", "Spia", "Spia di marcia", T("X1", "X2")),
+        C("M", "motor3", "Motore", "Motore trifase", T("U", "V", "W", "PE"))
+      ],
+      controls: ["SB0", "SB1"],
+      checks: [
+        { id: "marcia", label: "Premi Marcia e rilascia: il motore resta in marcia e la spia \xE8 accesa", do: press("SB1"), expect: { motors: { M: "fwd" }, loads: { H: "on" } } },
+        { id: "arresto", label: "Premi Arresto: il motore si ferma e la spia si spegne", steps: [{ do: press("SB1"), expect: { motors: { M: "fwd" } } }, { do: press("SB0"), expect: { motors: { M: "off" }, loads: { H: "off" } } }] },
+        { id: "fermo", label: "Senza comandi il motore \xE8 fermo", do: [], expect: { motors: { M: "off" } } }
+      ],
+      safety: { deadWork: ["QM"], earth: [["M.PE", "Q.PE"]], stopWins: "SB0", coilReturn: ["KM", "PLC"], protectedBy: { M: "QM", KM: "QM" } },
+      solution: [
+        ["Q.L1", "QM.1", "marrone"],
+        ["Q.L2", "QM.3", "nero"],
+        ["Q.L3", "QM.5", "grigio"],
+        ["QM.2", "KM.1", "marrone"],
+        ["QM.4", "KM.3", "nero"],
+        ["QM.6", "KM.5", "grigio"],
+        ["KM.2", "M.U", "marrone"],
+        ["KM.4", "M.V", "nero"],
+        ["KM.6", "M.W", "grigio"],
+        ["M.PE", "Q.PE", "gv"],
+        ["QM.2", "PLC.A1", "rosso"],
+        ["PLC.A2", "Q.N", "blu"],
+        ["QM.2", "SB0.1", "rosso"],
+        ["SB0.2", "PLC.I0", "rosso"],
+        ["QM.2", "SB1.3", "rosso"],
+        ["SB1.4", "PLC.I1", "rosso"],
+        ["PLC.IC", "Q.N", "blu"],
+        ["QM.2", "PLC.Q0A", "rosso"],
+        ["PLC.Q0B", "KM.A1", "rosso"],
+        ["KM.A2", "Q.N", "blu"],
+        ["QM.2", "PLC.Q1A", "rosso"],
+        ["PLC.Q1B", "H.X1", "rosso"],
+        ["H.X2", "Q.N", "blu"]
+      ],
+      hints: [
+        "Il PLC si alimenta come una bobina: A1 a una fase a valle del salvamotore, A2 al neutro. IC, il comune degli ingressi, va al neutro.",
+        "Gli ingressi leggono la tensione dei pulsanti: dalla fase passa il pulsante di arresto e arriva a I0, dalla fase passa il pulsante di marcia e arriva a I1.",
+        "Le uscite sono contatti a rel\xE8: la fase entra in Q0A, esce da Q0B e va alla bobina del contattore. Q1A e Q1B alimentano la spia allo stesso modo.",
+        "Il salvamotore parte chiuso: aprilo prima di cablare e richiudilo solo alla fine."
+      ]
     }
   ];
+  var C29 = LEVELS_V2.find((l) => l.id === "c29-plc");
+  LEVELS_V2.push({
+    ...C29,
+    id: "c30-ladder",
+    code: "c30",
+    name: "Ladder: l\u2019autoritenuta",
+    title: "Ladder: l\u2019autoritenuta",
+    blurb: "Scrivi tu il programma: marcia, arresto e spia.",
+    goal: "L\u2019impianto \xE8 cablato e il PLC \xE8 acceso, ma il programma \xE8 vuoto. Scrivilo tu: con Marcia il motore parte e resta in marcia a pulsante rilasciato, con Arresto si ferma, e la spia segue il motore. Ricorda che l\u2019arresto \xE8 un contatto normalmente chiuso: a riposo porta tensione e l\u2019ingresso I0 vale 1.",
+    fixed: C29.solution.map((w) => w.slice()),
+    comps: C29.comps.map((c2) => c2.type === "plc" ? { ...c2, program: void 0, title: "PLC (programma da scrivere)", edit: { markers: 0, timers: 0, counters: 0, ops: ["coil"] } } : c2),
+    solutionPrograms: {
+      PLC: [
+        { if: ["and", ["or", "I1", "Q0"], "I0"], do: [{ op: "coil", a: "Q0" }] },
+        { if: "Q0", do: [{ op: "coil", a: "Q1" }] }
+      ]
+    },
+    hints: [
+      "Un gradino ha i contatti a sinistra e la bobina a destra. Il motore \xE8 l\u2019uscita Q0: la sua bobina sta a destra del gradino 1.",
+      "Per far partire il motore serve il contatto di Marcia, I1. Ma Marcia \xE8 un impulso: appena lo rilasci vale 0. Per tenere acceso Q0 aggiungi in parallelo a I1 il contatto di Q0 stesso.",
+      "L\u2019arresto \xE8 collegato come contatto NC, quindi I0 vale 1 a riposo e vale 0 solo premendolo: in serie metti I0 come contatto normalmente aperto, non chiuso.",
+      "Il gradino 2 \xE8 semplice: un contatto Q0 e la bobina Q1, la spia."
+    ]
+  });
 
   // src/content/units-v2.js
   var UNITS_V2 = {
@@ -7791,6 +8180,284 @@ body.ms-intro .milestone .lessoncard{visibility:hidden}
         },
         fixSay: "Collega il morsetto A2 della bobina di KM3 al neutro del quadro, in blu, con il salvamotore aperto. Poi premi Verifica."
       }
+    },
+    "c29-plc": {
+      support: "passi",
+      lesson: {
+        pages: [
+          {
+            type: "spiegazione",
+            title: "La logica non \xE8 pi\xF9 nei fili",
+            paras: [
+              "In marcia e arresto la logica era nel cablaggio: il contatto 13-14 del contattore in parallelo alla marcia faceva l\u2019autoritenuta. Cambiare il comportamento voleva dire cambiare i fili.",
+              "Un PLC sposta la logica in un programma. I fili portano solo i segnali dai pulsanti al PLC e dal PLC al contattore; come si comporta la macchina lo decide il programma, che si pu\xF2 cambiare senza toccare un filo."
+            ]
+          },
+          {
+            type: "pezzi",
+            title: "Ingressi, uscite, alimentazione",
+            focus: ["PLC"],
+            paras: [
+              "Il PLC si alimenta in A1-A2, come una bobina. Gli ingressi I0, I1, I2 leggono se c\u2019\xE8 tensione tra l\u2019ingresso e il comune IC: 230 V valgono 1, niente vale 0.",
+              "Le uscite sono contatti a rel\xE8: Q0A-Q0B si chiude quando il programma accende Q0. Al contatto si collega ci\xF2 che si vuole comandare, per esempio la bobina di un contattore."
+            ],
+            warn: "Le uscite a rel\xE8 sono solo contatti: non danno tensione da sole. Il contatto va alimentato con una fase."
+          },
+          {
+            type: "spiegazione",
+            title: "Il programma gira in continuazione",
+            paras: [
+              "Il PLC ripete sempre lo stesso ciclo, la scansione: legge gli ingressi, esegue il programma dal primo all\u2019ultimo gradino, poi scrive le uscite. Il ciclo dura pochi millisecondi, quindi per noi \xE8 istantaneo.",
+              "Un gradino ha una condizione a sinistra, fatta di contatti, e un\u2019uscita a destra. Il contatto normalmente aperto \xE8 vero se il bit vale 1; il contatto normalmente chiuso \xE8 vero se il bit vale 0. Contatti in serie sono un E, contatti in parallelo un O."
+            ]
+          },
+          {
+            type: "spiegazione",
+            title: "Il programma di questo livello",
+            paras: [
+              "Gradino 1: Q0 \xE8 acceso se (Marcia I1 oppure Q0 stesso) e I0. Q0 che si rilegge \xE8 l\u2019autoritenuta: una volta acceso, resta acceso anche a marcia rilasciata.",
+              "I0 \xE8 il pulsante di arresto, normalmente chiuso: a riposo porta 230 V e I0 vale 1. Premendo Arresto I0 vale 0 e il gradino si spegne. Gradino 2: la spia Q1 segue Q0. Il programma si vede sotto il banco."
+            ],
+            warn: "L\u2019arresto \xE8 un contatto NC: se il filo si stacca, l\u2019ingresso vale 0 e la macchina si ferma. \xC8 il lato sicuro."
+          },
+          {
+            type: "demo",
+            title: "Guarda come si fa",
+            captions: {
+              wires: [
+                "La fase L1 entra nel salvamotore, morsetto 1.",
+                "La fase L2 entra nel salvamotore, morsetto 3.",
+                "La fase L3 entra nel salvamotore, morsetto 5.",
+                "Dal salvamotore al contattore.",
+                "Dal salvamotore al contattore.",
+                "Dal salvamotore al contattore.",
+                "Dal contattore al motore.",
+                "Dal contattore al motore.",
+                "Dal contattore al motore.",
+                "La terra del quadro al motore.",
+                "Il PLC si alimenta: una fase a valle del salvamotore ad A1.",
+                "A2 va al neutro.",
+                "La fase passa dal pulsante di arresto (NC).",
+                "E dall\u2019arresto arriva all\u2019ingresso I0.",
+                "La fase passa dal pulsante di marcia (NA).",
+                "E dalla marcia arriva all\u2019ingresso I1.",
+                "Il comune degli ingressi IC va al neutro.",
+                "Il contatto di uscita Q0 riceve la fase.",
+                "Dal contatto Q0 alla bobina del contattore.",
+                "La bobina del contattore torna al neutro.",
+                "Il contatto di uscita Q1 riceve la fase.",
+                "Dal contatto Q1 alla spia.",
+                "La spia torna al neutro."
+              ],
+              power: "Il salvamotore \xE8 aperto: tutto a valle \xE8 senza tensione.",
+              controls: []
+            }
+          },
+          {
+            type: "previsione",
+            question: "Il filo del pulsante di arresto si stacca dall\u2019ingresso I0. Che cosa succede?",
+            options: [
+              { id: "a", text: "Il motore parte lo stesso: l\u2019arresto non serve se non \xE8 premuto." },
+              { id: "b", text: "I0 vale 0, quindi il programma non accende Q0: il motore non parte, ed eventualmente si ferma." },
+              { id: "c", text: "Niente: il PLC ricorda l\u2019ultimo valore dell\u2019ingresso." }
+            ],
+            correct: "b",
+            why: "L\u2019arresto \xE8 normalmente chiuso, quindi a riposo porta tensione e I0 vale 1. Un filo staccato toglie la tensione: I0 vale 0, come se si premesse Arresto. Il guasto porta la macchina nello stato sicuro."
+          },
+          {
+            type: "previsione",
+            question: "Perch\xE9 nel gradino 1 compare anche Q0 oltre a I1?",
+            options: [
+              { id: "a", text: "Per far partire il motore pi\xF9 forte." },
+              { id: "b", text: "Perch\xE9 Q0 si rilegge e tiene acceso il gradino quando Marcia viene rilasciata: \xE8 l\u2019autoritenuta nel programma." },
+              { id: "c", text: "Per contare quante volte si preme Marcia." }
+            ],
+            correct: "b",
+            why: "Marcia \xE8 un impulso. Appena I1 torna a 0, serve qualcosa che tenga acceso Q0: lo stesso Q0, in parallelo a I1, che vale 1 finch\xE9 il gradino resta vero."
+          },
+          { type: "sintesi", title: "Da ricordare" }
+        ]
+      },
+      steps: [
+        { kind: "control", id: "QM", short: "0 Sezionamento", title: "Apri il salvamotore", text: "Il salvamotore parte chiuso: aprilo toccando la levetta, cos\xEC i morsetti a valle sono senza tensione mentre cabli. Lo richiudi solo alla fine, per provare." },
+        { kind: "wire", from: "PLC.A1", to: ["QM.2"], color: "rosso", short: "1 Alimentazione", title: "Alimenta il PLC", text: "Filo rosso da una fase a valle del salvamotore (morsetto 2) ad A1, filo blu da A2 al neutro." },
+        { kind: "wire", from: "SB0.2", to: ["PLC.I0"], color: "rosso", short: "2 Arresto", title: "Arresto all\u2019ingresso I0", text: "Dalla fase al morsetto 1 del pulsante di arresto, dal morsetto 2 all\u2019ingresso I0, in rosso." },
+        { kind: "wire", from: "SB1.4", to: ["PLC.I1"], color: "rosso", short: "3 Marcia", title: "Marcia all\u2019ingresso I1", text: "Dalla fase al morsetto 3 del pulsante di marcia, dal morsetto 4 all\u2019ingresso I1, in rosso." },
+        { kind: "wire", from: "PLC.IC", to: ["Q.N"], color: "blu", short: "4 Comune", title: "Il comune degli ingressi", text: "Il morsetto IC al neutro, in blu: gli ingressi leggono la tensione rispetto a lui." },
+        { kind: "wire", from: "PLC.Q0B", to: ["KM.A1"], color: "rosso", short: "5 Uscita Q0", title: "L\u2019uscita Q0 al contattore", text: "La fase entra in Q0A, esce da Q0B e va ad A1 del contattore. A2 del contattore va al neutro." },
+        { kind: "wire", from: "PLC.Q1B", to: ["H.X1"], color: "rosso", short: "6 Uscita Q1", title: "L\u2019uscita Q1 alla spia", text: "La fase entra in Q1A, esce da Q1B e va alla spia. L\u2019altro capo della spia va al neutro." },
+        { kind: "control", id: "SB1", short: "7 Prova", title: "Prova la marcia", text: "Chiudi il salvamotore e premi Marcia: il motore parte e resta in marcia. Premi Arresto: si ferma." },
+        { kind: "verify", short: "8 Verifica", title: "Controlla l\u2019impianto", text: "Premi Verifica." }
+      ],
+      summary: [
+        "Con un PLC la logica sta nel programma e i fili portano solo i segnali.",
+        "Un ingresso vale 1 se c\u2019\xE8 tensione tra l\u2019ingresso e il comune IC. Le uscite a rel\xE8 sono contatti che il programma chiude.",
+        "Il programma gira a cicli (scansione): legge gli ingressi, esegue i gradini, scrive le uscite.",
+        "L\u2019autoritenuta si fa rileggendo l\u2019uscita nel gradino, in parallelo alla marcia.",
+        "L\u2019arresto resta normalmente chiuso: un filo staccato ferma la macchina."
+      ],
+      fault: {
+        say: "L\u2019impianto \xE8 gi\xE0 cablato, ma premendo Marcia il motore non parte. Guarda il PLC: gli ingressi si accendono?",
+        wires: [
+          ["Q.L1", "QM.1", "marrone"],
+          ["Q.L2", "QM.3", "nero"],
+          ["Q.L3", "QM.5", "grigio"],
+          ["QM.2", "KM.1", "marrone"],
+          ["QM.4", "KM.3", "nero"],
+          ["QM.6", "KM.5", "grigio"],
+          ["KM.2", "M.U", "marrone"],
+          ["KM.4", "M.V", "nero"],
+          ["KM.6", "M.W", "grigio"],
+          ["M.PE", "Q.PE", "gv"],
+          ["QM.2", "PLC.A1", "rosso"],
+          ["PLC.A2", "Q.N", "blu"],
+          ["QM.2", "SB0.1", "rosso"],
+          ["SB0.2", "PLC.I0", "rosso"],
+          ["QM.2", "SB1.3", "rosso"],
+          ["SB1.4", "PLC.I1", "rosso"],
+          ["QM.2", "PLC.Q0A", "rosso"],
+          ["PLC.Q0B", "KM.A1", "rosso"],
+          ["KM.A2", "Q.N", "blu"],
+          ["QM.2", "PLC.Q1A", "rosso"],
+          ["PLC.Q1B", "H.X1", "rosso"],
+          ["H.X2", "Q.N", "blu"]
+        ],
+        diagnosis: {
+          question: "Perch\xE9 il motore non parte?",
+          options: [
+            { id: "a", text: "Il comune degli ingressi IC non \xE8 collegato al neutro: gli ingressi non vedono mai tensione." },
+            { id: "b", text: "Il programma del PLC \xE8 sbagliato." },
+            { id: "c", text: "Il contattore \xE8 bruciato." }
+          ],
+          correct: "a",
+          why: "Un ingresso legge la tensione tra se stesso e IC. Con IC scollegato non c\u2019\xE8 un ritorno: anche premendo Marcia, e anche con Arresto a riposo, tutti gli ingressi valgono 0 e il programma non accende mai Q0. Il programma \xE8 giusto: manca il filo."
+        },
+        fixSay: "Collega il morsetto IC del PLC al neutro del quadro, in blu, con il salvamotore aperto. Poi premi Verifica."
+      }
+    },
+    "c30-ladder": {
+      support: "passi",
+      lesson: {
+        pages: [
+          {
+            type: "spiegazione",
+            title: "Il ladder: lo schema a scala",
+            paras: [
+              "Il ladder (schema a contatti) si legge come uno schema elettrico a rel\xE8: due montanti verticali, e tra l\u2019uno e l\u2019altro i gradini. Ogni gradino ha a sinistra dei contatti e a destra una bobina.",
+              'La corrente "passa" nel gradino da sinistra a destra se i contatti lasciano passare. Quando passa, la bobina si accende: nel PLC la bobina \xE8 un\u2019uscita (Q0, Q1) o un bit interno.'
+            ]
+          },
+          {
+            type: "spiegazione",
+            title: "Contatti in serie e in parallelo",
+            paras: [
+              "Un contatto normalmente aperto lascia passare quando il suo bit vale 1. Un contatto normalmente chiuso lascia passare quando il bit vale 0.",
+              "Contatti in serie sono un E: servono tutti. Contatti in parallelo sono un O: ne basta uno. L\u2019autoritenuta \xE8 proprio un parallelo: Marcia oppure l\u2019uscita stessa."
+            ]
+          },
+          {
+            type: "previsione",
+            question: "Un gradino ha un contatto normalmente aperto su I1 e la bobina Q0. Che cosa succede se I1 vale 1?",
+            options: [
+              { id: "a", text: "Q0 si accende, e si spegne quando I1 torna a 0." },
+              { id: "b", text: "Q0 si accende e resta acceso per sempre." },
+              { id: "c", text: "Non succede niente: serve un contatto normalmente chiuso." }
+            ],
+            correct: "a",
+            why: "Una bobina segue la condizione del suo gradino: la condizione \xE8 vera quando I1 vale 1, quindi Q0 vale 1, e torna a 0 quando I1 torna a 0. Per farlo restare acceso serve l\u2019autoritenuta."
+          },
+          {
+            type: "previsione",
+            question: "Marcia \xE8 un impulso e deve far restare acceso Q0 anche dopo il rilascio. Come si aggiunge il contatto di Q0 al contatto di Marcia?",
+            options: [
+              { id: "a", text: "In serie: servono tutti e due." },
+              { id: "b", text: "In parallelo: ne basta uno dei due." },
+              { id: "c", text: "Non serve: il PLC ricorda l\u2019ultimo valore." }
+            ],
+            correct: "b",
+            why: "All\u2019inizio Q0 vale 0, quindi serve Marcia. Una volta acceso, Q0 vale 1 e tiene vero il gradino anche con Marcia a 0. Due contatti dei quali basta uno sono in parallelo."
+          },
+          {
+            type: "spiegazione",
+            title: "Come si scrive il programma",
+            paras: [
+              "Sotto il banco c\u2019\xE8 l\u2019editor. Premi Nuovo gradino, poi Aggiungi contatto e scegli quale ingresso o uscita leggere. Toccando un contatto puoi cambiarlo, metterlo normalmente chiuso, affiancarne uno in parallelo o toglierlo. Alla fine scegli la bobina del gradino.",
+              "Il PLC \xE8 acceso e il programma gira: prova subito Marcia e Arresto e guarda i contatti che si colorano."
+            ],
+            warn: "L\u2019arresto \xE8 cablato come contatto NC: a riposo porta tensione e I0 vale 1. Nel programma il suo contatto serve normalmente aperto, perch\xE9 deve lasciar passare quando I0 vale 1."
+          },
+          {
+            type: "previsione",
+            question: "Con l\u2019arresto cablato NC, quale contatto di I0 metti nel gradino del motore?",
+            options: [
+              { id: "a", text: "Normalmente aperto: lascia passare quando I0 vale 1, cio\xE8 a riposo." },
+              { id: "b", text: "Normalmente chiuso: cos\xEC si ferma quando viene premuto." },
+              { id: "c", text: "Nessuno: l\u2019arresto non serve nel programma." }
+            ],
+            correct: "a",
+            why: '\xC8 facile sbagliare: "arresto = contatto chiuso". Ma \xE8 l\u2019ingresso I0 a valere 1 a riposo, perch\xE9 il pulsante cablato NC porta tensione. Premendo, I0 va a 0 e un contatto normalmente aperto smette di lasciar passare: il motore si ferma.'
+          },
+          { type: "sintesi", title: "Da ricordare" }
+        ]
+      },
+      steps: [
+        { kind: "program", plc: "PLC", min: 1, short: "1 Motore", title: "Il gradino del motore", text: "Nuovo gradino: Marcia (I1) in parallelo a Q0, in serie con l\u2019arresto (I0), e la bobina Q0." },
+        { kind: "program", plc: "PLC", min: 2, short: "2 Spia", title: "Il gradino della spia", text: "Secondo gradino: un contatto Q0 e la bobina Q1." },
+        { kind: "control", id: "SB1", short: "3 Prova", title: "Prova la marcia", text: "Premi Marcia: il motore parte e resta in marcia. Premi Arresto: si ferma." },
+        { kind: "verify", short: "4 Verifica", title: "Controlla il programma", text: "Premi Verifica." }
+      ],
+      summary: [
+        "Un gradino ha i contatti a sinistra e la bobina a destra: la bobina segue la condizione.",
+        "Contatti in serie sono un E, contatti in parallelo un O.",
+        "L\u2019autoritenuta \xE8 l\u2019uscita stessa messa in parallelo al contatto di marcia.",
+        "Un contatto normalmente aperto lascia passare con il bit a 1: con l\u2019arresto cablato NC, I0 vale 1 a riposo.",
+        "Il programma si prova subito: il PLC gira e i contatti si colorano."
+      ],
+      fault: {
+        say: "Il programma \xE8 gi\xE0 scritto, ma premendo Marcia il motore non parte. Guarda i contatti nel ladder: quale non si colora?",
+        wires: [
+          ["Q.L1", "QM.1", "marrone"],
+          ["Q.L2", "QM.3", "nero"],
+          ["Q.L3", "QM.5", "grigio"],
+          ["QM.2", "KM.1", "marrone"],
+          ["QM.4", "KM.3", "nero"],
+          ["QM.6", "KM.5", "grigio"],
+          ["KM.2", "M.U", "marrone"],
+          ["KM.4", "M.V", "nero"],
+          ["KM.6", "M.W", "grigio"],
+          ["M.PE", "Q.PE", "gv"],
+          ["QM.2", "PLC.A1", "rosso"],
+          ["PLC.A2", "Q.N", "blu"],
+          ["QM.2", "SB0.1", "rosso"],
+          ["SB0.2", "PLC.I0", "rosso"],
+          ["QM.2", "SB1.3", "rosso"],
+          ["SB1.4", "PLC.I1", "rosso"],
+          ["PLC.IC", "Q.N", "blu"],
+          ["QM.2", "PLC.Q0A", "rosso"],
+          ["PLC.Q0B", "KM.A1", "rosso"],
+          ["KM.A2", "Q.N", "blu"],
+          ["QM.2", "PLC.Q1A", "rosso"],
+          ["PLC.Q1B", "H.X1", "rosso"],
+          ["H.X2", "Q.N", "blu"]
+        ],
+        programs: {
+          PLC: [
+            { if: ["and", ["or", "I1", "Q0"], ["not", "I0"]], do: [{ op: "coil", a: "Q0" }] },
+            { if: "Q0", do: [{ op: "coil", a: "Q1" }] }
+          ]
+        },
+        diagnosis: {
+          question: "Perch\xE9 il motore non parte?",
+          options: [
+            { id: "a", text: "Il contatto di I0 \xE8 normalmente chiuso, ma I0 vale 1 a riposo: il gradino non \xE8 mai vero." },
+            { id: "b", text: "Manca l\u2019autoritenuta." },
+            { id: "c", text: "Il pulsante di marcia \xE8 rotto." }
+          ],
+          correct: "a",
+          why: "L\u2019arresto \xE8 cablato NC, quindi I0 vale 1 a riposo e 0 solo premendolo. Un contatto normalmente chiuso su I0 lascia passare con I0 a 0: a riposo il gradino \xE8 sempre interrotto, e Marcia non basta. Serve un contatto normalmente aperto."
+        },
+        fixSay: "Tocca il contatto di I0 nel gradino 1 e cambialo in normalmente aperto. Poi premi Verifica."
+      }
     }
   };
 
@@ -7824,6 +8491,7 @@ body.ms-intro .milestone .lessoncard{visibility:hidden}
     km: ["Il contattore", "Ha una bobina (A1 e A2) e dei contatti. Con la bobina alimentata si chiudono i tre poli di potenza (1-2, 3-4, 5-6) e il contatto ausiliario normalmente aperto (13-14); si apre quello normalmente chiuso (21-22). Il circuito di comando e quello di potenza sono separati."],
     kt: ["Il temporizzatore all\u2019eccitazione", "Ha una bobina (A1 e A2) e un contatto di scambio: 15 \xE8 il comune, 16 \xE8 chiuso a riposo, 18 si chiude dopo il tempo impostato. Se la bobina si diseccita torna subito a riposo. Serve per passare da stella a triangolo."],
     motor6: ["Il motore a sei morsetti", "Ha tre avvolgimenti: U1-U2, V1-V2, W1-W2, pi\xF9 il morsetto PE. A stella si uniscono U2, V2, W2 e ogni avvolgimento riceve 230 V. A triangolo U1 va con W2, V1 con U2, W1 con V2 e ogni avvolgimento riceve 400 V."],
+    plc: ["Il PLC", "\xC8 un piccolo computer per le macchine. Si alimenta in A1-A2. Gli ingressi I0, I1, I2 leggono se c\u2019\xE8 tensione rispetto al comune IC (1 se ci sono 230 V). Ogni uscita Q \xE8 un contatto a rel\xE8, per esempio Q0A-Q0B, che si chiude quando il programma lo decide. Il programma si ripete in continuazione: legge gli ingressi, esegue i gradini, scrive le uscite."],
     ft: ["Il rel\xE8 termico", "Sta in serie al motore e si scalda se il motore assorbe troppa corrente. Dopo un po\u2019 scatta: apre il contatto 95-96 del comando e il motore si ferma. Si riarma a mano con il tasto Reset."],
     mt: ["L\u2019interruttore magnetotermico", "Protegge la linea da sovraccarico e cortocircuito: scatta da solo. Levetta su: chiuso. Levetta gi\xF9: aperto. Ha un polo per la fase e uno per il neutro."],
     mt3: ["Il salvamotore magnetotermico trifase", "Protegge il motore e i circuiti collegati dopo di lui. Ha tre poli, uno per fase. Levetta su: chiuso. Scatta in caso di cortocircuito."],
@@ -7962,6 +8630,8 @@ body.ms-intro .milestone .lessoncard{visibility:hidden}
         return "Il comando \xE8 sul lato del neutro: la bobina (" + nameOf(level, item.comp) + ") ha il capo A2 che non va direttamente al neutro. I comandi stanno sul lato della fase.";
       case "safe.motorLive":
         return "A comandi rilasciati il motore (" + nameOf(level, item.comp) + ") ha una fase sui suoi morsetti: una fase salta il contattore o la protezione.";
+      case "safe.emergencyInProgram":
+        return "L\u2019emergenza passa solo dal programma del PLC: se il PLC sbaglia, la macchina non si ferma. Il fungo deve interrompere il comando anche con le uscite del PLC accese.";
       case "safe.interlock":
         return "I due contattori possono chiudersi insieme: manca l\u2019interblocco, e le fasi andrebbero in cortocircuito.";
       case "safe.stopNotPriority":
@@ -8038,6 +8708,28 @@ body.ms-intro .milestone .lessoncard{visibility:hidden}
     if (!flow || !flow.deadEnds.length) return "";
     const t = flow.deadEnds[0];
     return "La tensione arriva fino a " + termName(level, t) + " e l\xEC si ferma.";
+  }
+  function progText(e) {
+    switch (e.code) {
+      case "prog.tooLong":
+        return "Il programma \xE8 troppo lungo: " + e.n + " gradini.";
+      case "prog.rungEmpty":
+        return "Il gradino " + e.rung + " non ha ancora una bobina: aggiungine una.";
+      case "prog.noCondition":
+        return "Il gradino " + e.rung + " non ha contatti: la bobina non si accender\xE0 mai.";
+      case "prog.badAddr":
+        return "Il gradino " + e.rung + " usa un indirizzo non valido (" + e.addr + ").";
+      case "prog.noSuchIo":
+        return "Il gradino " + e.rung + " usa " + e.addr + ", che questo PLC non ha.";
+      case "prog.writeInput":
+        return "Il gradino " + e.rung + " prova a scrivere su " + e.addr + ": gli ingressi si possono solo leggere.";
+      case "prog.doubleCoil":
+        return "La bobina " + e.addr + " \xE8 usata in due gradini: l\u2019ultima vince e il primo non serve. Una bobina per uscita.";
+      case "prog.badPreset":
+        return "Il gradino " + e.rung + " ha un tempo o un conteggio non valido.";
+      default:
+        return "Il programma ha un errore nel gradino " + (e.rung || "?") + ".";
+    }
   }
 
   // src/content/trilocale.js
@@ -8225,8 +8917,8 @@ body.ms-intro .milestone .lessoncard{visibility:hidden}
       title: "Automazione",
       levels: [
         "c28-stella-triangolo",
-        { soon: true, title: "Dal rel\xE8 al PLC", blurb: "La marcia e arresto di prima, rifatta con ingressi, uscite e un programma." },
-        { soon: true, title: "Ladder: l\u2019autoritenuta", blurb: "Contatti, bobine e la scansione del programma." },
+        "c29-plc",
+        "c30-ladder",
         { soon: true, title: "Tempo e conteggio", blurb: "Temporizzatori e contatori nel programma." },
         { soon: true, title: "Il nastro con il PLC", blurb: "Fotocellula e conteggio; fungo e termico restano cablati." }
       ],
@@ -8422,6 +9114,7 @@ body.ms-intro .milestone .lessoncard{visibility:hidden}
     gu: [HALF, 112, [], []],
     rel: [HALF, 150, ["A1", "A2", "11"], ["12", "14"]],
     kt: [HALF, 150, ["A1", "A2", "15"], ["16", "18"]],
+    plc: [FULL, 200, ["A1", "A2", "I0", "I1", "I2", "IC"], ["Q0A", "Q0B", "Q1A", "Q1B"]],
     km: [FULL, 190, ["A1", "1", "3", "5", "13", "21"], ["A2", "2", "4", "6", "14", "22"]],
     ft: [FULL, 150, ["1", "3", "5", "95", "97"], ["2", "4", "6", "96", "98"], 0.3],
     fc: [HALF, 110, ["1", "3"], ["2", "4"]],
@@ -8652,6 +9345,30 @@ body.ms-intro .milestone .lessoncard{visibility:hidden}
         o += lab(xn, h - 6, "12 NC") + lab(xa, h - 6, "14 NA");
         break;
       }
+      case "plc": {
+        const st2 = obs2.plc && obs2.plc[c2.id] || { powered: false, inputs: {}, q: {} };
+        o += `<rect x="${w * 0.06}" y="${mid - 40}" width="${w * 0.88}" height="${h * 0.34}" rx="6" fill="none" stroke="${st2.powered ? "#2E9E5B" : "var(--sch)"}" stroke-width="2.6"/>`;
+        o += lab(w / 2, mid - 8, st2.powered ? "PLC \xB7 RUN" : "PLC \xB7 SPENTO");
+        ["A1", "A2"].forEach((t) => {
+          if (has(c2, t)) {
+            const x = w * c2.terms[t].f;
+            o += ln(x, 22, x, mid - 40, L(t));
+          }
+        });
+        Object.keys(c2.terms).filter((t) => /^I\d+$/.test(t) || t === "IC").forEach((t) => {
+          const x = w * c2.terms[t].f;
+          o += ln(x, 22, x, mid - 40, L(t));
+          if (t !== "IC") o += `<circle cx="${x}" cy="${mid - 30}" r="4.5" fill="${st2.inputs[t] ? "#F59F00" : "none"}" stroke="var(--sch)" stroke-width="1.6"/>`;
+        });
+        Object.keys(c2.terms).filter((t) => /^Q\d+A$/.test(t)).forEach((a) => {
+          const k = a.slice(0, -1), b = k + "B", on = !!st2.q[k];
+          const xa = w * c2.terms[a].f, xb = w * c2.terms[b].f, ym = h - 54;
+          o += ln(xa, ym, xa, h - 22, L(a)) + ln(xb, ym, xb, h - 22, L(b)) + dot(xa, ym) + dot(xb, ym);
+          o += on ? ln(xa, ym, xb, ym, L(a) && L(b)) : ln(xa, ym, xb - 12, ym - 12, false);
+          o += `<circle cx="${(xa + xb) / 2}" cy="${mid + 22}" r="4.5" fill="${on ? "#F59F00" : "none"}" stroke="var(--sch)" stroke-width="1.6"/>` + lab((xa + xb) / 2, mid + 40, k);
+        });
+        break;
+      }
       case "kt": {
         const x1 = w * c2.terms.A1.f, x2 = w * c2.terms.A2.f, xc = w * c2.terms["15"].f, xn = w * c2.terms["16"].f, xa = w * c2.terms["18"].f;
         const on = !!part2.on;
@@ -8792,7 +9509,7 @@ body.ms-intro .milestone .lessoncard{visibility:hidden}
     }
     return o;
   }
-  var V2_TYPES = /* @__PURE__ */ new Set(["quadro", "mt", "rcd", "mt3", "sez", "pb", "pbnc", "fungo", "port", "rs", "ri", "rel", "tmr", "km", "ft", "fc", "trafo", "bell", "spia", "lamp", "presa", "motor3", "motor6", "kt", "gu"]);
+  var V2_TYPES = /* @__PURE__ */ new Set(["quadro", "mt", "rcd", "mt3", "sez", "pb", "pbnc", "fungo", "port", "rs", "ri", "rel", "tmr", "km", "ft", "fc", "trafo", "bell", "spia", "lamp", "presa", "motor3", "motor6", "kt", "plc", "gu"]);
   var DEV = /* @__PURE__ */ new Set(["lamp", "spia", "bell", "presa", "motor3", "motor6"]);
   var WALLCTL = { sw: "tog", dev: "tog", inv: "tog", pb: "hold", pbnc: "hold", fungo: "mush", port: "tog" };
   function roomV2HTML(level) {
@@ -9707,6 +10424,252 @@ body.ms-intro .milestone .lessoncard{visibility:hidden}
     const triItems = levelList.filter((l) => /^t\d\d-/.test(l.id) && l.unit && l.unit.summary);
     const triHTML = triItems.length ? `<section class="qmod"><div class="kick">MODULO 1</div><h2>Il trilocale</h2>${triItems.map((l) => `<article class="qlv"><h3>${esc(l.title)}</h3><ul class="sum">${l.unit.summary.map((t) => `<li>${esc(t)}</li>`).join("")}</ul></article>`).join("")}</section>` : "";
     return `<div class="levelbar"><a class="back" href="#/home">&larr; Mappa</a></div><div class="card quaderno"><div class="qhead"><h1>Quaderno</h1><button class="btn" data-act="print">Stampa</button></div><p class="note">Le sintesi dei livelli, da ripassare o stampare. Sono sempre consultabili, anche per i livelli non ancora giocati.</p>${mods}${triHTML}</div>`;
+  }
+
+  // src/engine/ladder-edit.js
+  var contactExpr = (c2) => c2.rise ? ["rise", c2.a] : c2.not ? ["not", c2.a] : c2.a;
+  function parseContact(e) {
+    if (typeof e === "string") return { a: e };
+    if (Array.isArray(e) && e.length === 2 && typeof e[1] === "string") {
+      if (e[0] === "not") return { a: e[1], not: true };
+      if (e[0] === "rise") return { a: e[1], rise: true };
+    }
+    return null;
+  }
+  function toCells(expr) {
+    if (expr === void 0 || expr === null) return [];
+    const one = parseContact(expr);
+    if (one) return [{ alts: [one] }];
+    if (!Array.isArray(expr)) return null;
+    const cellOf = (e) => {
+      const c3 = parseContact(e);
+      if (c3) return { alts: [c3] };
+      if (Array.isArray(e) && e[0] === "or") {
+        const alts = e.slice(1).map(parseContact);
+        return alts.length && alts.every(Boolean) ? { alts } : null;
+      }
+      return null;
+    };
+    if (expr[0] === "and") {
+      const cells = expr.slice(1).map(cellOf);
+      return cells.every(Boolean) ? cells : null;
+    }
+    const c2 = cellOf(expr);
+    return c2 ? [c2] : null;
+  }
+  function fromCells(cells) {
+    if (!cells.length) return void 0;
+    const cell = (c2) => c2.alts.length === 1 ? contactExpr(c2.alts[0]) : ["or", ...c2.alts.map(contactExpr)];
+    return cells.length === 1 ? cell(cells[0]) : ["and", ...cells.map(cell)];
+  }
+  var clone = (p) => JSON.parse(JSON.stringify(p || []));
+  var withRung = (p, i, fn) => {
+    const q = clone(p);
+    if (!q[i]) return q;
+    const r = q[i];
+    const cells = toCells(r.if);
+    if (cells === null) return q;
+    const out = fn(r, cells);
+    if (out) r.if = fromCells(out);
+    if (r.if === void 0) delete r.if;
+    return q;
+  };
+  var emptyRung = () => ({ do: [] });
+  var addRung = (p) => clone(p).concat([emptyRung()]);
+  var removeRung = (p, i) => clone(p).filter((_, k) => k !== i);
+  function moveRung(p, i, dir) {
+    const q = clone(p), j = i + dir;
+    if (j < 0 || j >= q.length) return q;
+    [q[i], q[j]] = [q[j], q[i]];
+    return q;
+  }
+  var addContact = (p, i, contact) => withRung(p, i, (r, cells) => cells.concat([{ alts: [contact] }]));
+  var setContact = (p, i, cell, alt, contact) => withRung(p, i, (r, cells) => {
+    if (cells[cell] && cells[cell].alts[alt]) cells[cell].alts[alt] = contact;
+    return cells;
+  });
+  var removeContact = (p, i, cell, alt) => withRung(p, i, (r, cells) => {
+    if (!cells[cell]) return cells;
+    cells[cell].alts.splice(alt, 1);
+    return cells.filter((c2) => c2.alts.length);
+  });
+  var addParallel = (p, i, cell, contact) => withRung(p, i, (r, cells) => {
+    if (cells[cell]) cells[cell].alts.push(contact);
+    return cells;
+  });
+  function setOut(p, i, k, ins) {
+    const q = clone(p);
+    if (q[i] && q[i].do[k]) q[i].do[k] = ins;
+    return q;
+  }
+  function addOut(p, i, ins) {
+    const q = clone(p);
+    if (q[i]) q[i].do.push(ins);
+    return q;
+  }
+  function removeOut(p, i, k) {
+    const q = clone(p);
+    if (q[i]) q[i].do = q[i].do.filter((_, n) => n !== k);
+    return q;
+  }
+  function addressesFor(plcComp, opts = {}) {
+    const terms = Object.keys(plcComp && plcComp.terms || {});
+    const inputs = terms.filter((t) => /^I\d+$/.test(t)).sort();
+    const outputs = terms.filter((t) => /^Q\d+A$/.test(t)).map((t) => t.slice(0, -1)).sort();
+    const n = (k) => Array.from({ length: opts[k] || 0 }, (_, i) => (k === "markers" ? "M" : k === "timers" ? "T" : "C") + (k === "markers" ? i : i + 1));
+    return { inputs, outputs, markers: n("markers"), timers: n("timers"), counters: n("counters") };
+  }
+
+  // src/ui2d/ladder.js
+  var CW = 68;
+  var CH = 54;
+  var PAD = 14;
+  var OUT_W = 96;
+  var esc2 = (s) => String(s).replace(/[&<>"]/g, (c2) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c2]);
+  function evalBits(e, bits) {
+    if (typeof e === "string") return !!bits[e];
+    if (!Array.isArray(e)) return false;
+    const [op, ...a] = e;
+    if (op === "not") return !evalBits(a[0], bits);
+    if (op === "and") return a.every((x) => evalBits(x, bits));
+    if (op === "or") return a.some((x) => evalBits(x, bits));
+    if (op === "rise") return !!bits[a[0]];
+    return false;
+  }
+  var isLeaf = (e) => typeof e === "string" || Array.isArray(e) && (e[0] === "not" || e[0] === "rise");
+  function size(e) {
+    if (e === void 0 || e === null) return { w: CW, h: CH };
+    if (isLeaf(e)) return { w: CW, h: CH };
+    const kids = e.slice(1).map(size);
+    if (e[0] === "and") return { w: kids.reduce((s, k) => s + k.w, 0), h: Math.max(...kids.map((k) => k.h)) };
+    return { w: Math.max(...kids.map((k) => k.w)) + 2 * PAD, h: kids.reduce((s, k) => s + k.h, 0) };
+  }
+  var same = (a, b) => a && b && a.kind === b.kind && a.r === b.r && a.cell === b.cell && a.alt === b.alt && a.out === b.out;
+  function draw(e, x, y, w, bits, names, on, cx, path = []) {
+    const my = y + CH / 2;
+    if (isLeaf(e)) {
+      const addr = typeof e === "string" ? e : e[1], nc = Array.isArray(e) && e[0] === "not", rise = Array.isArray(e) && e[0] === "rise";
+      const v = evalBits(e, bits);
+      const mx = x + w / 2;
+      const col = v ? "lad-on" : "lad-off";
+      let o2 = `<path class="lad-wire ${on ? "lad-on" : ""}" d="M${x} ${my}H${mx - 11}M${mx + 11} ${my}H${x + w}"/>`;
+      o2 += `<path class="lad-c ${col}" d="M${mx - 11} ${my - 13}V${my + 13}M${mx + 11} ${my - 13}V${my + 13}"/>`;
+      if (nc) o2 += `<path class="lad-c ${col}" d="M${mx - 15} ${my + 14}L${mx + 15} ${my - 14}"/>`;
+      if (rise) o2 += `<text class="lad-s" x="${mx}" y="${my + 4}" text-anchor="middle">P</text>`;
+      o2 += `<text class="lad-n" x="${mx}" y="${y + 8}" text-anchor="middle">${esc2(names[addr] || "")}</text>`;
+      o2 += `<text class="lad-a" x="${mx}" y="${y + CH - 2}" text-anchor="middle">${addr}</text>`;
+      if (cx.edit) {
+        const t = { kind: "c", r: cx.r, cell: path.length ? path[0] : 0, alt: path.length > 1 ? path[1] : 0 };
+        o2 += `<rect class="lad-hit${same(cx.sel, t) ? " lad-sel" : ""}" data-lad="c" data-r="${t.r}" data-cell="${t.cell}" data-alt="${t.alt}" x="${x + 4}" y="${y + 2}" width="${w - 8}" height="${CH - 4}" rx="8" tabindex="0" role="button" aria-label="Contatto ${esc2(names[addr] || addr)}${nc ? ", normalmente chiuso" : ""}"/>`;
+      }
+      return o2;
+    }
+    const [op, ...kids] = e;
+    if (op === "and") {
+      let o2 = "", px2 = x;
+      const sizes = kids.map(size);
+      const extra = (w - sizes.reduce((s, k) => s + k.w, 0)) / kids.length;
+      kids.forEach((k, i) => {
+        const kw = sizes[i].w + extra;
+        o2 += draw(k, px2, y, kw, bits, names, on, cx, path.length ? path : [i]);
+        px2 += kw;
+      });
+      return o2;
+    }
+    let o = "", py = y;
+    const rows = [];
+    kids.forEach((k, j) => {
+      const s = size(k);
+      rows.push(py + CH / 2);
+      o += `<path class="lad-wire ${on ? "lad-on" : ""}" d="M${x} ${py + CH / 2}H${x + PAD}M${x + w - PAD} ${py + CH / 2}H${x + w}"/>`;
+      o += draw(k, x + PAD, py, w - 2 * PAD, bits, names, on, cx, path.length ? path.concat([j]) : [0, j]);
+      py += s.h;
+    });
+    o += `<path class="lad-wire ${on ? "lad-on" : ""}" d="M${x} ${rows[0]}V${rows[rows.length - 1]}M${x + w} ${rows[0]}V${rows[rows.length - 1]}"/>`;
+    return o;
+  }
+  var OUT_TXT = { coil: "( )", set: "(S)", reset: "(R)" };
+  function drawOut(ins, x, y, bits, names, on, cx, k) {
+    const my = y + CH / 2;
+    const hit = cx.edit ? `<rect class="lad-hit${same(cx.sel, { kind: "o", r: cx.r, out: k }) ? " lad-sel" : ""}" data-lad="o" data-r="${cx.r}" data-out="${k}" x="${x + 6}" y="${y + 2}" width="${OUT_W - 8}" height="${CH - 4}" rx="8" tabindex="0" role="button" aria-label="Uscita ${esc2(names[ins.a || ins.id] || ins.a || ins.id)}"/>` : "";
+    if (ins.op === "ton" || ins.op === "ctu") {
+      const t = ins.op === "ton" ? `TON ${ins.pt} s` : `CTU ${ins.pv}`;
+      return `<path class="lad-wire ${on ? "lad-on" : ""}" d="M${x} ${my}H${x + 10}"/><rect class="lad-box ${bits[ins.id] ? "lad-done" : ""}" x="${x + 10}" y="${y + 6}" width="${OUT_W - 10}" height="${CH - 12}" rx="5"/><text class="lad-s" x="${x + 10 + (OUT_W - 10) / 2}" y="${my - 1}" text-anchor="middle">${t}</text><text class="lad-a" x="${x + 10 + (OUT_W - 10) / 2}" y="${my + 12}" text-anchor="middle">${ins.id}</text>${hit}`;
+    }
+    const v = !!bits[ins.a];
+    const mx = x + OUT_W / 2;
+    return `<path class="lad-wire ${on ? "lad-on" : ""}" d="M${x} ${my}H${mx - 13}"/><text class="lad-coil ${v ? "lad-on" : "lad-off"}" x="${mx}" y="${my + 8}" text-anchor="middle">${OUT_TXT[ins.op]}</text><text class="lad-n" x="${mx}" y="${y + 8}" text-anchor="middle">${esc2(names[ins.a] || "")}</text><text class="lad-a" x="${mx}" y="${y + CH - 2}" text-anchor="middle">${ins.a}</text>${hit}`;
+  }
+  function ladderHTML(program, st, names = {}, opt = {}) {
+    const bits = st && st.bits || {};
+    const rungs = st && st.rungs || [];
+    if (!program.length) {
+      return `<svg class="ladder" viewBox="0 0 360 70" role="img" aria-label="Programma vuoto"><path class="lad-rail" d="M22 6V64M330 6V64"/><text class="lad-a" x="176" y="40" text-anchor="middle">Programma vuoto</text></svg>`;
+    }
+    const rows = program.map((r) => ({ r, s: size(r.if) }));
+    const W = Math.max(...rows.map((x) => x.s.w)) + OUT_W + 52;
+    let y = 6, body = "";
+    rows.forEach(({ r, s }, i) => {
+      const outs = r.do.length ? r.do : [null];
+      const h = Math.max(s.h, outs.length * CH);
+      const on = !!rungs[i];
+      const x0 = 22, w = Math.max(...rows.map((q) => q.s.w));
+      const cx = { edit: !!opt.edit, sel: opt.sel || null, r: i };
+      const rungSel = opt.sel && opt.sel.kind === "r" && opt.sel.r === i;
+      body += `<text class="lad-num${rungSel ? " lad-numsel" : ""}" x="2" y="${y + CH / 2 + 4}">${i + 1}</text>`;
+      if (opt.edit) body += `<rect class="lad-hit${rungSel ? " lad-sel" : ""}" data-lad="r" data-r="${i}" x="0" y="${y}" width="20" height="${h}" rx="6" tabindex="0" role="button" aria-label="Gradino ${i + 1}"/>`;
+      body += `<path class="lad-rail" d="M${x0} ${y}V${y + h}M${x0 + w + OUT_W + 8} ${y}V${y + h}"/>`;
+      if (r.if === void 0 || r.if === null) {
+        body += `<path class="lad-wire" d="M${x0} ${y + CH / 2}H${x0 + w + 4}" stroke-dasharray="4 6"/><text class="lad-a" x="${x0 + 10}" y="${y + CH / 2 - 8}">nessun contatto</text>`;
+      } else {
+        body += `<g>${draw(r.if, x0, y, w, bits, names, on, cx)}</g>`;
+        body += `<path class="lad-wire ${on ? "lad-on" : ""}" d="M${x0 + s.w} ${y + CH / 2}H${x0 + w + 4}"/>`;
+      }
+      if (r.do.length) r.do.forEach((ins, k) => {
+        body += drawOut(ins, x0 + w + 4, y + k * CH, bits, names, on, cx, k);
+      });
+      else body += `<text class="lad-a" x="${x0 + w + 10}" y="${y + CH / 2 + 4}">nessuna uscita</text>`;
+      y += h + 14;
+    });
+    return `<svg class="ladder" viewBox="0 0 ${W} ${y}" role="img" aria-label="Programma del PLC, ${program.length} gradini" preserveAspectRatio="xMinYMin meet">${body}</svg>`;
+  }
+  function editorPanelHTML(program, sel, names, addrs, ops, errors, text2) {
+    const label = (a) => `${a}${names[a] ? " \xB7 " + esc2(names[a]) : ""}`;
+    const opt = (list, cur) => list.map((a) => `<option value="${a}"${a === cur ? " selected" : ""}>${label(a)}</option>`).join("");
+    const contactAddrs = [...addrs.inputs, ...addrs.outputs, ...addrs.markers, ...addrs.timers, ...addrs.counters];
+    const outAddrs = [...addrs.outputs, ...addrs.markers];
+    let body = "";
+    if (!sel) body = '<p class="ladhelp">Tocca un gradino (il numero a sinistra) o un contatto per modificarlo.</p>';
+    else if (!program[sel.r]) body = "";
+    else if (sel.kind === "r") {
+      const r = program[sel.r];
+      body = `<div class="ladrow"><b>Gradino ${sel.r + 1}</b><div class="ladbtns">
+      <button class="btn" data-lac="addContact">Aggiungi contatto</button>
+      <button class="btn" data-lac="addOut"${r.do.length >= 3 ? " disabled" : ""}>Aggiungi bobina</button>
+      <button class="btn" data-lac="up"${sel.r === 0 ? " disabled" : ""}>Su</button>
+      <button class="btn" data-lac="down"${sel.r === program.length - 1 ? " disabled" : ""}>Gi\xF9</button>
+      <button class="btn" data-lac="delRung">Elimina gradino</button></div></div>`;
+    } else if (sel.kind === "c") {
+      const cells = toCells(program[sel.r].if) || [];
+      const c2 = cells[sel.cell] && cells[sel.cell].alts[sel.alt];
+      if (c2) {
+        const t = c2.rise ? "rise" : c2.not ? "not" : "no";
+        body = `<div class="ladrow"><b>Contatto</b>
+        <div class="ladseg" role="group" aria-label="Tipo di contatto">${[["no", "Normalmente aperto"], ["not", "Normalmente chiuso"], ["rise", "Fronte di salita"]].map(([v, l]) => `<button class="chip seg" data-lac="type" data-v="${v}" aria-pressed="${t === v}">${l}</button>`).join("")}</div>
+        <label class="ladsel">Bit <select data-lac="addr">${opt(contactAddrs, c2.a)}</select></label>
+        <div class="ladbtns"><button class="btn" data-lac="parallel">In parallelo</button><button class="btn" data-lac="delContact">Elimina contatto</button></div></div>`;
+      }
+    } else if (sel.kind === "o") {
+      const ins = program[sel.r].do[sel.out];
+      if (ins) {
+        body = `<div class="ladrow"><b>Bobina</b>
+        <div class="ladseg" role="group" aria-label="Tipo di uscita">${ops.filter((o) => ["coil", "set", "reset"].includes(o)).map((o) => `<button class="chip seg" data-lac="optype" data-v="${o}" aria-pressed="${ins.op === o}">${{ coil: "Bobina", set: "Set", reset: "Reset" }[o]}</button>`).join("")}</div>
+        <label class="ladsel">Bit <select data-lac="outaddr">${opt(outAddrs, ins.a)}</select></label>
+        <div class="ladbtns"><button class="btn" data-lac="delOut">Elimina bobina</button></div></div>`;
+      }
+    }
+    const errs = errors.length ? `<ul class="laderr">${errors.slice(0, 4).map((e) => `<li>${esc2(text2(e))}</li>`).join("")}</ul>` : "";
+    return `<div class="ladpanel">${body}<div class="ladbtns"><button class="btn primary" data-lac="addRung">Nuovo gradino</button></div>${errs}</div>`;
   }
 
   // src/i18n/ar-1.js
@@ -12167,7 +13130,178 @@ body.ms-intro .milestone .lessoncard{visibility:hidden}
     "Fotocellula, conteggio dei pacchi, emergenza e termico che restano cablati.": "\u062E\u0644\u064A\u0629 \u0636\u0648\u0626\u064A\u0629 \u0648\u0639\u062F\u0651 \u0644\u0644\u0637\u0631\u0648\u062F\u061B \u0648\u064A\u0628\u0642\u0649 \u0632\u0631 \u0627\u0644\u0637\u0648\u0627\u0631\u0626 \u0648\u0627\u0644\u062D\u0631\u0627\u0631\u064A \u0645\u0648\u0635\u0648\u0644\u064A\u0646 \u0628\u0627\u0644\u0623\u0633\u0644\u0627\u0643.",
     "Il guasto di isolamento": "\u0639\u0637\u0644 \u0627\u0644\u0639\u0632\u0644",
     "Simula un apparecchio che disperde una piccola corrente verso terra, come se l\u2019isolante avesse ceduto. Il differenziale se ne accorge anche se la lampada o il motore funzionano ancora.": "\u064A\u062D\u0627\u0643\u064A \u062C\u0647\u0627\u0632\u064B\u0627 \u064A\u0633\u0631\u0651\u0628 \u062A\u064A\u0627\u0631\u064B\u0627 \u0635\u063A\u064A\u0631\u064B\u0627 \u0646\u062D\u0648 \u0627\u0644\u0623\u0631\u0636 \u0643\u0645\u0627 \u0644\u0648 \u0623\u0646 \u0627\u0644\u0639\u0627\u0632\u0644 \u0642\u062F \u062A\u0644\u0641. \u0648\u0627\u0644\u0642\u0627\u0637\u0639 \u0627\u0644\u062A\u0641\u0627\u0636\u0644\u064A \u064A\u0644\u0627\u062D\u0638 \u0630\u0644\u0643 \u062D\u062A\u0649 \u0644\u0648 \u0643\u0627\u0646 \u0627\u0644\u0645\u0635\u0628\u0627\u062D \u0623\u0648 \u0627\u0644\u0645\u062D\u0631\u0643 \u0644\u0627 \u064A\u0632\u0627\u0644 \u064A\u0639\u0645\u0644.",
-    "Con l\u2019interruttore chiuso la lampada \xE8 accesa": "\u0639\u0646\u062F\u0645\u0627 \u064A\u0643\u0648\u0646 \u0627\u0644\u0645\u0641\u062A\u0627\u062D \u0645\u063A\u0644\u0642\u064B\u0627 \u064A\u0643\u0648\u0646 \u0627\u0644\u0645\u0635\u0628\u0627\u062D \u0645\u0636\u0627\u0621\u064B"
+    "Con l\u2019interruttore chiuso la lampada \xE8 accesa": "\u0639\u0646\u062F\u0645\u0627 \u064A\u0643\u0648\u0646 \u0627\u0644\u0645\u0641\u062A\u0627\u062D \u0645\u063A\u0644\u0642\u064B\u0627 \u064A\u0643\u0648\u0646 \u0627\u0644\u0645\u0635\u0628\u0627\u062D \u0645\u0636\u0627\u0621\u064B",
+    "PLC": "PLC",
+    "RUN": "RUN",
+    "PLC \xB7 RUN": "PLC \xB7 RUN",
+    "PLC \xB7 SPENTO": "PLC \xB7 \u0645\u062A\u0648\u0642\u0641",
+    "PLC.A1": "PLC.A1",
+    "PLC.A2": "PLC.A2",
+    "PLC.I0": "PLC.I0",
+    "PLC.I1": "PLC.I1",
+    "PLC.Q0A": "PLC.Q0A",
+    "PLC.Q0B": "PLC.Q0B",
+    "PLC.Q1A": "PLC.Q1A",
+    "PLC.Q1B": "PLC.Q1B",
+    "Morsetto PLC Q0A": "\u0627\u0644\u0645\u0631\u0628\u0637 Q0A \u0641\u064A \u0627\u0644\u0640PLC",
+    "Morsetto PLC Q0B": "\u0627\u0644\u0645\u0631\u0628\u0637 Q0B \u0641\u064A \u0627\u0644\u0640PLC",
+    "Morsetto PLC Q1A": "\u0627\u0644\u0645\u0631\u0628\u0637 Q1A \u0641\u064A \u0627\u0644\u0640PLC",
+    "Morsetto PLC Q1B": "\u0627\u0644\u0645\u0631\u0628\u0637 Q1B \u0641\u064A \u0627\u0644\u0640PLC",
+    "PLC a 4 ingressi e 2 uscite": "PLC \u0628\u0623\u0631\u0628\u0639\u0629 \u0645\u062F\u0627\u062E\u0644 \u0648\u0645\u062E\u0631\u062C\u064A\u0646",
+    "Alimentazione": "\u0627\u0644\u062A\u063A\u0630\u064A\u0629",
+    "Uscita Q0": "\u0627\u0644\u0645\u062E\u0631\u062C Q0",
+    "Uscita Q1": "\u0627\u0644\u0645\u062E\u0631\u062C Q1",
+    "Programma del PLC": "\u0628\u0631\u0646\u0627\u0645\u062C \u0627\u0644\u0640PLC",
+    "Programma del PLC, 2 gradini": "\u0628\u0631\u0646\u0627\u0645\u062C \u0627\u0644\u0640PLC\u060C \u062F\u0631\u062C\u062A\u0627\u0646",
+    "in esecuzione": "\u0642\u064A\u062F \u0627\u0644\u062A\u0646\u0641\u064A\u0630",
+    "spento": "\u0645\u062A\u0648\u0642\u0641",
+    "Il PLC": "\u0627\u0644\u0640PLC",
+    "Il comune degli ingressi": "\u0627\u0644\u0645\u0634\u062A\u0631\u0643 \u0627\u0644\u062E\u0627\u0635 \u0628\u0627\u0644\u0645\u062F\u0627\u062E\u0644",
+    "Il programma di questo livello": "\u0628\u0631\u0646\u0627\u0645\u062C \u0647\u0630\u0627 \u0627\u0644\u0645\u0633\u062A\u0648\u0649",
+    "Il programma gira in continuazione": "\u0627\u0644\u0628\u0631\u0646\u0627\u0645\u062C \u064A\u0639\u0645\u0644 \u0628\u0627\u0633\u062A\u0645\u0631\u0627\u0631",
+    "Ingressi, uscite, alimentazione": "\u0627\u0644\u0645\u062F\u0627\u062E\u0644 \u0648\u0627\u0644\u0645\u062E\u0627\u0631\u062C \u0648\u0627\u0644\u062A\u063A\u0630\u064A\u0629",
+    "La logica non \xE8 pi\xF9 nei fili": "\u0644\u0645 \u064A\u0639\u062F \u0627\u0644\u0645\u0646\u0637\u0642 \u0641\u064A \u0627\u0644\u0623\u0633\u0644\u0627\u0643",
+    "Alimenta il PLC": "\u063A\u0630\u0650\u0651 \u0627\u0644\u0640PLC",
+    "Arresto all\u2019ingresso I0": "\u0627\u0644\u0625\u064A\u0642\u0627\u0641 \u0625\u0644\u0649 \u0627\u0644\u0645\u062F\u062E\u0644 I0",
+    "Marcia all\u2019ingresso I1": "\u0627\u0644\u062A\u0634\u063A\u064A\u0644 \u0625\u0644\u0649 \u0627\u0644\u0645\u062F\u062E\u0644 I1",
+    "L\u2019uscita Q0 al contattore": "\u0627\u0644\u0645\u062E\u0631\u062C Q0 \u0625\u0644\u0649 \u0627\u0644\u0643\u0648\u0646\u062A\u0627\u0643\u062A\u0648\u0631",
+    "L\u2019uscita Q1 alla spia": "\u0627\u0644\u0645\u062E\u0631\u062C Q1 \u0625\u0644\u0649 \u0644\u0645\u0628\u0629 \u0627\u0644\u0625\u0634\u0627\u0631\u0629",
+    "Dal salvamotore al contattore.": "\u0645\u0646 \u0642\u0627\u0637\u0639 \u062D\u0645\u0627\u064A\u0629 \u0627\u0644\u0645\u062D\u0631\u0643 \u0625\u0644\u0649 \u0627\u0644\u0643\u0648\u0646\u062A\u0627\u0643\u062A\u0648\u0631.",
+    "Dal contattore al motore.": "\u0645\u0646 \u0627\u0644\u0643\u0648\u0646\u062A\u0627\u0643\u062A\u0648\u0631 \u0625\u0644\u0649 \u0627\u0644\u0645\u062D\u0631\u0643.",
+    "Il PLC si alimenta: una fase a valle del salvamotore ad A1.": "\u064A\u064F\u063A\u0630\u0651\u0649 \u0627\u0644\u0640PLC: \u0637\u0648\u0631 \u0628\u0639\u062F \u0642\u0627\u0637\u0639 \u062D\u0645\u0627\u064A\u0629 \u0627\u0644\u0645\u062D\u0631\u0643 \u0625\u0644\u0649 A1.",
+    "A2 va al neutro.": "\u064A\u0630\u0647\u0628 A2 \u0625\u0644\u0649 \u0627\u0644\u0645\u062D\u0627\u064A\u062F.",
+    "La fase passa dal pulsante di arresto (NC).": "\u064A\u0645\u0631 \u0627\u0644\u0637\u0648\u0631 \u0639\u0628\u0631 \u0632\u0631 \u0627\u0644\u0625\u064A\u0642\u0627\u0641 (NC).",
+    "E dall\u2019arresto arriva all\u2019ingresso I0.": "\u0648\u0645\u0646 \u0627\u0644\u0625\u064A\u0642\u0627\u0641 \u064A\u0635\u0644 \u0625\u0644\u0649 \u0627\u0644\u0645\u062F\u062E\u0644 I0.",
+    "La fase passa dal pulsante di marcia (NA).": "\u064A\u0645\u0631 \u0627\u0644\u0637\u0648\u0631 \u0639\u0628\u0631 \u0632\u0631 \u0627\u0644\u062A\u0634\u063A\u064A\u0644 (NA).",
+    "E dalla marcia arriva all\u2019ingresso I1.": "\u0648\u0645\u0646 \u0627\u0644\u062A\u0634\u063A\u064A\u0644 \u064A\u0635\u0644 \u0625\u0644\u0649 \u0627\u0644\u0645\u062F\u062E\u0644 I1.",
+    "Il comune degli ingressi IC va al neutro.": "\u0627\u0644\u0645\u0634\u062A\u0631\u0643 IC \u0644\u0644\u0645\u062F\u0627\u062E\u0644 \u064A\u0630\u0647\u0628 \u0625\u0644\u0649 \u0627\u0644\u0645\u062D\u0627\u064A\u062F.",
+    "Il contatto di uscita Q0 riceve la fase.": "\u0645\u0644\u0627\u0645\u0633 \u0627\u0644\u0645\u062E\u0631\u062C Q0 \u064A\u0633\u062A\u0642\u0628\u0644 \u0627\u0644\u0637\u0648\u0631.",
+    "Dal contatto Q0 alla bobina del contattore.": "\u0645\u0646 \u0627\u0644\u0645\u0644\u0627\u0645\u0633 Q0 \u0625\u0644\u0649 \u0645\u0644\u0641 \u0627\u0644\u0643\u0648\u0646\u062A\u0627\u0643\u062A\u0648\u0631.",
+    "La bobina del contattore torna al neutro.": "\u064A\u0639\u0648\u062F \u0645\u0644\u0641 \u0627\u0644\u0643\u0648\u0646\u062A\u0627\u0643\u062A\u0648\u0631 \u0625\u0644\u0649 \u0627\u0644\u0645\u062D\u0627\u064A\u062F.",
+    "Il contatto di uscita Q1 riceve la fase.": "\u0645\u0644\u0627\u0645\u0633 \u0627\u0644\u0645\u062E\u0631\u062C Q1 \u064A\u0633\u062A\u0642\u0628\u0644 \u0627\u0644\u0637\u0648\u0631.",
+    "Dal contatto Q1 alla spia.": "\u0645\u0646 \u0627\u0644\u0645\u0644\u0627\u0645\u0633 Q1 \u0625\u0644\u0649 \u0644\u0645\u0628\u0629 \u0627\u0644\u0625\u0634\u0627\u0631\u0629.",
+    "La spia torna al neutro.": "\u062A\u0639\u0648\u062F \u0644\u0645\u0628\u0629 \u0627\u0644\u0625\u0634\u0627\u0631\u0629 \u0625\u0644\u0649 \u0627\u0644\u0645\u062D\u0627\u064A\u062F.",
+    "Marcia e arresto di prima: la logica passa dai fili a un programma.": "\u0627\u0644\u062A\u0634\u063A\u064A\u0644 \u0648\u0627\u0644\u0625\u064A\u0642\u0627\u0641 \u0627\u0644\u0633\u0627\u0628\u0642\u0627\u0646: \u064A\u0646\u062A\u0642\u0644 \u0627\u0644\u0645\u0646\u0637\u0642 \u0645\u0646 \u0627\u0644\u0623\u0633\u0644\u0627\u0643 \u0625\u0644\u0649 \u0628\u0631\u0646\u0627\u0645\u062C.",
+    "Stessa macchina di marcia e arresto, ma la logica non \xE8 pi\xF9 nei fili: la fa un PLC con un programma gi\xE0 scritto. Il circuito di potenza \xE8 gi\xE0 cablato. Collega il PLC: l\u2019alimentazione, il pulsante di arresto (NC) all\u2019ingresso I0, la marcia (NA) a I1, il comune IC al neutro, l\u2019uscita Q0 alla bobina del contattore e Q1 alla spia. Il circuito di comando va in rosso.": "\u0627\u0644\u0622\u0644\u0629 \u0646\u0641\u0633\u0647\u0627 \u0643\u0645\u0627 \u0641\u064A \u0627\u0644\u062A\u0634\u063A\u064A\u0644 \u0648\u0627\u0644\u0625\u064A\u0642\u0627\u0641\u060C \u0644\u0643\u0646 \u0627\u0644\u0645\u0646\u0637\u0642 \u0644\u0645 \u064A\u0639\u062F \u0641\u064A \u0627\u0644\u0623\u0633\u0644\u0627\u0643: \u064A\u062A\u0648\u0644\u0627\u0647 PLC \u0628\u0628\u0631\u0646\u0627\u0645\u062C \u0645\u0643\u062A\u0648\u0628 \u0645\u0633\u0628\u0642\u064B\u0627. \u062F\u0627\u0626\u0631\u0629 \u0627\u0644\u0642\u062F\u0631\u0629 \u0645\u0648\u0635\u0648\u0644\u0629 \u0623\u0635\u0644\u064B\u0627. \u0648\u0635\u0650\u0651\u0644 \u0627\u0644\u0640PLC: \u0627\u0644\u062A\u063A\u0630\u064A\u0629\u060C \u0648\u0632\u0631 \u0627\u0644\u0625\u064A\u0642\u0627\u0641 (NC) \u0628\u0627\u0644\u0645\u062F\u062E\u0644 I0\u060C \u0648\u0627\u0644\u062A\u0634\u063A\u064A\u0644 (NA) \u0628\u0640 I1\u060C \u0648\u0627\u0644\u0645\u0634\u062A\u0631\u0643 IC \u0628\u0627\u0644\u0645\u062D\u0627\u064A\u062F\u060C \u0648\u0627\u0644\u0645\u062E\u0631\u062C Q0 \u0628\u0645\u0644\u0641 \u0627\u0644\u0643\u0648\u0646\u062A\u0627\u0643\u062A\u0648\u0631 \u0648Q1 \u0628\u0644\u0645\u0628\u0629 \u0627\u0644\u0625\u0634\u0627\u0631\u0629. \u0648\u062A\u064F\u0631\u0633\u0645 \u0623\u0633\u0644\u0627\u0643 \u062F\u0627\u0626\u0631\u0629 \u0627\u0644\u062A\u062D\u0643\u0645 \u0628\u0627\u0644\u0644\u0648\u0646 \u0627\u0644\u0623\u062D\u0645\u0631.",
+    "In marcia e arresto la logica era nel cablaggio: il contatto 13-14 del contattore in parallelo alla marcia faceva l\u2019autoritenuta. Cambiare il comportamento voleva dire cambiare i fili.": "\u0641\u064A \u0627\u0644\u062A\u0634\u063A\u064A\u0644 \u0648\u0627\u0644\u0625\u064A\u0642\u0627\u0641 \u0643\u0627\u0646 \u0627\u0644\u0645\u0646\u0637\u0642 \u0641\u064A \u0627\u0644\u0623\u0633\u0644\u0627\u0643: \u0627\u0644\u0645\u0644\u0627\u0645\u0633 13-14 \u0641\u064A \u0627\u0644\u0643\u0648\u0646\u062A\u0627\u0643\u062A\u0648\u0631 \u0639\u0644\u0649 \u0627\u0644\u062A\u0648\u0627\u0632\u064A \u0645\u0639 \u0627\u0644\u062A\u0634\u063A\u064A\u0644 \u0643\u0627\u0646 \u064A\u0642\u0648\u0645 \u0628\u0627\u0644\u062A\u062B\u0628\u064A\u062A \u0627\u0644\u0630\u0627\u062A\u064A. \u0648\u062A\u063A\u064A\u064A\u0631 \u0627\u0644\u0633\u0644\u0648\u0643 \u0643\u0627\u0646 \u064A\u0639\u0646\u064A \u062A\u063A\u064A\u064A\u0631 \u0627\u0644\u0623\u0633\u0644\u0627\u0643.",
+    "Un PLC sposta la logica in un programma. I fili portano solo i segnali dai pulsanti al PLC e dal PLC al contattore; come si comporta la macchina lo decide il programma, che si pu\xF2 cambiare senza toccare un filo.": "\u064A\u0646\u0642\u0644 \u0627\u0644\u0640PLC \u0627\u0644\u0645\u0646\u0637\u0642 \u0625\u0644\u0649 \u0628\u0631\u0646\u0627\u0645\u062C. \u0648\u0627\u0644\u0623\u0633\u0644\u0627\u0643 \u062A\u062D\u0645\u0644 \u0627\u0644\u0625\u0634\u0627\u0631\u0627\u062A \u0641\u0642\u0637 \u0645\u0646 \u0627\u0644\u0623\u0632\u0631\u0627\u0631 \u0625\u0644\u0649 \u0627\u0644\u0640PLC \u0648\u0645\u0646 \u0627\u0644\u0640PLC \u0625\u0644\u0649 \u0627\u0644\u0643\u0648\u0646\u062A\u0627\u0643\u062A\u0648\u0631\u061B \u0623\u0645\u0627 \u0633\u0644\u0648\u0643 \u0627\u0644\u0622\u0644\u0629 \u0641\u064A\u0642\u0631\u0631\u0647 \u0627\u0644\u0628\u0631\u0646\u0627\u0645\u062C \u0627\u0644\u0630\u064A \u064A\u0645\u0643\u0646 \u062A\u063A\u064A\u064A\u0631\u0647 \u062F\u0648\u0646 \u0644\u0645\u0633 \u0633\u0644\u0643.",
+    "Il PLC si alimenta in A1-A2, come una bobina. Gli ingressi I0, I1, I2 leggono se c\u2019\xE8 tensione tra l\u2019ingresso e il comune IC: 230 V valgono 1, niente vale 0.": "\u064A\u064F\u063A\u0630\u0651\u0649 \u0627\u0644\u0640PLC \u0639\u0628\u0631 A1-A2 \u0645\u062B\u0644 \u0627\u0644\u0645\u0644\u0641. \u0648\u062A\u0642\u0631\u0623 \u0627\u0644\u0645\u062F\u0627\u062E\u0644 I0 \u0648I1 \u0648I2 \u0647\u0644 \u064A\u0648\u062C\u062F \u062C\u0647\u062F \u0628\u064A\u0646 \u0627\u0644\u0645\u062F\u062E\u0644 \u0648\u0627\u0644\u0645\u0634\u062A\u0631\u0643 IC: \u0627\u0644\u0642\u064A\u0645\u0629 230 V \u062A\u0639\u0646\u064A 1 \u0648\u063A\u064A\u0627\u0628\u0647 \u064A\u0639\u0646\u064A 0.",
+    "Le uscite sono contatti a rel\xE8: Q0A-Q0B si chiude quando il programma accende Q0. Al contatto si collega ci\xF2 che si vuole comandare, per esempio la bobina di un contattore.": "\u0627\u0644\u0645\u062E\u0627\u0631\u062C \u0645\u0644\u0627\u0645\u0633\u0627\u062A \u0645\u0631\u062D\u0651\u0644: \u064A\u064F\u063A\u0644\u0642 Q0A-Q0B \u0639\u0646\u062F\u0645\u0627 \u064A\u0634\u063A\u0651\u0644 \u0627\u0644\u0628\u0631\u0646\u0627\u0645\u062C Q0. \u0648\u0628\u0627\u0644\u0645\u0644\u0627\u0645\u0633 \u064A\u064F\u0648\u0635\u064E\u0644 \u0645\u0627 \u0646\u0631\u064A\u062F \u0627\u0644\u062A\u062D\u0643\u0645 \u0628\u0647\u060C \u0645\u062B\u0644 \u0645\u0644\u0641 \u0643\u0648\u0646\u062A\u0627\u0643\u062A\u0648\u0631.",
+    "Le uscite a rel\xE8 sono solo contatti: non danno tensione da sole. Il contatto va alimentato con una fase.": "\u0645\u062E\u0627\u0631\u062C \u0627\u0644\u0645\u0631\u062D\u0651\u0644 \u0645\u0644\u0627\u0645\u0633\u0627\u062A \u0641\u0642\u0637: \u0644\u0627 \u062A\u0639\u0637\u064A \u062C\u0647\u062F\u064B\u0627 \u0628\u0646\u0641\u0633\u0647\u0627. \u0648\u064A\u062C\u0628 \u062A\u063A\u0630\u064A\u0629 \u0627\u0644\u0645\u0644\u0627\u0645\u0633 \u0628\u0637\u0648\u0631.",
+    "Il PLC ripete sempre lo stesso ciclo, la scansione: legge gli ingressi, esegue il programma dal primo all\u2019ultimo gradino, poi scrive le uscite. Il ciclo dura pochi millisecondi, quindi per noi \xE8 istantaneo.": "\u064A\u0643\u0631\u0631 \u0627\u0644\u0640PLC \u062F\u0627\u0626\u0645\u064B\u0627 \u0627\u0644\u062F\u0648\u0631\u0629 \u0646\u0641\u0633\u0647\u0627\u060C \u0648\u062A\u0633\u0645\u0649 \u0627\u0644\u0645\u0633\u062D: \u064A\u0642\u0631\u0623 \u0627\u0644\u0645\u062F\u0627\u062E\u0644\u060C \u0648\u064A\u0646\u0641\u0630 \u0627\u0644\u0628\u0631\u0646\u0627\u0645\u062C \u0645\u0646 \u0623\u0648\u0644 \u062F\u0631\u062C\u0629 \u0625\u0644\u0649 \u0622\u062E\u0631\u0647\u0627\u060C \u062B\u0645 \u064A\u0643\u062A\u0628 \u0627\u0644\u0645\u062E\u0627\u0631\u062C. \u062A\u0633\u062A\u063A\u0631\u0642 \u0627\u0644\u062F\u0648\u0631\u0629 \u0628\u0636\u0639\u0629 \u0623\u062C\u0632\u0627\u0621 \u0645\u0646 \u0627\u0644\u062B\u0627\u0646\u064A\u0629\u060C \u0641\u0647\u064A \u0641\u0648\u0631\u064A\u0629 \u0628\u0627\u0644\u0646\u0633\u0628\u0629 \u0644\u0646\u0627.",
+    "Un gradino ha una condizione a sinistra, fatta di contatti, e un\u2019uscita a destra. Il contatto normalmente aperto \xE8 vero se il bit vale 1; il contatto normalmente chiuso \xE8 vero se il bit vale 0. Contatti in serie sono un E, contatti in parallelo un O.": "\u0644\u0644\u062F\u0631\u062C\u0629 \u0634\u0631\u0637 \u0639\u0644\u0649 \u0627\u0644\u064A\u0633\u0627\u0631 \u0645\u0643\u0648\u064E\u0651\u0646 \u0645\u0646 \u0645\u0644\u0627\u0645\u0633\u0627\u062A\u060C \u0648\u0645\u062E\u0631\u062C \u0639\u0644\u0649 \u0627\u0644\u064A\u0645\u064A\u0646. \u0627\u0644\u0645\u0644\u0627\u0645\u0633 \u0627\u0644\u0645\u0641\u062A\u0648\u062D \u0639\u0627\u062F\u0629\u064B \u064A\u0643\u0648\u0646 \u0635\u062D\u064A\u062D\u064B\u0627 \u0625\u0630\u0627 \u0643\u0627\u0646\u062A \u0642\u064A\u0645\u0629 \u0627\u0644\u0628\u062A 1\u061B \u0648\u0627\u0644\u0645\u0644\u0627\u0645\u0633 \u0627\u0644\u0645\u063A\u0644\u0642 \u0639\u0627\u062F\u0629\u064B \u064A\u0643\u0648\u0646 \u0635\u062D\u064A\u062D\u064B\u0627 \u0625\u0630\u0627 \u0643\u0627\u0646\u062A \u0642\u064A\u0645\u0629 \u0627\u0644\u0628\u062A 0. \u0627\u0644\u0645\u0644\u0627\u0645\u0633\u0627\u062A \u0639\u0644\u0649 \u0627\u0644\u062A\u0648\u0627\u0644\u064A \u062A\u0639\u0646\u064A \xAB\u0648\xBB\u060C \u0648\u0639\u0644\u0649 \u0627\u0644\u062A\u0648\u0627\u0632\u064A \u062A\u0639\u0646\u064A \xAB\u0623\u0648\xBB.",
+    "Gradino 1: Q0 \xE8 acceso se (Marcia I1 oppure Q0 stesso) e I0. Q0 che si rilegge \xE8 l\u2019autoritenuta: una volta acceso, resta acceso anche a marcia rilasciata.": "\u0627\u0644\u062F\u0631\u062C\u0629 1: \u064A\u0643\u0648\u0646 Q0 \u0645\u0634\u063A\u064E\u0651\u0644\u064B\u0627 \u0625\u0630\u0627 \u0643\u0627\u0646 (\u0627\u0644\u062A\u0634\u063A\u064A\u0644 I1 \u0623\u0648 Q0 \u0646\u0641\u0633\u0647) \u0648I0. \u0648\u0625\u0639\u0627\u062F\u0629 \u0642\u0631\u0627\u0621\u0629 Q0 \u0647\u064A \u0627\u0644\u062A\u062B\u0628\u064A\u062A \u0627\u0644\u0630\u0627\u062A\u064A: \u0628\u0639\u062F \u0627\u0644\u062A\u0634\u063A\u064A\u0644 \u064A\u0628\u0642\u0649 \u0645\u0634\u063A\u064E\u0651\u0644\u064B\u0627 \u062D\u062A\u0649 \u0628\u0639\u062F \u062A\u062D\u0631\u064A\u0631 \u0627\u0644\u062A\u0634\u063A\u064A\u0644.",
+    "I0 \xE8 il pulsante di arresto, normalmente chiuso: a riposo porta 230 V e I0 vale 1. Premendo Arresto I0 vale 0 e il gradino si spegne. Gradino 2: la spia Q1 segue Q0. Il programma si vede sotto il banco.": "I0 \u0647\u0648 \u0632\u0631 \u0627\u0644\u0625\u064A\u0642\u0627\u0641 \u0627\u0644\u0645\u063A\u0644\u0642 \u0639\u0627\u062F\u0629\u064B: \u0641\u064A \u0627\u0644\u0631\u0627\u062D\u0629 \u064A\u062D\u0645\u0644 230 V \u0648\u0642\u064A\u0645\u0629 I0 \u0647\u064A 1. \u0639\u0646\u062F \u0627\u0644\u0636\u063A\u0637 \u0639\u0644\u0649 \u0627\u0644\u0625\u064A\u0642\u0627\u0641 \u062A\u0635\u0628\u062D \u0642\u064A\u0645\u0629 I0 \u0635\u0641\u0631\u064B\u0627 \u0648\u062A\u0646\u0637\u0641\u0626 \u0627\u0644\u062F\u0631\u062C\u0629. \u0627\u0644\u062F\u0631\u062C\u0629 2: \u0644\u0645\u0628\u0629 \u0627\u0644\u0625\u0634\u0627\u0631\u0629 Q1 \u062A\u062A\u0628\u0639 Q0. \u0648\u064A\u0638\u0647\u0631 \u0627\u0644\u0628\u0631\u0646\u0627\u0645\u062C \u062A\u062D\u062A \u0627\u0644\u0644\u0648\u062D\u0629.",
+    "L\u2019arresto \xE8 un contatto NC: se il filo si stacca, l\u2019ingresso vale 0 e la macchina si ferma. \xC8 il lato sicuro.": "\u0627\u0644\u0625\u064A\u0642\u0627\u0641 \u0645\u0644\u0627\u0645\u0633 NC: \u0625\u0630\u0627 \u0627\u0646\u0641\u0635\u0644 \u0627\u0644\u0633\u0644\u0643 \u062A\u0635\u0628\u062D \u0642\u064A\u0645\u0629 \u0627\u0644\u0645\u062F\u062E\u0644 0 \u0648\u062A\u062A\u0648\u0642\u0641 \u0627\u0644\u0622\u0644\u0629. \u0648\u0647\u0630\u0627 \u0647\u0648 \u0627\u0644\u062C\u0627\u0646\u0628 \u0627\u0644\u0622\u0645\u0646.",
+    "Il filo del pulsante di arresto si stacca dall\u2019ingresso I0. Che cosa succede?": "\u064A\u0646\u0641\u0635\u0644 \u0633\u0644\u0643 \u0632\u0631 \u0627\u0644\u0625\u064A\u0642\u0627\u0641 \u0639\u0646 \u0627\u0644\u0645\u062F\u062E\u0644 I0. \u0645\u0627\u0630\u0627 \u064A\u062D\u062F\u062B\u061F",
+    "Il motore parte lo stesso: l\u2019arresto non serve se non \xE8 premuto.": "\u064A\u0628\u062F\u0623 \u0627\u0644\u0645\u062D\u0631\u0643 \u0639\u0644\u0649 \u0623\u064A \u062D\u0627\u0644: \u0627\u0644\u0625\u064A\u0642\u0627\u0641 \u0644\u0627 \u064A\u0644\u0632\u0645 \u0645\u0627 \u0644\u0645 \u064A\u064F\u0636\u063A\u0637.",
+    "I0 vale 0, quindi il programma non accende Q0: il motore non parte, ed eventualmente si ferma.": "\u0642\u064A\u0645\u0629 I0 \u0635\u0641\u0631\u060C \u0641\u0644\u0627 \u064A\u0634\u063A\u0651\u0644 \u0627\u0644\u0628\u0631\u0646\u0627\u0645\u062C Q0: \u0644\u0627 \u064A\u0628\u062F\u0623 \u0627\u0644\u0645\u062D\u0631\u0643\u060C \u0648\u0625\u0646 \u0643\u0627\u0646 \u064A\u0639\u0645\u0644 \u0641\u0625\u0646\u0647 \u064A\u062A\u0648\u0642\u0641.",
+    "Niente: il PLC ricorda l\u2019ultimo valore dell\u2019ingresso.": "\u0644\u0627 \u0634\u064A\u0621: \u0627\u0644\u0640PLC \u064A\u062A\u0630\u0643\u0631 \u0622\u062E\u0631 \u0642\u064A\u0645\u0629 \u0644\u0644\u0645\u062F\u062E\u0644.",
+    "L\u2019arresto \xE8 normalmente chiuso, quindi a riposo porta tensione e I0 vale 1. Un filo staccato toglie la tensione: I0 vale 0, come se si premesse Arresto. Il guasto porta la macchina nello stato sicuro.": "\u0627\u0644\u0625\u064A\u0642\u0627\u0641 \u0645\u063A\u0644\u0642 \u0639\u0627\u062F\u0629\u064B\u060C \u0641\u0647\u0648 \u0641\u064A \u0627\u0644\u0631\u0627\u062D\u0629 \u064A\u062D\u0645\u0644 \u062C\u0647\u062F\u064B\u0627 \u0648\u0642\u064A\u0645\u0629 I0 \u0647\u064A 1. \u0627\u0644\u0633\u0644\u0643 \u0627\u0644\u0645\u0646\u0641\u0635\u0644 \u064A\u0642\u0637\u0639 \u0627\u0644\u062C\u0647\u062F: \u062A\u0635\u0628\u062D I0 \u0635\u0641\u0631\u064B\u0627 \u0643\u0623\u0646 \u0627\u0644\u0625\u064A\u0642\u0627\u0641 \u0642\u062F \u0636\u064F\u063A\u0637. \u0648\u0647\u0643\u0630\u0627 \u064A\u0642\u0648\u062F \u0627\u0644\u0639\u0637\u0644 \u0627\u0644\u0622\u0644\u0629 \u0625\u0644\u0649 \u0627\u0644\u062D\u0627\u0644\u0629 \u0627\u0644\u0622\u0645\u0646\u0629.",
+    "Perch\xE9 nel gradino 1 compare anche Q0 oltre a I1?": "\u0644\u0645\u0627\u0630\u0627 \u064A\u0638\u0647\u0631 Q0 \u0641\u064A \u0627\u0644\u062F\u0631\u062C\u0629 1 \u0625\u0644\u0649 \u062C\u0627\u0646\u0628 I1\u061F",
+    "Per far partire il motore pi\xF9 forte.": "\u0644\u062C\u0639\u0644 \u0627\u0644\u0645\u062D\u0631\u0643 \u064A\u0628\u062F\u0623 \u0628\u0642\u0648\u0629 \u0623\u0643\u0628\u0631.",
+    "Perch\xE9 Q0 si rilegge e tiene acceso il gradino quando Marcia viene rilasciata: \xE8 l\u2019autoritenuta nel programma.": "\u0644\u0623\u0646 Q0 \u064A\u064F\u0639\u0627\u062F \u0642\u0631\u0627\u0621\u062A\u0647 \u0648\u064A\u064F\u0628\u0642\u064A \u0627\u0644\u062F\u0631\u062C\u0629 \u0645\u0634\u063A\u064E\u0651\u0644\u0629 \u0639\u0646\u062F \u062A\u062D\u0631\u064A\u0631 \u0627\u0644\u062A\u0634\u063A\u064A\u0644: \u0647\u0630\u0627 \u0647\u0648 \u0627\u0644\u062A\u062B\u0628\u064A\u062A \u0627\u0644\u0630\u0627\u062A\u064A \u0641\u064A \u0627\u0644\u0628\u0631\u0646\u0627\u0645\u062C.",
+    "Per contare quante volte si preme Marcia.": "\u0644\u0639\u062F\u0651 \u0639\u062F\u062F \u0645\u0631\u0627\u062A \u0627\u0644\u0636\u063A\u0637 \u0639\u0644\u0649 \u0627\u0644\u062A\u0634\u063A\u064A\u0644.",
+    "Marcia \xE8 un impulso. Appena I1 torna a 0, serve qualcosa che tenga acceso Q0: lo stesso Q0, in parallelo a I1, che vale 1 finch\xE9 il gradino resta vero.": "\u0627\u0644\u062A\u0634\u063A\u064A\u0644 \u0646\u0628\u0636\u0629. \u0648\u0645\u0627 \u0625\u0646 \u062A\u0639\u0648\u062F I1 \u0625\u0644\u0649 0 \u0646\u062D\u062A\u0627\u062C \u0625\u0644\u0649 \u0634\u064A\u0621 \u064A\u064F\u0628\u0642\u064A Q0 \u0645\u0634\u063A\u064E\u0651\u0644\u064B\u0627: \u0648\u0647\u0648 Q0 \u0646\u0641\u0633\u0647 \u0639\u0644\u0649 \u0627\u0644\u062A\u0648\u0627\u0632\u064A \u0645\u0639 I1\u060C \u0648\u0642\u064A\u0645\u062A\u0647 1 \u0645\u0627 \u062F\u0627\u0645\u062A \u0627\u0644\u062F\u0631\u062C\u0629 \u0635\u062D\u064A\u062D\u0629.",
+    "Il salvamotore parte chiuso: aprilo prima di cablare e richiudilo solo alla fine.": "\u064A\u0628\u062F\u0623 \u0642\u0627\u0637\u0639 \u062D\u0645\u0627\u064A\u0629 \u0627\u0644\u0645\u062D\u0631\u0643 \u0645\u063A\u0644\u0642\u064B\u0627: \u0627\u0641\u062A\u062D\u0647 \u0642\u0628\u0644 \u0627\u0644\u062A\u0648\u0635\u064A\u0644 \u062B\u0645 \u0623\u063A\u0644\u0642\u0647 \u0641\u064A \u0627\u0644\u0646\u0647\u0627\u064A\u0629 \u0641\u0642\u0637.",
+    "Il PLC si alimenta come una bobina: A1 a una fase a valle del salvamotore, A2 al neutro. IC, il comune degli ingressi, va al neutro.": "\u064A\u064F\u063A\u0630\u0651\u0649 \u0627\u0644\u0640PLC \u0645\u062B\u0644 \u0627\u0644\u0645\u0644\u0641: \u0627\u0644\u0645\u0631\u0628\u0637 A1 \u0625\u0644\u0649 \u0637\u0648\u0631 \u0628\u0639\u062F \u0642\u0627\u0637\u0639 \u062D\u0645\u0627\u064A\u0629 \u0627\u0644\u0645\u062D\u0631\u0643\u060C \u0648A2 \u0625\u0644\u0649 \u0627\u0644\u0645\u062D\u0627\u064A\u062F. \u0648IC\u060C \u0645\u0634\u062A\u0631\u0643 \u0627\u0644\u0645\u062F\u0627\u062E\u0644\u060C \u064A\u0630\u0647\u0628 \u0625\u0644\u0649 \u0627\u0644\u0645\u062D\u0627\u064A\u062F.",
+    "Gli ingressi leggono la tensione dei pulsanti: dalla fase passa il pulsante di arresto e arriva a I0, dalla fase passa il pulsante di marcia e arriva a I1.": "\u062A\u0642\u0631\u0623 \u0627\u0644\u0645\u062F\u0627\u062E\u0644 \u062C\u0647\u062F \u0627\u0644\u0623\u0632\u0631\u0627\u0631: \u0645\u0646 \u0627\u0644\u0637\u0648\u0631 \u064A\u0645\u0631 \u0632\u0631 \u0627\u0644\u0625\u064A\u0642\u0627\u0641 \u0648\u064A\u0635\u0644 \u0625\u0644\u0649 I0\u060C \u0648\u0645\u0646 \u0627\u0644\u0637\u0648\u0631 \u064A\u0645\u0631 \u0632\u0631 \u0627\u0644\u062A\u0634\u063A\u064A\u0644 \u0648\u064A\u0635\u0644 \u0625\u0644\u0649 I1.",
+    "Le uscite sono contatti a rel\xE8: la fase entra in Q0A, esce da Q0B e va alla bobina del contattore. Q1A e Q1B alimentano la spia allo stesso modo.": "\u0627\u0644\u0645\u062E\u0627\u0631\u062C \u0645\u0644\u0627\u0645\u0633\u0627\u062A \u0645\u0631\u062D\u0651\u0644: \u064A\u062F\u062E\u0644 \u0627\u0644\u0637\u0648\u0631 \u0645\u0646 Q0A \u0648\u064A\u062E\u0631\u062C \u0645\u0646 Q0B \u0648\u064A\u0630\u0647\u0628 \u0625\u0644\u0649 \u0645\u0644\u0641 \u0627\u0644\u0643\u0648\u0646\u062A\u0627\u0643\u062A\u0648\u0631. \u0648Q1A \u0648Q1B \u064A\u063A\u0630\u064A\u0627\u0646 \u0644\u0645\u0628\u0629 \u0627\u0644\u0625\u0634\u0627\u0631\u0629 \u0628\u0627\u0644\u0637\u0631\u064A\u0642\u0629 \u0646\u0641\u0633\u0647\u0627.",
+    "Filo rosso da una fase a valle del salvamotore (morsetto 2) ad A1, filo blu da A2 al neutro.": "\u0633\u0644\u0643 \u0623\u062D\u0645\u0631 \u0645\u0646 \u0637\u0648\u0631 \u0628\u0639\u062F \u0642\u0627\u0637\u0639 \u062D\u0645\u0627\u064A\u0629 \u0627\u0644\u0645\u062D\u0631\u0643 (\u0627\u0644\u0645\u0631\u0628\u0637 2) \u0625\u0644\u0649 A1\u060C \u0648\u0633\u0644\u0643 \u0623\u0632\u0631\u0642 \u0645\u0646 A2 \u0625\u0644\u0649 \u0627\u0644\u0645\u062D\u0627\u064A\u062F.",
+    "Dalla fase al morsetto 1 del pulsante di arresto, dal morsetto 2 all\u2019ingresso I0, in rosso.": "\u0645\u0646 \u0627\u0644\u0637\u0648\u0631 \u0625\u0644\u0649 \u0627\u0644\u0645\u0631\u0628\u0637 1 \u0641\u064A \u0632\u0631 \u0627\u0644\u0625\u064A\u0642\u0627\u0641\u060C \u0648\u0645\u0646 \u0627\u0644\u0645\u0631\u0628\u0637 2 \u0625\u0644\u0649 \u0627\u0644\u0645\u062F\u062E\u0644 I0\u060C \u0628\u0627\u0644\u0623\u062D\u0645\u0631.",
+    "Dalla fase al morsetto 3 del pulsante di marcia, dal morsetto 4 all\u2019ingresso I1, in rosso.": "\u0645\u0646 \u0627\u0644\u0637\u0648\u0631 \u0625\u0644\u0649 \u0627\u0644\u0645\u0631\u0628\u0637 3 \u0641\u064A \u0632\u0631 \u0627\u0644\u062A\u0634\u063A\u064A\u0644\u060C \u0648\u0645\u0646 \u0627\u0644\u0645\u0631\u0628\u0637 4 \u0625\u0644\u0649 \u0627\u0644\u0645\u062F\u062E\u0644 I1\u060C \u0628\u0627\u0644\u0623\u062D\u0645\u0631.",
+    "Il morsetto IC al neutro, in blu: gli ingressi leggono la tensione rispetto a lui.": "\u0627\u0644\u0645\u0631\u0628\u0637 IC \u0625\u0644\u0649 \u0627\u0644\u0645\u062D\u0627\u064A\u062F \u0628\u0627\u0644\u0623\u0632\u0631\u0642: \u062A\u0642\u0631\u0623 \u0627\u0644\u0645\u062F\u0627\u062E\u0644 \u0627\u0644\u062C\u0647\u062F \u0628\u0627\u0644\u0646\u0633\u0628\u0629 \u0625\u0644\u064A\u0647.",
+    "La fase entra in Q0A, esce da Q0B e va ad A1 del contattore. A2 del contattore va al neutro.": "\u064A\u062F\u062E\u0644 \u0627\u0644\u0637\u0648\u0631 \u0645\u0646 Q0A \u0648\u064A\u062E\u0631\u062C \u0645\u0646 Q0B \u0648\u064A\u0630\u0647\u0628 \u0625\u0644\u0649 A1 \u0641\u064A \u0627\u0644\u0643\u0648\u0646\u062A\u0627\u0643\u062A\u0648\u0631. \u0648\u0627\u0644\u0645\u0631\u0628\u0637 A2 \u0641\u064A \u0627\u0644\u0643\u0648\u0646\u062A\u0627\u0643\u062A\u0648\u0631 \u064A\u0630\u0647\u0628 \u0625\u0644\u0649 \u0627\u0644\u0645\u062D\u0627\u064A\u062F.",
+    "La fase entra in Q1A, esce da Q1B e va alla spia. L\u2019altro capo della spia va al neutro.": "\u064A\u062F\u062E\u0644 \u0627\u0644\u0637\u0648\u0631 \u0645\u0646 Q1A \u0648\u064A\u062E\u0631\u062C \u0645\u0646 Q1B \u0648\u064A\u0630\u0647\u0628 \u0625\u0644\u0649 \u0644\u0645\u0628\u0629 \u0627\u0644\u0625\u0634\u0627\u0631\u0629. \u0648\u0627\u0644\u0637\u0631\u0641 \u0627\u0644\u0622\u062E\u0631 \u0644\u0644\u0645\u0628\u0629 \u064A\u0630\u0647\u0628 \u0625\u0644\u0649 \u0627\u0644\u0645\u062D\u0627\u064A\u062F.",
+    "Chiudi il salvamotore e premi Marcia: il motore parte e resta in marcia. Premi Arresto: si ferma.": "\u0623\u063A\u0644\u0642 \u0642\u0627\u0637\u0639 \u062D\u0645\u0627\u064A\u0629 \u0627\u0644\u0645\u062D\u0631\u0643 \u0648\u0627\u0636\u063A\u0637 \u0639\u0644\u0649 \u0627\u0644\u062A\u0634\u063A\u064A\u0644: \u064A\u0628\u062F\u0623 \u0627\u0644\u0645\u062D\u0631\u0643 \u0648\u064A\u0628\u0642\u0649 \u064A\u0639\u0645\u0644. \u0627\u0636\u063A\u0637 \u0639\u0644\u0649 \u0627\u0644\u0625\u064A\u0642\u0627\u0641: \u064A\u062A\u0648\u0642\u0641.",
+    "Con un PLC la logica sta nel programma e i fili portano solo i segnali.": "\u0645\u0639 \u0627\u0644\u0640PLC \u064A\u0643\u0648\u0646 \u0627\u0644\u0645\u0646\u0637\u0642 \u0641\u064A \u0627\u0644\u0628\u0631\u0646\u0627\u0645\u062C \u0648\u062A\u062D\u0645\u0644 \u0627\u0644\u0623\u0633\u0644\u0627\u0643 \u0627\u0644\u0625\u0634\u0627\u0631\u0627\u062A \u0641\u0642\u0637.",
+    "Un ingresso vale 1 se c\u2019\xE8 tensione tra l\u2019ingresso e il comune IC. Le uscite a rel\xE8 sono contatti che il programma chiude.": "\u064A\u0633\u0627\u0648\u064A \u0627\u0644\u0645\u062F\u062E\u0644 1 \u0625\u0630\u0627 \u0648\u064F\u062C\u062F \u062C\u0647\u062F \u0628\u064A\u0646\u0647 \u0648\u0628\u064A\u0646 \u0627\u0644\u0645\u0634\u062A\u0631\u0643 IC. \u0648\u0645\u062E\u0627\u0631\u062C \u0627\u0644\u0645\u0631\u062D\u0651\u0644 \u0645\u0644\u0627\u0645\u0633\u0627\u062A \u064A\u063A\u0644\u0642\u0647\u0627 \u0627\u0644\u0628\u0631\u0646\u0627\u0645\u062C.",
+    "Il programma gira a cicli (scansione): legge gli ingressi, esegue i gradini, scrive le uscite.": "\u064A\u0639\u0645\u0644 \u0627\u0644\u0628\u0631\u0646\u0627\u0645\u062C \u0641\u064A \u062F\u0648\u0631\u0627\u062A (\u0645\u0633\u062D): \u064A\u0642\u0631\u0623 \u0627\u0644\u0645\u062F\u0627\u062E\u0644 \u0648\u064A\u0646\u0641\u0630 \u0627\u0644\u062F\u0631\u062C\u0627\u062A \u0648\u064A\u0643\u062A\u0628 \u0627\u0644\u0645\u062E\u0627\u0631\u062C.",
+    "L\u2019autoritenuta si fa rileggendo l\u2019uscita nel gradino, in parallelo alla marcia.": "\u064A\u062A\u0645 \u0627\u0644\u062A\u062B\u0628\u064A\u062A \u0627\u0644\u0630\u0627\u062A\u064A \u0628\u0625\u0639\u0627\u062F\u0629 \u0642\u0631\u0627\u0621\u0629 \u0627\u0644\u0645\u062E\u0631\u062C \u0641\u064A \u0627\u0644\u062F\u0631\u062C\u0629\u060C \u0639\u0644\u0649 \u0627\u0644\u062A\u0648\u0627\u0632\u064A \u0645\u0639 \u0627\u0644\u062A\u0634\u063A\u064A\u0644.",
+    "L\u2019arresto resta normalmente chiuso: un filo staccato ferma la macchina.": "\u064A\u0628\u0642\u0649 \u0627\u0644\u0625\u064A\u0642\u0627\u0641 \u0645\u063A\u0644\u0642\u064B\u0627 \u0639\u0627\u062F\u0629\u064B: \u0627\u0644\u0633\u0644\u0643 \u0627\u0644\u0645\u0646\u0641\u0635\u0644 \u064A\u0648\u0642\u0641 \u0627\u0644\u0622\u0644\u0629.",
+    "L\u2019impianto \xE8 gi\xE0 cablato, ma premendo Marcia il motore non parte. Guarda il PLC: gli ingressi si accendono?": "\u0627\u0644\u062A\u0631\u0643\u064A\u0628 \u0645\u0648\u0635\u0648\u0644 \u0623\u0635\u0644\u064B\u0627\u060C \u0644\u0643\u0646 \u0639\u0646\u062F \u0627\u0644\u0636\u063A\u0637 \u0639\u0644\u0649 \u0627\u0644\u062A\u0634\u063A\u064A\u0644 \u0644\u0627 \u064A\u0628\u062F\u0623 \u0627\u0644\u0645\u062D\u0631\u0643. \u0627\u0646\u0638\u0631 \u0625\u0644\u0649 \u0627\u0644\u0640PLC: \u0647\u0644 \u062A\u064F\u0636\u0627\u0621 \u0627\u0644\u0645\u062F\u0627\u062E\u0644\u061F",
+    "Perch\xE9 il motore non parte?": "\u0644\u0645\u0627\u0630\u0627 \u0644\u0627 \u064A\u0628\u062F\u0623 \u0627\u0644\u0645\u062D\u0631\u0643\u061F",
+    "Il comune degli ingressi IC non \xE8 collegato al neutro: gli ingressi non vedono mai tensione.": "\u0627\u0644\u0645\u0634\u062A\u0631\u0643 IC \u0644\u0644\u0645\u062F\u0627\u062E\u0644 \u063A\u064A\u0631 \u0645\u0648\u0635\u0648\u0644 \u0628\u0627\u0644\u0645\u062D\u0627\u064A\u062F: \u0641\u0644\u0627 \u062A\u0631\u0649 \u0627\u0644\u0645\u062F\u0627\u062E\u0644 \u0623\u064A \u062C\u0647\u062F \u0623\u0628\u062F\u064B\u0627.",
+    "Il programma del PLC \xE8 sbagliato.": "\u0628\u0631\u0646\u0627\u0645\u062C \u0627\u0644\u0640PLC \u062E\u0627\u0637\u0626.",
+    "Il contattore \xE8 bruciato.": "\u0627\u0644\u0643\u0648\u0646\u062A\u0627\u0643\u062A\u0648\u0631 \u0645\u062D\u062A\u0631\u0642.",
+    "Un ingresso legge la tensione tra se stesso e IC. Con IC scollegato non c\u2019\xE8 un ritorno: anche premendo Marcia, e anche con Arresto a riposo, tutti gli ingressi valgono 0 e il programma non accende mai Q0. Il programma \xE8 giusto: manca il filo.": "\u064A\u0642\u0631\u0623 \u0627\u0644\u0645\u062F\u062E\u0644 \u0627\u0644\u062C\u0647\u062F \u0628\u064A\u0646\u0647 \u0648\u0628\u064A\u0646 IC. \u0648\u0639\u0646\u062F\u0645\u0627 \u064A\u0643\u0648\u0646 IC \u0645\u0646\u0641\u0635\u0644\u064B\u0627 \u0644\u0627 \u064A\u0648\u062C\u062F \u0645\u0633\u0627\u0631 \u0639\u0648\u062F\u0629: \u062D\u062A\u0649 \u0645\u0639 \u0627\u0644\u0636\u063A\u0637 \u0639\u0644\u0649 \u0627\u0644\u062A\u0634\u063A\u064A\u0644\u060C \u0648\u062D\u062A\u0649 \u0645\u0639 \u0628\u0642\u0627\u0621 \u0627\u0644\u0625\u064A\u0642\u0627\u0641 \u0641\u064A \u0627\u0644\u0631\u0627\u062D\u0629\u060C \u062A\u0643\u0648\u0646 \u0642\u064A\u0645 \u0643\u0644 \u0627\u0644\u0645\u062F\u0627\u062E\u0644 0 \u0648\u0644\u0627 \u064A\u0634\u063A\u0651\u0644 \u0627\u0644\u0628\u0631\u0646\u0627\u0645\u062C Q0 \u0623\u0628\u062F\u064B\u0627. \u0627\u0644\u0628\u0631\u0646\u0627\u0645\u062C \u0635\u062D\u064A\u062D: \u0627\u0644\u0633\u0644\u0643 \u0647\u0648 \u0627\u0644\u0646\u0627\u0642\u0635.",
+    "Collega il morsetto IC del PLC al neutro del quadro, in blu, con il salvamotore aperto. Poi premi Verifica.": "\u0635\u0650\u0644 \u0627\u0644\u0645\u0631\u0628\u0637 IC \u0641\u064A \u0627\u0644\u0640PLC \u0628\u0645\u062D\u0627\u064A\u062F \u0627\u0644\u0644\u0648\u062D\u0629 \u0628\u0633\u0644\u0643 \u0623\u0632\u0631\u0642\u060C \u0648\u0627\u0644\u0642\u0627\u0637\u0639 \u0645\u0641\u062A\u0648\u062D. \u062B\u0645 \u0627\u0636\u063A\u0637 \u062A\u062D\u0642\u0642.",
+    "\xC8 un piccolo computer per le macchine. Si alimenta in A1-A2. Gli ingressi I0, I1, I2 leggono se c\u2019\xE8 tensione rispetto al comune IC (1 se ci sono 230 V). Ogni uscita Q \xE8 un contatto a rel\xE8, per esempio Q0A-Q0B, che si chiude quando il programma lo decide. Il programma si ripete in continuazione: legge gli ingressi, esegue i gradini, scrive le uscite.": "\u062D\u0627\u0633\u0648\u0628 \u0635\u063A\u064A\u0631 \u0644\u0644\u0622\u0644\u0627\u062A. \u064A\u064F\u063A\u0630\u0651\u0649 \u0639\u0628\u0631 A1-A2. \u0648\u062A\u0642\u0631\u0623 \u0627\u0644\u0645\u062F\u0627\u062E\u0644 I0 \u0648I1 \u0648I2 \u0647\u0644 \u064A\u0648\u062C\u062F \u062C\u0647\u062F \u0628\u0627\u0644\u0646\u0633\u0628\u0629 \u0625\u0644\u0649 \u0627\u0644\u0645\u0634\u062A\u0631\u0643 IC (\u0627\u0644\u0642\u064A\u0645\u0629 1 \u0639\u0646\u062F \u0648\u062C\u0648\u062F 230 V). \u0648\u0643\u0644 \u0645\u062E\u0631\u062C Q \u0647\u0648 \u0645\u0644\u0627\u0645\u0633 \u0645\u0631\u062D\u0651\u0644\u060C \u0645\u062B\u0644 Q0A-Q0B\u060C \u064A\u0646\u063A\u0644\u0642 \u0639\u0646\u062F\u0645\u0627 \u064A\u0642\u0631\u0631 \u0627\u0644\u0628\u0631\u0646\u0627\u0645\u062C \u0630\u0644\u0643. \u0648\u064A\u062A\u0643\u0631\u0631 \u0627\u0644\u0628\u0631\u0646\u0627\u0645\u062C \u0628\u0627\u0633\u062A\u0645\u0631\u0627\u0631: \u064A\u0642\u0631\u0623 \u0627\u0644\u0645\u062F\u0627\u062E\u0644 \u0648\u064A\u0646\u0641\u0630 \u0627\u0644\u062F\u0631\u062C\u0627\u062A \u0648\u064A\u0643\u062A\u0628 \u0627\u0644\u0645\u062E\u0627\u0631\u062C.",
+    "L\u2019emergenza passa solo dal programma del PLC: se il PLC sbaglia, la macchina non si ferma. Il fungo deve interrompere il comando anche con le uscite del PLC accese.": "\u0627\u0644\u0637\u0648\u0627\u0631\u0626 \u062A\u0645\u0631 \u0639\u0628\u0631 \u0628\u0631\u0646\u0627\u0645\u062C \u0627\u0644\u0640PLC \u0641\u0642\u0637: \u0648\u0625\u0630\u0627 \u0623\u062E\u0637\u0623 \u0627\u0644\u0640PLC \u0641\u0644\u0646 \u062A\u062A\u0648\u0642\u0641 \u0627\u0644\u0622\u0644\u0629. \u064A\u062C\u0628 \u0623\u0646 \u064A\u0642\u0637\u0639 \u0632\u0631 \u0627\u0644\u0637\u0648\u0627\u0631\u0626 \u062F\u0627\u0626\u0631\u0629 \u0627\u0644\u062A\u062D\u0643\u0645 \u062D\u062A\u0649 \u0645\u0639 \u062A\u0634\u063A\u064A\u0644 \u0645\u062E\u0627\u0631\u062C \u0627\u0644\u0640PLC.",
+    "Dal contatto Q0 alla bobina del contattore": "\u0645\u0646 \u0627\u0644\u0645\u0644\u0627\u0645\u0633 Q0 \u0625\u0644\u0649 \u0645\u0644\u0641 \u0627\u0644\u0643\u0648\u0646\u062A\u0627\u0643\u062A\u0648\u0631",
+    "All\u2019inizio Q0 vale 0, quindi serve Marcia. Una volta acceso, Q0 vale 1 e tiene vero il gradino anche con Marcia a 0. Due contatti dei quali basta uno sono in parallelo.": "\u0641\u064A \u0627\u0644\u0628\u062F\u0627\u064A\u0629 \u0642\u064A\u0645\u0629 Q0 \u0635\u0641\u0631\u060C \u0641\u064A\u0644\u0632\u0645 \u0627\u0644\u062A\u0634\u063A\u064A\u0644. \u0648\u0628\u0639\u062F \u0627\u0644\u062A\u0634\u063A\u064A\u0644 \u062A\u0635\u0628\u062D \u0642\u064A\u0645\u0629 Q0 \u0648\u0627\u062D\u062F\u064B\u0627 \u0641\u062A\u064F\u0628\u0642\u064A \u0627\u0644\u062F\u0631\u062C\u0629 \u0635\u062D\u064A\u062D\u0629 \u062D\u062A\u0649 \u0645\u0639 \u0643\u0648\u0646 \u0627\u0644\u062A\u0634\u063A\u064A\u0644 \u0635\u0641\u0631\u064B\u0627. \u0648\u0645\u0644\u0627\u0645\u0633\u0627\u0646 \u064A\u0643\u0641\u064A \u0623\u062D\u062F\u0647\u0645\u0627 \u064A\u0643\u0648\u0646\u0627\u0646 \u0639\u0644\u0649 \u0627\u0644\u062A\u0648\u0627\u0632\u064A.",
+    "Come si scrive il programma": "\u0643\u064A\u0641 \u064A\u064F\u0643\u062A\u0628 \u0627\u0644\u0628\u0631\u0646\u0627\u0645\u062C",
+    "Con l\u2019arresto cablato NC, quale contatto di I0 metti nel gradino del motore?": "\u0645\u0639 \u0627\u0644\u0625\u064A\u0642\u0627\u0641 \u0627\u0644\u0645\u0648\u0635\u0648\u0644 \u0643\u0645\u0644\u0627\u0645\u0633 NC\u060C \u0623\u064A \u0645\u0644\u0627\u0645\u0633 \u0644\u0640 I0 \u062A\u0636\u0639 \u0641\u064A \u062F\u0631\u062C\u0629 \u0627\u0644\u0645\u062D\u0631\u0643\u061F",
+    "Contatti in serie e in parallelo": "\u0645\u0644\u0627\u0645\u0633\u0627\u062A \u0639\u0644\u0649 \u0627\u0644\u062A\u0648\u0627\u0644\u064A \u0648\u0639\u0644\u0649 \u0627\u0644\u062A\u0648\u0627\u0632\u064A",
+    "Contatti in serie sono un E, contatti in parallelo un O.": "\u0627\u0644\u0645\u0644\u0627\u0645\u0633\u0627\u062A \u0639\u0644\u0649 \u0627\u0644\u062A\u0648\u0627\u0644\u064A \u062A\u0639\u0646\u064A \xAB\u0648\xBB\u060C \u0648\u0639\u0644\u0649 \u0627\u0644\u062A\u0648\u0627\u0632\u064A \u062A\u0639\u0646\u064A \xAB\u0623\u0648\xBB.",
+    "Contatti in serie sono un E: servono tutti. Contatti in parallelo sono un O: ne basta uno. L\u2019autoritenuta \xE8 proprio un parallelo: Marcia oppure l\u2019uscita stessa.": "\u0627\u0644\u0645\u0644\u0627\u0645\u0633\u0627\u062A \u0639\u0644\u0649 \u0627\u0644\u062A\u0648\u0627\u0644\u064A \u062A\u0639\u0646\u064A \xAB\u0648\xBB: \u064A\u0644\u0632\u0645 \u0643\u0644\u0647\u0627. \u0648\u0639\u0644\u0649 \u0627\u0644\u062A\u0648\u0627\u0632\u064A \u062A\u0639\u0646\u064A \xAB\u0623\u0648\xBB: \u064A\u0643\u0641\u064A \u0648\u0627\u062D\u062F. \u0648\u0627\u0644\u062A\u062B\u0628\u064A\u062A \u0627\u0644\u0630\u0627\u062A\u064A \u0647\u0648 \u0628\u0627\u0644\u0636\u0628\u0637 \u062A\u0648\u0627\u0632\u064D: \u0627\u0644\u062A\u0634\u063A\u064A\u0644 \u0623\u0648 \u0627\u0644\u0645\u062E\u0631\u062C \u0646\u0641\u0633\u0647.",
+    "Controlla il programma": "\u0627\u0641\u062D\u0635 \u0627\u0644\u0628\u0631\u0646\u0627\u0645\u062C",
+    "Il PLC \xE8 acceso e il programma gira: prova subito Marcia e Arresto e guarda i contatti che si colorano.": "\u0627\u0644\u0640PLC \u064A\u0639\u0645\u0644 \u0648\u0627\u0644\u0628\u0631\u0646\u0627\u0645\u062C \u0642\u064A\u062F \u0627\u0644\u062A\u0646\u0641\u064A\u0630: \u062C\u0631\u0651\u0628 \u0627\u0644\u062A\u0634\u063A\u064A\u0644 \u0648\u0627\u0644\u0625\u064A\u0642\u0627\u0641 \u0641\u0648\u0631\u064B\u0627 \u0648\u0627\u0646\u0638\u0631 \u0625\u0644\u0649 \u0627\u0644\u0645\u0644\u0627\u0645\u0633\u0627\u062A \u0627\u0644\u062A\u064A \u062A\u062A\u0644\u0648\u0651\u0646.",
+    "Il contatto di I0 \xE8 normalmente chiuso, ma I0 vale 1 a riposo: il gradino non \xE8 mai vero.": "\u0645\u0644\u0627\u0645\u0633 I0 \u0645\u063A\u0644\u0642 \u0639\u0627\u062F\u0629\u064B\u060C \u0644\u0643\u0646 \u0642\u064A\u0645\u0629 I0 \u0647\u064A 1 \u0641\u064A \u0627\u0644\u0631\u0627\u062D\u0629: \u0641\u0627\u0644\u062F\u0631\u062C\u0629 \u0644\u0627 \u062A\u0643\u0648\u0646 \u0635\u062D\u064A\u062D\u0629 \u0623\u0628\u062F\u064B\u0627.",
+    "Il gradino 2 \xE8 semplice: un contatto Q0 e la bobina Q1, la spia.": "\u0627\u0644\u062F\u0631\u062C\u0629 2 \u0628\u0633\u064A\u0637\u0629: \u0645\u0644\u0627\u0645\u0633 Q0 \u0648\u0627\u0644\u0645\u0644\u0641 Q1\u060C \u0623\u064A \u0644\u0645\u0628\u0629 \u0627\u0644\u0625\u0634\u0627\u0631\u0629.",
+    "Il gradino del motore": "\u062F\u0631\u062C\u0629 \u0627\u0644\u0645\u062D\u0631\u0643",
+    "Il gradino della spia": "\u062F\u0631\u062C\u0629 \u0644\u0645\u0628\u0629 \u0627\u0644\u0625\u0634\u0627\u0631\u0629",
+    "Il ladder (schema a contatti) si legge come uno schema elettrico a rel\xE8: due montanti verticali, e tra l\u2019uno e l\u2019altro i gradini. Ogni gradino ha a sinistra dei contatti e a destra una bobina.": "\u064A\u064F\u0642\u0631\u0623 \u0645\u062E\u0637\u0637 \u0627\u0644\u0633\u0644\u0651\u0645 (\u0645\u062E\u0637\u0637 \u0627\u0644\u0645\u0644\u0627\u0645\u0633\u0627\u062A) \u0645\u062B\u0644 \u0627\u0644\u0645\u062E\u0637\u0637 \u0627\u0644\u0643\u0647\u0631\u0628\u0627\u0626\u064A \u0644\u0644\u0645\u0631\u062D\u0651\u0644\u0627\u062A: \u0639\u0645\u0648\u062F\u0627\u0646 \u0631\u0623\u0633\u064A\u0627\u0646 \u0648\u0628\u064A\u0646\u0647\u0645\u0627 \u0627\u0644\u062F\u0631\u062C\u0627\u062A. \u0648\u0644\u0643\u0644 \u062F\u0631\u062C\u0629 \u0645\u0644\u0627\u0645\u0633\u0627\u062A \u0639\u0644\u0649 \u0627\u0644\u064A\u0633\u0627\u0631 \u0648\u0645\u0644\u0641 \u0639\u0644\u0649 \u0627\u0644\u064A\u0645\u064A\u0646.",
+    "Il ladder: lo schema a scala": "\u0627\u0644\u0633\u0644\u0651\u0645: \u0627\u0644\u0645\u062E\u0637\u0637 \u0639\u0644\u0649 \u0634\u0643\u0644 \u0633\u0644\u0645",
+    "Il programma si prova subito: il PLC gira e i contatti si colorano.": "\u064A\u064F\u062C\u0631\u064E\u0651\u0628 \u0627\u0644\u0628\u0631\u0646\u0627\u0645\u062C \u0641\u0648\u0631\u064B\u0627: \u0627\u0644\u0640PLC \u064A\u0639\u0645\u0644 \u0648\u0627\u0644\u0645\u0644\u0627\u0645\u0633\u0627\u062A \u062A\u062A\u0644\u0648\u0651\u0646.",
+    "Il programma \xE8 gi\xE0 scritto, ma premendo Marcia il motore non parte. Guarda i contatti nel ladder: quale non si colora?": "\u0627\u0644\u0628\u0631\u0646\u0627\u0645\u062C \u0645\u0643\u062A\u0648\u0628 \u0623\u0635\u0644\u064B\u0627\u060C \u0644\u0643\u0646 \u0639\u0646\u062F \u0627\u0644\u0636\u063A\u0637 \u0639\u0644\u0649 \u0627\u0644\u062A\u0634\u063A\u064A\u0644 \u0644\u0627 \u064A\u0628\u062F\u0623 \u0627\u0644\u0645\u062D\u0631\u0643. \u0627\u0646\u0638\u0631 \u0625\u0644\u0649 \u0627\u0644\u0645\u0644\u0627\u0645\u0633\u0627\u062A \u0641\u064A \u0645\u062E\u0637\u0637 \u0627\u0644\u0633\u0644\u0651\u0645: \u0623\u064A\u0647\u0627 \u0644\u0627 \u064A\u062A\u0644\u0648\u0651\u0646\u061F",
+    "Il pulsante di marcia \xE8 rotto.": "\u0632\u0631 \u0627\u0644\u062A\u0634\u063A\u064A\u0644 \u0645\u0639\u0637\u0651\u0644.",
+    "In parallelo: ne basta uno dei due.": "\u0639\u0644\u0649 \u0627\u0644\u062A\u0648\u0627\u0632\u064A: \u064A\u0643\u0641\u064A \u0648\u0627\u062D\u062F \u0645\u0646 \u0627\u0644\u0627\u062B\u0646\u064A\u0646.",
+    "In serie: servono tutti e due.": "\u0639\u0644\u0649 \u0627\u0644\u062A\u0648\u0627\u0644\u064A: \u064A\u0644\u0632\u0645 \u0627\u0644\u0627\u062B\u0646\u0627\u0646 \u0645\u0639\u064B\u0627.",
+    'La corrente "passa" nel gradino da sinistra a destra se i contatti lasciano passare. Quando passa, la bobina si accende: nel PLC la bobina \xE8 un\u2019uscita (Q0, Q1) o un bit interno.': "\xAB\u064A\u0645\u0631\xBB \u0627\u0644\u062A\u064A\u0627\u0631 \u0641\u064A \u0627\u0644\u062F\u0631\u062C\u0629 \u0645\u0646 \u0627\u0644\u064A\u0633\u0627\u0631 \u0625\u0644\u0649 \u0627\u0644\u064A\u0645\u064A\u0646 \u0625\u0630\u0627 \u0633\u0645\u062D\u062A \u0627\u0644\u0645\u0644\u0627\u0645\u0633\u0627\u062A \u0628\u0630\u0644\u0643. \u0648\u0639\u0646\u062F\u0645\u0627 \u064A\u0645\u0631 \u064A\u0639\u0645\u0644 \u0627\u0644\u0645\u0644\u0641: \u0648\u0641\u064A \u0627\u0644\u0640PLC \u064A\u0643\u0648\u0646 \u0627\u0644\u0645\u0644\u0641 \u0645\u062E\u0631\u062C\u064B\u0627 (Q0 \u0648Q1) \u0623\u0648 \u0628\u062A\u064B\u0627 \u062F\u0627\u062E\u0644\u064A\u064B\u0627.",
+    "L\u2019arresto \xE8 cablato NC, quindi I0 vale 1 a riposo e 0 solo premendolo. Un contatto normalmente chiuso su I0 lascia passare con I0 a 0: a riposo il gradino \xE8 sempre interrotto, e Marcia non basta. Serve un contatto normalmente aperto.": "\u0627\u0644\u0625\u064A\u0642\u0627\u0641 \u0645\u0648\u0635\u0648\u0644 \u0643\u0645\u0644\u0627\u0645\u0633 NC\u060C \u0641\u0642\u064A\u0645\u0629 I0 \u0647\u064A 1 \u0641\u064A \u0627\u0644\u0631\u0627\u062D\u0629 \u06480 \u0639\u0646\u062F \u0627\u0644\u0636\u063A\u0637 \u0641\u0642\u0637. \u0648\u0627\u0644\u0645\u0644\u0627\u0645\u0633 \u0627\u0644\u0645\u063A\u0644\u0642 \u0639\u0627\u062F\u0629\u064B \u0639\u0644\u0649 I0 \u064A\u0633\u0645\u062D \u0628\u0627\u0644\u0645\u0631\u0648\u0631 \u0639\u0646\u062F\u0645\u0627 \u062A\u0643\u0648\u0646 I0 \u0635\u0641\u0631\u064B\u0627: \u0641\u0641\u064A \u0627\u0644\u0631\u0627\u062D\u0629 \u062A\u0628\u0642\u0649 \u0627\u0644\u062F\u0631\u062C\u0629 \u0645\u0642\u0637\u0648\u0639\u0629 \u062F\u0627\u0626\u0645\u064B\u0627 \u0648\u0644\u0627 \u064A\u0643\u0641\u064A \u0627\u0644\u062A\u0634\u063A\u064A\u0644. \u064A\u0644\u0632\u0645 \u0645\u0644\u0627\u0645\u0633 \u0645\u0641\u062A\u0648\u062D \u0639\u0627\u062F\u0629\u064B.",
+    "L\u2019arresto \xE8 cablato come contatto NC: a riposo porta tensione e I0 vale 1. Nel programma il suo contatto serve normalmente aperto, perch\xE9 deve lasciar passare quando I0 vale 1.": "\u0627\u0644\u0625\u064A\u0642\u0627\u0641 \u0645\u0648\u0635\u0648\u0644 \u0643\u0645\u0644\u0627\u0645\u0633 NC: \u0641\u064A \u0627\u0644\u0631\u0627\u062D\u0629 \u064A\u062D\u0645\u0644 \u062C\u0647\u062F\u064B\u0627 \u0648\u0642\u064A\u0645\u0629 I0 \u0647\u064A 1. \u0648\u0641\u064A \u0627\u0644\u0628\u0631\u0646\u0627\u0645\u062C \u064A\u0644\u0632\u0645 \u0623\u0646 \u064A\u0643\u0648\u0646 \u0645\u0644\u0627\u0645\u0633\u0647 \u0645\u0641\u062A\u0648\u062D\u064B\u0627 \u0639\u0627\u062F\u0629\u064B\u060C \u0644\u0623\u0646\u0647 \u064A\u062C\u0628 \u0623\u0646 \u064A\u0633\u0645\u062D \u0628\u0627\u0644\u0645\u0631\u0648\u0631 \u0639\u0646\u062F\u0645\u0627 \u062A\u0643\u0648\u0646 I0 \u0645\u0633\u0627\u0648\u064A\u0629 1.",
+    "L\u2019arresto \xE8 collegato come contatto NC, quindi I0 vale 1 a riposo e vale 0 solo premendolo: in serie metti I0 come contatto normalmente aperto, non chiuso.": "\u0627\u0644\u0625\u064A\u0642\u0627\u0641 \u0645\u0648\u0635\u0648\u0644 \u0643\u0645\u0644\u0627\u0645\u0633 NC\u060C \u0641\u0642\u064A\u0645\u0629 I0 \u0647\u064A 1 \u0641\u064A \u0627\u0644\u0631\u0627\u062D\u0629 \u06480 \u0639\u0646\u062F \u0627\u0644\u0636\u063A\u0637 \u0641\u0642\u0637: \u0636\u0639 I0 \u0639\u0644\u0649 \u0627\u0644\u062A\u0648\u0627\u0644\u064A \u0643\u0645\u0644\u0627\u0645\u0633 \u0645\u0641\u062A\u0648\u062D \u0639\u0627\u062F\u0629\u064B\u060C \u0644\u0627 \u0645\u063A\u0644\u0642.",
+    "L\u2019autoritenuta \xE8 l\u2019uscita stessa messa in parallelo al contatto di marcia.": "\u0627\u0644\u062A\u062B\u0628\u064A\u062A \u0627\u0644\u0630\u0627\u062A\u064A \u0647\u0648 \u0627\u0644\u0645\u062E\u0631\u062C \u0646\u0641\u0633\u0647 \u0645\u0648\u0636\u0648\u0639\u064B\u0627 \u0639\u0644\u0649 \u0627\u0644\u062A\u0648\u0627\u0632\u064A \u0645\u0639 \u0645\u0644\u0627\u0645\u0633 \u0627\u0644\u062A\u0634\u063A\u064A\u0644.",
+    "L\u2019impianto \xE8 cablato e il PLC \xE8 acceso, ma il programma \xE8 vuoto. Scrivilo tu: con Marcia il motore parte e resta in marcia a pulsante rilasciato, con Arresto si ferma, e la spia segue il motore. Ricorda che l\u2019arresto \xE8 un contatto normalmente chiuso: a riposo porta tensione e l\u2019ingresso I0 vale 1.": "\u0627\u0644\u062A\u0631\u0643\u064A\u0628 \u0645\u0648\u0635\u0648\u0644 \u0648\u0627\u0644\u0640PLC \u064A\u0639\u0645\u0644\u060C \u0644\u0643\u0646 \u0627\u0644\u0628\u0631\u0646\u0627\u0645\u062C \u0641\u0627\u0631\u063A. \u0627\u0643\u062A\u0628\u0647 \u0623\u0646\u062A: \u0639\u0646\u062F \u0627\u0644\u062A\u0634\u063A\u064A\u0644 \u064A\u0628\u062F\u0623 \u0627\u0644\u0645\u062D\u0631\u0643 \u0648\u064A\u0628\u0642\u0649 \u064A\u0639\u0645\u0644 \u0628\u0639\u062F \u062A\u062D\u0631\u064A\u0631 \u0627\u0644\u0632\u0631\u060C \u0648\u0639\u0646\u062F \u0627\u0644\u0625\u064A\u0642\u0627\u0641 \u064A\u062A\u0648\u0642\u0641\u060C \u0648\u062A\u062A\u0628\u0639 \u0644\u0645\u0628\u0629 \u0627\u0644\u0625\u0634\u0627\u0631\u0629 \u0627\u0644\u0645\u062D\u0631\u0643. \u062A\u0630\u0643\u0651\u0631 \u0623\u0646 \u0627\u0644\u0625\u064A\u0642\u0627\u0641 \u0645\u0644\u0627\u0645\u0633 \u0645\u063A\u0644\u0642 \u0639\u0627\u062F\u0629\u064B: \u0641\u064A \u0627\u0644\u0631\u0627\u062D\u0629 \u064A\u062D\u0645\u0644 \u062C\u0647\u062F\u064B\u0627 \u0648\u0642\u064A\u0645\u0629 \u0627\u0644\u0645\u062F\u062E\u0644 I0 \u0647\u064A 1.",
+    "Manca l\u2019autoritenuta.": "\u0627\u0644\u062A\u062B\u0628\u064A\u062A \u0627\u0644\u0630\u0627\u062A\u064A \u0646\u0627\u0642\u0635.",
+    "Marcia \xE8 un impulso e deve far restare acceso Q0 anche dopo il rilascio. Come si aggiunge il contatto di Q0 al contatto di Marcia?": "\u0627\u0644\u062A\u0634\u063A\u064A\u0644 \u0646\u0628\u0636\u0629 \u0648\u064A\u062C\u0628 \u0623\u0646 \u064A\u064F\u0628\u0642\u064A Q0 \u0645\u0634\u063A\u064E\u0651\u0644\u064B\u0627 \u062D\u062A\u0649 \u0628\u0639\u062F \u0627\u0644\u062A\u062D\u0631\u064A\u0631. \u0643\u064A\u0641 \u0646\u0636\u064A\u0641 \u0645\u0644\u0627\u0645\u0633 Q0 \u0625\u0644\u0649 \u0645\u0644\u0627\u0645\u0633 \u0627\u0644\u062A\u0634\u063A\u064A\u0644\u061F",
+    "Nessuno: l\u2019arresto non serve nel programma.": "\u0644\u0627 \u0634\u064A\u0621: \u0627\u0644\u0625\u064A\u0642\u0627\u0641 \u063A\u064A\u0631 \u0644\u0627\u0632\u0645 \u0641\u064A \u0627\u0644\u0628\u0631\u0646\u0627\u0645\u062C.",
+    "Non serve: il PLC ricorda l\u2019ultimo valore.": "\u0644\u0627 \u062D\u0627\u062C\u0629: \u0627\u0644\u0640PLC \u064A\u062A\u0630\u0643\u0631 \u0622\u062E\u0631 \u0642\u064A\u0645\u0629.",
+    "Non succede niente: serve un contatto normalmente chiuso.": "\u0644\u0627 \u064A\u062D\u062F\u062B \u0634\u064A\u0621: \u064A\u0644\u0632\u0645 \u0645\u0644\u0627\u0645\u0633 \u0645\u063A\u0644\u0642 \u0639\u0627\u062F\u0629\u064B.",
+    "Normalmente aperto: lascia passare quando I0 vale 1, cio\xE8 a riposo.": "\u0645\u0641\u062A\u0648\u062D \u0639\u0627\u062F\u0629\u064B: \u064A\u0633\u0645\u062D \u0628\u0627\u0644\u0645\u0631\u0648\u0631 \u0639\u0646\u062F\u0645\u0627 \u062A\u0643\u0648\u0646 I0 \u0645\u0633\u0627\u0648\u064A\u0629 1\u060C \u0623\u064A \u0641\u064A \u0627\u0644\u0631\u0627\u062D\u0629.",
+    "Normalmente chiuso: cos\xEC si ferma quando viene premuto.": "\u0645\u063A\u0644\u0642 \u0639\u0627\u062F\u0629\u064B: \u0648\u0647\u0643\u0630\u0627 \u064A\u062A\u0648\u0642\u0641 \u0639\u0646\u062F \u0627\u0644\u0636\u063A\u0637 \u0639\u0644\u064A\u0647.",
+    "Nuovo gradino": "\u062F\u0631\u062C\u0629 \u062C\u062F\u064A\u062F\u0629",
+    "Nuovo gradino: Marcia (I1) in parallelo a Q0, in serie con l\u2019arresto (I0), e la bobina Q0.": "\u062F\u0631\u062C\u0629 \u062C\u062F\u064A\u062F\u0629: \u0627\u0644\u062A\u0634\u063A\u064A\u0644 (I1) \u0639\u0644\u0649 \u0627\u0644\u062A\u0648\u0627\u0632\u064A \u0645\u0639 Q0\u060C \u0648\u0639\u0644\u0649 \u0627\u0644\u062A\u0648\u0627\u0644\u064A \u0645\u0639 \u0627\u0644\u0625\u064A\u0642\u0627\u0641 (I0)\u060C \u0648\u0627\u0644\u0645\u0644\u0641 Q0.",
+    "PLC (programma da scrivere)": "PLC (\u0627\u0644\u0628\u0631\u0646\u0627\u0645\u062C \u0627\u0644\u0645\u0637\u0644\u0648\u0628 \u0643\u062A\u0627\u0628\u062A\u0647)",
+    "PLC.IC": "PLC.IC",
+    "Per far partire il motore serve il contatto di Marcia, I1. Ma Marcia \xE8 un impulso: appena lo rilasci vale 0. Per tenere acceso Q0 aggiungi in parallelo a I1 il contatto di Q0 stesso.": "\u0644\u062A\u0634\u063A\u064A\u0644 \u0627\u0644\u0645\u062D\u0631\u0643 \u064A\u0644\u0632\u0645 \u0645\u0644\u0627\u0645\u0633 \u0627\u0644\u062A\u0634\u063A\u064A\u0644 I1. \u0644\u0643\u0646 \u0627\u0644\u062A\u0634\u063A\u064A\u0644 \u0646\u0628\u0636\u0629: \u0648\u0645\u0627 \u0625\u0646 \u062A\u062D\u0631\u0631\u0647 \u062A\u0635\u0628\u062D \u0642\u064A\u0645\u062A\u0647 0. \u0648\u0644\u0625\u0628\u0642\u0627\u0621 Q0 \u0645\u0634\u063A\u064E\u0651\u0644\u064B\u0627 \u0623\u0636\u0641 \u0639\u0644\u0649 \u0627\u0644\u062A\u0648\u0627\u0632\u064A \u0645\u0639 I1 \u0645\u0644\u0627\u0645\u0633 Q0 \u0646\u0641\u0633\u0647.",
+    "Premi Marcia: il motore parte e resta in marcia. Premi Arresto: si ferma.": "\u0627\u0636\u063A\u0637 \u0639\u0644\u0649 \u0627\u0644\u062A\u0634\u063A\u064A\u0644: \u064A\u0628\u062F\u0623 \u0627\u0644\u0645\u062D\u0631\u0643 \u0648\u064A\u0628\u0642\u0649 \u064A\u0639\u0645\u0644. \u0627\u0636\u063A\u0637 \u0639\u0644\u0649 \u0627\u0644\u0625\u064A\u0642\u0627\u0641: \u064A\u062A\u0648\u0642\u0641.",
+    "Programma vuoto": "\u0628\u0631\u0646\u0627\u0645\u062C \u0641\u0627\u0631\u063A",
+    "Q0 si accende e resta acceso per sempre.": "\u064A\u0639\u0645\u0644 Q0 \u0648\u064A\u0628\u0642\u0649 \u0645\u0634\u063A\u064E\u0651\u0644\u064B\u0627 \u0625\u0644\u0649 \u0627\u0644\u0623\u0628\u062F.",
+    "Q0 si accende, e si spegne quando I1 torna a 0.": "\u064A\u0639\u0645\u0644 Q0 \u062B\u0645 \u064A\u0646\u0637\u0641\u0626 \u0639\u0646\u062F\u0645\u0627 \u062A\u0639\u0648\u062F I1 \u0625\u0644\u0649 0.",
+    "Scrivi il programma del PLC": "\u0627\u0643\u062A\u0628 \u0628\u0631\u0646\u0627\u0645\u062C \u0627\u0644\u0640PLC",
+    "Scrivi tu il programma: marcia, arresto e spia.": "\u0627\u0643\u062A\u0628 \u0623\u0646\u062A \u0627\u0644\u0628\u0631\u0646\u0627\u0645\u062C: \u0627\u0644\u062A\u0634\u063A\u064A\u0644 \u0648\u0627\u0644\u0625\u064A\u0642\u0627\u0641 \u0648\u0644\u0645\u0628\u0629 \u0627\u0644\u0625\u0634\u0627\u0631\u0629.",
+    "Secondo gradino: un contatto Q0 e la bobina Q1.": "\u0627\u0644\u062F\u0631\u062C\u0629 \u0627\u0644\u062B\u0627\u0646\u064A\u0629: \u0645\u0644\u0627\u0645\u0633 Q0 \u0648\u0627\u0644\u0645\u0644\u0641 Q1.",
+    "Soluzione": "\u0627\u0644\u062D\u0644",
+    "Sotto il banco c\u2019\xE8 l\u2019editor. Premi Nuovo gradino, poi Aggiungi contatto e scegli quale ingresso o uscita leggere. Toccando un contatto puoi cambiarlo, metterlo normalmente chiuso, affiancarne uno in parallelo o toglierlo. Alla fine scegli la bobina del gradino.": "\u062A\u062D\u062A \u0627\u0644\u0644\u0648\u062D\u0629 \u064A\u0648\u062C\u062F \u0627\u0644\u0645\u062D\u0631\u0631. \u0627\u0636\u063A\u0637 \xAB\u062F\u0631\u062C\u0629 \u062C\u062F\u064A\u062F\u0629\xBB \u062B\u0645 \xAB\u0625\u0636\u0627\u0641\u0629 \u0645\u0644\u0627\u0645\u0633\xBB \u0648\u0627\u062E\u062A\u0631 \u0623\u064A \u0645\u062F\u062E\u0644 \u0623\u0648 \u0645\u062E\u0631\u062C \u062A\u0631\u064A\u062F \u0642\u0631\u0627\u0621\u062A\u0647. \u0648\u0639\u0646\u062F \u0644\u0645\u0633 \u0645\u0644\u0627\u0645\u0633 \u064A\u0645\u0643\u0646\u0643 \u062A\u063A\u064A\u064A\u0631\u0647 \u0623\u0648 \u062C\u0639\u0644\u0647 \u0645\u063A\u0644\u0642\u064B\u0627 \u0639\u0627\u062F\u0629\u064B \u0623\u0648 \u0648\u0636\u0639 \u0622\u062E\u0631 \u0628\u062C\u0627\u0646\u0628\u0647 \u0639\u0644\u0649 \u0627\u0644\u062A\u0648\u0627\u0632\u064A \u0623\u0648 \u062D\u0630\u0641\u0647. \u0648\u0641\u064A \u0627\u0644\u0646\u0647\u0627\u064A\u0629 \u0627\u062E\u062A\u0631 \u0645\u0644\u0641 \u0627\u0644\u062F\u0631\u062C\u0629.",
+    "Tocca il contatto di I0 nel gradino 1 e cambialo in normalmente aperto. Poi premi Verifica.": "\u0627\u0644\u0645\u0633 \u0645\u0644\u0627\u0645\u0633 I0 \u0641\u064A \u0627\u0644\u062F\u0631\u062C\u0629 1 \u0648\u063A\u064A\u0651\u0631\u0647 \u0625\u0644\u0649 \u0645\u0641\u062A\u0648\u062D \u0639\u0627\u062F\u0629\u064B. \u062B\u0645 \u0627\u0636\u063A\u0637 \u062A\u062D\u0642\u0642.",
+    "Tocca un gradino (il numero a sinistra) o un contatto per modificarlo.": "\u0627\u0644\u0645\u0633 \u062F\u0631\u062C\u0629 (\u0627\u0644\u0631\u0642\u0645 \u0639\u0644\u0649 \u0627\u0644\u064A\u0633\u0627\u0631) \u0623\u0648 \u0645\u0644\u0627\u0645\u0633\u064B\u0627 \u0644\u062A\u0639\u062F\u064A\u0644\u0647.",
+    "Un contatto normalmente aperto lascia passare con il bit a 1: con l\u2019arresto cablato NC, I0 vale 1 a riposo.": "\u0627\u0644\u0645\u0644\u0627\u0645\u0633 \u0627\u0644\u0645\u0641\u062A\u0648\u062D \u0639\u0627\u062F\u0629\u064B \u064A\u0633\u0645\u062D \u0628\u0627\u0644\u0645\u0631\u0648\u0631 \u0639\u0646\u062F\u0645\u0627 \u064A\u0643\u0648\u0646 \u0627\u0644\u0628\u062A 1: \u0648\u0645\u0639 \u0627\u0644\u0625\u064A\u0642\u0627\u0641 \u0627\u0644\u0645\u0648\u0635\u0648\u0644 \u0643\u0640NC \u062A\u0643\u0648\u0646 I0 \u0645\u0633\u0627\u0648\u064A\u0629 1 \u0641\u064A \u0627\u0644\u0631\u0627\u062D\u0629.",
+    "Un contatto normalmente aperto lascia passare quando il suo bit vale 1. Un contatto normalmente chiuso lascia passare quando il bit vale 0.": "\u0627\u0644\u0645\u0644\u0627\u0645\u0633 \u0627\u0644\u0645\u0641\u062A\u0648\u062D \u0639\u0627\u062F\u0629\u064B \u064A\u0633\u0645\u062D \u0628\u0627\u0644\u0645\u0631\u0648\u0631 \u0639\u0646\u062F\u0645\u0627 \u062A\u0643\u0648\u0646 \u0642\u064A\u0645\u0629 \u0628\u062A\u0647 1. \u0648\u0627\u0644\u0645\u0644\u0627\u0645\u0633 \u0627\u0644\u0645\u063A\u0644\u0642 \u0639\u0627\u062F\u0629\u064B \u064A\u0633\u0645\u062D \u0628\u0627\u0644\u0645\u0631\u0648\u0631 \u0639\u0646\u062F\u0645\u0627 \u064A\u0643\u0648\u0646 \u0627\u0644\u0628\u062A 0.",
+    "Un gradino ha i contatti a sinistra e la bobina a destra. Il motore \xE8 l\u2019uscita Q0: la sua bobina sta a destra del gradino 1.": "\u0644\u0644\u062F\u0631\u062C\u0629 \u0645\u0644\u0627\u0645\u0633\u0627\u062A \u0639\u0644\u0649 \u0627\u0644\u064A\u0633\u0627\u0631 \u0648\u0645\u0644\u0641 \u0639\u0644\u0649 \u0627\u0644\u064A\u0645\u064A\u0646. \u0648\u0627\u0644\u0645\u062D\u0631\u0643 \u0647\u0648 \u0627\u0644\u0645\u062E\u0631\u062C Q0: \u0648\u0645\u0644\u0641\u0647 \u0639\u0644\u0649 \u064A\u0645\u064A\u0646 \u0627\u0644\u062F\u0631\u062C\u0629 1.",
+    "Un gradino ha i contatti a sinistra e la bobina a destra: la bobina segue la condizione.": "\u0644\u0644\u062F\u0631\u062C\u0629 \u0645\u0644\u0627\u0645\u0633\u0627\u062A \u0639\u0644\u0649 \u0627\u0644\u064A\u0633\u0627\u0631 \u0648\u0645\u0644\u0641 \u0639\u0644\u0649 \u0627\u0644\u064A\u0645\u064A\u0646: \u0648\u0627\u0644\u0645\u0644\u0641 \u064A\u062A\u0628\u0639 \u0627\u0644\u0634\u0631\u0637.",
+    "Un gradino ha un contatto normalmente aperto su I1 e la bobina Q0. Che cosa succede se I1 vale 1?": "\u0641\u064A \u062F\u0631\u062C\u0629 \u0645\u0644\u0627\u0645\u0633 \u0645\u0641\u062A\u0648\u062D \u0639\u0627\u062F\u0629\u064B \u0639\u0644\u0649 I1 \u0648\u0627\u0644\u0645\u0644\u0641 Q0. \u0645\u0627\u0630\u0627 \u064A\u062D\u062F\u062B \u0625\u0630\u0627 \u0643\u0627\u0646\u062A I1 \u0645\u0633\u0627\u0648\u064A\u0629 1\u061F",
+    "Una bobina segue la condizione del suo gradino: la condizione \xE8 vera quando I1 vale 1, quindi Q0 vale 1, e torna a 0 quando I1 torna a 0. Per farlo restare acceso serve l\u2019autoritenuta.": "\u064A\u062A\u0628\u0639 \u0627\u0644\u0645\u0644\u0641 \u0634\u0631\u0637 \u062F\u0631\u062C\u062A\u0647: \u0648\u0627\u0644\u0634\u0631\u0637 \u0635\u062D\u064A\u062D \u0639\u0646\u062F\u0645\u0627 \u062A\u0643\u0648\u0646 I1 \u0645\u0633\u0627\u0648\u064A\u0629 1\u060C \u0641\u062A\u0635\u0628\u062D Q0 \u0645\u0633\u0627\u0648\u064A\u0629 1\u060C \u0648\u062A\u0639\u0648\u062F \u0625\u0644\u0649 0 \u0639\u0646\u062F\u0645\u0627 \u062A\u0639\u0648\u062F I1 \u0625\u0644\u0649 0. \u0648\u0644\u0625\u0628\u0642\u0627\u0626\u0647 \u0645\u0634\u063A\u064E\u0651\u0644\u064B\u0627 \u064A\u0644\u0632\u0645 \u0627\u0644\u062A\u062B\u0628\u064A\u062A \u0627\u0644\u0630\u0627\u062A\u064A.",
+    '\xC8 facile sbagliare: "arresto = contatto chiuso". Ma \xE8 l\u2019ingresso I0 a valere 1 a riposo, perch\xE9 il pulsante cablato NC porta tensione. Premendo, I0 va a 0 e un contatto normalmente aperto smette di lasciar passare: il motore si ferma.': "\u0645\u0646 \u0627\u0644\u0633\u0647\u0644 \u0623\u0646 \u0646\u062E\u0637\u0626: \xAB\u0627\u0644\u0625\u064A\u0642\u0627\u0641 = \u0645\u0644\u0627\u0645\u0633 \u0645\u063A\u0644\u0642\xBB. \u0644\u0643\u0646 \u0627\u0644\u0645\u062F\u062E\u0644 I0 \u0647\u0648 \u0627\u0644\u0630\u064A \u062A\u0643\u0648\u0646 \u0642\u064A\u0645\u062A\u0647 1 \u0641\u064A \u0627\u0644\u0631\u0627\u062D\u0629\u060C \u0644\u0623\u0646 \u0627\u0644\u0632\u0631 \u0627\u0644\u0645\u0648\u0635\u0648\u0644 \u0643\u0640NC \u064A\u062D\u0645\u0644 \u062C\u0647\u062F\u064B\u0627. \u0648\u0639\u0646\u062F \u0627\u0644\u0636\u063A\u0637 \u062A\u0635\u0628\u062D I0 \u0635\u0641\u0631\u064B\u0627 \u0648\u064A\u062A\u0648\u0642\u0641 \u0627\u0644\u0645\u0644\u0627\u0645\u0633 \u0627\u0644\u0645\u0641\u062A\u0648\u062D \u0639\u0627\u062F\u0629\u064B \u0639\u0646 \u0627\u0644\u0633\u0645\u0627\u062D \u0628\u0627\u0644\u0645\u0631\u0648\u0631: \u0641\u064A\u062A\u0648\u0642\u0641 \u0627\u0644\u0645\u062D\u0631\u0643.",
+    "Aggiungi contatto": "\u0625\u0636\u0627\u0641\u0629 \u0645\u0644\u0627\u0645\u0633",
+    "Aggiungi bobina": "\u0625\u0636\u0627\u0641\u0629 \u0645\u0644\u0641",
+    "Su": "\u0623\u0639\u0644\u0649",
+    "Gi\xF9": "\u0623\u0633\u0641\u0644",
+    "Elimina gradino": "\u062D\u0630\u0641 \u0627\u0644\u062F\u0631\u062C\u0629",
+    "Elimina contatto": "\u062D\u0630\u0641 \u0627\u0644\u0645\u0644\u0627\u0645\u0633",
+    "Elimina bobina": "\u062D\u0630\u0641 \u0627\u0644\u0645\u0644\u0641",
+    "In parallelo": "\u0639\u0644\u0649 \u0627\u0644\u062A\u0648\u0627\u0632\u064A",
+    "Contatto": "\u0645\u0644\u0627\u0645\u0633",
+    "Bobina": "\u0645\u0644\u0641",
+    "Normalmente aperto": "\u0645\u0641\u062A\u0648\u062D \u0639\u0627\u062F\u0629\u064B",
+    "Normalmente chiuso": "\u0645\u063A\u0644\u0642 \u0639\u0627\u062F\u0629\u064B",
+    "Fronte di salita": "\u062D\u0627\u0641\u0629 \u0635\u0627\u0639\u062F\u0629",
+    "Bit": "\u0628\u062A",
+    "Set": "Set",
+    "Reset": "Reset",
+    "nessun contatto": "\u0644\u0627 \u0645\u0644\u0627\u0645\u0633",
+    "nessuna uscita": "\u0644\u0627 \u0645\u062E\u0631\u062C"
   };
 
   // src/i18n/ar-17.js
@@ -12295,6 +13429,17 @@ body.ms-intro .milestone .lessoncard{visibility:hidden}
     [/^Il comando è sul lato del neutro: la bobina \((.+)\) ha il capo A2 che non va direttamente al neutro\. I comandi stanno sul lato della fase\.$/, (m, t) => `\u0627\u0644\u062A\u062D\u0643\u0645 \u0639\u0644\u0649 \u062C\u0627\u0646\u0628 \u0627\u0644\u0645\u062D\u0627\u064A\u062F: \u0627\u0644\u0637\u0631\u0641 A2 \u0641\u064A \u0627\u0644\u0645\u0644\u0641 (${t(m[1])}) \u0644\u0627 \u064A\u0630\u0647\u0628 \u0645\u0628\u0627\u0634\u0631\u0629 \u0625\u0644\u0649 \u0627\u0644\u0645\u062D\u0627\u064A\u062F. \u0623\u062C\u0647\u0632\u0629 \u0627\u0644\u062A\u062D\u0643\u0645 \u062A\u0643\u0648\u0646 \u0639\u0644\u0649 \u062C\u0627\u0646\u0628 \u0627\u0644\u0637\u0648\u0631.`],
     [/^A comandi rilasciati il motore \((.+)\) ha una fase sui suoi morsetti: una fase salta il contattore o la protezione\.$/, (m, t) => `\u0648\u0627\u0644\u0623\u0632\u0631\u0627\u0631 \u0645\u062D\u0631\u064E\u0651\u0631\u0629 \u064A\u0648\u062C\u062F \u0637\u0648\u0631 \u0639\u0644\u0649 \u0645\u0631\u0627\u0628\u0637 \u0627\u0644\u0645\u062D\u0631\u0643 (${t(m[1])}): \u0637\u0648\u0631 \u064A\u062A\u062C\u0627\u0648\u0632 \u0627\u0644\u0643\u0648\u0646\u062A\u0627\u0643\u062A\u0648\u0631 \u0623\u0648 \u0627\u0644\u062D\u0645\u0627\u064A\u0629.`],
     [/^Un componente \((.+)\) non è a valle della protezione \((.+)\): in caso di guasto nessuno lo stacca\.$/, (m, t) => `\u0645\u0643\u0648\u0651\u0646 (${t(m[1])}) \u0644\u064A\u0633 \u0628\u0639\u062F \u0627\u0644\u062D\u0645\u0627\u064A\u0629 (${t(m[2])}): \u0641\u064A \u062D\u0627\u0644 \u0627\u0644\u0639\u0637\u0644 \u0644\u0627 \u064A\u0641\u0635\u0644\u0647 \u0623\u062D\u062F.`],
+    [/^Il gradino (\d+) non ha ancora una bobina: aggiungine una\.$/, (m) => `\u0627\u0644\u062F\u0631\u062C\u0629 ${iso(m[1])} \u0644\u064A\u0633 \u0644\u0647\u0627 \u0645\u0644\u0641 \u0628\u0639\u062F: \u0623\u0636\u0641 \u0648\u0627\u062D\u062F\u064B\u0627.`],
+    [/^Il gradino (\d+) non ha contatti: la bobina non si accenderà mai\.$/, (m) => `\u0627\u0644\u062F\u0631\u062C\u0629 ${iso(m[1])} \u0628\u0644\u0627 \u0645\u0644\u0627\u0645\u0633\u0627\u062A: \u0641\u0644\u0646 \u064A\u0639\u0645\u0644 \u0645\u0644\u0641\u0647\u0627 \u0623\u0628\u062F\u064B\u0627.`],
+    [/^Il gradino (\d+) usa un indirizzo non valido \((.+)\)\.$/, (m) => `\u0627\u0644\u062F\u0631\u062C\u0629 ${iso(m[1])} \u062A\u0633\u062A\u062E\u062F\u0645 \u0639\u0646\u0648\u0627\u0646\u064B\u0627 \u063A\u064A\u0631 \u0635\u0627\u0644\u062D (${m[2]}).`],
+    [/^Il gradino (\d+) usa (.+), che questo PLC non ha\.$/, (m) => `\u0627\u0644\u062F\u0631\u062C\u0629 ${iso(m[1])} \u062A\u0633\u062A\u062E\u062F\u0645 ${m[2]} \u0648\u0647\u0630\u0627 \u0627\u0644\u0640PLC \u0644\u0627 \u064A\u0645\u0644\u0643\u0647.`],
+    [/^Il gradino (\d+) prova a scrivere su (.+): gli ingressi si possono solo leggere\.$/, (m) => `\u0627\u0644\u062F\u0631\u062C\u0629 ${iso(m[1])} \u062A\u062D\u0627\u0648\u0644 \u0627\u0644\u0643\u062A\u0627\u0628\u0629 \u0639\u0644\u0649 ${m[2]}: \u0627\u0644\u0645\u062F\u0627\u062E\u0644 \u062A\u064F\u0642\u0631\u0623 \u0641\u0642\u0637.`],
+    [/^La bobina (.+) è usata in due gradini: l’ultima vince e il primo non serve\. Una bobina per uscita\.$/, (m) => `\u0627\u0644\u0645\u0644\u0641 ${m[1]} \u0645\u0633\u062A\u062E\u062F\u0645 \u0641\u064A \u062F\u0631\u062C\u062A\u064A\u0646: \u0627\u0644\u0623\u062E\u064A\u0631\u0629 \u0647\u064A \u0627\u0644\u062A\u064A \u062A\u063A\u0644\u0628 \u0648\u0627\u0644\u0623\u0648\u0644\u0649 \u0628\u0644\u0627 \u0641\u0627\u0626\u062F\u0629. \u0645\u0644\u0641 \u0648\u0627\u062D\u062F \u0644\u0643\u0644 \u0645\u062E\u0631\u062C.`],
+    [/^Il gradino (\d+) ha un tempo o un conteggio non valido\.$/, (m) => `\u0627\u0644\u062F\u0631\u062C\u0629 ${iso(m[1])} \u0641\u064A\u0647\u0627 \u0632\u0645\u0646 \u0623\u0648 \u0639\u062F\u0651 \u063A\u064A\u0631 \u0635\u0627\u0644\u062D.`],
+    [/^Il programma è troppo lungo: (\d+) gradini\.$/, (m) => `\u0627\u0644\u0628\u0631\u0646\u0627\u0645\u062C \u0637\u0648\u064A\u0644 \u062C\u062F\u064B\u0627: ${iso(m[1])} \u062F\u0631\u062C\u0629.`],
+    [/^Il programma ha un errore nel gradino (.+)\.$/, (m) => `\u0641\u064A \u0627\u0644\u0628\u0631\u0646\u0627\u0645\u062C \u062E\u0637\u0623 \u0641\u064A \u0627\u0644\u062F\u0631\u062C\u0629 ${m[1]}.`],
+    [/^Gradino (\d+)$/, (m) => `\u0627\u0644\u062F\u0631\u062C\u0629 ${iso(m[1])}`],
+    [/^Programma del PLC, (\d+) gradini$/, (m) => `\u0628\u0631\u0646\u0627\u0645\u062C \u0627\u0644\u0640PLC\u060C ${iso(m[1])} \u062F\u0631\u062C\u0627\u062A`],
     [/^Prova non superata: (.+?)\. (.+)$/, (m, t) => `\u0627\u062E\u062A\u0628\u0627\u0631 \u0644\u0645 \u064A\u064F\u062C\u062A\u0632: ${t(m[1])}. ${t(m[2])}`],
     [/^(.+): (.+); atteso: (.+)\.$/, (m, t) => `${t(m[1])}: ${t(m[2])}\u061B \u0627\u0644\u0645\u062A\u0648\u0642\u0639: ${t(m[3])}.`],
     [/^Prima di verificare serve ancora una misura con il multimetro: (.+)\.$/, (m, t) => `\u0642\u0628\u0644 \u0627\u0644\u062A\u062D\u0642\u0642 \u0645\u0627 \u0632\u0627\u0644 \u0645\u0637\u0644\u0648\u0628\u064B\u0627 \u0642\u064A\u0627\u0633 \u0628\u062C\u0647\u0627\u0632 \u0627\u0644\u0642\u064A\u0627\u0633 \u0627\u0644\u0645\u062A\u0639\u062F\u062F: ${t(m[1])}.`],
@@ -12340,7 +13485,7 @@ body.ms-intro .milestone .lessoncard{visibility:hidden}
   var K = 40;
   var M = 16;
   var px = (v) => Math.round(v * K + M);
-  var esc2 = (s) => String(s).replace(/[&<>"]/g, (c2) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c2]);
+  var esc3 = (s) => String(s).replace(/[&<>"]/g, (c2) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c2]);
   var LINES = {
     bagno: { pts: [[0.1, 6.5], [0.1, 3.8], [3.3, 3.8], [3.3, 3.5], [3.3, 1.75], [4, 1.75]], cond: [2, 2, 2, 2, 3] },
     camera: { pts: [[0.1, 6.5], [0.1, 3.65], [5.4, 3.65], [5.4, 3.5], [5.4, 2.6], [8.9, 2.6], [9, 1.4], [7, 1.4], [7, 1.75]], cond: [2, 2, 2, 3, 3, 3, 2, 2] },
@@ -12360,7 +13505,7 @@ body.ms-intro .milestone .lessoncard{visibility:hidden}
     let o = `<svg class="plan" viewBox="0 0 ${W} ${H}" role="img" aria-label="Pianta della casa">`;
     HOUSE.rooms.forEach((r) => {
       const st = house2.rooms[r.id] || {};
-      o += `<g class="proom${st.lit ? " lit" : ""}${ui2.select && st.circuit === ui2.select ? " sel" : ""}" data-room="${r.id}"><rect x="${px(r.x)}" y="${px(r.z)}" width="${r.w * K}" height="${r.d * K}"/><text class="pname" x="${px(r.x) + 6}" y="${px(r.z + r.d) - 6}">${esc2(r.name)}</text></g>`;
+      o += `<g class="proom${st.lit ? " lit" : ""}${ui2.select && st.circuit === ui2.select ? " sel" : ""}" data-room="${r.id}"><rect x="${px(r.x)}" y="${px(r.z)}" width="${r.w * K}" height="${r.d * K}"/><text class="pname" x="${px(r.x) + 6}" y="${px(r.z + r.d) - 6}">${esc3(r.name)}</text></g>`;
     });
     Object.keys(LINES).forEach((id) => {
       const L = LINES[id];
@@ -12374,7 +13519,7 @@ body.ms-intro .milestone .lessoncard{visibility:hidden}
       o += `<g class="plamp${lit ? " lit" : ""}"><circle cx="${x}" cy="${y}" r="8"/><path d="M${x - 5} ${y - 5} L${x + 5} ${y + 5} M${x + 5} ${y - 5} L${x - 5} ${y + 5}"/></g>`;
     });
     houseControls().forEach((c2) => {
-      o += `<g class="pctl" data-circuit="${c2.circuit}" data-ctl="${c2.id}"><rect x="${px(c2.x) - 6}" y="${px(c2.z) - 6}" width="12" height="12" rx="2"/><title>${esc2(c2.label)}</title></g>`;
+      o += `<g class="pctl" data-circuit="${c2.circuit}" data-ctl="${c2.id}"><rect x="${px(c2.x) - 6}" y="${px(c2.z) - 6}" width="12" height="12" rx="2"/><title>${esc3(c2.label)}</title></g>`;
     });
     const b = HOUSE.breaker;
     o += `<g class="pbrk" data-breaker="1"><rect x="${px(b.x) - 9}" y="${px(b.z) - 9}" width="18" height="18" rx="3"/><text x="${px(b.x)}" y="${px(b.z) + 4}" text-anchor="middle">Q</text></g>`;
@@ -12382,7 +13527,7 @@ body.ms-intro .milestone .lessoncard{visibility:hidden}
   }
 
   // src/trilocale/page.js
-  var esc3 = (s) => String(s).replace(/[&<>"]/g, (c2) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c2]);
+  var esc4 = (s) => String(s).replace(/[&<>"]/g, (c2) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c2]);
   var CIRCUITS = [
     { id: "t01-bagno", room: "bagno", label: "Bagno" },
     { id: "t02-camera", room: "camera", label: "Camera" },
@@ -12527,7 +13672,7 @@ body.ms-intro .milestone .lessoncard{visibility:hidden}
       planEl.innerHTML = planHTML(hs, { select: lastLevel });
       tabsEl.innerHTML = CIRCUITS.map((c2) => {
         const st = hs.rooms[c2.room].state;
-        return `<a class="htab" href="#/livello/${c2.id}" data-sel="${c2.id === lastLevel}"${c2.id === lastLevel ? ' aria-current="page"' : ""}><b>${esc3(c2.label)}</b><small class="st-${st === "funziona" ? "ok" : st === "in corso" ? "run" : "new"}">${esc3(st)}</small></a>`;
+        return `<a class="htab" href="#/livello/${c2.id}" data-sel="${c2.id === lastLevel}"${c2.id === lastLevel ? ' aria-current="page"' : ""}><b>${esc4(c2.label)}</b><small class="st-${st === "funziona" ? "ok" : st === "in corso" ? "run" : "new"}">${esc4(st)}</small></a>`;
       }).join("");
     }
     return {
@@ -12678,7 +13823,7 @@ body.ms-intro .milestone .lessoncard{visibility:hidden}
   };
 
   // src/prove/hud.js
-  var esc4 = (t) => String(t).replace(/[&<>"']/g, (c2) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c2]);
+  var esc5 = (t) => String(t).replace(/[&<>"']/g, (c2) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c2]);
   var provaOf = (name) => PROVE[name] || null;
   var newMemory = () => ({ opened: false, rearmed: false, found: false });
   function remember(name, mem, action, before, after) {
@@ -12743,21 +13888,21 @@ body.ms-intro .milestone .lessoncard{visibility:hidden}
     return h + ":" + (m < 10 ? "0" : "") + m;
   };
   function introHTML2(cfg) {
-    return `<div class="pintro-box"><span class="pk">${esc4(cfg.kick)} \xB7 ${esc4(cfg.place)}</span>
-      <h2>${esc4(cfg.title)}</h2>
+    return `<div class="pintro-box"><span class="pk">${esc5(cfg.kick)} \xB7 ${esc5(cfg.place)}</span>
+      <h2>${esc5(cfg.title)}</h2>
       <span class="pload" aria-hidden="true"><i></i></span>
-      <span class="ptag">${esc4(cfg.tagline)}</span></div>
+      <span class="ptag">${esc5(cfg.tagline)}</span></div>
     <button class="pskip" type="button" data-pui="skipIntro">Salta</button>`;
   }
   function missionHTML(cfg, steps, clock) {
-    const li = steps.map((st, i) => `<li class="${st.done ? "done" : st.cur ? "cur" : ""}" data-n="${i + 1}"><span>${esc4(st.text)}</span></li>`).join("");
-    return `<div class="pback"><a href="#/home">&larr; Mappa</a><span class="pk">${esc4(cfg.kick)}</span><span class="pclock" aria-label="Ora">${esc4(clock)}</span></div>
-    <h2>${esc4(cfg.title)}</h2>
-    <p class="pgoal">${esc4(cfg.goal)}</p>
+    const li = steps.map((st, i) => `<li class="${st.done ? "done" : st.cur ? "cur" : ""}" data-n="${i + 1}"><span>${esc5(st.text)}</span></li>`).join("");
+    return `<div class="pback"><a href="#/home">&larr; Mappa</a><span class="pk">${esc5(cfg.kick)}</span><span class="pclock" aria-label="Ora">${esc5(clock)}</span></div>
+    <h2>${esc5(cfg.title)}</h2>
+    <p class="pgoal">${esc5(cfg.goal)}</p>
     <ol class="psteps">${li}</ol>`;
   }
   function logHTML(entries, tools) {
-    const li = entries.map((e) => `<li class="${e.trip ? "trip" : e.good ? "good" : ""}"><time>${esc4(e.clock)}</time><span>${esc4(e.text)}</span></li>`).join("");
+    const li = entries.map((e) => `<li class="${e.trip ? "trip" : e.good ? "good" : ""}"><time>${esc5(e.clock)}</time><span>${esc5(e.text)}</span></li>`).join("");
     const t = (k, label, pressed) => `<button class="pchip" type="button" data-pui="${k}"${pressed === void 0 ? "" : ` aria-pressed="${!!pressed}"`}>${label}</button>`;
     return `<h2>Registro</h2><ol class="plog" aria-live="polite">${li}</ol>
     <div class="ptools">${t("insieme", "Vista d\u2019insieme")}${t("quadro", "Quadro")}${t("torch", "Torcia", tools.torch)}${t("sound", "Suono", tools.sound)}</div>`;
@@ -12779,20 +13924,20 @@ body.ms-intro .milestone .lessoncard{visibility:hidden}
       const word = trip2 ? STATE_WORD.tripped : c2.kind === "rcd" ? on ? STATE_WORD.armed : STATE_WORD.off : on ? STATE_WORD.on : STATE_WORD.off;
       const test = c2.kind === "rcd" ? `<button class="ptest" type="button" data-pact="test" data-pid="${c2.id}" aria-label="Tasto di prova del differenziale">T</button>` : "";
       return `<div class="pmod ${c2.kind}" data-on="${on}" data-trip="${!!trip2}">
-        <button class="plever" type="button" data-pact="toggle" data-pid="${c2.id}"><span class="pname">${esc4(c2.short || c2.name)}</span><span class="pknob" aria-hidden="true"></span><span class="pword">${word}</span></button>
-        <span class="pvolt${live ? " live" : ""}"><span class="vh">Tensione a valle</span> ${live ? "230 V" : "0 V"}</span>${test}<span class="psub">${esc4(c2.sub)}</span>
+        <button class="plever" type="button" data-pact="toggle" data-pid="${c2.id}"><span class="pname">${esc5(c2.short || c2.name)}</span><span class="pknob" aria-hidden="true"></span><span class="pword">${word}</span></button>
+        <span class="pvolt${live ? " live" : ""}"><span class="vh">Tensione a valle</span> ${live ? "230 V" : "0 V"}</span>${test}<span class="psub">${esc5(c2.sub)}</span>
       </div>`;
     }).join("");
     const d = cfg.device, diagOk = !!(unit && unit.diag && unit.diag.correct);
-    const dev = d && diagOk && unit.phase === "fault" ? `<button class="pdev" type="button" data-pact="toggle" data-pid="${d.id}"><b>${esc4(d.name)}</b><span>${esc4(ps.heaterPlugged ? d.plugged : d.unplugged)}</span><span class="pdo">${esc4(ps.heaterPlugged ? d.act : d.undo)}</span></button>` : "";
+    const dev = d && diagOk && unit.phase === "fault" ? `<button class="pdev" type="button" data-pact="toggle" data-pid="${d.id}"><b>${esc5(d.name)}</b><span>${esc5(ps.heaterPlugged ? d.plugged : d.unplugged)}</span><span class="pdo">${esc5(ps.heaterPlugged ? d.act : d.undo)}</span></button>` : "";
     let main = "";
     if (unit && unit.phase === "fault") main = diagOk ? '<button class="pbtn y" type="button" data-pui="check">Verifica</button>' : '<button class="pbtn y" type="button" data-pui="answer">Rispondi</button>';
     else if (unit && unit.phase === "done") main = '<button class="pbtn y" type="button" data-pui="finale">Esito della prova</button>';
-    return `<div class="pdockhead"><h2>${esc4(cfg.dockTitle)}</h2><div class="prow">
+    return `<div class="pdockhead"><h2>${esc5(cfg.dockTitle)}</h2><div class="prow">
       <button class="pchip" type="button" data-pui="schema" aria-pressed="${!!ui2.schema}">${ui2.schema ? "Chiudi lo schema" : "Schema e multimetro"}</button>
       <button class="pchip only-phone" type="button" data-pui="torch" aria-pressed="${!!ui2.torch}">Torcia</button>${main}</div></div>
     <div class="prail">${mods}</div>${dev}
-    <p class="phint" role="status">${esc4(ui2.hint || "")}</p>`;
+    <p class="phint" role="status">${esc5(ui2.hint || "")}</p>`;
   }
   function hintOf(name, steps) {
     if (name !== "appartamento") return "";
@@ -12810,17 +13955,17 @@ body.ms-intro .milestone .lessoncard{visibility:hidden}
     const f = unitDef.fault, q = f.diagnosis;
     const opts = q.options.map((o) => {
       const cls = diag && diag.option === o.id ? diag.correct ? " yes" : " no" : "";
-      return `<button class="popt${cls}" type="button" data-pdiag="${o.id}"${diag && diag.correct ? " disabled" : ""}>${esc4(o.text)}</button>`;
+      return `<button class="popt${cls}" type="button" data-pdiag="${o.id}"${diag && diag.correct ? " disabled" : ""}>${esc5(o.text)}</button>`;
     }).join("");
-    const fb = !diag ? "" : diag.correct ? `<p class="pfb ok"><b>Giusto.</b> ${esc4(q.why)}</p><p class="pfb">${esc4(f.fixSay)}</p>` : '<p class="pfb ko"><b>Non proprio.</b> Richiudi solo quella linea con il differenziale armato: se non scatta, non \xE8 lei.</p>';
-    return `<div class="pcard" role="dialog" aria-modal="true" aria-labelledby="pQ"><span class="pk">Prova</span><h2 id="pQ">${esc4(q.question)}</h2>${opts}${fb}
+    const fb = !diag ? "" : diag.correct ? `<p class="pfb ok"><b>Giusto.</b> ${esc5(q.why)}</p><p class="pfb">${esc5(f.fixSay)}</p>` : '<p class="pfb ko"><b>Non proprio.</b> Richiudi solo quella linea con il differenziale armato: se non scatta, non \xE8 lei.</p>';
+    return `<div class="pcard" role="dialog" aria-modal="true" aria-labelledby="pQ"><span class="pk">Prova</span><h2 id="pQ">${esc5(q.question)}</h2>${opts}${fb}
       <div class="prow"><button class="pbtn${diag && diag.correct ? " y" : ""}" type="button" data-pui="closeSheet">${diag && diag.correct ? "Torna al quadro" : "Chiudi"}</button></div></div>`;
   }
   var STAR2 = (on) => `<svg width="30" height="30" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2l3 6.9 7.4.7-5.6 4.9 1.7 7.3L12 17.9 5.5 21.8l1.7-7.3L1.6 9.6 9 8.9z" fill="${on ? "#F5B800" : "none"}" stroke="${on ? "#1B2230" : "#7C8494"}" stroke-width="1.5" stroke-linejoin="round"/></svg>`;
   function finaleHTML(cfg, stars, solved) {
-    return `<div class="pcard" role="dialog" aria-modal="true" aria-labelledby="pW"><span class="pk">${solved ? "Prova superata" : "Impianto funzionante"}</span><h2 id="pW">${esc4(cfg.win.title)}</h2>
+    return `<div class="pcard" role="dialog" aria-modal="true" aria-labelledby="pW"><span class="pk">${solved ? "Prova superata" : "Impianto funzionante"}</span><h2 id="pW">${esc5(cfg.win.title)}</h2>
       <div class="pstars" role="img" aria-label="${stars} stelle su 3">${[0, 1, 2].map((i) => STAR2(i < stars)).join("")}</div>
-      <p>${esc4(cfg.win.text)}</p>
+      <p>${esc5(cfg.win.text)}</p>
       <div class="prow"><a class="pbtn y" href="#/home">Torna alla mappa</a><button class="pbtn" type="button" data-pui="again">Rifai la prova</button><button class="pbtn" type="button" data-pui="summary">Sintesi</button><button class="pbtn" type="button" data-pui="closeSheet">Guarda la casa</button></div></div>`;
   }
 
@@ -12919,18 +14064,18 @@ body.ms-intro .milestone .lessoncard{visibility:hidden}
       const after = provaState(snap);
       if (!before || !after) return;
       mem = remember(name, mem, action, before, after);
-      const ev = describe(name, action, before, after);
-      if (ev) {
-        note(ev.text, ev);
-        if (ev.trip) effectTrip(ev.text);
+      const ev2 = describe(name, action, before, after);
+      if (ev2) {
+        note(ev2.text, ev2);
+        if (ev2.trip) effectTrip(ev2.text);
         else if (ui2.sound) noise(0.04, 0.5, 2400);
-        if (ev.view && scene) scene.look(ev.view);
+        if (ev2.view && scene) scene.look(ev2.view);
       }
       renderHud();
     }
-    function note(text2, ev = {}) {
+    function note(text2, ev2 = {}) {
       minutes++;
-      log.push({ clock: clockText(cfg(), minutes), text: text2, trip: !!ev.trip, good: !!ev.good });
+      log.push({ clock: clockText(cfg(), minutes), text: text2, trip: !!ev2.trip, good: !!ev2.good });
       if (log.length > 30) log.shift();
     }
     function tap(u) {
@@ -13355,6 +14500,7 @@ body.ms-intro .milestone .lessoncard{visibility:hidden}
   }
   function onLevelChange() {
     stopDemo();
+    LADSEL = null;
     comps = composeComps(S.level, colsFor(S.level));
     SEL = null;
     renderPalette();
@@ -13501,9 +14647,113 @@ body.ms-intro .milestone .lessoncard{visibility:hidden}
     mp.hidden = !(S.meter && S.meter.on);
     mp.innerHTML = S.meter && S.meter.on ? meterHTML(S.meter, (t) => termName(S.level, t)) : "";
     renderBench();
+    renderLadder();
     renderStatus();
     renderResult();
   }
+  var LADSEL = null;
+  var ladPlc = () => S.level.comps && S.level.comps.find((c2) => c2.type === "plc" && (c2.program || c2.edit));
+  var ladProgram = (plc) => plc.edit ? S.programs && S.programs[plc.id] || [] : plc.program;
+  function renderLadder() {
+    const el = $("#ladder");
+    const plc = ladPlc();
+    el.hidden = !plc;
+    $("#work").classList.toggle("lad-first", !!(plc && plc.edit));
+    if (!plc) {
+      el.innerHTML = "";
+      return;
+    }
+    const st = S.obs && S.obs.plc && S.obs.plc[plc.id];
+    const prog = ladProgram(plc);
+    const names = plc.symbols || {};
+    const ed = !!plc.edit;
+    const head = `<div class="ladhead"><b>${ed ? "Scrivi il programma del PLC" : "Programma del PLC"}</b><span>${st && st.powered ? "in esecuzione" : "spento"}</span></div>`;
+    let html = head + `<div class="ladscroll">${ladderHTML(prog, st, names, { edit: ed, sel: LADSEL })}</div>`;
+    if (ed) {
+      const addrs = addressesFor(plc, plc.edit);
+      const errors = validateProgram(prog, { I: addrs.inputs.length, Q: addrs.outputs.length });
+      if (LADSEL && !prog[LADSEL.r]) LADSEL = null;
+      html += editorPanelHTML(prog, LADSEL, names, addrs, plc.edit.ops || ["coil"], errors, (e) => progText(e));
+      if (S.solutionShown && S.level.solutionPrograms && S.level.solutionPrograms[plc.id]) {
+        html += `<div class="ladhead" style="margin-top:12px"><b>Soluzione</b></div><div class="ladscroll">${ladderHTML(S.level.solutionPrograms[plc.id], st, names)}</div>`;
+      }
+    }
+    el.innerHTML = html;
+  }
+  function ladderAct(act2, data) {
+    const plc = ladPlc();
+    if (!plc || !plc.edit) return;
+    const prog = ladProgram(plc);
+    const addrs = addressesFor(plc, plc.edit);
+    const sel = LADSEL;
+    let next = null, nsel = sel;
+    const cells = sel && prog[sel.r] ? toCells(prog[sel.r].if) || [] : [];
+    const cur = sel && sel.kind === "c" && cells[sel.cell] ? cells[sel.cell].alts[sel.alt] : null;
+    if (act2 === "addRung") {
+      next = addRung(prog);
+      nsel = { kind: "r", r: next.length - 1 };
+    } else if (!sel) return;
+    else if (act2 === "addContact") {
+      next = addContact(prog, sel.r, { a: addrs.inputs[0] });
+      nsel = { kind: "c", r: sel.r, cell: cells.length, alt: 0 };
+    } else if (act2 === "addOut") {
+      const used = new Set(prog.flatMap((r) => r.do.map((x) => x.a)));
+      const a = addrs.outputs.find((x) => !used.has(x)) || addrs.outputs[0];
+      next = addOut(prog, sel.r, { op: "coil", a });
+      nsel = { kind: "o", r: sel.r, out: prog[sel.r].do.length };
+    } else if (act2 === "up" || act2 === "down") {
+      const d = act2 === "up" ? -1 : 1;
+      next = moveRung(prog, sel.r, d);
+      nsel = { kind: "r", r: sel.r + d };
+    } else if (act2 === "delRung") {
+      next = removeRung(prog, sel.r);
+      nsel = null;
+    } else if (cur && act2 === "type") next = setContact(prog, sel.r, sel.cell, sel.alt, { a: cur.a, ...data.v === "not" ? { not: true } : data.v === "rise" ? { rise: true } : {} });
+    else if (cur && act2 === "addr") next = setContact(prog, sel.r, sel.cell, sel.alt, { ...cur, a: data.v });
+    else if (cur && act2 === "parallel") {
+      next = addParallel(prog, sel.r, sel.cell, { a: cur.a });
+      nsel = { kind: "c", r: sel.r, cell: sel.cell, alt: cells[sel.cell].alts.length };
+    } else if (cur && act2 === "delContact") {
+      next = removeContact(prog, sel.r, sel.cell, sel.alt);
+      nsel = { kind: "r", r: sel.r };
+    } else if (sel.kind === "o" && prog[sel.r] && prog[sel.r].do[sel.out]) {
+      const ins = prog[sel.r].do[sel.out];
+      if (act2 === "optype") next = setOut(prog, sel.r, sel.out, { op: data.v, a: ins.a });
+      else if (act2 === "outaddr") next = setOut(prog, sel.r, sel.out, { op: ins.op, a: data.v });
+      else if (act2 === "delOut") {
+        next = removeOut(prog, sel.r, sel.out);
+        nsel = { kind: "r", r: sel.r };
+      }
+    }
+    if (!next) return;
+    LADSEL = nsel;
+    session.setProgram(plc.id, next);
+  }
+  $("#ladder").addEventListener("click", (e) => {
+    const a = e.target.closest("[data-lac]");
+    if (a && !a.disabled && a.tagName !== "SELECT") {
+      ladderAct(a.dataset.lac, { v: a.dataset.v });
+      return;
+    }
+    const t = e.target.closest("[data-lad]");
+    if (t) {
+      const d = t.dataset;
+      LADSEL = d.lad === "r" ? { kind: "r", r: +d.r } : d.lad === "c" ? { kind: "c", r: +d.r, cell: +d.cell, alt: +d.alt } : { kind: "o", r: +d.r, out: +d.out };
+      renderLadder();
+    }
+  });
+  $("#ladder").addEventListener("change", (e) => {
+    const a = e.target.closest("select[data-lac]");
+    if (a) ladderAct(a.dataset.lac, { v: a.value });
+  });
+  $("#ladder").addEventListener("keydown", (e) => {
+    if (e.key !== "Enter" && e.key !== " ") return;
+    const t = e.target.closest("[data-lad]");
+    if (t) {
+      e.preventDefault();
+      t.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    }
+  });
   function render() {
     if (!S) return;
     renderChrome();

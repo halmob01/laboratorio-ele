@@ -792,4 +792,83 @@ export const LEVELS_V2 = [
       'I due contatti NC incrociati sono l’interblocco: KM3 non può chiudere finché KM2 è chiuso, e viceversa. Senza interblocco, un attimo con i due insieme mette in corto le tre fasi.',
     ],
   },
+  {
+    id: 'c29-plc', code: 'c29', n: 0, ...IND, flow: 'onDemand',
+    name: 'Dal relè al PLC', title: 'Dal relè al PLC',
+    blurb: 'Marcia e arresto di prima: la logica passa dai fili a un programma.',
+    goal: 'Stessa macchina di marcia e arresto, ma la logica non è più nei fili: la fa un PLC con un programma già scritto. Il circuito di potenza è già cablato. Collega il PLC: l’alimentazione, il pulsante di arresto (NC) all’ingresso I0, la marcia (NA) a I1, il comune IC al neutro, l’uscita Q0 alla bobina del contattore e Q1 alla spia. Il circuito di comando va in rosso.',
+    fixed: [
+      ['Q.L1', 'QM.1', 'marrone'], ['Q.L2', 'QM.3', 'nero'], ['Q.L3', 'QM.5', 'grigio'],
+      ['QM.2', 'KM.1', 'marrone'], ['QM.4', 'KM.3', 'nero'], ['QM.6', 'KM.5', 'grigio'],
+      ['KM.2', 'M.U', 'marrone'], ['KM.4', 'M.V', 'nero'], ['KM.6', 'M.W', 'grigio'],
+      ['M.PE', 'Q.PE', 'gv'],
+    ],
+    comps: [
+      Q3,
+      C('QM', 'mt3', 'Salvamotore', 'Salvamotore magnetotermico', T(...T6)),
+      C('KM', 'km', 'Contattore', 'Contattore KM', T('A1', 'A2', ...T6)),
+      C('PLC', 'plc', 'PLC', 'PLC a 4 ingressi e 2 uscite', T('A1', 'A2', 'I0', 'I1', 'I2', 'IC', 'Q0A', 'Q0B', 'Q1A', 'Q1B'), {
+        program: [
+          { if: ['and', ['or', 'I1', 'Q0'], 'I0'], do: [{ op: 'coil', a: 'Q0' }] },
+          { if: 'Q0', do: [{ op: 'coil', a: 'Q1' }] },
+        ],
+        symbols: { I0: 'Arresto', I1: 'Marcia', Q0: 'Motore', Q1: 'Spia' },
+      }),
+      C('SB0', 'pbnc', 'Arresto', 'Pulsante di arresto (NC)', T('1', '2')),
+      C('SB1', 'pb', 'Marcia', 'Pulsante di marcia (NA)', T('3', '4')),
+      C('H', 'spia', 'Spia', 'Spia di marcia', T('X1', 'X2')),
+      C('M', 'motor3', 'Motore', 'Motore trifase', T('U', 'V', 'W', 'PE')),
+    ],
+    controls: ['SB0', 'SB1'],
+    checks: [
+      { id: 'marcia', label: 'Premi Marcia e rilascia: il motore resta in marcia e la spia è accesa', do: press('SB1'), expect: { motors: { M: 'fwd' }, loads: { H: 'on' } } },
+      { id: 'arresto', label: 'Premi Arresto: il motore si ferma e la spia si spegne', steps: [{ do: press('SB1'), expect: { motors: { M: 'fwd' } } }, { do: press('SB0'), expect: { motors: { M: 'off' }, loads: { H: 'off' } } }] },
+      { id: 'fermo', label: 'Senza comandi il motore è fermo', do: [], expect: { motors: { M: 'off' } } },
+    ],
+    safety: { deadWork: ['QM'], earth: [['M.PE', 'Q.PE']], stopWins: 'SB0', coilReturn: ['KM', 'PLC'], protectedBy: { M: 'QM', KM: 'QM' } },
+    solution: [
+      ['Q.L1', 'QM.1', 'marrone'], ['Q.L2', 'QM.3', 'nero'], ['Q.L3', 'QM.5', 'grigio'],
+      ['QM.2', 'KM.1', 'marrone'], ['QM.4', 'KM.3', 'nero'], ['QM.6', 'KM.5', 'grigio'],
+      ['KM.2', 'M.U', 'marrone'], ['KM.4', 'M.V', 'nero'], ['KM.6', 'M.W', 'grigio'],
+      ['M.PE', 'Q.PE', 'gv'],
+      ['QM.2', 'PLC.A1', 'rosso'], ['PLC.A2', 'Q.N', 'blu'],
+      ['QM.2', 'SB0.1', 'rosso'], ['SB0.2', 'PLC.I0', 'rosso'],
+      ['QM.2', 'SB1.3', 'rosso'], ['SB1.4', 'PLC.I1', 'rosso'],
+      ['PLC.IC', 'Q.N', 'blu'],
+      ['QM.2', 'PLC.Q0A', 'rosso'], ['PLC.Q0B', 'KM.A1', 'rosso'], ['KM.A2', 'Q.N', 'blu'],
+      ['QM.2', 'PLC.Q1A', 'rosso'], ['PLC.Q1B', 'H.X1', 'rosso'], ['H.X2', 'Q.N', 'blu'],
+    ],
+    hints: [
+      'Il PLC si alimenta come una bobina: A1 a una fase a valle del salvamotore, A2 al neutro. IC, il comune degli ingressi, va al neutro.',
+      'Gli ingressi leggono la tensione dei pulsanti: dalla fase passa il pulsante di arresto e arriva a I0, dalla fase passa il pulsante di marcia e arriva a I1.',
+      'Le uscite sono contatti a relè: la fase entra in Q0A, esce da Q0B e va alla bobina del contattore. Q1A e Q1B alimentano la spia allo stesso modo.',
+      'Il salvamotore parte chiuso: aprilo prima di cablare e richiudilo solo alla fine.',
+    ],
+  },
 ];
+
+// c30: stessa macchina di c29, ma tutto il cablaggio e' gia' fatto e il programma del PLC lo scrive l'allievo.
+const C29 = LEVELS_V2.find(l => l.id === 'c29-plc');
+LEVELS_V2.push({
+  ...C29,
+  id: 'c30-ladder', code: 'c30',
+  name: 'Ladder: l’autoritenuta', title: 'Ladder: l’autoritenuta',
+  blurb: 'Scrivi tu il programma: marcia, arresto e spia.',
+  goal: 'L’impianto è cablato e il PLC è acceso, ma il programma è vuoto. Scrivilo tu: con Marcia il motore parte e resta in marcia a pulsante rilasciato, con Arresto si ferma, e la spia segue il motore. Ricorda che l’arresto è un contatto normalmente chiuso: a riposo porta tensione e l’ingresso I0 vale 1.',
+  fixed: C29.solution.map(w => w.slice()),
+  comps: C29.comps.map(c => (c.type === 'plc'
+    ? { ...c, program: undefined, title: 'PLC (programma da scrivere)', edit: { markers: 0, timers: 0, counters: 0, ops: ['coil'] } }
+    : c)),
+  solutionPrograms: {
+    PLC: [
+      { if: ['and', ['or', 'I1', 'Q0'], 'I0'], do: [{ op: 'coil', a: 'Q0' }] },
+      { if: 'Q0', do: [{ op: 'coil', a: 'Q1' }] },
+    ],
+  },
+  hints: [
+    'Un gradino ha i contatti a sinistra e la bobina a destra. Il motore è l’uscita Q0: la sua bobina sta a destra del gradino 1.',
+    'Per far partire il motore serve il contatto di Marcia, I1. Ma Marcia è un impulso: appena lo rilasci vale 0. Per tenere acceso Q0 aggiungi in parallelo a I1 il contatto di Q0 stesso.',
+    'L’arresto è collegato come contatto NC, quindi I0 vale 1 a riposo e vale 0 solo premendolo: in serie metti I0 come contatto normalmente aperto, non chiuso.',
+    'Il gradino 2 è semplice: un contatto Q0 e la bobina Q1, la spia.',
+  ],
+});

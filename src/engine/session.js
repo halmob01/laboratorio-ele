@@ -14,7 +14,7 @@ import { evaluate } from './evaluate.js';
 import { flowOf } from './flow.js';
 import { stepsState, ghostFor } from './steps.js';
 import { attemptBase, migrateProgress, rankOf, totalXp, xpOf } from './progress.js';
-import { createSim, observe, settle as settleSim, measure as measureSim, setWires as setWires2, setSupply, act, advance, rewind as rewindSim, evaluateV2, isV2, selfPowered, viewOf, HOLD } from './v2/index.js';
+import { createSim, observe, settle as settleSim, measure as measureSim, setWires as setWires2, setSupply, act, advance, rewind as rewindSim, evaluateV2, isV2, selfPowered, viewOf, HOLD, sanitizeProgram } from './v2/index.js';
 
 function memoryStorage() {
   let data = {};
@@ -42,6 +42,7 @@ export function createSession({ levels, deriveFull, storage = memoryStorage(), i
   const liveEditsBy = {};      // lavoro fuori tensione: morsetti toccati mentre erano in tensione per colpa del sezionamento chiuso
   const measuredBy = {};      // letture fatte (per i passi): { a, b, mode, kind, value, ohm, live }
   const operatedByKey = {};   // comandi azionati con il quadro acceso, per i passi
+  const programsByKey = {};   // programmi dei PLC scritti dall'allievo: { idPLC: [gradini] } per livello e modalita'
   const simsByKey = {};       // motore v2: simulazione con stato (pulsanti, relè, tempo), una per livello e modalita'
   let nextWireId = 1;
   let progress;
@@ -69,6 +70,12 @@ export function createSession({ levels, deriveFull, storage = memoryStorage(), i
   const fixedOf = lv => (lv.fixed || []).map(([a, b, c], n) => ({ id: -(n + 1), a, b, c, fixed: true }));
   const blank = (i = levelIndex, m = mode) => fixedOf(levelAt(i, m));
   const wires = () => wiresByKey[keyOf()] || (wiresByKey[keyOf()] = blank());
+  // Programmi dei PLC: quelli dell'allievo prendono il posto del programma del livello (un PLC con `edit` parte vuoto).
+  const programsOf = (i = levelIndex, m = mode) => programsByKey[keyOf(i, m)] || {};
+  const withProg = (lv, k = keyOf()) => {
+    const pr = programsByKey[k];
+    return pr && lv.comps.some(c => c.type === 'plc' && pr[c.id]) ? { ...lv, comps: lv.comps.map(c => (c.type === 'plc' && pr[c.id] ? { ...c, program: pr[c.id] } : c)) } : lv;
+  };
   const states = () => statesByKey[keyOf()] || (statesByKey[keyOf()] = {});
   const usage = () => usageByKey[keyOf()] || (usageByKey[keyOf()] = { hints: 0, solution: false, checks: 0 });
   const startPhase = (i = levelIndex) => {
@@ -136,7 +143,7 @@ export function createSession({ levels, deriveFull, storage = memoryStorage(), i
   function simFor() {
     const k = keyOf();
     if (!simsByKey[k]) {
-      const sim = createSim(levelAt(), wires());
+      const sim = createSim(withProg(levelAt(), k), wires());
       const sr = ratingsSaved[k];
       delete ratingsSaved[k];
       const iso = isoSaved[k];
@@ -180,7 +187,7 @@ export function createSession({ levels, deriveFull, storage = memoryStorage(), i
   function stepsPart(level, phase) {
     const u = level.unit;
     if (!u || !u.steps || playMode !== 'apprendimento' || phase === 'lesson') return { steps: null, ghost: null };
-    const st = stepsState(u.steps, wires(), { power, operated: operated(), result: resultsByKey[keyOf()] || null, fault: !!analysisOf(level).fault, measured: measuredBy[keyOf()] || [], ratings: ratingsOf() });
+    const st = stepsState(u.steps, wires(), { power, operated: operated(), result: resultsByKey[keyOf()] || null, fault: !!analysisOf(level).fault, measured: measuredBy[keyOf()] || [], ratings: ratingsOf(), programs: programsOf() });
     const cur = st.current === null ? null : u.steps[st.current];
     const ghost = phase === 'build' && u.support === 'guidato' && cur ? ghostFor(cur, wires()) : null;
     return { steps: { list: u.steps, done: st.done, current: st.current }, ghost };
@@ -202,6 +209,7 @@ export function createSession({ levels, deriveFull, storage = memoryStorage(), i
       mode,
       playMode,
       wires: wires().slice(),
+      programs: JSON.parse(JSON.stringify(programsOf())),
       controlStates: is2 ? view2.controlStates : { ...states() },
       power,
       trip,
@@ -269,14 +277,16 @@ export function createSession({ levels, deriveFull, storage = memoryStorage(), i
     const rs = mode === 'quadro' ? ratingsOf() : {};
     l.comps.forEach(c => { if (rs[c.id] && rs[c.id] !== c.in) rt[c.id] = rs[c.id]; });
     const ms = (measuredBy[keyOf()] || []).slice(0, 100);
+    const pg = programsOf();
     const lv_ = (liveEditsBy[keyOf()] || []).slice(0, 20);
     const iso_ = mode === 'quadro' ? isoOf() : {};
-    if (ws.length || Object.keys(st).length || Object.keys(rt).length || ms.length || lv_.length || Object.keys(iso_).length) {
+    if (ws.length || Object.keys(st).length || Object.keys(rt).length || ms.length || lv_.length || Object.keys(iso_).length || Object.keys(pg).length) {
       const e = { wires: ws, states: st };
       if (Object.keys(rt).length) e.ratings = rt;
       if (ms.length) e.measured = ms;
       if (lv_.length) e.live = lv_;
       if (Object.keys(iso_).length) e.iso = iso_;
+      if (Object.keys(pg).length) e.programs = pg;
       work.w[workKeyOf(levelIndex, mode)] = e;
     } else delete work.w[workKeyOf(levelIndex, mode)];
     if (u && l.unit) {
@@ -322,6 +332,11 @@ export function createSession({ levels, deriveFull, storage = memoryStorage(), i
           lv.comps.forEach(c => { if (c.type === 'mt' && c.ratings && c.ratings.includes(e.ratings[c.id])) rt[c.id] = e.ratings[c.id]; });
           if (Object.keys(rt).length) { ratingsSaved[keyOf(i, m)] = rt; entry.ratings = { ...rt }; }
         }
+        if (isObj(e.programs)) {
+          const pr = {};
+          lv.comps.forEach(c => { if (c.type === 'plc' && c.edit && Array.isArray(e.programs[c.id])) pr[c.id] = sanitizeProgram(e.programs[c.id]); });
+          if (Object.keys(pr).length) { programsByKey[keyOf(i, m)] = pr; entry.programs = JSON.parse(JSON.stringify(pr)); }
+        }
         if (Array.isArray(e.measured)) {
           const ms = e.measured.slice(0, 100).filter(x => isObj(x) && typeof x.a === 'string' && typeof x.b === 'string' && typeof x.mode === 'string' && typeof x.kind === 'string' && known.has(x.a) && known.has(x.b))
             .map(x => ({ a: x.a, b: x.b, mode: x.mode, kind: x.kind, value: typeof x.value === 'number' ? x.value : null, ohm: typeof x.ohm === 'number' ? x.ohm : null, live: !!x.live }));
@@ -354,7 +369,7 @@ export function createSession({ levels, deriveFull, storage = memoryStorage(), i
       if (phase === 'done') {
         const ws = wiresByKey[keyOf(i, 'quadro')] || [];
         if (!(progress.stars[progressKey(l.id, 'quadro')] > 0) || !ws.length) phase = 'build';
-        else result = isV2(levelAt(i, 'quadro')) ? evaluateV2(levelAt(i, 'quadro'), ws, { measured: measuredBy[keyOf(i, 'quadro')] || [], ratings: ratingsOf(i), liveEdits: liveEditsBy[keyOf(i, 'quadro')] || [] }) : evaluate(levelAt(i, 'quadro'), ws);
+        else result = isV2(levelAt(i, 'quadro')) ? evaluateV2(levelAt(i, 'quadro'), ws, { measured: measuredBy[keyOf(i, 'quadro')] || [], ratings: ratingsOf(i), programs: programsOf(i, 'quadro'), liveEdits: liveEditsBy[keyOf(i, 'quadro')] || [] }) : evaluate(levelAt(i, 'quadro'), ws);
         if (result && !result.pass) { phase = 'build'; result = null; }
       }
       unitByKey[i] = { phase, page, pred, diag: null, faultSolved: false };
@@ -374,6 +389,7 @@ export function createSession({ levels, deriveFull, storage = memoryStorage(), i
     wiresByKey[keyOf()] = fx.concat(level.unit.fault.wires.filter(([a, b]) => !fxKeys.has([a, b].sort().join('~'))).map(([a, b, c]) => ({ id: nextWireId++, a, b, c })));
     statesByKey[keyOf()] = {};
     resultsByKey[keyOf()] = null;
+    if (level.unit.fault.programs) programsByKey[keyOf()] = JSON.parse(JSON.stringify(level.unit.fault.programs)); else delete programsByKey[keyOf()];
     us.phase = 'fault';
     // guasti da componente (dispersioni) gia' attivi all'inizio della sfida
     if (v2(level)) (level.unit.fault.on || []).forEach(id => act(simFor(), 'toggle', id));
@@ -407,6 +423,7 @@ export function createSession({ levels, deriveFull, storage = memoryStorage(), i
     if (levelAt().prova && !us.before) {
       unitByKey[levelIndex] = { phase: 'fault', page: 0, pred: us.pred, diag: null, faultSolved: false };   // niente lezione da capo: si riarma all'apertura
       wiresByKey[keyOf(levelIndex, 'quadro')] = blank(levelIndex, 'quadro');
+      delete programsByKey[keyOf(levelIndex, 'quadro')];
       statesByKey[keyOf(levelIndex, 'quadro')] = {};
       resultsByKey[keyOf(levelIndex, 'quadro')] = null;
       delete measuredBy[keyOf(levelIndex, 'quadro')];
@@ -421,6 +438,7 @@ export function createSession({ levels, deriveFull, storage = memoryStorage(), i
       statesByKey[keyOf(levelIndex, 'quadro')] = us.before.states;
       resultsByKey[keyOf(levelIndex, 'quadro')] = us.before.result;
       measuredBy[keyOf(levelIndex, 'quadro')] = us.before.measured || [];
+      if (us.before.programs && Object.keys(us.before.programs).length) programsByKey[keyOf(levelIndex, 'quadro')] = us.before.programs; else delete programsByKey[keyOf(levelIndex, 'quadro')];
       if (us.before.ratings && Object.keys(us.before.ratings).length) ratingsSaved[keyOf(levelIndex, 'quadro')] = us.before.ratings;
       us.before = null;
     }
@@ -429,7 +447,8 @@ export function createSession({ levels, deriveFull, storage = memoryStorage(), i
   const verifyStash = {};
   function stashForVerify() {
     const k = keyOf();
-    verifyStash[levelIndex] = { key: k, wires: (wiresByKey[k] || []).slice(), states: { ...(statesByKey[k] || {}) }, result: resultsByKey[k] || null, usage: usageByKey[k] || null, unit: unitByKey[levelIndex] || null, measured: (measuredBy[k] || []).slice(), live: (liveEditsBy[k] || []).slice(), ratings: ratingsOf(), iso: isoOf() };
+    verifyStash[levelIndex] = { key: k, wires: (wiresByKey[k] || []).slice(), states: { ...(statesByKey[k] || {}) }, result: resultsByKey[k] || null, usage: usageByKey[k] || null, unit: unitByKey[levelIndex] || null, measured: (measuredBy[k] || []).slice(), live: (liveEditsBy[k] || []).slice(), ratings: ratingsOf(), iso: isoOf(), programs: JSON.parse(JSON.stringify(programsByKey[k] || {})) };
+    delete programsByKey[k];
     delete measuredBy[k]; delete liveEditsBy[k]; delete ratingsSaved[k]; delete isoSaved[k];
   }
   function unstashFromVerify() {
@@ -437,6 +456,7 @@ export function createSession({ levels, deriveFull, storage = memoryStorage(), i
     if (!st) { dropUnitState(); return; }
     wiresByKey[st.key] = st.wires; statesByKey[st.key] = st.states; resultsByKey[st.key] = st.result;
     measuredBy[st.key] = st.measured; liveEditsBy[st.key] = st.live;
+    if (st.programs && Object.keys(st.programs).length) programsByKey[st.key] = st.programs; else delete programsByKey[st.key];
     delete ratingsSaved[st.key]; delete isoSaved[st.key];
     if (Object.keys(st.ratings).length) ratingsSaved[st.key] = st.ratings;
     if (Object.keys(st.iso).length) isoSaved[st.key] = st.iso;
@@ -579,6 +599,7 @@ export function createSession({ levels, deriveFull, storage = memoryStorage(), i
       if (opts.verify) {
         // si riparte da zero, anche se il livello era stato cablato prima
         wiresByKey[keyOf()] = blank();
+        delete programsByKey[keyOf()];
         statesByKey[keyOf()] = {};
         resultsByKey[keyOf()] = null;
         usageByKey[keyOf()] = { hints: 0, solution: false, checks: 0 };
@@ -632,6 +653,17 @@ export function createSession({ levels, deriveFull, storage = memoryStorage(), i
       if (fresh) message = { code: 'liveWorkNow' };
       emit();
     },
+    // Programma di un PLC (livelli con `edit`): sostituisce quello attuale. Il PLC riparte da zero, come dopo un nuovo caricamento.
+    setProgram(id, program) {
+      if (!inBuildOrFault()) return;
+      const c = levelAt().comps.find(x => x.id === id && x.type === 'plc' && x.edit);
+      if (!c) return;
+      programsByKey[keyOf()] = { ...programsOf(), [id]: sanitizeProgram(program) };
+      resultsByKey[keyOf()] = null;
+      rewireSim();
+      applyLive2();
+      emit();
+    },
     undo() {
       if (!inBuildOrFault()) return;
       const lw = wires()[wires().length - 1];
@@ -645,7 +677,8 @@ export function createSession({ levels, deriveFull, storage = memoryStorage(), i
     },
     clear() {
       if (!inBuildOrFault()) return;
-      if (!wires().some(w => !w.fixed)) { delete liveEditsBy[keyOf()]; return; }
+      if (!wires().some(w => !w.fixed) && !Object.keys(programsOf()).length) { delete liveEditsBy[keyOf()]; return; }
+      delete programsByKey[keyOf()];
       wiresChanged();
       delete liveEditsBy[keyOf()];   // si ricomincia da capo
       wiresByKey[keyOf()] = blank();
@@ -767,7 +800,7 @@ export function createSession({ levels, deriveFull, storage = memoryStorage(), i
       const level = levelAt();
       // nella sfida guasto i guasti da componente ancora attivi (dispersioni) vanno tolti prima di verificare
       const faultOn = v2(level) && level.unit && level.unit.fault && unitState().phase === 'fault' ? (level.unit.fault.on || []).filter(id => simFor().parts[id] && simFor().parts[id].on) : [];
-      const r = v2(level) ? evaluateV2(level, wires(), { measured: measuredBy[keyOf()] || [], ratings: ratingsOf(), faultOn, liveEdits: liveEditsBy[keyOf()] || [] }) : evaluate(level, wires());
+      const r = v2(level) ? evaluateV2(level, wires(), { measured: measuredBy[keyOf()] || [], ratings: ratingsOf(), programs: programsOf(), faultOn, liveEdits: liveEditsBy[keyOf()] || [] }) : evaluate(level, wires());
       resultsByKey[keyOf()] = r;
       const u = usage();
       u.checks++;
@@ -865,7 +898,7 @@ export function createSession({ levels, deriveFull, storage = memoryStorage(), i
       const us = level.unit && level.unit.fault && unitState();
       if (!us || !['done', 'fault'].includes(us.phase) || playMode === 'verifica' || mode !== 'quadro') return;
       // l'impianto riuscito si conserva: uscendo dalla sfida torna com'era, con il suo esito
-      if (us.phase === 'done') us.before = { wires: (wiresByKey[keyOf()] || []).slice(), states: { ...(statesByKey[keyOf()] || {}) }, result: resultsByKey[keyOf()] || null, measured: (measuredBy[keyOf()] || []).slice(), ratings: ratingsOf() };
+      if (us.phase === 'done') us.before = { wires: (wiresByKey[keyOf()] || []).slice(), states: { ...(statesByKey[keyOf()] || {}) }, result: resultsByKey[keyOf()] || null, measured: (measuredBy[keyOf()] || []).slice(), ratings: ratingsOf(), programs: JSON.parse(JSON.stringify(programsOf())) };
       loadFaultPlant(level, us);
       emit();
     },
