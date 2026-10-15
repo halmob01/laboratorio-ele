@@ -550,6 +550,152 @@ html[lang="it"] .trnote{display:none}
 .upmod .uplist li{margin:2px 0}
 .tricard.milestone.soon{border-style:dashed;border-color:#9AA1AE}
 @media (max-width:560px){.upmod .uplist{columns:1}}
+
+/* ---------- prove 3D a tutto schermo (milestone): scena dietro, cornice sopra ---------- */
+/* Colori fissi scuri, scelti: e' sempre notte o capannone, in tema chiaro e scuro. */
+body.ms-mode{overflow:hidden}
+body.ms-mode .top,body.ms-mode #tabbar,body.ms-mode #footer,body.ms-mode .levelbar{display:none!important}
+.milestone{--hud:rgba(12,18,28,.84);--hud-solid:#0F1622;--hud-line:rgba(233,230,222,.16);--hud-ink:#F3EFE6;--hud-ink2:#AEB4C0;--hud-ink3:#7C8494;--hud-ok:#4CC38A;--hud-bad:#FF5A5F;--hud-led:#47FF8A}
+.milestone .levelgrid{display:block!important}
+.milestone .house{position:fixed;inset:0;z-index:30;margin:0;background:#070B12;color:var(--hud-ink)}
+.milestone .house .hstage{position:absolute;inset:0;height:auto!important;min-height:0!important;border:0;border-radius:0;background:radial-gradient(120% 90% at 50% 40%,#0E1A14 0%,#070B12 70%)}
+.milestone .house .hmsg{top:50%;bottom:auto;left:50%;right:auto;transform:translate(-50%,-50%);border-radius:10px;max-width:min(420px,90vw);text-align:center}
+.milestone .house .hlabel.room{opacity:.55}
+.milestone .house .hlabel.ctl{display:none!important}
+.milestone .work{display:none}
+.milestone.drawer .work{display:flex;position:fixed;z-index:40;top:0;right:0;bottom:0;width:min(560px,100vw);overflow:auto;padding:14px max(14px,env(safe-area-inset-right,0px)) 120px 14px;background:var(--bg);box-shadow:-12px 0 40px rgba(0,0,0,.45);flex-direction:column;gap:12px}
+.milestone .work .unit{display:none}
+.milestone .lessoncard{position:fixed;z-index:45;left:50%;top:50%;transform:translate(-50%,-50%);width:min(640px,calc(100vw - 24px));max-height:calc(100vh - 32px);overflow:auto;box-shadow:0 20px 60px rgba(0,0,0,.5)}
+.milestone .house.lesson .phud{display:none}
+.phud{position:fixed;z-index:35;background:var(--hud);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);border:1px solid var(--hud-line);border-radius:14px;color:var(--hud-ink)}
+.phud h2{margin:0}
+.phud button,.psheet button,.pintro button{font:inherit;color:inherit}
+.phud :focus-visible,.psheet :focus-visible,.pintro :focus-visible{outline:2px solid var(--lamp);outline-offset:2px}
+.pk{font:500 11px/1.2 'IBM Plex Mono',monospace;letter-spacing:.12em;text-transform:uppercase;color:var(--hud-ink2)}
+.vh{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+/* missione */
+.pmission{top:calc(12px + env(safe-area-inset-top,0px));left:max(12px,env(safe-area-inset-left,0px));width:min(380px,calc(100vw - 24px));padding:14px 16px;display:flex;flex-direction:column;gap:10px}
+.pback{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.pback a{color:var(--hud-ink);font-weight:600;text-decoration:none;font-size:14px;min-height:32px;display:inline-flex;align-items:center}
+.pclock{font:600 13px/1 'IBM Plex Mono',monospace;color:var(--lamp);font-variant-numeric:tabular-nums}
+.pmission h2{font:700 34px/.95 'Barlow Condensed',sans-serif;text-transform:uppercase;text-wrap:balance}
+.pgoal{color:var(--hud-ink2);font-size:14px;margin:0}
+.psteps{list-style:none;margin:0;padding:0;display:grid;gap:6px}
+.psteps li{display:grid;grid-template-columns:22px 1fr;gap:8px;align-items:center;font-size:14px;color:var(--hud-ink3)}
+.psteps li::before{content:attr(data-n);display:grid;place-items:center;width:22px;height:22px;border-radius:50%;border:1.5px solid var(--hud-ink3);font:600 11px/1 'IBM Plex Mono',monospace}
+.psteps li.cur{color:var(--hud-ink)}
+.psteps li.cur::before{border-color:var(--lamp);color:var(--lamp)}
+.psteps li.done{color:var(--hud-ink2)}
+.psteps li.done::before{content:"\2713";background:var(--hud-ok);border-color:var(--hud-ok);color:#06210F}
+/* registro */
+.plogbox{top:calc(12px + env(safe-area-inset-top,0px));right:max(12px,env(safe-area-inset-right,0px));width:270px;padding:12px 14px;display:flex;flex-direction:column;gap:8px;max-height:46vh}
+.plogbox h2{font:500 11px/1 'IBM Plex Mono',monospace;letter-spacing:.12em;text-transform:uppercase;color:var(--hud-ink2)}
+.plog{list-style:none;margin:0;padding:0;display:flex;flex-direction:column-reverse;gap:6px;overflow:auto;min-height:0}
+.plog li{display:grid;grid-template-columns:42px 1fr;gap:6px;font-size:13px;color:var(--hud-ink2)}
+.plog time{font:500 12px/1.45 'IBM Plex Mono',monospace;color:var(--hud-ink3);font-variant-numeric:tabular-nums}
+.plog li.trip{color:var(--hud-bad)}
+.plog li.good{color:var(--hud-ok)}
+.ptools{display:flex;gap:6px;flex-wrap:wrap}
+.pchip{border:1px solid var(--hud-line);background:rgba(255,255,255,.05);border-radius:999px;padding:8px 12px;min-height:38px;font:500 13px/1 'IBM Plex Sans',sans-serif;cursor:pointer}
+.pchip[aria-pressed="true"]{background:var(--lamp);color:#1B2230;border-color:var(--lamp)}
+.only-phone{display:none}
+/* quadro in basso */
+.pdock{left:50%;transform:translateX(-50%);bottom:calc(12px + env(safe-area-inset-bottom,0px));padding:12px 14px 12px;display:flex;flex-direction:column;gap:10px;width:min(720px,calc(100vw - 24px))}
+.pdockhead{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
+.pdockhead h2{font:500 11px/1 'IBM Plex Mono',monospace;letter-spacing:.12em;text-transform:uppercase;color:var(--hud-ink2)}
+.prow{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.pbtn{display:inline-flex;align-items:center;justify-content:center;border:1px solid var(--hud-line);background:transparent;border-radius:10px;padding:0 16px;min-height:44px;cursor:pointer;font:600 15px/1 'IBM Plex Sans',sans-serif;color:var(--hud-ink);text-decoration:none}
+.pbtn.y{background:var(--lamp);color:#1B2230;border-color:var(--lamp)}
+.prail{display:grid;grid-template-columns:1.35fr 1fr 1fr 1fr;gap:6px;padding:10px;border-radius:10px;background:linear-gradient(#2A3140,#1D2330);box-shadow:inset 0 0 0 1px rgba(255,255,255,.06)}
+.pmod{position:relative;display:flex;flex-direction:column;align-items:center;gap:6px;padding:8px 6px 8px;border-radius:6px;background:linear-gradient(#F4F1EA,#E9E6DE);color:#1B2230;border:1px solid #B9B4A8;box-shadow:0 2px 0 rgba(0,0,0,.35);min-width:0}
+.plever{display:flex;flex-direction:column;align-items:center;gap:6px;background:none;border:0;padding:0;cursor:pointer;width:100%;color:#1B2230!important}
+.pname{font:600 11px/1.1 'IBM Plex Mono',monospace;letter-spacing:.06em;text-transform:uppercase;text-align:center}
+.pknob{position:relative;width:34px;height:56px;border-radius:6px;background:#2C323C;box-shadow:inset 0 2px 4px rgba(0,0,0,.5)}
+.pknob::after{content:"";position:absolute;left:4px;right:4px;height:25px;border-radius:4px;background:linear-gradient(#3B4250,#252A33);top:27px;transition:top .14s cubic-bezier(.3,1.4,.5,1)}
+.pmod[data-on="true"] .pknob::after{top:4px;background:linear-gradient(#56606F,#3A414D)}
+.pmod.rcd[data-on="true"] .pknob::after{background:linear-gradient(#2E6BB5,#1F4E88)}
+.pmod[data-trip="true"] .pknob::after{top:15px}
+.pword{font:600 10px/1 'IBM Plex Mono',monospace;padding:4px 6px;border-radius:4px;background:#C9CED6;text-transform:uppercase;letter-spacing:.06em}
+.pmod[data-trip="true"] .pword{background:var(--lamp)}
+.pmod.rcd[data-on="true"] .pword{background:#BFD6F2}
+.pvolt{font:600 13px/1 'IBM Plex Mono',monospace;font-variant-numeric:tabular-nums;padding:5px 6px;border-radius:4px;background:#1D2B22;color:#7A8F80;min-width:58px;text-align:center}
+.pvolt.live{color:var(--hud-led)}
+.psub{font:400 10px/1 'IBM Plex Mono',monospace;color:#5A6170}
+.ptest{position:absolute;top:8px;right:8px;width:30px;height:30px;border-radius:50%;border:2px solid #1F4E88;background:#2E6BB5;color:#fff!important;font:700 12px/1 'IBM Plex Mono',monospace;cursor:pointer}
+.pdev{display:flex;align-items:center;gap:10px;flex-wrap:wrap;border:1px solid var(--lamp);background:rgba(245,184,0,.08);border-radius:10px;padding:10px 12px;cursor:pointer;text-align:left}
+.pdev span{color:var(--hud-ink2);font-size:14px}
+.pdev .pdo{margin-left:auto;background:var(--lamp);color:#1B2230;border-radius:8px;padding:6px 10px;font-weight:600}
+.phint{margin:0;font-size:13px;color:var(--hud-ink2);min-height:1.45em}
+/* lampo, scossa, avviso */
+.pflash{position:absolute;inset:0;background:#fff;opacity:0;pointer-events:none}
+.pflash.go{animation:pflash .45s ease-out}
+@keyframes pflash{0%{opacity:.7}100%{opacity:0}}
+.house.shake .hscene{animation:pshake .3s linear}
+@keyframes pshake{20%{transform:translate(-6px,2px)}40%{transform:translate(5px,-3px)}60%{transform:translate(-3px,2px)}80%{transform:translate(2px,-1px)}}
+.ptoast{position:fixed;z-index:50;left:50%;top:36%;transform:translate(-50%,-50%) scale(.9);opacity:0;pointer-events:none;text-align:center;transition:opacity .2s,transform .2s;color:var(--hud-ink);width:min(560px,90vw)}
+.ptoast.go{opacity:1;transform:translate(-50%,-50%) scale(1)}
+.ptoast b{display:block;font:700 72px/.9 'Barlow Condensed',sans-serif;color:var(--hud-bad);text-shadow:0 0 30px rgba(255,90,95,.5)}
+.ptoast span{font:500 15px/1.35 'IBM Plex Mono',monospace;text-shadow:0 1px 6px #000}
+/* domanda e finale */
+.psheet{position:fixed;z-index:55;inset:0;display:grid;place-items:center;background:rgba(4,7,12,.6);padding:16px}
+.pcard{width:min(540px,100%);background:var(--hud-solid);border:1px solid var(--hud-line);border-radius:16px;padding:20px;display:flex;flex-direction:column;gap:12px;max-height:calc(100vh - 32px);overflow:auto;color:var(--hud-ink)}
+.pcard .pk{color:var(--lamp)}
+.pcard h2{margin:0;font:700 32px/1 'Barlow Condensed',sans-serif;text-transform:uppercase}
+.pcard p{margin:0;color:var(--hud-ink2)}
+.popt{display:block;width:100%;text-align:left;border:1px solid var(--hud-line);background:rgba(255,255,255,.03);border-radius:10px;padding:12px 14px;cursor:pointer;font-size:15px}
+.popt:hover:not(:disabled){border-color:var(--hud-ink2)}
+.popt.no{border-color:var(--hud-bad)}
+.popt.yes{border-color:var(--hud-ok);background:rgba(76,195,138,.12)}
+.pfb.ok b{color:var(--hud-ok)}
+.pfb.ko b{color:var(--hud-bad)}
+.pstars{display:flex;gap:6px}
+/* ingresso */
+.pintro{position:fixed;z-index:60;inset:0;display:grid;place-items:center;background:#000;transition:opacity .9s ease;padding:24px;color:var(--hud-ink)}
+.pintro.out{opacity:0;pointer-events:none}
+.pintro-box{display:flex;flex-direction:column;align-items:center;gap:14px;text-align:center}
+.pintro .pk{opacity:0;animation:pup .6s .2s forwards}
+.pintro h2{margin:0;font:700 clamp(48px,10vw,104px)/.9 'Barlow Condensed',sans-serif;text-transform:uppercase;text-wrap:balance;opacity:0;animation:pup .7s .5s forwards}
+.ptag{font:600 18px/1 'IBM Plex Mono',monospace;color:var(--lamp);opacity:0;animation:pup .5s 1.3s forwards}
+.pload{width:200px;height:3px;border-radius:2px;background:rgba(255,255,255,.12);overflow:hidden;opacity:0;animation:pup .4s 1.1s forwards}
+.pload i{display:block;height:100%;width:0;background:var(--lamp);animation:pload 2.4s 1.1s ease-out forwards}
+.pskip{position:absolute;right:max(16px,env(safe-area-inset-right,0px));bottom:calc(16px + env(safe-area-inset-bottom,0px));background:none;border:1px solid var(--hud-line);border-radius:999px;padding:10px 16px;cursor:pointer;color:var(--hud-ink2)!important}
+@keyframes pup{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+@keyframes pload{to{width:100%}}
+html[dir="rtl"] .phud,html[dir="rtl"] .psheet,html[dir="rtl"] .pintro,html[dir="rtl"] .ptoast{direction:rtl}
+/* telefono */
+@media (max-width:760px){
+  .pmission{padding:10px 12px;gap:6px}
+  .pmission h2{font-size:26px}
+  .pgoal{display:none}
+  .psteps{grid-template-columns:repeat(6,1fr);gap:4px}
+  .psteps li{grid-template-columns:1fr;justify-items:center;text-align:center;gap:4px}
+  .psteps li span{display:none}
+  .psteps li.cur span{display:block;position:absolute;left:12px;right:12px;top:100%;margin-top:6px;padding:6px 10px;border-radius:8px;background:var(--hud);font-size:13px;text-align:left}
+  .plogbox{display:none}
+  .only-phone{display:inline-flex}
+  .pdock{padding:10px;gap:8px}
+  .pdockhead h2{display:none}
+  .pdockhead .prow{width:100%;flex-wrap:nowrap}
+  .pdockhead .pbtn{flex:1}
+  .prail{gap:4px;padding:6px}
+  .pmod{padding:6px 2px;gap:5px}
+  .psub{display:none}
+  .pknob{width:28px;height:46px}
+  .pknob::after{height:20px;top:22px}
+  .pmod[data-trip="true"] .pknob::after{top:12px}
+  .pvolt{min-width:0;font-size:11px;padding:4px}
+  .ptest{top:4px;right:4px;width:26px;height:26px}
+  .ptoast b{font-size:52px}
+}
+@media (prefers-reduced-motion:reduce){
+  .pknob::after{transition:none}
+  .pintro *{animation-duration:.01s!important;animation-delay:0s!important}
+  .house.shake .hscene{animation:none}
+}
+body.ms-intro .milestone .lessoncard{visibility:hidden}
+@media (max-width:760px){.pmod.rcd .pname{padding-right:22px}}
+.drawerclose{display:none}
+.milestone.drawer .drawerclose{display:inline-flex;align-self:flex-end;position:sticky;top:0;z-index:2}
 </style>
 </head>
 <body>
@@ -569,6 +715,7 @@ html[lang="it"] .trnote{display:none}
       <div class="levelmain">
       <div class="card lessoncard" id="lesson" hidden></div>
       <div class="work" id="work">
+        <button class="btn drawerclose" id="bDrawerClose">Chiudi lo schema</button>
         <div class="card task unit" id="unit"></div>
         <div class="card benchcard">
           <div class="mode" id="modeBar" role="group" aria-label="Punto di partenza"><span class="mlabel">Parti dal</span><button class="chip seg" data-mode="quadro" aria-pressed="true">Quadro</button><button class="chip seg" data-mode="contatore" aria-pressed="false">Contatore</button><span class="mlabel hint">il contatore è la versione completa</span></div>
@@ -12023,6 +12170,84 @@ html[lang="it"] .trnote{display:none}
     "Con l\u2019interruttore chiuso la lampada \xE8 accesa": "\u0639\u0646\u062F\u0645\u0627 \u064A\u0643\u0648\u0646 \u0627\u0644\u0645\u0641\u062A\u0627\u062D \u0645\u063A\u0644\u0642\u064B\u0627 \u064A\u0643\u0648\u0646 \u0627\u0644\u0645\u0635\u0628\u0627\u062D \u0645\u0636\u0627\u0621\u064B"
   };
 
+  // src/i18n/ar-17.js
+  var ar_17_default = {
+    "Modulo 2": "\u0627\u0644\u0648\u062D\u062F\u0629 2",
+    "prova finale": "\u0627\u0644\u062A\u062C\u0631\u0628\u0629 \u0627\u0644\u0646\u0647\u0627\u0626\u064A\u0629",
+    "Una notte senza luce": "\u0644\u064A\u0644\u0629 \u0628\u0644\u0627 \u0636\u0648\u0621",
+    "Ore 22:40. Tac.": "\u0627\u0644\u0633\u0627\u0639\u0629 22:40. \u0637\u064E\u0642.",
+    "Il differenziale \xE8 scattato e la casa \xE8 al buio. Da qualche parte c\u2019\xE8 una dispersione verso terra: trova la linea e rimetti la luce.": "\u0641\u0635\u0644 \u0627\u0644\u0642\u0627\u0637\u0639 \u0627\u0644\u062A\u0641\u0627\u0636\u0644\u064A \u0648\u0627\u0644\u0628\u064A\u062A \u0641\u064A \u0627\u0644\u0638\u0644\u0627\u0645. \u064A\u0648\u062C\u062F \u0641\u064A \u0645\u0643\u0627\u0646 \u0645\u0627 \u062A\u0633\u0631\u0628 \u0646\u062D\u0648 \u0627\u0644\u0623\u0631\u0636\u064A: \u062C\u062F \u0627\u0644\u062E\u0637 \u0648\u0623\u0639\u062F \u0627\u0644\u0636\u0648\u0621.",
+    "Quadro dell\u2019ingresso": "\u0644\u0648\u062D\u0629 \u0627\u0644\u0645\u062F\u062E\u0644 \u0627\u0644\u0643\u0647\u0631\u0628\u0627\u0626\u064A\u0629",
+    "Diff. 30 mA": "\u062A\u0641\u0627\u0636\u0644\u064A 30 mA",
+    "tasto T": "\u0632\u0631 T",
+    "Stufetta del soggiorno": "\u0645\u062F\u0641\u0623\u0629 \u063A\u0631\u0641\u0629 \u0627\u0644\u062C\u0644\u0648\u0633",
+    "collegata": "\u0645\u0648\u0635\u0648\u0644\u0629",
+    "scollegata": "\u0645\u0641\u0635\u0648\u0644\u0629",
+    "Scollega": "\u0627\u0641\u0635\u0644",
+    "Ricollega": "\u0623\u0639\u062F \u0627\u0644\u0648\u0635\u0644",
+    "Apri i tre magnetotermici": "\u0627\u0641\u062A\u062D \u0627\u0644\u0642\u0648\u0627\u0637\u0639 \u0627\u0644\u0645\u063A\u0646\u0627\u0637\u064A\u0633\u064A\u0629 \u0627\u0644\u062D\u0631\u0627\u0631\u064A\u0629 \u0627\u0644\u062B\u0644\u0627\u062B\u0629",
+    "Riarma il differenziale": "\u0623\u0639\u062F \u062A\u0633\u0644\u064A\u062D \u0627\u0644\u0642\u0627\u0637\u0639 \u0627\u0644\u062A\u0641\u0627\u0636\u0644\u064A",
+    "Richiudi una linea alla volta": "\u0623\u0639\u062F \u0625\u063A\u0644\u0627\u0642 \u062E\u0637 \u0648\u0627\u062D\u062F \u0641\u064A \u0643\u0644 \u0645\u0631\u0629",
+    "Rispondi: quale linea disperde?": "\u0623\u062C\u0628: \u0623\u064A \u062E\u0637 \u064A\u0633\u0631\u0651\u0628\u061F",
+    "Scollega l\u2019apparecchio difettoso": "\u0627\u0641\u0635\u0644 \u0627\u0644\u062C\u0647\u0627\u0632 \u0627\u0644\u0645\u0639\u0637\u0648\u0628",
+    "Riarma, richiudi tutto e verifica": "\u0623\u0639\u062F \u0627\u0644\u062A\u0633\u0644\u064A\u062D\u060C \u0623\u063A\u0644\u0642 \u0643\u0644 \u0634\u064A\u0621 \u0648\u062A\u062D\u0642\u0642",
+    "Il differenziale \xE8 scattato. Casa al buio.": "\u0641\u0635\u0644 \u0627\u0644\u0642\u0627\u0637\u0639 \u0627\u0644\u062A\u0641\u0627\u0636\u0644\u064A. \u0627\u0644\u0628\u064A\u062A \u0641\u064A \u0627\u0644\u0638\u0644\u0627\u0645.",
+    "Riarmato il differenziale.": "\u0623\u064F\u0639\u064A\u062F \u062A\u0633\u0644\u064A\u062D \u0627\u0644\u0642\u0627\u0637\u0639 \u0627\u0644\u062A\u0641\u0627\u0636\u0644\u064A.",
+    "Riarmato il differenziale: scatta subito.": "\u0623\u064F\u0639\u064A\u062F \u062A\u0633\u0644\u064A\u062D \u0627\u0644\u0642\u0627\u0637\u0639 \u0627\u0644\u062A\u0641\u0627\u0636\u0644\u064A: \u064A\u0641\u0635\u0644 \u0641\u0648\u0631\u064B\u0627.",
+    "Aperto il differenziale.": "\u0641\u064F\u062A\u062D \u0627\u0644\u0642\u0627\u0637\u0639 \u0627\u0644\u062A\u0641\u0627\u0636\u0644\u064A.",
+    "Premuto il tasto di prova: il differenziale scatta.": "\u0636\u064F\u063A\u0637 \u0632\u0631 \u0627\u0644\u0627\u062E\u062A\u0628\u0627\u0631: \u064A\u0641\u0635\u0644 \u0627\u0644\u0642\u0627\u0637\u0639 \u0627\u0644\u062A\u0641\u0627\u0636\u0644\u064A.",
+    "Chiusa la linea luce.": "\u0623\u064F\u063A\u0644\u0642 \u062E\u0637 \u0627\u0644\u0625\u0646\u0627\u0631\u0629.",
+    "Chiusa la linea prese.": "\u0623\u064F\u063A\u0644\u0642 \u062E\u0637 \u0627\u0644\u0645\u0642\u0627\u0628\u0633.",
+    "Chiusa la linea cucina.": "\u0623\u064F\u063A\u0644\u0642 \u062E\u0637 \u0627\u0644\u0645\u0637\u0628\u062E.",
+    "Chiusa la linea luce: il differenziale scatta.": "\u0623\u064F\u063A\u0644\u0642 \u062E\u0637 \u0627\u0644\u0625\u0646\u0627\u0631\u0629: \u064A\u0641\u0635\u0644 \u0627\u0644\u0642\u0627\u0637\u0639 \u0627\u0644\u062A\u0641\u0627\u0636\u0644\u064A.",
+    "Chiusa la linea prese: il differenziale scatta.": "\u0623\u064F\u063A\u0644\u0642 \u062E\u0637 \u0627\u0644\u0645\u0642\u0627\u0628\u0633: \u064A\u0641\u0635\u0644 \u0627\u0644\u0642\u0627\u0637\u0639 \u0627\u0644\u062A\u0641\u0627\u0636\u0644\u064A.",
+    "Chiusa la linea cucina: il differenziale scatta.": "\u0623\u064F\u063A\u0644\u0642 \u062E\u0637 \u0627\u0644\u0645\u0637\u0628\u062E: \u064A\u0641\u0635\u0644 \u0627\u0644\u0642\u0627\u0637\u0639 \u0627\u0644\u062A\u0641\u0627\u0636\u0644\u064A.",
+    "Aperta la linea luce.": "\u0641\u064F\u062A\u062D \u062E\u0637 \u0627\u0644\u0625\u0646\u0627\u0631\u0629.",
+    "Aperta la linea prese.": "\u0641\u064F\u062A\u062D \u062E\u0637 \u0627\u0644\u0645\u0642\u0627\u0628\u0633.",
+    "Aperta la linea cucina.": "\u0641\u064F\u062A\u062D \u062E\u0637 \u0627\u0644\u0645\u0637\u0628\u062E.",
+    "Scollegata la stufetta.": "\u0641\u064F\u0635\u0644\u062A \u0627\u0644\u0645\u062F\u0641\u0623\u0629.",
+    "Ricollegata la stufetta.": "\u0623\u064F\u0639\u064A\u062F \u0648\u0635\u0644 \u0627\u0644\u0645\u062F\u0641\u0623\u0629.",
+    "Ricollegata la stufetta: il differenziale scatta.": "\u0623\u064F\u0639\u064A\u062F \u0648\u0635\u0644 \u0627\u0644\u0645\u062F\u0641\u0623\u0629: \u064A\u0641\u0635\u0644 \u0627\u0644\u0642\u0627\u0637\u0639 \u0627\u0644\u062A\u0641\u0627\u0636\u0644\u064A.",
+    "Acceso l\u2019interruttore del corridoio.": "\u0634\u064F\u063A\u0651\u0644 \u0645\u0641\u062A\u0627\u062D \u0627\u0644\u0645\u0645\u0631.",
+    "Spento l\u2019interruttore del corridoio.": "\u0623\u064F\u0637\u0641\u0626 \u0645\u0641\u062A\u0627\u062D \u0627\u0644\u0645\u0645\u0631.",
+    "Risposta giusta: la linea delle prese disperde.": "\u0625\u062C\u0627\u0628\u0629 \u0635\u062D\u064A\u062D\u0629: \u062E\u0637 \u0627\u0644\u0645\u0642\u0627\u0628\u0633 \u064A\u0633\u0631\u0651\u0628.",
+    "Risposta sbagliata. Si pu\xF2 riprovare.": "\u0625\u062C\u0627\u0628\u0629 \u062E\u0627\u0637\u0626\u0629. \u064A\u0645\u0643\u0646\u0643 \u0627\u0644\u0645\u062D\u0627\u0648\u0644\u0629 \u0645\u0631\u0629 \u0623\u062E\u0631\u0649.",
+    "Verifica: impianto funzionante.": "\u0627\u0644\u062A\u062D\u0642\u0642: \u0627\u0644\u062A\u0645\u062F\u064A\u062F \u064A\u0639\u0645\u0644.",
+    "Verifica: qualcosa non va ancora.": "\u0627\u0644\u062A\u062D\u0642\u0642: \u0647\u0646\u0627\u0643 \u0634\u064A\u0621 \u0644\u0627 \u064A\u0639\u0645\u0644 \u0628\u0639\u062F.",
+    "La luce \xE8 tornata": "\u0639\u0627\u062F \u0627\u0644\u0636\u0648\u0621",
+    "La stufetta del soggiorno aveva l\u2019isolante rovinato: perdeva verso terra circa 300 mA, dieci volte la soglia del differenziale. Scollegata la stufetta, le tre linee restano chiuse e il differenziale armato.": "\u0643\u0627\u0646 \u0639\u0627\u0632\u0644 \u0645\u062F\u0641\u0623\u0629 \u063A\u0631\u0641\u0629 \u0627\u0644\u062C\u0644\u0648\u0633 \u062A\u0627\u0644\u0641\u064B\u0627: \u0643\u0627\u0646\u062A \u062A\u0633\u0631\u0651\u0628 \u0646\u062D\u0648 \u0627\u0644\u0623\u0631\u0636\u064A \u0646\u062D\u0648 300 mA\u060C \u0623\u064A \u0639\u0634\u0631\u0629 \u0623\u0636\u0639\u0627\u0641 \u0639\u062A\u0628\u0629 \u0627\u0644\u0642\u0627\u0637\u0639 \u0627\u0644\u062A\u0641\u0627\u0636\u0644\u064A. \u0628\u0639\u062F \u0641\u0635\u0644 \u0627\u0644\u0645\u062F\u0641\u0623\u0629 \u062A\u0628\u0642\u0649 \u0627\u0644\u062E\u0637\u0648\u0637 \u0627\u0644\u062B\u0644\u0627\u062B\u0629 \u0645\u063A\u0644\u0642\u0629 \u0648\u0627\u0644\u0642\u0627\u0637\u0639 \u0627\u0644\u062A\u0641\u0627\u0636\u0644\u064A \u0645\u0633\u0644\u0651\u062D\u064B\u0627.",
+    "Ora": "\u0627\u0644\u0633\u0627\u0639\u0629",
+    "Registro": "\u0627\u0644\u0633\u062C\u0644",
+    "Torcia": "\u0645\u0635\u0628\u0627\u062D \u064A\u062F\u0648\u064A",
+    "Suono": "\u0627\u0644\u0635\u0648\u062A",
+    "Chiuso": "\u0645\u063A\u0644\u0642",
+    "Aperto": "\u0645\u0641\u062A\u0648\u062D",
+    "Scattato": "\u0641\u0627\u0635\u0644",
+    "Armato": "\u0645\u0633\u0644\u0651\u062D",
+    "Tasto di prova del differenziale": "\u0632\u0631 \u0627\u062E\u062A\u0628\u0627\u0631 \u0627\u0644\u0642\u0627\u0637\u0639 \u0627\u0644\u062A\u0641\u0627\u0636\u0644\u064A",
+    "Tensione a valle": "\u0627\u0644\u062C\u0647\u062F \u0628\u0639\u062F \u0627\u0644\u0642\u0627\u0637\u0639",
+    "Schema e multimetro": "\u0627\u0644\u0645\u062E\u0637\u0637 \u0648\u0627\u0644\u0645\u0644\u062A\u064A\u0645\u064A\u062A\u0631",
+    "Chiudi lo schema": "\u0623\u063A\u0644\u0642 \u0627\u0644\u0645\u062E\u0637\u0637",
+    "Rispondi": "\u0623\u062C\u0628",
+    "Esito della prova": "\u0646\u062A\u064A\u062C\u0629 \u0627\u0644\u062A\u062C\u0631\u0628\u0629",
+    "Prima apri le tre linee: cos\xEC il differenziale potr\xE0 restare armato.": "\u0627\u0641\u062A\u062D \u0627\u0644\u062E\u0637\u0648\u0637 \u0627\u0644\u062B\u0644\u0627\u062B\u0629 \u0623\u0648\u0644\u064B\u0627: \u0647\u0643\u0630\u0627 \u064A\u0633\u062A\u0637\u064A\u0639 \u0627\u0644\u0642\u0627\u0637\u0639 \u0627\u0644\u062A\u0641\u0627\u0636\u0644\u064A \u0623\u0646 \u064A\u0628\u0642\u0649 \u0645\u0633\u0644\u0651\u062D\u064B\u0627.",
+    "Ora riarma il differenziale: con le linee aperte non ha niente da sentire.": "\u0627\u0644\u0622\u0646 \u0623\u0639\u062F \u062A\u0633\u0644\u064A\u062D \u0627\u0644\u0642\u0627\u0637\u0639 \u0627\u0644\u062A\u0641\u0627\u0636\u0644\u064A: \u0645\u0639 \u0627\u0644\u062E\u0637\u0648\u0637 \u0627\u0644\u0645\u0641\u062A\u0648\u062D\u0629 \u0644\u0627 \u064A\u0648\u062C\u062F \u0645\u0627 \u064A\u0633\u062A\u0634\u0639\u0631\u0647.",
+    "Richiudi una linea alla volta e guarda la casa: quale fa scattare tutto?": "\u0623\u0639\u062F \u0625\u063A\u0644\u0627\u0642 \u062E\u0637 \u0648\u0627\u062D\u062F \u0641\u064A \u0643\u0644 \u0645\u0631\u0629 \u0648\u0627\u0646\u0638\u0631 \u0625\u0644\u0649 \u0627\u0644\u0628\u064A\u062A: \u0623\u064A\u0651\u0647\u0627 \u064A\u0641\u0635\u0644 \u0643\u0644 \u0634\u064A\u0621\u061F",
+    "Hai visto quale linea lo fa scattare. Rispondi.": "\u0631\u0623\u064A\u062A \u0623\u064A \u062E\u0637 \u064A\u062C\u0639\u0644\u0647 \u064A\u0641\u0635\u0644. \u0623\u062C\u0628.",
+    "Togli la causa: scollega l\u2019apparecchio che disperde, nella scena o qui sotto.": "\u0623\u0632\u0644 \u0627\u0644\u0633\u0628\u0628: \u0627\u0641\u0635\u0644 \u0627\u0644\u062C\u0647\u0627\u0632 \u0627\u0644\u0630\u064A \u064A\u0633\u0631\u0651\u0628\u060C \u0641\u064A \u0627\u0644\u0645\u0634\u0647\u062F \u0623\u0648 \u0647\u0646\u0627 \u0641\u064A \u0627\u0644\u0623\u0633\u0641\u0644.",
+    "Riarma il differenziale, richiudi le tre linee e premi Verifica.": "\u0623\u0639\u062F \u062A\u0633\u0644\u064A\u062D \u0627\u0644\u0642\u0627\u0637\u0639 \u0627\u0644\u062A\u0641\u0627\u0636\u0644\u064A\u060C \u0623\u063A\u0644\u0642 \u0627\u0644\u062E\u0637\u0648\u0637 \u0627\u0644\u062B\u0644\u0627\u062B\u0629 \u0648\u0627\u0636\u063A\u0637 \u062A\u062D\u0642\u0642.",
+    "Richiudi solo quella linea con il differenziale armato: se non scatta, non \xE8 lei.": "\u0623\u0639\u062F \u0625\u063A\u0644\u0627\u0642 \u0630\u0644\u0643 \u0627\u0644\u062E\u0637 \u0648\u062D\u062F\u0647 \u0648\u0627\u0644\u0642\u0627\u0637\u0639 \u0627\u0644\u062A\u0641\u0627\u0636\u0644\u064A \u0645\u0633\u0644\u0651\u062D: \u0625\u0646 \u0644\u0645 \u064A\u0641\u0635\u0644 \u0641\u0644\u064A\u0633 \u0647\u0648.",
+    "Torna al quadro": "\u0639\u062F \u0625\u0644\u0649 \u0627\u0644\u0644\u0648\u062D\u0629",
+    "Prova superata": "\u0646\u062C\u062D\u062A \u0627\u0644\u062A\u062C\u0631\u0628\u0629",
+    "Guarda la casa": "\u0627\u0646\u0638\u0631 \u0625\u0644\u0649 \u0627\u0644\u0628\u064A\u062A",
+    "Missione": "\u0627\u0644\u0645\u0647\u0645\u0629",
+    "Comandi": "\u0623\u062F\u0648\u0627\u062A \u0627\u0644\u062A\u062D\u0643\u0645",
+    "Tac.": "\u0637\u064E\u0642.",
+    "La scena 3D non \xE8 disponibile su questo dispositivo: la prova funziona con i comandi e con lo schema.": "\u0627\u0644\u0645\u0634\u0647\u062F \u062B\u0644\u0627\u062B\u064A \u0627\u0644\u0623\u0628\u0639\u0627\u062F \u063A\u064A\u0631 \u0645\u062A\u0627\u062D \u0639\u0644\u0649 \u0647\u0630\u0627 \u0627\u0644\u062C\u0647\u0627\u0632: \u062A\u0639\u0645\u0644 \u0627\u0644\u062A\u062C\u0631\u0628\u0629 \u0628\u0623\u062F\u0648\u0627\u062A \u0627\u0644\u062A\u062D\u0643\u0645 \u0648\u0627\u0644\u0645\u062E\u0637\u0637.",
+    "Qualcosa non va ancora": "\u0647\u0646\u0627\u0643 \u0634\u064A\u0621 \u0644\u0627 \u064A\u0639\u0645\u0644 \u0628\u0639\u062F",
+    "Nello schema trovi i controlli che non passano.": "\u062A\u062C\u062F \u0641\u064A \u0627\u0644\u0645\u062E\u0637\u0637 \u0627\u0644\u0641\u062D\u0648\u0635 \u0627\u0644\u062A\u064A \u0644\u0645 \u062A\u0646\u062C\u062D."
+  };
+
   // src/i18n/ar.js
   var ROLE = { "del neutro": "\u0627\u0644\u0645\u062D\u0627\u064A\u062F", "di terra": "\u0627\u0644\u0623\u0631\u0636\u064A", "di fase": "\u0627\u0644\u0637\u0648\u0631", "a bassa tensione": "\u0627\u0644\u062C\u0647\u062F \u0627\u0644\u0645\u0646\u062E\u0641\u0636", "di comando": "\u0627\u0644\u062A\u062D\u0643\u0645" };
   var COLORI = { "blu": "\u0623\u0632\u0631\u0642", "giallo-verde": "\u0623\u0635\u0641\u0631-\u0623\u062E\u0636\u0631", "marrone, nero o grigio": "\u0628\u0646\u064A\u064B\u0651\u0627 \u0623\u0648 \u0623\u0633\u0648\u062F \u0623\u0648 \u0631\u0645\u0627\u062F\u064A\u064B\u0651\u0627", "rosso, marrone, nero o grigio": "\u0623\u062D\u0645\u0631 \u0623\u0648 \u0628\u0646\u064A\u064B\u0651\u0627 \u0623\u0648 \u0623\u0633\u0648\u062F \u0623\u0648 \u0631\u0645\u0627\u062F\u064A\u064B\u0651\u0627", "di un colore diverso da blu e giallo-verde": "\u0628\u0644\u0648\u0646 \u0645\u062E\u062A\u0644\u0641 \u0639\u0646 \u0627\u0644\u0623\u0632\u0631\u0642 \u0648\u0627\u0644\u0623\u0635\u0641\u0631-\u0627\u0644\u0623\u062E\u0636\u0631" };
@@ -12081,7 +12306,7 @@ html[lang="it"] .trnote{display:none}
     [/^Portata (.+): (\d+) ampere\. Tocca per cambiarla$/, (m, t) => `\u0627\u0644\u0633\u0639\u0629 ${t(m[1])}: ${m[2]} \u0623\u0645\u0628\u064A\u0631. \u0627\u0644\u0645\u0633 \u0644\u062A\u063A\u064A\u064A\u0631\u0647\u0627`],
     [/^Protezioni scattate: (.+)\.$/, (m, t) => `\u062D\u0645\u0627\u064A\u0627\u062A \u0641\u0635\u0644\u062A: ${t(m[1])}.`]
   ];
-  registerLang("ar", { ...ar_1_default, ...ar_2_default, ...ar_3_default, ...ar_4_default, ...ar_5_default, ...ar_6_default, ...ar_7_default, ...ar_8_default, ...ar_9_default, ...ar_10_default, ...ar_11_default, ...ar_12_default, ...ar_13_default, ...ar_14_default, ...ar_15_default, ...ar_16_default }, PAT);
+  registerLang("ar", { ...ar_1_default, ...ar_2_default, ...ar_3_default, ...ar_4_default, ...ar_5_default, ...ar_6_default, ...ar_7_default, ...ar_8_default, ...ar_9_default, ...ar_10_default, ...ar_11_default, ...ar_12_default, ...ar_13_default, ...ar_14_default, ...ar_15_default, ...ar_16_default, ...ar_17_default }, PAT);
 
   // src/trilocale/house.js
   function houseState(session2, on = true) {
@@ -12398,6 +12623,207 @@ html[lang="it"] .trnote{display:none}
     return null;
   }
 
+  // src/content/prove.js
+  var PROVE = {
+    appartamento: {
+      kick: "Modulo 2 \xB7 prova finale",
+      place: "Appartamento",
+      title: "Una notte senza luce",
+      tagline: "Ore 22:40. Tac.",
+      clock: [22, 40],
+      goal: "Il differenziale \xE8 scattato e la casa \xE8 al buio. Da qualche parte c\u2019\xE8 una dispersione verso terra: trova la linea e rimetti la luce.",
+      dockTitle: "Quadro dell\u2019ingresso",
+      // comandi del quadro, da sinistra a destra. line: chiave in provaState.lines; view: dove guarda la camera quando la linea si accende
+      controls: [
+        { id: "D", kind: "rcd", name: "Differenziale", short: "Diff. 30 mA", sub: "tasto T" },
+        { id: "M1", kind: "mcb", name: "Luce", line: "luce", sub: "10 A", view: "corridoio" },
+        { id: "M2", kind: "mcb", name: "Prese", line: "prese", sub: "16 A", view: "soggiorno" },
+        { id: "M3", kind: "mcb", name: "Cucina", line: "cucina", sub: "20 A", view: "cucina" }
+      ],
+      // l'apparecchio difettoso: compare tra i comandi solo dopo la diagnosi giusta (nella scena si tocca sempre)
+      device: { id: "G", name: "Stufetta del soggiorno", plugged: "collegata", unplugged: "scollegata", act: "Scollega", undo: "Ricollega", view: "soggiorno" },
+      steps: [
+        "Apri i tre magnetotermici",
+        "Riarma il differenziale",
+        "Richiudi una linea alla volta",
+        "Rispondi: quale linea disperde?",
+        "Scollega l\u2019apparecchio difettoso",
+        "Riarma, richiudi tutto e verifica"
+      ],
+      // frasi del registro, composte da src/prove/hud.js a partire da quello che e' cambiato
+      log: {
+        start: "Il differenziale \xE8 scattato. Casa al buio.",
+        rearm: "Riarmato il differenziale.",
+        rearmTrip: "Riarmato il differenziale: scatta subito.",
+        rcdOff: "Aperto il differenziale.",
+        test: "Premuto il tasto di prova: il differenziale scatta.",
+        lineOn: { luce: "Chiusa la linea luce.", prese: "Chiusa la linea prese.", cucina: "Chiusa la linea cucina." },
+        lineOnTrip: { luce: "Chiusa la linea luce: il differenziale scatta.", prese: "Chiusa la linea prese: il differenziale scatta.", cucina: "Chiusa la linea cucina: il differenziale scatta." },
+        lineOff: { luce: "Aperta la linea luce.", prese: "Aperta la linea prese.", cucina: "Aperta la linea cucina." },
+        unplug: "Scollegata la stufetta.",
+        plug: "Ricollegata la stufetta.",
+        plugTrip: "Ricollegata la stufetta: il differenziale scatta.",
+        switchOn: "Acceso l\u2019interruttore del corridoio.",
+        switchOff: "Spento l\u2019interruttore del corridoio.",
+        answerOk: "Risposta giusta: la linea delle prese disperde.",
+        answerKo: "Risposta sbagliata. Si pu\xF2 riprovare.",
+        checkOk: "Verifica: impianto funzionante.",
+        checkKo: "Verifica: qualcosa non va ancora."
+      },
+      win: {
+        title: "La luce \xE8 tornata",
+        text: "La stufetta del soggiorno aveva l\u2019isolante rovinato: perdeva verso terra circa 300 mA, dieci volte la soglia del differenziale. Scollegata la stufetta, le tre linee restano chiuse e il differenziale armato."
+      }
+    }
+  };
+
+  // src/prove/hud.js
+  var esc4 = (t) => String(t).replace(/[&<>"']/g, (c2) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c2]);
+  var provaOf = (name) => PROVE[name] || null;
+  var newMemory = () => ({ opened: false, rearmed: false, found: false });
+  function remember(name, mem, action, before, after) {
+    if (name !== "appartamento" || !after) return mem;
+    const m = { ...mem };
+    const lines = after.lines;
+    if (!lines.luce.on && !lines.prese.on && !lines.cucina.on) m.opened = true;
+    if (m.opened && after.rcd.on) m.rearmed = true;
+    const line2 = action && lineOf(name, action.id);
+    if (m.rearmed && line2 && before && before.rcd.on && !before.lines[line2].on && after.lines[line2].on && after.rcd.tripped) m.found = true;
+    return m;
+  }
+  var lineOf = (name, id) => {
+    const c2 = (PROVE[name].controls || []).find((x) => x.id === id);
+    return c2 ? c2.line : null;
+  };
+  function stepsOf(name, ps, unit, mem) {
+    const cfg = PROVE[name];
+    if (!cfg || !ps) return [];
+    let done;
+    if (name === "appartamento") {
+      const diagOk = !!(unit && unit.diag && unit.diag.correct);
+      done = [mem.opened, mem.rearmed, mem.found, diagOk, !ps.heaterPlugged, unit && unit.phase === "done"];
+    } else done = cfg.steps.map(() => false);
+    if (unit && unit.phase === "done") done = done.map(() => true);
+    const last = done.lastIndexOf(true);
+    const cur = done.findIndex((d, i) => !d && i > last);
+    return cfg.steps.map((text2, i) => ({ text: text2, done: !!done[i], cur: i === cur }));
+  }
+  function describe(name, action, before, after) {
+    const cfg = PROVE[name];
+    if (!cfg || !before || !after || !action) return null;
+    const L = cfg.log;
+    const newTrip = !before.rcd.tripped && after.rcd.tripped;
+    if (action.kind === "test") return after.rcd.tripped ? { text: L.test, trip: newTrip, view: "insieme" } : null;
+    const id = action.id;
+    if (id === "D") {
+      if (after.rcd.on) return { text: L.rearm, good: true };
+      if (after.rcd.tripped && !before.rcd.on) return { text: L.rearmTrip, trip: true, view: "insieme" };
+      return { text: L.rcdOff };
+    }
+    const line2 = lineOf(name, id);
+    if (line2) {
+      if (after.lines[line2].on && !before.lines[line2].on) {
+        if (newTrip) return { text: L.lineOnTrip[line2], trip: true, view: "insieme" };
+        const ctl = cfg.controls.find((c2) => c2.id === id);
+        return { text: L.lineOn[line2], good: after.rcd.on, view: after.rcd.on ? ctl.view : null };
+      }
+      if (!after.lines[line2].on && before.lines[line2].on) return { text: L.lineOff[line2] };
+      return null;
+    }
+    if (cfg.device && id === cfg.device.id) {
+      if (!after.heaterPlugged) return { text: L.unplug, good: true, view: cfg.device.view };
+      return newTrip ? { text: L.plugTrip, trip: true, view: "insieme" } : { text: L.plug, view: cfg.device.view };
+    }
+    if (id === "S") return { text: after.switchOn ? L.switchOn : L.switchOff, view: after.lamp ? "corridoio" : null };
+    return null;
+  }
+  var clockText = (cfg, minutes) => {
+    const t = cfg.clock[0] * 60 + cfg.clock[1] + minutes;
+    const h = Math.floor(t / 60) % 24, m = t % 60;
+    return h + ":" + (m < 10 ? "0" : "") + m;
+  };
+  function introHTML2(cfg) {
+    return `<div class="pintro-box"><span class="pk">${esc4(cfg.kick)} \xB7 ${esc4(cfg.place)}</span>
+      <h2>${esc4(cfg.title)}</h2>
+      <span class="pload" aria-hidden="true"><i></i></span>
+      <span class="ptag">${esc4(cfg.tagline)}</span></div>
+    <button class="pskip" type="button" data-pui="skipIntro">Salta</button>`;
+  }
+  function missionHTML(cfg, steps, clock) {
+    const li = steps.map((st, i) => `<li class="${st.done ? "done" : st.cur ? "cur" : ""}" data-n="${i + 1}"><span>${esc4(st.text)}</span></li>`).join("");
+    return `<div class="pback"><a href="#/home">&larr; Mappa</a><span class="pk">${esc4(cfg.kick)}</span><span class="pclock" aria-label="Ora">${esc4(clock)}</span></div>
+    <h2>${esc4(cfg.title)}</h2>
+    <p class="pgoal">${esc4(cfg.goal)}</p>
+    <ol class="psteps">${li}</ol>`;
+  }
+  function logHTML(entries, tools) {
+    const li = entries.map((e) => `<li class="${e.trip ? "trip" : e.good ? "good" : ""}"><time>${esc4(e.clock)}</time><span>${esc4(e.text)}</span></li>`).join("");
+    const t = (k, label, pressed) => `<button class="pchip" type="button" data-pui="${k}"${pressed === void 0 ? "" : ` aria-pressed="${!!pressed}"`}>${label}</button>`;
+    return `<h2>Registro</h2><ol class="plog" aria-live="polite">${li}</ol>
+    <div class="ptools">${t("insieme", "Vista d\u2019insieme")}${t("quadro", "Quadro")}${t("torch", "Torcia", tools.torch)}${t("sound", "Suono", tools.sound)}</div>`;
+  }
+  var STATE_WORD = { on: "Chiuso", off: "Aperto", tripped: "Scattato", armed: "Armato" };
+  function dockHTML(cfg, ps, unit, ui2) {
+    const mods = cfg.controls.map((c2) => {
+      let on, trip2, live;
+      if (c2.kind === "rcd") {
+        on = ps.rcd.on;
+        trip2 = ps.rcd.tripped;
+        live = ps.supply && ps.rcd.on;
+      } else {
+        const l = ps.lines[c2.line];
+        on = l.on;
+        trip2 = l.tripped;
+        live = ps.supply && ps.rcd.on && l.on;
+      }
+      const word = trip2 ? STATE_WORD.tripped : c2.kind === "rcd" ? on ? STATE_WORD.armed : STATE_WORD.off : on ? STATE_WORD.on : STATE_WORD.off;
+      const test = c2.kind === "rcd" ? `<button class="ptest" type="button" data-pact="test" data-pid="${c2.id}" aria-label="Tasto di prova del differenziale">T</button>` : "";
+      return `<div class="pmod ${c2.kind}" data-on="${on}" data-trip="${!!trip2}">
+        <button class="plever" type="button" data-pact="toggle" data-pid="${c2.id}"><span class="pname">${esc4(c2.short || c2.name)}</span><span class="pknob" aria-hidden="true"></span><span class="pword">${word}</span></button>
+        <span class="pvolt${live ? " live" : ""}"><span class="vh">Tensione a valle</span> ${live ? "230 V" : "0 V"}</span>${test}<span class="psub">${esc4(c2.sub)}</span>
+      </div>`;
+    }).join("");
+    const d = cfg.device, diagOk = !!(unit && unit.diag && unit.diag.correct);
+    const dev = d && diagOk && unit.phase === "fault" ? `<button class="pdev" type="button" data-pact="toggle" data-pid="${d.id}"><b>${esc4(d.name)}</b><span>${esc4(ps.heaterPlugged ? d.plugged : d.unplugged)}</span><span class="pdo">${esc4(ps.heaterPlugged ? d.act : d.undo)}</span></button>` : "";
+    let main = "";
+    if (unit && unit.phase === "fault") main = diagOk ? '<button class="pbtn y" type="button" data-pui="check">Verifica</button>' : '<button class="pbtn y" type="button" data-pui="answer">Rispondi</button>';
+    else if (unit && unit.phase === "done") main = '<button class="pbtn y" type="button" data-pui="finale">Esito della prova</button>';
+    return `<div class="pdockhead"><h2>${esc4(cfg.dockTitle)}</h2><div class="prow">
+      <button class="pchip" type="button" data-pui="schema" aria-pressed="${!!ui2.schema}">${ui2.schema ? "Chiudi lo schema" : "Schema e multimetro"}</button>
+      <button class="pchip only-phone" type="button" data-pui="torch" aria-pressed="${!!ui2.torch}">Torcia</button>${main}</div></div>
+    <div class="prail">${mods}</div>${dev}
+    <p class="phint" role="status">${esc4(ui2.hint || "")}</p>`;
+  }
+  function hintOf(name, steps) {
+    if (name !== "appartamento") return "";
+    const i = steps.findIndex((s) => s.cur);
+    return [
+      "Prima apri le tre linee: cos\xEC il differenziale potr\xE0 restare armato.",
+      "Ora riarma il differenziale: con le linee aperte non ha niente da sentire.",
+      "Richiudi una linea alla volta e guarda la casa: quale fa scattare tutto?",
+      "Hai visto quale linea lo fa scattare. Rispondi.",
+      "Togli la causa: scollega l\u2019apparecchio che disperde, nella scena o qui sotto.",
+      "Riarma il differenziale, richiudi le tre linee e premi Verifica."
+    ][i] || "";
+  }
+  function questionHTML(unitDef, diag) {
+    const f = unitDef.fault, q = f.diagnosis;
+    const opts = q.options.map((o) => {
+      const cls = diag && diag.option === o.id ? diag.correct ? " yes" : " no" : "";
+      return `<button class="popt${cls}" type="button" data-pdiag="${o.id}"${diag && diag.correct ? " disabled" : ""}>${esc4(o.text)}</button>`;
+    }).join("");
+    const fb = !diag ? "" : diag.correct ? `<p class="pfb ok"><b>Giusto.</b> ${esc4(q.why)}</p><p class="pfb">${esc4(f.fixSay)}</p>` : '<p class="pfb ko"><b>Non proprio.</b> Richiudi solo quella linea con il differenziale armato: se non scatta, non \xE8 lei.</p>';
+    return `<div class="pcard" role="dialog" aria-modal="true" aria-labelledby="pQ"><span class="pk">Prova</span><h2 id="pQ">${esc4(q.question)}</h2>${opts}${fb}
+      <div class="prow"><button class="pbtn${diag && diag.correct ? " y" : ""}" type="button" data-pui="closeSheet">${diag && diag.correct ? "Torna al quadro" : "Chiudi"}</button></div></div>`;
+  }
+  var STAR2 = (on) => `<svg width="30" height="30" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2l3 6.9 7.4.7-5.6 4.9 1.7 7.3L12 17.9 5.5 21.8l1.7-7.3L1.6 9.6 9 8.9z" fill="${on ? "#F5B800" : "none"}" stroke="${on ? "#1B2230" : "#7C8494"}" stroke-width="1.5" stroke-linejoin="round"/></svg>`;
+  function finaleHTML(cfg, stars, solved) {
+    return `<div class="pcard" role="dialog" aria-modal="true" aria-labelledby="pW"><span class="pk">${solved ? "Prova superata" : "Impianto funzionante"}</span><h2 id="pW">${esc4(cfg.win.title)}</h2>
+      <div class="pstars" role="img" aria-label="${stars} stelle su 3">${[0, 1, 2].map((i) => STAR2(i < stars)).join("")}</div>
+      <p>${esc4(cfg.win.text)}</p>
+      <div class="prow"><a class="pbtn y" href="#/home">Torna alla mappa</a><button class="pbtn" type="button" data-pui="again">Rifai la prova</button><button class="pbtn" type="button" data-pui="summary">Sintesi</button><button class="pbtn" type="button" data-pui="closeSheet">Guarda la casa</button></div></div>`;
+  }
+
   // src/prove/page.js
   var VIEW_LABEL = {
     insieme: "Vista d\u2019insieme",
@@ -12407,6 +12833,8 @@ html[lang="it"] .trnote{display:none}
     pulsantiera: "Pulsantiera",
     motore: "Motore"
   };
+  var INTRO_MS = 2400;
+  var SOUND_KEY = "fase-e-neutro-suono";
   var scriptPromise2 = null;
   function loadScript2() {
     if (window.FaseNeutroProve) return Promise.resolve(true);
@@ -12425,36 +12853,252 @@ html[lang="it"] .trnote{display:none}
     }
     return scriptPromise2;
   }
+  var audio = null;
+  function noise(dur, gain, freq) {
+    try {
+      audio = audio || new (window.AudioContext || window.webkitAudioContext)();
+      const n = Math.floor(audio.sampleRate * dur), b = audio.createBuffer(1, n, audio.sampleRate), d = b.getChannelData(0);
+      for (let i = 0; i < n; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / n, 4);
+      const s = audio.createBufferSource();
+      s.buffer = b;
+      const f = audio.createBiquadFilter();
+      f.type = "bandpass";
+      f.frequency.value = freq;
+      const g = audio.createGain();
+      g.gain.value = gain;
+      s.connect(f);
+      f.connect(g);
+      g.connect(audio.destination);
+      s.start();
+    } catch (e) {
+    }
+  }
   function createProva(host2, env) {
-    let scene = null, sceneState = "idle", mounted = false, token = 0, name = null, lastSnap = null, sceneEl = null, toolsEl = null;
+    let scene = null, sceneState = "idle", mounted = false, token = 0, name = null, lastSnap = null;
+    let el = {};
     const holding = /* @__PURE__ */ new Set();
-    const inLesson = () => !!(lastSnap && lastSnap.unit && lastSnap.unit.phase === "lesson");
-    function build() {
-      host2.innerHTML = `<div class="hstage"><div class="hscene" id="pScene"></div>
-        <div class="htools" id="pTools"></div>
-        <div class="hmsg" id="pMsg" role="status" hidden></div></div>`;
-      sceneEl = host2.querySelector("#pScene");
-      toolsEl = host2.querySelector("#pTools");
-      host2.onclick = (e) => {
-        const b = e.target.closest("[data-pview]");
-        if (b && scene) scene.look(b.dataset.pview);
-      };
+    let mem = newMemory(), log = [], minutes = 0, phase = null, sheet = null;
+    let intro2 = null, override = null, introTimer = 0, outTimer = 0, finTimer = 0;
+    const ui2 = { schema: false, torch: false, sound: true };
+    try {
+      ui2.sound = localStorage.getItem(SOUND_KEY) !== "0";
+    } catch (e) {
     }
     const s = () => env.session;
+    const cfg = () => provaOf(name);
+    const inLesson = () => !!(lastSnap && lastSnap.unit && lastSnap.unit.phase === "lesson");
+    const reduced = () => !!(env.reduced && env.reduced());
+    function build() {
+      el = {};
+      if (!cfg()) {
+        host2.innerHTML = `<div class="hstage"><div class="hscene" id="pScene"></div><div class="htools" id="pTools"></div><div class="hmsg" id="pMsg" role="status" hidden></div></div>`;
+        ["pScene", "pTools", "pMsg"].forEach((id) => el[id] = host2.querySelector("#" + id));
+        host2.onclick = (e) => {
+          const b = e.target.closest("[data-pview]");
+          if (b && scene) scene.look(b.dataset.pview);
+        };
+        return;
+      }
+      host2.innerHTML = `<div class="hstage"><div class="hscene" id="pScene"></div><div class="hmsg" id="pMsg" role="status" hidden></div><div class="pflash" id="pFlash"></div></div>
+      <section class="phud pmission" id="pMission" aria-label="Missione"></section>
+      <aside class="phud plogbox" id="pLog" aria-label="Registro"></aside>
+      <section class="phud pdock" id="pDock" aria-label="Comandi"></section>
+      <div class="ptoast" id="pToast" aria-live="assertive"><b>Tac.</b><span></span></div>
+      <div class="psheet" id="pSheet" hidden></div>
+      <div class="pintro" id="pIntro" hidden></div>`;
+      ["pScene", "pMsg", "pFlash", "pMission", "pLog", "pDock", "pToast", "pSheet", "pIntro"].forEach((id) => el[id] = host2.querySelector("#" + id));
+      host2.onclick = onClick;
+      el.pScene.addEventListener("pointermove", (e) => {
+        if (scene && scene.aim) scene.aim(e.clientX, e.clientY);
+      });
+    }
+    function act2(action, run) {
+      const before = lastSnap && provaState(lastSnap);
+      run();
+      const snap = s().snapshot();
+      const after = provaState(snap);
+      if (!before || !after) return;
+      mem = remember(name, mem, action, before, after);
+      const ev = describe(name, action, before, after);
+      if (ev) {
+        note(ev.text, ev);
+        if (ev.trip) effectTrip(ev.text);
+        else if (ui2.sound) noise(0.04, 0.5, 2400);
+        if (ev.view && scene) scene.look(ev.view);
+      }
+      renderHud();
+    }
+    function note(text2, ev = {}) {
+      minutes++;
+      log.push({ clock: clockText(cfg(), minutes), text: text2, trip: !!ev.trip, good: !!ev.good });
+      if (log.length > 30) log.shift();
+    }
     function tap(u) {
-      if (inLesson()) return;
-      if (u.kind === "toggle") s().toggleControl(u.id);
-      else if (u.kind === "test") s().testPart(u.part);
-      else if (u.kind === "reset") s().resetPart(u.part);
+      if (inLesson() || intro2) return;
+      if (u.kind === "toggle") act2({ kind: "toggle", id: u.id }, () => s().toggleControl(u.id));
+      else if (u.kind === "test") act2({ kind: "test", id: u.part }, () => s().testPart(u.part));
+      else if (u.kind === "reset") act2({ kind: "reset", id: u.part }, () => s().resetPart(u.part));
     }
     function press2(u) {
-      if (inLesson()) return;
+      if (inLesson() || intro2) return;
       holding.add(u.id);
       s().press(u.id);
     }
     function release(u) {
       if (!holding.delete(u.id)) return;
       s().release(u.id);
+    }
+    function onClick(e) {
+      const a = e.target.closest("[data-pact]");
+      if (a) {
+        tap(a.dataset.pact === "test" ? { kind: "test", part: a.dataset.pid } : { kind: "toggle", id: a.dataset.pid });
+        return;
+      }
+      const d = e.target.closest("[data-pdiag]");
+      if (d) {
+        s().answerDiagnosis(d.dataset.pdiag);
+        const dg = s().snapshot().unit.diag;
+        if (dg) note(dg.correct ? cfg().log.answerOk : cfg().log.answerKo, { good: dg.correct });
+        renderHud();
+        return;
+      }
+      const u = e.target.closest("[data-pui]");
+      if (!u) return;
+      const k = u.dataset.pui;
+      if (k === "skipIntro") endIntro(true);
+      else if (k === "answer") {
+        sheet = "question";
+        renderHud();
+        focusSheet();
+      } else if (k === "finale") {
+        sheet = "finale";
+        renderHud();
+        focusSheet();
+      } else if (k === "closeSheet") {
+        sheet = null;
+        renderHud();
+      } else if (k === "check") check();
+      else if (k === "again") {
+        sheet = null;
+        s().startFault();
+      } else if (k === "summary") {
+        if (env.summary) env.summary();
+      } else if (k === "schema") {
+        ui2.schema = !ui2.schema;
+        if (env.drawer) env.drawer(ui2.schema);
+        renderHud();
+      } else if (k === "torch") {
+        ui2.torch = !ui2.torch;
+        if (scene && scene.torch) scene.torch(ui2.torch);
+        renderHud();
+      } else if (k === "sound") {
+        ui2.sound = !ui2.sound;
+        try {
+          localStorage.setItem(SOUND_KEY, ui2.sound ? "1" : "0");
+        } catch (x) {
+        }
+        renderHud();
+      } else if (k === "insieme" || k === "quadro") {
+        if (scene) scene.look(k);
+      }
+    }
+    function check() {
+      const r = s().check();
+      note(r.pass ? cfg().log.checkOk : cfg().log.checkKo, { good: r.pass, trip: !r.pass });
+      if (r.pass) {
+        if (scene) scene.look("insieme");
+        if (ui2.sound) noise(0.05, 0.5, 1800);
+        if (lastSnap.unit.phase !== "done") openFinale();
+      } else {
+        toast("Qualcosa non va ancora", "Nello schema trovi i controlli che non passano.");
+        ui2.schema = true;
+        if (env.drawer) env.drawer(true);
+      }
+      renderHud();
+    }
+    function openFinale() {
+      clearTimeout(finTimer);
+      finTimer = setTimeout(() => {
+        if (!mounted) return;
+        sheet = "finale";
+        renderHud();
+        focusSheet();
+      }, reduced() ? 0 : 900);
+    }
+    function onKey(e) {
+      if (e.key === "Escape" && sheet) {
+        sheet = null;
+        renderHud();
+      }
+    }
+    function focusSheet() {
+      const b = el.pSheet && el.pSheet.querySelector("button,a");
+      if (b && b.focus) b.focus({ preventScroll: true });
+    }
+    function toast(big, small) {
+      const t = el.pToast;
+      t.querySelector("b").textContent = big;
+      t.querySelector("span").textContent = small;
+      t.classList.remove("go");
+      void t.offsetWidth;
+      t.classList.add("go");
+      clearTimeout(t._h);
+      t._h = setTimeout(() => t.classList.remove("go"), 1600);
+    }
+    function effectTrip(text2) {
+      if (ui2.sound) noise(0.18, 1.4, 900);
+      if (!reduced()) {
+        const f = el.pFlash;
+        f.classList.remove("go");
+        void f.offsetWidth;
+        f.classList.add("go");
+        host2.classList.remove("shake");
+        void host2.offsetWidth;
+        host2.classList.add("shake");
+      }
+      toast("Tac.", text2);
+    }
+    function startIntro() {
+      const c2 = cfg();
+      if (!c2) return;
+      intro2 = { t0: Date.now() };
+      document.body.classList.add("ms-intro");
+      el.pIntro.innerHTML = introHTML2(c2);
+      el.pIntro.hidden = false;
+      el.pIntro.classList.remove("out");
+      clearTimeout(introTimer);
+      introTimer = setTimeout(() => endIntro(false), reduced() ? 300 : INTRO_MS);
+    }
+    function endIntro(force) {
+      if (!intro2) return;
+      if (!force && sceneState === "loading" && Date.now() - intro2.t0 < 8e3) {
+        introTimer = setTimeout(() => endIntro(false), 200);
+        return;
+      }
+      intro2 = null;
+      document.body.classList.remove("ms-intro");
+      clearTimeout(introTimer);
+      el.pIntro.classList.add("out");
+      setTimeout(() => {
+        if (el.pIntro && !intro2) el.pIntro.hidden = true;
+      }, reduced() ? 0 : 900);
+      lightsOut();
+      renderHud();
+    }
+    function lightsOut() {
+      const ps = lastSnap && provaState(lastSnap);
+      if (!ps || !scene || reduced() || name !== "appartamento" || ps.rcd.on) {
+        push();
+        return;
+      }
+      override = { ...ps, rcd: { ...ps.rcd, on: true, tripped: false }, lines: { luce: { on: true }, prese: { on: true }, cucina: { on: true } }, lamp: true, socket: true, oven: true, dark: false };
+      push();
+      clearTimeout(outTimer);
+      outTimer = setTimeout(() => {
+        override = null;
+        push();
+        if (mounted) effectTrip(cfg().log.start);
+      }, 900);
     }
     function loadScene(snap) {
       if (sceneState !== "idle") return;
@@ -12463,29 +13107,33 @@ html[lang="it"] .trnote{display:none}
       name = snap.level.prova.scene;
       loadScript2().then((ok) => {
         if (!mounted || my !== token) return;
-        sceneEl.hidden = false;
-        const api = ok && window.FaseNeutroProve && window.FaseNeutroProve.createScene(name, sceneEl, { reduced: env.reduced(), onTap: tap, onPress: press2, onRelease: release });
+        el.pScene.hidden = false;
+        const api = ok && window.FaseNeutroProve && window.FaseNeutroProve.createScene(name, el.pScene, { reduced: reduced(), onTap: tap, onPress: press2, onRelease: release });
         if (api) {
           scene = api;
           sceneState = "ready";
           host2._scene = api;
-          toolsEl.innerHTML = api.views.map((v) => `<button class="btn small" data-pview="${v}">${VIEW_LABEL[v] || v}</button>`).join("");
+          if (ui2.torch && api.torch) api.torch(true);
+          if (el.pTools) el.pTools.innerHTML = api.views.map((v) => `<button class="btn small" data-pview="${v}">${VIEW_LABEL[v] || v}</button>`).join("");
         } else sceneState = "failed";
         apply();
         push();
       });
     }
     function apply() {
-      const msg = host2.querySelector("#pMsg");
-      msg.hidden = !(sceneState === "loading" || sceneState === "failed");
-      msg.textContent = sceneState === "loading" ? "Caricamento della scena" : "La scena 3D non \xE8 disponibile su questo dispositivo: l\u2019esercizio funziona con il banco qui sotto.";
-      sceneEl.hidden = sceneState !== "ready";
-      host2.querySelector(".hstage").style.height = sceneState === "failed" ? "auto" : "";
-      host2.querySelector(".hstage").style.minHeight = sceneState === "failed" ? "0" : "";
+      el.pMsg.hidden = !(sceneState === "loading" || sceneState === "failed");
+      el.pMsg.textContent = sceneState === "loading" ? "Caricamento della scena" : "La scena 3D non \xE8 disponibile su questo dispositivo: la prova funziona con i comandi e con lo schema.";
+      el.pScene.hidden = sceneState !== "ready";
+      host2.classList.toggle("noscene", sceneState === "failed");
+      const st = host2.querySelector(".hstage");
+      if (el.pTools) {
+        st.style.height = sceneState === "failed" ? "auto" : "";
+        st.style.minHeight = sceneState === "failed" ? "0" : "";
+      }
     }
     function push() {
       if (!scene || !lastSnap) return;
-      const ps = provaState(lastSnap);
+      const ps = override || provaState(lastSnap);
       if (!ps) return;
       if (ps.scene === "appartamento") {
         const rooms = {};
@@ -12495,18 +13143,68 @@ html[lang="it"] .trnote{display:none}
         scene.update({ rooms, prova: ps });
       } else scene.update(ps);
     }
+    function setHTML(node, html) {
+      if (!node || node._html === html) return;
+      const a = document.activeElement, keep = a && node.contains(a) ? a.getAttribute("data-pid") || a.getAttribute("data-pui") || a.getAttribute("data-pdiag") : null;
+      node.innerHTML = html;
+      node._html = html;
+      if (keep) {
+        const b = node.querySelector(`[data-pid="${keep}"],[data-pui="${keep}"],[data-pdiag="${keep}"]`);
+        if (b && b.focus) b.focus({ preventScroll: true });
+      }
+    }
+    function renderHud() {
+      const c2 = cfg();
+      if (!c2 || !lastSnap) return;
+      const ps = provaState(lastSnap), unit = lastSnap.unit;
+      host2.classList.toggle("lesson", inLesson());
+      if (!ps || inLesson()) return;
+      const steps = stepsOf(name, ps, unit, mem);
+      ui2.hint = unit.phase === "fault" ? hintOf(name, steps) : "";
+      setHTML(el.pMission, missionHTML(c2, steps, clockText(c2, minutes)));
+      setHTML(el.pLog, logHTML(log, ui2));
+      setHTML(el.pDock, dockHTML(c2, ps, unit, ui2));
+      let sh = "";
+      if (sheet === "question" && unit.phase === "fault") sh = questionHTML(lastSnap.level.unit, unit.diag);
+      else if (sheet === "finale") {
+        const lv = lastSnap.levels.find((l) => l.id === lastSnap.level.id) || {};
+        sh = finaleHTML(c2, lastSnap.result && lastSnap.result.stars || lv.stars || 0, !!unit.faultSolved);
+      } else sheet = null;
+      el.pSheet.hidden = !sh;
+      setHTML(el.pSheet, sh);
+    }
+    function restart() {
+      mem = newMemory();
+      log = [];
+      minutes = 0;
+      sheet = null;
+      note(cfg().log.start, { trip: true });
+    }
     return {
       // Chiamata a ogni ridisegno della pagina con il livello aperto.
       sync(snapshot) {
         if (mounted && name && snapshot.level.prova && snapshot.level.prova.scene !== name) this.unmount();
-        if (!mounted) {
+        const first = !mounted;
+        if (first) {
           mounted = true;
+          name = snapshot.level.prova.scene;
           build();
           apply();
+          document.addEventListener("keydown", onKey);
         }
+        const ph = snapshot.unit ? snapshot.unit.phase : null;
+        const wasFault = phase === "fault";
         lastSnap = snapshot;
         if (sceneState === "idle") loadScene(snapshot);
-        push();
+        if (cfg() && wasFault && ph === "done") openFinale();
+        if (cfg() && ph === "fault" && (!wasFault || first)) {
+          restart();
+          if (!first && !intro2) lightsOut();
+        }
+        if (first && (ph === "lesson" || ph === "fault") && cfg()) startIntro();
+        phase = ph;
+        if (!override) push();
+        renderHud();
       },
       unmount() {
         holding.forEach((id) => {
@@ -12516,20 +13214,42 @@ html[lang="it"] .trnote{display:none}
           }
         });
         holding.clear();
+        clearTimeout(introTimer);
+        clearTimeout(outTimer);
+        clearTimeout(finTimer);
+        document.removeEventListener("keydown", onKey);
         if (scene) {
           scene.dispose();
           scene = null;
         }
+        if (ui2.schema && env.drawer) env.drawer(false);
         host2._scene = null;
         name = null;
+        intro2 = null;
+        override = null;
+        document.body.classList.remove("ms-intro");
         sceneState = "idle";
         mounted = false;
         lastSnap = null;
         token++;
+        phase = null;
+        ui2.schema = false;
+        ui2.torch = false;
         host2.innerHTML = "";
         host2.onclick = null;
+        host2.className = host2.className.replace(/\b(lesson|noscene|shake)\b/g, "").trim();
       },
-      isMounted: () => mounted
+      isMounted: () => mounted,
+      // lo schema si chiude anche dal suo pulsante (sul telefono copre i comandi)
+      closeDrawer() {
+        ui2.schema = false;
+        if (env.drawer) env.drawer(false);
+        renderHud();
+        const b = el.pDock && el.pDock.querySelector('[data-pui="schema"]');
+        if (b && b.focus) b.focus({ preventScroll: true });
+      },
+      // la prova ha la cornice a tutto schermo (milestone)?
+      framed: (snapshot) => !!(snapshot && snapshot.level.prova && provaOf(snapshot.level.prova.scene))
     };
   }
 
@@ -12581,7 +13301,16 @@ html[lang="it"] .trnote{display:none}
   var house = createHouse(document.querySelector("#house"), { session, go: (h) => {
     location.hash = h;
   }, reduced: () => REDUCED.matches });
-  var prova = createProva(document.querySelector("#house"), { session, reduced: () => REDUCED.matches });
+  var prova = createProva(document.querySelector("#house"), {
+    session,
+    reduced: () => REDUCED.matches,
+    // prove a tutto schermo: lo schema (banco, multimetro, esito) si apre a lato; la sintesi nella finestra solita
+    drawer: (open) => $("#screen-level").classList.toggle("drawer", !!open),
+    summary: () => {
+      opener = document.activeElement;
+      openOverlay("summary", summaryHTML(S));
+    }
+  });
   var comps = [];
   var lastKey = null;
   var rebuild = false;
@@ -12733,7 +13462,10 @@ html[lang="it"] .trnote{display:none}
     const inLesson = !!S.unit && ph === "lesson" && S.playMode === "apprendimento";
     const scr = $("#screen-level");
     const hl = isHouseLevel(S.level.id), pv = isProvaLevel(S.level);
-    scr.className = "phase-" + (inLesson ? "learn" : "play") + (S.playMode === "verifica" ? " verify" : "") + (hl || pv ? " with-house" : "");
+    const ms = pv && S.playMode !== "verifica" && prova.framed(S);
+    const drawer = scr.classList.contains("drawer");
+    scr.className = "phase-" + (inLesson ? "learn" : "play") + (S.playMode === "verifica" ? " verify" : "") + (hl || pv ? " with-house" : "") + (ms ? " milestone" : "") + (ms && drawer && !inLesson ? " drawer" : "");
+    document.body.classList.toggle("ms-mode", ms);
     $("#house").hidden = !(hl || pv);
     if (!hl && house.isMounted()) house.unmount();
     if (!pv && prova.isMounted()) prova.unmount();
@@ -12783,6 +13515,7 @@ html[lang="it"] .trnote{display:none}
     if (home || qd) {
       house.unmount();
       prova.unmount();
+      document.body.classList.remove("ms-mode");
     }
     if (qd) {
       stopDemo();
@@ -13135,6 +13868,7 @@ html[lang="it"] .trnote{display:none}
     (r.pass ? isHouseLevel(S.level.id) ? $("#house") : $(".roomcard") : $("#result")).scrollIntoView({ behavior, block: r.pass ? "start" : "nearest" });
   });
   $("#bFlow").addEventListener("click", () => session.toggleFlow());
+  $("#bDrawerClose").addEventListener("click", () => prova.closeDrawer());
   $("#bMeter").addEventListener("click", () => {
     clearSel();
     session.toggleMeter();

@@ -41,7 +41,12 @@ const session = createSession({ levels, deriveFull, storage });
 /* ---------- stato della sola vista ---------- */
 let S = null;           // ultima istantanea della sessione
 const house = createHouse(document.querySelector('#house'), { session, go: h => { location.hash = h; }, reduced: () => REDUCED.matches });
-const prova = createProva(document.querySelector('#house'), { session, reduced: () => REDUCED.matches });
+const prova = createProva(document.querySelector('#house'), {
+  session, reduced: () => REDUCED.matches,
+  // prove a tutto schermo: lo schema (banco, multimetro, esito) si apre a lato; la sintesi nella finestra solita
+  drawer: open => $('#screen-level').classList.toggle('drawer', !!open),
+  summary: () => { opener = document.activeElement; openOverlay('summary', V.summaryHTML(S)); },
+});
 let comps = [];         // componenti con geometria per il livello corrente
 let lastKey = null;
 let rebuild = false;    // forza il ridisegno della scena anche se il livello non cambia
@@ -176,7 +181,10 @@ function renderLevelScreen() {
   const inLesson = !!S.unit && ph === 'lesson' && S.playMode === 'apprendimento';
   const scr = $('#screen-level');
   const hl = isHouseLevel(S.level.id), pv = isProvaLevel(S.level);
-  scr.className = 'phase-' + (inLesson ? 'learn' : 'play') + (S.playMode === 'verifica' ? ' verify' : '') + (hl || pv ? ' with-house' : '');
+  const ms = pv && S.playMode !== 'verifica' && prova.framed(S);       // prova con la cornice a tutto schermo
+  const drawer = scr.classList.contains('drawer');
+  scr.className = 'phase-' + (inLesson ? 'learn' : 'play') + (S.playMode === 'verifica' ? ' verify' : '') + (hl || pv ? ' with-house' : '') + (ms ? ' milestone' : '') + (ms && drawer && !inLesson ? ' drawer' : '');
+  document.body.classList.toggle('ms-mode', ms);
   $('#house').hidden = !(hl || pv);
   // prima si smonta la vista che si lascia, poi si monta l'altra (condividono il contenitore)
   if (!hl && house.isMounted()) house.unmount();
@@ -222,7 +230,7 @@ function render() {
   $('#screen-home').hidden = !home;
   $('#screen-quaderno').hidden = !qd;
   $('#screen-level').hidden = home || qd;
-  if (home || qd) { house.unmount(); prova.unmount(); }
+  if (home || qd) { house.unmount(); prova.unmount(); document.body.classList.remove('ms-mode'); }
   if (qd) { stopDemo(); demo.page = -1; $('#screen-quaderno').innerHTML = V.quadernoHTML(S, levels); return; }
   if (home) {
     stopDemo(); demo.page = -1;
@@ -436,6 +444,7 @@ $('#bCheck').addEventListener('click', () => {
   (r.pass ? (isHouseLevel(S.level.id) ? $('#house') : $('.roomcard')) : $('#result')).scrollIntoView({ behavior, block: r.pass ? 'start' : 'nearest' });
 });
 $('#bFlow').addEventListener('click', () => session.toggleFlow());
+$('#bDrawerClose').addEventListener('click', () => prova.closeDrawer());
 $('#bMeter').addEventListener('click', () => { clearSel(); session.toggleMeter(); });
 $('#meter').addEventListener('click', e => {
   const md = e.target.closest('[data-meter-mode]'); if (md) { session.setMeterMode(md.dataset.meterMode); return; }

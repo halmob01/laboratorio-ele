@@ -74,19 +74,20 @@ export function createScene(container, cb) {
 
   // ---- luce ----
   // luce ambientale: provvisoria finche' non arriva la foto a 360 gradi dell'appartamento
-  const hemi = new THREE.HemisphereLight(0xcdd8ea, 0x6b5a48, 0.9);
+  const hemi = new THREE.HemisphereLight(0xcdd8ea, 0x6b5a48, night ? 0.06 : 0.9);       // di notte resta buio anche senza la foto
   scene.add(hemi);
   const pmrem = new THREE.PMREMGenerator(renderer);
   new EXRLoader().load(ASSETS + 'ambiente.exr', t => {
     if (disposed) return;
     scene.environment = pmrem.fromEquirectangular(t).texture;
-    scene.environmentIntensity = night ? 0.07 : 0.16;
-    hemi.intensity = night ? 0.07 : 0.12;
+    scene.environmentIntensity = night ? 0.035 : 0.16;
+    hemi.intensity = night ? 0.03 : 0.12;
     t.dispose(); pmrem.dispose();
     redraw();
   }, undefined, () => {});
   // sole basso di sera, caldo, da sud-ovest
-  const sun = new THREE.DirectionalLight(night ? 0x8fa9e6 : 0xff9f66, night ? 0.4 : 1.0);
+  // di notte la luna: abbastanza per leggere la casa, non per vederci; la luce vera la fanno le lampade
+  const sun = new THREE.DirectionalLight(night ? 0x8fa9e6 : 0xff9f66, night ? 0.22 : 1.0);
   sun.position.set(-9, 6, 12);
   sun.target.position.set(4.5, 0, 4);
   sun.castShadow = true;
