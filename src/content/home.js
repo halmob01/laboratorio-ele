@@ -47,6 +47,23 @@ export const MODULES = [
     ],
     milestone: { level: 'c24-officina', kick: 'Officina', name: 'Il nastro da collaudare', text: 'Un nastro trasportatore da collaudare a vista: marcia, arresto, emergenza, finecorsa e termico. Trova perché il nastro non si ferma.', cta: 'Entra nell’officina', again: 'Rifai la prova' },
   },
+  {
+    tag: 'MODULO 6',
+    title: 'La fabbrica',
+    levels: [
+      'c25-fungo',
+      'c26-rele-sicurezza',
+      'c27-portella',
+      { soon: true, title: 'Il sensore 4-20 mA', blurb: 'Perché 4 e non 0: il filo interrotto si riconosce.' },
+      { soon: true, title: 'Il variatore', blurb: 'Frequenza e velocità, con le rampe.' },
+      { soon: true, title: 'Il serbatoio', blurb: 'Due soglie e l’isteresi.' },
+      { soon: true, title: 'Il PID', blurb: 'P, I e D con i cursori e il grafico.' },
+      { soon: true, title: 'Il pannello operatore', blurb: 'Stati, allarmi e dati vecchi.' },
+      { soon: true, title: 'La linea', blurb: 'Una sequenza: attesa, prelievo, deposito.' },
+      { soon: true, title: 'Gestione guasti', blurb: 'Tre guasti da risolvere a tempo.' },
+    ],
+    milestone: { soon: true, kick: 'Fabbrica', name: 'Una linea da cablare, programmare e mettere in sicurezza', text: 'Il progetto finale: un turno di lavoro con guasti da gestire.' },
+  },
 ];
 
 // Prove dei moduli ancora da costruire, mostrate in fondo alla mappa.
@@ -61,11 +78,6 @@ export const UPCOMING = [
     tag: 'MODULO 5', title: 'Impianti del futuro', note: 'Casa automatica, fotovoltaico e ricarica: un ramo facoltativo del percorso.',
     levels: ['Il sensore e l’attuatore', 'La casa col PLC', 'La corrente continua', 'Il pannello fotovoltaico', 'Il contatore e lo scambio', 'L’accumulo', 'La colonnina'],
     project: { kick: 'Casa del futuro', name: 'Luci, tapparelle, sole e batteria', text: 'La casa che si comanda da sola e produce la sua energia.' },
-  },
-  {
-    tag: 'MODULO 6', title: 'La fabbrica', note: 'Sicurezza, regolazione e una linea completa da mettere in funzione.',
-    levels: ['Il fungo a due canali', 'Il relè di sicurezza', 'Portella e barriera', 'Il sensore 4-20 mA', 'Il variatore', 'Il serbatoio', 'Il PID', 'Il pannello operatore', 'La linea', 'Gestione guasti'],
-    project: { kick: 'Fabbrica', name: 'Una linea da cablare, programmare e mettere in sicurezza', text: 'Il progetto finale: un turno di lavoro con guasti da gestire.' },
   },
 ];
 

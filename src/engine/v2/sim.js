@@ -276,7 +276,23 @@ export function settle(sim) {
       if (!p.coil) continue;
       const s = sim.parts[c.id];
       const en = !!an.coils[c.id];
-      if ((c.type === 'km' || c.type === 'rel') && s.on !== en) { s.on = en; s.coil = en; changed = true; }
+      if (c.type === 'km' || c.type === 'rel') {
+        const t = en || !!s.welded;      // un contatto incollato resta chiuso anche a bobina spenta
+        if (s.on !== t || s.coil !== en) { s.on = t; s.coil = en; changed = true; }
+      } else if (c.type === 'rs') {
+        const hi = t => isPhase(an.potAt(c.id + '.' + t));
+        const ch1 = hi('S12'), ch2 = hi('S22'), r = hi('R');
+        let on = s.on, disc = s.disc, rLow = s.rLow;
+        if (!r) rLow = true;
+        if (!en) on = false;
+        else {
+          if (!ch1 || !ch2) on = false;
+          if (ch1 !== ch2) disc = true; else if (!ch1 && !ch2) disc = false;
+          // riarmo valido: canali entrambi chiusi, nessuna discrepanza, impulso nuovo (R era basso prima)
+          if (!on && ch1 && ch2 && !disc && r && rLow) { on = true; rLow = false; }
+        }
+        if (on !== s.on || disc !== s.disc || rLow !== s.rLow || en !== s.coil) { s.on = on; s.disc = disc; s.rLow = rLow; s.coil = en; changed = true; }
+      }
       else if (c.type === 'ri' && en !== s.coil) {
         if (en) s.on = !s.on;
         s.coil = en;
@@ -304,6 +320,7 @@ export function act(sim, action, id) {
   else if (action === 'release') s.pressed = false;
   else if (action === 'toggle') {
     if ('pressed' in s && c.type === 'fungo') s.pressed = !s.pressed;
+    else if (c.type === 'port') s.open = !s.open;
     else { s.on = !s.on; if (s.on) s.tripped = false; s.heat = 0; }
     if (s.on && sim.mainTrip && (p.protect || c.type === 'sez')) sim.mainTrip = false;
   } else if (action === 'rate' && c.type === 'gu' && c.levels) {
@@ -312,7 +329,8 @@ export function act(sim, action, id) {
     const i = c.ratings.indexOf(s.in);
     s.in = c.ratings[(i + 1) % c.ratings.length];
     s.heat = 0;
-  } else if (action === 'reset' && c.type === 'ft') { s.tripped = false; s.heat = 0; }
+  } else if (action === 'weld' && (c.type === 'km' || c.type === 'rel')) s.welded = !s.welded;
+  else if (action === 'reset' && c.type === 'ft') { s.tripped = false; s.heat = 0; }
   else if (action === 'test' && c.type === 'rcd') {
     if (s.on) {
       const an = analyse(sim);

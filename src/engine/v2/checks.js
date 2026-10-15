@@ -92,7 +92,7 @@ export function runCheck(level, wires, check) {
 
 /* ---------- ruoli dei fili per i colori ---------- */
 
-const CTL_TYPES = new Set(['pb', 'pbnc', 'fungo', 'spia', 'fc', 'ri', 'tmr']);
+const CTL_TYPES = new Set(['pb', 'pbnc', 'fungo', 'port', 'spia', 'fc', 'ri', 'tmr', 'rs']);
 function isCtlTerm(level, term) {
   const [id, t] = term.split('.');
   const c = level.comps.find(x => x.id === id);
@@ -288,6 +288,57 @@ export function evaluateV2(level, wires, ctx = {}) {
       act(sim, 'toggle', S.emergency);
       o = observe(sim);
       if (Object.values(o.motors).some(m => m !== 'off')) fail('safe.restartAfterEmergency');
+    }
+    if (S.dualChannel) {
+      // i due canali sono fili distinti: nessun filo li unisce senza passare da un contatto del comando
+      const uf = makeUF();
+      wires.forEach(w => uf.u(w.a, w.b));
+      S.dualChannel.forEach(([a, b]) => { if (uf.f(a) === uf.f(b)) fail('safe.singleChannel', { comp: a.split('.')[0] }); });
+    }
+    if (S.redundant) {
+      // due contattori (o relè) in serie sul carico: se uno resta incollato l'altro deve fermare la macchina da solo
+      const { stop, load, pair } = S.redundant;
+      pair.forEach(stuck => {
+        const sim = createSim(level, wires);
+        (S.redundant.start || []).forEach(a => act(sim, a.split(' ')[0], a.split(' ')[1]));
+        act(sim, 'weld', stuck);
+        act(sim, 'toggle', stop);
+        const o = observe(sim);
+        if (o.loads[load] === 'on' || (o.motors[load] && o.motors[load] !== 'off')) fail('safe.notRedundant', { comp: stuck });
+      });
+    }
+    if (S.restartNeedsReset) {
+      // dopo l'arresto di sicurezza la macchina non riparte da sola: serve il riarmo (vale per ogni dispositivo di arresto)
+      const { reset, load } = S.restartNeedsReset;
+      [].concat(S.restartNeedsReset.stop).forEach(stop => {
+        const sim = createSim(level, wires);
+        const running = () => { const o = observe(sim); return o.loads[load] === 'on' || (o.motors[load] && o.motors[load] !== 'off'); };
+        if (reset) { act(sim, 'press', reset); act(sim, 'release', reset); }
+        (S.restartNeedsReset.start || []).forEach(a => { act(sim, 'press', a); act(sim, 'release', a); });
+        if (!running()) return;
+        act(sim, 'toggle', stop);
+        if (running()) fail('safe.emergency');
+        act(sim, 'toggle', stop);
+        if (running()) fail('safe.restartAfterEmergency');
+      });
+    }
+    if (S.allContacts) {
+      // un dispositivo a due canali deve avere tutti e quattro i morsetti collegati
+      S.allContacts.forEach(id => {
+        const unused = ['1', '2', '3', '4'].some(t => !wires.some(w => w.a === id + '.' + t || w.b === id + '.' + t));
+        if (unused) fail('safe.contactUnused', { comp: id });
+      });
+    }
+    if (S.feedbackMonitored) {
+      // contattore incollato: dopo l'arresto il relè non deve riarmarsi (la retroazione NC e' aperta)
+      const { km, stop, reset, rs } = S.feedbackMonitored;
+      const sim = createSim(level, wires);
+      act(sim, 'press', reset); act(sim, 'release', reset);
+      act(sim, 'weld', km);
+      act(sim, 'toggle', stop);
+      act(sim, 'toggle', stop);
+      act(sim, 'press', reset); act(sim, 'release', reset);
+      if (sim.parts[rs].on) fail('safe.noFeedback', { comp: km });
     }
     if (S.rcdCovers) {
       const rcds = level.comps.filter(c => c.type === 'rcd').map(c => c.id);

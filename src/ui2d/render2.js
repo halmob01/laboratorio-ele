@@ -33,6 +33,7 @@ const obsOf = (s, id) => (s.obs && s.obs.parts && s.obs.parts[id]) || {};
 function poles(c, tops, bots, closed, L, y1 = 22, y2 = c.h - 22) {
   let o = '';
   tops.forEach((t, i) => {
+    if (!c.terms[t]) return;       // contattore monofase: solo il primo polo
     const x = c.w * c.terms[t].f, b = bots[i];
     if (b && has(c, b)) o += pole(x, y1, y2, closed, L(t), L(b));
     else o += ln(x, y1, x, y2, L(t));
@@ -86,10 +87,36 @@ export function schemV2(c, s, L, ui) {
       break;
     }
     case 'fungo': {
-      const x = w / 2, closed = !part.pressed;
+      const x = w / 2, closed = !part.pressed, two = !!c.terms['3'];
+      if (two) {
+        const xa = w * c.terms['1'].f, xb = w * c.terms['3'].f;
+        o += pole(xa, 22, h - 22, closed, L('1'), L('2')) + pole(xb, 22, h - 22, closed, L('3'), L('4'));
+        o += lab(xa, h - 6, 'CANALE 1') + lab(xb, h - 6, 'CANALE 2');
+        o += `<circle cx="${x}" cy="${mid}" r="${part.pressed ? 12 : 16}" fill="#C0262D" stroke="#1B2230" stroke-width="2"/>`;
+        break;
+      }
       o += pole(x, 22, h - 22, closed, L('1'), L('2'));
       o += `<rect x="${x + 16}" y="${mid - 22}" width="46" height="44" rx="8" fill="#F2C500" stroke="#1B2230" stroke-width="2"/><circle cx="${x + 39}" cy="${mid}" r="${part.pressed ? 13 : 17}" fill="#C0262D" stroke="#1B2230" stroke-width="2"/>`;
       o += lab(x + 39, mid + 38, part.pressed ? 'AZIONATO' : 'EMERGENZA');
+      break;
+    }
+    case 'port': {
+      // portella: due contatti NC (uno per canale); aperta, si aprono insieme. Si tocca per aprirla o chiuderla.
+      const closed = !part.open, xa = w * c.terms['1'].f, xb = w * c.terms['3'].f;
+      o += pole(xa, 22, h - 22, closed, L('1'), L('2')) + pole(xb, 22, h - 22, closed, L('3'), L('4'));
+      o += lab(xa, h - 6, 'CANALE 1') + lab(xb, h - 6, 'CANALE 2');
+      o += `<rect x="${w / 2 - 14}" y="${mid - 22}" width="28" height="44" rx="3" fill="${part.open ? '#F2C500' : '#BFD4E8'}" stroke="#1B2230" stroke-width="2"/>`;
+      o += lab(w / 2, mid - 30, part.open ? 'APERTA' : 'CHIUSA');
+      break;
+    }
+    case 'rs': {
+      // relè di sicurezza: bobina interna (alimentazione), ingressi dei due canali e riarmo in alto, due contatti di uscita in basso
+      const on = !!part.on;
+      const x1 = w * c.terms.A1.f, x2 = w * c.terms.A2.f;
+      o += `<rect x="${x1 - 14}" y="40" width="${w - 2 * x1 + 28}" height="${h * .34}" rx="4" fill="none" stroke="${part.coil ? '#F59F00' : 'var(--sch)'}" stroke-width="2.6"/>`;
+      ['A1', 'A2', 'S12', 'S22', 'R'].forEach(t => { const x = w * c.terms[t].f; o += ln(x, 22, x, 40, L(t)); });
+      o += lab(w / 2, 40 + h * .2, on ? 'SICUREZZA · ARMATO' : part.disc ? 'SICUREZZA · DISCREPANZA' : 'SICUREZZA · A RIPOSO');
+      [['13', '14'], ['23', '24']].forEach(([a, b]) => { o += pole(w * c.terms[a].f, h * .62, h - 22, on, L(a), L(b)); });
       break;
     }
     case 'ri': {
@@ -223,11 +250,11 @@ export function schemV2(c, s, L, ui) {
 }
 
 // Tipi che il disegno v2 gestisce al posto di quelli del motore v1 (sw, dev e inv restano come nel v1).
-export const V2_TYPES = new Set(['quadro', 'mt', 'rcd', 'mt3', 'sez', 'pb', 'pbnc', 'fungo', 'ri', 'rel', 'tmr', 'km', 'ft', 'fc', 'trafo', 'bell', 'spia', 'lamp', 'presa', 'motor3', 'gu']);
+export const V2_TYPES = new Set(['quadro', 'mt', 'rcd', 'mt3', 'sez', 'pb', 'pbnc', 'fungo', 'port', 'rs', 'ri', 'rel', 'tmr', 'km', 'ft', 'fc', 'trafo', 'bell', 'spia', 'lamp', 'presa', 'motor3', 'gu']);
 
 /* ---------- scena della stanza / della macchina (livelli v2) ---------- */
 const DEV = new Set(['lamp', 'spia', 'bell', 'presa', 'motor3']);
-const WALLCTL = { sw: 'tog', dev: 'tog', inv: 'tog', pb: 'hold', pbnc: 'hold', fungo: 'mush' };
+const WALLCTL = { sw: 'tog', dev: 'tog', inv: 'tog', pb: 'hold', pbnc: 'hold', fungo: 'mush', port: 'tog' };
 
 // Struttura fissa della scena (gli id servono a updateRoomV2, che cambia solo classi e posizioni).
 export function roomV2HTML(level) {

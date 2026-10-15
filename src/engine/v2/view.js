@@ -12,7 +12,7 @@ const MAIN = new Set(['mt', 'mt3', 'sez', 'rcd', 'gu']);
 export const selfPowered = level => isV2(level) && level.supply !== 'quadro' && (level.supply === 'protezioni' || level.comps.some(c => MAIN.has(c.type)));
 
 // Comandi dell'allievo: tutti i componenti con azioni manuali (toggle o pressione), salvo il termico (riarmo) e il differenziale gestito a parte.
-export const MANUAL = new Set(['sw', 'dev', 'inv', 'pb', 'pbnc', 'fungo', 'mt', 'mt3', 'sez', 'rcd', 'gu']);
+export const MANUAL = new Set(['sw', 'dev', 'inv', 'pb', 'pbnc', 'fungo', 'port', 'mt', 'mt3', 'sez', 'rcd', 'gu']);
 export const HOLD = new Set(['pb', 'pbnc']);
 
 // 1 se il comando e' attivo (chiuso, premuto, fungo azionato).
@@ -21,7 +21,7 @@ export function controlStates(level, sim) {
   level.comps.forEach(c => {
     const s = sim.parts[c.id];
     if (!s || !MANUAL.has(c.type)) return;
-    st[c.id] = (HOLD.has(c.type) || c.type === 'fungo' ? s.pressed : s.on) ? 1 : 0;
+    st[c.id] = (HOLD.has(c.type) || c.type === 'fungo' ? s.pressed : c.type === 'port' ? s.open : s.on) ? 1 : 0;
   });
   return st;
 }

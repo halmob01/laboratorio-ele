@@ -16,7 +16,13 @@ export const PARTS = {
   inv: { contacts: v1('inv'), init: c => ({ on: !!c.init }), actions: ['toggle'] },
   pb: { contacts: (c, s) => pole(s.pressed, [['3', '4']]), init: () => ({ pressed: false }), actions: ['press', 'release'] },
   pbnc: { contacts: (c, s) => pole(!s.pressed, [['1', '2']]), init: () => ({ pressed: false }), actions: ['press', 'release'] },
-  fungo: { contacts: (c, s) => pole(!s.pressed, [['1', '2']]), init: () => ({ pressed: false }), actions: ['toggle'] },
+  // fungo di emergenza: un contatto NC (1-2) o due (con i morsetti 3-4 il comando e' a due canali)
+  fungo: { contacts: (c, s) => pole(!s.pressed, c.terms && c.terms['3'] ? [['1', '2'], ['3', '4']] : [['1', '2']]), init: () => ({ pressed: false }), actions: ['toggle'] },
+  // portella o barriera con due contatti NC (due canali): aperta, i due contatti si aprono
+  port: { contacts: (c, s) => pole(!s.open, [['1', '2'], ['3', '4']]), init: () => ({ open: false }), actions: ['toggle'] },
+  // relè di sicurezza (E6): alimentato in A1-A2; i due canali d'ingresso S12 e S22 devono avere la fase, il riarmo R si da' con un impulso.
+  // Le uscite 13-14 e 23-24 si chiudono solo dopo un riarmo valido e si riaprono appena un canale cade. Vedi sim.js, settle.
+  rs: { coil: ['A1', 'A2'], contacts: (c, s) => pole(s.on, [['13', '14'], ['23', '24']]), init: () => ({ on: false, coil: false, rLow: false, disc: false }) },
 
   // protezioni e sezionamento (chiusi all'inizio, salvo `init: 0`)
   // `in` (portata, A) e `ratings` (portate tra cui scegliere) rendono il sovraccarico simulato (E1): vedi sim.js, lineCurrent.
@@ -31,13 +37,15 @@ export const PARTS = {
   // relè e contattori: la bobina e' un carico, il resto sono contatti
   ri: { coil: ['A1', 'A2'], contacts: (c, s) => pole(s.on, [['1', '2']]), init: () => ({ on: false, coil: false }) },
   // relè con contatto di scambio: 11 comune, 12 chiuso a riposo (NC), 14 chiuso a bobina eccitata (NA)
-  rel: { coil: ['A1', 'A2'], contacts: (c, s) => (s.on ? [['11', '14']] : [['11', '12']]), init: () => ({ on: false, coil: false }) },
+  // `welded` (guasto): i contatti restano incollati in posizione di lavoro anche a bobina spenta
+  rel: { coil: ['A1', 'A2'], contacts: (c, s) => (s.on ? [['11', '14']] : [['11', '12']]), init: () => ({ on: false, coil: false, welded: false }), actions: ['weld'] },
   tmr: { coil: ['A1', 'A2'], contacts: (c, s) => pole(s.left > 0, [['1', '2']]), init: () => ({ left: 0, coil: false }) },
   km: {
     coil: ['A1', 'A2'],
     contacts: (c, s) => (s.on ? [['1', '2'], ['3', '4'], ['5', '6'], ['13', '14']] : [['21', '22']]),
     power: [['1', '2'], ['3', '4'], ['5', '6']],
-    init: () => ({ on: false, coil: false }),
+    init: () => ({ on: false, coil: false, welded: false }),
+    actions: ['weld'],
   },
   ft: {
     contacts: (c, s) => [['1', '2'], ['3', '4'], ['5', '6']].concat(s.tripped ? [['97', '98']] : [['95', '96']]),

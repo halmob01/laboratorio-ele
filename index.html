@@ -1109,7 +1109,13 @@ html[lang="it"] .trnote{display:none}
     inv: { contacts: v1("inv"), init: (c2) => ({ on: !!c2.init }), actions: ["toggle"] },
     pb: { contacts: (c2, s) => pole(s.pressed, [["3", "4"]]), init: () => ({ pressed: false }), actions: ["press", "release"] },
     pbnc: { contacts: (c2, s) => pole(!s.pressed, [["1", "2"]]), init: () => ({ pressed: false }), actions: ["press", "release"] },
-    fungo: { contacts: (c2, s) => pole(!s.pressed, [["1", "2"]]), init: () => ({ pressed: false }), actions: ["toggle"] },
+    // fungo di emergenza: un contatto NC (1-2) o due (con i morsetti 3-4 il comando e' a due canali)
+    fungo: { contacts: (c2, s) => pole(!s.pressed, c2.terms && c2.terms["3"] ? [["1", "2"], ["3", "4"]] : [["1", "2"]]), init: () => ({ pressed: false }), actions: ["toggle"] },
+    // portella o barriera con due contatti NC (due canali): aperta, i due contatti si aprono
+    port: { contacts: (c2, s) => pole(!s.open, [["1", "2"], ["3", "4"]]), init: () => ({ open: false }), actions: ["toggle"] },
+    // relè di sicurezza (E6): alimentato in A1-A2; i due canali d'ingresso S12 e S22 devono avere la fase, il riarmo R si da' con un impulso.
+    // Le uscite 13-14 e 23-24 si chiudono solo dopo un riarmo valido e si riaprono appena un canale cade. Vedi sim.js, settle.
+    rs: { coil: ["A1", "A2"], contacts: (c2, s) => pole(s.on, [["13", "14"], ["23", "24"]]), init: () => ({ on: false, coil: false, rLow: false, disc: false }) },
     // protezioni e sezionamento (chiusi all'inizio, salvo `init: 0`)
     // `in` (portata, A) e `ratings` (portate tra cui scegliere) rendono il sovraccarico simulato (E1): vedi sim.js, lineCurrent.
     mt: { protect: "corto", contacts: (c2, s) => pole(s.on, [["1", "2"], ["N1", "N2"]]), poles: { F: ["1", "2"], N: ["N1", "N2"] }, init: (c2) => ({ on: c2.init !== 0, tripped: false, in: c2.in || null, heat: 0 }), actions: ["toggle", "rate"] },
@@ -1121,13 +1127,15 @@ html[lang="it"] .trnote{display:none}
     // relè e contattori: la bobina e' un carico, il resto sono contatti
     ri: { coil: ["A1", "A2"], contacts: (c2, s) => pole(s.on, [["1", "2"]]), init: () => ({ on: false, coil: false }) },
     // relè con contatto di scambio: 11 comune, 12 chiuso a riposo (NC), 14 chiuso a bobina eccitata (NA)
-    rel: { coil: ["A1", "A2"], contacts: (c2, s) => s.on ? [["11", "14"]] : [["11", "12"]], init: () => ({ on: false, coil: false }) },
+    // `welded` (guasto): i contatti restano incollati in posizione di lavoro anche a bobina spenta
+    rel: { coil: ["A1", "A2"], contacts: (c2, s) => s.on ? [["11", "14"]] : [["11", "12"]], init: () => ({ on: false, coil: false, welded: false }), actions: ["weld"] },
     tmr: { coil: ["A1", "A2"], contacts: (c2, s) => pole(s.left > 0, [["1", "2"]]), init: () => ({ left: 0, coil: false }) },
     km: {
       coil: ["A1", "A2"],
       contacts: (c2, s) => s.on ? [["1", "2"], ["3", "4"], ["5", "6"], ["13", "14"]] : [["21", "22"]],
       power: [["1", "2"], ["3", "4"], ["5", "6"]],
-      init: () => ({ on: false, coil: false })
+      init: () => ({ on: false, coil: false, welded: false }),
+      actions: ["weld"]
     },
     ft: {
       contacts: (c2, s) => [["1", "2"], ["3", "4"], ["5", "6"]].concat(s.tripped ? [["97", "98"]] : [["95", "96"]]),
@@ -1407,10 +1415,35 @@ html[lang="it"] .trnote{display:none}
         if (!p.coil) continue;
         const s = sim.parts[c2.id];
         const en = !!an.coils[c2.id];
-        if ((c2.type === "km" || c2.type === "rel") && s.on !== en) {
-          s.on = en;
-          s.coil = en;
-          changed = true;
+        if (c2.type === "km" || c2.type === "rel") {
+          const t = en || !!s.welded;
+          if (s.on !== t || s.coil !== en) {
+            s.on = t;
+            s.coil = en;
+            changed = true;
+          }
+        } else if (c2.type === "rs") {
+          const hi = (t) => isPhase(an.potAt(c2.id + "." + t));
+          const ch1 = hi("S12"), ch2 = hi("S22"), r = hi("R");
+          let on = s.on, disc = s.disc, rLow = s.rLow;
+          if (!r) rLow = true;
+          if (!en) on = false;
+          else {
+            if (!ch1 || !ch2) on = false;
+            if (ch1 !== ch2) disc = true;
+            else if (!ch1 && !ch2) disc = false;
+            if (!on && ch1 && ch2 && !disc && r && rLow) {
+              on = true;
+              rLow = false;
+            }
+          }
+          if (on !== s.on || disc !== s.disc || rLow !== s.rLow || en !== s.coil) {
+            s.on = on;
+            s.disc = disc;
+            s.rLow = rLow;
+            s.coil = en;
+            changed = true;
+          }
         } else if (c2.type === "ri" && en !== s.coil) {
           if (en) s.on = !s.on;
           s.coil = en;
@@ -1444,6 +1477,7 @@ html[lang="it"] .trnote{display:none}
     else if (action === "release") s.pressed = false;
     else if (action === "toggle") {
       if ("pressed" in s && c2.type === "fungo") s.pressed = !s.pressed;
+      else if (c2.type === "port") s.open = !s.open;
       else {
         s.on = !s.on;
         if (s.on) s.tripped = false;
@@ -1456,7 +1490,8 @@ html[lang="it"] .trnote{display:none}
       const i = c2.ratings.indexOf(s.in);
       s.in = c2.ratings[(i + 1) % c2.ratings.length];
       s.heat = 0;
-    } else if (action === "reset" && c2.type === "ft") {
+    } else if (action === "weld" && (c2.type === "km" || c2.type === "rel")) s.welded = !s.welded;
+    else if (action === "reset" && c2.type === "ft") {
       s.tripped = false;
       s.heat = 0;
     } else if (action === "test" && c2.type === "rcd") {
@@ -1720,7 +1755,7 @@ html[lang="it"] .trnote{display:none}
     }
     return { ok: true, sim, states };
   }
-  var CTL_TYPES = /* @__PURE__ */ new Set(["pb", "pbnc", "fungo", "spia", "fc", "ri", "tmr"]);
+  var CTL_TYPES = /* @__PURE__ */ new Set(["pb", "pbnc", "fungo", "port", "spia", "fc", "ri", "tmr", "rs"]);
   function isCtlTerm(level, term2) {
     const [id, t] = term2.split(".");
     const c2 = level.comps.find((x) => x.id === id);
@@ -1918,6 +1953,65 @@ html[lang="it"] .trnote{display:none}
         o = observe(sim);
         if (Object.values(o.motors).some((m) => m !== "off")) fail("safe.restartAfterEmergency");
       }
+      if (S2.dualChannel) {
+        const uf = makeUF();
+        wires.forEach((w) => uf.u(w.a, w.b));
+        S2.dualChannel.forEach(([a, b]) => {
+          if (uf.f(a) === uf.f(b)) fail("safe.singleChannel", { comp: a.split(".")[0] });
+        });
+      }
+      if (S2.redundant) {
+        const { stop, load, pair } = S2.redundant;
+        pair.forEach((stuck) => {
+          const sim = createSim(level, wires);
+          (S2.redundant.start || []).forEach((a) => act(sim, a.split(" ")[0], a.split(" ")[1]));
+          act(sim, "weld", stuck);
+          act(sim, "toggle", stop);
+          const o = observe(sim);
+          if (o.loads[load] === "on" || o.motors[load] && o.motors[load] !== "off") fail("safe.notRedundant", { comp: stuck });
+        });
+      }
+      if (S2.restartNeedsReset) {
+        const { reset, load } = S2.restartNeedsReset;
+        [].concat(S2.restartNeedsReset.stop).forEach((stop) => {
+          const sim = createSim(level, wires);
+          const running2 = () => {
+            const o = observe(sim);
+            return o.loads[load] === "on" || o.motors[load] && o.motors[load] !== "off";
+          };
+          if (reset) {
+            act(sim, "press", reset);
+            act(sim, "release", reset);
+          }
+          (S2.restartNeedsReset.start || []).forEach((a) => {
+            act(sim, "press", a);
+            act(sim, "release", a);
+          });
+          if (!running2()) return;
+          act(sim, "toggle", stop);
+          if (running2()) fail("safe.emergency");
+          act(sim, "toggle", stop);
+          if (running2()) fail("safe.restartAfterEmergency");
+        });
+      }
+      if (S2.allContacts) {
+        S2.allContacts.forEach((id) => {
+          const unused = ["1", "2", "3", "4"].some((t) => !wires.some((w) => w.a === id + "." + t || w.b === id + "." + t));
+          if (unused) fail("safe.contactUnused", { comp: id });
+        });
+      }
+      if (S2.feedbackMonitored) {
+        const { km, stop, reset, rs } = S2.feedbackMonitored;
+        const sim = createSim(level, wires);
+        act(sim, "press", reset);
+        act(sim, "release", reset);
+        act(sim, "weld", km);
+        act(sim, "toggle", stop);
+        act(sim, "toggle", stop);
+        act(sim, "press", reset);
+        act(sim, "release", reset);
+        if (sim.parts[rs].on) fail("safe.noFeedback", { comp: km });
+      }
       if (S2.rcdCovers) {
         const rcds = level.comps.filter((c2) => c2.type === "rcd").map((c2) => c2.id);
         S2.rcdCovers.forEach((id) => {
@@ -2041,14 +2135,14 @@ html[lang="it"] .trnote{display:none}
   var isV2 = (level) => !!level && level.engine === 2;
   var MAIN = /* @__PURE__ */ new Set(["mt", "mt3", "sez", "rcd", "gu"]);
   var selfPowered = (level) => isV2(level) && level.supply !== "quadro" && (level.supply === "protezioni" || level.comps.some((c2) => MAIN.has(c2.type)));
-  var MANUAL = /* @__PURE__ */ new Set(["sw", "dev", "inv", "pb", "pbnc", "fungo", "mt", "mt3", "sez", "rcd", "gu"]);
+  var MANUAL = /* @__PURE__ */ new Set(["sw", "dev", "inv", "pb", "pbnc", "fungo", "port", "mt", "mt3", "sez", "rcd", "gu"]);
   var HOLD = /* @__PURE__ */ new Set(["pb", "pbnc"]);
   function controlStates(level, sim) {
     const st = {};
     level.comps.forEach((c2) => {
       const s = sim.parts[c2.id];
       if (!s || !MANUAL.has(c2.type)) return;
-      st[c2.id] = (HOLD.has(c2.type) || c2.type === "fungo" ? s.pressed : s.on) ? 1 : 0;
+      st[c2.id] = (HOLD.has(c2.type) || c2.type === "fungo" ? s.pressed : c2.type === "port" ? s.open : s.on) ? 1 : 0;
     });
     return st;
   }
@@ -4738,6 +4832,160 @@ html[lang="it"] .trnote{display:none}
         "Il contatto 95-96 del termico deve stare in serie nel circuito di comando, prima del fungo di emergenza.",
         "Apri il salvamotore. Togli il filo che porta il comando dal salvamotore al fungo e collega invece: dal morsetto 2 del salvamotore al 95, dal 96 al fungo."
       ]
+    },
+    {
+      id: "c25-fungo",
+      code: "c25",
+      n: 0,
+      engine: 2,
+      quadroOnly: true,
+      flow: "onDemand",
+      palette: ["marrone", "blu"],
+      name: "Il fungo a due canali",
+      title: "Il fungo a due canali",
+      blurb: "Due contatti, due rel\xE8: l\u2019emergenza che funziona anche se uno si guasta.",
+      goal: "Una macchina (qui una lampada) \xE8 alimentata da due rel\xE8 in serie. Il fungo di emergenza ha due contatti, uno per canale: il primo comanda il rel\xE8 K1, il secondo il rel\xE8 K2. Premuto il fungo, la macchina si ferma; e si ferma anche se uno dei due rel\xE8 resta incollato.",
+      comps: [
+        QM,
+        C("E", "fungo", "Emergenza", "Emergenza a due canali", T("1", "2", "3", "4")),
+        C("K1", "rel", "Rel\xE8 K1", "Rel\xE8 K1 (canale 1)", T("A1", "A2", "11", "12", "14")),
+        C("K2", "rel", "Rel\xE8 K2", "Rel\xE8 K2 (canale 2)", T("A1", "A2", "11", "12", "14")),
+        C("L", "lamp", "Macchina", "Macchina (lampada)", { B: { l: "B" }, A: { l: "A" } })
+      ],
+      controls: ["E"],
+      checks: [
+        { id: "marcia", label: "Fungo sbloccato: la macchina \xE8 in marcia", do: [], expect: { loads: { L: "on" } } },
+        { id: "emergenza", label: "Premi il fungo: la macchina si ferma", steps: [{ do: [], expect: { loads: { L: "on" } } }, { do: ["toggle E"], expect: { loads: { L: "off" } } }] }
+      ],
+      safety: { dualChannel: [["K1.A1", "K2.A1"]], allContacts: ["E"], redundant: { stop: "E", load: "L", pair: ["K1", "K2"] } },
+      solution: [
+        ["Q.F", "E.1", "marrone"],
+        ["E.2", "K1.A1", "marrone"],
+        ["K1.A2", "Q.N", "blu"],
+        ["Q.F", "E.3", "marrone"],
+        ["E.4", "K2.A1", "marrone"],
+        ["K2.A2", "Q.N", "blu"],
+        ["Q.F", "K1.11", "marrone"],
+        ["K1.14", "K2.11", "marrone"],
+        ["K2.14", "L.A", "marrone"],
+        ["L.B", "Q.N", "blu"]
+      ],
+      hints: [
+        "Il fungo ha due contatti normalmente chiusi: 1-2 (canale 1) e 3-4 (canale 2). Ognuno alimenta una sola bobina.",
+        "Il canale 1 porta la fase dal contatto 1-2 alla bobina di K1; il canale 2 la porta dal contatto 3-4 alla bobina di K2. Le due bobine tornano al neutro.",
+        "I contatti dei rel\xE8 (11-14) sono in serie sul carico: la fase passa da K1, poi da K2, poi arriva alla lampada. Basta che uno si apra per fermare la macchina."
+      ]
+    },
+    {
+      id: "c26-rele-sicurezza",
+      code: "c26",
+      n: 0,
+      engine: 2,
+      quadroOnly: true,
+      flow: "onDemand",
+      palette: ["marrone", "blu"],
+      name: "Il rel\xE8 di sicurezza",
+      title: "Il rel\xE8 di sicurezza",
+      blurb: "Due canali, riarmo manuale e un contattore che non deve restare incollato.",
+      goal: "Il rel\xE8 di sicurezza KS controlla i due canali del fungo. A fungo sbloccato, la macchina parte solo dopo il pulsante di riarmo. Il riarmo passa dal contatto NC del contattore KM: se KM resta incollato, KS non si riarma. Le uscite 13-14 e 23-24 sono in serie alla bobina di KM.",
+      comps: [
+        QM,
+        C("E", "fungo", "Emergenza", "Emergenza a due canali", T("1", "2", "3", "4")),
+        C("SBR", "pb", "Riarmo", "Pulsante di riarmo", T("3", "4")),
+        C("KS", "rs", "Rel\xE8 sicurezza", "Rel\xE8 di sicurezza KS", T("A1", "A2", "S12", "S22", "R", "13", "14", "23", "24")),
+        C("KM", "km", "Contattore", "Contattore KM", T("A1", "A2", "1", "2", "21", "22")),
+        C("L", "lamp", "Macchina", "Macchina (lampada)", { B: { l: "B" }, A: { l: "A" } })
+      ],
+      controls: ["SBR", "E"],
+      checks: [
+        { id: "prima", label: "Prima del riarmo la macchina \xE8 ferma", do: [], expect: { loads: { L: "off" } } },
+        { id: "riarmo", label: "Premi il riarmo: la macchina parte", do: press("SBR"), expect: { loads: { L: "on" } } },
+        { id: "emergenza", label: "Premi il fungo: la macchina si ferma", steps: [{ do: press("SBR"), expect: { loads: { L: "on" } } }, { do: ["toggle E"], expect: { loads: { L: "off" } } }] }
+      ],
+      safety: { dualChannel: [["KS.S12", "KS.S22"]], allContacts: ["E"], restartNeedsReset: { stop: "E", reset: "SBR", load: "L" }, feedbackMonitored: { km: "KM", stop: "E", reset: "SBR", rs: "KS" } },
+      solution: [
+        ["Q.F", "E.1", "marrone"],
+        ["E.2", "KS.S12", "marrone"],
+        ["Q.F", "E.3", "marrone"],
+        ["E.4", "KS.S22", "marrone"],
+        ["Q.F", "KS.A1", "marrone"],
+        ["KS.A2", "Q.N", "blu"],
+        ["Q.F", "KM.21", "marrone"],
+        ["KM.22", "SBR.3", "marrone"],
+        ["SBR.4", "KS.R", "marrone"],
+        ["Q.F", "KS.13", "marrone"],
+        ["KS.14", "KS.23", "marrone"],
+        ["KS.24", "KM.A1", "marrone"],
+        ["KM.A2", "Q.N", "blu"],
+        ["Q.F", "KM.1", "marrone"],
+        ["KM.2", "L.A", "marrone"],
+        ["L.B", "Q.N", "blu"]
+      ],
+      hints: [
+        "I due contatti del fungo portano la fase ai due ingressi del rel\xE8 di sicurezza: 1-2 a S12, 3-4 a S22. Sono due fili che non si toccano.",
+        "Il rel\xE8 di sicurezza si alimenta in A1-A2 (fase e neutro). Le sue uscite 13-14 e 23-24 sono in serie, e alimentano la bobina del contattore KM.",
+        "Il riarmo: dalla fase, prima il contatto NC 21-22 del contattore, poi il pulsante di riarmo, poi il morsetto R. Se il contattore resta incollato il contatto NC \xE8 aperto e il rel\xE8 non si riarma.",
+        "La macchina (la lampada) si alimenta dal contatto di potenza del contattore, 1-2."
+      ]
+    },
+    {
+      id: "c27-portella",
+      code: "c27",
+      n: 0,
+      engine: 2,
+      quadroOnly: true,
+      flow: "onDemand",
+      palette: ["marrone", "blu"],
+      name: "Portella e barriera",
+      title: "Portella e barriera",
+      blurb: "Pi\xF9 dispositivi di sicurezza in serie: la macchina non riparte da sola.",
+      goal: "Alla macchina del livello precedente si aggiungono una portella e una barriera, con due contatti ciascuna. Su ogni canale i tre dispositivi (fungo, portella, barriera) stanno in serie. Aprendo uno qualunque la macchina si ferma, e richiudendolo non riparte da sola: serve il riarmo.",
+      comps: [
+        QM,
+        C("E", "fungo", "Emergenza", "Emergenza a due canali", T("1", "2", "3", "4")),
+        C("P", "port", "Portella", "Portella a due canali", T("1", "2", "3", "4")),
+        C("B", "port", "Barriera", "Barriera a due canali", T("1", "2", "3", "4")),
+        C("SBR", "pb", "Riarmo", "Pulsante di riarmo", T("3", "4")),
+        C("KS", "rs", "Rel\xE8 sicurezza", "Rel\xE8 di sicurezza KS", T("A1", "A2", "S12", "S22", "R", "13", "14", "23", "24")),
+        C("KM", "km", "Contattore", "Contattore KM", T("A1", "A2", "1", "2", "21", "22")),
+        C("L", "lamp", "Macchina", "Macchina (lampada)", { B: { l: "B" }, A: { l: "A" } })
+      ],
+      controls: ["SBR", "P", "B"],
+      checks: [
+        { id: "riarmo", label: "Premi il riarmo: la macchina parte", do: press("SBR"), expect: { loads: { L: "on" } } },
+        { id: "emergenza", label: "Premi il fungo: la macchina si ferma", steps: [{ do: press("SBR"), expect: { loads: { L: "on" } } }, { do: ["toggle E"], expect: { loads: { L: "off" } } }] },
+        { id: "portella", label: "Apri la portella: la macchina si ferma", steps: [{ do: press("SBR"), expect: { loads: { L: "on" } } }, { do: ["toggle P"], expect: { loads: { L: "off" } } }] },
+        { id: "barriera", label: "Interrompi la barriera: la macchina si ferma", steps: [{ do: press("SBR"), expect: { loads: { L: "on" } } }, { do: ["toggle B"], expect: { loads: { L: "off" } } }] },
+        { id: "riparte", label: "Richiudi la portella: la macchina resta ferma finch\xE9 non riarmi", steps: [{ do: press("SBR"), expect: { loads: { L: "on" } } }, { do: ["toggle P", "toggle P"], expect: { loads: { L: "off" } } }, { do: press("SBR"), expect: { loads: { L: "on" } } }] }
+      ],
+      safety: { dualChannel: [["KS.S12", "KS.S22"]], allContacts: ["E", "P", "B"], restartNeedsReset: { stop: ["E", "P", "B"], reset: "SBR", load: "L" }, feedbackMonitored: { km: "KM", stop: "E", reset: "SBR", rs: "KS" } },
+      solution: [
+        ["Q.F", "E.1", "marrone"],
+        ["E.2", "P.1", "marrone"],
+        ["P.2", "B.1", "marrone"],
+        ["B.2", "KS.S12", "marrone"],
+        ["Q.F", "E.3", "marrone"],
+        ["E.4", "P.3", "marrone"],
+        ["P.4", "B.3", "marrone"],
+        ["B.4", "KS.S22", "marrone"],
+        ["Q.F", "KS.A1", "marrone"],
+        ["KS.A2", "Q.N", "blu"],
+        ["Q.F", "KM.21", "marrone"],
+        ["KM.22", "SBR.3", "marrone"],
+        ["SBR.4", "KS.R", "marrone"],
+        ["Q.F", "KS.13", "marrone"],
+        ["KS.14", "KS.23", "marrone"],
+        ["KS.24", "KM.A1", "marrone"],
+        ["KM.A2", "Q.N", "blu"],
+        ["Q.F", "KM.1", "marrone"],
+        ["KM.2", "L.A", "marrone"],
+        ["L.B", "Q.N", "blu"]
+      ],
+      hints: [
+        "La parte del rel\xE8 di sicurezza, del riarmo e del contattore \xE8 quella del livello precedente.",
+        "Su ciascun canale i dispositivi sono in serie: fase, fungo, portella, barriera, ingresso del rel\xE8. Il canale 1 usa i contatti 1-2, il canale 2 i contatti 3-4.",
+        "Ogni dispositivo ha due contatti e vanno usati tutti e due: uno per canale. Un contatto lasciato libero toglie la ridondanza."
+      ]
     }
   ];
 
@@ -6649,6 +6897,368 @@ html[lang="it"] .trnote{display:none}
         },
         fixSay: "Apri il salvamotore. Togli il filo dal morsetto 2 del salvamotore al fungo e collega dal morsetto 2 del salvamotore al 95 del termico e dal 96 al fungo. Richiudi il salvamotore e premi Verifica."
       }
+    },
+    "c25-fungo": {
+      support: "passi",
+      lesson: {
+        pages: [
+          {
+            type: "spiegazione",
+            title: "Perch\xE9 due contatti",
+            paras: [
+              "Un pulsante di emergenza con un solo contatto ha un punto debole: se quel contatto si incolla o il filo si stacca nel modo sbagliato, la macchina non si ferma e nessuno se ne accorge.",
+              "Nelle macchine il fungo ha due contatti normalmente chiusi, uno per canale. Ogni canale ferma la macchina per conto suo. Con due canali serve un guasto doppio per perdere l\u2019emergenza, e uno solo si pu\xF2 scoprire."
+            ]
+          },
+          {
+            type: "pezzi",
+            title: "Il fungo e i due rel\xE8",
+            focus: ["E", "K1", "K2"],
+            paras: [
+              "Il fungo ha quattro morsetti: 1-2 \xE8 il canale 1 e 3-4 il canale 2. A riposo i contatti sono chiusi; premuto, si aprono insieme e il fungo resta bloccato finch\xE9 non lo ruoti.",
+              "Il canale 1 alimenta la bobina del rel\xE8 K1, il canale 2 quella di K2. I contatti dei due rel\xE8 stanno in serie sul carico: la macchina va solo se tutti e due sono chiusi."
+            ]
+          },
+          {
+            type: "demo",
+            title: "Guarda come si fa",
+            captions: {
+              wires: [
+                "La fase dal quadro al contatto 1 del fungo: il canale 1.",
+                "Dal contatto 2 alla bobina del rel\xE8 K1.",
+                "Filo blu dalla bobina di K1 al neutro.",
+                "La fase al contatto 3 del fungo: il canale 2.",
+                "Dal contatto 4 alla bobina del rel\xE8 K2.",
+                "Filo blu dalla bobina di K2 al neutro.",
+                "La fase al contatto di K1 (morsetto 11).",
+                "Dal contatto 14 di K1 al morsetto 11 di K2: i due contatti sono in serie.",
+                "Dal contatto 14 di K2 alla lampada, che rappresenta la macchina.",
+                "Filo blu dal neutro alla lampada."
+              ],
+              power: "Levetta su: i due rel\xE8 sono eccitati, i loro contatti sono chiusi e la macchina \xE8 in marcia.",
+              controls: ["Fungo premuto: i due canali si aprono, i rel\xE8 si diseccitano e la macchina si ferma."]
+            }
+          },
+          {
+            type: "previsione",
+            question: "Il fungo ha due contatti, ma hai collegato le bobine di K1 e di K2 allo stesso contatto. Che cosa hai perso?",
+            options: [
+              { id: "a", text: "Niente: premendo il fungo la macchina si ferma ugualmente." },
+              { id: "b", text: "La ridondanza: se quel contatto si incolla, si incollano di fatto tutti e due i canali." },
+              { id: "c", text: "La macchina non parte pi\xF9." }
+            ],
+            correct: "b",
+            why: "La macchina si ferma e il circuito sembra a posto, ma i due rel\xE8 dipendono dallo stesso contatto. Il secondo contatto del fungo non serve a niente. Ogni canale deve avere il suo percorso, dal fungo al suo rel\xE8."
+          },
+          { type: "sintesi", title: "Da ricordare" }
+        ]
+      },
+      steps: [
+        { kind: "wire", from: "Q.F", to: ["E.1", "E.3"], color: "marrone", short: "1 Fase", title: "La fase ai due canali", text: "Dalla FASE del quadro ai morsetti 1 e 3 del fungo: ogni canale ha il suo filo." },
+        { kind: "wire", from: "E.2", to: ["K1.A1"], color: "marrone", short: "2 K1", title: "Il canale 1 alla bobina di K1", text: "Dal morsetto 2 del fungo al morsetto A1 del rel\xE8 K1." },
+        { kind: "wire", from: "E.4", to: ["K2.A1"], color: "marrone", short: "3 K2", title: "Il canale 2 alla bobina di K2", text: "Dal morsetto 4 del fungo al morsetto A1 del rel\xE8 K2." },
+        { kind: "wire", from: "Q.N", to: ["K1.A2", "K2.A2"], color: "blu", short: "4 Neutro", title: "Il neutro alle bobine", text: "Dal NEUTRO ai morsetti A2 dei due rel\xE8." },
+        { kind: "wire", from: "Q.F", to: ["K1.11"], color: "marrone", short: "5 Potenza", title: "La fase al contatto di K1", text: "Dalla FASE al morsetto 11 del rel\xE8 K1." },
+        { kind: "wire", from: "K1.14", to: ["K2.11"], color: "marrone", short: "6 Serie", title: "I due contatti in serie", text: "Dal morsetto 14 di K1 al morsetto 11 di K2." },
+        { kind: "wire", from: "K2.14", to: ["L.A"], color: "marrone", short: "7 Macchina", title: "Alla macchina", text: "Dal morsetto 14 di K2 alla lampada." },
+        { kind: "wire", from: "Q.N", to: ["L.B"], color: "blu", short: "8 Neutro lampada", title: "Il neutro alla lampada", text: "Dal NEUTRO al morsetto libero della lampada." },
+        { kind: "power", short: "9 Levetta", title: "Dai corrente", text: "Tocca la levetta del quadro, poi premi il fungo." },
+        { kind: "verify", short: "10 Verifica", title: "Controlla l\u2019impianto", text: "Premi Verifica." }
+      ],
+      summary: [
+        "Il fungo di emergenza ha due contatti normalmente chiusi: uno per canale.",
+        "Ogni canale ha il suo percorso fino al suo rel\xE8: nessun filo li unisce.",
+        "I contatti dei due rel\xE8 stanno in serie sul carico: ciascun canale pu\xF2 fermare la macchina da solo.",
+        "Con un rel\xE8 incollato l\u2019altro ferma comunque la macchina: \xE8 questo che si chiama ridondanza."
+      ],
+      fault: {
+        say: "L\u2019impianto \xE8 gi\xE0 cablato e la macchina si ferma premendo il fungo. Provalo: tutto sembra funzionare. Poi guarda come sono collegate le bobine dei due rel\xE8.",
+        wires: [
+          ["Q.F", "E.1", "marrone"],
+          ["E.2", "K1.A1", "marrone"],
+          ["E.2", "K2.A1", "marrone"],
+          ["K1.A2", "Q.N", "blu"],
+          ["K2.A2", "Q.N", "blu"],
+          ["Q.F", "K1.11", "marrone"],
+          ["K1.14", "K2.11", "marrone"],
+          ["K2.14", "L.A", "marrone"],
+          ["L.B", "Q.N", "blu"]
+        ],
+        diagnosis: {
+          question: "Che cosa non va, anche se la macchina si ferma?",
+          options: [
+            { id: "a", text: "Le due bobine sono sullo stesso contatto del fungo: il secondo canale non \xE8 usato." },
+            { id: "b", text: "I contatti dei rel\xE8 dovrebbero stare in parallelo, non in serie." },
+            { id: "c", text: "Il neutro delle bobine \xE8 collegato male." }
+          ],
+          correct: "a",
+          why: "I due rel\xE8 dipendono dallo stesso contatto: se si incolla, nessuno dei due si diseccita. Il canale 2 del fungo, i morsetti 3 e 4, \xE8 libero. La serie dei contatti sul carico \xE8 giusta: \xE8 proprio quella che d\xE0 la ridondanza."
+        },
+        fixSay: "Togli il filo dal contatto 2 del fungo alla bobina di K2. Collega la fase al contatto 3 e il contatto 4 alla bobina di K2. Poi premi Verifica."
+      }
+    },
+    "c26-rele-sicurezza": {
+      support: "passi",
+      lesson: {
+        pages: [
+          {
+            type: "spiegazione",
+            title: "Un rel\xE8 che controlla",
+            paras: [
+              "Il rel\xE8 di sicurezza non si limita a passare un contatto: controlla. Legge i due canali del fungo, e se uno solo cade apre le sue uscite. Se i due canali non cambiano insieme, segnala una discrepanza e si blocca finch\xE9 non tornano entrambi a riposo.",
+              "Dopo un arresto non riparte da solo. Serve un impulso sul pulsante di riarmo: la macchina riparte per una scelta di chi sta davanti, non perch\xE9 il fungo \xE8 stato sbloccato."
+            ]
+          },
+          {
+            type: "spiegazione",
+            title: "Il contattore incollato",
+            paras: [
+              "I contatti di potenza di un contattore possono incollarsi, per esempio dopo molti cicli con carico forte. La bobina si spegne, ma la macchina continua a girare.",
+              "Nei contattori i contatti NC e NA non si possono trovare chiusi insieme. Se il contattore \xE8 incollato, il contatto NC 21-22 resta aperto. Mettendolo nel circuito di riarmo, il rel\xE8 di sicurezza si accorge del guasto e non si riarma."
+            ],
+            warn: "Se il riarmo non passa dal contatto NC del contattore, il guasto resta nascosto: dopo ogni emergenza un contattore incollato potrebbe rimandare la macchina in marcia."
+          },
+          {
+            type: "pezzi",
+            title: "Il rel\xE8 di sicurezza KS",
+            focus: ["KS", "KM", "SBR"],
+            paras: [
+              "In A1-A2 il rel\xE8 \xE8 alimentato. I morsetti S12 e S22 sono i due ingressi dei canali, R \xE8 l\u2019ingresso del riarmo. Le uscite 13-14 e 23-24 sono due contatti NA che stanno in serie alla bobina del contattore.",
+              "Il riarmo parte dalla fase, passa dal contatto NC 21-22 del contattore, poi dal pulsante di riarmo, e arriva a R."
+            ]
+          },
+          {
+            type: "demo",
+            title: "Guarda come si fa",
+            captions: {
+              wires: [
+                "La fase al contatto 1 del fungo: canale 1.",
+                "Dal contatto 2 del fungo all\u2019ingresso S12 del rel\xE8.",
+                "La fase al contatto 3 del fungo: canale 2.",
+                "Dal contatto 4 all\u2019ingresso S22 del rel\xE8.",
+                "La fase all\u2019alimentazione A1 del rel\xE8 di sicurezza.",
+                "Filo blu da A2 al neutro.",
+                "Il riarmo parte dalla fase e va al contatto NC 21 del contattore.",
+                "Dal 22 al pulsante di riarmo.",
+                "Dal pulsante all\u2019ingresso R del rel\xE8.",
+                "La fase all\u2019uscita 13 del rel\xE8.",
+                "Dal 14 all\u2019uscita 23: le due uscite sono in serie.",
+                "Dall\u2019uscita 24 alla bobina del contattore (A1).",
+                "Filo blu dalla bobina del contattore al neutro.",
+                "La fase al contatto di potenza del contattore (1).",
+                "Dal contatto 2 alla macchina (la lampada).",
+                "Filo blu dal neutro alla lampada."
+              ],
+              power: "Levetta su: i canali sono chiusi, ma la macchina \xE8 ferma. Il rel\xE8 aspetta il riarmo.",
+              controls: [
+                "Riarmo premuto: il rel\xE8 si arma, le uscite si chiudono, il contattore si eccita e la macchina parte.",
+                "Fungo premuto: i canali cadono, il rel\xE8 apre le uscite e la macchina si ferma. Sbloccandolo, non riparte da sola."
+              ]
+            }
+          },
+          {
+            type: "previsione",
+            question: "Hai premuto il fungo e la macchina si \xE8 fermata. Lo sblocchi senza premere il riarmo. Che cosa succede?",
+            options: [
+              { id: "a", text: "La macchina riparte, perch\xE9 i due canali sono tornati chiusi." },
+              { id: "b", text: "Resta ferma: serve un nuovo impulso sul riarmo." },
+              { id: "c", text: "Il rel\xE8 si rompe." }
+            ],
+            correct: "b",
+            why: "Il rel\xE8 tiene aperte le uscite finch\xE9 non riceve un impulso nuovo sul riarmo. Se ripartisse da solo, un fungo sbloccato mentre qualcuno \xE8 ancora vicino alla macchina potrebbe farla muovere."
+          },
+          { type: "sintesi", title: "Da ricordare" }
+        ]
+      },
+      steps: [
+        { kind: "wire", from: "Q.F", to: ["E.1", "E.3"], color: "marrone", short: "1 Canali", title: "La fase ai due canali", text: "Dalla FASE ai morsetti 1 e 3 del fungo." },
+        { kind: "wire", from: "E.2", to: ["KS.S12"], color: "marrone", short: "2 S12", title: "Il canale 1 al rel\xE8", text: "Dal morsetto 2 del fungo all\u2019ingresso S12 del rel\xE8 di sicurezza." },
+        { kind: "wire", from: "E.4", to: ["KS.S22"], color: "marrone", short: "3 S22", title: "Il canale 2 al rel\xE8", text: "Dal morsetto 4 del fungo all\u2019ingresso S22 del rel\xE8 di sicurezza." },
+        { kind: "wire", from: "Q.F", to: ["KS.A1"], color: "marrone", short: "4 A1", title: "L\u2019alimentazione del rel\xE8", text: "Dalla FASE al morsetto A1 del rel\xE8 di sicurezza." },
+        { kind: "wire", from: "Q.N", to: ["KS.A2"], color: "blu", short: "5 A2", title: "Il neutro al rel\xE8", text: "Dal NEUTRO al morsetto A2 del rel\xE8 di sicurezza." },
+        { kind: "wire", from: "Q.F", to: ["KM.21"], color: "marrone", short: "6 NC", title: "Il riarmo parte dal contatto NC", text: "Dalla FASE al morsetto 21 del contattore." },
+        { kind: "wire", from: "KM.22", to: ["SBR.3"], color: "marrone", short: "7 Pulsante", title: "Al pulsante di riarmo", text: "Dal morsetto 22 del contattore al morsetto 3 del pulsante di riarmo." },
+        { kind: "wire", from: "SBR.4", to: ["KS.R"], color: "marrone", short: "8 R", title: "Il riarmo al rel\xE8", text: "Dal morsetto 4 del pulsante all\u2019ingresso R del rel\xE8." },
+        { kind: "wire", from: "Q.F", to: ["KS.13"], color: "marrone", short: "9 Uscita", title: "La fase alle uscite", text: "Dalla FASE al morsetto 13 del rel\xE8." },
+        { kind: "wire", from: "KS.14", to: ["KS.23"], color: "marrone", short: "10 Serie", title: "Le due uscite in serie", text: "Dal morsetto 14 al morsetto 23 del rel\xE8." },
+        { kind: "wire", from: "KS.24", to: ["KM.A1"], color: "marrone", short: "11 Bobina", title: "Alla bobina del contattore", text: "Dal morsetto 24 del rel\xE8 al morsetto A1 del contattore." },
+        { kind: "wire", from: "Q.N", to: ["KM.A2"], color: "blu", short: "12 Neutro bobina", title: "Il neutro alla bobina", text: "Dal NEUTRO al morsetto A2 del contattore." },
+        { kind: "wire", from: "Q.F", to: ["KM.1"], color: "marrone", short: "13 Potenza", title: "La fase al contatto di potenza", text: "Dalla FASE al morsetto 1 del contattore." },
+        { kind: "wire", from: "KM.2", to: ["L.A"], color: "marrone", short: "14 Macchina", title: "Alla macchina", text: "Dal morsetto 2 del contattore alla lampada." },
+        { kind: "wire", from: "Q.N", to: ["L.B"], color: "blu", short: "15 Neutro lampada", title: "Il neutro alla lampada", text: "Dal NEUTRO al morsetto libero della lampada." },
+        { kind: "power", short: "16 Levetta", title: "Dai corrente", text: "Tocca la levetta del quadro, poi premi il riarmo e infine il fungo." },
+        { kind: "verify", short: "17 Verifica", title: "Controlla l\u2019impianto", text: "Premi Verifica." }
+      ],
+      summary: [
+        "Il rel\xE8 di sicurezza controlla i due canali del fungo e apre le uscite se uno solo cade.",
+        "Dopo un arresto non riparte da solo: serve un impulso sul riarmo.",
+        "Un contattore pu\xF2 restare incollato: il suo contatto NC 21-22 resta aperto.",
+        "Il riarmo passa dal contatto NC del contattore: cos\xEC il rel\xE8 scopre il guasto e non si riarma."
+      ],
+      fault: {
+        say: "L\u2019impianto \xE8 gi\xE0 cablato e funziona: riarmi, premi il fungo, la macchina si ferma. Guarda per\xF2 il percorso del riarmo: parte dalla fase e arriva al rel\xE8.",
+        wires: [
+          ["Q.F", "E.1", "marrone"],
+          ["E.2", "KS.S12", "marrone"],
+          ["Q.F", "E.3", "marrone"],
+          ["E.4", "KS.S22", "marrone"],
+          ["Q.F", "KS.A1", "marrone"],
+          ["KS.A2", "Q.N", "blu"],
+          ["Q.F", "SBR.3", "marrone"],
+          ["SBR.4", "KS.R", "marrone"],
+          ["Q.F", "KS.13", "marrone"],
+          ["KS.14", "KS.23", "marrone"],
+          ["KS.24", "KM.A1", "marrone"],
+          ["KM.A2", "Q.N", "blu"],
+          ["Q.F", "KM.1", "marrone"],
+          ["KM.2", "L.A", "marrone"],
+          ["L.B", "Q.N", "blu"]
+        ],
+        diagnosis: {
+          question: "Che cosa succede se un contattore resta incollato in questo impianto?",
+          options: [
+            { id: "a", text: "Il rel\xE8 di sicurezza non se ne accorge e si riarma lo stesso: manca il contatto NC del contattore nel riarmo." },
+            { id: "b", text: "Il rel\xE8 si blocca per sempre." },
+            { id: "c", text: "Niente, perch\xE9 il fungo ferma comunque la macchina." }
+          ],
+          correct: "a",
+          why: "Il contatto NC 21-22 del contattore \xE8 aperto quando i contatti di potenza sono chiusi. Se il riarmo non passa da l\xEC, un contattore incollato non viene scoperto e la macchina pu\xF2 restare in marcia anche dopo l\u2019emergenza."
+        },
+        fixSay: "Togli il filo dalla fase al pulsante di riarmo. Collega la fase al morsetto 21 del contattore, poi il 22 al pulsante di riarmo. Poi premi Verifica."
+      }
+    },
+    "c27-portella": {
+      support: "passi",
+      lesson: {
+        pages: [
+          {
+            type: "spiegazione",
+            title: "Pi\xF9 dispositivi, una catena",
+            paras: [
+              "Una macchina ha spesso pi\xF9 dispositivi di sicurezza: il fungo, la portella di accesso, una barriera a raggi. Ognuno ha due contatti, uno per canale.",
+              "Su ciascun canale i dispositivi si mettono in serie: basta che uno si apra per interrompere il canale. Cos\xEC la portella ferma la macchina come il fungo."
+            ]
+          },
+          {
+            type: "spiegazione",
+            title: "Richiudere non basta",
+            paras: [
+              "Se un operatore apre la portella per togliere un pezzo, e la richiude, la macchina non deve ripartire da sola: potrebbe esserci ancora qualcuno dentro.",
+              "Per questo lo stesso rel\xE8 di sicurezza vale per tutta la catena: ogni arresto apre le uscite, e solo il riarmo, dato da fuori, rimette in marcia. Un contatto lasciato libero in un dispositivo toglie un canale a quel dispositivo."
+            ],
+            warn: "Un dispositivo a due canali con un solo contatto collegato sembra funzionare, ma non \xE8 pi\xF9 sicuro."
+          },
+          {
+            type: "demo",
+            title: "Guarda come si fa",
+            captions: {
+              wires: [
+                "Canale 1: dalla fase al contatto 1 del fungo.",
+                "Dal contatto 2 al contatto 1 della portella.",
+                "Dal contatto 2 della portella al contatto 1 della barriera.",
+                "Dal contatto 2 della barriera all\u2019ingresso S12 del rel\xE8.",
+                "Canale 2: dalla fase al contatto 3 del fungo.",
+                "Dal contatto 4 al contatto 3 della portella.",
+                "Dal contatto 4 della portella al contatto 3 della barriera.",
+                "Dal contatto 4 della barriera all\u2019ingresso S22 del rel\xE8.",
+                "La fase all\u2019alimentazione A1 del rel\xE8.",
+                "Filo blu da A2 al neutro.",
+                "Il riarmo parte dalla fase e va al contatto NC 21 del contattore.",
+                "Dal 22 al pulsante di riarmo.",
+                "Dal pulsante all\u2019ingresso R del rel\xE8.",
+                "La fase all\u2019uscita 13 del rel\xE8.",
+                "Dal 14 all\u2019uscita 23.",
+                "Dall\u2019uscita 24 alla bobina del contattore.",
+                "Filo blu dalla bobina al neutro.",
+                "La fase al contatto di potenza del contattore.",
+                "Dal contatto 2 alla macchina.",
+                "Filo blu dal neutro alla macchina."
+              ],
+              power: "Levetta su: portella e barriera sono chiuse, la macchina aspetta il riarmo.",
+              controls: [
+                "Riarmo premuto: la macchina parte.",
+                "Portella aperta: i due canali si interrompono, la macchina si ferma e non riparte richiudendola.",
+                "Barriera interrotta: la macchina resta ferma."
+              ]
+            }
+          },
+          {
+            type: "previsione",
+            question: "La macchina \xE8 in marcia e apri la portella. La richiudi subito. Che cosa succede?",
+            options: [
+              { id: "a", text: "La macchina riparte appena la portella \xE8 chiusa." },
+              { id: "b", text: "Resta ferma finch\xE9 non premi il riarmo." },
+              { id: "c", text: "Resta ferma e non riparte pi\xF9." }
+            ],
+            correct: "b",
+            why: "L\u2019apertura ha fatto cadere i due canali e il rel\xE8 ha aperto le uscite. Richiudendo la portella i canali tornano chiusi, ma le uscite si richiudono solo con un nuovo riarmo."
+          },
+          { type: "sintesi", title: "Da ricordare" }
+        ]
+      },
+      steps: [
+        { kind: "wire", from: "Q.F", to: ["E.1", "E.3"], color: "marrone", short: "1 Fase", title: "La fase ai due canali", text: "Dalla FASE ai morsetti 1 e 3 del fungo." },
+        { kind: "wire", from: "E.2", to: ["P.1"], color: "marrone", short: "2 Portella 1", title: "Il canale 1 alla portella", text: "Dal morsetto 2 del fungo al morsetto 1 della portella." },
+        { kind: "wire", from: "P.2", to: ["B.1"], color: "marrone", short: "3 Barriera 1", title: "Il canale 1 alla barriera", text: "Dal morsetto 2 della portella al morsetto 1 della barriera." },
+        { kind: "wire", from: "B.2", to: ["KS.S12"], color: "marrone", short: "4 S12", title: "Il canale 1 al rel\xE8", text: "Dal morsetto 2 della barriera all\u2019ingresso S12 del rel\xE8 di sicurezza." },
+        { kind: "wire", from: "E.4", to: ["P.3"], color: "marrone", short: "5 Portella 2", title: "Il canale 2 alla portella", text: "Dal morsetto 4 del fungo al morsetto 3 della portella." },
+        { kind: "wire", from: "P.4", to: ["B.3"], color: "marrone", short: "6 Barriera 2", title: "Il canale 2 alla barriera", text: "Dal morsetto 4 della portella al morsetto 3 della barriera." },
+        { kind: "wire", from: "B.4", to: ["KS.S22"], color: "marrone", short: "7 S22", title: "Il canale 2 al rel\xE8", text: "Dal morsetto 4 della barriera all\u2019ingresso S22 del rel\xE8 di sicurezza." },
+        { kind: "wire", from: "Q.F", to: ["KS.A1"], color: "marrone", short: "8 A1", title: "L\u2019alimentazione del rel\xE8", text: "Dalla FASE al morsetto A1 del rel\xE8." },
+        { kind: "wire", from: "Q.N", to: ["KS.A2"], color: "blu", short: "9 A2", title: "Il neutro al rel\xE8", text: "Dal NEUTRO al morsetto A2 del rel\xE8." },
+        { kind: "wire", from: "Q.F", to: ["KM.21"], color: "marrone", short: "10 NC", title: "Il riarmo dal contatto NC", text: "Dalla FASE al morsetto 21 del contattore." },
+        { kind: "wire", from: "KM.22", to: ["SBR.3"], color: "marrone", short: "11 Pulsante", title: "Al pulsante di riarmo", text: "Dal morsetto 22 del contattore al pulsante di riarmo." },
+        { kind: "wire", from: "SBR.4", to: ["KS.R"], color: "marrone", short: "12 R", title: "Il riarmo al rel\xE8", text: "Dal pulsante all\u2019ingresso R del rel\xE8." },
+        { kind: "wire", from: "Q.F", to: ["KS.13"], color: "marrone", short: "13 Uscita", title: "La fase alle uscite", text: "Dalla FASE al morsetto 13 del rel\xE8." },
+        { kind: "wire", from: "KS.14", to: ["KS.23"], color: "marrone", short: "14 Serie", title: "Le uscite in serie", text: "Dal morsetto 14 al morsetto 23 del rel\xE8." },
+        { kind: "wire", from: "KS.24", to: ["KM.A1"], color: "marrone", short: "15 Bobina", title: "Alla bobina del contattore", text: "Dal morsetto 24 del rel\xE8 alla bobina del contattore." },
+        { kind: "wire", from: "Q.N", to: ["KM.A2"], color: "blu", short: "16 Neutro bobina", title: "Il neutro alla bobina", text: "Dal NEUTRO al morsetto A2 del contattore." },
+        { kind: "wire", from: "Q.F", to: ["KM.1"], color: "marrone", short: "17 Potenza", title: "La fase al contatto di potenza", text: "Dalla FASE al morsetto 1 del contattore." },
+        { kind: "wire", from: "KM.2", to: ["L.A"], color: "marrone", short: "18 Macchina", title: "Alla macchina", text: "Dal morsetto 2 del contattore alla lampada." },
+        { kind: "wire", from: "Q.N", to: ["L.B"], color: "blu", short: "19 Neutro macchina", title: "Il neutro alla macchina", text: "Dal NEUTRO al morsetto libero della lampada." },
+        { kind: "power", short: "20 Levetta", title: "Dai corrente", text: "Tocca la levetta del quadro, poi riarma e prova portella e barriera." },
+        { kind: "verify", short: "21 Verifica", title: "Controlla l\u2019impianto", text: "Premi Verifica." }
+      ],
+      summary: [
+        "Fungo, portella e barriera stanno in serie su ciascun canale: aprirne uno interrompe il canale.",
+        "Ogni dispositivo ha due contatti e vanno usati tutti e due, uno per canale.",
+        "Dopo ogni arresto la macchina riparte solo con il riarmo, mai da sola richiudendo la portella.",
+        "Il rel\xE8 di sicurezza e il contatto NC del contattore nel riarmo valgono per tutta la catena."
+      ],
+      fault: {
+        say: "L\u2019impianto \xE8 gi\xE0 cablato. Riarma, apri la portella: la macchina si ferma. Richiudila e prova a riarmare: il rel\xE8 non si riarma. Guarda quanti fili arrivano alla portella e alla barriera.",
+        wires: [
+          ["Q.F", "E.1", "marrone"],
+          ["E.2", "P.1", "marrone"],
+          ["P.2", "B.1", "marrone"],
+          ["B.2", "KS.S12", "marrone"],
+          ["Q.F", "E.3", "marrone"],
+          ["E.4", "KS.S22", "marrone"],
+          ["Q.F", "KS.A1", "marrone"],
+          ["KS.A2", "Q.N", "blu"],
+          ["Q.F", "KM.21", "marrone"],
+          ["KM.22", "SBR.3", "marrone"],
+          ["SBR.4", "KS.R", "marrone"],
+          ["Q.F", "KS.13", "marrone"],
+          ["KS.14", "KS.23", "marrone"],
+          ["KS.24", "KM.A1", "marrone"],
+          ["KM.A2", "Q.N", "blu"],
+          ["Q.F", "KM.1", "marrone"],
+          ["KM.2", "L.A", "marrone"],
+          ["L.B", "Q.N", "blu"]
+        ],
+        diagnosis: {
+          question: "Che cosa non va nella portella e nella barriera?",
+          options: [
+            { id: "a", text: "Usano un solo canale: i loro contatti 3-4 non sono collegati." },
+            { id: "b", text: "Sono in serie sul canale 1: dovrebbero stare in parallelo." },
+            { id: "c", text: "Mancano i fili di terra." }
+          ],
+          correct: "a",
+          why: "La portella e la barriera hanno due contatti, ma ne \xE8 collegato uno solo, quello del canale 1. Il canale 2 passa dal solo fungo. Aprendo la portella cade un canale solo: il rel\xE8 di sicurezza vede una discrepanza e non si riarma, ed \xE8 proprio per questo che la prova di riarmo non riesce. Se poi il contatto del canale 1 si incolla, la portella aperta non ferma pi\xF9 la macchina."
+        },
+        fixSay: "Il canale 2 deve passare anche da portella e barriera: togli il filo dal contatto 4 del fungo al rel\xE8. Collega il 4 al contatto 3 della portella, il 4 della portella al 3 della barriera e il 4 della barriera all\u2019ingresso S22. Poi premi Verifica."
+      }
     }
   };
 
@@ -6672,7 +7282,9 @@ html[lang="it"] .trnote{display:none}
     inv: ["L\u2019invertitore", "Ha quattro morsetti: due in alto (1 e 2) e due in basso (3 e 4). In una posizione collega 1 con 3 e 2 con 4, nell\u2019altra li incrocia. Si mette tra due deviatori per avere un terzo comando."],
     pb: ["Il pulsante normalmente aperto (NA)", "Ha due morsetti, 3 e 4. A riposo il contatto \xE8 aperto: si chiude solo finch\xE9 lo tieni premuto, poi torna da solo. Per questo non ricorda nulla: serve a dare un impulso."],
     pbnc: ["Il pulsante normalmente chiuso (NC)", "Ha due morsetti, 1 e 2. A riposo il contatto \xE8 chiuso: si apre solo finch\xE9 lo tieni premuto. Si usa per l\u2019arresto, perch\xE9 un filo staccato ferma la macchina."],
-    fungo: ["Il pulsante di emergenza a fungo", "Ha un contatto normalmente chiuso. Premuto, si apre e resta bloccato: la macchina si ferma e non riparte finch\xE9 non lo sblocchi."],
+    fungo: ["Il pulsante di emergenza a fungo", "Ha un contatto normalmente chiuso (o due, nel modello a due canali: 1-2 e 3-4). Premuto, si apre e resta bloccato: la macchina si ferma e non riparte finch\xE9 non lo sblocchi."],
+    port: ["La portella (o la barriera)", "Ha due contatti normalmente chiusi, 1-2 e 3-4, uno per canale. Chiusa, i contatti sono chiusi; aperta, si aprono tutti e due. Toccala per aprirla o chiuderla. La barriera a raggi funziona allo stesso modo: interrotta, apre i contatti."],
+    rs: ["Il rel\xE8 di sicurezza", "Si alimenta in A1-A2 e controlla due canali d\u2019ingresso (S12 e S22): se uno cade, le uscite 13-14 e 23-24 si aprono. Per riarmarlo servono i due canali chiusi e un impulso sul morsetto R, dato dal pulsante di riarmo (meglio se attraverso i contatti NC dei contattori, che ne controllano il distacco)."],
     ri: ["Il rel\xE8 ad impulsi", "Ha una bobina (A1 e A2) e un contatto (1 e 2). A ogni impulso sulla bobina il contatto cambia stato e lo mantiene: aperto, chiuso, aperto. Serve a comandare una luce da molti punti."],
     tmr: ["Il rel\xE8 temporizzato", "Ha una bobina (A1 e A2) e un contatto (1 e 2). Dopo un impulso il contatto resta chiuso per il tempo impostato, poi si riapre da solo."],
     km: ["Il contattore", "Ha una bobina (A1 e A2) e dei contatti. Con la bobina alimentata si chiudono i tre poli di potenza (1-2, 3-4, 5-6) e il contatto ausiliario normalmente aperto (13-14); si apre quello normalmente chiuso (21-22). Il circuito di comando e quello di potenza sono separati."],
@@ -6825,6 +7437,14 @@ html[lang="it"] .trnote{display:none}
         return "Un carico (" + nameOf(level, item.comp) + ") non \xE8 protetto dal differenziale.";
       case "safe.liveWork":
         return "Hai cambiato i fili mentre il sezionamento (" + nameOf(level, item.comp) + ") era chiuso e i morsetti erano in tensione. Premi Annulla tutto, apri il sezionamento e cabla da capo.";
+      case "safe.singleChannel":
+        return "I due canali sono collegati tra loro: se un contatto resta incollato o un filo si stacca, l\u2019altro canale non lo vede. Ogni canale deve avere il suo percorso.";
+      case "safe.notRedundant":
+        return "Con " + nameOf(level, item.comp) + " incollato l\u2019altro dispositivo non ferma la macchina: i due canali devono fermarla ciascuno da solo.";
+      case "safe.contactUnused":
+        return "Il dispositivo " + nameOf(level, item.comp) + " ha un contatto non collegato: un dispositivo a due canali deve usarli tutti e due.";
+      case "safe.noFeedback":
+        return "Se il contattore " + nameOf(level, item.comp) + " resta incollato il rel\xE8 di sicurezza si riarma lo stesso: i contatti NC del contattore devono stare nel circuito di riarmo.";
       case "safe.neutralEarth":
         return "Neutro e terra sono collegati tra loro: il filo di protezione non deve mai portare corrente.";
       case "safe.ok":
@@ -7054,6 +7674,23 @@ html[lang="it"] .trnote{display:none}
         "c24-officina"
       ],
       milestone: { level: "c24-officina", kick: "Officina", name: "Il nastro da collaudare", text: "Un nastro trasportatore da collaudare a vista: marcia, arresto, emergenza, finecorsa e termico. Trova perch\xE9 il nastro non si ferma.", cta: "Entra nell\u2019officina", again: "Rifai la prova" }
+    },
+    {
+      tag: "MODULO 6",
+      title: "La fabbrica",
+      levels: [
+        "c25-fungo",
+        "c26-rele-sicurezza",
+        "c27-portella",
+        { soon: true, title: "Il sensore 4-20 mA", blurb: "Perch\xE9 4 e non 0: il filo interrotto si riconosce." },
+        { soon: true, title: "Il variatore", blurb: "Frequenza e velocit\xE0, con le rampe." },
+        { soon: true, title: "Il serbatoio", blurb: "Due soglie e l\u2019isteresi." },
+        { soon: true, title: "Il PID", blurb: "P, I e D con i cursori e il grafico." },
+        { soon: true, title: "Il pannello operatore", blurb: "Stati, allarmi e dati vecchi." },
+        { soon: true, title: "La linea", blurb: "Una sequenza: attesa, prelievo, deposito." },
+        { soon: true, title: "Gestione guasti", blurb: "Tre guasti da risolvere a tempo." }
+      ],
+      milestone: { soon: true, kick: "Fabbrica", name: "Una linea da cablare, programmare e mettere in sicurezza", text: "Il progetto finale: un turno di lavoro con guasti da gestire." }
     }
   ];
   var UPCOMING = [
@@ -7070,13 +7707,6 @@ html[lang="it"] .trnote{display:none}
       note: "Casa automatica, fotovoltaico e ricarica: un ramo facoltativo del percorso.",
       levels: ["Il sensore e l\u2019attuatore", "La casa col PLC", "La corrente continua", "Il pannello fotovoltaico", "Il contatore e lo scambio", "L\u2019accumulo", "La colonnina"],
       project: { kick: "Casa del futuro", name: "Luci, tapparelle, sole e batteria", text: "La casa che si comanda da sola e produce la sua energia." }
-    },
-    {
-      tag: "MODULO 6",
-      title: "La fabbrica",
-      note: "Sicurezza, regolazione e una linea completa da mettere in funzione.",
-      levels: ["Il fungo a due canali", "Il rel\xE8 di sicurezza", "Portella e barriera", "Il sensore 4-20 mA", "Il variatore", "Il serbatoio", "Il PID", "Il pannello operatore", "La linea", "Gestione guasti"],
-      project: { kick: "Fabbrica", name: "Una linea da cablare, programmare e mettere in sicurezza", text: "Il progetto finale: un turno di lavoro con guasti da gestire." }
     }
   ];
   var INTRO = [
@@ -7234,7 +7864,9 @@ html[lang="it"] .trnote{display:none}
     sez: [FULL, 120, ["1", "3", "5"], ["2", "4", "6"]],
     pb: [HALF, 110, ["3"], ["4"]],
     pbnc: [HALF, 110, ["1"], ["2"]],
-    fungo: [HALF, 110, ["1"], ["2"]],
+    fungo: [HALF, 110, ["1", "3"], ["2", "4"]],
+    port: [HALF, 110, ["1", "3"], ["2", "4"]],
+    rs: [FULL, 190, ["A1", "A2", "S12", "S22", "R"], ["13", "14", "23", "24"]],
     ri: [HALF, 130, ["A1", "A2"], ["1", "2"]],
     tmr: [HALF, 130, ["A1", "A2"], ["1", "2"]],
     gu: [HALF, 112, [], []],
@@ -7354,6 +7986,7 @@ html[lang="it"] .trnote{display:none}
   function poles(c2, tops, bots, closed, L, y1 = 22, y2 = c2.h - 22) {
     let o = "";
     tops.forEach((t, i) => {
+      if (!c2.terms[t]) return;
       const x = c2.w * c2.terms[t].f, b = bots[i];
       if (b && has(c2, b)) o += pole2(x, y1, y2, closed, L(t), L(b));
       else o += ln(x, y1, x, y2, L(t));
@@ -7411,10 +8044,39 @@ html[lang="it"] .trnote{display:none}
         break;
       }
       case "fungo": {
-        const x = w / 2, closed = !part2.pressed;
+        const x = w / 2, closed = !part2.pressed, two = !!c2.terms["3"];
+        if (two) {
+          const xa = w * c2.terms["1"].f, xb = w * c2.terms["3"].f;
+          o += pole2(xa, 22, h - 22, closed, L("1"), L("2")) + pole2(xb, 22, h - 22, closed, L("3"), L("4"));
+          o += lab(xa, h - 6, "CANALE 1") + lab(xb, h - 6, "CANALE 2");
+          o += `<circle cx="${x}" cy="${mid}" r="${part2.pressed ? 12 : 16}" fill="#C0262D" stroke="#1B2230" stroke-width="2"/>`;
+          break;
+        }
         o += pole2(x, 22, h - 22, closed, L("1"), L("2"));
         o += `<rect x="${x + 16}" y="${mid - 22}" width="46" height="44" rx="8" fill="#F2C500" stroke="#1B2230" stroke-width="2"/><circle cx="${x + 39}" cy="${mid}" r="${part2.pressed ? 13 : 17}" fill="#C0262D" stroke="#1B2230" stroke-width="2"/>`;
         o += lab(x + 39, mid + 38, part2.pressed ? "AZIONATO" : "EMERGENZA");
+        break;
+      }
+      case "port": {
+        const closed = !part2.open, xa = w * c2.terms["1"].f, xb = w * c2.terms["3"].f;
+        o += pole2(xa, 22, h - 22, closed, L("1"), L("2")) + pole2(xb, 22, h - 22, closed, L("3"), L("4"));
+        o += lab(xa, h - 6, "CANALE 1") + lab(xb, h - 6, "CANALE 2");
+        o += `<rect x="${w / 2 - 14}" y="${mid - 22}" width="28" height="44" rx="3" fill="${part2.open ? "#F2C500" : "#BFD4E8"}" stroke="#1B2230" stroke-width="2"/>`;
+        o += lab(w / 2, mid - 30, part2.open ? "APERTA" : "CHIUSA");
+        break;
+      }
+      case "rs": {
+        const on = !!part2.on;
+        const x1 = w * c2.terms.A1.f, x2 = w * c2.terms.A2.f;
+        o += `<rect x="${x1 - 14}" y="40" width="${w - 2 * x1 + 28}" height="${h * 0.34}" rx="4" fill="none" stroke="${part2.coil ? "#F59F00" : "var(--sch)"}" stroke-width="2.6"/>`;
+        ["A1", "A2", "S12", "S22", "R"].forEach((t) => {
+          const x = w * c2.terms[t].f;
+          o += ln(x, 22, x, 40, L(t));
+        });
+        o += lab(w / 2, 40 + h * 0.2, on ? "SICUREZZA \xB7 ARMATO" : part2.disc ? "SICUREZZA \xB7 DISCREPANZA" : "SICUREZZA \xB7 A RIPOSO");
+        [["13", "14"], ["23", "24"]].forEach(([a, b]) => {
+          o += pole2(w * c2.terms[a].f, h * 0.62, h - 22, on, L(a), L(b));
+        });
         break;
       }
       case "ri": {
@@ -7549,9 +8211,9 @@ html[lang="it"] .trnote{display:none}
     }
     return o;
   }
-  var V2_TYPES = /* @__PURE__ */ new Set(["quadro", "mt", "rcd", "mt3", "sez", "pb", "pbnc", "fungo", "ri", "rel", "tmr", "km", "ft", "fc", "trafo", "bell", "spia", "lamp", "presa", "motor3", "gu"]);
+  var V2_TYPES = /* @__PURE__ */ new Set(["quadro", "mt", "rcd", "mt3", "sez", "pb", "pbnc", "fungo", "port", "rs", "ri", "rel", "tmr", "km", "ft", "fc", "trafo", "bell", "spia", "lamp", "presa", "motor3", "gu"]);
   var DEV = /* @__PURE__ */ new Set(["lamp", "spia", "bell", "presa", "motor3"]);
-  var WALLCTL = { sw: "tog", dev: "tog", inv: "tog", pb: "hold", pbnc: "hold", fungo: "mush" };
+  var WALLCTL = { sw: "tog", dev: "tog", inv: "tog", pb: "hold", pbnc: "hold", fungo: "mush", port: "tog" };
   function roomV2HTML(level) {
     const m = level.machine;
     let o = `<defs><radialGradient id="glow2"><stop offset="0" stop-color="#FFE9A8" stop-opacity=".95"/><stop offset="1" stop-color="#FFD25E" stop-opacity="0"/></radialGradient></defs>`;
@@ -7848,7 +8510,7 @@ html[lang="it"] .trnote{display:none}
     let o = `<defs><pattern id="pegs" width="16" height="16" patternUnits="userSpaceOnUse"><circle cx="8" cy="8" r="1.4" fill="var(--dot)"/></pattern></defs><rect x="0" y="-28" width="${BW}" height="${H + 28}" fill="var(--bench)"/><rect x="0" y="-28" width="${BW}" height="${H + 28}" fill="url(#pegs)"/>`;
     const dimmed = (c2) => ui2.focus && !ui2.focus.includes(c2.id);
     comps2.forEach((c2) => {
-      const toggles = ["sw", "dev", "inv", "mt", "mt3", "sez", "rcd", "fungo", "gu"].includes(c2.type);
+      const toggles = ["sw", "dev", "inv", "mt", "mt3", "sez", "rcd", "fungo", "port", "gu"].includes(c2.type);
       const hold = c2.type === "pb" || c2.type === "pbnc";
       if (dimmed(c2)) o += '<g class="dimmed">';
       o += `<text class="ttl" x="${c2.x + 2}" y="${c2.y - 9}">${c2.title}</text>`;
@@ -8257,6 +8919,7 @@ html[lang="it"] .trnote{display:none}
     return s.levels.find((l) => open(l) && !/^t\d\d-/.test(l.id)) || null;
   }
   function milestoneHTML(ms, l) {
+    if (ms.soon) return `<div class="tricard milestone soon"><div class="lvhead"><div class="kick">${esc(ms.kick)}</div><span class="pill st-soon">In arrivo</span></div><h3>${esc(ms.name)}</h3><p>${esc(ms.text)}</p></div>`;
     if (!l) return "";
     const st = l.status;
     const pill = `<span class="pill st-${st.replace(" ", "-")}">${STATUS_NAMES[st]}</span>`;
@@ -8287,15 +8950,17 @@ html[lang="it"] .trnote{display:none}
         <div class="mhead"><div><div class="kick">MODULO 1</div><h2>Il trilocale</h2></div><div class="count">${triDone} di ${tri.length} circuiti</div></div>
         <div class="tricard milestone"><div class="kick">Trilocale</div><h3>Una casa da cablare</h3><p>Una casa vista dall\u2019alto con tre punti luce da cablare: bagno, camera e corridoio. Quando l\u2019impianto funziona, la luce si accende nella stanza.</p><a class="btn lamp" href="#/modulo/1">${triDone ? "Continua nel trilocale" : "Entra nel trilocale"}</a></div>
       </section>`;
-    const ordered = mods[0] + trilocale + mods.slice(1).join("");
-    const up = UPCOMING.map((m) => `<section class="module upmod" aria-label="${m.tag}, ${esc(m.title)}">
+    const upItems = UPCOMING.map((m) => ({ n: Number(m.tag.match(/\d+/)[0]), html: `<section class="module upmod" aria-label="${m.tag}, ${esc(m.title)}">
         <div class="mhead"><div><div class="kick">${m.tag}</div><h2>${esc(m.title)}</h2></div><span class="soonl">In arrivo</span></div>
         <p class="upnote">${esc(m.note)}</p>
         <ol class="uplist">${m.levels.map((x) => `<li>${esc(x)}</li>`).join("")}</ol>
         <div class="tricard milestone soon"><div class="kick">${esc(m.project.kick)}</div><h3>${esc(m.project.name)}</h3><p>${esc(m.project.text)}</p></div>
-      </section>`).join("");
+      </section>` }));
+    const num = (tag) => Number((tag.match(/\d+/) || [0])[0]);
+    const listed = MODULES.map((m, i) => ({ n: num(m.tag), html: mods[i] })).concat([{ n: 1, html: trilocale }], upItems);
+    const ordered = listed.sort((a, b) => a.n - b.n).map((x) => x.html).join("");
     return `<div class="homegrid">
-      <div class="homemain">${cont.replace('class="cont"', 'class="cont only-narrow"')}${ordered}<div class="upcoming">${up}</div>${trNoteHTML()}</div>
+      <div class="homemain">${cont.replace('class="cont"', 'class="cont only-narrow"')}${ordered}${trNoteHTML()}</div>
       <aside class="homeside">${cont}${toolsHTML()}</aside>
     </div>`;
   }
@@ -10477,7 +11142,297 @@ html[lang="it"] .trnote{display:none}
     "Appartamento": "\u0627\u0644\u0634\u0642\u0629",
     "Officina": "\u0627\u0644\u0648\u0631\u0634\u0629",
     "Una casa da cablare": "\u0645\u0646\u0632\u0644 \u0644\u0644\u062A\u0648\u0635\u064A\u0644",
-    "Il nastro da collaudare": "\u0627\u0644\u0633\u064A\u0631 \u0627\u0644\u0646\u0627\u0642\u0644 \u0644\u0644\u0627\u062E\u062A\u0628\u0627\u0631"
+    "Il nastro da collaudare": "\u0627\u0644\u0633\u064A\u0631 \u0627\u0644\u0646\u0627\u0642\u0644 \u0644\u0644\u0627\u062E\u062A\u0628\u0627\u0631",
+    "Automazione": "\u0627\u0644\u0623\u062A\u0645\u062A\u0629",
+    "Casa automatica, fotovoltaico e ricarica: un ramo facoltativo del percorso.": "\u0645\u0646\u0632\u0644 \u0622\u0644\u064A \u0648\u0637\u0627\u0642\u0629 \u0634\u0645\u0633\u064A\u0629 \u0648\u0634\u062D\u0646: \u0641\u0631\u0639 \u0627\u062E\u062A\u064A\u0627\u0631\u064A \u0645\u0646 \u0627\u0644\u0645\u0633\u0627\u0631.",
+    "Casa del futuro": "\u0645\u0646\u0632\u0644 \u0627\u0644\u0645\u0633\u062A\u0642\u0628\u0644",
+    "Dal cablaggio al programma: il PLC prende il posto dei rel\xE8.": "\u0645\u0646 \u0627\u0644\u062A\u0648\u0635\u064A\u0644 \u0628\u0627\u0644\u0623\u0633\u0644\u0627\u0643 \u0625\u0644\u0649 \u0627\u0644\u0628\u0631\u0646\u0627\u0645\u062C: \u064A\u062D\u0644 \u0627\u0644\u0645\u062A\u062D\u0643\u0645 \u0627\u0644\u0645\u0646\u0637\u0642\u064A \u0627\u0644\u0642\u0627\u0628\u0644 \u0644\u0644\u0628\u0631\u0645\u062C\u0629 \u0645\u062D\u0644 \u0627\u0644\u0645\u0631\u062D\u0644\u0627\u062A.",
+    "Dal rel\xE8 al PLC": "\u0645\u0646 \u0627\u0644\u0645\u0631\u062D\u0644 \u0625\u0644\u0649 \u0627\u0644\u0645\u062A\u062D\u0643\u0645 \u0627\u0644\u0645\u0646\u0637\u0642\u064A",
+    "Fabbrica": "\u0627\u0644\u0645\u0635\u0646\u0639",
+    "Fotocellula, conteggio dei pacchi, emergenza e termico che restano cablati.": "\u062E\u0644\u064A\u0629 \u0636\u0648\u0626\u064A\u0629 \u0648\u0639\u062F\u0651 \u0627\u0644\u0637\u0631\u0648\u062F\u061B \u0623\u0645\u0627 \u0627\u0644\u0637\u0648\u0627\u0631\u0626 \u0648\u0627\u0644\u062D\u0631\u0627\u0631\u064A \u0641\u064A\u0628\u0642\u064A\u0627\u0646 \u0645\u0648\u0635\u0648\u0644\u064A\u0646 \u0628\u0627\u0644\u0623\u0633\u0644\u0627\u0643.",
+    "Gestione guasti": "\u0625\u062F\u0627\u0631\u0629 \u0627\u0644\u0623\u0639\u0637\u0627\u0644",
+    "Il PID": "\u0627\u0644\u0645\u062A\u062D\u0643\u0645 PID",
+    "Il contatore e lo scambio": "\u0627\u0644\u0639\u062F\u0651\u0627\u062F \u0648\u0627\u0644\u062A\u0628\u0627\u062F\u0644",
+    "Il fungo a due canali": "\u0632\u0631 \u0627\u0644\u0641\u0637\u0631 \u0630\u0648 \u0627\u0644\u0642\u0646\u0627\u062A\u064A\u0646",
+    "Il nastro con il PLC": "\u0627\u0644\u0633\u064A\u0631 \u0627\u0644\u0646\u0627\u0642\u0644 \u0645\u0639 \u0627\u0644\u0645\u062A\u062D\u0643\u0645 \u0627\u0644\u0645\u0646\u0637\u0642\u064A",
+    "Il pannello fotovoltaico": "\u0627\u0644\u0644\u0648\u062D \u0627\u0644\u0643\u0647\u0631\u0648\u0636\u0648\u0626\u064A",
+    "Il pannello operatore": "\u0644\u0648\u062D\u0629 \u0627\u0644\u0645\u0634\u063A\u0651\u0644",
+    "Il progetto finale: un turno di lavoro con guasti da gestire.": "\u0627\u0644\u0645\u0634\u0631\u0648\u0639 \u0627\u0644\u0646\u0647\u0627\u0626\u064A: \u0646\u0648\u0628\u0629 \u0639\u0645\u0644 \u0645\u0639 \u0623\u0639\u0637\u0627\u0644 \u064A\u062C\u0628 \u0627\u0644\u062A\u0639\u0627\u0645\u0644 \u0645\u0639\u0647\u0627.",
+    "Il rel\xE8 di sicurezza": "\u0645\u0631\u062D\u0644 \u0627\u0644\u0623\u0645\u0627\u0646",
+    "Il sensore 4-20 mA": "\u0627\u0644\u0645\u0633\u062A\u0634\u0639\u0631 4-20 \u0645\u0644\u0644\u064A \u0623\u0645\u0628\u064A\u0631",
+    "Il sensore e l\u2019attuatore": "\u0627\u0644\u0645\u0633\u062A\u0634\u0639\u0631 \u0648\u0627\u0644\u0645\u0634\u063A\u0651\u0644",
+    "Il serbatoio": "\u0627\u0644\u062E\u0632\u0627\u0646",
+    "Il variatore": "\u0645\u063A\u064A\u0651\u0631 \u0627\u0644\u0633\u0631\u0639\u0629",
+    "Impianti del futuro": "\u0645\u0646\u0634\u0622\u062A \u0627\u0644\u0645\u0633\u062A\u0642\u0628\u0644",
+    "Inversione e interblocco": "\u0639\u0643\u0633 \u0627\u0644\u062F\u0648\u0631\u0627\u0646 \u0648\u0627\u0644\u062A\u0639\u0634\u064A\u0642",
+    "La casa che si comanda da sola e produce la sua energia.": "\u0627\u0644\u0645\u0646\u0632\u0644 \u0627\u0644\u0630\u064A \u064A\u062A\u062D\u0643\u0645 \u0641\u064A \u0646\u0641\u0633\u0647 \u0648\u064A\u0646\u062A\u062C \u0637\u0627\u0642\u062A\u0647.",
+    "La casa col PLC": "\u0627\u0644\u0645\u0646\u0632\u0644 \u0645\u0639 \u0627\u0644\u0645\u062A\u062D\u0643\u0645 \u0627\u0644\u0645\u0646\u0637\u0642\u064A",
+    "La colonnina": "\u0645\u062D\u0637\u0629 \u0627\u0644\u0634\u062D\u0646",
+    "La corrente continua": "\u0627\u0644\u062A\u064A\u0627\u0631 \u0627\u0644\u0645\u0633\u062A\u0645\u0631",
+    "La fabbrica": "\u0627\u0644\u0645\u0635\u0646\u0639",
+    "La linea": "\u062E\u0637 \u0627\u0644\u0625\u0646\u062A\u0627\u062C",
+    "Ladder: l\u2019autoritenuta": "\u0627\u0644\u0633\u0644\u0651\u0645: \u0627\u0644\u0625\u0645\u0633\u0627\u0643 \u0627\u0644\u0630\u0627\u062A\u064A",
+    "Luci, tapparelle, sole e batteria": "\u0623\u0636\u0648\u0627\u0621 \u0648\u0633\u062A\u0627\u0626\u0631 \u0648\u0634\u0645\u0633 \u0648\u0628\u0637\u0627\u0631\u064A\u0629",
+    "L\u2019accumulo": "\u0627\u0644\u062A\u062E\u0632\u064A\u0646",
+    "Nastro con il PLC": "\u0633\u064A\u0631 \u0645\u0639 \u0627\u0644\u0645\u062A\u062D\u0643\u0645 \u0627\u0644\u0645\u0646\u0637\u0642\u064A",
+    "Portella e barriera": "\u0627\u0644\u0628\u0627\u0628 \u0627\u0644\u0648\u0627\u0642\u064A \u0648\u0627\u0644\u062D\u0627\u062C\u0632",
+    "Sicurezza, regolazione e una linea completa da mettere in funzione.": "\u0623\u0645\u0627\u0646 \u0648\u062A\u0646\u0638\u064A\u0645 \u0648\u062E\u0637 \u0625\u0646\u062A\u0627\u062C \u0643\u0627\u0645\u0644 \u0644\u062A\u0634\u063A\u064A\u0644\u0647.",
+    "Stella-triangolo": "\u0646\u062C\u0645\u0629-\u0645\u062B\u0644\u062B",
+    "Tempo e conteggio": "\u0627\u0644\u0632\u0645\u0646 \u0648\u0627\u0644\u0639\u062F\u0651",
+    "Un nastro che si comanda da programma": "\u0633\u064A\u0631 \u064A\u064F\u062A\u062D\u0643\u064E\u0651\u0645 \u0641\u064A\u0647 \u0628\u0628\u0631\u0646\u0627\u0645\u062C",
+    "Una linea da cablare, programmare e mettere in sicurezza": "\u062E\u0637 \u0625\u0646\u062A\u0627\u062C \u0644\u0644\u062A\u0648\u0635\u064A\u0644 \u0648\u0627\u0644\u0628\u0631\u0645\u062C\u0629 \u0648\u0627\u0644\u062A\u0623\u0645\u064A\u0646",
+    "MODULO 4": "\u0627\u0644\u0648\u062D\u062F\u0629 4",
+    "MODULO 5": "\u0627\u0644\u0648\u062D\u062F\u0629 5",
+    "MODULO 6": "\u0627\u0644\u0648\u062D\u062F\u0629 6",
+    "MODULO 4, Automazione": "\u0627\u0644\u0648\u062D\u062F\u0629 4\u060C \u0627\u0644\u0623\u062A\u0645\u062A\u0629",
+    "MODULO 5, Impianti del futuro": "\u0627\u0644\u0648\u062D\u062F\u0629 5\u060C \u0645\u0646\u0634\u0622\u062A \u0627\u0644\u0645\u0633\u062A\u0642\u0628\u0644",
+    "MODULO 6, La fabbrica": "\u0627\u0644\u0648\u062D\u062F\u0629 6\u060C \u0627\u0644\u0645\u0635\u0646\u0639",
+    "Al pulsante di riarmo": "\u0625\u0644\u0649 \u0632\u0631 \u0625\u0639\u0627\u062F\u0629 \u0627\u0644\u062A\u0633\u0644\u064A\u062D",
+    "Alla bobina del contattore": "\u0625\u0644\u0649 \u0645\u0644\u0641 \u0627\u0644\u0643\u0648\u0646\u062A\u0627\u0643\u062A\u0648\u0631",
+    "Alla macchina": "\u0625\u0644\u0649 \u0627\u0644\u0622\u0644\u0629",
+    "Alla macchina del livello precedente si aggiungono una portella e una barriera, con due contatti ciascuna. Su ogni canale i tre dispositivi (fungo, portella, barriera) stanno in serie. Aprendo uno qualunque la macchina si ferma, e richiudendolo non riparte da sola: serve il riarmo.": "\u062A\u064F\u0636\u0627\u0641 \u0625\u0644\u0649 \u0622\u0644\u0629 \u0627\u0644\u0645\u0633\u062A\u0648\u0649 \u0627\u0644\u0633\u0627\u0628\u0642 \u0628\u0648\u0627\u0628\u0629 \u0648\u0627\u0642\u064A\u0629 \u0648\u062D\u0627\u062C\u0632\u060C \u0644\u0643\u0644 \u0645\u0646\u0647\u0645\u0627 \u062A\u0644\u0627\u0645\u0633\u0627\u0646. \u0639\u0644\u0649 \u0643\u0644 \u0642\u0646\u0627\u0629 \u062A\u062A\u0635\u0644 \u0627\u0644\u0623\u062C\u0647\u0632\u0629 \u0627\u0644\u062B\u0644\u0627\u062B\u0629 (\u0632\u0631 \u0627\u0644\u0637\u0648\u0627\u0631\u0626 \u0648\u0627\u0644\u0628\u0648\u0627\u0628\u0629 \u0648\u0627\u0644\u062D\u0627\u062C\u0632) \u0639\u0644\u0649 \u0627\u0644\u062A\u0633\u0644\u0633\u0644. \u0639\u0646\u062F \u0641\u062A\u062D \u0623\u064A\u064D\u0651 \u0645\u0646\u0647\u0627 \u062A\u062A\u0648\u0642\u0641 \u0627\u0644\u0622\u0644\u0629\u060C \u0648\u0639\u0646\u062F \u0625\u063A\u0644\u0627\u0642\u0647 \u0644\u0627 \u062A\u0639\u0648\u062F \u0625\u0644\u0649 \u0627\u0644\u0639\u0645\u0644 \u0648\u062D\u062F\u0647\u0627: \u064A\u0644\u0632\u0645 \u0625\u0639\u0627\u062F\u0629 \u0627\u0644\u062A\u0633\u0644\u064A\u062D.",
+    "Apri la portella: la macchina si ferma": "\u0627\u0641\u062A\u062D \u0627\u0644\u0628\u0648\u0627\u0628\u0629: \u062A\u062A\u0648\u0642\u0641 \u0627\u0644\u0622\u0644\u0629",
+    "Barriera": "\u0627\u0644\u062D\u0627\u062C\u0632",
+    "Barriera a raggi con due contatti": "\u062D\u0627\u062C\u0632 \u0623\u0634\u0639\u0629 \u0628\u062A\u0644\u0627\u0645\u0633\u064A\u0646",
+    "Barriera interrotta: la macchina resta ferma.": "\u0627\u0644\u062D\u0627\u062C\u0632 \u0645\u0642\u0637\u0648\u0639: \u062A\u0628\u0642\u0649 \u0627\u0644\u0622\u0644\u0629 \u0645\u062A\u0648\u0642\u0641\u0629.",
+    "Canale 1: dalla fase al contatto 1 del fungo.": "\u0627\u0644\u0642\u0646\u0627\u0629 1: \u0645\u0646 \u0627\u0644\u0637\u0648\u0631 \u0625\u0644\u0649 \u0627\u0644\u062A\u0644\u0627\u0645\u0633 1 \u0641\u064A \u0632\u0631 \u0627\u0644\u0637\u0648\u0627\u0631\u0626.",
+    "Canale 2: dalla fase al contatto 3 del fungo.": "\u0627\u0644\u0642\u0646\u0627\u0629 2: \u0645\u0646 \u0627\u0644\u0637\u0648\u0631 \u0625\u0644\u0649 \u0627\u0644\u062A\u0644\u0627\u0645\u0633 3 \u0641\u064A \u0632\u0631 \u0627\u0644\u0637\u0648\u0627\u0631\u0626.",
+    "Che cosa non va nella portella e nella barriera?": "\u0645\u0627 \u0627\u0644\u062E\u0637\u0623 \u0641\u064A \u0627\u0644\u0628\u0648\u0627\u0628\u0629 \u0648\u0627\u0644\u062D\u0627\u062C\u0632\u061F",
+    "Che cosa non va, anche se la macchina si ferma?": "\u0645\u0627 \u0627\u0644\u062E\u0637\u0623\u060C \u0631\u063A\u0645 \u0623\u0646 \u0627\u0644\u0622\u0644\u0629 \u062A\u062A\u0648\u0642\u0641\u061F",
+    "Che cosa succede se un contattore resta incollato in questo impianto?": "\u0645\u0627\u0630\u0627 \u064A\u062D\u062F\u062B \u0641\u064A \u0647\u0630\u0647 \u0627\u0644\u0645\u0646\u0634\u0623\u0629 \u0625\u0630\u0627 \u0627\u0644\u062A\u0635\u0642 \u0627\u0644\u0643\u0648\u0646\u062A\u0627\u0643\u062A\u0648\u0631\u061F",
+    "Con un rel\xE8 incollato l\u2019altro ferma comunque la macchina: \xE8 questo che si chiama ridondanza.": "\u0625\u0630\u0627 \u0627\u0644\u062A\u0635\u0642 \u0623\u062D\u062F \u0627\u0644\u0645\u0631\u062D\u0651\u0644\u064A\u0646 \u064A\u0648\u0642\u0641 \u0627\u0644\u0622\u062E\u0631 \u0627\u0644\u0622\u0644\u0629 \u0639\u0644\u0649 \u0623\u064A \u062D\u0627\u0644: \u0648\u0647\u0630\u0627 \u0645\u0627 \u064A\u0633\u0645\u0649 \u0627\u0644\u062A\u0643\u0631\u0627\u0631 \u0627\u0644\u0627\u062D\u062A\u064A\u0627\u0637\u064A.",
+    "Dal 14 all\u2019uscita 23.": "\u0645\u0646 14 \u0625\u0644\u0649 \u0627\u0644\u0645\u062E\u0631\u062C 23.",
+    "Dal 14 all\u2019uscita 23: le due uscite sono in serie.": "\u0645\u0646 14 \u0625\u0644\u0649 \u0627\u0644\u0645\u062E\u0631\u062C 23: \u0627\u0644\u0645\u062E\u0631\u062C\u0627\u0646 \u0639\u0644\u0649 \u0627\u0644\u062A\u0633\u0644\u0633\u0644.",
+    "Dal 22 al pulsante di riarmo.": "\u0645\u0646 22 \u0625\u0644\u0649 \u0632\u0631 \u0625\u0639\u0627\u062F\u0629 \u0627\u0644\u062A\u0633\u0644\u064A\u062D.",
+    "Dal NEUTRO ai morsetti A2 dei due rel\xE8.": "\u0645\u0646 \u0627\u0644\u0645\u062D\u0627\u064A\u062F \u0625\u0644\u0649 \u0627\u0644\u0645\u0631\u0628\u0637\u064A\u0646 A2 \u0641\u064A \u0627\u0644\u0645\u0631\u062D\u0651\u0644\u064A\u0646.",
+    "Dal NEUTRO al morsetto A2 del contattore.": "\u0645\u0646 \u0627\u0644\u0645\u062D\u0627\u064A\u062F \u0625\u0644\u0649 \u0627\u0644\u0645\u0631\u0628\u0637 A2 \u0641\u064A \u0627\u0644\u0643\u0648\u0646\u062A\u0627\u0643\u062A\u0648\u0631.",
+    "Dal NEUTRO al morsetto A2 del rel\xE8 di sicurezza.": "\u0645\u0646 \u0627\u0644\u0645\u062D\u0627\u064A\u062F \u0625\u0644\u0649 \u0627\u0644\u0645\u0631\u0628\u0637 A2 \u0641\u064A \u0645\u0631\u062D\u0651\u0644 \u0627\u0644\u0623\u0645\u0627\u0646.",
+    "Dal NEUTRO al morsetto A2 del rel\xE8.": "\u0645\u0646 \u0627\u0644\u0645\u062D\u0627\u064A\u062F \u0625\u0644\u0649 \u0627\u0644\u0645\u0631\u0628\u0637 A2 \u0641\u064A \u0627\u0644\u0645\u0631\u062D\u0651\u0644.",
+    "Dal contatto 14 di K1 al morsetto 11 di K2: i due contatti sono in serie.": "\u0645\u0646 \u0627\u0644\u062A\u0644\u0627\u0645\u0633 14 \u0641\u064A K1 \u0625\u0644\u0649 \u0627\u0644\u0645\u0631\u0628\u0637 11 \u0641\u064A K2: \u0627\u0644\u062A\u0644\u0627\u0645\u0633\u0627\u0646 \u0639\u0644\u0649 \u0627\u0644\u062A\u0633\u0644\u0633\u0644.",
+    "Dal contatto 14 di K2 alla lampada, che rappresenta la macchina.": "\u0645\u0646 \u0627\u0644\u062A\u0644\u0627\u0645\u0633 14 \u0641\u064A K2 \u0625\u0644\u0649 \u0627\u0644\u0645\u0635\u0628\u0627\u062D \u0627\u0644\u0630\u064A \u064A\u0645\u062B\u0644 \u0627\u0644\u0622\u0644\u0629.",
+    "Dal contatto 2 al contatto 1 della portella.": "\u0645\u0646 \u0627\u0644\u062A\u0644\u0627\u0645\u0633 2 \u0625\u0644\u0649 \u0627\u0644\u062A\u0644\u0627\u0645\u0633 1 \u0641\u064A \u0627\u0644\u0628\u0648\u0627\u0628\u0629.",
+    "Dal contatto 2 alla bobina del rel\xE8 K1.": "\u0645\u0646 \u0627\u0644\u062A\u0644\u0627\u0645\u0633 2 \u0625\u0644\u0649 \u0645\u0644\u0641 \u0627\u0644\u0645\u0631\u062D\u0651\u0644 K1.",
+    "Dal contatto 2 alla macchina (la lampada).": "\u0645\u0646 \u0627\u0644\u062A\u0644\u0627\u0645\u0633 2 \u0625\u0644\u0649 \u0627\u0644\u0622\u0644\u0629 (\u0627\u0644\u0645\u0635\u0628\u0627\u062D).",
+    "Dal contatto 2 alla macchina.": "\u0645\u0646 \u0627\u0644\u062A\u0644\u0627\u0645\u0633 2 \u0625\u0644\u0649 \u0627\u0644\u0622\u0644\u0629.",
+    "Dal contatto 2 del fungo all\u2019ingresso S12 del rel\xE8.": "\u0645\u0646 \u0627\u0644\u062A\u0644\u0627\u0645\u0633 2 \u0641\u064A \u0632\u0631 \u0627\u0644\u0637\u0648\u0627\u0631\u0626 \u0625\u0644\u0649 \u0627\u0644\u0645\u062F\u062E\u0644 S12 \u0641\u064A \u0627\u0644\u0645\u0631\u062D\u0651\u0644.",
+    "Dal contatto 2 della barriera all\u2019ingresso S12 del rel\xE8.": "\u0645\u0646 \u0627\u0644\u062A\u0644\u0627\u0645\u0633 2 \u0641\u064A \u0627\u0644\u062D\u0627\u062C\u0632 \u0625\u0644\u0649 \u0627\u0644\u0645\u062F\u062E\u0644 S12 \u0641\u064A \u0627\u0644\u0645\u0631\u062D\u0651\u0644.",
+    "Dal contatto 2 della portella al contatto 1 della barriera.": "\u0645\u0646 \u0627\u0644\u062A\u0644\u0627\u0645\u0633 2 \u0641\u064A \u0627\u0644\u0628\u0648\u0627\u0628\u0629 \u0625\u0644\u0649 \u0627\u0644\u062A\u0644\u0627\u0645\u0633 1 \u0641\u064A \u0627\u0644\u062D\u0627\u062C\u0632.",
+    "Dal contatto 4 al contatto 3 della portella.": "\u0645\u0646 \u0627\u0644\u062A\u0644\u0627\u0645\u0633 4 \u0625\u0644\u0649 \u0627\u0644\u062A\u0644\u0627\u0645\u0633 3 \u0641\u064A \u0627\u0644\u0628\u0648\u0627\u0628\u0629.",
+    "Dal contatto 4 alla bobina del rel\xE8 K2.": "\u0645\u0646 \u0627\u0644\u062A\u0644\u0627\u0645\u0633 4 \u0625\u0644\u0649 \u0645\u0644\u0641 \u0627\u0644\u0645\u0631\u062D\u0651\u0644 K2.",
+    "Dal contatto 4 all\u2019ingresso S22 del rel\xE8.": "\u0645\u0646 \u0627\u0644\u062A\u0644\u0627\u0645\u0633 4 \u0625\u0644\u0649 \u0627\u0644\u0645\u062F\u062E\u0644 S22 \u0641\u064A \u0627\u0644\u0645\u0631\u062D\u0651\u0644.",
+    "Dal contatto 4 della barriera all\u2019ingresso S22 del rel\xE8.": "\u0645\u0646 \u0627\u0644\u062A\u0644\u0627\u0645\u0633 4 \u0641\u064A \u0627\u0644\u062D\u0627\u062C\u0632 \u0625\u0644\u0649 \u0627\u0644\u0645\u062F\u062E\u0644 S22 \u0641\u064A \u0627\u0644\u0645\u0631\u062D\u0651\u0644.",
+    "Dal contatto 4 della portella al contatto 3 della barriera.": "\u0645\u0646 \u0627\u0644\u062A\u0644\u0627\u0645\u0633 4 \u0641\u064A \u0627\u0644\u0628\u0648\u0627\u0628\u0629 \u0625\u0644\u0649 \u0627\u0644\u062A\u0644\u0627\u0645\u0633 3 \u0641\u064A \u0627\u0644\u062D\u0627\u062C\u0632.",
+    "Dal morsetto 14 al morsetto 23 del rel\xE8.": "\u0645\u0646 \u0627\u0644\u0645\u0631\u0628\u0637 14 \u0625\u0644\u0649 \u0627\u0644\u0645\u0631\u0628\u0637 23 \u0641\u064A \u0627\u0644\u0645\u0631\u062D\u0651\u0644.",
+    "Dal morsetto 14 di K1 al morsetto 11 di K2.": "\u0645\u0646 \u0627\u0644\u0645\u0631\u0628\u0637 14 \u0641\u064A K1 \u0625\u0644\u0649 \u0627\u0644\u0645\u0631\u0628\u0637 11 \u0641\u064A K2.",
+    "Dal morsetto 14 di K2 alla lampada.": "\u0645\u0646 \u0627\u0644\u0645\u0631\u0628\u0637 14 \u0641\u064A K2 \u0625\u0644\u0649 \u0627\u0644\u0645\u0635\u0628\u0627\u062D.",
+    "Dal morsetto 2 del contattore alla lampada.": "\u0645\u0646 \u0627\u0644\u0645\u0631\u0628\u0637 2 \u0641\u064A \u0627\u0644\u0643\u0648\u0646\u062A\u0627\u0643\u062A\u0648\u0631 \u0625\u0644\u0649 \u0627\u0644\u0645\u0635\u0628\u0627\u062D.",
+    "Dal morsetto 2 del fungo al morsetto 1 della portella.": "\u0645\u0646 \u0627\u0644\u0645\u0631\u0628\u0637 2 \u0641\u064A \u0632\u0631 \u0627\u0644\u0637\u0648\u0627\u0631\u0626 \u0625\u0644\u0649 \u0627\u0644\u0645\u0631\u0628\u0637 1 \u0641\u064A \u0627\u0644\u0628\u0648\u0627\u0628\u0629.",
+    "Dal morsetto 2 del fungo al morsetto A1 del rel\xE8 K1.": "\u0645\u0646 \u0627\u0644\u0645\u0631\u0628\u0637 2 \u0641\u064A \u0632\u0631 \u0627\u0644\u0637\u0648\u0627\u0631\u0626 \u0625\u0644\u0649 \u0627\u0644\u0645\u0631\u0628\u0637 A1 \u0641\u064A \u0627\u0644\u0645\u0631\u062D\u0651\u0644 K1.",
+    "Dal morsetto 2 del fungo all\u2019ingresso S12 del rel\xE8 di sicurezza.": "\u0645\u0646 \u0627\u0644\u0645\u0631\u0628\u0637 2 \u0641\u064A \u0632\u0631 \u0627\u0644\u0637\u0648\u0627\u0631\u0626 \u0625\u0644\u0649 \u0627\u0644\u0645\u062F\u062E\u0644 S12 \u0641\u064A \u0645\u0631\u062D\u0651\u0644 \u0627\u0644\u0623\u0645\u0627\u0646.",
+    "Dal morsetto 2 della barriera all\u2019ingresso S12 del rel\xE8 di sicurezza.": "\u0645\u0646 \u0627\u0644\u0645\u0631\u0628\u0637 2 \u0641\u064A \u0627\u0644\u062D\u0627\u062C\u0632 \u0625\u0644\u0649 \u0627\u0644\u0645\u062F\u062E\u0644 S12 \u0641\u064A \u0645\u0631\u062D\u0651\u0644 \u0627\u0644\u0623\u0645\u0627\u0646.",
+    "Dal morsetto 2 della portella al morsetto 1 della barriera.": "\u0645\u0646 \u0627\u0644\u0645\u0631\u0628\u0637 2 \u0641\u064A \u0627\u0644\u0628\u0648\u0627\u0628\u0629 \u0625\u0644\u0649 \u0627\u0644\u0645\u0631\u0628\u0637 1 \u0641\u064A \u0627\u0644\u062D\u0627\u062C\u0632.",
+    "Dal morsetto 22 del contattore al morsetto 3 del pulsante di riarmo.": "\u0645\u0646 \u0627\u0644\u0645\u0631\u0628\u0637 22 \u0641\u064A \u0627\u0644\u0643\u0648\u0646\u062A\u0627\u0643\u062A\u0648\u0631 \u0625\u0644\u0649 \u0627\u0644\u0645\u0631\u0628\u0637 3 \u0641\u064A \u0632\u0631 \u0625\u0639\u0627\u062F\u0629 \u0627\u0644\u062A\u0633\u0644\u064A\u062D.",
+    "Dal morsetto 22 del contattore al pulsante di riarmo.": "\u0645\u0646 \u0627\u0644\u0645\u0631\u0628\u0637 22 \u0641\u064A \u0627\u0644\u0643\u0648\u0646\u062A\u0627\u0643\u062A\u0648\u0631 \u0625\u0644\u0649 \u0632\u0631 \u0625\u0639\u0627\u062F\u0629 \u0627\u0644\u062A\u0633\u0644\u064A\u062D.",
+    "Dal morsetto 24 del rel\xE8 al morsetto A1 del contattore.": "\u0645\u0646 \u0627\u0644\u0645\u0631\u0628\u0637 24 \u0641\u064A \u0627\u0644\u0645\u0631\u062D\u0651\u0644 \u0625\u0644\u0649 \u0627\u0644\u0645\u0631\u0628\u0637 A1 \u0641\u064A \u0627\u0644\u0643\u0648\u0646\u062A\u0627\u0643\u062A\u0648\u0631.",
+    "Dal morsetto 24 del rel\xE8 alla bobina del contattore.": "\u0645\u0646 \u0627\u0644\u0645\u0631\u0628\u0637 24 \u0641\u064A \u0627\u0644\u0645\u0631\u062D\u0651\u0644 \u0625\u0644\u0649 \u0645\u0644\u0641 \u0627\u0644\u0643\u0648\u0646\u062A\u0627\u0643\u062A\u0648\u0631.",
+    "Dal morsetto 4 del fungo al morsetto 3 della portella.": "\u0645\u0646 \u0627\u0644\u0645\u0631\u0628\u0637 4 \u0641\u064A \u0632\u0631 \u0627\u0644\u0637\u0648\u0627\u0631\u0626 \u0625\u0644\u0649 \u0627\u0644\u0645\u0631\u0628\u0637 3 \u0641\u064A \u0627\u0644\u0628\u0648\u0627\u0628\u0629.",
+    "Dal morsetto 4 del fungo al morsetto A1 del rel\xE8 K2.": "\u0645\u0646 \u0627\u0644\u0645\u0631\u0628\u0637 4 \u0641\u064A \u0632\u0631 \u0627\u0644\u0637\u0648\u0627\u0631\u0626 \u0625\u0644\u0649 \u0627\u0644\u0645\u0631\u0628\u0637 A1 \u0641\u064A \u0627\u0644\u0645\u0631\u062D\u0651\u0644 K2.",
+    "Dal morsetto 4 del fungo all\u2019ingresso S22 del rel\xE8 di sicurezza.": "\u0645\u0646 \u0627\u0644\u0645\u0631\u0628\u0637 4 \u0641\u064A \u0632\u0631 \u0627\u0644\u0637\u0648\u0627\u0631\u0626 \u0625\u0644\u0649 \u0627\u0644\u0645\u062F\u062E\u0644 S22 \u0641\u064A \u0645\u0631\u062D\u0651\u0644 \u0627\u0644\u0623\u0645\u0627\u0646.",
+    "Dal morsetto 4 del pulsante all\u2019ingresso R del rel\xE8.": "\u0645\u0646 \u0627\u0644\u0645\u0631\u0628\u0637 4 \u0641\u064A \u0627\u0644\u0632\u0631 \u0625\u0644\u0649 \u0627\u0644\u0645\u062F\u062E\u0644 R \u0641\u064A \u0627\u0644\u0645\u0631\u062D\u0651\u0644.",
+    "Dal morsetto 4 della barriera all\u2019ingresso S22 del rel\xE8 di sicurezza.": "\u0645\u0646 \u0627\u0644\u0645\u0631\u0628\u0637 4 \u0641\u064A \u0627\u0644\u062D\u0627\u062C\u0632 \u0625\u0644\u0649 \u0627\u0644\u0645\u062F\u062E\u0644 S22 \u0641\u064A \u0645\u0631\u062D\u0651\u0644 \u0627\u0644\u0623\u0645\u0627\u0646.",
+    "Dal morsetto 4 della portella al morsetto 3 della barriera.": "\u0645\u0646 \u0627\u0644\u0645\u0631\u0628\u0637 4 \u0641\u064A \u0627\u0644\u0628\u0648\u0627\u0628\u0629 \u0625\u0644\u0649 \u0627\u0644\u0645\u0631\u0628\u0637 3 \u0641\u064A \u0627\u0644\u062D\u0627\u062C\u0632.",
+    "Dal pulsante all\u2019ingresso R del rel\xE8.": "\u0645\u0646 \u0627\u0644\u0632\u0631 \u0625\u0644\u0649 \u0627\u0644\u0645\u062F\u062E\u0644 R \u0641\u064A \u0627\u0644\u0645\u0631\u062D\u0651\u0644.",
+    "Dalla FASE ai morsetti 1 e 3 del fungo.": "\u0645\u0646 \u0627\u0644\u0637\u0648\u0631 \u0625\u0644\u0649 \u0627\u0644\u0645\u0631\u0628\u0637\u064A\u0646 1 \u06483 \u0641\u064A \u0632\u0631 \u0627\u0644\u0637\u0648\u0627\u0631\u0626.",
+    "Dalla FASE al morsetto 1 del contattore.": "\u0645\u0646 \u0627\u0644\u0637\u0648\u0631 \u0625\u0644\u0649 \u0627\u0644\u0645\u0631\u0628\u0637 1 \u0641\u064A \u0627\u0644\u0643\u0648\u0646\u062A\u0627\u0643\u062A\u0648\u0631.",
+    "Dalla FASE al morsetto 11 del rel\xE8 K1.": "\u0645\u0646 \u0627\u0644\u0637\u0648\u0631 \u0625\u0644\u0649 \u0627\u0644\u0645\u0631\u0628\u0637 11 \u0641\u064A \u0627\u0644\u0645\u0631\u062D\u0651\u0644 K1.",
+    "Dalla FASE al morsetto 13 del rel\xE8.": "\u0645\u0646 \u0627\u0644\u0637\u0648\u0631 \u0625\u0644\u0649 \u0627\u0644\u0645\u0631\u0628\u0637 13 \u0641\u064A \u0627\u0644\u0645\u0631\u062D\u0651\u0644.",
+    "Dalla FASE al morsetto 21 del contattore.": "\u0645\u0646 \u0627\u0644\u0637\u0648\u0631 \u0625\u0644\u0649 \u0627\u0644\u0645\u0631\u0628\u0637 21 \u0641\u064A \u0627\u0644\u0643\u0648\u0646\u062A\u0627\u0643\u062A\u0648\u0631.",
+    "Dalla FASE al morsetto A1 del rel\xE8 di sicurezza.": "\u0645\u0646 \u0627\u0644\u0637\u0648\u0631 \u0625\u0644\u0649 \u0627\u0644\u0645\u0631\u0628\u0637 A1 \u0641\u064A \u0645\u0631\u062D\u0651\u0644 \u0627\u0644\u0623\u0645\u0627\u0646.",
+    "Dalla FASE al morsetto A1 del rel\xE8.": "\u0645\u0646 \u0627\u0644\u0637\u0648\u0631 \u0625\u0644\u0649 \u0627\u0644\u0645\u0631\u0628\u0637 A1 \u0641\u064A \u0627\u0644\u0645\u0631\u062D\u0651\u0644.",
+    "Dalla FASE del quadro ai morsetti 1 e 3 del fungo: ogni canale ha il suo filo.": "\u0645\u0646 \u0637\u0648\u0631 \u0627\u0644\u0644\u0648\u062D\u0629 \u0625\u0644\u0649 \u0627\u0644\u0645\u0631\u0628\u0637\u064A\u0646 1 \u06483 \u0641\u064A \u0632\u0631 \u0627\u0644\u0637\u0648\u0627\u0631\u0626: \u0644\u0643\u0644 \u0642\u0646\u0627\u0629 \u0633\u0644\u0643\u0647\u0627.",
+    "Dall\u2019uscita 24 alla bobina del contattore (A1).": "\u0645\u0646 \u0627\u0644\u0645\u062E\u0631\u062C 24 \u0625\u0644\u0649 \u0645\u0644\u0641 \u0627\u0644\u0643\u0648\u0646\u062A\u0627\u0643\u062A\u0648\u0631 (A1).",
+    "Dall\u2019uscita 24 alla bobina del contattore.": "\u0645\u0646 \u0627\u0644\u0645\u062E\u0631\u062C 24 \u0625\u0644\u0649 \u0645\u0644\u0641 \u0627\u0644\u0643\u0648\u0646\u062A\u0627\u0643\u062A\u0648\u0631.",
+    "Dopo ogni arresto la macchina riparte solo con il riarmo, mai da sola richiudendo la portella.": "\u0628\u0639\u062F \u0643\u0644 \u062A\u0648\u0642\u0641 \u0644\u0627 \u062A\u0639\u0648\u062F \u0627\u0644\u0622\u0644\u0629 \u0625\u0644\u0649 \u0627\u0644\u0639\u0645\u0644 \u0625\u0644\u0627 \u0628\u0625\u0639\u0627\u062F\u0629 \u0627\u0644\u062A\u0633\u0644\u064A\u062D\u060C \u0648\u0644\u064A\u0633 \u0648\u062D\u062F\u0647\u0627 \u0639\u0646\u062F \u0625\u063A\u0644\u0627\u0642 \u0627\u0644\u0628\u0648\u0627\u0628\u0629.",
+    "Dopo un arresto non riparte da solo. Serve un impulso sul pulsante di riarmo: la macchina riparte per una scelta di chi sta davanti, non perch\xE9 il fungo \xE8 stato sbloccato.": "\u0628\u0639\u062F \u0627\u0644\u062A\u0648\u0642\u0641 \u0644\u0627 \u064A\u0639\u0648\u062F \u0625\u0644\u0649 \u0627\u0644\u0639\u0645\u0644 \u0648\u062D\u062F\u0647. \u064A\u0644\u0632\u0645 \u0646\u0628\u0636\u0629 \u0639\u0644\u0649 \u0632\u0631 \u0625\u0639\u0627\u062F\u0629 \u0627\u0644\u062A\u0633\u0644\u064A\u062D: \u062A\u0639\u0645\u0644 \u0627\u0644\u0622\u0644\u0629 \u0628\u0642\u0631\u0627\u0631 \u0645\u0646 \u064A\u0642\u0641 \u0623\u0645\u0627\u0645\u0647\u0627\u060C \u0648\u0644\u064A\u0633 \u0644\u0623\u0646 \u0632\u0631 \u0627\u0644\u0637\u0648\u0627\u0631\u0626 \u062A\u062D\u0631\u0651\u0631.",
+    "Dopo un arresto non riparte da solo: serve un impulso sul riarmo.": "\u0628\u0639\u062F \u0627\u0644\u062A\u0648\u0642\u0641 \u0644\u0627 \u064A\u0639\u0648\u062F \u0625\u0644\u0649 \u0627\u0644\u0639\u0645\u0644 \u0648\u062D\u062F\u0647: \u064A\u0644\u0632\u0645 \u0646\u0628\u0636\u0629 \u0639\u0644\u0649 \u0625\u0639\u0627\u062F\u0629 \u0627\u0644\u062A\u0633\u0644\u064A\u062D.",
+    "Due canali, riarmo manuale e un contattore che non deve restare incollato.": "\u0642\u0646\u0627\u062A\u0627\u0646 \u0648\u0625\u0639\u0627\u062F\u0629 \u062A\u0633\u0644\u064A\u062D \u064A\u062F\u0648\u064A\u0629 \u0648\u0643\u0648\u0646\u062A\u0627\u0643\u062A\u0648\u0631 \u064A\u062C\u0628 \u0623\u0644\u0627 \u064A\u0644\u062A\u0635\u0642.",
+    "Due contatti, due rel\xE8: l\u2019emergenza che funziona anche se uno si guasta.": "\u062A\u0644\u0627\u0645\u0633\u0627\u0646 \u0648\u0645\u0631\u062D\u0651\u0644\u0627\u0646: \u0637\u0648\u0627\u0631\u0626 \u062A\u0639\u0645\u0644 \u062D\u062A\u0649 \u0644\u0648 \u062A\u0639\u0637\u0644 \u0623\u062D\u062F\u0647\u0645\u0627.",
+    "Due soglie e l\u2019isteresi.": "\u0639\u062A\u0628\u062A\u0627\u0646 \u0648\u0627\u0644\u062A\u062E\u0644\u0651\u0641.",
+    "Filo blu da A2 al neutro.": "\u0633\u0644\u0643 \u0623\u0632\u0631\u0642 \u0645\u0646 A2 \u0625\u0644\u0649 \u0627\u0644\u0645\u062D\u0627\u064A\u062F.",
+    "Filo blu dal neutro alla lampada.": "\u0633\u0644\u0643 \u0623\u0632\u0631\u0642 \u0645\u0646 \u0627\u0644\u0645\u062D\u0627\u064A\u062F \u0625\u0644\u0649 \u0627\u0644\u0645\u0635\u0628\u0627\u062D.",
+    "Filo blu dal neutro alla macchina.": "\u0633\u0644\u0643 \u0623\u0632\u0631\u0642 \u0645\u0646 \u0627\u0644\u0645\u062D\u0627\u064A\u062F \u0625\u0644\u0649 \u0627\u0644\u0622\u0644\u0629.",
+    "Filo blu dalla bobina al neutro.": "\u0633\u0644\u0643 \u0623\u0632\u0631\u0642 \u0645\u0646 \u0627\u0644\u0645\u0644\u0641 \u0625\u0644\u0649 \u0627\u0644\u0645\u062D\u0627\u064A\u062F.",
+    "Filo blu dalla bobina del contattore al neutro.": "\u0633\u0644\u0643 \u0623\u0632\u0631\u0642 \u0645\u0646 \u0645\u0644\u0641 \u0627\u0644\u0643\u0648\u0646\u062A\u0627\u0643\u062A\u0648\u0631 \u0625\u0644\u0649 \u0627\u0644\u0645\u062D\u0627\u064A\u062F.",
+    "Filo blu dalla bobina di K1 al neutro.": "\u0633\u0644\u0643 \u0623\u0632\u0631\u0642 \u0645\u0646 \u0645\u0644\u0641 K1 \u0625\u0644\u0649 \u0627\u0644\u0645\u062D\u0627\u064A\u062F.",
+    "Filo blu dalla bobina di K2 al neutro.": "\u0633\u0644\u0643 \u0623\u0632\u0631\u0642 \u0645\u0646 \u0645\u0644\u0641 K2 \u0625\u0644\u0649 \u0627\u0644\u0645\u062D\u0627\u064A\u062F.",
+    "Frequenza e velocit\xE0, con le rampe.": "\u0627\u0644\u062A\u0631\u062F\u062F \u0648\u0627\u0644\u0633\u0631\u0639\u0629 \u0645\u0639 \u0627\u0644\u0645\u0646\u062D\u062F\u0631\u0627\u062A.",
+    "Fungo premuto: i canali cadono, il rel\xE8 apre le uscite e la macchina si ferma. Sbloccandolo, non riparte da sola.": "\u0632\u0631 \u0627\u0644\u0637\u0648\u0627\u0631\u0626 \u0645\u0636\u063A\u0648\u0637: \u062A\u0633\u0642\u0637 \u0627\u0644\u0642\u0646\u0627\u062A\u0627\u0646 \u0648\u064A\u0641\u062A\u062D \u0627\u0644\u0645\u0631\u062D\u0651\u0644 \u0645\u062E\u0627\u0631\u062C\u0647 \u0648\u062A\u062A\u0648\u0642\u0641 \u0627\u0644\u0622\u0644\u0629. \u0648\u0639\u0646\u062F \u062A\u062D\u0631\u064A\u0631\u0647 \u0644\u0627 \u062A\u0639\u0645\u0644 \u0648\u062D\u062F\u0647\u0627.",
+    "Fungo premuto: i due canali si aprono, i rel\xE8 si diseccitano e la macchina si ferma.": "\u0632\u0631 \u0627\u0644\u0637\u0648\u0627\u0631\u0626 \u0645\u0636\u063A\u0648\u0637: \u062A\u0646\u0641\u062A\u062D \u0627\u0644\u0642\u0646\u0627\u062A\u0627\u0646 \u0648\u064A\u0646\u0642\u0637\u0639 \u062A\u062D\u0631\u064A\u0636 \u0627\u0644\u0645\u0631\u062D\u0651\u0644\u064A\u0646 \u0648\u062A\u062A\u0648\u0642\u0641 \u0627\u0644\u0622\u0644\u0629.",
+    "Fungo sbloccato: la macchina \xE8 in marcia": "\u0632\u0631 \u0627\u0644\u0637\u0648\u0627\u0631\u0626 \u0645\u062D\u0631\u064E\u0651\u0631: \u0627\u0644\u0622\u0644\u0629 \u062A\u0639\u0645\u0644",
+    "Fungo, portella e barriera stanno in serie su ciascun canale: aprirne uno interrompe il canale.": "\u0632\u0631 \u0627\u0644\u0637\u0648\u0627\u0631\u0626 \u0648\u0627\u0644\u0628\u0648\u0627\u0628\u0629 \u0648\u0627\u0644\u062D\u0627\u062C\u0632 \u0639\u0644\u0649 \u0627\u0644\u062A\u0633\u0644\u0633\u0644 \u0641\u064A \u0643\u0644 \u0642\u0646\u0627\u0629: \u0641\u062A\u062D \u0623\u062D\u062F\u0647\u0627 \u064A\u0642\u0637\u0639 \u0627\u0644\u0642\u0646\u0627\u0629.",
+    "Ha due contatti normalmente chiusi, 1-2 e 3-4, uno per canale. Chiusa, i contatti sono chiusi; aperta, si aprono tutti e due. Toccala per aprirla o chiuderla. La barriera a raggi funziona allo stesso modo: interrotta, apre i contatti.": "\u0644\u0647\u0627 \u062A\u0644\u0627\u0645\u0633\u0627\u0646 \u0645\u063A\u0644\u0642\u0627\u0646 \u0639\u0627\u062F\u0629\u064B\u060C 1-2 \u06483-4\u060C \u0648\u0627\u062D\u062F \u0644\u0643\u0644 \u0642\u0646\u0627\u0629. \u0648\u0647\u064A \u0645\u063A\u0644\u0642\u0629 \u064A\u0643\u0648\u0646 \u0627\u0644\u062A\u0644\u0627\u0645\u0633\u0627\u0646 \u0645\u063A\u0644\u0642\u064A\u0646\u061B \u0648\u0639\u0646\u062F \u0641\u062A\u062D\u0647\u0627 \u064A\u0646\u0641\u062A\u062D\u0627\u0646 \u0645\u0639\u064B\u0627. \u0627\u0644\u0645\u0633\u0647\u0627 \u0644\u0641\u062A\u062D\u0647\u0627 \u0623\u0648 \u0625\u063A\u0644\u0627\u0642\u0647\u0627. \u0648\u062D\u0627\u062C\u0632 \u0627\u0644\u0623\u0634\u0639\u0629 \u064A\u0639\u0645\u0644 \u0628\u0627\u0644\u0637\u0631\u064A\u0642\u0629 \u0646\u0641\u0633\u0647\u0627: \u0639\u0646\u062F \u0642\u0637\u0639\u0647 \u062A\u0646\u0641\u062A\u062D \u0627\u0644\u062A\u0644\u0627\u0645\u0633\u0627\u062A.",
+    "Ha un contatto normalmente chiuso (o due, nel modello a due canali: 1-2 e 3-4). Premuto, si apre e resta bloccato: la macchina si ferma e non riparte finch\xE9 non lo sblocchi.": "\u0644\u0647 \u062A\u0644\u0627\u0645\u0633 \u0645\u063A\u0644\u0642 \u0639\u0627\u062F\u0629\u064B (\u0623\u0648 \u0627\u062B\u0646\u0627\u0646 \u0641\u064A \u0627\u0644\u0637\u0631\u0627\u0632 \u0630\u064A \u0627\u0644\u0642\u0646\u0627\u062A\u064A\u0646: 1-2 \u06483-4). \u0639\u0646\u062F \u0627\u0644\u0636\u063A\u0637 \u064A\u0646\u0641\u062A\u062D \u0648\u064A\u0628\u0642\u0649 \u0645\u062B\u0628\u0651\u062A\u064B\u0627: \u062A\u062A\u0648\u0642\u0641 \u0627\u0644\u0622\u0644\u0629 \u0648\u0644\u0627 \u062A\u0639\u0645\u0644 \u062D\u062A\u0649 \u062A\u062D\u0631\u0651\u0631\u0647.",
+    "Hai premuto il fungo e la macchina si \xE8 fermata. Lo sblocchi senza premere il riarmo. Che cosa succede?": "\u0636\u063A\u0637\u062A \u0632\u0631 \u0627\u0644\u0637\u0648\u0627\u0631\u0626 \u0641\u062A\u0648\u0642\u0641\u062A \u0627\u0644\u0622\u0644\u0629. \u062D\u0631\u0651\u0631\u062A\u0647 \u062F\u0648\u0646 \u0636\u063A\u0637 \u0625\u0639\u0627\u062F\u0629 \u0627\u0644\u062A\u0633\u0644\u064A\u062D. \u0645\u0627\u0630\u0627 \u064A\u062D\u062F\u062B\u061F",
+    "I contatti dei due rel\xE8 stanno in serie sul carico: ciascun canale pu\xF2 fermare la macchina da solo.": "\u062A\u0644\u0627\u0645\u0633\u0627\u062A \u0627\u0644\u0645\u0631\u062D\u0651\u0644\u064A\u0646 \u0639\u0644\u0649 \u0627\u0644\u062A\u0633\u0644\u0633\u0644 \u0645\u0639 \u0627\u0644\u062D\u0645\u0644: \u0643\u0644 \u0642\u0646\u0627\u0629 \u062A\u0633\u062A\u0637\u064A\u0639 \u0625\u064A\u0642\u0627\u0641 \u0627\u0644\u0622\u0644\u0629 \u0628\u0645\u0641\u0631\u062F\u0647\u0627.",
+    "I contatti dei rel\xE8 (11-14) sono in serie sul carico: la fase passa da K1, poi da K2, poi arriva alla lampada. Basta che uno si apra per fermare la macchina.": "\u062A\u0644\u0627\u0645\u0633\u0627\u062A \u0627\u0644\u0645\u0631\u062D\u0651\u0644\u064A\u0646 (11-14) \u0639\u0644\u0649 \u0627\u0644\u062A\u0633\u0644\u0633\u0644 \u0645\u0639 \u0627\u0644\u062D\u0645\u0644: \u064A\u0645\u0631 \u0627\u0644\u0637\u0648\u0631 \u0639\u0628\u0631 K1 \u062B\u0645 K2 \u062B\u0645 \u064A\u0635\u0644 \u0625\u0644\u0649 \u0627\u0644\u0645\u0635\u0628\u0627\u062D. \u064A\u0643\u0641\u064A \u0623\u0646 \u064A\u0646\u0641\u062A\u062D \u0623\u062D\u062F\u0647\u0627 \u0644\u0625\u064A\u0642\u0627\u0641 \u0627\u0644\u0622\u0644\u0629.",
+    "I contatti dei rel\xE8 dovrebbero stare in parallelo, non in serie.": "\u064A\u062C\u0628 \u0623\u0646 \u062A\u0643\u0648\u0646 \u062A\u0644\u0627\u0645\u0633\u0627\u062A \u0627\u0644\u0645\u0631\u062D\u0651\u0644\u064A\u0646 \u0639\u0644\u0649 \u0627\u0644\u062A\u0648\u0627\u0632\u064A \u0644\u0627 \u0639\u0644\u0649 \u0627\u0644\u062A\u0633\u0644\u0633\u0644.",
+    "I contatti di potenza di un contattore possono incollarsi, per esempio dopo molti cicli con carico forte. La bobina si spegne, ma la macchina continua a girare.": "\u0642\u062F \u062A\u0644\u062A\u0635\u0642 \u062A\u0644\u0627\u0645\u0633\u0627\u062A \u0627\u0644\u0642\u062F\u0631\u0629 \u0641\u064A \u0627\u0644\u0643\u0648\u0646\u062A\u0627\u0643\u062A\u0648\u0631\u060C \u0645\u062B\u0644\u064B\u0627 \u0628\u0639\u062F \u062F\u0648\u0631\u0627\u062A \u0643\u062B\u064A\u0631\u0629 \u0628\u062D\u0645\u0644 \u0643\u0628\u064A\u0631. \u064A\u0646\u0642\u0637\u0639 \u062A\u064A\u0627\u0631 \u0627\u0644\u0645\u0644\u0641 \u0644\u0643\u0646 \u0627\u0644\u0622\u0644\u0629 \u062A\u0648\u0627\u0635\u0644 \u0627\u0644\u062F\u0648\u0631\u0627\u0646.",
+    "I due contatti del fungo portano la fase ai due ingressi del rel\xE8 di sicurezza: 1-2 a S12, 3-4 a S22. Sono due fili che non si toccano.": "\u064A\u0648\u0635\u0644 \u062A\u0644\u0627\u0645\u0633\u0627 \u0632\u0631 \u0627\u0644\u0637\u0648\u0627\u0631\u0626 \u0627\u0644\u0637\u0648\u0631 \u0625\u0644\u0649 \u0645\u062F\u062E\u0644\u064A \u0645\u0631\u062D\u0651\u0644 \u0627\u0644\u0623\u0645\u0627\u0646: 1-2 \u0625\u0644\u0649 S12 \u06483-4 \u0625\u0644\u0649 S22. \u0647\u0645\u0627 \u0633\u0644\u0643\u0627\u0646 \u0644\u0627 \u064A\u062A\u0644\u0627\u0645\u0633\u0627\u0646.",
+    "I due contatti in serie": "\u0627\u0644\u062A\u0644\u0627\u0645\u0633\u0627\u0646 \u0639\u0644\u0649 \u0627\u0644\u062A\u0633\u0644\u0633\u0644",
+    "I due rel\xE8 dipendono dallo stesso contatto: se si incolla, nessuno dei due si diseccita. Il canale 2 del fungo, i morsetti 3 e 4, \xE8 libero. La serie dei contatti sul carico \xE8 giusta: \xE8 proprio quella che d\xE0 la ridondanza.": "\u064A\u0639\u062A\u0645\u062F \u0627\u0644\u0645\u0631\u062D\u0651\u0644\u0627\u0646 \u0639\u0644\u0649 \u0627\u0644\u062A\u0644\u0627\u0645\u0633 \u0646\u0641\u0633\u0647: \u0625\u0646 \u0627\u0644\u062A\u0635\u0642 \u0644\u0627 \u064A\u0646\u0642\u0637\u0639 \u062A\u062D\u0631\u064A\u0636 \u0623\u064A \u0645\u0646\u0647\u0645\u0627. \u0627\u0644\u0642\u0646\u0627\u0629 2 \u0641\u064A \u0632\u0631 \u0627\u0644\u0637\u0648\u0627\u0631\u0626\u060C \u0627\u0644\u0645\u0631\u0628\u0637\u0627\u0646 3 \u06484\u060C \u062D\u0631\u0651\u0629. \u0623\u0645\u0627 \u062A\u0633\u0644\u0633\u0644 \u0627\u0644\u062A\u0644\u0627\u0645\u0633\u0627\u062A \u0639\u0644\u0649 \u0627\u0644\u062D\u0645\u0644 \u0641\u0635\u062D\u064A\u062D: \u0648\u0647\u0648 \u0645\u0627 \u064A\u0639\u0637\u064A \u0627\u0644\u062A\u0643\u0631\u0627\u0631 \u0627\u0644\u0627\u062D\u062A\u064A\u0627\u0637\u064A.",
+    "Il canale 1 al rel\xE8": "\u0627\u0644\u0642\u0646\u0627\u0629 1 \u0625\u0644\u0649 \u0627\u0644\u0645\u0631\u062D\u0651\u0644",
+    "Il canale 1 alimenta la bobina del rel\xE8 K1, il canale 2 quella di K2. I contatti dei due rel\xE8 stanno in serie sul carico: la macchina va solo se tutti e due sono chiusi.": "\u062A\u063A\u0630\u064A \u0627\u0644\u0642\u0646\u0627\u0629 1 \u0645\u0644\u0641 \u0627\u0644\u0645\u0631\u062D\u0651\u0644 K1 \u0648\u062A\u063A\u0630\u064A \u0627\u0644\u0642\u0646\u0627\u0629 2 \u0645\u0644\u0641 K2. \u062A\u0644\u0627\u0645\u0633\u0627\u062A \u0627\u0644\u0645\u0631\u062D\u0651\u0644\u064A\u0646 \u0639\u0644\u0649 \u0627\u0644\u062A\u0633\u0644\u0633\u0644 \u0645\u0639 \u0627\u0644\u062D\u0645\u0644: \u062A\u0639\u0645\u0644 \u0627\u0644\u0622\u0644\u0629 \u0641\u0642\u0637 \u0625\u0630\u0627 \u0643\u0627\u0646 \u0627\u0644\u0627\u062B\u0646\u0627\u0646 \u0645\u063A\u0644\u0642\u064A\u0646.",
+    "Il canale 1 alla barriera": "\u0627\u0644\u0642\u0646\u0627\u0629 1 \u0625\u0644\u0649 \u0627\u0644\u062D\u0627\u062C\u0632",
+    "Il canale 1 alla bobina di K1": "\u0627\u0644\u0642\u0646\u0627\u0629 1 \u0625\u0644\u0649 \u0645\u0644\u0641 K1",
+    "Il canale 1 alla portella": "\u0627\u0644\u0642\u0646\u0627\u0629 1 \u0625\u0644\u0649 \u0627\u0644\u0628\u0648\u0627\u0628\u0629",
+    "Il canale 1 porta la fase dal contatto 1-2 alla bobina di K1; il canale 2 la porta dal contatto 3-4 alla bobina di K2. Le due bobine tornano al neutro.": "\u062A\u062D\u0645\u0644 \u0627\u0644\u0642\u0646\u0627\u0629 1 \u0627\u0644\u0637\u0648\u0631 \u0645\u0646 \u0627\u0644\u062A\u0644\u0627\u0645\u0633 1-2 \u0625\u0644\u0649 \u0645\u0644\u0641 K1\u060C \u0648\u062A\u062D\u0645\u0644\u0647 \u0627\u0644\u0642\u0646\u0627\u0629 2 \u0645\u0646 \u0627\u0644\u062A\u0644\u0627\u0645\u0633 3-4 \u0625\u0644\u0649 \u0645\u0644\u0641 K2. \u0648\u064A\u0639\u0648\u062F \u0627\u0644\u0645\u0644\u0641\u0627\u0646 \u0625\u0644\u0649 \u0627\u0644\u0645\u062D\u0627\u064A\u062F.",
+    "Il canale 2 al rel\xE8": "\u0627\u0644\u0642\u0646\u0627\u0629 2 \u0625\u0644\u0649 \u0627\u0644\u0645\u0631\u062D\u0651\u0644",
+    "Il canale 2 alla barriera": "\u0627\u0644\u0642\u0646\u0627\u0629 2 \u0625\u0644\u0649 \u0627\u0644\u062D\u0627\u062C\u0632",
+    "Il canale 2 alla bobina di K2": "\u0627\u0644\u0642\u0646\u0627\u0629 2 \u0625\u0644\u0649 \u0645\u0644\u0641 K2",
+    "Il canale 2 alla portella": "\u0627\u0644\u0642\u0646\u0627\u0629 2 \u0625\u0644\u0649 \u0627\u0644\u0628\u0648\u0627\u0628\u0629",
+    "Il canale 2 deve passare anche da portella e barriera: togli il filo dal contatto 4 del fungo al rel\xE8. Collega il 4 al contatto 3 della portella, il 4 della portella al 3 della barriera e il 4 della barriera all\u2019ingresso S22. Poi premi Verifica.": "\u064A\u062C\u0628 \u0623\u0646 \u062A\u0645\u0631 \u0627\u0644\u0642\u0646\u0627\u0629 2 \u0623\u064A\u0636\u064B\u0627 \u0639\u0628\u0631 \u0627\u0644\u0628\u0648\u0627\u0628\u0629 \u0648\u0627\u0644\u062D\u0627\u062C\u0632: \u0627\u0646\u0632\u0639 \u0627\u0644\u0633\u0644\u0643 \u0645\u0646 \u0627\u0644\u062A\u0644\u0627\u0645\u0633 4 \u0641\u064A \u0632\u0631 \u0627\u0644\u0637\u0648\u0627\u0631\u0626 \u0625\u0644\u0649 \u0627\u0644\u0645\u0631\u062D\u0651\u0644. \u0635\u0644 4 \u0628\u0627\u0644\u062A\u0644\u0627\u0645\u0633 3 \u0641\u064A \u0627\u0644\u0628\u0648\u0627\u0628\u0629\u060C \u06484 \u0641\u064A \u0627\u0644\u0628\u0648\u0627\u0628\u0629 \u0628\u06403 \u0641\u064A \u0627\u0644\u062D\u0627\u062C\u0632\u060C \u06484 \u0641\u064A \u0627\u0644\u062D\u0627\u062C\u0632 \u0628\u0627\u0644\u0645\u062F\u062E\u0644 S22. \u062B\u0645 \u0627\u0636\u063A\u0637 \xAB\u062A\u062D\u0642\u0642\xBB.",
+    "Il contatto NC 21-22 del contattore \xE8 aperto quando i contatti di potenza sono chiusi. Se il riarmo non passa da l\xEC, un contattore incollato non viene scoperto e la macchina pu\xF2 restare in marcia anche dopo l\u2019emergenza.": "\u0627\u0644\u062A\u0644\u0627\u0645\u0633 NC 21-22 \u0641\u064A \u0627\u0644\u0643\u0648\u0646\u062A\u0627\u0643\u062A\u0648\u0631 \u0645\u0641\u062A\u0648\u062D \u0639\u0646\u062F\u0645\u0627 \u062A\u0643\u0648\u0646 \u062A\u0644\u0627\u0645\u0633\u0627\u062A \u0627\u0644\u0642\u062F\u0631\u0629 \u0645\u063A\u0644\u0642\u0629. \u0625\u0646 \u0644\u0645 \u062A\u0645\u0631 \u0625\u0639\u0627\u062F\u0629 \u0627\u0644\u062A\u0633\u0644\u064A\u062D \u0645\u0646\u0647\u060C \u0644\u0627 \u064A\u064F\u0643\u062A\u0634\u0641 \u0627\u0644\u0643\u0648\u0646\u062A\u0627\u0643\u062A\u0648\u0631 \u0627\u0644\u0645\u0644\u062A\u0635\u0642 \u0648\u0642\u062F \u062A\u0628\u0642\u0649 \u0627\u0644\u0622\u0644\u0629 \u062A\u0639\u0645\u0644 \u062D\u062A\u0649 \u0628\u0639\u062F \u0627\u0644\u0637\u0648\u0627\u0631\u0626.",
+    "Il contattore incollato": "\u0627\u0644\u0643\u0648\u0646\u062A\u0627\u0643\u062A\u0648\u0631 \u0627\u0644\u0645\u0644\u062A\u0635\u0642",
+    "Il fungo di emergenza ha due contatti normalmente chiusi: uno per canale.": "\u0644\u0632\u0631 \u0627\u0644\u0637\u0648\u0627\u0631\u0626 \u062A\u0644\u0627\u0645\u0633\u0627\u0646 \u0645\u063A\u0644\u0642\u0627\u0646 \u0639\u0627\u062F\u0629\u064B: \u0648\u0627\u062D\u062F \u0644\u0643\u0644 \u0642\u0646\u0627\u0629.",
+    "Il fungo e i due rel\xE8": "\u0632\u0631 \u0627\u0644\u0637\u0648\u0627\u0631\u0626 \u0648\u0627\u0644\u0645\u0631\u062D\u0651\u0644\u0627\u0646",
+    "Il fungo ha due contatti normalmente chiusi: 1-2 (canale 1) e 3-4 (canale 2). Ognuno alimenta una sola bobina.": "\u0644\u0632\u0631 \u0627\u0644\u0637\u0648\u0627\u0631\u0626 \u062A\u0644\u0627\u0645\u0633\u0627\u0646 \u0645\u063A\u0644\u0642\u0627\u0646 \u0639\u0627\u062F\u0629\u064B: 1-2 (\u0627\u0644\u0642\u0646\u0627\u0629 1) \u06483-4 (\u0627\u0644\u0642\u0646\u0627\u0629 2). \u0643\u0644 \u0645\u0646\u0647\u0645\u0627 \u064A\u063A\u0630\u064A \u0645\u0644\u0641\u064B\u0627 \u0648\u0627\u062D\u062F\u064B\u0627 \u0641\u0642\u0637.",
+    "Il fungo ha due contatti, ma hai collegato le bobine di K1 e di K2 allo stesso contatto. Che cosa hai perso?": "\u0644\u0632\u0631 \u0627\u0644\u0637\u0648\u0627\u0631\u0626 \u062A\u0644\u0627\u0645\u0633\u0627\u0646\u060C \u0644\u0643\u0646\u0643 \u0648\u0635\u0644\u062A \u0645\u0644\u0641\u064A K1 \u0648K2 \u0628\u0627\u0644\u062A\u0644\u0627\u0645\u0633 \u0646\u0641\u0633\u0647. \u0645\u0627\u0630\u0627 \u0641\u0642\u062F\u062A\u061F",
+    "Il fungo ha quattro morsetti: 1-2 \xE8 il canale 1 e 3-4 il canale 2. A riposo i contatti sono chiusi; premuto, si aprono insieme e il fungo resta bloccato finch\xE9 non lo ruoti.": "\u0644\u0632\u0631 \u0627\u0644\u0637\u0648\u0627\u0631\u0626 \u0623\u0631\u0628\u0639\u0629 \u0645\u0631\u0627\u0628\u0637: 1-2 \u0647\u064A \u0627\u0644\u0642\u0646\u0627\u0629 1 \u06483-4 \u0647\u064A \u0627\u0644\u0642\u0646\u0627\u0629 2. \u0641\u064A \u062D\u0627\u0644\u0629 \u0627\u0644\u0631\u0627\u062D\u0629 \u062A\u0643\u0648\u0646 \u0627\u0644\u062A\u0644\u0627\u0645\u0633\u0627\u062A \u0645\u063A\u0644\u0642\u0629\u061B \u0648\u0639\u0646\u062F \u0627\u0644\u0636\u063A\u0637 \u062A\u0646\u0641\u062A\u062D \u0645\u0639\u064B\u0627 \u0648\u064A\u0628\u0642\u0649 \u0627\u0644\u0632\u0631 \u0645\u062B\u0628\u0651\u062A\u064B\u0627 \u062D\u062A\u0649 \u062A\u062F\u064A\u0631\u0647.",
+    "Il neutro al rel\xE8": "\u0627\u0644\u0645\u062D\u0627\u064A\u062F \u0625\u0644\u0649 \u0627\u0644\u0645\u0631\u062D\u0651\u0644",
+    "Il neutro alla macchina": "\u0627\u0644\u0645\u062D\u0627\u064A\u062F \u0625\u0644\u0649 \u0627\u0644\u0622\u0644\u0629",
+    "Il neutro alle bobine": "\u0627\u0644\u0645\u062D\u0627\u064A\u062F \u0625\u0644\u0649 \u0627\u0644\u0645\u0644\u0641\u0627\u062A",
+    "Il neutro delle bobine \xE8 collegato male.": "\u0645\u062D\u0627\u064A\u062F \u0627\u0644\u0645\u0644\u0641\u0627\u062A \u0645\u0648\u0635\u0648\u0644 \u0628\u0634\u0643\u0644 \u062E\u0627\u0637\u0626.",
+    "Il rel\xE8 di sicurezza KS": "\u0645\u0631\u062D\u0651\u0644 \u0627\u0644\u0623\u0645\u0627\u0646 KS",
+    "Il rel\xE8 di sicurezza KS controlla i due canali del fungo. A fungo sbloccato, la macchina parte solo dopo il pulsante di riarmo. Il riarmo passa dal contatto NC del contattore KM: se KM resta incollato, KS non si riarma. Le uscite 13-14 e 23-24 sono in serie alla bobina di KM.": "\u064A\u0631\u0627\u0642\u0628 \u0645\u0631\u062D\u0651\u0644 \u0627\u0644\u0623\u0645\u0627\u0646 KS \u0642\u0646\u0627\u062A\u064A \u0632\u0631 \u0627\u0644\u0637\u0648\u0627\u0631\u0626. \u0648\u0639\u0646\u062F \u062A\u062D\u0631\u064A\u0631 \u0627\u0644\u0632\u0631 \u062A\u0639\u0645\u0644 \u0627\u0644\u0622\u0644\u0629 \u0641\u0642\u0637 \u0628\u0639\u062F \u0636\u063A\u0637 \u0632\u0631 \u0625\u0639\u0627\u062F\u0629 \u0627\u0644\u062A\u0633\u0644\u064A\u062D. \u0648\u062A\u0645\u0631 \u0625\u0639\u0627\u062F\u0629 \u0627\u0644\u062A\u0633\u0644\u064A\u062D \u0639\u0628\u0631 \u0627\u0644\u062A\u0644\u0627\u0645\u0633 NC \u0641\u064A \u0627\u0644\u0643\u0648\u0646\u062A\u0627\u0643\u062A\u0648\u0631 KM: \u0625\u0646 \u0627\u0644\u062A\u0635\u0642 KM \u0644\u0627 \u064A\u0639\u064A\u062F KS \u062A\u0633\u0644\u064A\u062D \u0646\u0641\u0633\u0647. \u0627\u0644\u0645\u062E\u0631\u062C\u0627\u0646 13-14 \u064823-24 \u0639\u0644\u0649 \u0627\u0644\u062A\u0633\u0644\u0633\u0644 \u0645\u0639 \u0645\u0644\u0641 KM.",
+    "Il rel\xE8 di sicurezza controlla i due canali del fungo e apre le uscite se uno solo cade.": "\u064A\u0631\u0627\u0642\u0628 \u0645\u0631\u062D\u0651\u0644 \u0627\u0644\u0623\u0645\u0627\u0646 \u0642\u0646\u0627\u062A\u064A \u0632\u0631 \u0627\u0644\u0637\u0648\u0627\u0631\u0626 \u0648\u064A\u0641\u062A\u062D \u0645\u062E\u0627\u0631\u062C\u0647 \u0625\u0630\u0627 \u0633\u0642\u0637\u062A \u0648\u0627\u062D\u062F\u0629 \u0641\u0642\u0637.",
+    "Il rel\xE8 di sicurezza e il contatto NC del contattore nel riarmo valgono per tutta la catena.": "\u0645\u0631\u062D\u0651\u0644 \u0627\u0644\u0623\u0645\u0627\u0646 \u0648\u0627\u0644\u062A\u0644\u0627\u0645\u0633 NC \u0644\u0644\u0643\u0648\u0646\u062A\u0627\u0643\u062A\u0648\u0631 \u0641\u064A \u0625\u0639\u0627\u062F\u0629 \u0627\u0644\u062A\u0633\u0644\u064A\u062D \u064A\u0633\u0631\u064A\u0627\u0646 \u0639\u0644\u0649 \u0627\u0644\u0633\u0644\u0633\u0644\u0629 \u0643\u0644\u0647\u0627.",
+    "Il rel\xE8 di sicurezza non se ne accorge e si riarma lo stesso: manca il contatto NC del contattore nel riarmo.": "\u0644\u0627 \u064A\u0644\u0627\u062D\u0638 \u0645\u0631\u062D\u0651\u0644 \u0627\u0644\u0623\u0645\u0627\u0646 \u0630\u0644\u0643 \u0648\u064A\u0639\u064A\u062F \u062A\u0633\u0644\u064A\u062D \u0646\u0641\u0633\u0647 \u0639\u0644\u0649 \u0623\u064A \u062D\u0627\u0644: \u0627\u0644\u062A\u0644\u0627\u0645\u0633 NC \u0644\u0644\u0643\u0648\u0646\u062A\u0627\u0643\u062A\u0648\u0631 \u063A\u0627\u0626\u0628 \u0639\u0646 \u0625\u0639\u0627\u062F\u0629 \u0627\u0644\u062A\u0633\u0644\u064A\u062D.",
+    "Il rel\xE8 di sicurezza non si limita a passare un contatto: controlla. Legge i due canali del fungo, e se uno solo cade apre le sue uscite. Se i due canali non cambiano insieme, segnala una discrepanza e si blocca finch\xE9 non tornano entrambi a riposo.": "\u0644\u0627 \u064A\u0643\u062A\u0641\u064A \u0645\u0631\u062D\u0651\u0644 \u0627\u0644\u0623\u0645\u0627\u0646 \u0628\u062A\u0645\u0631\u064A\u0631 \u062A\u0644\u0627\u0645\u0633: \u0625\u0646\u0647 \u064A\u0631\u0627\u0642\u0628. \u064A\u0642\u0631\u0623 \u0642\u0646\u0627\u062A\u064A \u0632\u0631 \u0627\u0644\u0637\u0648\u0627\u0631\u0626\u060C \u0648\u0625\u0646 \u0633\u0642\u0637\u062A \u0648\u0627\u062D\u062F\u0629 \u0641\u0642\u0637 \u064A\u0641\u062A\u062D \u0645\u062E\u0627\u0631\u062C\u0647. \u0648\u0625\u0630\u0627 \u0644\u0645 \u062A\u062A\u063A\u064A\u0631 \u0627\u0644\u0642\u0646\u0627\u062A\u0627\u0646 \u0645\u0639\u064B\u0627 \u064A\u0634\u064A\u0631 \u0625\u0644\u0649 \u0639\u062F\u0645 \u062A\u0637\u0627\u0628\u0642 \u0648\u064A\u062A\u0639\u0637\u0644 \u062D\u062A\u0649 \u062A\u0639\u0648\u062F\u0627 \u0643\u0644\u062A\u0627\u0647\u0645\u0627 \u0625\u0644\u0649 \u0627\u0644\u0631\u0627\u062D\u0629.",
+    "Il rel\xE8 di sicurezza si alimenta in A1-A2 (fase e neutro). Le sue uscite 13-14 e 23-24 sono in serie, e alimentano la bobina del contattore KM.": "\u064A\u064F\u063A\u0630\u0651\u0649 \u0645\u0631\u062D\u0651\u0644 \u0627\u0644\u0623\u0645\u0627\u0646 \u0641\u064A A1-A2 (\u0627\u0644\u0637\u0648\u0631 \u0648\u0627\u0644\u0645\u062D\u0627\u064A\u062F). \u0645\u062E\u0631\u062C\u0627\u0647 13-14 \u064823-24 \u0639\u0644\u0649 \u0627\u0644\u062A\u0633\u0644\u0633\u0644\u060C \u0648\u064A\u063A\u0630\u064A\u0627\u0646 \u0645\u0644\u0641 \u0627\u0644\u0643\u0648\u0646\u062A\u0627\u0643\u062A\u0648\u0631 KM.",
+    "Il rel\xE8 si blocca per sempre.": "\u064A\u062A\u0639\u0637\u0644 \u0627\u0644\u0645\u0631\u062D\u0651\u0644 \u0625\u0644\u0649 \u0627\u0644\u0623\u0628\u062F.",
+    "Il rel\xE8 si rompe.": "\u064A\u062A\u0644\u0641 \u0627\u0644\u0645\u0631\u062D\u0651\u0644.",
+    "Il rel\xE8 tiene aperte le uscite finch\xE9 non riceve un impulso nuovo sul riarmo. Se ripartisse da solo, un fungo sbloccato mentre qualcuno \xE8 ancora vicino alla macchina potrebbe farla muovere.": "\u064A\u064F\u0628\u0642\u064A \u0627\u0644\u0645\u0631\u062D\u0651\u0644 \u0645\u062E\u0627\u0631\u062C\u0647 \u0645\u0641\u062A\u0648\u062D\u0629 \u062D\u062A\u0649 \u064A\u062A\u0644\u0642\u0649 \u0646\u0628\u0636\u0629 \u062C\u062F\u064A\u062F\u0629 \u0639\u0644\u0649 \u0625\u0639\u0627\u062F\u0629 \u0627\u0644\u062A\u0633\u0644\u064A\u062D. \u0648\u0644\u0648 \u0639\u0627\u062F\u062A \u0627\u0644\u0622\u0644\u0629 \u0648\u062D\u062F\u0647\u0627\u060C \u0641\u0642\u062F \u064A\u062D\u0631\u0651\u0643\u0647\u0627 \u0632\u0631 \u0637\u0648\u0627\u0631\u0626 \u0645\u062D\u0631\u064E\u0651\u0631 \u0628\u064A\u0646\u0645\u0627 \u0644\u0627 \u064A\u0632\u0627\u0644 \u0623\u062D\u062F \u0642\u0631\u064A\u0628\u064B\u0627 \u0645\u0646\u0647\u0627.",
+    "Il riarmo al rel\xE8": "\u0625\u0639\u0627\u062F\u0629 \u0627\u0644\u062A\u0633\u0644\u064A\u062D \u0625\u0644\u0649 \u0627\u0644\u0645\u0631\u062D\u0651\u0644",
+    "Il riarmo dal contatto NC": "\u0625\u0639\u0627\u062F\u0629 \u0627\u0644\u062A\u0633\u0644\u064A\u062D \u0645\u0646 \u0627\u0644\u062A\u0644\u0627\u0645\u0633 NC",
+    "Il riarmo parte dal contatto NC": "\u0625\u0639\u0627\u062F\u0629 \u0627\u0644\u062A\u0633\u0644\u064A\u062D \u062A\u0628\u062F\u0623 \u0645\u0646 \u0627\u0644\u062A\u0644\u0627\u0645\u0633 NC",
+    "Il riarmo parte dalla fase e va al contatto NC 21 del contattore.": "\u062A\u0628\u062F\u0623 \u0625\u0639\u0627\u062F\u0629 \u0627\u0644\u062A\u0633\u0644\u064A\u062D \u0645\u0646 \u0627\u0644\u0637\u0648\u0631 \u0648\u062A\u0630\u0647\u0628 \u0625\u0644\u0649 \u0627\u0644\u062A\u0644\u0627\u0645\u0633 NC 21 \u0641\u064A \u0627\u0644\u0643\u0648\u0646\u062A\u0627\u0643\u062A\u0648\u0631.",
+    "Il riarmo parte dalla fase, passa dal contatto NC 21-22 del contattore, poi dal pulsante di riarmo, e arriva a R.": "\u062A\u0628\u062F\u0623 \u0625\u0639\u0627\u062F\u0629 \u0627\u0644\u062A\u0633\u0644\u064A\u062D \u0645\u0646 \u0627\u0644\u0637\u0648\u0631\u060C \u0648\u062A\u0645\u0631 \u0628\u0627\u0644\u062A\u0644\u0627\u0645\u0633 NC 21-22 \u0641\u064A \u0627\u0644\u0643\u0648\u0646\u062A\u0627\u0643\u062A\u0648\u0631\u060C \u062B\u0645 \u0628\u0632\u0631 \u0625\u0639\u0627\u062F\u0629 \u0627\u0644\u062A\u0633\u0644\u064A\u062D\u060C \u0648\u062A\u0635\u0644 \u0625\u0644\u0649 R.",
+    "Il riarmo passa dal contatto NC del contattore: cos\xEC il rel\xE8 scopre il guasto e non si riarma.": "\u062A\u0645\u0631 \u0625\u0639\u0627\u062F\u0629 \u0627\u0644\u062A\u0633\u0644\u064A\u062D \u0639\u0628\u0631 \u0627\u0644\u062A\u0644\u0627\u0645\u0633 NC \u0644\u0644\u0643\u0648\u0646\u062A\u0627\u0643\u062A\u0648\u0631: \u0648\u0647\u0643\u0630\u0627 \u064A\u0643\u062A\u0634\u0641 \u0627\u0644\u0645\u0631\u062D\u0651\u0644 \u0627\u0644\u0639\u0637\u0644 \u0648\u0644\u0627 \u064A\u0639\u064A\u062F \u062A\u0633\u0644\u064A\u062D \u0646\u0641\u0633\u0647.",
+    "Il riarmo: dalla fase, prima il contatto NC 21-22 del contattore, poi il pulsante di riarmo, poi il morsetto R. Se il contattore resta incollato il contatto NC \xE8 aperto e il rel\xE8 non si riarma.": "\u0625\u0639\u0627\u062F\u0629 \u0627\u0644\u062A\u0633\u0644\u064A\u062D: \u0645\u0646 \u0627\u0644\u0637\u0648\u0631\u060C \u0623\u0648\u0644\u064B\u0627 \u0627\u0644\u062A\u0644\u0627\u0645\u0633 NC 21-22 \u0641\u064A \u0627\u0644\u0643\u0648\u0646\u062A\u0627\u0643\u062A\u0648\u0631\u060C \u062B\u0645 \u0632\u0631 \u0625\u0639\u0627\u062F\u0629 \u0627\u0644\u062A\u0633\u0644\u064A\u062D\u060C \u062B\u0645 \u0627\u0644\u0645\u0631\u0628\u0637 R. \u0625\u0646 \u0627\u0644\u062A\u0635\u0642 \u0627\u0644\u0643\u0648\u0646\u062A\u0627\u0643\u062A\u0648\u0631 \u064A\u0643\u0648\u0646 \u0627\u0644\u062A\u0644\u0627\u0645\u0633 NC \u0645\u0641\u062A\u0648\u062D\u064B\u0627 \u0648\u0644\u0627 \u064A\u0639\u064A\u062F \u0627\u0644\u0645\u0631\u062D\u0651\u0644 \u062A\u0633\u0644\u064A\u062D \u0646\u0641\u0633\u0647.",
+    "In A1-A2 il rel\xE8 \xE8 alimentato. I morsetti S12 e S22 sono i due ingressi dei canali, R \xE8 l\u2019ingresso del riarmo. Le uscite 13-14 e 23-24 sono due contatti NA che stanno in serie alla bobina del contattore.": "\u0641\u064A A1-A2 \u064A\u064F\u063A\u0630\u0651\u0649 \u0627\u0644\u0645\u0631\u062D\u0651\u0644. \u0627\u0644\u0645\u0631\u0628\u0637\u0627\u0646 S12 \u0648S22 \u0647\u0645\u0627 \u0645\u062F\u062E\u0644\u0627 \u0627\u0644\u0642\u0646\u0627\u062A\u064A\u0646\u060C \u0648R \u0647\u0648 \u0645\u062F\u062E\u0644 \u0625\u0639\u0627\u062F\u0629 \u0627\u0644\u062A\u0633\u0644\u064A\u062D. \u0627\u0644\u0645\u062E\u0631\u062C\u0627\u0646 13-14 \u064823-24 \u062A\u0644\u0627\u0645\u0633\u0627\u0646 NA \u0639\u0644\u0649 \u0627\u0644\u062A\u0633\u0644\u0633\u0644 \u0645\u0639 \u0645\u0644\u0641 \u0627\u0644\u0643\u0648\u0646\u062A\u0627\u0643\u062A\u0648\u0631.",
+    "Interrompi la barriera: la macchina si ferma": "\u0627\u0642\u0637\u0639 \u0627\u0644\u062D\u0627\u062C\u0632: \u062A\u062A\u0648\u0642\u0641 \u0627\u0644\u0622\u0644\u0629",
+    "La fase ai due canali": "\u0627\u0644\u0637\u0648\u0631 \u0625\u0644\u0649 \u0627\u0644\u0642\u0646\u0627\u062A\u064A\u0646",
+    "La fase al contatto 1 del fungo: canale 1.": "\u0627\u0644\u0637\u0648\u0631 \u0625\u0644\u0649 \u0627\u0644\u062A\u0644\u0627\u0645\u0633 1 \u0641\u064A \u0632\u0631 \u0627\u0644\u0637\u0648\u0627\u0631\u0626: \u0627\u0644\u0642\u0646\u0627\u0629 1.",
+    "La fase al contatto 3 del fungo: canale 2.": "\u0627\u0644\u0637\u0648\u0631 \u0625\u0644\u0649 \u0627\u0644\u062A\u0644\u0627\u0645\u0633 3 \u0641\u064A \u0632\u0631 \u0627\u0644\u0637\u0648\u0627\u0631\u0626: \u0627\u0644\u0642\u0646\u0627\u0629 2.",
+    "La fase al contatto 3 del fungo: il canale 2.": "\u0627\u0644\u0637\u0648\u0631 \u0625\u0644\u0649 \u0627\u0644\u062A\u0644\u0627\u0645\u0633 3 \u0641\u064A \u0632\u0631 \u0627\u0644\u0637\u0648\u0627\u0631\u0626: \u0627\u0644\u0642\u0646\u0627\u0629 2.",
+    "La fase al contatto di K1": "\u0627\u0644\u0637\u0648\u0631 \u0625\u0644\u0649 \u062A\u0644\u0627\u0645\u0633 K1",
+    "La fase al contatto di K1 (morsetto 11).": "\u0627\u0644\u0637\u0648\u0631 \u0625\u0644\u0649 \u062A\u0644\u0627\u0645\u0633 K1 (\u0627\u0644\u0645\u0631\u0628\u0637 11).",
+    "La fase al contatto di potenza": "\u0627\u0644\u0637\u0648\u0631 \u0625\u0644\u0649 \u062A\u0644\u0627\u0645\u0633 \u0627\u0644\u0642\u062F\u0631\u0629",
+    "La fase al contatto di potenza del contattore (1).": "\u0627\u0644\u0637\u0648\u0631 \u0625\u0644\u0649 \u062A\u0644\u0627\u0645\u0633 \u0627\u0644\u0642\u062F\u0631\u0629 \u0641\u064A \u0627\u0644\u0643\u0648\u0646\u062A\u0627\u0643\u062A\u0648\u0631 (1).",
+    "La fase al contatto di potenza del contattore.": "\u0627\u0644\u0637\u0648\u0631 \u0625\u0644\u0649 \u062A\u0644\u0627\u0645\u0633 \u0627\u0644\u0642\u062F\u0631\u0629 \u0641\u064A \u0627\u0644\u0643\u0648\u0646\u062A\u0627\u0643\u062A\u0648\u0631.",
+    "La fase alle uscite": "\u0627\u0644\u0637\u0648\u0631 \u0625\u0644\u0649 \u0627\u0644\u0645\u062E\u0627\u0631\u062C",
+    "La fase all\u2019alimentazione A1 del rel\xE8 di sicurezza.": "\u0627\u0644\u0637\u0648\u0631 \u0625\u0644\u0649 \u062A\u063A\u0630\u064A\u0629 A1 \u0641\u064A \u0645\u0631\u062D\u0651\u0644 \u0627\u0644\u0623\u0645\u0627\u0646.",
+    "La fase all\u2019alimentazione A1 del rel\xE8.": "\u0627\u0644\u0637\u0648\u0631 \u0625\u0644\u0649 \u062A\u063A\u0630\u064A\u0629 A1 \u0641\u064A \u0627\u0644\u0645\u0631\u062D\u0651\u0644.",
+    "La fase all\u2019uscita 13 del rel\xE8.": "\u0627\u0644\u0637\u0648\u0631 \u0625\u0644\u0649 \u0627\u0644\u0645\u062E\u0631\u062C 13 \u0641\u064A \u0627\u0644\u0645\u0631\u062D\u0651\u0644.",
+    "La fase dal quadro al contatto 1 del fungo: il canale 1.": "\u0627\u0644\u0637\u0648\u0631 \u0645\u0646 \u0627\u0644\u0644\u0648\u062D\u0629 \u0625\u0644\u0649 \u0627\u0644\u062A\u0644\u0627\u0645\u0633 1 \u0641\u064A \u0632\u0631 \u0627\u0644\u0637\u0648\u0627\u0631\u0626: \u0627\u0644\u0642\u0646\u0627\u0629 1.",
+    "La macchina (la lampada) si alimenta dal contatto di potenza del contattore, 1-2.": "\u062A\u064F\u063A\u0630\u0651\u0649 \u0627\u0644\u0622\u0644\u0629 (\u0627\u0644\u0645\u0635\u0628\u0627\u062D) \u0645\u0646 \u062A\u0644\u0627\u0645\u0633 \u0627\u0644\u0642\u062F\u0631\u0629 \u0641\u064A \u0627\u0644\u0643\u0648\u0646\u062A\u0627\u0643\u062A\u0648\u0631\u060C 1-2.",
+    "La macchina non parte pi\xF9.": "\u0644\u0627 \u062A\u0639\u0645\u0644 \u0627\u0644\u0622\u0644\u0629 \u0628\u0639\u062F \u0627\u0644\u0622\u0646.",
+    "La macchina riparte appena la portella \xE8 chiusa.": "\u062A\u0639\u0648\u062F \u0627\u0644\u0622\u0644\u0629 \u0625\u0644\u0649 \u0627\u0644\u0639\u0645\u0644 \u0628\u0645\u062C\u0631\u062F \u0625\u063A\u0644\u0627\u0642 \u0627\u0644\u0628\u0648\u0627\u0628\u0629.",
+    "La macchina riparte, perch\xE9 i due canali sono tornati chiusi.": "\u062A\u0639\u0648\u062F \u0627\u0644\u0622\u0644\u0629 \u0625\u0644\u0649 \u0627\u0644\u0639\u0645\u0644\u060C \u0644\u0623\u0646 \u0627\u0644\u0642\u0646\u0627\u062A\u064A\u0646 \u0639\u0627\u062F\u062A\u0627 \u0645\u063A\u0644\u0642\u062A\u064A\u0646.",
+    "La macchina si ferma e il circuito sembra a posto, ma i due rel\xE8 dipendono dallo stesso contatto. Il secondo contatto del fungo non serve a niente. Ogni canale deve avere il suo percorso, dal fungo al suo rel\xE8.": "\u062A\u062A\u0648\u0642\u0641 \u0627\u0644\u0622\u0644\u0629 \u0648\u062A\u0628\u062F\u0648 \u0627\u0644\u062F\u0627\u0631\u0629 \u0633\u0644\u064A\u0645\u0629\u060C \u0644\u0643\u0646 \u0627\u0644\u0645\u0631\u062D\u0651\u0644\u064A\u0646 \u064A\u0639\u062A\u0645\u062F\u0627\u0646 \u0639\u0644\u0649 \u0627\u0644\u062A\u0644\u0627\u0645\u0633 \u0646\u0641\u0633\u0647. \u0648\u0627\u0644\u062A\u0644\u0627\u0645\u0633 \u0627\u0644\u062B\u0627\u0646\u064A \u0641\u064A \u0632\u0631 \u0627\u0644\u0637\u0648\u0627\u0631\u0626 \u0644\u0627 \u0641\u0627\u0626\u062F\u0629 \u0645\u0646\u0647. \u064A\u062C\u0628 \u0623\u0646 \u064A\u0643\u0648\u0646 \u0644\u0643\u0644 \u0642\u0646\u0627\u0629 \u0645\u0633\u0627\u0631\u0647\u0627\u060C \u0645\u0646 \u0632\u0631 \u0627\u0644\u0637\u0648\u0627\u0631\u0626 \u0625\u0644\u0649 \u0645\u0631\u062D\u0651\u0644\u0647\u0627.",
+    "La macchina \xE8 in marcia e apri la portella. La richiudi subito. Che cosa succede?": "\u0627\u0644\u0622\u0644\u0629 \u062A\u0639\u0645\u0644 \u0648\u062A\u0641\u062A\u062D \u0627\u0644\u0628\u0648\u0627\u0628\u0629. \u062B\u0645 \u062A\u063A\u0644\u0642\u0647\u0627 \u0641\u0648\u0631\u064B\u0627. \u0645\u0627\u0630\u0627 \u064A\u062D\u062F\u062B\u061F",
+    "La parte del rel\xE8 di sicurezza, del riarmo e del contattore \xE8 quella del livello precedente.": "\u062C\u0632\u0621 \u0645\u0631\u062D\u0651\u0644 \u0627\u0644\u0623\u0645\u0627\u0646 \u0648\u0625\u0639\u0627\u062F\u0629 \u0627\u0644\u062A\u0633\u0644\u064A\u062D \u0648\u0627\u0644\u0643\u0648\u0646\u062A\u0627\u0643\u062A\u0648\u0631 \u0647\u0648 \u0646\u0641\u0633\u0647 \u0641\u064A \u0627\u0644\u0645\u0633\u062A\u0648\u0649 \u0627\u0644\u0633\u0627\u0628\u0642.",
+    "La portella (o la barriera)": "\u0627\u0644\u0628\u0648\u0627\u0628\u0629 (\u0623\u0648 \u0627\u0644\u062D\u0627\u062C\u0632)",
+    "La portella e la barriera hanno due contatti, ma ne \xE8 collegato uno solo, quello del canale 1. Il canale 2 passa dal solo fungo. Aprendo la portella cade un canale solo: il rel\xE8 di sicurezza vede una discrepanza e non si riarma, ed \xE8 proprio per questo che la prova di riarmo non riesce. Se poi il contatto del canale 1 si incolla, la portella aperta non ferma pi\xF9 la macchina.": "\u0644\u0644\u0628\u0648\u0627\u0628\u0629 \u0648\u0627\u0644\u062D\u0627\u062C\u0632 \u062A\u0644\u0627\u0645\u0633\u0627\u0646\u060C \u0644\u0643\u0646 \u0627\u0644\u0645\u0648\u0635\u0648\u0644 \u0648\u0627\u062D\u062F \u0641\u0642\u0637\u060C \u0648\u0647\u0648 \u062A\u0644\u0627\u0645\u0633 \u0627\u0644\u0642\u0646\u0627\u0629 1. \u0623\u0645\u0627 \u0627\u0644\u0642\u0646\u0627\u0629 2 \u0641\u062A\u0645\u0631 \u0639\u0628\u0631 \u0632\u0631 \u0627\u0644\u0637\u0648\u0627\u0631\u0626 \u0648\u062D\u062F\u0647. \u0639\u0646\u062F \u0641\u062A\u062D \u0627\u0644\u0628\u0648\u0627\u0628\u0629 \u062A\u0633\u0642\u0637 \u0642\u0646\u0627\u0629 \u0648\u0627\u062D\u062F\u0629 \u0641\u0642\u0637: \u064A\u0631\u0649 \u0645\u0631\u062D\u0651\u0644 \u0627\u0644\u0623\u0645\u0627\u0646 \u0639\u062F\u0645 \u062A\u0637\u0627\u0628\u0642 \u0648\u0644\u0627 \u064A\u0639\u064A\u062F \u062A\u0633\u0644\u064A\u062D \u0646\u0641\u0633\u0647\u060C \u0648\u0644\u0647\u0630\u0627 \u0644\u0627 \u064A\u0646\u062C\u062D \u0627\u062E\u062A\u0628\u0627\u0631 \u0625\u0639\u0627\u062F\u0629 \u0627\u0644\u062A\u0633\u0644\u064A\u062D. \u0648\u0625\u0646 \u0627\u0644\u062A\u0635\u0642 \u062A\u0644\u0627\u0645\u0633 \u0627\u0644\u0642\u0646\u0627\u0629 1 \u0641\u0644\u0646 \u062A\u0648\u0642\u0641 \u0627\u0644\u0628\u0648\u0627\u0628\u0629 \u0627\u0644\u0645\u0641\u062A\u0648\u062D\u0629 \u0627\u0644\u0622\u0644\u0629 \u0628\u0639\u062F \u0627\u0644\u0622\u0646.",
+    "La ridondanza: se quel contatto si incolla, si incollano di fatto tutti e due i canali.": "\u0627\u0644\u062A\u0643\u0631\u0627\u0631 \u0627\u0644\u0627\u062D\u062A\u064A\u0627\u0637\u064A: \u0625\u0646 \u0627\u0644\u062A\u0635\u0642 \u0630\u0644\u0643 \u0627\u0644\u062A\u0644\u0627\u0645\u0633 \u0641\u0643\u0623\u0646 \u0627\u0644\u0642\u0646\u0627\u062A\u064A\u0646 \u0627\u0644\u062A\u0635\u0642\u062A\u0627 \u0645\u0639\u064B\u0627.",
+    "Le due bobine sono sullo stesso contatto del fungo: il secondo canale non \xE8 usato.": "\u0627\u0644\u0645\u0644\u0641\u0627\u0646 \u0639\u0644\u0649 \u062A\u0644\u0627\u0645\u0633 \u0632\u0631 \u0627\u0644\u0637\u0648\u0627\u0631\u0626 \u0646\u0641\u0633\u0647: \u0627\u0644\u0642\u0646\u0627\u0629 \u0627\u0644\u062B\u0627\u0646\u064A\u0629 \u063A\u064A\u0631 \u0645\u0633\u062A\u062E\u062F\u0645\u0629.",
+    "Le due uscite in serie": "\u0627\u0644\u0645\u062E\u0631\u062C\u0627\u0646 \u0639\u0644\u0649 \u0627\u0644\u062A\u0633\u0644\u0633\u0644",
+    "Le uscite in serie": "\u0627\u0644\u0645\u062E\u0627\u0631\u062C \u0639\u0644\u0649 \u0627\u0644\u062A\u0633\u0644\u0633\u0644",
+    "Levetta su: i canali sono chiusi, ma la macchina \xE8 ferma. Il rel\xE8 aspetta il riarmo.": "\u0630\u0631\u0627\u0639 \u0627\u0644\u0644\u0648\u062D\u0629 \u0644\u0644\u0623\u0639\u0644\u0649: \u0627\u0644\u0642\u0646\u0627\u062A\u0627\u0646 \u0645\u063A\u0644\u0642\u062A\u0627\u0646 \u0644\u0643\u0646 \u0627\u0644\u0622\u0644\u0629 \u0645\u062A\u0648\u0642\u0641\u0629. \u0627\u0644\u0645\u0631\u062D\u0651\u0644 \u064A\u0646\u062A\u0638\u0631 \u0625\u0639\u0627\u062F\u0629 \u0627\u0644\u062A\u0633\u0644\u064A\u062D.",
+    "Levetta su: i due rel\xE8 sono eccitati, i loro contatti sono chiusi e la macchina \xE8 in marcia.": "\u0630\u0631\u0627\u0639 \u0627\u0644\u0644\u0648\u062D\u0629 \u0644\u0644\u0623\u0639\u0644\u0649: \u0627\u0644\u0645\u0631\u062D\u0651\u0644\u0627\u0646 \u0645\u064F\u062D\u0631\u064E\u0651\u0636\u0627\u0646 \u0648\u062A\u0644\u0627\u0645\u0633\u0627\u062A\u0647\u0645\u0627 \u0645\u063A\u0644\u0642\u0629 \u0648\u0627\u0644\u0622\u0644\u0629 \u062A\u0639\u0645\u0644.",
+    "Levetta su: portella e barriera sono chiuse, la macchina aspetta il riarmo.": "\u0630\u0631\u0627\u0639 \u0627\u0644\u0644\u0648\u062D\u0629 \u0644\u0644\u0623\u0639\u0644\u0649: \u0627\u0644\u0628\u0648\u0627\u0628\u0629 \u0648\u0627\u0644\u062D\u0627\u062C\u0632 \u0645\u063A\u0644\u0642\u0627\u0646 \u0648\u0627\u0644\u0622\u0644\u0629 \u062A\u0646\u062A\u0638\u0631 \u0625\u0639\u0627\u062F\u0629 \u0627\u0644\u062A\u0633\u0644\u064A\u062D.",
+    "L\u2019alimentazione del rel\xE8": "\u062A\u063A\u0630\u064A\u0629 \u0627\u0644\u0645\u0631\u062D\u0651\u0644",
+    "L\u2019apertura ha fatto cadere i due canali e il rel\xE8 ha aperto le uscite. Richiudendo la portella i canali tornano chiusi, ma le uscite si richiudono solo con un nuovo riarmo.": "\u0623\u0633\u0642\u0637 \u0627\u0644\u0641\u062A\u062D \u0627\u0644\u0642\u0646\u0627\u062A\u064A\u0646 \u0648\u0641\u062A\u062D \u0627\u0644\u0645\u0631\u062D\u0651\u0644 \u0645\u062E\u0627\u0631\u062C\u0647. \u0639\u0646\u062F \u0625\u063A\u0644\u0627\u0642 \u0627\u0644\u0628\u0648\u0627\u0628\u0629 \u062A\u0639\u0648\u062F \u0627\u0644\u0642\u0646\u0627\u062A\u0627\u0646 \u0645\u063A\u0644\u0642\u062A\u064A\u0646\u060C \u0644\u0643\u0646 \u0627\u0644\u0645\u062E\u0627\u0631\u062C \u0644\u0627 \u062A\u064F\u063A\u0644\u0642 \u0625\u0644\u0627 \u0628\u0625\u0639\u0627\u062F\u0629 \u062A\u0633\u0644\u064A\u062D \u062C\u062F\u064A\u062F\u0629.",
+    "L\u2019impianto \xE8 gi\xE0 cablato e funziona: riarmi, premi il fungo, la macchina si ferma. Guarda per\xF2 il percorso del riarmo: parte dalla fase e arriva al rel\xE8.": "\u0627\u0644\u0645\u0646\u0634\u0623\u0629 \u0645\u0648\u0635\u0648\u0644\u0629 \u0628\u0627\u0644\u0641\u0639\u0644 \u0648\u062A\u0639\u0645\u0644: \u062A\u0639\u064A\u062F \u0627\u0644\u062A\u0633\u0644\u064A\u062D \u0648\u062A\u0636\u063A\u0637 \u0632\u0631 \u0627\u0644\u0637\u0648\u0627\u0631\u0626 \u0641\u062A\u062A\u0648\u0642\u0641 \u0627\u0644\u0622\u0644\u0629. \u0644\u0643\u0646 \u0627\u0646\u0638\u0631 \u0625\u0644\u0649 \u0645\u0633\u0627\u0631 \u0625\u0639\u0627\u062F\u0629 \u0627\u0644\u062A\u0633\u0644\u064A\u062D: \u064A\u0628\u062F\u0623 \u0645\u0646 \u0627\u0644\u0637\u0648\u0631 \u0648\u064A\u0635\u0644 \u0625\u0644\u0649 \u0627\u0644\u0645\u0631\u062D\u0651\u0644.",
+    "L\u2019impianto \xE8 gi\xE0 cablato e la macchina si ferma premendo il fungo. Provalo: tutto sembra funzionare. Poi guarda come sono collegate le bobine dei due rel\xE8.": "\u0627\u0644\u0645\u0646\u0634\u0623\u0629 \u0645\u0648\u0635\u0648\u0644\u0629 \u0628\u0627\u0644\u0641\u0639\u0644 \u0648\u062A\u062A\u0648\u0642\u0641 \u0627\u0644\u0622\u0644\u0629 \u0639\u0646\u062F \u0636\u063A\u0637 \u0632\u0631 \u0627\u0644\u0637\u0648\u0627\u0631\u0626. \u062C\u0631\u0651\u0628: \u0643\u0644 \u0634\u064A\u0621 \u064A\u0628\u062F\u0648 \u0633\u0644\u064A\u0645\u064B\u0627. \u062B\u0645 \u0627\u0646\u0638\u0631 \u0643\u064A\u0641 \u0648\u064F\u0635\u0644 \u0645\u0644\u0641\u0627 \u0627\u0644\u0645\u0631\u062D\u0651\u0644\u064A\u0646.",
+    "L\u2019impianto \xE8 gi\xE0 cablato. Riarma, apri la portella: la macchina si ferma. Richiudila e prova a riarmare: il rel\xE8 non si riarma. Guarda quanti fili arrivano alla portella e alla barriera.": "\u0627\u0644\u0645\u0646\u0634\u0623\u0629 \u0645\u0648\u0635\u0648\u0644\u0629 \u0628\u0627\u0644\u0641\u0639\u0644. \u0623\u0639\u062F \u0627\u0644\u062A\u0633\u0644\u064A\u062D \u0648\u0627\u0641\u062A\u062D \u0627\u0644\u0628\u0648\u0627\u0628\u0629: \u062A\u062A\u0648\u0642\u0641 \u0627\u0644\u0622\u0644\u0629. \u0623\u063A\u0644\u0642\u0647\u0627 \u0648\u062D\u0627\u0648\u0644 \u0625\u0639\u0627\u062F\u0629 \u0627\u0644\u062A\u0633\u0644\u064A\u062D: \u0644\u0627 \u064A\u0639\u064A\u062F \u0627\u0644\u0645\u0631\u062D\u0651\u0644 \u062A\u0633\u0644\u064A\u062D \u0646\u0641\u0633\u0647. \u0627\u0646\u0638\u0631 \u0643\u0645 \u0633\u0644\u0643\u064B\u0627 \u064A\u0635\u0644 \u0625\u0644\u0649 \u0627\u0644\u0628\u0648\u0627\u0628\u0629 \u0648\u0627\u0644\u062D\u0627\u062C\u0632.",
+    "Macchina": "\u0627\u0644\u0622\u0644\u0629",
+    "Macchina (lampada)": "\u0627\u0644\u0622\u0644\u0629 (\u0645\u0635\u0628\u0627\u062D)",
+    "Mancano i fili di terra.": "\u0623\u0633\u0644\u0627\u0643 \u0627\u0644\u062A\u0623\u0631\u064A\u0636 \u0646\u0627\u0642\u0635\u0629.",
+    "Nei contattori i contatti NC e NA non si possono trovare chiusi insieme. Se il contattore \xE8 incollato, il contatto NC 21-22 resta aperto. Mettendolo nel circuito di riarmo, il rel\xE8 di sicurezza si accorge del guasto e non si riarma.": "\u0641\u064A \u0627\u0644\u0643\u0648\u0646\u062A\u0627\u0643\u062A\u0648\u0631\u0627\u062A \u0644\u0627 \u064A\u0645\u0643\u0646 \u0623\u0646 \u064A\u0643\u0648\u0646 \u0627\u0644\u062A\u0644\u0627\u0645\u0633\u0627\u0646 NC \u0648NA \u0645\u063A\u0644\u0642\u064A\u0646 \u0645\u0639\u064B\u0627. \u0641\u0625\u0646 \u0627\u0644\u062A\u0635\u0642 \u0627\u0644\u0643\u0648\u0646\u062A\u0627\u0643\u062A\u0648\u0631 \u064A\u0628\u0642\u0649 \u0627\u0644\u062A\u0644\u0627\u0645\u0633 NC 21-22 \u0645\u0641\u062A\u0648\u062D\u064B\u0627. \u0648\u0628\u0648\u0636\u0639\u0647 \u0641\u064A \u062F\u0627\u0631\u0629 \u0625\u0639\u0627\u062F\u0629 \u0627\u0644\u062A\u0633\u0644\u064A\u062D \u064A\u0644\u0627\u062D\u0638 \u0645\u0631\u062D\u0651\u0644 \u0627\u0644\u0623\u0645\u0627\u0646 \u0627\u0644\u0639\u0637\u0644 \u0648\u0644\u0627 \u064A\u0639\u064A\u062F \u062A\u0633\u0644\u064A\u062D \u0646\u0641\u0633\u0647.",
+    "Nelle macchine il fungo ha due contatti normalmente chiusi, uno per canale. Ogni canale ferma la macchina per conto suo. Con due canali serve un guasto doppio per perdere l\u2019emergenza, e uno solo si pu\xF2 scoprire.": "\u0641\u064A \u0627\u0644\u0622\u0644\u0627\u062A \u0644\u0632\u0631 \u0627\u0644\u0637\u0648\u0627\u0631\u0626 \u062A\u0644\u0627\u0645\u0633\u0627\u0646 \u0645\u063A\u0644\u0642\u0627\u0646 \u0639\u0627\u062F\u0629\u064B\u060C \u0648\u0627\u062D\u062F \u0644\u0643\u0644 \u0642\u0646\u0627\u0629. \u0643\u0644 \u0642\u0646\u0627\u0629 \u062A\u0648\u0642\u0641 \u0627\u0644\u0622\u0644\u0629 \u0628\u0645\u0641\u0631\u062F\u0647\u0627. \u0648\u0645\u0639 \u0642\u0646\u0627\u062A\u064A\u0646 \u064A\u0644\u0632\u0645 \u0639\u0637\u0644 \u0645\u0632\u062F\u0648\u062C \u0644\u0641\u0642\u062F\u0627\u0646 \u0627\u0644\u0637\u0648\u0627\u0631\u0626\u060C \u0648\u064A\u0645\u0643\u0646 \u0627\u0643\u062A\u0634\u0627\u0641 \u0639\u0637\u0644 \u0648\u0627\u062D\u062F.",
+    "Niente, perch\xE9 il fungo ferma comunque la macchina.": "\u0644\u0627 \u0634\u064A\u0621\u060C \u0644\u0623\u0646 \u0632\u0631 \u0627\u0644\u0637\u0648\u0627\u0631\u0626 \u064A\u0648\u0642\u0641 \u0627\u0644\u0622\u0644\u0629 \u0639\u0644\u0649 \u0623\u064A \u062D\u0627\u0644.",
+    "Niente: premendo il fungo la macchina si ferma ugualmente.": "\u0644\u0627 \u0634\u064A\u0621: \u0639\u0646\u062F \u0636\u063A\u0637 \u0632\u0631 \u0627\u0644\u0637\u0648\u0627\u0631\u0626 \u062A\u062A\u0648\u0642\u0641 \u0627\u0644\u0622\u0644\u0629 \u0639\u0644\u0649 \u0623\u064A \u062D\u0627\u0644.",
+    "Ogni canale ha il suo percorso fino al suo rel\xE8: nessun filo li unisce.": "\u0644\u0643\u0644 \u0642\u0646\u0627\u0629 \u0645\u0633\u0627\u0631\u0647\u0627 \u062D\u062A\u0649 \u0645\u0631\u062D\u0651\u0644\u0647\u0627: \u0644\u0627 \u0633\u0644\u0643 \u064A\u0631\u0628\u0637 \u0628\u064A\u0646\u0647\u0645\u0627.",
+    "Ogni dispositivo ha due contatti e vanno usati tutti e due, uno per canale.": "\u0644\u0643\u0644 \u062C\u0647\u0627\u0632 \u062A\u0644\u0627\u0645\u0633\u0627\u0646 \u0648\u064A\u062C\u0628 \u0627\u0633\u062A\u062E\u062F\u0627\u0645\u0647\u0645\u0627 \u0645\u0639\u064B\u0627\u060C \u0648\u0627\u062D\u062F \u0644\u0643\u0644 \u0642\u0646\u0627\u0629.",
+    "Ogni dispositivo ha due contatti e vanno usati tutti e due: uno per canale. Un contatto lasciato libero toglie la ridondanza.": "\u0644\u0643\u0644 \u062C\u0647\u0627\u0632 \u062A\u0644\u0627\u0645\u0633\u0627\u0646 \u0648\u064A\u062C\u0628 \u0627\u0633\u062A\u062E\u062F\u0627\u0645\u0647\u0645\u0627 \u0645\u0639\u064B\u0627: \u0648\u0627\u062D\u062F \u0644\u0643\u0644 \u0642\u0646\u0627\u0629. \u062A\u0631\u0643 \u062A\u0644\u0627\u0645\u0633 \u062D\u0631\u064B\u0651\u0627 \u064A\u064F\u0644\u063A\u064A \u0627\u0644\u062A\u0643\u0631\u0627\u0631 \u0627\u0644\u0627\u062D\u062A\u064A\u0627\u0637\u064A.",
+    "P, I e D con i cursori e il grafico.": "P \u0648I \u0648D \u0628\u0627\u0644\u0645\u0646\u0632\u0644\u0642\u0627\u062A \u0648\u0627\u0644\u0631\u0633\u0645 \u0627\u0644\u0628\u064A\u0627\u0646\u064A.",
+    "Per questo lo stesso rel\xE8 di sicurezza vale per tutta la catena: ogni arresto apre le uscite, e solo il riarmo, dato da fuori, rimette in marcia. Un contatto lasciato libero in un dispositivo toglie un canale a quel dispositivo.": "\u0644\u0647\u0630\u0627 \u064A\u0633\u0631\u064A \u0645\u0631\u062D\u0651\u0644 \u0627\u0644\u0623\u0645\u0627\u0646 \u0646\u0641\u0633\u0647 \u0639\u0644\u0649 \u0627\u0644\u0633\u0644\u0633\u0644\u0629 \u0643\u0644\u0647\u0627: \u0643\u0644 \u062A\u0648\u0642\u0641 \u064A\u0641\u062A\u062D \u0627\u0644\u0645\u062E\u0627\u0631\u062C\u060C \u0648\u0644\u0627 \u064A\u0639\u064A\u062F \u0627\u0644\u062A\u0634\u063A\u064A\u0644 \u0625\u0644\u0627 \u0625\u0639\u0627\u062F\u0629 \u0627\u0644\u062A\u0633\u0644\u064A\u062D \u0627\u0644\u0635\u0627\u062F\u0631\u0629 \u0645\u0646 \u0627\u0644\u062E\u0627\u0631\u062C. \u0648\u062A\u0631\u0643 \u062A\u0644\u0627\u0645\u0633 \u062D\u0631\u064B\u0651\u0627 \u0641\u064A \u062C\u0647\u0627\u0632 \u064A\u064F\u0633\u0642\u0637 \u0642\u0646\u0627\u0629 \u0645\u0646 \u0630\u0644\u0643 \u0627\u0644\u062C\u0647\u0627\u0632.",
+    "Perch\xE9 4 e non 0: il filo interrotto si riconosce.": "\u0644\u0645\u0627\u0630\u0627 4 \u0648\u0644\u064A\u0633 0: \u064A\u0645\u0643\u0646 \u0627\u0644\u062A\u0639\u0631\u0641 \u0639\u0644\u0649 \u0627\u0644\u0633\u0644\u0643 \u0627\u0644\u0645\u0642\u0637\u0648\u0639.",
+    "Perch\xE9 due contatti": "\u0644\u0645\u0627\u0630\u0627 \u062A\u0644\u0627\u0645\u0633\u0627\u0646",
+    "Pi\xF9 dispositivi di sicurezza in serie: la macchina non riparte da sola.": "\u0639\u062F\u0629 \u0623\u062C\u0647\u0632\u0629 \u0623\u0645\u0627\u0646 \u0639\u0644\u0649 \u0627\u0644\u062A\u0633\u0644\u0633\u0644: \u0644\u0627 \u062A\u0639\u0648\u062F \u0627\u0644\u0622\u0644\u0629 \u0625\u0644\u0649 \u0627\u0644\u0639\u0645\u0644 \u0648\u062D\u062F\u0647\u0627.",
+    "Pi\xF9 dispositivi, una catena": "\u0639\u062F\u0629 \u0623\u062C\u0647\u0632\u0629 \u0648\u0633\u0644\u0633\u0644\u0629 \u0648\u0627\u062D\u062F\u0629",
+    "Portella": "\u0627\u0644\u0628\u0648\u0627\u0628\u0629",
+    "Portella aperta: i due canali si interrompono, la macchina si ferma e non riparte richiudendola.": "\u0627\u0644\u0628\u0648\u0627\u0628\u0629 \u0645\u0641\u062A\u0648\u062D\u0629: \u062A\u0646\u0642\u0637\u0639 \u0627\u0644\u0642\u0646\u0627\u062A\u0627\u0646 \u0648\u062A\u062A\u0648\u0642\u0641 \u0627\u0644\u0622\u0644\u0629 \u0648\u0644\u0627 \u062A\u0639\u0648\u062F \u0625\u0644\u0649 \u0627\u0644\u0639\u0645\u0644 \u0628\u0625\u063A\u0644\u0627\u0642\u0647\u0627.",
+    "Portella con due contatti": "\u0628\u0648\u0627\u0628\u0629 \u0628\u062A\u0644\u0627\u0645\u0633\u064A\u0646",
+    "Premi il fungo: la macchina si ferma": "\u0627\u0636\u063A\u0637 \u0632\u0631 \u0627\u0644\u0637\u0648\u0627\u0631\u0626: \u062A\u062A\u0648\u0642\u0641 \u0627\u0644\u0622\u0644\u0629",
+    "Premi il riarmo: la macchina parte": "\u0627\u0636\u063A\u0637 \u0625\u0639\u0627\u062F\u0629 \u0627\u0644\u062A\u0633\u0644\u064A\u062D: \u062A\u0639\u0645\u0644 \u0627\u0644\u0622\u0644\u0629",
+    "Prima del riarmo la macchina \xE8 ferma": "\u0642\u0628\u0644 \u0625\u0639\u0627\u062F\u0629 \u0627\u0644\u062A\u0633\u0644\u064A\u062D \u062A\u0643\u0648\u0646 \u0627\u0644\u0622\u0644\u0629 \u0645\u062A\u0648\u0642\u0641\u0629",
+    "Pulsante di emergenza a due canali": "\u0632\u0631 \u0637\u0648\u0627\u0631\u0626 \u0628\u0642\u0646\u0627\u062A\u064A\u0646",
+    "Pulsante di riarmo": "\u0632\u0631 \u0625\u0639\u0627\u062F\u0629 \u0627\u0644\u062A\u0633\u0644\u064A\u062D",
+    "Rel\xE8 K1": "\u0627\u0644\u0645\u0631\u062D\u0651\u0644 K1",
+    "Rel\xE8 K1 (canale 1)": "\u0627\u0644\u0645\u0631\u062D\u0651\u0644 K1 (\u0627\u0644\u0642\u0646\u0627\u0629 1)",
+    "Rel\xE8 K2": "\u0627\u0644\u0645\u0631\u062D\u0651\u0644 K2",
+    "Rel\xE8 K2 (canale 2)": "\u0627\u0644\u0645\u0631\u062D\u0651\u0644 K2 (\u0627\u0644\u0642\u0646\u0627\u0629 2)",
+    "Rel\xE8 di sicurezza KS": "\u0645\u0631\u062D\u0651\u0644 \u0627\u0644\u0623\u0645\u0627\u0646 KS",
+    "Rel\xE8 sicurezza": "\u0645\u0631\u062D\u0651\u0644 \u0627\u0644\u0623\u0645\u0627\u0646",
+    "Resta ferma e non riparte pi\xF9.": "\u062A\u0628\u0642\u0649 \u0645\u062A\u0648\u0642\u0641\u0629 \u0648\u0644\u0627 \u062A\u0639\u0645\u0644 \u0628\u0639\u062F \u0627\u0644\u0622\u0646.",
+    "Resta ferma finch\xE9 non premi il riarmo.": "\u062A\u0628\u0642\u0649 \u0645\u062A\u0648\u0642\u0641\u0629 \u062D\u062A\u0649 \u062A\u0636\u063A\u0637 \u0625\u0639\u0627\u062F\u0629 \u0627\u0644\u062A\u0633\u0644\u064A\u062D.",
+    "Resta ferma: serve un nuovo impulso sul riarmo.": "\u062A\u0628\u0642\u0649 \u0645\u062A\u0648\u0642\u0641\u0629: \u064A\u0644\u0632\u0645 \u0646\u0628\u0636\u0629 \u062C\u062F\u064A\u062F\u0629 \u0639\u0644\u0649 \u0625\u0639\u0627\u062F\u0629 \u0627\u0644\u062A\u0633\u0644\u064A\u062D.",
+    "Riarmo": "\u0625\u0639\u0627\u062F\u0629 \u0627\u0644\u062A\u0633\u0644\u064A\u062D",
+    "Riarmo premuto: il rel\xE8 si arma, le uscite si chiudono, il contattore si eccita e la macchina parte.": "\u062A\u0645 \u0636\u063A\u0637 \u0625\u0639\u0627\u062F\u0629 \u0627\u0644\u062A\u0633\u0644\u064A\u062D: \u064A\u062A\u0633\u0644\u0651\u062D \u0627\u0644\u0645\u0631\u062D\u0651\u0644 \u0648\u062A\u064F\u063A\u0644\u0642 \u0627\u0644\u0645\u062E\u0627\u0631\u062C \u0648\u064A\u062A\u062D\u0631\u0651\u0636 \u0627\u0644\u0643\u0648\u0646\u062A\u0627\u0643\u062A\u0648\u0631 \u0648\u062A\u0639\u0645\u0644 \u0627\u0644\u0622\u0644\u0629.",
+    "Riarmo premuto: la macchina parte.": "\u062A\u0645 \u0636\u063A\u0637 \u0625\u0639\u0627\u062F\u0629 \u0627\u0644\u062A\u0633\u0644\u064A\u062D: \u062A\u0639\u0645\u0644 \u0627\u0644\u0622\u0644\u0629.",
+    "Richiudere non basta": "\u0627\u0644\u0625\u063A\u0644\u0627\u0642 \u0648\u062D\u062F\u0647 \u0644\u0627 \u064A\u0643\u0641\u064A",
+    "Richiudi la portella: la macchina resta ferma finch\xE9 non riarmi": "\u0623\u063A\u0644\u0642 \u0627\u0644\u0628\u0648\u0627\u0628\u0629: \u062A\u0628\u0642\u0649 \u0627\u0644\u0622\u0644\u0629 \u0645\u062A\u0648\u0642\u0641\u0629 \u062D\u062A\u0649 \u062A\u0639\u064A\u062F \u0627\u0644\u062A\u0633\u0644\u064A\u062D",
+    "SBR": "SBR",
+    "SBR.3": "SBR.3",
+    "SBR.4": "SBR.4",
+    "Se il riarmo non passa dal contatto NC del contattore, il guasto resta nascosto: dopo ogni emergenza un contattore incollato potrebbe rimandare la macchina in marcia.": "\u0625\u0646 \u0644\u0645 \u062A\u0645\u0631 \u0625\u0639\u0627\u062F\u0629 \u0627\u0644\u062A\u0633\u0644\u064A\u062D \u0639\u0628\u0631 \u0627\u0644\u062A\u0644\u0627\u0645\u0633 NC \u0644\u0644\u0643\u0648\u0646\u062A\u0627\u0643\u062A\u0648\u0631 \u064A\u0628\u0642\u0649 \u0627\u0644\u0639\u0637\u0644 \u0645\u062E\u0641\u064A\u064B\u0627: \u0628\u0639\u062F \u0643\u0644 \u0637\u0648\u0627\u0631\u0626 \u0642\u062F \u064A\u0639\u064A\u062F \u0643\u0648\u0646\u062A\u0627\u0643\u062A\u0648\u0631 \u0645\u0644\u062A\u0635\u0642 \u0627\u0644\u0622\u0644\u0629 \u0625\u0644\u0649 \u0627\u0644\u0639\u0645\u0644.",
+    "Se un operatore apre la portella per togliere un pezzo, e la richiude, la macchina non deve ripartire da sola: potrebbe esserci ancora qualcuno dentro.": "\u0625\u0630\u0627 \u0641\u062A\u062D \u0639\u0627\u0645\u0644 \u0627\u0644\u0628\u0648\u0627\u0628\u0629 \u0644\u0625\u062E\u0631\u0627\u062C \u0642\u0637\u0639\u0629 \u062B\u0645 \u0623\u063A\u0644\u0642\u0647\u0627\u060C \u0641\u0644\u0627 \u064A\u062C\u0628 \u0623\u0646 \u062A\u0639\u0648\u062F \u0627\u0644\u0622\u0644\u0629 \u0625\u0644\u0649 \u0627\u0644\u0639\u0645\u0644 \u0648\u062D\u062F\u0647\u0627: \u0641\u0642\u062F \u064A\u0643\u0648\u0646 \u0645\u0627 \u0632\u0627\u0644 \u0623\u062D\u062F \u0641\u064A \u0627\u0644\u062F\u0627\u062E\u0644.",
+    "Si alimenta in A1-A2 e controlla due canali d\u2019ingresso (S12 e S22): se uno cade, le uscite 13-14 e 23-24 si aprono. Per riarmarlo servono i due canali chiusi e un impulso sul morsetto R, dato dal pulsante di riarmo (meglio se attraverso i contatti NC dei contattori, che ne controllano il distacco).": "\u064A\u064F\u063A\u0630\u0651\u0649 \u0641\u064A A1-A2 \u0648\u064A\u0631\u0627\u0642\u0628 \u0642\u0646\u0627\u062A\u064A \u062F\u062E\u0644 (S12 \u0648S22): \u0625\u0646 \u0633\u0642\u0637\u062A \u0625\u062D\u062F\u0627\u0647\u0645\u0627 \u062A\u0646\u0641\u062A\u062D \u0627\u0644\u0645\u062E\u0627\u0631\u062C 13-14 \u064823-24. \u0648\u0644\u0625\u0639\u0627\u062F\u0629 \u062A\u0633\u0644\u064A\u062D\u0647 \u064A\u0644\u0632\u0645 \u0623\u0646 \u062A\u0643\u0648\u0646 \u0627\u0644\u0642\u0646\u0627\u062A\u0627\u0646 \u0645\u063A\u0644\u0642\u062A\u064A\u0646 \u0648\u0646\u0628\u0636\u0629 \u0639\u0644\u0649 \u0627\u0644\u0645\u0631\u0628\u0637 R \u064A\u0639\u0637\u064A\u0647\u0627 \u0632\u0631 \u0625\u0639\u0627\u062F\u0629 \u0627\u0644\u062A\u0633\u0644\u064A\u062D (\u0648\u064A\u0641\u0636\u0644 \u0623\u0646 \u062A\u0645\u0631 \u0639\u0628\u0631 \u0627\u0644\u062A\u0644\u0627\u0645\u0633\u0627\u062A NC \u0644\u0644\u0643\u0648\u0646\u062A\u0627\u0643\u062A\u0648\u0631\u0627\u062A \u0627\u0644\u062A\u064A \u062A\u0631\u0627\u0642\u0628 \u0627\u0646\u0641\u0635\u0627\u0644\u0647\u0627).",
+    "Sono in serie sul canale 1: dovrebbero stare in parallelo.": "\u0647\u0645\u0627 \u0639\u0644\u0649 \u0627\u0644\u062A\u0633\u0644\u0633\u0644 \u0641\u064A \u0627\u0644\u0642\u0646\u0627\u0629 1: \u064A\u062C\u0628 \u0623\u0646 \u064A\u0643\u0648\u0646\u0627 \u0639\u0644\u0649 \u0627\u0644\u062A\u0648\u0627\u0632\u064A.",
+    "Stati, allarmi e dati vecchi.": "\u0627\u0644\u062D\u0627\u0644\u0627\u062A \u0648\u0627\u0644\u0625\u0646\u0630\u0627\u0631\u0627\u062A \u0648\u0627\u0644\u0628\u064A\u0627\u0646\u0627\u062A \u0627\u0644\u0642\u062F\u064A\u0645\u0629.",
+    "Su ciascun canale i dispositivi si mettono in serie: basta che uno si apra per interrompere il canale. Cos\xEC la portella ferma la macchina come il fungo.": "\u0639\u0644\u0649 \u0643\u0644 \u0642\u0646\u0627\u0629 \u062A\u0648\u0636\u0639 \u0627\u0644\u0623\u062C\u0647\u0632\u0629 \u0639\u0644\u0649 \u0627\u0644\u062A\u0633\u0644\u0633\u0644: \u064A\u0643\u0641\u064A \u0623\u0646 \u064A\u0646\u0641\u062A\u062D \u0623\u062D\u062F\u0647\u0627 \u0644\u0642\u0637\u0639 \u0627\u0644\u0642\u0646\u0627\u0629. \u0648\u0647\u0643\u0630\u0627 \u062A\u0648\u0642\u0641 \u0627\u0644\u0628\u0648\u0627\u0628\u0629 \u0627\u0644\u0622\u0644\u0629 \u0645\u062B\u0644 \u0632\u0631 \u0627\u0644\u0637\u0648\u0627\u0631\u0626.",
+    "Su ciascun canale i dispositivi sono in serie: fase, fungo, portella, barriera, ingresso del rel\xE8. Il canale 1 usa i contatti 1-2, il canale 2 i contatti 3-4.": "\u0639\u0644\u0649 \u0643\u0644 \u0642\u0646\u0627\u0629 \u0627\u0644\u0623\u062C\u0647\u0632\u0629 \u0639\u0644\u0649 \u0627\u0644\u062A\u0633\u0644\u0633\u0644: \u0627\u0644\u0637\u0648\u0631\u060C \u0632\u0631 \u0627\u0644\u0637\u0648\u0627\u0631\u0626\u060C \u0627\u0644\u0628\u0648\u0627\u0628\u0629\u060C \u0627\u0644\u062D\u0627\u062C\u0632\u060C \u0645\u062F\u062E\u0644 \u0627\u0644\u0645\u0631\u062D\u0651\u0644. \u062A\u0633\u062A\u062E\u062F\u0645 \u0627\u0644\u0642\u0646\u0627\u0629 1 \u0627\u0644\u062A\u0644\u0627\u0645\u0633\u064A\u0646 1-2 \u0648\u0627\u0644\u0642\u0646\u0627\u0629 2 \u0627\u0644\u062A\u0644\u0627\u0645\u0633\u064A\u0646 3-4.",
+    "Tocca la levetta del quadro, poi premi il fungo.": "\u0627\u0644\u0645\u0633 \u0630\u0631\u0627\u0639 \u0627\u0644\u0644\u0648\u062D\u0629 \u062B\u0645 \u0627\u0636\u063A\u0637 \u0632\u0631 \u0627\u0644\u0637\u0648\u0627\u0631\u0626.",
+    "Tocca la levetta del quadro, poi premi il riarmo e infine il fungo.": "\u0627\u0644\u0645\u0633 \u0630\u0631\u0627\u0639 \u0627\u0644\u0644\u0648\u062D\u0629 \u062B\u0645 \u0627\u0636\u063A\u0637 \u0625\u0639\u0627\u062F\u0629 \u0627\u0644\u062A\u0633\u0644\u064A\u062D \u0648\u0623\u062E\u064A\u0631\u064B\u0627 \u0632\u0631 \u0627\u0644\u0637\u0648\u0627\u0631\u0626.",
+    "Tocca la levetta del quadro, poi riarma e prova portella e barriera.": "\u0627\u0644\u0645\u0633 \u0630\u0631\u0627\u0639 \u0627\u0644\u0644\u0648\u062D\u0629 \u062B\u0645 \u0623\u0639\u062F \u0627\u0644\u062A\u0633\u0644\u064A\u062D \u0648\u062C\u0631\u0651\u0628 \u0627\u0644\u0628\u0648\u0627\u0628\u0629 \u0648\u0627\u0644\u062D\u0627\u062C\u0632.",
+    "Togli il filo dal contatto 2 del fungo alla bobina di K2. Collega la fase al contatto 3 e il contatto 4 alla bobina di K2. Poi premi Verifica.": "\u0627\u0646\u0632\u0639 \u0627\u0644\u0633\u0644\u0643 \u0645\u0646 \u0627\u0644\u062A\u0644\u0627\u0645\u0633 2 \u0641\u064A \u0632\u0631 \u0627\u0644\u0637\u0648\u0627\u0631\u0626 \u0625\u0644\u0649 \u0645\u0644\u0641 K2. \u0635\u0644 \u0627\u0644\u0637\u0648\u0631 \u0628\u0627\u0644\u062A\u0644\u0627\u0645\u0633 3 \u0648\u0627\u0644\u062A\u0644\u0627\u0645\u0633 4 \u0628\u0645\u0644\u0641 K2. \u062B\u0645 \u0627\u0636\u063A\u0637 \xAB\u062A\u062D\u0642\u0642\xBB.",
+    "Togli il filo dalla fase al pulsante di riarmo. Collega la fase al morsetto 21 del contattore, poi il 22 al pulsante di riarmo. Poi premi Verifica.": "\u0627\u0646\u0632\u0639 \u0627\u0644\u0633\u0644\u0643 \u0645\u0646 \u0627\u0644\u0637\u0648\u0631 \u0625\u0644\u0649 \u0632\u0631 \u0625\u0639\u0627\u062F\u0629 \u0627\u0644\u062A\u0633\u0644\u064A\u062D. \u0635\u0644 \u0627\u0644\u0637\u0648\u0631 \u0628\u0627\u0644\u0645\u0631\u0628\u0637 21 \u0641\u064A \u0627\u0644\u0643\u0648\u0646\u062A\u0627\u0643\u062A\u0648\u0631\u060C \u062B\u0645 22 \u0628\u0632\u0631 \u0625\u0639\u0627\u062F\u0629 \u0627\u0644\u062A\u0633\u0644\u064A\u062D. \u062B\u0645 \u0627\u0636\u063A\u0637 \xAB\u062A\u062D\u0642\u0642\xBB.",
+    "Tre guasti da risolvere a tempo.": "\u062B\u0644\u0627\u062B\u0629 \u0623\u0639\u0637\u0627\u0644 \u064A\u062C\u0628 \u062D\u0644\u0647\u0627 \u0641\u064A \u0627\u0644\u0648\u0642\u062A \u0627\u0644\u0645\u062D\u062F\u062F.",
+    "Un contattore pu\xF2 restare incollato: il suo contatto NC 21-22 resta aperto.": "\u0642\u062F \u064A\u0644\u062A\u0635\u0642 \u0627\u0644\u0643\u0648\u0646\u062A\u0627\u0643\u062A\u0648\u0631: \u0648\u064A\u0628\u0642\u0649 \u062A\u0644\u0627\u0645\u0633\u0647 NC 21-22 \u0645\u0641\u062A\u0648\u062D\u064B\u0627.",
+    "Un dispositivo a due canali con un solo contatto collegato sembra funzionare, ma non \xE8 pi\xF9 sicuro.": "\u062C\u0647\u0627\u0632 \u0630\u0648 \u0642\u0646\u0627\u062A\u064A\u0646 \u0644\u0627 \u064A\u064F\u0648\u0635\u0644 \u0645\u0646\u0647 \u0633\u0648\u0649 \u062A\u0644\u0627\u0645\u0633 \u0648\u0627\u062D\u062F \u064A\u0628\u062F\u0648 \u0623\u0646\u0647 \u064A\u0639\u0645\u0644\u060C \u0644\u0643\u0646\u0647 \u0644\u0645 \u064A\u0639\u062F \u0622\u0645\u0646\u064B\u0627.",
+    "Un pulsante di emergenza con un solo contatto ha un punto debole: se quel contatto si incolla o il filo si stacca nel modo sbagliato, la macchina non si ferma e nessuno se ne accorge.": "\u0644\u0632\u0631 \u0627\u0644\u0637\u0648\u0627\u0631\u0626 \u0630\u064A \u0627\u0644\u062A\u0644\u0627\u0645\u0633 \u0627\u0644\u0648\u0627\u062D\u062F \u0646\u0642\u0637\u0629 \u0636\u0639\u0641: \u0625\u0646 \u0627\u0644\u062A\u0635\u0642 \u0630\u0644\u0643 \u0627\u0644\u062A\u0644\u0627\u0645\u0633 \u0623\u0648 \u0627\u0646\u0641\u0635\u0644 \u0627\u0644\u0633\u0644\u0643 \u0628\u0627\u0644\u0637\u0631\u064A\u0642\u0629 \u0627\u0644\u062E\u0627\u0637\u0626\u0629 \u0641\u0644\u0627 \u062A\u062A\u0648\u0642\u0641 \u0627\u0644\u0622\u0644\u0629 \u0648\u0644\u0627 \u064A\u0644\u0627\u062D\u0638 \u0623\u062D\u062F.",
+    "Un rel\xE8 che controlla": "\u0645\u0631\u062D\u0651\u0644 \u064A\u0631\u0627\u0642\u0628",
+    "Una macchina (qui una lampada) \xE8 alimentata da due rel\xE8 in serie. Il fungo di emergenza ha due contatti, uno per canale: il primo comanda il rel\xE8 K1, il secondo il rel\xE8 K2. Premuto il fungo, la macchina si ferma; e si ferma anche se uno dei due rel\xE8 resta incollato.": "\u062A\u064F\u063A\u0630\u0651\u0649 \u0622\u0644\u0629 (\u0647\u0646\u0627 \u0645\u0635\u0628\u0627\u062D) \u0639\u0628\u0631 \u0645\u0631\u062D\u0651\u0644\u064A\u0646 \u0639\u0644\u0649 \u0627\u0644\u062A\u0633\u0644\u0633\u0644. \u0644\u0632\u0631 \u0627\u0644\u0637\u0648\u0627\u0631\u0626 \u062A\u0644\u0627\u0645\u0633\u0627\u0646\u060C \u0648\u0627\u062D\u062F \u0644\u0643\u0644 \u0642\u0646\u0627\u0629: \u0627\u0644\u0623\u0648\u0644 \u064A\u062A\u062D\u0643\u0645 \u0628\u0627\u0644\u0645\u0631\u062D\u0651\u0644 K1 \u0648\u0627\u0644\u062B\u0627\u0646\u064A \u0628\u0627\u0644\u0645\u0631\u062D\u0651\u0644 K2. \u0639\u0646\u062F \u0636\u063A\u0637 \u0627\u0644\u0632\u0631 \u062A\u062A\u0648\u0642\u0641 \u0627\u0644\u0622\u0644\u0629\u061B \u0648\u062A\u062A\u0648\u0642\u0641 \u062D\u062A\u0649 \u0644\u0648 \u0627\u0644\u062A\u0635\u0642 \u0623\u062D\u062F \u0627\u0644\u0645\u0631\u062D\u0651\u0644\u064A\u0646.",
+    "Una macchina ha spesso pi\xF9 dispositivi di sicurezza: il fungo, la portella di accesso, una barriera a raggi. Ognuno ha due contatti, uno per canale.": "\u063A\u0627\u0644\u0628\u064B\u0627 \u0645\u0627 \u064A\u0643\u0648\u0646 \u0644\u0644\u0622\u0644\u0629 \u0639\u062F\u0629 \u0623\u062C\u0647\u0632\u0629 \u0623\u0645\u0627\u0646: \u0632\u0631 \u0627\u0644\u0637\u0648\u0627\u0631\u0626 \u0648\u0628\u0648\u0627\u0628\u0629 \u0627\u0644\u062F\u062E\u0648\u0644 \u0648\u062D\u0627\u062C\u0632 \u0623\u0634\u0639\u0629. \u0644\u0643\u0644 \u0645\u0646\u0647\u0627 \u062A\u0644\u0627\u0645\u0633\u0627\u0646\u060C \u0648\u0627\u062D\u062F \u0644\u0643\u0644 \u0642\u0646\u0627\u0629.",
+    "Una sequenza: attesa, prelievo, deposito.": "\u062A\u0633\u0644\u0633\u0644: \u0627\u0646\u062A\u0638\u0627\u0631 \u0648\u0633\u062D\u0628 \u0648\u0625\u064A\u062F\u0627\u0639.",
+    "Usano un solo canale: i loro contatti 3-4 non sono collegati.": "\u064A\u0633\u062A\u062E\u062F\u0645\u0627\u0646 \u0642\u0646\u0627\u0629 \u0648\u0627\u062D\u062F\u0629 \u0641\u0642\u0637: \u062A\u0644\u0627\u0645\u0633\u0627\u0647\u0645\u0627 3-4 \u063A\u064A\u0631 \u0645\u0648\u0635\u0648\u0644\u064A\u0646.",
+    "Barriera 1": "\u0627\u0644\u062D\u0627\u062C\u0632 1",
+    "Barriera 2": "\u0627\u0644\u062D\u0627\u062C\u0632 2",
+    "CANALE 1": "\u0627\u0644\u0642\u0646\u0627\u0629 1",
+    "CANALE 2": "\u0627\u0644\u0642\u0646\u0627\u0629 2",
+    "Canali": "\u0627\u0644\u0642\u0646\u0648\u0627\u062A",
+    "Neutro macchina": "\u0645\u062D\u0627\u064A\u062F \u0627\u0644\u0622\u0644\u0629",
+    "Portella 1": "\u0627\u0644\u0628\u0648\u0627\u0628\u0629 1",
+    "Portella 2": "\u0627\u0644\u0628\u0648\u0627\u0628\u0629 2",
+    "Pulsante di emergenza a due canali, premi per bloccare o sbloccare": "\u0632\u0631 \u0637\u0648\u0627\u0631\u0626 \u0628\u0642\u0646\u0627\u062A\u064A\u0646\u060C \u0627\u0636\u063A\u0637 \u0644\u0644\u062A\u062B\u0628\u064A\u062A \u0623\u0648 \u0644\u0644\u062A\u062D\u0631\u064A\u0631",
+    "Pulsante di riarmo, tieni premuto": "\u0632\u0631 \u0625\u0639\u0627\u062F\u0629 \u0627\u0644\u062A\u0633\u0644\u064A\u062D\u060C \u0623\u0628\u0642\u0650\u0647 \u0645\u0636\u063A\u0648\u0637\u064B\u0627",
+    "Serie": "\u0627\u0644\u062A\u0633\u0644\u0633\u0644",
+    "Uscita": "\u0627\u0644\u0645\u062E\u0631\u062C",
+    "Emergenza a due canali": "\u0637\u0648\u0627\u0631\u0626 \u0628\u0642\u0646\u0627\u062A\u064A\u0646",
+    "Portella a due canali": "\u0628\u0648\u0627\u0628\u0629 \u0628\u0642\u0646\u0627\u062A\u064A\u0646",
+    "Barriera a due canali": "\u062D\u0627\u062C\u0632 \u0628\u0642\u0646\u0627\u062A\u064A\u0646"
   };
 
   // src/i18n/ar.js
