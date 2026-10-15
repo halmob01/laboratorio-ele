@@ -280,18 +280,20 @@ export function settle(sim) {
         const t = en || !!s.welded;      // un contatto incollato resta chiuso anche a bobina spenta
         if (s.on !== t || s.coil !== en) { s.on = t; s.coil = en; changed = true; }
       } else if (c.type === 'rs') {
+        // Riarmo monitorato: i canali devono essere chiusi senza discrepanza, R deve essere BASSO (pronto), poi salire (pulsante premuto)
+        // e tornare giu' (pulsante rilasciato): solo allora le uscite si chiudono. Un riarmo ponticellato o gia' premuto non arma mai.
         const hi = t => isPhase(an.potAt(c.id + '.' + t));
         const ch1 = hi('S12'), ch2 = hi('S22'), r = hi('R');
-        let on = s.on, disc = s.disc, rLow = s.rLow;
-        if (!r) rLow = true;
-        if (!en) on = false;
-        else {
-          if (!ch1 || !ch2) on = false;
+        let on = s.on, disc = s.disc, ready = s.ready, held = s.held;
+        if (!en || !ch1 || !ch2) { on = false; ready = false; held = false; }
+        if (en) {
           if (ch1 !== ch2) disc = true; else if (!ch1 && !ch2) disc = false;
-          // riarmo valido: canali entrambi chiusi, nessuna discrepanza, impulso nuovo (R era basso prima)
-          if (!on && ch1 && ch2 && !disc && r && rLow) { on = true; rLow = false; }
+          if (!on && ch1 && ch2 && !disc) {
+            if (!r) { if (held) { on = true; held = false; ready = false; } else ready = true; }
+            else held = ready;
+          }
         }
-        if (on !== s.on || disc !== s.disc || rLow !== s.rLow || en !== s.coil) { s.on = on; s.disc = disc; s.rLow = rLow; s.coil = en; changed = true; }
+        if (on !== s.on || disc !== s.disc || ready !== s.ready || held !== s.held || en !== s.coil) { s.on = on; s.disc = disc; s.ready = ready; s.held = held; s.coil = en; changed = true; }
       }
       else if (c.type === 'ri' && en !== s.coil) {
         if (en) s.on = !s.on;
@@ -329,7 +331,7 @@ export function act(sim, action, id) {
     const i = c.ratings.indexOf(s.in);
     s.in = c.ratings[(i + 1) % c.ratings.length];
     s.heat = 0;
-  } else if (action === 'weld' && (c.type === 'km' || c.type === 'rel')) s.welded = !s.welded;
+  } else if (action === 'weld' && (c.type === 'km' || c.type === 'rel')) { if (s.on || s.welded) s.welded = !s.welded; }
   else if (action === 'reset' && c.type === 'ft') { s.tripped = false; s.heat = 0; }
   else if (action === 'test' && c.type === 'rcd') {
     if (s.on) {

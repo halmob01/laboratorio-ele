@@ -317,10 +317,17 @@ export function evaluateV2(level, wires, ctx = {}) {
         (S.restartNeedsReset.start || []).forEach(a => { act(sim, 'press', a); act(sim, 'release', a); });
         if (!running()) return;
         act(sim, 'toggle', stop);
-        if (running()) fail('safe.emergency');
+        if (running()) fail('safe.stopNotHeld');
         act(sim, 'toggle', stop);
-        if (running()) fail('safe.restartAfterEmergency');
+        if (running()) fail('safe.restartByItself');
+        if (reset) { act(sim, 'press', reset); act(sim, 'release', reset); if (!running()) fail('safe.noRestart'); }
       });
+    }
+    if (S.outputsSeries) {
+      // le due uscite del relè di sicurezza sono in serie: i morsetti 13 e 23 non stanno sullo stesso filo
+      const uf = makeUF();
+      wires.forEach(w => uf.u(w.a, w.b));
+      S.outputsSeries.forEach(id => { if (uf.f(id + '.13') === uf.f(id + '.23')) fail('safe.outputsParallel', { comp: id }); });
     }
     if (S.allContacts) {
       // un dispositivo a due canali deve avere tutti e quattro i morsetti collegati

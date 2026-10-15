@@ -22,7 +22,7 @@ export const PARTS = {
   port: { contacts: (c, s) => pole(!s.open, [['1', '2'], ['3', '4']]), init: () => ({ open: false }), actions: ['toggle'] },
   // relè di sicurezza (E6): alimentato in A1-A2; i due canali d'ingresso S12 e S22 devono avere la fase, il riarmo R si da' con un impulso.
   // Le uscite 13-14 e 23-24 si chiudono solo dopo un riarmo valido e si riaprono appena un canale cade. Vedi sim.js, settle.
-  rs: { coil: ['A1', 'A2'], contacts: (c, s) => pole(s.on, [['13', '14'], ['23', '24']]), init: () => ({ on: false, coil: false, rLow: false, disc: false }) },
+  rs: { coil: ['A1', 'A2'], contacts: (c, s) => pole(s.on, [['13', '14'], ['23', '24']]), init: () => ({ on: false, coil: false, ready: false, held: false, disc: false }) },
 
   // protezioni e sezionamento (chiusi all'inizio, salvo `init: 0`)
   // `in` (portata, A) e `ratings` (portate tra cui scegliere) rendono il sovraccarico simulato (E1): vedi sim.js, lineCurrent.

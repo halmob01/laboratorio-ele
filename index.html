@@ -1115,7 +1115,7 @@ html[lang="it"] .trnote{display:none}
     port: { contacts: (c2, s) => pole(!s.open, [["1", "2"], ["3", "4"]]), init: () => ({ open: false }), actions: ["toggle"] },
     // relè di sicurezza (E6): alimentato in A1-A2; i due canali d'ingresso S12 e S22 devono avere la fase, il riarmo R si da' con un impulso.
     // Le uscite 13-14 e 23-24 si chiudono solo dopo un riarmo valido e si riaprono appena un canale cade. Vedi sim.js, settle.
-    rs: { coil: ["A1", "A2"], contacts: (c2, s) => pole(s.on, [["13", "14"], ["23", "24"]]), init: () => ({ on: false, coil: false, rLow: false, disc: false }) },
+    rs: { coil: ["A1", "A2"], contacts: (c2, s) => pole(s.on, [["13", "14"], ["23", "24"]]), init: () => ({ on: false, coil: false, ready: false, held: false, disc: false }) },
     // protezioni e sezionamento (chiusi all'inizio, salvo `init: 0`)
     // `in` (portata, A) e `ratings` (portate tra cui scegliere) rendono il sovraccarico simulato (E1): vedi sim.js, lineCurrent.
     mt: { protect: "corto", contacts: (c2, s) => pole(s.on, [["1", "2"], ["N1", "N2"]]), poles: { F: ["1", "2"], N: ["N1", "N2"] }, init: (c2) => ({ on: c2.init !== 0, tripped: false, in: c2.in || null, heat: 0 }), actions: ["toggle", "rate"] },
@@ -1425,22 +1425,30 @@ html[lang="it"] .trnote{display:none}
         } else if (c2.type === "rs") {
           const hi = (t) => isPhase(an.potAt(c2.id + "." + t));
           const ch1 = hi("S12"), ch2 = hi("S22"), r = hi("R");
-          let on = s.on, disc = s.disc, rLow = s.rLow;
-          if (!r) rLow = true;
-          if (!en) on = false;
-          else {
-            if (!ch1 || !ch2) on = false;
+          let on = s.on, disc = s.disc, ready = s.ready, held2 = s.held;
+          if (!en || !ch1 || !ch2) {
+            on = false;
+            ready = false;
+            held2 = false;
+          }
+          if (en) {
             if (ch1 !== ch2) disc = true;
             else if (!ch1 && !ch2) disc = false;
-            if (!on && ch1 && ch2 && !disc && r && rLow) {
-              on = true;
-              rLow = false;
+            if (!on && ch1 && ch2 && !disc) {
+              if (!r) {
+                if (held2) {
+                  on = true;
+                  held2 = false;
+                  ready = false;
+                } else ready = true;
+              } else held2 = ready;
             }
           }
-          if (on !== s.on || disc !== s.disc || rLow !== s.rLow || en !== s.coil) {
+          if (on !== s.on || disc !== s.disc || ready !== s.ready || held2 !== s.held || en !== s.coil) {
             s.on = on;
             s.disc = disc;
-            s.rLow = rLow;
+            s.ready = ready;
+            s.held = held2;
             s.coil = en;
             changed = true;
           }
@@ -1490,8 +1498,9 @@ html[lang="it"] .trnote{display:none}
       const i = c2.ratings.indexOf(s.in);
       s.in = c2.ratings[(i + 1) % c2.ratings.length];
       s.heat = 0;
-    } else if (action === "weld" && (c2.type === "km" || c2.type === "rel")) s.welded = !s.welded;
-    else if (action === "reset" && c2.type === "ft") {
+    } else if (action === "weld" && (c2.type === "km" || c2.type === "rel")) {
+      if (s.on || s.welded) s.welded = !s.welded;
+    } else if (action === "reset" && c2.type === "ft") {
       s.tripped = false;
       s.heat = 0;
     } else if (action === "test" && c2.type === "rcd") {
@@ -1989,9 +1998,21 @@ html[lang="it"] .trnote{display:none}
           });
           if (!running2()) return;
           act(sim, "toggle", stop);
-          if (running2()) fail("safe.emergency");
+          if (running2()) fail("safe.stopNotHeld");
           act(sim, "toggle", stop);
-          if (running2()) fail("safe.restartAfterEmergency");
+          if (running2()) fail("safe.restartByItself");
+          if (reset) {
+            act(sim, "press", reset);
+            act(sim, "release", reset);
+            if (!running2()) fail("safe.noRestart");
+          }
+        });
+      }
+      if (S2.outputsSeries) {
+        const uf = makeUF();
+        wires.forEach((w) => uf.u(w.a, w.b));
+        S2.outputsSeries.forEach((id) => {
+          if (uf.f(id + ".13") === uf.f(id + ".23")) fail("safe.outputsParallel", { comp: id });
         });
       }
       if (S2.allContacts) {
@@ -4899,10 +4920,10 @@ html[lang="it"] .trnote{display:none}
       controls: ["SBR", "E"],
       checks: [
         { id: "prima", label: "Prima del riarmo la macchina \xE8 ferma", do: [], expect: { loads: { L: "off" } } },
-        { id: "riarmo", label: "Premi il riarmo: la macchina parte", do: press("SBR"), expect: { loads: { L: "on" } } },
+        { id: "riarmo", label: "Premi e rilascia il riarmo: la macchina parte", do: press("SBR"), expect: { loads: { L: "on" } } },
         { id: "emergenza", label: "Premi il fungo: la macchina si ferma", steps: [{ do: press("SBR"), expect: { loads: { L: "on" } } }, { do: ["toggle E"], expect: { loads: { L: "off" } } }] }
       ],
-      safety: { dualChannel: [["KS.S12", "KS.S22"]], allContacts: ["E"], restartNeedsReset: { stop: "E", reset: "SBR", load: "L" }, feedbackMonitored: { km: "KM", stop: "E", reset: "SBR", rs: "KS" } },
+      safety: { dualChannel: [["KS.S12", "KS.S22"]], outputsSeries: ["KS"], allContacts: ["E"], restartNeedsReset: { stop: "E", reset: "SBR", load: "L" }, feedbackMonitored: { km: "KM", stop: "E", reset: "SBR", rs: "KS" } },
       solution: [
         ["Q.F", "E.1", "marrone"],
         ["E.2", "KS.S12", "marrone"],
@@ -4924,7 +4945,7 @@ html[lang="it"] .trnote{display:none}
       hints: [
         "I due contatti del fungo portano la fase ai due ingressi del rel\xE8 di sicurezza: 1-2 a S12, 3-4 a S22. Sono due fili che non si toccano.",
         "Il rel\xE8 di sicurezza si alimenta in A1-A2 (fase e neutro). Le sue uscite 13-14 e 23-24 sono in serie, e alimentano la bobina del contattore KM.",
-        "Il riarmo: dalla fase, prima il contatto NC 21-22 del contattore, poi il pulsante di riarmo, poi il morsetto R. Se il contattore resta incollato il contatto NC \xE8 aperto e il rel\xE8 non si riarma.",
+        "Il riarmo: dalla fase, prima il contatto NC 21-22 del contattore, poi il pulsante di riarmo, poi il morsetto R. Il rel\xE8 si arma quando rilasci il pulsante. Se il contattore resta incollato il contatto NC \xE8 aperto e il rel\xE8 non si riarma.",
         "La macchina (la lampada) si alimenta dal contatto di potenza del contattore, 1-2."
       ]
     },
@@ -4950,15 +4971,15 @@ html[lang="it"] .trnote{display:none}
         C("KM", "km", "Contattore", "Contattore KM", T("A1", "A2", "1", "2", "21", "22")),
         C("L", "lamp", "Macchina", "Macchina (lampada)", { B: { l: "B" }, A: { l: "A" } })
       ],
-      controls: ["SBR", "P", "B"],
+      controls: ["SBR", "E", "P", "B"],
       checks: [
-        { id: "riarmo", label: "Premi il riarmo: la macchina parte", do: press("SBR"), expect: { loads: { L: "on" } } },
+        { id: "riarmo", label: "Premi e rilascia il riarmo: la macchina parte", do: press("SBR"), expect: { loads: { L: "on" } } },
         { id: "emergenza", label: "Premi il fungo: la macchina si ferma", steps: [{ do: press("SBR"), expect: { loads: { L: "on" } } }, { do: ["toggle E"], expect: { loads: { L: "off" } } }] },
         { id: "portella", label: "Apri la portella: la macchina si ferma", steps: [{ do: press("SBR"), expect: { loads: { L: "on" } } }, { do: ["toggle P"], expect: { loads: { L: "off" } } }] },
         { id: "barriera", label: "Interrompi la barriera: la macchina si ferma", steps: [{ do: press("SBR"), expect: { loads: { L: "on" } } }, { do: ["toggle B"], expect: { loads: { L: "off" } } }] },
         { id: "riparte", label: "Richiudi la portella: la macchina resta ferma finch\xE9 non riarmi", steps: [{ do: press("SBR"), expect: { loads: { L: "on" } } }, { do: ["toggle P", "toggle P"], expect: { loads: { L: "off" } } }, { do: press("SBR"), expect: { loads: { L: "on" } } }] }
       ],
-      safety: { dualChannel: [["KS.S12", "KS.S22"]], allContacts: ["E", "P", "B"], restartNeedsReset: { stop: ["E", "P", "B"], reset: "SBR", load: "L" }, feedbackMonitored: { km: "KM", stop: "E", reset: "SBR", rs: "KS" } },
+      safety: { dualChannel: [["KS.S12", "KS.S22"]], outputsSeries: ["KS"], allContacts: ["E", "P", "B"], restartNeedsReset: { stop: ["E", "P", "B"], reset: "SBR", load: "L" }, feedbackMonitored: { km: "KM", stop: "E", reset: "SBR", rs: "KS" } },
       solution: [
         ["Q.F", "E.1", "marrone"],
         ["E.2", "P.1", "marrone"],
@@ -6906,8 +6927,8 @@ html[lang="it"] .trnote{display:none}
             type: "spiegazione",
             title: "Perch\xE9 due contatti",
             paras: [
-              "Un pulsante di emergenza con un solo contatto ha un punto debole: se quel contatto si incolla o il filo si stacca nel modo sbagliato, la macchina non si ferma e nessuno se ne accorge.",
-              "Nelle macchine il fungo ha due contatti normalmente chiusi, uno per canale. Ogni canale ferma la macchina per conto suo. Con due canali serve un guasto doppio per perdere l\u2019emergenza, e uno solo si pu\xF2 scoprire."
+              "Un pulsante di emergenza con un solo contatto ha un punto debole: se quel contatto si incolla o viene scavalcato da un cortocircuito, la macchina non si ferma e nessuno se ne accorge.",
+              "Nelle macchine il fungo ha due contatti normalmente chiusi, uno per canale. Ogni canale ferma la macchina per conto suo. Con due canali serve un guasto doppio per perdere l\u2019emergenza. Per accorgersi del primo guasto serve poi un controllo, come quello che fa il rel\xE8 di sicurezza nel livello successivo."
             ]
           },
           {
@@ -7006,7 +7027,7 @@ html[lang="it"] .trnote{display:none}
             title: "Un rel\xE8 che controlla",
             paras: [
               "Il rel\xE8 di sicurezza non si limita a passare un contatto: controlla. Legge i due canali del fungo, e se uno solo cade apre le sue uscite. Se i due canali non cambiano insieme, segnala una discrepanza e si blocca finch\xE9 non tornano entrambi a riposo.",
-              "Dopo un arresto non riparte da solo. Serve un impulso sul pulsante di riarmo: la macchina riparte per una scelta di chi sta davanti, non perch\xE9 il fungo \xE8 stato sbloccato."
+              "Dopo un arresto non riparte da solo. Serve un impulso sul pulsante di riarmo, e il rel\xE8 si arma quando il pulsante viene rilasciato: la macchina riparte per una scelta di chi sta davanti, non perch\xE9 il fungo \xE8 stato sbloccato. Un pulsante di riarmo bloccato o ponticellato non arma mai il rel\xE8."
             ]
           },
           {
@@ -7014,9 +7035,9 @@ html[lang="it"] .trnote{display:none}
             title: "Il contattore incollato",
             paras: [
               "I contatti di potenza di un contattore possono incollarsi, per esempio dopo molti cicli con carico forte. La bobina si spegne, ma la macchina continua a girare.",
-              "Nei contattori i contatti NC e NA non si possono trovare chiusi insieme. Se il contattore \xE8 incollato, il contatto NC 21-22 resta aperto. Mettendolo nel circuito di riarmo, il rel\xE8 di sicurezza si accorge del guasto e non si riarma."
+              "Nei contattori i contatti NC e NA non si possono trovare chiusi insieme. Se il contattore \xE8 incollato, il contatto NC 21-22 resta aperto. Mettendolo nel circuito di riarmo, il rel\xE8 di sicurezza si accorge del guasto e non si riarma. Nelle macchine vere i contatti di potenza sono almeno due, in serie, e ciascuno pu\xF2 fermare la macchina da solo; qui ce n\u2019\xE8 uno solo per semplicit\xE0, quindi la retroazione scopre il contattore incollato al riarmo ma non pu\xF2 fermare la macchina mentre \xE8 incollato."
             ],
-            warn: "Se il riarmo non passa dal contatto NC del contattore, il guasto resta nascosto: dopo ogni emergenza un contattore incollato potrebbe rimandare la macchina in marcia."
+            warn: "Se il riarmo non passa dal contatto NC del contattore, un contattore incollato non viene scoperto: la macchina resta senza protezione fino al guasto successivo."
           },
           {
             type: "pezzi",
@@ -7122,7 +7143,7 @@ html[lang="it"] .trnote{display:none}
             { id: "c", text: "Niente, perch\xE9 il fungo ferma comunque la macchina." }
           ],
           correct: "a",
-          why: "Il contatto NC 21-22 del contattore \xE8 aperto quando i contatti di potenza sono chiusi. Se il riarmo non passa da l\xEC, un contattore incollato non viene scoperto e la macchina pu\xF2 restare in marcia anche dopo l\u2019emergenza."
+          why: "Il contatto NC 21-22 del contattore \xE8 aperto quando i contatti di potenza sono chiusi. Se il riarmo non passa da l\xEC, un contattore incollato non viene scoperto e il guasto resta nascosto: al guasto successivo la macchina non si fermerebbe pi\xF9."
         },
         fixSay: "Togli il filo dalla fase al pulsante di riarmo. Collega la fase al morsetto 21 del contattore, poi il 22 al pulsante di riarmo. Poi premi Verifica."
       }
@@ -7146,7 +7167,7 @@ html[lang="it"] .trnote{display:none}
               "Se un operatore apre la portella per togliere un pezzo, e la richiude, la macchina non deve ripartire da sola: potrebbe esserci ancora qualcuno dentro.",
               "Per questo lo stesso rel\xE8 di sicurezza vale per tutta la catena: ogni arresto apre le uscite, e solo il riarmo, dato da fuori, rimette in marcia. Un contatto lasciato libero in un dispositivo toglie un canale a quel dispositivo."
             ],
-            warn: "Un dispositivo a due canali con un solo contatto collegato sembra funzionare, ma non \xE8 pi\xF9 sicuro."
+            warn: "Un dispositivo a due canali con un solo contatto collegato sembra funzionare, ma non \xE8 pi\xF9 sicuro. Nota: le barriere a raggi vere hanno uscite statiche e di solito non si collegano in serie come un contatto a secco; qui \xE8 una semplificazione del gioco."
           },
           {
             type: "demo",
@@ -7284,7 +7305,7 @@ html[lang="it"] .trnote{display:none}
     pbnc: ["Il pulsante normalmente chiuso (NC)", "Ha due morsetti, 1 e 2. A riposo il contatto \xE8 chiuso: si apre solo finch\xE9 lo tieni premuto. Si usa per l\u2019arresto, perch\xE9 un filo staccato ferma la macchina."],
     fungo: ["Il pulsante di emergenza a fungo", "Ha un contatto normalmente chiuso (o due, nel modello a due canali: 1-2 e 3-4). Premuto, si apre e resta bloccato: la macchina si ferma e non riparte finch\xE9 non lo sblocchi."],
     port: ["La portella (o la barriera)", "Ha due contatti normalmente chiusi, 1-2 e 3-4, uno per canale. Chiusa, i contatti sono chiusi; aperta, si aprono tutti e due. Toccala per aprirla o chiuderla. La barriera a raggi funziona allo stesso modo: interrotta, apre i contatti."],
-    rs: ["Il rel\xE8 di sicurezza", "Si alimenta in A1-A2 e controlla due canali d\u2019ingresso (S12 e S22): se uno cade, le uscite 13-14 e 23-24 si aprono. Per riarmarlo servono i due canali chiusi e un impulso sul morsetto R, dato dal pulsante di riarmo (meglio se attraverso i contatti NC dei contattori, che ne controllano il distacco)."],
+    rs: ["Il rel\xE8 di sicurezza", "Si alimenta in A1-A2 e controlla due canali d\u2019ingresso (S12 e S22): se uno cade, le uscite 13-14 e 23-24 si aprono. Per riarmarlo servono i due canali chiusi e un impulso sul morsetto R: il rel\xE8 si arma quando il pulsante di riarmo viene rilasciato. Il riarmo passa dai contatti NC dei contattori, che controllano se si sono staccati."],
     ri: ["Il rel\xE8 ad impulsi", "Ha una bobina (A1 e A2) e un contatto (1 e 2). A ogni impulso sulla bobina il contatto cambia stato e lo mantiene: aperto, chiuso, aperto. Serve a comandare una luce da molti punti."],
     tmr: ["Il rel\xE8 temporizzato", "Ha una bobina (A1 e A2) e un contatto (1 e 2). Dopo un impulso il contatto resta chiuso per il tempo impostato, poi si riapre da solo."],
     km: ["Il contattore", "Ha una bobina (A1 e A2) e dei contatti. Con la bobina alimentata si chiudono i tre poli di potenza (1-2, 3-4, 5-6) e il contatto ausiliario normalmente aperto (13-14); si apre quello normalmente chiuso (21-22). Il circuito di comando e quello di potenza sono separati."],
@@ -7438,13 +7459,21 @@ html[lang="it"] .trnote{display:none}
       case "safe.liveWork":
         return "Hai cambiato i fili mentre il sezionamento (" + nameOf(level, item.comp) + ") era chiuso e i morsetti erano in tensione. Premi Annulla tutto, apri il sezionamento e cabla da capo.";
       case "safe.singleChannel":
-        return "I due canali sono collegati tra loro: se un contatto resta incollato o un filo si stacca, l\u2019altro canale non lo vede. Ogni canale deve avere il suo percorso.";
+        return "I due canali dipendono dallo stesso contatto: se si incolla o viene scavalcato da un cortocircuito, restano chiusi tutti e due. Ogni canale deve avere il suo percorso.";
       case "safe.notRedundant":
-        return "Con " + nameOf(level, item.comp) + " incollato l\u2019altro dispositivo non ferma la macchina: i due canali devono fermarla ciascuno da solo.";
+        return "Se " + nameOf(level, item.comp) + " resta incollato la macchina non si ferma: ciascun dispositivo deve poterla fermare da solo.";
       case "safe.contactUnused":
         return "Il dispositivo " + nameOf(level, item.comp) + " ha un contatto non collegato: un dispositivo a due canali deve usarli tutti e due.";
       case "safe.noFeedback":
-        return "Se il contattore " + nameOf(level, item.comp) + " resta incollato il rel\xE8 di sicurezza si riarma lo stesso: i contatti NC del contattore devono stare nel circuito di riarmo.";
+        return "Se il contattore resta incollato il rel\xE8 di sicurezza si riarma lo stesso: il contatto NC 21-22 del contattore deve stare nel circuito di riarmo.";
+      case "safe.stopNotHeld":
+        return "Con il dispositivo di arresto azionato la macchina resta in marcia: deve fermarsi.";
+      case "safe.restartByItself":
+        return "Richiudendo o sbloccando il dispositivo la macchina riparte da sola: deve ripartire solo con il riarmo.";
+      case "safe.noRestart":
+        return "Dopo l\u2019arresto e il riarmo la macchina non riparte: controlla i due canali e il percorso del riarmo.";
+      case "safe.outputsParallel":
+        return "Le due uscite del rel\xE8 di sicurezza sono in parallelo: devono stare in serie, cos\xEC ne basta una per fermare la macchina.";
       case "safe.neutralEarth":
         return "Neutro e terra sono collegati tra loro: il filo di protezione non deve mai portare corrente.";
       case "safe.ok":
@@ -11432,7 +11461,32 @@ html[lang="it"] .trnote{display:none}
     "Uscita": "\u0627\u0644\u0645\u062E\u0631\u062C",
     "Emergenza a due canali": "\u0637\u0648\u0627\u0631\u0626 \u0628\u0642\u0646\u0627\u062A\u064A\u0646",
     "Portella a due canali": "\u0628\u0648\u0627\u0628\u0629 \u0628\u0642\u0646\u0627\u062A\u064A\u0646",
-    "Barriera a due canali": "\u062D\u0627\u062C\u0632 \u0628\u0642\u0646\u0627\u062A\u064A\u0646"
+    "Barriera a due canali": "\u062D\u0627\u062C\u0632 \u0628\u0642\u0646\u0627\u062A\u064A\u0646",
+    "CHIUSA": "\u0645\u063A\u0644\u0642\u0629",
+    "APERTA": "\u0645\u0641\u062A\u0648\u062D\u0629",
+    "Emergenza a due canali, premi per bloccare o sbloccare": "\u0637\u0648\u0627\u0631\u0626 \u0628\u0642\u0646\u0627\u062A\u064A\u0646\u060C \u0627\u0636\u063A\u0637 \u0644\u0644\u062A\u062B\u0628\u064A\u062A \u0623\u0648 \u0644\u0644\u062A\u062D\u0631\u064A\u0631",
+    "Morsetto Rel\xE8 sicurezza S12": "\u0627\u0644\u0645\u0631\u0628\u0637 S12 \u0641\u064A \u0645\u0631\u062D\u0651\u0644 \u0627\u0644\u0623\u0645\u0627\u0646",
+    "Morsetto Rel\xE8 sicurezza S22": "\u0627\u0644\u0645\u0631\u0628\u0637 S22 \u0641\u064A \u0645\u0631\u062D\u0651\u0644 \u0627\u0644\u0623\u0645\u0627\u0646",
+    "SICUREZZA": "\u0627\u0644\u0623\u0645\u0627\u0646",
+    "ARMATO": "\u0645\u064F\u0633\u0644\u064E\u0651\u062D",
+    "DISCREPANZA": "\u0639\u062F\u0645 \u062A\u0637\u0627\u0628\u0642",
+    "Dopo un arresto non riparte da solo. Serve un impulso sul pulsante di riarmo, e il rel\xE8 si arma quando il pulsante viene rilasciato: la macchina riparte per una scelta di chi sta davanti, non perch\xE9 il fungo \xE8 stato sbloccato. Un pulsante di riarmo bloccato o ponticellato non arma mai il rel\xE8.": "\u0628\u0639\u062F \u0627\u0644\u062A\u0648\u0642\u0641 \u0644\u0627 \u062A\u0639\u064A\u062F \u0627\u0644\u0622\u0644\u0629 \u0627\u0644\u062A\u0634\u063A\u064A\u0644 \u0645\u0646 \u062A\u0644\u0642\u0627\u0621 \u0646\u0641\u0633\u0647\u0627. \u064A\u0644\u0632\u0645 \u0646\u0628\u0636\u0629 \u0639\u0644\u0649 \u0632\u0631 \u0625\u0639\u0627\u062F\u0629 \u0627\u0644\u062A\u0633\u0644\u064A\u062D\u060C \u0648\u064A\u064F\u0633\u0644\u064E\u0651\u062D \u0627\u0644\u0645\u0631\u062D\u0651\u0644 \u0639\u0646\u062F \u062A\u062D\u0631\u064A\u0631 \u0627\u0644\u0632\u0631: \u062A\u0639\u0648\u062F \u0627\u0644\u0622\u0644\u0629 \u0625\u0644\u0649 \u0627\u0644\u0639\u0645\u0644 \u0628\u0642\u0631\u0627\u0631 \u0645\u0646 \u064A\u0642\u0641 \u0623\u0645\u0627\u0645\u0647\u0627\u060C \u0644\u0627 \u0644\u0645\u062C\u0631\u062F \u0623\u0646 \u0632\u0631 \u0627\u0644\u0637\u0648\u0627\u0631\u0626 \u0642\u062F \u062D\u064F\u0631\u0651\u0631. \u0632\u0631 \u0625\u0639\u0627\u062F\u0629 \u0627\u0644\u062A\u0633\u0644\u064A\u062D \u0627\u0644\u0645\u062B\u0628\u064E\u0651\u062A \u0623\u0648 \u0627\u0644\u0645\u062C\u0633\u064E\u0651\u0631 \u0644\u0627 \u064A\u064F\u0633\u0644\u0650\u0651\u062D \u0627\u0644\u0645\u0631\u062D\u0651\u0644 \u0623\u0628\u062F\u064B\u0627.",
+    "Il contatto NC 21-22 del contattore \xE8 aperto quando i contatti di potenza sono chiusi. Se il riarmo non passa da l\xEC, un contattore incollato non viene scoperto e il guasto resta nascosto: al guasto successivo la macchina non si fermerebbe pi\xF9.": "\u0627\u0644\u062A\u0644\u0627\u0645\u0633 NC 21-22 \u0641\u064A \u0627\u0644\u0643\u0648\u0646\u062A\u0627\u0643\u062A\u0648\u0631 \u064A\u0643\u0648\u0646 \u0645\u0641\u062A\u0648\u062D\u064B\u0627 \u0639\u0646\u062F\u0645\u0627 \u062A\u0643\u0648\u0646 \u062A\u0644\u0627\u0645\u0633\u0627\u062A \u0627\u0644\u0642\u062F\u0631\u0629 \u0645\u063A\u0644\u0642\u0629. \u0625\u0630\u0627 \u0644\u0645 \u062A\u0645\u0631 \u0625\u0639\u0627\u062F\u0629 \u0627\u0644\u062A\u0633\u0644\u064A\u062D \u0639\u0628\u0631\u0647\u060C \u0641\u0644\u0646 \u064A\u064F\u0643\u062A\u0634\u0641 \u0627\u0644\u0643\u0648\u0646\u062A\u0627\u0643\u062A\u0648\u0631 \u0627\u0644\u0645\u0644\u062A\u0635\u0642 \u0648\u064A\u0628\u0642\u0649 \u0627\u0644\u0639\u0637\u0644 \u0645\u062E\u0641\u064A\u064B\u0627: \u0648\u0639\u0646\u062F \u0627\u0644\u0639\u0637\u0644 \u0627\u0644\u062A\u0627\u0644\u064A \u0644\u0646 \u062A\u062A\u0648\u0642\u0641 \u0627\u0644\u0622\u0644\u0629 \u0628\u0639\u062F \u0627\u0644\u0622\u0646.",
+    "Il riarmo: dalla fase, prima il contatto NC 21-22 del contattore, poi il pulsante di riarmo, poi il morsetto R. Il rel\xE8 si arma quando rilasci il pulsante. Se il contattore resta incollato il contatto NC \xE8 aperto e il rel\xE8 non si riarma.": "\u0625\u0639\u0627\u062F\u0629 \u0627\u0644\u062A\u0633\u0644\u064A\u062D: \u0645\u0646 \u0627\u0644\u0637\u0648\u0631\u060C \u0623\u0648\u0644\u064B\u0627 \u0627\u0644\u062A\u0644\u0627\u0645\u0633 NC 21-22 \u0641\u064A \u0627\u0644\u0643\u0648\u0646\u062A\u0627\u0643\u062A\u0648\u0631\u060C \u062B\u0645 \u0632\u0631 \u0625\u0639\u0627\u062F\u0629 \u0627\u0644\u062A\u0633\u0644\u064A\u062D\u060C \u062B\u0645 \u0627\u0644\u0645\u0631\u0628\u0637 R. \u064A\u064F\u0633\u0644\u064E\u0651\u062D \u0627\u0644\u0645\u0631\u062D\u0651\u0644 \u0639\u0646\u062F\u0645\u0627 \u062A\u062D\u0631\u0651\u0631 \u0627\u0644\u0632\u0631. \u0625\u0630\u0627 \u0628\u0642\u064A \u0627\u0644\u0643\u0648\u0646\u062A\u0627\u0643\u062A\u0648\u0631 \u0645\u0644\u062A\u0635\u0642\u064B\u0627 \u064A\u0643\u0648\u0646 \u0627\u0644\u062A\u0644\u0627\u0645\u0633 NC \u0645\u0641\u062A\u0648\u062D\u064B\u0627 \u0648\u0644\u0627 \u064A\u064F\u0639\u0627\u062F \u062A\u0633\u0644\u064A\u062D \u0627\u0644\u0645\u0631\u062D\u0651\u0644.",
+    "Nei contattori i contatti NC e NA non si possono trovare chiusi insieme. Se il contattore \xE8 incollato, il contatto NC 21-22 resta aperto. Mettendolo nel circuito di riarmo, il rel\xE8 di sicurezza si accorge del guasto e non si riarma. Nelle macchine vere i contatti di potenza sono almeno due, in serie, e ciascuno pu\xF2 fermare la macchina da solo; qui ce n\u2019\xE8 uno solo per semplicit\xE0, quindi la retroazione scopre il contattore incollato al riarmo ma non pu\xF2 fermare la macchina mentre \xE8 incollato.": "\u0641\u064A \u0627\u0644\u0643\u0648\u0646\u062A\u0627\u0643\u062A\u0648\u0631\u0627\u062A \u0644\u0627 \u064A\u0645\u0643\u0646 \u0623\u0646 \u064A\u0643\u0648\u0646 \u0627\u0644\u062A\u0644\u0627\u0645\u0633\u0627\u0646 NC \u0648NA \u0645\u063A\u0644\u0642\u064A\u0646 \u0645\u0639\u064B\u0627. \u0625\u0630\u0627 \u0627\u0644\u062A\u0635\u0642 \u0627\u0644\u0643\u0648\u0646\u062A\u0627\u0643\u062A\u0648\u0631 \u064A\u0628\u0642\u0649 \u0627\u0644\u062A\u0644\u0627\u0645\u0633 NC 21-22 \u0645\u0641\u062A\u0648\u062D\u064B\u0627. \u0648\u0628\u0648\u0636\u0639\u0647 \u0641\u064A \u062F\u0627\u0631\u0629 \u0625\u0639\u0627\u062F\u0629 \u0627\u0644\u062A\u0633\u0644\u064A\u062D \u064A\u0644\u0627\u062D\u0638 \u0645\u0631\u062D\u0651\u0644 \u0627\u0644\u0623\u0645\u0627\u0646 \u0627\u0644\u0639\u0637\u0644 \u0648\u0644\u0627 \u064A\u064F\u0639\u0627\u062F \u062A\u0633\u0644\u064A\u062D\u0647. \u0641\u064A \u0627\u0644\u0622\u0644\u0627\u062A \u0627\u0644\u062D\u0642\u064A\u0642\u064A\u0629 \u062A\u0648\u062C\u062F \u062A\u0644\u0627\u0645\u0633\u0627\u062A \u0642\u062F\u0631\u0629 \u0627\u062B\u0646\u0627\u0646 \u0639\u0644\u0649 \u0627\u0644\u0623\u0642\u0644 \u0639\u0644\u0649 \u0627\u0644\u062A\u0633\u0644\u0633\u0644\u060C \u0648\u064A\u0633\u062A\u0637\u064A\u0639 \u0643\u0644 \u0645\u0646\u0647\u0645\u0627 \u0625\u064A\u0642\u0627\u0641 \u0627\u0644\u0622\u0644\u0629 \u0648\u062D\u062F\u0647\u061B \u0623\u0645\u0627 \u0647\u0646\u0627 \u0641\u064A\u0648\u062C\u062F \u0648\u0627\u062D\u062F \u0641\u0642\u0637 \u0644\u0644\u062A\u0628\u0633\u064A\u0637\u060C \u0644\u0630\u0644\u0643 \u062A\u0643\u062A\u0634\u0641 \u0627\u0644\u062A\u063A\u0630\u064A\u0629 \u0627\u0644\u0631\u0627\u062C\u0639\u0629 \u0627\u0644\u0643\u0648\u0646\u062A\u0627\u0643\u062A\u0648\u0631 \u0627\u0644\u0645\u0644\u062A\u0635\u0642 \u0639\u0646\u062F \u0625\u0639\u0627\u062F\u0629 \u0627\u0644\u062A\u0633\u0644\u064A\u062D \u0644\u0643\u0646\u0647\u0627 \u0644\u0627 \u062A\u0633\u062A\u0637\u064A\u0639 \u0625\u064A\u0642\u0627\u0641 \u0627\u0644\u0622\u0644\u0629 \u0648\u0647\u0648 \u0645\u0644\u062A\u0635\u0642.",
+    "Nelle macchine il fungo ha due contatti normalmente chiusi, uno per canale. Ogni canale ferma la macchina per conto suo. Con due canali serve un guasto doppio per perdere l\u2019emergenza. Per accorgersi del primo guasto serve poi un controllo, come quello che fa il rel\xE8 di sicurezza nel livello successivo.": "\u0641\u064A \u0627\u0644\u0622\u0644\u0627\u062A \u064A\u0643\u0648\u0646 \u0644\u0632\u0631 \u0627\u0644\u0637\u0648\u0627\u0631\u0626 \u062A\u0644\u0627\u0645\u0633\u0627\u0646 \u0639\u0627\u062F\u064A\u0627\u0646 \u0627\u0644\u0625\u063A\u0644\u0627\u0642\u060C \u0648\u0627\u062D\u062F \u0644\u0643\u0644 \u0642\u0646\u0627\u0629. \u0643\u0644 \u0642\u0646\u0627\u0629 \u062A\u0648\u0642\u0641 \u0627\u0644\u0622\u0644\u0629 \u0628\u0645\u0641\u0631\u062F\u0647\u0627. \u0645\u0639 \u0642\u0646\u0627\u062A\u064A\u0646 \u064A\u0644\u0632\u0645 \u0639\u0637\u0644 \u0645\u0632\u062F\u0648\u062C \u0644\u0641\u0642\u062F\u0627\u0646 \u0627\u0644\u0637\u0648\u0627\u0631\u0626. \u0648\u0644\u0627\u0643\u062A\u0634\u0627\u0641 \u0627\u0644\u0639\u0637\u0644 \u0627\u0644\u0623\u0648\u0644 \u064A\u0644\u0632\u0645 \u0628\u0639\u062F \u0630\u0644\u0643 \u0641\u062D\u0635\u060C \u0645\u062B\u0644 \u0627\u0644\u0630\u064A \u064A\u0642\u0648\u0645 \u0628\u0647 \u0645\u0631\u062D\u0651\u0644 \u0627\u0644\u0623\u0645\u0627\u0646 \u0641\u064A \u0627\u0644\u0645\u0633\u062A\u0648\u0649 \u0627\u0644\u062A\u0627\u0644\u064A.",
+    "Premi e rilascia il riarmo: la macchina parte": "\u0627\u0636\u063A\u0637 \u0639\u0644\u0649 \u0632\u0631 \u0625\u0639\u0627\u062F\u0629 \u0627\u0644\u062A\u0633\u0644\u064A\u062D \u062B\u0645 \u062D\u0631\u0651\u0631\u0647: \u062A\u0628\u062F\u0623 \u0627\u0644\u0622\u0644\u0629 \u0628\u0627\u0644\u0639\u0645\u0644",
+    "Se il riarmo non passa dal contatto NC del contattore, un contattore incollato non viene scoperto: la macchina resta senza protezione fino al guasto successivo.": "\u0625\u0630\u0627 \u0644\u0645 \u062A\u0645\u0631 \u0625\u0639\u0627\u062F\u0629 \u0627\u0644\u062A\u0633\u0644\u064A\u062D \u0639\u0628\u0631 \u0627\u0644\u062A\u0644\u0627\u0645\u0633 NC \u0641\u064A \u0627\u0644\u0643\u0648\u0646\u062A\u0627\u0643\u062A\u0648\u0631 \u0641\u0644\u0646 \u064A\u064F\u0643\u062A\u0634\u0641 \u0627\u0644\u0643\u0648\u0646\u062A\u0627\u0643\u062A\u0648\u0631 \u0627\u0644\u0645\u0644\u062A\u0635\u0642: \u0648\u062A\u0628\u0642\u0649 \u0627\u0644\u0622\u0644\u0629 \u0628\u0644\u0627 \u062D\u0645\u0627\u064A\u0629 \u062D\u062A\u0649 \u0627\u0644\u0639\u0637\u0644 \u0627\u0644\u062A\u0627\u0644\u064A.",
+    "Si alimenta in A1-A2 e controlla due canali d\u2019ingresso (S12 e S22): se uno cade, le uscite 13-14 e 23-24 si aprono. Per riarmarlo servono i due canali chiusi e un impulso sul morsetto R: il rel\xE8 si arma quando il pulsante di riarmo viene rilasciato. Il riarmo passa dai contatti NC dei contattori, che controllano se si sono staccati.": "\u064A\u064F\u063A\u0630\u0651\u0649 \u0639\u0646\u062F A1-A2 \u0648\u064A\u0631\u0627\u0642\u0628 \u0642\u0646\u0627\u062A\u064A \u062F\u062E\u0644 (S12 \u0648S22): \u0625\u0630\u0627 \u0633\u0642\u0637\u062A \u0625\u062D\u062F\u0627\u0647\u0645\u0627 \u062A\u0646\u0641\u062A\u062D \u0627\u0644\u0645\u062E\u0631\u062C\u0627\u062A 13-14 \u064823-24. \u0644\u0625\u0639\u0627\u062F\u0629 \u062A\u0633\u0644\u064A\u062D\u0647 \u064A\u0644\u0632\u0645 \u0623\u0646 \u062A\u0643\u0648\u0646 \u0627\u0644\u0642\u0646\u0627\u062A\u0627\u0646 \u0645\u063A\u0644\u0642\u062A\u064A\u0646 \u0648\u0646\u0628\u0636\u0629 \u0639\u0644\u0649 \u0627\u0644\u0645\u0631\u0628\u0637 R: \u064A\u064F\u0633\u0644\u064E\u0651\u062D \u0627\u0644\u0645\u0631\u062D\u0651\u0644 \u0639\u0646\u062F\u0645\u0627 \u064A\u064F\u062D\u0631\u064E\u0651\u0631 \u0632\u0631 \u0625\u0639\u0627\u062F\u0629 \u0627\u0644\u062A\u0633\u0644\u064A\u062D. \u062A\u0645\u0631 \u0625\u0639\u0627\u062F\u0629 \u0627\u0644\u062A\u0633\u0644\u064A\u062D \u0639\u0628\u0631 \u0627\u0644\u062A\u0644\u0627\u0645\u0633\u0627\u062A NC \u0641\u064A \u0627\u0644\u0643\u0648\u0646\u062A\u0627\u0643\u062A\u0648\u0631\u0627\u062A\u060C \u0627\u0644\u062A\u064A \u062A\u062A\u062D\u0642\u0642 \u0645\u0646 \u0623\u0646\u0647\u0627 \u0627\u0646\u0641\u0635\u0644\u062A.",
+    "Un dispositivo a due canali con un solo contatto collegato sembra funzionare, ma non \xE8 pi\xF9 sicuro. Nota: le barriere a raggi vere hanno uscite statiche e di solito non si collegano in serie come un contatto a secco; qui \xE8 una semplificazione del gioco.": "\u062C\u0647\u0627\u0632 \u0628\u0642\u0646\u0627\u062A\u064A\u0646 \u0645\u0639 \u062A\u0648\u0635\u064A\u0644 \u062A\u0644\u0627\u0645\u0633 \u0648\u0627\u062D\u062F \u0641\u0642\u0637 \u064A\u0628\u062F\u0648 \u0623\u0646\u0647 \u064A\u0639\u0645\u0644 \u0644\u0643\u0646\u0647 \u0644\u0645 \u064A\u0639\u062F \u0622\u0645\u0646\u064B\u0627. \u0645\u0644\u0627\u062D\u0638\u0629: \u0627\u0644\u062D\u0648\u0627\u062C\u0632 \u0627\u0644\u0636\u0648\u0626\u064A\u0629 \u0627\u0644\u062D\u0642\u064A\u0642\u064A\u0629 \u0644\u0647\u0627 \u0645\u062E\u0627\u0631\u062C \u0633\u0627\u0643\u0646\u0629 \u0648\u0639\u0627\u062F\u0629\u064B \u0644\u0627 \u062A\u064F\u0648\u0635\u064E\u0651\u0644 \u0639\u0644\u0649 \u0627\u0644\u062A\u0633\u0644\u0633\u0644 \u0643\u062A\u0644\u0627\u0645\u0633 \u062C\u0627\u0641\u061B \u0647\u0646\u0627 \u062A\u0628\u0633\u064A\u0637 \u0644\u0644\u0639\u0628\u0629.",
+    "Un pulsante di emergenza con un solo contatto ha un punto debole: se quel contatto si incolla o viene scavalcato da un cortocircuito, la macchina non si ferma e nessuno se ne accorge.": "\u0632\u0631 \u0637\u0648\u0627\u0631\u0626 \u0628\u062A\u0644\u0627\u0645\u0633 \u0648\u0627\u062D\u062F \u0644\u0647 \u0646\u0642\u0637\u0629 \u0636\u0639\u0641: \u0625\u0630\u0627 \u0627\u0644\u062A\u0635\u0642 \u0647\u0630\u0627 \u0627\u0644\u062A\u0644\u0627\u0645\u0633 \u0623\u0648 \u062C\u064F\u0633\u0650\u0651\u0631 \u0628\u0642\u0635\u0631 \u0641\u064A \u0627\u0644\u062F\u0627\u0631\u0629 \u0641\u0644\u0646 \u062A\u062A\u0648\u0642\u0641 \u0627\u0644\u0622\u0644\u0629 \u0648\u0644\u0646 \u064A\u0644\u0627\u062D\u0638 \u0623\u062D\u062F.",
+    "I due canali dipendono dallo stesso contatto: se si incolla o viene scavalcato da un cortocircuito, restano chiusi tutti e due. Ogni canale deve avere il suo percorso.": "\u0627\u0644\u0642\u0646\u0627\u062A\u0627\u0646 \u062A\u0639\u062A\u0645\u062F\u0627\u0646 \u0639\u0644\u0649 \u0627\u0644\u062A\u0644\u0627\u0645\u0633 \u0646\u0641\u0633\u0647: \u0625\u0630\u0627 \u0627\u0644\u062A\u0635\u0642 \u0623\u0648 \u062C\u064F\u0633\u0650\u0651\u0631 \u0628\u0642\u0635\u0631 \u0641\u064A \u0627\u0644\u062F\u0627\u0631\u0629 \u0628\u0642\u064A\u062A\u0627 \u0645\u063A\u0644\u0642\u062A\u064A\u0646 \u0645\u0639\u064B\u0627. \u064A\u062C\u0628 \u0623\u0646 \u064A\u0643\u0648\u0646 \u0644\u0643\u0644 \u0642\u0646\u0627\u0629 \u0645\u0633\u0627\u0631\u0647\u0627 \u0627\u0644\u062E\u0627\u0635.",
+    "Il dispositivo Emergenza ha un contatto non collegato: un dispositivo a due canali deve usarli tutti e due.": "\u0641\u064A \u0627\u0644\u062C\u0647\u0627\u0632 \xAB\u0637\u0648\u0627\u0631\u0626\xBB \u062A\u0644\u0627\u0645\u0633 \u063A\u064A\u0631 \u0645\u0648\u0635\u0648\u0644: \u0627\u0644\u062C\u0647\u0627\u0632 \u0630\u0648 \u0627\u0644\u0642\u0646\u0627\u062A\u064A\u0646 \u064A\u062C\u0628 \u0623\u0646 \u064A\u0633\u062A\u062E\u062F\u0645\u0647\u0645\u0627 \u0645\u0639\u064B\u0627.",
+    "Se il contattore resta incollato il rel\xE8 di sicurezza si riarma lo stesso: il contatto NC 21-22 del contattore deve stare nel circuito di riarmo.": "\u0625\u0630\u0627 \u0628\u0642\u064A \u0627\u0644\u0643\u0648\u0646\u062A\u0627\u0643\u062A\u0648\u0631 \u0645\u0644\u062A\u0635\u0642\u064B\u0627 \u064A\u064F\u0639\u0627\u062F \u062A\u0633\u0644\u064A\u062D \u0645\u0631\u062D\u0651\u0644 \u0627\u0644\u0623\u0645\u0627\u0646 \u0631\u063A\u0645 \u0630\u0644\u0643: \u064A\u062C\u0628 \u0623\u0646 \u064A\u0643\u0648\u0646 \u0627\u0644\u062A\u0644\u0627\u0645\u0633 NC 21-22 \u0641\u064A \u0627\u0644\u0643\u0648\u0646\u062A\u0627\u0643\u062A\u0648\u0631 \u062F\u0627\u062E\u0644 \u062F\u0627\u0631\u0629 \u0625\u0639\u0627\u062F\u0629 \u0627\u0644\u062A\u0633\u0644\u064A\u062D.",
+    "Con il dispositivo di arresto azionato la macchina resta in marcia: deve fermarsi.": "\u0645\u0639 \u062A\u0634\u063A\u064A\u0644 \u062C\u0647\u0627\u0632 \u0627\u0644\u0625\u064A\u0642\u0627\u0641 \u062A\u0628\u0642\u0649 \u0627\u0644\u0622\u0644\u0629 \u0641\u064A \u062D\u0627\u0644\u0629 \u0639\u0645\u0644: \u064A\u062C\u0628 \u0623\u0646 \u062A\u062A\u0648\u0642\u0641.",
+    "Richiudendo o sbloccando il dispositivo la macchina riparte da sola: deve ripartire solo con il riarmo.": "\u0639\u0646\u062F \u0625\u0639\u0627\u062F\u0629 \u0625\u063A\u0644\u0627\u0642 \u0627\u0644\u062C\u0647\u0627\u0632 \u0623\u0648 \u062A\u062D\u0631\u064A\u0631\u0647 \u062A\u0639\u0648\u062F \u0627\u0644\u0622\u0644\u0629 \u0625\u0644\u0649 \u0627\u0644\u0639\u0645\u0644 \u0645\u0646 \u062A\u0644\u0642\u0627\u0621 \u0646\u0641\u0633\u0647\u0627: \u064A\u062C\u0628 \u0623\u0644\u0627 \u062A\u0639\u0645\u0644 \u0625\u0644\u0627 \u0628\u0639\u062F \u0625\u0639\u0627\u062F\u0629 \u0627\u0644\u062A\u0633\u0644\u064A\u062D.",
+    "Dopo l\u2019arresto e il riarmo la macchina non riparte: controlla i due canali e il percorso del riarmo.": "\u0628\u0639\u062F \u0627\u0644\u062A\u0648\u0642\u0641 \u0648\u0625\u0639\u0627\u062F\u0629 \u0627\u0644\u062A\u0633\u0644\u064A\u062D \u0644\u0627 \u062A\u0639\u0648\u062F \u0627\u0644\u0622\u0644\u0629 \u0625\u0644\u0649 \u0627\u0644\u0639\u0645\u0644: \u062A\u062D\u0642\u0642 \u0645\u0646 \u0627\u0644\u0642\u0646\u0627\u062A\u064A\u0646 \u0648\u0645\u0633\u0627\u0631 \u0625\u0639\u0627\u062F\u0629 \u0627\u0644\u062A\u0633\u0644\u064A\u062D.",
+    "Le due uscite del rel\xE8 di sicurezza sono in parallelo: devono stare in serie, cos\xEC ne basta una per fermare la macchina.": "\u0645\u062E\u0631\u062C\u0627 \u0645\u0631\u062D\u0651\u0644 \u0627\u0644\u0623\u0645\u0627\u0646 \u0639\u0644\u0649 \u0627\u0644\u062A\u0648\u0627\u0632\u064A: \u064A\u062C\u0628 \u0623\u0646 \u064A\u0643\u0648\u0646\u0627 \u0639\u0644\u0649 \u0627\u0644\u062A\u0633\u0644\u0633\u0644\u060C \u0641\u064A\u0643\u0641\u064A \u0623\u062D\u062F\u0647\u0645\u0627 \u0644\u0625\u064A\u0642\u0627\u0641 \u0627\u0644\u0622\u0644\u0629."
   };
 
   // src/i18n/ar.js
@@ -11453,6 +11507,8 @@ html[lang="it"] .trnote{display:none}
     [/^Lampade accese: (\d+) di (\d+)$/, (m) => `\u0645\u0635\u0627\u0628\u064A\u062D \u0645\u0636\u0627\u0621\u0629: ${iso(m[1])} \u0645\u0646 ${iso(m[2])}`],
     [/^Le lampade non si accend(?:e|ono) mai\.$/, () => "\u0627\u0644\u0645\u0635\u0628\u0627\u062D\u0627\u0646 \u0644\u0627 \u064A\u0636\u064A\u0626\u0627\u0646 \u0623\u0628\u062F\u064B\u0627."],
     [/^La lampada (\d+) non si accende mai\.$/, (m) => `\u0627\u0644\u0645\u0635\u0628\u0627\u062D ${iso(m[1])} \u0644\u0627 \u064A\u0636\u064A\u0621 \u0623\u0628\u062F\u064B\u0627.`],
+    [/^Se (.+) resta incollato la macchina non si ferma: ciascun dispositivo deve poterla fermare da solo\.$/, (m, t) => `\u0625\u0630\u0627 \u0628\u0642\u064A ${t(m[1])} \u0645\u0644\u062A\u0635\u0642\u064B\u0627 \u0641\u0644\u0646 \u062A\u062A\u0648\u0642\u0641 \u0627\u0644\u0622\u0644\u0629: \u064A\u062C\u0628 \u0623\u0646 \u064A\u0633\u062A\u0637\u064A\u0639 \u0643\u0644 \u062C\u0647\u0627\u0632 \u0625\u064A\u0642\u0627\u0641\u0647\u0627 \u0628\u0645\u0641\u0631\u062F\u0647.`],
+    [/^Il dispositivo (.+) ha un contatto non collegato: un dispositivo a due canali deve usarli tutti e due\.$/, (m, t) => `\u0641\u064A \u0627\u0644\u062C\u0647\u0627\u0632 \xAB${t(m[1])}\xBB \u062A\u0644\u0627\u0645\u0633 \u063A\u064A\u0631 \u0645\u0648\u0635\u0648\u0644: \u0627\u0644\u062C\u0647\u0627\u0632 \u0630\u0648 \u0627\u0644\u0642\u0646\u0627\u062A\u064A\u0646 \u064A\u062C\u0628 \u0623\u0646 \u064A\u0633\u062A\u062E\u062F\u0645\u0647\u0645\u0627 \u0645\u0639\u064B\u0627.`],
     [/^(.+) non si accende mai\.$/, (m, t) => `${t(m[1])} \u0644\u0627 \u064A\u0636\u064A\u0621 \u0623\u0628\u062F\u064B\u0627.`],
     [/^Giocatore (.+), grado (.+), (\d+) XP\. Cambia nome$/, (m, t) => `\u0627\u0644\u0644\u0627\u0639\u0628 ${m[1] === "Giocatore" ? "\u0644\u0627\u0639\u0628" : m[1]}\u060C \u0627\u0644\u0631\u062A\u0628\u0629 ${t(m[2])}\u060C ${iso(m[3])} \u0646\u0642\u0637\u0629 \u062E\u0628\u0631\u0629. \u063A\u064A\u0651\u0631 \u0627\u0644\u0627\u0633\u0645`],
     [/^(\d+) XP$/, (m) => `${iso(m[1])} \u0646\u0642\u0637\u0629 \u062E\u0628\u0631\u0629`],

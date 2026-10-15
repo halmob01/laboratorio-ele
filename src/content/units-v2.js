@@ -1769,8 +1769,8 @@ export const UNITS_V2 = {
           type: 'spiegazione',
           title: 'Perché due contatti',
           paras: [
-            'Un pulsante di emergenza con un solo contatto ha un punto debole: se quel contatto si incolla o il filo si stacca nel modo sbagliato, la macchina non si ferma e nessuno se ne accorge.',
-            'Nelle macchine il fungo ha due contatti normalmente chiusi, uno per canale. Ogni canale ferma la macchina per conto suo. Con due canali serve un guasto doppio per perdere l’emergenza, e uno solo si può scoprire.',
+            'Un pulsante di emergenza con un solo contatto ha un punto debole: se quel contatto si incolla o viene scavalcato da un cortocircuito, la macchina non si ferma e nessuno se ne accorge.',
+            'Nelle macchine il fungo ha due contatti normalmente chiusi, uno per canale. Ogni canale ferma la macchina per conto suo. Con due canali serve un guasto doppio per perdere l’emergenza. Per accorgersi del primo guasto serve poi un controllo, come quello che fa il relè di sicurezza nel livello successivo.',
           ],
         },
         {
@@ -1863,7 +1863,7 @@ export const UNITS_V2 = {
           title: 'Un relè che controlla',
           paras: [
             'Il relè di sicurezza non si limita a passare un contatto: controlla. Legge i due canali del fungo, e se uno solo cade apre le sue uscite. Se i due canali non cambiano insieme, segnala una discrepanza e si blocca finché non tornano entrambi a riposo.',
-            'Dopo un arresto non riparte da solo. Serve un impulso sul pulsante di riarmo: la macchina riparte per una scelta di chi sta davanti, non perché il fungo è stato sbloccato.',
+            'Dopo un arresto non riparte da solo. Serve un impulso sul pulsante di riarmo, e il relè si arma quando il pulsante viene rilasciato: la macchina riparte per una scelta di chi sta davanti, non perché il fungo è stato sbloccato. Un pulsante di riarmo bloccato o ponticellato non arma mai il relè.',
           ],
         },
         {
@@ -1871,9 +1871,9 @@ export const UNITS_V2 = {
           title: 'Il contattore incollato',
           paras: [
             'I contatti di potenza di un contattore possono incollarsi, per esempio dopo molti cicli con carico forte. La bobina si spegne, ma la macchina continua a girare.',
-            'Nei contattori i contatti NC e NA non si possono trovare chiusi insieme. Se il contattore è incollato, il contatto NC 21-22 resta aperto. Mettendolo nel circuito di riarmo, il relè di sicurezza si accorge del guasto e non si riarma.',
+            'Nei contattori i contatti NC e NA non si possono trovare chiusi insieme. Se il contattore è incollato, il contatto NC 21-22 resta aperto. Mettendolo nel circuito di riarmo, il relè di sicurezza si accorge del guasto e non si riarma. Nelle macchine vere i contatti di potenza sono almeno due, in serie, e ciascuno può fermare la macchina da solo; qui ce n’è uno solo per semplicità, quindi la retroazione scopre il contattore incollato al riarmo ma non può fermare la macchina mentre è incollato.',
           ],
-          warn: 'Se il riarmo non passa dal contatto NC del contattore, il guasto resta nascosto: dopo ogni emergenza un contattore incollato potrebbe rimandare la macchina in marcia.',
+          warn: 'Se il riarmo non passa dal contatto NC del contattore, un contattore incollato non viene scoperto: la macchina resta senza protezione fino al guasto successivo.',
         },
         {
           type: 'pezzi',
@@ -1969,7 +1969,7 @@ export const UNITS_V2 = {
           { id: 'c', text: 'Niente, perché il fungo ferma comunque la macchina.' },
         ],
         correct: 'a',
-        why: 'Il contatto NC 21-22 del contattore è aperto quando i contatti di potenza sono chiusi. Se il riarmo non passa da lì, un contattore incollato non viene scoperto e la macchina può restare in marcia anche dopo l’emergenza.',
+        why: 'Il contatto NC 21-22 del contattore è aperto quando i contatti di potenza sono chiusi. Se il riarmo non passa da lì, un contattore incollato non viene scoperto e il guasto resta nascosto: al guasto successivo la macchina non si fermerebbe più.',
       },
       fixSay: 'Togli il filo dalla fase al pulsante di riarmo. Collega la fase al morsetto 21 del contattore, poi il 22 al pulsante di riarmo. Poi premi Verifica.',
     },
@@ -1993,7 +1993,7 @@ export const UNITS_V2 = {
             'Se un operatore apre la portella per togliere un pezzo, e la richiude, la macchina non deve ripartire da sola: potrebbe esserci ancora qualcuno dentro.',
             'Per questo lo stesso relè di sicurezza vale per tutta la catena: ogni arresto apre le uscite, e solo il riarmo, dato da fuori, rimette in marcia. Un contatto lasciato libero in un dispositivo toglie un canale a quel dispositivo.',
           ],
-          warn: 'Un dispositivo a due canali con un solo contatto collegato sembra funzionare, ma non è più sicuro.',
+          warn: 'Un dispositivo a due canali con un solo contatto collegato sembra funzionare, ma non è più sicuro. Nota: le barriere a raggi vere hanno uscite statiche e di solito non si collegano in serie come un contatto a secco; qui è una semplificazione del gioco.',
         },
         {
           type: 'demo',

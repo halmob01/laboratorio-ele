@@ -672,10 +672,10 @@ export const LEVELS_V2 = [
     controls: ['SBR', 'E'],
     checks: [
       { id: 'prima', label: 'Prima del riarmo la macchina è ferma', do: [], expect: { loads: { L: 'off' } } },
-      { id: 'riarmo', label: 'Premi il riarmo: la macchina parte', do: press('SBR'), expect: { loads: { L: 'on' } } },
+      { id: 'riarmo', label: 'Premi e rilascia il riarmo: la macchina parte', do: press('SBR'), expect: { loads: { L: 'on' } } },
       { id: 'emergenza', label: 'Premi il fungo: la macchina si ferma', steps: [{ do: press('SBR'), expect: { loads: { L: 'on' } } }, { do: ['toggle E'], expect: { loads: { L: 'off' } } }] },
     ],
-    safety: { dualChannel: [['KS.S12', 'KS.S22']], allContacts: ['E'], restartNeedsReset: { stop: 'E', reset: 'SBR', load: 'L' }, feedbackMonitored: { km: 'KM', stop: 'E', reset: 'SBR', rs: 'KS' } },
+    safety: { dualChannel: [['KS.S12', 'KS.S22']], outputsSeries: ['KS'], allContacts: ['E'], restartNeedsReset: { stop: 'E', reset: 'SBR', load: 'L' }, feedbackMonitored: { km: 'KM', stop: 'E', reset: 'SBR', rs: 'KS' } },
     solution: [
       ['Q.F', 'E.1', 'marrone'], ['E.2', 'KS.S12', 'marrone'], ['Q.F', 'E.3', 'marrone'], ['E.4', 'KS.S22', 'marrone'],
       ['Q.F', 'KS.A1', 'marrone'], ['KS.A2', 'Q.N', 'blu'],
@@ -686,7 +686,7 @@ export const LEVELS_V2 = [
     hints: [
       'I due contatti del fungo portano la fase ai due ingressi del relè di sicurezza: 1-2 a S12, 3-4 a S22. Sono due fili che non si toccano.',
       'Il relè di sicurezza si alimenta in A1-A2 (fase e neutro). Le sue uscite 13-14 e 23-24 sono in serie, e alimentano la bobina del contattore KM.',
-      'Il riarmo: dalla fase, prima il contatto NC 21-22 del contattore, poi il pulsante di riarmo, poi il morsetto R. Se il contattore resta incollato il contatto NC è aperto e il relè non si riarma.',
+      'Il riarmo: dalla fase, prima il contatto NC 21-22 del contattore, poi il pulsante di riarmo, poi il morsetto R. Il relè si arma quando rilasci il pulsante. Se il contattore resta incollato il contatto NC è aperto e il relè non si riarma.',
       'La macchina (la lampada) si alimenta dal contatto di potenza del contattore, 1-2.',
     ],
   },
@@ -705,15 +705,15 @@ export const LEVELS_V2 = [
       C('KM', 'km', 'Contattore', 'Contattore KM', T('A1', 'A2', '1', '2', '21', '22')),
       C('L', 'lamp', 'Macchina', 'Macchina (lampada)', { B: { l: 'B' }, A: { l: 'A' } }),
     ],
-    controls: ['SBR', 'P', 'B'],
+    controls: ['SBR', 'E', 'P', 'B'],
     checks: [
-      { id: 'riarmo', label: 'Premi il riarmo: la macchina parte', do: press('SBR'), expect: { loads: { L: 'on' } } },
+      { id: 'riarmo', label: 'Premi e rilascia il riarmo: la macchina parte', do: press('SBR'), expect: { loads: { L: 'on' } } },
       { id: 'emergenza', label: 'Premi il fungo: la macchina si ferma', steps: [{ do: press('SBR'), expect: { loads: { L: 'on' } } }, { do: ['toggle E'], expect: { loads: { L: 'off' } } }] },
       { id: 'portella', label: 'Apri la portella: la macchina si ferma', steps: [{ do: press('SBR'), expect: { loads: { L: 'on' } } }, { do: ['toggle P'], expect: { loads: { L: 'off' } } }] },
       { id: 'barriera', label: 'Interrompi la barriera: la macchina si ferma', steps: [{ do: press('SBR'), expect: { loads: { L: 'on' } } }, { do: ['toggle B'], expect: { loads: { L: 'off' } } }] },
       { id: 'riparte', label: 'Richiudi la portella: la macchina resta ferma finché non riarmi', steps: [{ do: press('SBR'), expect: { loads: { L: 'on' } } }, { do: ['toggle P', 'toggle P'], expect: { loads: { L: 'off' } } }, { do: press('SBR'), expect: { loads: { L: 'on' } } }] },
     ],
-    safety: { dualChannel: [['KS.S12', 'KS.S22']], allContacts: ['E', 'P', 'B'], restartNeedsReset: { stop: ['E', 'P', 'B'], reset: 'SBR', load: 'L' }, feedbackMonitored: { km: 'KM', stop: 'E', reset: 'SBR', rs: 'KS' } },
+    safety: { dualChannel: [['KS.S12', 'KS.S22']], outputsSeries: ['KS'], allContacts: ['E', 'P', 'B'], restartNeedsReset: { stop: ['E', 'P', 'B'], reset: 'SBR', load: 'L' }, feedbackMonitored: { km: 'KM', stop: 'E', reset: 'SBR', rs: 'KS' } },
     solution: [
       ['Q.F', 'E.1', 'marrone'], ['E.2', 'P.1', 'marrone'], ['P.2', 'B.1', 'marrone'], ['B.2', 'KS.S12', 'marrone'],
       ['Q.F', 'E.3', 'marrone'], ['E.4', 'P.3', 'marrone'], ['P.4', 'B.3', 'marrone'], ['B.4', 'KS.S22', 'marrone'],

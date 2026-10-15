@@ -35,6 +35,8 @@ const PAT = [
   [/^Lampade accese: (\d+) di (\d+)$/, m => `مصابيح مضاءة: ${iso(m[1])} من ${iso(m[2])}`],
   [/^Le lampade non si accend(?:e|ono) mai\.$/, () => 'المصباحان لا يضيئان أبدًا.'],
   [/^La lampada (\d+) non si accende mai\.$/, m => `المصباح ${iso(m[1])} لا يضيء أبدًا.`],
+  [/^Se (.+) resta incollato la macchina non si ferma: ciascun dispositivo deve poterla fermare da solo\.$/, (m, t) => `إذا بقي ${t(m[1])} ملتصقًا فلن تتوقف الآلة: يجب أن يستطيع كل جهاز إيقافها بمفرده.`],
+  [/^Il dispositivo (.+) ha un contatto non collegato: un dispositivo a due canali deve usarli tutti e due\.$/, (m, t) => `في الجهاز «${t(m[1])}» تلامس غير موصول: الجهاز ذو القناتين يجب أن يستخدمهما معًا.`],
   [/^(.+) non si accende mai\.$/, (m, t) => `${t(m[1])} لا يضيء أبدًا.`],
   [/^Giocatore (.+), grado (.+), (\d+) XP\. Cambia nome$/, (m, t) => `اللاعب ${m[1] === 'Giocatore' ? 'لاعب' : m[1]}، الرتبة ${t(m[2])}، ${iso(m[3])} نقطة خبرة. غيّر الاسم`],
   [/^(\d+) XP$/, m => `${iso(m[1])} نقطة خبرة`],

@@ -95,3 +95,42 @@ test('c27: la portella aperta e richiusa non fa ripartire la macchina', () => {
   press(sim, 'SBR');
   assert.equal(lampOn(sim), true);
 });
+
+const withWires = (L, drop, add) => L.solution.filter(([a, b]) => !drop.some(t => a === t || b === t)).concat(add);
+
+test('riarmo ponticellato: il relè non si arma mai, nemmeno dopo un ciclo di alimentazione', async () => {
+  const { setSupply } = await import('../src/engine/v2/index.js');
+  const L = lv('c26-rele-sicurezza');
+  const sim = createSim(L, W(withWires(L, ['KM.21', 'KM.22', 'SBR.3', 'SBR.4'], [['Q.F', 'KS.R', 'marrone']])));
+  setSupply(sim, false); setSupply(sim, true);
+  assert.equal(lampOn(sim), false);
+  assert.equal(sim.parts.KS.on, false);
+});
+
+test('riarmo tenuto premuto mentre si sblocca il fungo: la macchina non parte, parte solo al rilascio e dopo un riarmo valido', () => {
+  const L = lv('c26-rele-sicurezza');
+  const sim = createSim(L, W(L.solution));
+  press(sim, 'SBR');
+  act(sim, 'toggle', 'E');                    // emergenza
+  act(sim, 'press', 'SBR');                   // riarmo tenuto premuto
+  act(sim, 'toggle', 'E');                    // sblocco con il riarmo ancora premuto
+  act(sim, 'release', 'SBR');
+  assert.equal(lampOn(sim), false);
+  press(sim, 'SBR');
+  assert.equal(lampOn(sim), true);
+});
+
+test('c26: il ponticello tra i canali dà meno di tre stelle', () => {
+  const L = lv('c26-rele-sicurezza');
+  const ws = withWires(L, ['E.3', 'E.4', 'KS.S22'], [['E.2', 'E.3', 'marrone'], ['E.4', 'KS.S12', 'marrone'], ['Q.F', 'KS.S22', 'marrone']].filter(([a]) => a !== 'E.2'));
+  // canale 1 attraverso il fungo, canale 2 collegato direttamente alla fase: il fungo non lo interrompe
+  const r = evaluateV2(L, W(ws));
+  assert.ok(r.stars < 3);
+});
+
+test('c26: le due uscite del relè in parallelo non sono accettate', () => {
+  const L = lv('c26-rele-sicurezza');
+  const ws = withWires(L, ['KS.14', 'KS.23', 'KS.24'], [['Q.F', 'KS.23', 'marrone'], ['KS.14', 'KM.A1', 'marrone'], ['KS.24', 'KM.A1', 'marrone']]);
+  const r = evaluateV2(L, W(ws));
+  assert.ok(safeCodes(r).includes('safe.outputsParallel'));
+});

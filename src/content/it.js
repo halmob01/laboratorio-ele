@@ -24,7 +24,7 @@ export const HELP = {
   pbnc: ['Il pulsante normalmente chiuso (NC)', 'Ha due morsetti, 1 e 2. A riposo il contatto è chiuso: si apre solo finché lo tieni premuto. Si usa per l’arresto, perché un filo staccato ferma la macchina.'],
   fungo: ['Il pulsante di emergenza a fungo', 'Ha un contatto normalmente chiuso (o due, nel modello a due canali: 1-2 e 3-4). Premuto, si apre e resta bloccato: la macchina si ferma e non riparte finché non lo sblocchi.'],
   port: ['La portella (o la barriera)', 'Ha due contatti normalmente chiusi, 1-2 e 3-4, uno per canale. Chiusa, i contatti sono chiusi; aperta, si aprono tutti e due. Toccala per aprirla o chiuderla. La barriera a raggi funziona allo stesso modo: interrotta, apre i contatti.'],
-  rs: ['Il relè di sicurezza', 'Si alimenta in A1-A2 e controlla due canali d’ingresso (S12 e S22): se uno cade, le uscite 13-14 e 23-24 si aprono. Per riarmarlo servono i due canali chiusi e un impulso sul morsetto R, dato dal pulsante di riarmo (meglio se attraverso i contatti NC dei contattori, che ne controllano il distacco).'],
+  rs: ['Il relè di sicurezza', 'Si alimenta in A1-A2 e controlla due canali d’ingresso (S12 e S22): se uno cade, le uscite 13-14 e 23-24 si aprono. Per riarmarlo servono i due canali chiusi e un impulso sul morsetto R: il relè si arma quando il pulsante di riarmo viene rilasciato. Il riarmo passa dai contatti NC dei contattori, che controllano se si sono staccati.'],
   ri: ['Il relè ad impulsi', 'Ha una bobina (A1 e A2) e un contatto (1 e 2). A ogni impulso sulla bobina il contatto cambia stato e lo mantiene: aperto, chiuso, aperto. Serve a comandare una luce da molti punti.'],
   tmr: ['Il relè temporizzato', 'Ha una bobina (A1 e A2) e un contatto (1 e 2). Dopo un impulso il contatto resta chiuso per il tempo impostato, poi si riapre da solo.'],
   km: ['Il contattore', 'Ha una bobina (A1 e A2) e dei contatti. Con la bobina alimentata si chiudono i tre poli di potenza (1-2, 3-4, 5-6) e il contatto ausiliario normalmente aperto (13-14); si apre quello normalmente chiuso (21-22). Il circuito di comando e quello di potenza sono separati.'],
@@ -143,10 +143,14 @@ export function itemText(item, level) {
     case 'safe.restartAfterEmergency': return 'Sbloccando l’emergenza la macchina riparte da sola: deve ripartire solo con un nuovo comando di marcia.';
     case 'safe.notCovered': return 'Un carico (' + nameOf(level, item.comp) + ') non è protetto dal differenziale.';
     case 'safe.liveWork': return 'Hai cambiato i fili mentre il sezionamento (' + nameOf(level, item.comp) + ') era chiuso e i morsetti erano in tensione. Premi Annulla tutto, apri il sezionamento e cabla da capo.';
-    case 'safe.singleChannel': return 'I due canali sono collegati tra loro: se un contatto resta incollato o un filo si stacca, l’altro canale non lo vede. Ogni canale deve avere il suo percorso.';
-    case 'safe.notRedundant': return 'Con ' + nameOf(level, item.comp) + ' incollato l’altro dispositivo non ferma la macchina: i due canali devono fermarla ciascuno da solo.';
+    case 'safe.singleChannel': return 'I due canali dipendono dallo stesso contatto: se si incolla o viene scavalcato da un cortocircuito, restano chiusi tutti e due. Ogni canale deve avere il suo percorso.';
+    case 'safe.notRedundant': return 'Se ' + nameOf(level, item.comp) + ' resta incollato la macchina non si ferma: ciascun dispositivo deve poterla fermare da solo.';
     case 'safe.contactUnused': return 'Il dispositivo ' + nameOf(level, item.comp) + ' ha un contatto non collegato: un dispositivo a due canali deve usarli tutti e due.';
-    case 'safe.noFeedback': return 'Se il contattore ' + nameOf(level, item.comp) + ' resta incollato il relè di sicurezza si riarma lo stesso: i contatti NC del contattore devono stare nel circuito di riarmo.';
+    case 'safe.noFeedback': return 'Se il contattore resta incollato il relè di sicurezza si riarma lo stesso: il contatto NC 21-22 del contattore deve stare nel circuito di riarmo.';
+    case 'safe.stopNotHeld': return 'Con il dispositivo di arresto azionato la macchina resta in marcia: deve fermarsi.';
+    case 'safe.restartByItself': return 'Richiudendo o sbloccando il dispositivo la macchina riparte da sola: deve ripartire solo con il riarmo.';
+    case 'safe.noRestart': return 'Dopo l’arresto e il riarmo la macchina non riparte: controlla i due canali e il percorso del riarmo.';
+    case 'safe.outputsParallel': return 'Le due uscite del relè di sicurezza sono in parallelo: devono stare in serie, così ne basta una per fermare la macchina.';
     case 'safe.neutralEarth': return 'Neutro e terra sono collegati tra loro: il filo di protezione non deve mai portare corrente.';
     case 'safe.ok':
       if (item.variant === 'v2') return 'Le regole di sicurezza del livello sono rispettate.';

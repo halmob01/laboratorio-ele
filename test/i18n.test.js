@@ -7,6 +7,7 @@ import { collectContent } from '../scripts/collect-strings.mjs';
 import { harvestUI } from '../scripts/harvest-ui.mjs';
 import { tr, registerLang, clearMiss, getMiss, hasLang } from '../src/i18n/index.js';
 import { evaluate } from '../src/engine/index.js';
+import { evaluateV2 } from '../src/engine/v2/index.js';
 import { levels } from '../src/content/index.js';
 import { describeEvaluation, sessionMessage } from '../src/content/it.js';
 import '../src/i18n/ar.js';
@@ -25,9 +26,10 @@ function errorMessages() {
     ['blu', 'gv', 'marrone'].forEach(col => cases.push(lv.solution.map(([a, b]) => [a, b, col])));        // tutti dello stesso colore
     cases.push(lv.solution.map(([a, b, c], i) => (i ? [a, b, c] : [b, a, c])));
     cases.push([...lv.solution, ['q.f', 'q.n', 'marrone']]);
+    if (lv.unit && lv.unit.fault) cases.push(lv.unit.fault.wires);
     cases.forEach(c => {
       try {
-        const d = describeEvaluation(evaluate(lv, toWires(c)), lv);
+        const d = describeEvaluation(lv.engine === 2 ? evaluateV2(lv, toWires(c)) : evaluate(lv, toWires(c)), lv);
         ['work', 'color', 'safe'].forEach(k => d[k].msgs.forEach(m => out.add(m)));
       } catch (e) { /* livello senza motore v1 */ }
     });
