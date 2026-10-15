@@ -72,7 +72,8 @@ export function createSession({ levels, deriveFull, storage = memoryStorage(), i
     const l = levels[i];
     const b = progress.best[progressKey(l.id)];
     const seen = progress.stars[progressKey(l.id)] > 0 || (b && b.pred);
-    return l.unit && playMode === 'apprendimento' && !seen ? 'lesson' : 'build';
+    if (l.unit && playMode === 'apprendimento' && !seen) return 'lesson';
+    return l.prova && playMode === 'apprendimento' ? 'fault' : 'build';
   };
   // La fase dell'unita' vale per il livello, qualunque sia il punto di partenza (quadro o contatore).
   const unitState = () =>
@@ -228,6 +229,7 @@ export function createSession({ levels, deriveFull, storage = memoryStorage(), i
         diag: us.diag && { ...us.diag },
         faultSolved: us.faultSolved,
         hasFault: !!level.unit.fault,
+        prova: !!level.prova,
         summary: level.unit.summary || [],
         support: level.unit.support || 'passi',
       },
@@ -357,10 +359,52 @@ export function createSession({ levels, deriveFull, storage = memoryStorage(), i
     try { lastWorkStr = JSON.stringify(work); } catch (e) { lastWorkStr = ''; }
   }
 
+
+  // Carica l'impianto guasto della sfida: fili, guasti da componente accesi, sezionamenti aperti.
+  function loadFaultPlant(level, us) {
+    resetLevelState();
+    delete measuredBy[keyOf()];
+    delete liveEditsBy[keyOf()];
+    wiresByKey[keyOf()] = level.unit.fault.wires.map(([a, b, c]) => ({ id: nextWireId++, a, b, c }));
+    statesByKey[keyOf()] = {};
+    resultsByKey[keyOf()] = null;
+    us.phase = 'fault';
+    // guasti da componente (dispersioni) gia' attivi all'inizio della sfida
+    if (v2(level)) (level.unit.fault.on || []).forEach(id => act(simFor(), 'toggle', id));
+    // sezionamenti che la sfida apre in partenza (si ripara senza tensione)
+    if (v2(level)) (level.unit.fault.open || []).forEach(id => { const s0 = simFor().parts[id]; if (s0 && s0.on) act(simFor(), 'toggle', id); });
+    us.diag = null;
+  }
+  // Livelli "prova" (scena 3D): l'impianto e' gia' cablato e guasto, senza il cablaggio da fare. Parte da solo, una volta.
+  function armProva() {
+    const level = levelAt();
+    if (!level.prova || mode !== 'quadro' || playMode !== 'apprendimento') return;
+    const us = unitState();
+    if (us.phase !== 'fault' || us.armed) return;
+    us.armed = true;
+    loadFaultPlant(level, us);
+  }
+  // Finita la lezione: si passa al cablaggio, o per una prova direttamente all'impianto guasto.
+  function toPlay(us) {
+    us.phase = levelAt().prova ? 'fault' : 'build';
+    if (us.phase === 'fault') armProva();
+  }
+
   // Uscendo dalla sfida guasto (con "Esci", cambiando livello o modalita') l'impianto riuscito torna com'era.
   function exitFault() {
     const us = unitByKey[levelIndex];
     if (!us || us.phase !== 'fault') return;
+    // una prova non riuscita non lascia niente: alla riapertura riparte da capo
+    if (levelAt().prova && !us.before) {
+      unitByKey[levelIndex] = { phase: 'fault', page: 0, pred: us.pred, diag: null, faultSolved: false };   // niente lezione da capo: si riarma all'apertura
+      wiresByKey[keyOf(levelIndex, 'quadro')] = [];
+      statesByKey[keyOf(levelIndex, 'quadro')] = {};
+      resultsByKey[keyOf(levelIndex, 'quadro')] = null;
+      delete measuredBy[keyOf(levelIndex, 'quadro')];
+      delete liveEditsBy[keyOf(levelIndex, 'quadro')];
+      delete simsByKey[keyOf(levelIndex, 'quadro')];
+      return;
+    }
     us.phase = 'done';
     us.diag = null;
     if (us.before) {
@@ -480,7 +524,7 @@ export function createSession({ levels, deriveFull, storage = memoryStorage(), i
       listeners.add(fn);
       return () => listeners.delete(fn);
     },
-    start() { restoreWork(); power = selfPowered(levelAt()); emit(); },
+    start() { restoreWork(); power = selfPowered(levelAt()); armProva(); power = selfPowered(levelAt()); emit(); },
 
     // Stato di un livello qualsiasi (non solo quello aperto), per chi disegna piu' circuiti insieme (la casa).
     // `lit`: la lampada si accende con i fili e i comandi attuali, ignorando il quadro; `power` vale solo per il livello aperto.
@@ -513,6 +557,7 @@ export function createSession({ levels, deriveFull, storage = memoryStorage(), i
     selectLevel(x, opts = {}) {
       const i = indexOf(x);
       if (i < 0 || i >= levels.length) return;
+      if (levels[i].prova) opts = {};   // le prove non hanno la prova di salto
       // si lascia il livello corrente: la sfida guasto si chiude e la prova di salto restituisce il lavoro
       exitFault();
       const wasVerify = playMode === 'verifica';
@@ -531,6 +576,8 @@ export function createSession({ levels, deriveFull, storage = memoryStorage(), i
         unitByKey[levelIndex] = { phase: 'build', page: 0, pred: null, diag: null, faultSolved: false };
       }
       progress.last = levels[i].id;
+      armProva();
+      power = selfPowered(levelAt());
       save();
       emit();
     },
@@ -762,7 +809,7 @@ export function createSession({ levels, deriveFull, storage = memoryStorage(), i
       const pg = currentPage();
       if (pg.type === 'previsione' && !us.pred) return;
       if ((us.page || 0) < level.unit.lesson.pages.length - 1) us.page = (us.page || 0) + 1;
-      else us.phase = 'build';
+      else toPlay(us);
       emit();
     },
     // Indietro nella lezione: pagina precedente (alla prima non fa nulla).
@@ -774,7 +821,7 @@ export function createSession({ levels, deriveFull, storage = memoryStorage(), i
     skipLesson() {
       const us = levelAt().unit && unitState();
       if (!us || us.phase !== 'lesson') return;
-      us.phase = 'build';
+      toPlay(us);
       emit();
     },
     showLesson() {
@@ -807,18 +854,7 @@ export function createSession({ levels, deriveFull, storage = memoryStorage(), i
       if (!us || !['done', 'fault'].includes(us.phase) || playMode === 'verifica' || mode !== 'quadro') return;
       // l'impianto riuscito si conserva: uscendo dalla sfida torna com'era, con il suo esito
       if (us.phase === 'done') us.before = { wires: (wiresByKey[keyOf()] || []).slice(), states: { ...(statesByKey[keyOf()] || {}) }, result: resultsByKey[keyOf()] || null, measured: (measuredBy[keyOf()] || []).slice(), ratings: ratingsOf() };
-      resetLevelState();
-      delete measuredBy[keyOf()];
-      delete liveEditsBy[keyOf()];
-      wiresByKey[keyOf()] = level.unit.fault.wires.map(([a, b, c]) => ({ id: nextWireId++, a, b, c }));
-      statesByKey[keyOf()] = {};
-      resultsByKey[keyOf()] = null;
-      us.phase = 'fault';
-      // guasti da componente (dispersioni) gia' attivi all'inizio della sfida
-      if (v2(level)) (level.unit.fault.on || []).forEach(id => act(simFor(), 'toggle', id));
-      // sezionamenti che la sfida apre in partenza (si ripara senza tensione)
-      if (v2(level)) (level.unit.fault.open || []).forEach(id => { const s0 = simFor().parts[id]; if (s0 && s0.on) act(simFor(), 'toggle', id); });
-      us.diag = null;
+      loadFaultPlant(level, us);
       emit();
     },
     answerDiagnosis(optionId) {

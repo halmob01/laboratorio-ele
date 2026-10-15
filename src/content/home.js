@@ -28,6 +28,7 @@ export const MODULES = [
       'c19-magnetotermico',
       'c20-differenziale',
       'c11-quadro',
+      'c23-appartamento-notte',
     ],
   },
   {
@@ -41,6 +42,7 @@ export const MODULES = [
       'c14-termico',
       'c15-inversione',
       'c16-nastro',
+      'c24-officina',
     ],
   },
 ];

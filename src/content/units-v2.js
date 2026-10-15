@@ -1645,4 +1645,120 @@ export const UNITS_V2 = {
       fixSay: 'Scollega l’apparecchio difettoso (tocca il pannello del guasto per spegnerlo), riarma il differenziale e premi Verifica.',
     },
   },
+
+  'c23-appartamento-notte': {
+    support: 'obiettivo',
+    lesson: {
+      pages: [
+        {
+          type: 'spiegazione',
+          title: 'Una notte senza luce',
+          paras: [
+            'È notte e in casa è saltata la luce. Il quadro è quello che conosci: un differenziale all’ingresso e un magnetotermico per ogni linea. Stavolta le linee sono tre: luce, prese e cucina.',
+            'Se il differenziale è scattato, da qualche parte c’è una dispersione verso terra. Non si cerca a caso: si isolano le linee. Apri tutti i magnetotermici, riarma il differenziale, poi richiudi una linea alla volta. La linea che lo fa scattare di nuovo è quella che disperde.',
+            'Il multimetro serve a controllare dove c’è tensione: a monte del differenziale c’è sempre, a valle solo se il differenziale è armato e la linea è chiusa.',
+          ],
+        },
+        {
+          type: 'previsione',
+          question: 'Hai aperto tutti i magnetotermici e hai riarmato il differenziale: resta armato. Richiudi il magnetotermico della cucina e il differenziale resta armato. Richiudi quello delle prese e scatta. Che cosa significa?',
+          options: [
+            { id: 'a', text: 'La linea delle prese disperde verso terra.' },
+            { id: 'b', text: 'Il differenziale è guasto.' },
+            { id: 'c', text: 'La linea delle prese è in cortocircuito.' },
+          ],
+          correct: 'a',
+          why: 'Il differenziale scatta per una dispersione, non per un cortocircuito: in un cortocircuito scatterebbe il magnetotermico. Resta armato con le altre linee, quindi funziona: la dispersione è sulla linea che lo fa scattare.',
+        },
+        { type: 'sintesi', title: 'Da ricordare' },
+      ],
+    },
+    summary: [
+      'Se il differenziale scatta e non resta armato, c’è una dispersione verso terra da qualche parte dopo di lui.',
+      'Per trovarla si aprono tutte le linee, si riarma il differenziale e si richiude una linea alla volta: la linea che lo fa scattare è quella che disperde.',
+      'Il differenziale scatta per le dispersioni, i magnetotermici per sovraccarico e cortocircuito: capire chi è scattato dice già dove guardare.',
+      'La causa va rimossa prima di richiudere: un apparecchio difettoso si scollega e si fa riparare.',
+    ],
+    fault: {
+      say: 'Il differenziale è scattato e al buio non si vede niente. Apri i tre magnetotermici, riarma il differenziale e richiudi una linea alla volta. Quando hai trovato la linea, rispondi.',
+      wires: [
+        ['Q.F', 'D.1', 'marrone'], ['Q.N', 'D.N1', 'blu'],
+        ['D.2', 'M1.1', 'marrone'], ['D.2', 'M2.1', 'marrone'], ['D.2', 'M3.1', 'marrone'],
+        ['D.N2', 'M1.N1', 'blu'], ['D.N2', 'M2.N1', 'blu'], ['D.N2', 'M3.N1', 'blu'],
+        ['M1.2', 'S.a', 'marrone'], ['S.b', 'L.A', 'marrone'], ['M1.N2', 'L.B', 'blu'],
+        ['M2.2', 'P.L', 'marrone'], ['M2.N2', 'P.N', 'blu'], ['Q.PE', 'P.PE', 'gv'],
+        ['M3.2', 'PF.L', 'marrone'], ['M3.N2', 'PF.N', 'blu'], ['Q.PE', 'PF.PE', 'gv'],
+      ],
+      on: ['G'],
+      diagnosis: {
+        question: 'Quale linea disperde verso terra?',
+        options: [
+          { id: 'a', text: 'La linea della luce.' },
+          { id: 'b', text: 'La linea delle prese del soggiorno: un apparecchio collegato disperde.' },
+          { id: 'c', text: 'La linea della cucina.' },
+          { id: 'd', text: 'Nessuna: il differenziale è guasto.' },
+        ],
+        correct: 'b',
+        why: 'Con la linea delle prese aperta il differenziale resta armato, con la linea richiusa scatta subito: la dispersione è lì, in un apparecchio con l’isolante rovinato.',
+      },
+      fixSay: 'Scollega l’apparecchio difettoso (toccalo nella scena o nel pannello del guasto), riarma il differenziale, richiudi le linee e premi Verifica.',
+    },
+  },
+
+  'c24-officina': {
+    support: 'obiettivo',
+    lesson: {
+      pages: [
+        {
+          type: 'spiegazione',
+          title: 'Collaudare prima di consegnare',
+          paras: [
+            'Un impianto appena montato non si consegna finché non lo si è provato. Il collaudo guarda tutte le funzioni, comprese quelle che non servono quasi mai ma che salvano le persone e la macchina: l’arresto, l’emergenza, il finecorsa e il termico.',
+            'Per provare il termico si simula un sovraccarico, per esempio un pacco incastrato che frena il nastro. Il motore assorbe troppa corrente, il termico si scalda e scatta: il suo contatto 95-96 deve aprire il comando e fermare il contattore.',
+          ],
+        },
+        {
+          type: 'previsione',
+          question: 'Durante il collaudo simuli un sovraccarico: il termico scatta, ma il nastro continua a girare. Che cosa significa?',
+          options: [
+            { id: 'a', text: 'Il contatto 95-96 del termico non comanda la bobina del contattore.' },
+            { id: 'b', text: 'Il termico è tarato troppo basso.' },
+            { id: 'c', text: 'È normale: il termico serve solo a segnalare.' },
+          ],
+          correct: 'a',
+          why: 'Il termico ha scattato, quindi si è scaldato e il suo contatto è cambiato. Se il nastro gira lo stesso, quel contatto non è in serie nel circuito di comando: apre, ma non interrompe niente.',
+        },
+        { type: 'sintesi', title: 'Da ricordare' },
+      ],
+    },
+    summary: [
+      'Il collaudo prova tutte le funzioni: marcia, arresto, emergenza, finecorsa e protezioni.',
+      'La protezione del motore si prova con un sovraccarico simulato: il termico deve scattare e fermare il nastro.',
+      'Un termico che scatta ma non ferma il motore ha il contatto 95-96 fuori dal circuito di comando.',
+      'Si corregge un impianto a salvamotore aperto, mai in tensione.',
+    ],
+    fault: {
+      say: 'Il nastro è montato e gira. Collaudalo: premi Marcia, prova l’arresto e l’emergenza, poi simula un sovraccarico e guarda se il termico ferma il nastro. Quando hai capito che cosa non va, rispondi.',
+      wires: [
+        ['Q.L1', 'QM.1', 'marrone'], ['Q.L2', 'QM.3', 'nero'], ['Q.L3', 'QM.5', 'grigio'],
+        ['QM.2', 'KM.1', 'marrone'], ['QM.4', 'KM.3', 'nero'], ['QM.6', 'KM.5', 'grigio'],
+        ['KM.2', 'FR.1', 'marrone'], ['KM.4', 'FR.3', 'nero'], ['KM.6', 'FR.5', 'grigio'],
+        ['FR.2', 'M.U', 'marrone'], ['FR.4', 'M.V', 'nero'], ['FR.6', 'M.W', 'grigio'], ['M.PE', 'Q.PE', 'gv'],
+        ['QM.2', 'SBE.1', 'rosso'], ['SBE.2', 'SB0.1', 'rosso'], ['SB0.2', 'SB1.3', 'rosso'],
+        ['SB1.4', 'FC.1', 'rosso'], ['FC.2', 'KM.A1', 'rosso'], ['KM.A2', 'Q.N', 'blu'],
+        ['SB1.3', 'KM.13', 'rosso'], ['KM.14', 'SB1.4', 'rosso'], ['H.X1', 'KM.A1', 'rosso'], ['H.X2', 'Q.N', 'blu'],
+      ],
+      diagnosis: {
+        question: 'Perché, con il sovraccarico, il termico scatta ma il nastro non si ferma?',
+        options: [
+          { id: 'a', text: 'Il contatto 95-96 del termico non è nel circuito di comando.' },
+          { id: 'b', text: 'Il termico è tarato su una corrente troppo alta.' },
+          { id: 'c', text: 'Il salvamotore è guasto.' },
+        ],
+        correct: 'a',
+        why: 'Il comando passa dal salvamotore al fungo senza attraversare il contatto 95-96 del termico: quando il termico scatta quel contatto apre, ma il comando non ne risente e il contattore resta chiuso.',
+      },
+      fixSay: 'Apri il salvamotore. Togli il filo dal morsetto 2 del salvamotore al fungo e collega dal morsetto 2 del salvamotore al 95 del termico e dal 96 al fungo. Richiudi il salvamotore e premi Verifica.',
+    },
+  },
 };

@@ -2119,7 +2119,8 @@ html[lang="it"] .trnote{display:none}
       const l = levels2[i];
       const b = progress.best[progressKey(l.id)];
       const seen = progress.stars[progressKey(l.id)] > 0 || b && b.pred;
-      return l.unit && playMode === "apprendimento" && !seen ? "lesson" : "build";
+      if (l.unit && playMode === "apprendimento" && !seen) return "lesson";
+      return l.prova && playMode === "apprendimento" ? "fault" : "build";
     };
     const unitState = () => unitByKey[levelIndex] || (unitByKey[levelIndex] = { phase: startPhase(), page: 0, pred: null, diag: null, faultSolved: false });
     const dropUnitState = () => {
@@ -2287,6 +2288,7 @@ html[lang="it"] .trnote{display:none}
           diag: us.diag && { ...us.diag },
           faultSolved: us.faultSolved,
           hasFault: !!level.unit.fault,
+          prova: !!level.prova,
           summary: level.unit.summary || [],
           support: level.unit.support || "passi"
         },
@@ -2446,9 +2448,46 @@ html[lang="it"] .trnote{display:none}
         lastWorkStr = "";
       }
     }
+    function loadFaultPlant(level, us) {
+      resetLevelState();
+      delete measuredBy[keyOf()];
+      delete liveEditsBy[keyOf()];
+      wiresByKey[keyOf()] = level.unit.fault.wires.map(([a, b, c2]) => ({ id: nextWireId++, a, b, c: c2 }));
+      statesByKey[keyOf()] = {};
+      resultsByKey[keyOf()] = null;
+      us.phase = "fault";
+      if (v2(level)) (level.unit.fault.on || []).forEach((id) => act(simFor(), "toggle", id));
+      if (v2(level)) (level.unit.fault.open || []).forEach((id) => {
+        const s0 = simFor().parts[id];
+        if (s0 && s0.on) act(simFor(), "toggle", id);
+      });
+      us.diag = null;
+    }
+    function armProva() {
+      const level = levelAt();
+      if (!level.prova || mode !== "quadro" || playMode !== "apprendimento") return;
+      const us = unitState();
+      if (us.phase !== "fault" || us.armed) return;
+      us.armed = true;
+      loadFaultPlant(level, us);
+    }
+    function toPlay(us) {
+      us.phase = levelAt().prova ? "fault" : "build";
+      if (us.phase === "fault") armProva();
+    }
     function exitFault() {
       const us = unitByKey[levelIndex];
       if (!us || us.phase !== "fault") return;
+      if (levelAt().prova && !us.before) {
+        delete unitByKey[levelIndex];
+        wiresByKey[keyOf(levelIndex, "quadro")] = [];
+        statesByKey[keyOf(levelIndex, "quadro")] = {};
+        resultsByKey[keyOf(levelIndex, "quadro")] = null;
+        delete measuredBy[keyOf(levelIndex, "quadro")];
+        delete liveEditsBy[keyOf(levelIndex, "quadro")];
+        delete simsByKey[keyOf(levelIndex, "quadro")];
+        return;
+      }
       us.phase = "done";
       us.diag = null;
       if (us.before) {
@@ -2585,6 +2624,8 @@ html[lang="it"] .trnote{display:none}
       start() {
         restoreWork();
         power = selfPowered(levelAt());
+        armProva();
+        power = selfPowered(levelAt());
         emit();
       },
       // Stato di un livello qualsiasi (non solo quello aperto), per chi disegna piu' circuiti insieme (la casa).
@@ -2618,6 +2659,7 @@ html[lang="it"] .trnote{display:none}
       selectLevel(x, opts = {}) {
         const i = indexOf(x);
         if (i < 0 || i >= levels2.length) return;
+        if (levels2[i].prova) opts = {};
         exitFault();
         const wasVerify = playMode === "verifica";
         if (wasVerify) unstashFromVerify();
@@ -2634,6 +2676,8 @@ html[lang="it"] .trnote{display:none}
           unitByKey[levelIndex] = { phase: "build", page: 0, pred: null, diag: null, faultSolved: false };
         }
         progress.last = levels2[i].id;
+        armProva();
+        power = selfPowered(levelAt());
         save();
         emit();
       },
@@ -2893,7 +2937,7 @@ html[lang="it"] .trnote{display:none}
         const pg = currentPage();
         if (pg.type === "previsione" && !us.pred) return;
         if ((us.page || 0) < level.unit.lesson.pages.length - 1) us.page = (us.page || 0) + 1;
-        else us.phase = "build";
+        else toPlay(us);
         emit();
       },
       // Indietro nella lezione: pagina precedente (alla prima non fa nulla).
@@ -2908,7 +2952,7 @@ html[lang="it"] .trnote{display:none}
       skipLesson() {
         const us = levelAt().unit && unitState();
         if (!us || us.phase !== "lesson") return;
-        us.phase = "build";
+        toPlay(us);
         emit();
       },
       showLesson() {
@@ -2939,19 +2983,7 @@ html[lang="it"] .trnote{display:none}
         const us = level.unit && level.unit.fault && unitState();
         if (!us || !["done", "fault"].includes(us.phase) || playMode === "verifica" || mode !== "quadro") return;
         if (us.phase === "done") us.before = { wires: (wiresByKey[keyOf()] || []).slice(), states: { ...statesByKey[keyOf()] || {} }, result: resultsByKey[keyOf()] || null, measured: (measuredBy[keyOf()] || []).slice(), ratings: ratingsOf() };
-        resetLevelState();
-        delete measuredBy[keyOf()];
-        delete liveEditsBy[keyOf()];
-        wiresByKey[keyOf()] = level.unit.fault.wires.map(([a, b, c2]) => ({ id: nextWireId++, a, b, c: c2 }));
-        statesByKey[keyOf()] = {};
-        resultsByKey[keyOf()] = null;
-        us.phase = "fault";
-        if (v2(level)) (level.unit.fault.on || []).forEach((id) => act(simFor(), "toggle", id));
-        if (v2(level)) (level.unit.fault.open || []).forEach((id) => {
-          const s0 = simFor().parts[id];
-          if (s0 && s0.on) act(simFor(), "toggle", id);
-        });
-        us.diag = null;
+        loadFaultPlant(level, us);
         emit();
       },
       answerDiagnosis(optionId) {
@@ -4562,6 +4594,129 @@ html[lang="it"] .trnote{display:none}
         "Nel comando, in serie e prima dell\u2019arresto, ci sono il contatto del termico (95-96) e il contatto NC del pulsante di emergenza.",
         "Il finecorsa sta dopo il pulsante di marcia, con il suo contatto normalmente chiuso (1-2), davanti alla bobina: quando il nastro arriva in fondo, il contatto si apre. L\u2019autoritenuta si tiene prima del finecorsa.",
         "Il salvamotore parte chiuso: aprilo prima di cablare e richiudilo solo alla fine, per provare il motore."
+      ]
+    },
+    {
+      id: "c23-appartamento-notte",
+      code: "c23",
+      n: 0,
+      engine: 2,
+      quadroOnly: true,
+      flow: "onDemand",
+      meter: true,
+      palette: ["marrone", "blu", "gv"],
+      prova: { scene: "appartamento" },
+      name: "L\u2019appartamento di notte",
+      title: "L\u2019appartamento di notte",
+      blurb: "Il differenziale \xE8 scattato: trova la linea che disperde.",
+      goal: "\xC8 notte e in casa \xE8 saltata la luce: il differenziale \xE8 scattato e non resta armato. Il quadro ha tre linee, luce, prese e cucina. Trova quella che disperde verso terra, rimetti in funzione le altre e rimuovi la causa.",
+      comps: [
+        QM,
+        C("D", "rcd", "Differenziale", "Interruttore differenziale", { "1": { l: "1" }, N1: { l: "N" }, "2": { l: "2" }, N2: { l: "N" } }),
+        C("M1", "mt", "Luce", "Magnetotermico luce", { "1": { l: "1" }, N1: { l: "N" }, "2": { l: "2" }, N2: { l: "N" } }, { rank: 2 }),
+        C("M2", "mt", "Prese", "Magnetotermico prese", { "1": { l: "1" }, N1: { l: "N" }, "2": { l: "2" }, N2: { l: "N" } }, { rank: 2 }),
+        C("M3", "mt", "Cucina", "Magnetotermico cucina", { "1": { l: "1" }, N1: { l: "N" }, "2": { l: "2" }, N2: { l: "N" } }, { rank: 2 }),
+        C("S", "sw", "Interruttore", "Interruttore della luce", { a: { l: "1" }, b: { l: "2" } }),
+        C("L", "lamp", "Lampada", "Portalampada", { B: { l: "B" }, A: { l: "A" } }),
+        C("P", "presa", "Presa", "Presa del soggiorno", { L: { l: "L" }, PE: { l: "PE" }, N: { l: "N" } }),
+        C("PF", "presa", "Forno", "Presa del forno", { L: { l: "L" }, PE: { l: "PE" }, N: { l: "N" } }),
+        C("G", "gu", "Guasto", "Apparecchio difettoso sulla presa", {}, { at: "P.L", levels: [300] })
+      ],
+      controls: ["D", "M1", "M2", "M3", "S", "G"],
+      checks: [
+        { id: "prese", label: "Le prese del soggiorno e del forno sono alimentate", do: [], expect: { loads: { P: "on", PF: "on" } } },
+        { id: "luce", label: "Chiudi l\u2019interruttore: la lampada si accende", do: ["toggle S"], expect: { loads: { L: "on" } } },
+        { id: "prova", label: "Tasto di prova del differenziale: tutto si spegne", do: ["toggle S", "test D"], expect: { loads: { L: "off", P: "off", PF: "off" }, tripped: ["D"] } }
+      ],
+      safety: { earth: [["P.PE", "Q.PE"], ["PF.PE", "Q.PE"]], phaseSwitched: ["P", "L", "PF"], pol: ["P.L", "P.N"], rcdCovers: ["L", "P", "PF"], protectedBy: { L: "M1", P: "M2", PF: "M3" } },
+      solution: [
+        ["Q.F", "D.1", "marrone"],
+        ["Q.N", "D.N1", "blu"],
+        ["D.2", "M1.1", "marrone"],
+        ["D.2", "M2.1", "marrone"],
+        ["D.2", "M3.1", "marrone"],
+        ["D.N2", "M1.N1", "blu"],
+        ["D.N2", "M2.N1", "blu"],
+        ["D.N2", "M3.N1", "blu"],
+        ["M1.2", "S.a", "marrone"],
+        ["S.b", "L.A", "marrone"],
+        ["M1.N2", "L.B", "blu"],
+        ["M2.2", "P.L", "marrone"],
+        ["M2.N2", "P.N", "blu"],
+        ["Q.PE", "P.PE", "gv"],
+        ["M3.2", "PF.L", "marrone"],
+        ["M3.N2", "PF.N", "blu"],
+        ["Q.PE", "PF.PE", "gv"]
+      ],
+      hints: [
+        "Il differenziale scatta quando una linea disperde. Apri i tre magnetotermici, riarma il differenziale e richiudi una linea alla volta.",
+        "La linea che fa scattare di nuovo il differenziale appena la richiudi \xE8 quella che disperde.",
+        "Sulla linea colpevole c\u2019\xE8 un apparecchio con l\u2019isolante rovinato: scollegalo, poi riarma il differenziale e richiudi le linee."
+      ]
+    },
+    {
+      id: "c24-officina",
+      code: "c24",
+      n: 0,
+      ...IND,
+      flow: "onDemand",
+      prova: { scene: "officina" },
+      name: "L\u2019officina",
+      title: "L\u2019officina",
+      blurb: "Collaudo di un nastro: marcia, arresto, termico, finecorsa.",
+      goal: "Il nastro dell\u2019officina \xE8 stato appena montato. Collaudalo come si fa in cantiere: prova marcia, arresto, emergenza e finecorsa, poi simula un sovraccarico e guarda se il termico ferma davvero il nastro. Se qualcosa non va, trovalo e correggilo a salvamotore aperto.",
+      machine: { motor: "M", length: 6, endFwd: "FC" },
+      comps: [
+        Q3,
+        C("QM", "mt3", "Salvamotore", "Salvamotore magnetotermico", T(...T6)),
+        C("KM", "km", "Contattore", "Contattore KM", T("A1", "A2", ...T6, "13", "14")),
+        C("FR", "ft", "Termico", "Rel\xE8 termico", T(...T6, "95", "96"), { tripAfter: 3 }),
+        C("SBE", "fungo", "Emergenza", "Pulsante di emergenza a fungo", T("1", "2")),
+        C("SB0", "pbnc", "Arresto", "Pulsante di arresto (NC)", T("1", "2")),
+        C("SB1", "pb", "Marcia", "Pulsante di marcia (NA)", T("3", "4")),
+        C("FC", "fc", "Finecorsa", "Finecorsa di fine nastro", T("1", "2", "3", "4")),
+        C("H", "spia", "Spia", "Spia di marcia", T("X1", "X2")),
+        C("M", "motor3", "Motore", "Motore del nastro", T("U", "V", "W", "PE"))
+      ],
+      controls: ["SB0", "SB1", "SBE"],
+      checks: [
+        { id: "marcia", label: "Premi Marcia e rilascia: il nastro parte e la spia \xE8 accesa", do: press("SB1"), expect: { motors: { M: "fwd" }, loads: { H: "on" } } },
+        { id: "fine", label: "A fine corsa il finecorsa ferma il nastro", do: press("SB1").concat(["wait 8"]), expect: { machine: { atEnd: true }, motors: { M: "off" } } },
+        { id: "arresto", label: "Premi Arresto: il nastro si ferma", steps: [{ do: press("SB1"), expect: { motors: { M: "fwd" } } }, { do: press("SB0"), expect: { motors: { M: "off" } } }] },
+        { id: "emergenza", label: "Premi il fungo di emergenza: il nastro si ferma", steps: [{ do: press("SB1"), expect: { motors: { M: "fwd" } } }, { do: ["toggle SBE"], expect: { motors: { M: "off" } } }] },
+        { id: "sovraccarico", label: "Con un sovraccarico il termico scatta e il nastro si ferma", steps: [{ do: press("SB1"), expect: { motors: { M: "fwd" } } }, { do: ["overload on", "wait 5"], expect: { motors: { M: "off" }, tripped: ["FR"] } }] }
+      ],
+      safety: { deadWork: ["QM"], earth: [["M.PE", "Q.PE"]], stopWins: "SB0", emergency: "SBE", coilReturn: ["KM"], protectedBy: { M: "QM", KM: "QM" } },
+      solution: [
+        ["Q.L1", "QM.1", "marrone"],
+        ["Q.L2", "QM.3", "nero"],
+        ["Q.L3", "QM.5", "grigio"],
+        ["QM.2", "KM.1", "marrone"],
+        ["QM.4", "KM.3", "nero"],
+        ["QM.6", "KM.5", "grigio"],
+        ["KM.2", "FR.1", "marrone"],
+        ["KM.4", "FR.3", "nero"],
+        ["KM.6", "FR.5", "grigio"],
+        ["FR.2", "M.U", "marrone"],
+        ["FR.4", "M.V", "nero"],
+        ["FR.6", "M.W", "grigio"],
+        ["M.PE", "Q.PE", "gv"],
+        ["QM.2", "FR.95", "rosso"],
+        ["FR.96", "SBE.1", "rosso"],
+        ["SBE.2", "SB0.1", "rosso"],
+        ["SB0.2", "SB1.3", "rosso"],
+        ["SB1.4", "FC.1", "rosso"],
+        ["FC.2", "KM.A1", "rosso"],
+        ["KM.A2", "Q.N", "blu"],
+        ["SB1.3", "KM.13", "rosso"],
+        ["KM.14", "SB1.4", "rosso"],
+        ["H.X1", "KM.A1", "rosso"],
+        ["H.X2", "Q.N", "blu"]
+      ],
+      hints: [
+        "Premi Marcia, poi simula il sovraccarico: il termico scatta, ma il nastro si ferma?",
+        "Il contatto 95-96 del termico deve stare in serie nel circuito di comando, prima del fungo di emergenza.",
+        "Apri il salvamotore. Togli il filo che porta il comando dal salvamotore al fungo e collega invece: dal morsetto 2 del salvamotore al 95, dal 96 al fungo."
       ]
     }
   ];
@@ -6333,6 +6488,147 @@ html[lang="it"] .trnote{display:none}
         },
         fixSay: "Scollega l\u2019apparecchio difettoso (tocca il pannello del guasto per spegnerlo), riarma il differenziale e premi Verifica."
       }
+    },
+    "c23-appartamento-notte": {
+      support: "obiettivo",
+      lesson: {
+        pages: [
+          {
+            type: "spiegazione",
+            title: "Una notte senza luce",
+            paras: [
+              "\xC8 notte e in casa \xE8 saltata la luce. Il quadro \xE8 quello che conosci: un differenziale all\u2019ingresso e un magnetotermico per ogni linea. Stavolta le linee sono tre: luce, prese e cucina.",
+              "Se il differenziale \xE8 scattato, da qualche parte c\u2019\xE8 una dispersione verso terra. Non si cerca a caso: si isolano le linee. Apri tutti i magnetotermici, riarma il differenziale, poi richiudi una linea alla volta. La linea che lo fa scattare di nuovo \xE8 quella che disperde.",
+              "Il multimetro serve a controllare dove c\u2019\xE8 tensione: a monte del differenziale c\u2019\xE8 sempre, a valle solo se il differenziale \xE8 armato e la linea \xE8 chiusa."
+            ]
+          },
+          {
+            type: "previsione",
+            question: "Hai aperto tutti i magnetotermici e hai riarmato il differenziale: resta armato. Richiudi il magnetotermico della cucina e il differenziale resta armato. Richiudi quello delle prese e scatta. Che cosa significa?",
+            options: [
+              { id: "a", text: "La linea delle prese disperde verso terra." },
+              { id: "b", text: "Il differenziale \xE8 guasto." },
+              { id: "c", text: "La linea delle prese \xE8 in cortocircuito." }
+            ],
+            correct: "a",
+            why: "Il differenziale scatta per una dispersione, non per un cortocircuito: in un cortocircuito scatterebbe il magnetotermico. Resta armato con le altre linee, quindi funziona: la dispersione \xE8 sulla linea che lo fa scattare."
+          },
+          { type: "sintesi", title: "Da ricordare" }
+        ]
+      },
+      summary: [
+        "Se il differenziale scatta e non resta armato, c\u2019\xE8 una dispersione verso terra da qualche parte dopo di lui.",
+        "Per trovarla si aprono tutte le linee, si riarma il differenziale e si richiude una linea alla volta: la linea che lo fa scattare \xE8 quella che disperde.",
+        "Il differenziale scatta per le dispersioni, i magnetotermici per sovraccarico e cortocircuito: capire chi \xE8 scattato dice gi\xE0 dove guardare.",
+        "La causa va rimossa prima di richiudere: un apparecchio difettoso si scollega e si fa riparare."
+      ],
+      fault: {
+        say: "Il differenziale \xE8 scattato e al buio non si vede niente. Apri i tre magnetotermici, riarma il differenziale e richiudi una linea alla volta. Quando hai trovato la linea, rispondi.",
+        wires: [
+          ["Q.F", "D.1", "marrone"],
+          ["Q.N", "D.N1", "blu"],
+          ["D.2", "M1.1", "marrone"],
+          ["D.2", "M2.1", "marrone"],
+          ["D.2", "M3.1", "marrone"],
+          ["D.N2", "M1.N1", "blu"],
+          ["D.N2", "M2.N1", "blu"],
+          ["D.N2", "M3.N1", "blu"],
+          ["M1.2", "S.a", "marrone"],
+          ["S.b", "L.A", "marrone"],
+          ["M1.N2", "L.B", "blu"],
+          ["M2.2", "P.L", "marrone"],
+          ["M2.N2", "P.N", "blu"],
+          ["Q.PE", "P.PE", "gv"],
+          ["M3.2", "PF.L", "marrone"],
+          ["M3.N2", "PF.N", "blu"],
+          ["Q.PE", "PF.PE", "gv"]
+        ],
+        on: ["G"],
+        diagnosis: {
+          question: "Quale linea disperde verso terra?",
+          options: [
+            { id: "a", text: "La linea della luce." },
+            { id: "b", text: "La linea delle prese del soggiorno: un apparecchio collegato disperde." },
+            { id: "c", text: "La linea della cucina." },
+            { id: "d", text: "Nessuna: il differenziale \xE8 guasto." }
+          ],
+          correct: "b",
+          why: "Con la linea delle prese aperta il differenziale resta armato, con la linea richiusa scatta subito: la dispersione \xE8 l\xEC, in un apparecchio con l\u2019isolante rovinato."
+        },
+        fixSay: "Scollega l\u2019apparecchio difettoso (toccalo nella scena o nel pannello del guasto), riarma il differenziale, richiudi le linee e premi Verifica."
+      }
+    },
+    "c24-officina": {
+      support: "obiettivo",
+      lesson: {
+        pages: [
+          {
+            type: "spiegazione",
+            title: "Collaudare prima di consegnare",
+            paras: [
+              "Un impianto appena montato non si consegna finch\xE9 non lo si \xE8 provato. Il collaudo guarda tutte le funzioni, comprese quelle che non servono quasi mai ma che salvano le persone e la macchina: l\u2019arresto, l\u2019emergenza, il finecorsa e il termico.",
+              "Per provare il termico si simula un sovraccarico, per esempio un pacco incastrato che frena il nastro. Il motore assorbe troppa corrente, il termico si scalda e scatta: il suo contatto 95-96 deve aprire il comando e fermare il contattore."
+            ]
+          },
+          {
+            type: "previsione",
+            question: "Durante il collaudo simuli un sovraccarico: il termico scatta, ma il nastro continua a girare. Che cosa significa?",
+            options: [
+              { id: "a", text: "Il contatto 95-96 del termico non comanda la bobina del contattore." },
+              { id: "b", text: "Il termico \xE8 tarato troppo basso." },
+              { id: "c", text: "\xC8 normale: il termico serve solo a segnalare." }
+            ],
+            correct: "a",
+            why: "Il termico ha scattato, quindi si \xE8 scaldato e il suo contatto \xE8 cambiato. Se il nastro gira lo stesso, quel contatto non \xE8 in serie nel circuito di comando: apre, ma non interrompe niente."
+          },
+          { type: "sintesi", title: "Da ricordare" }
+        ]
+      },
+      summary: [
+        "Il collaudo prova tutte le funzioni: marcia, arresto, emergenza, finecorsa e protezioni.",
+        "La protezione del motore si prova con un sovraccarico simulato: il termico deve scattare e fermare il nastro.",
+        "Un termico che scatta ma non ferma il motore ha il contatto 95-96 fuori dal circuito di comando.",
+        "Si corregge un impianto a salvamotore aperto, mai in tensione."
+      ],
+      fault: {
+        say: "Il nastro \xE8 montato e gira. Collaudalo: premi Marcia, prova l\u2019arresto e l\u2019emergenza, poi simula un sovraccarico e guarda se il termico ferma il nastro. Quando hai capito che cosa non va, rispondi.",
+        wires: [
+          ["Q.L1", "QM.1", "marrone"],
+          ["Q.L2", "QM.3", "nero"],
+          ["Q.L3", "QM.5", "grigio"],
+          ["QM.2", "KM.1", "marrone"],
+          ["QM.4", "KM.3", "nero"],
+          ["QM.6", "KM.5", "grigio"],
+          ["KM.2", "FR.1", "marrone"],
+          ["KM.4", "FR.3", "nero"],
+          ["KM.6", "FR.5", "grigio"],
+          ["FR.2", "M.U", "marrone"],
+          ["FR.4", "M.V", "nero"],
+          ["FR.6", "M.W", "grigio"],
+          ["M.PE", "Q.PE", "gv"],
+          ["QM.2", "SBE.1", "rosso"],
+          ["SBE.2", "SB0.1", "rosso"],
+          ["SB0.2", "SB1.3", "rosso"],
+          ["SB1.4", "FC.1", "rosso"],
+          ["FC.2", "KM.A1", "rosso"],
+          ["KM.A2", "Q.N", "blu"],
+          ["SB1.3", "KM.13", "rosso"],
+          ["KM.14", "SB1.4", "rosso"],
+          ["H.X1", "KM.A1", "rosso"],
+          ["H.X2", "Q.N", "blu"]
+        ],
+        diagnosis: {
+          question: "Perch\xE9, con il sovraccarico, il termico scatta ma il nastro non si ferma?",
+          options: [
+            { id: "a", text: "Il contatto 95-96 del termico non \xE8 nel circuito di comando." },
+            { id: "b", text: "Il termico \xE8 tarato su una corrente troppo alta." },
+            { id: "c", text: "Il salvamotore \xE8 guasto." }
+          ],
+          correct: "a",
+          why: "Il comando passa dal salvamotore al fungo senza attraversare il contatto 95-96 del termico: quando il termico scatta quel contatto apre, ma il comando non ne risente e il contattore resta chiuso."
+        },
+        fixSay: "Apri il salvamotore. Togli il filo dal morsetto 2 del salvamotore al fungo e collega dal morsetto 2 del salvamotore al 95 del termico e dal 96 al fungo. Richiudi il salvamotore e premi Verifica."
+      }
     }
   };
 
@@ -6410,6 +6706,7 @@ html[lang="it"] .trnote{display:none}
     null: "non \xE8 collegato"
   };
   var stateText = (v) => STATE_TEXT[String(v)] || String(v);
+  var MACHINE_TEXT = { "machine.atEnd": "Fine corsa", "machine.atStart": "Inizio del nastro" };
   function itemText(item, level) {
     switch (item.code) {
       case "work.noWires":
@@ -6445,7 +6742,7 @@ html[lang="it"] .trnote{display:none}
       case "work.allChecksOk":
         return "Tutte le prove di funzionamento sono superate (" + item.n + ").";
       case "work.checkFail": {
-        const why = item.cause && item.cause !== "work.checkFail" ? itemText({ code: item.cause, comp: item.comp }, level) : item.comp === "tripped" ? "Protezioni scattate: " + (item.got || "nessuna") + "." : nameOf(level, item.comp) + ": " + stateText(item.got) + "; atteso: " + stateText(item.want) + ".";
+        const why = item.cause && item.cause !== "work.checkFail" ? itemText({ code: item.cause, comp: item.comp }, level) : item.comp === "tripped" ? "Protezioni scattate: " + (item.got || "nessuna") + "." : MACHINE_TEXT[item.comp] ? MACHINE_TEXT[item.comp] + ": " + (item.got ? "raggiunto" : "non raggiunto") + "; atteso: " + (item.want ? "raggiunto" : "non raggiunto") + "." : nameOf(level, item.comp) + ": " + stateText(item.got) + "; atteso: " + stateText(item.want) + ".";
         return "Prova non superata: " + item.label + ". " + why;
       }
       case "work.faultActive":
@@ -6718,7 +7015,8 @@ html[lang="it"] .trnote{display:none}
         "c10-campanello",
         "c19-magnetotermico",
         "c20-differenziale",
-        "c11-quadro"
+        "c11-quadro",
+        "c23-appartamento-notte"
       ]
     },
     {
@@ -6731,7 +7029,8 @@ html[lang="it"] .trnote{display:none}
         "c13-marcia-arresto",
         "c14-termico",
         "c15-inversione",
-        "c16-nastro"
+        "c16-nastro",
+        "c24-officina"
       ]
     }
   ];
@@ -10039,7 +10338,69 @@ html[lang="it"] .trnote{display:none}
     "Hai cambiato i fili mentre il sezionamento (Salvamotore) era chiuso e i morsetti erano in tensione. Premi Annulla tutto, apri il sezionamento e cabla da capo.": "\u063A\u064A\u0651\u0631\u062A \u0627\u0644\u0623\u0633\u0644\u0627\u0643 \u0628\u064A\u0646\u0645\u0627 \u062C\u0647\u0627\u0632 \u0627\u0644\u0641\u0635\u0644 (\u0642\u0627\u0637\u0639 \u062D\u0645\u0627\u064A\u0629 \u0627\u0644\u0645\u062D\u0631\u0643) \u0645\u063A\u0644\u0642 \u0648\u0627\u0644\u0623\u0637\u0631\u0627\u0641 \u062A\u062D\u062A \u0627\u0644\u062C\u0647\u062F. \u0627\u0636\u063A\u0637 \u0625\u0644\u063A\u0627\u0621 \u0627\u0644\u0643\u0644\u060C \u0648\u0627\u0641\u062A\u062D \u062C\u0647\u0627\u0632 \u0627\u0644\u0641\u0635\u0644\u060C \u062B\u0645 \u0623\u0639\u062F \u0627\u0644\u062A\u0648\u0635\u064A\u0644 \u0645\u0646 \u0627\u0644\u0628\u062F\u0627\u064A\u0629.",
     "Sezionamento": "\u062C\u0647\u0627\u0632 \u0627\u0644\u0641\u0635\u0644",
     "Attenzione: stai toccando morsetti in tensione. Apri il sezionamento prima di cablare: cos\xEC com\u2019\xE8, perdi la stella di sicurezza.": "\u0627\u0646\u062A\u0628\u0647: \u062A\u0644\u0645\u0633 \u0623\u0637\u0631\u0627\u0641\u064B\u0627 \u062A\u062D\u062A \u0627\u0644\u062C\u0647\u062F. \u0627\u0641\u062A\u062D \u062C\u0647\u0627\u0632 \u0627\u0644\u0641\u0635\u0644 \u0642\u0628\u0644 \u0627\u0644\u062A\u0648\u0635\u064A\u0644: \u0628\u0647\u0630\u0627 \u0627\u0644\u0634\u0643\u0644 \u062A\u062E\u0633\u0631 \u0646\u062C\u0645\u0629 \u0627\u0644\u0623\u0645\u0627\u0646.",
-    "BOBINA BRUCIATA": "\u0627\u0644\u0645\u0644\u0641 \u0645\u062D\u062A\u0631\u0642"
+    "BOBINA BRUCIATA": "\u0627\u0644\u0645\u0644\u0641 \u0645\u062D\u062A\u0631\u0642",
+    "Apri il salvamotore. Togli il filo che porta il comando dal salvamotore al fungo e collega invece: dal morsetto 2 del salvamotore al 95, dal 96 al fungo.": "\u0627\u0641\u062A\u062D \u0642\u0627\u0637\u0639 \u062D\u0645\u0627\u064A\u0629 \u0627\u0644\u0645\u062D\u0631\u0643. \u0627\u0646\u0632\u0639 \u0627\u0644\u0633\u0644\u0643 \u0627\u0644\u0630\u064A \u064A\u0646\u0642\u0644 \u0627\u0644\u062A\u062D\u0643\u0645 \u0645\u0646 \u0642\u0627\u0637\u0639 \u062D\u0645\u0627\u064A\u0629 \u0627\u0644\u0645\u062D\u0631\u0643 \u0625\u0644\u0649 \u0632\u0631 \u0627\u0644\u0637\u0648\u0627\u0631\u0626\u060C \u062B\u0645 \u0635\u0650\u0644 \u0628\u062F\u0644\u064B\u0627 \u0645\u0646\u0647: \u0645\u0646 \u0627\u0644\u0637\u0631\u0641 2 \u0641\u064A \u0642\u0627\u0637\u0639 \u062D\u0645\u0627\u064A\u0629 \u0627\u0644\u0645\u062D\u0631\u0643 \u0625\u0644\u0649 95\u060C \u0648\u0645\u0646 96 \u0625\u0644\u0649 \u0632\u0631 \u0627\u0644\u0637\u0648\u0627\u0631\u0626.",
+    "Apri il salvamotore. Togli il filo dal morsetto 2 del salvamotore al fungo e collega dal morsetto 2 del salvamotore al 95 del termico e dal 96 al fungo. Richiudi il salvamotore e premi Verifica.": "\u0627\u0641\u062A\u062D \u0642\u0627\u0637\u0639 \u062D\u0645\u0627\u064A\u0629 \u0627\u0644\u0645\u062D\u0631\u0643. \u0627\u0646\u0632\u0639 \u0627\u0644\u0633\u0644\u0643 \u0627\u0644\u0645\u0645\u062A\u062F \u0645\u0646 \u0627\u0644\u0637\u0631\u0641 2 \u0641\u064A \u0642\u0627\u0637\u0639 \u062D\u0645\u0627\u064A\u0629 \u0627\u0644\u0645\u062D\u0631\u0643 \u0625\u0644\u0649 \u0632\u0631 \u0627\u0644\u0637\u0648\u0627\u0631\u0626\u060C \u0648\u0635\u0650\u0644 \u0627\u0644\u0637\u0631\u0641 2 \u0641\u064A \u0642\u0627\u0637\u0639 \u062D\u0645\u0627\u064A\u0629 \u0627\u0644\u0645\u062D\u0631\u0643 \u0628\u0627\u0644\u0637\u0631\u0641 95 \u0641\u064A \u0627\u0644\u0645\u0631\u062D\u0651\u0644 \u0627\u0644\u062D\u0631\u0627\u0631\u064A\u060C \u0648\u0627\u0644\u0637\u0631\u0641 96 \u0628\u0632\u0631 \u0627\u0644\u0637\u0648\u0627\u0631\u0626. \u0623\u063A\u0644\u0642 \u0642\u0627\u0637\u0639 \u062D\u0645\u0627\u064A\u0629 \u0627\u0644\u0645\u062D\u0631\u0643 \u062B\u0645 \u0627\u0636\u063A\u0637 \u062A\u062D\u0642\u0642.",
+    "Collaudare prima di consegnare": "\u0627\u0644\u0627\u062E\u062A\u0628\u0627\u0631 \u0642\u0628\u0644 \u0627\u0644\u062A\u0633\u0644\u064A\u0645",
+    "Collaudo di un nastro: marcia, arresto, termico, finecorsa.": "\u0627\u062E\u062A\u0628\u0627\u0631 \u0633\u064A\u0631 \u0646\u0627\u0642\u0644: \u0627\u0644\u062A\u0634\u063A\u064A\u0644 \u0648\u0627\u0644\u0625\u064A\u0642\u0627\u0641 \u0648\u0627\u0644\u0645\u0631\u062D\u0651\u0644 \u0627\u0644\u062D\u0631\u0627\u0631\u064A \u0648\u0645\u0641\u062A\u0627\u062D \u0646\u0647\u0627\u064A\u0629 \u0627\u0644\u0634\u0648\u0637.",
+    "Con la linea delle prese aperta il differenziale resta armato, con la linea richiusa scatta subito: la dispersione \xE8 l\xEC, in un apparecchio con l\u2019isolante rovinato.": "\u0639\u0646\u062F\u0645\u0627 \u064A\u0643\u0648\u0646 \u062E\u0637 \u0627\u0644\u0645\u0642\u0627\u0628\u0633 \u0645\u0641\u062A\u0648\u062D\u064B\u0627 \u064A\u0628\u0642\u0649 \u0627\u0644\u0642\u0627\u0637\u0639 \u0627\u0644\u062A\u0641\u0627\u0636\u0644\u064A \u0645\u064F\u0633\u0644\u064E\u0651\u062D\u064B\u0627\u060C \u0648\u0639\u0646\u062F \u0625\u0639\u0627\u062F\u0629 \u0625\u063A\u0644\u0627\u0642 \u0627\u0644\u062E\u0637 \u064A\u0641\u0635\u0644 \u0641\u0648\u0631\u064B\u0627: \u0627\u0644\u062A\u0633\u0631\u0651\u0628 \u0647\u0646\u0627\u0643\u060C \u0641\u064A \u062C\u0647\u0627\u0632 \u0639\u0627\u0632\u0644\u0647 \u062A\u0627\u0644\u0641.",
+    "Con un sovraccarico il termico scatta e il nastro si ferma": "\u0639\u0646\u062F \u062D\u0645\u0644 \u0632\u0627\u0626\u062F \u064A\u0641\u0635\u0644 \u0627\u0644\u0645\u0631\u062D\u0651\u0644 \u0627\u0644\u062D\u0631\u0627\u0631\u064A \u0648\u064A\u062A\u0648\u0642\u0641 \u0627\u0644\u0633\u064A\u0631",
+    "Durante il collaudo simuli un sovraccarico: il termico scatta, ma il nastro continua a girare. Che cosa significa?": "\u0623\u062B\u0646\u0627\u0621 \u0627\u0644\u0627\u062E\u062A\u0628\u0627\u0631 \u062A\u062D\u0627\u0643\u064A \u062D\u0645\u0644\u064B\u0627 \u0632\u0627\u0626\u062F\u064B\u0627: \u064A\u0641\u0635\u0644 \u0627\u0644\u0645\u0631\u062D\u0651\u0644 \u0627\u0644\u062D\u0631\u0627\u0631\u064A \u0644\u0643\u0646 \u0627\u0644\u0633\u064A\u0631 \u064A\u0648\u0627\u0635\u0644 \u0627\u0644\u062F\u0648\u0631\u0627\u0646. \u0645\u0627\u0630\u0627 \u064A\u0639\u0646\u064A \u0630\u0644\u0643\u061F",
+    "Forno": "\u0627\u0644\u0641\u0631\u0646",
+    "Hai aperto tutti i magnetotermici e hai riarmato il differenziale: resta armato. Richiudi il magnetotermico della cucina e il differenziale resta armato. Richiudi quello delle prese e scatta. Che cosa significa?": "\u0641\u062A\u062D\u062A \u0643\u0644 \u0627\u0644\u0642\u0648\u0627\u0637\u0639 \u0627\u0644\u0645\u063A\u0646\u0627\u0637\u064A\u0633\u064A\u0629 \u0627\u0644\u062D\u0631\u0627\u0631\u064A\u0629 \u0648\u0623\u0639\u062F\u062A \u062A\u0633\u0644\u064A\u062D \u0627\u0644\u0642\u0627\u0637\u0639 \u0627\u0644\u062A\u0641\u0627\u0636\u0644\u064A: \u064A\u0628\u0642\u0649 \u0645\u064F\u0633\u0644\u064E\u0651\u062D\u064B\u0627. \u062A\u063A\u0644\u0642 \u0642\u0627\u0637\u0639 \u0627\u0644\u0645\u0637\u0628\u062E \u0641\u064A\u0628\u0642\u0649 \u0627\u0644\u0642\u0627\u0637\u0639 \u0627\u0644\u062A\u0641\u0627\u0636\u0644\u064A \u0645\u064F\u0633\u0644\u064E\u0651\u062D\u064B\u0627. \u062A\u063A\u0644\u0642 \u0642\u0627\u0637\u0639 \u0627\u0644\u0645\u0642\u0627\u0628\u0633 \u0641\u064A\u0641\u0635\u0644. \u0645\u0627\u0630\u0627 \u064A\u0639\u0646\u064A \u0630\u0644\u0643\u061F",
+    "Il collaudo prova tutte le funzioni: marcia, arresto, emergenza, finecorsa e protezioni.": "\u064A\u062E\u062A\u0628\u0631 \u0627\u0644\u0627\u062E\u062A\u0628\u0627\u0631 \u0643\u0644 \u0627\u0644\u0648\u0638\u0627\u0626\u0641: \u0627\u0644\u062A\u0634\u063A\u064A\u0644 \u0648\u0627\u0644\u0625\u064A\u0642\u0627\u0641 \u0648\u0627\u0644\u0637\u0648\u0627\u0631\u0626 \u0648\u0646\u0647\u0627\u064A\u0629 \u0627\u0644\u0634\u0648\u0637 \u0648\u0627\u0644\u062D\u0645\u0627\u064A\u0627\u062A.",
+    "Il comando passa dal salvamotore al fungo senza attraversare il contatto 95-96 del termico: quando il termico scatta quel contatto apre, ma il comando non ne risente e il contattore resta chiuso.": "\u064A\u0645\u0631 \u0627\u0644\u062A\u062D\u0643\u0645 \u0645\u0646 \u0642\u0627\u0637\u0639 \u062D\u0645\u0627\u064A\u0629 \u0627\u0644\u0645\u062D\u0631\u0643 \u0625\u0644\u0649 \u0632\u0631 \u0627\u0644\u0637\u0648\u0627\u0631\u0626 \u062F\u0648\u0646 \u0623\u0646 \u064A\u0639\u0628\u0631 \u0627\u0644\u0645\u0644\u0627\u0645\u0633 95-96 \u0644\u0644\u0645\u0631\u062D\u0651\u0644 \u0627\u0644\u062D\u0631\u0627\u0631\u064A: \u0639\u0646\u062F\u0645\u0627 \u064A\u0641\u0635\u0644 \u0627\u0644\u0645\u0631\u062D\u0651\u0644 \u0627\u0644\u062D\u0631\u0627\u0631\u064A \u064A\u0641\u062A\u062D \u0630\u0644\u0643 \u0627\u0644\u0645\u0644\u0627\u0645\u0633\u060C \u0644\u0643\u0646 \u0627\u0644\u062A\u062D\u0643\u0645 \u0644\u0627 \u064A\u062A\u0623\u062B\u0631 \u0648\u064A\u0628\u0642\u0649 \u0627\u0644\u0643\u0648\u0646\u062A\u0627\u0643\u062A\u0648\u0631 \u0645\u063A\u0644\u0642\u064B\u0627.",
+    "Il contatto 95-96 del termico deve stare in serie nel circuito di comando, prima del fungo di emergenza.": "\u064A\u062C\u0628 \u0623\u0646 \u064A\u0643\u0648\u0646 \u0627\u0644\u0645\u0644\u0627\u0645\u0633 95-96 \u0644\u0644\u0645\u0631\u062D\u0651\u0644 \u0627\u0644\u062D\u0631\u0627\u0631\u064A \u0639\u0644\u0649 \u0627\u0644\u062A\u0633\u0644\u0633\u0644 \u0641\u064A \u062F\u0627\u0626\u0631\u0629 \u0627\u0644\u062A\u062D\u0643\u0645\u060C \u0642\u0628\u0644 \u0632\u0631 \u0627\u0644\u0637\u0648\u0627\u0631\u0626.",
+    "Il contatto 95-96 del termico non comanda la bobina del contattore.": "\u0627\u0644\u0645\u0644\u0627\u0645\u0633 95-96 \u0644\u0644\u0645\u0631\u062D\u0651\u0644 \u0627\u0644\u062D\u0631\u0627\u0631\u064A \u0644\u0627 \u064A\u062A\u062D\u0643\u0645 \u0641\u064A \u0645\u0644\u0641 \u0627\u0644\u0643\u0648\u0646\u062A\u0627\u0643\u062A\u0648\u0631.",
+    "Il differenziale scatta per le dispersioni, i magnetotermici per sovraccarico e cortocircuito: capire chi \xE8 scattato dice gi\xE0 dove guardare.": "\u064A\u0641\u0635\u0644 \u0627\u0644\u0642\u0627\u0637\u0639 \u0627\u0644\u062A\u0641\u0627\u0636\u0644\u064A \u0639\u0646\u062F \u0627\u0644\u062A\u0633\u0631\u0651\u0628\u060C \u0648\u062A\u0641\u0635\u0644 \u0627\u0644\u0642\u0648\u0627\u0637\u0639 \u0627\u0644\u0645\u063A\u0646\u0627\u0637\u064A\u0633\u064A\u0629 \u0627\u0644\u062D\u0631\u0627\u0631\u064A\u0629 \u0639\u0646\u062F \u0627\u0644\u062D\u0645\u0644 \u0627\u0644\u0632\u0627\u0626\u062F \u0648\u0627\u0644\u062F\u0627\u0626\u0631\u0629 \u0627\u0644\u0642\u0635\u064A\u0631\u0629: \u0645\u0639\u0631\u0641\u0629 \u0645\u0646 \u0641\u0635\u0644 \u062A\u062F\u0644\u0651\u0643 \u0639\u0644\u0649 \u0645\u0643\u0627\u0646 \u0627\u0644\u0628\u062D\u062B.",
+    "Il differenziale scatta per una dispersione, non per un cortocircuito: in un cortocircuito scatterebbe il magnetotermico. Resta armato con le altre linee, quindi funziona: la dispersione \xE8 sulla linea che lo fa scattare.": "\u064A\u0641\u0635\u0644 \u0627\u0644\u0642\u0627\u0637\u0639 \u0627\u0644\u062A\u0641\u0627\u0636\u0644\u064A \u0628\u0633\u0628\u0628 \u062A\u0633\u0631\u0651\u0628 \u0648\u0644\u064A\u0633 \u0628\u0633\u0628\u0628 \u062F\u0627\u0626\u0631\u0629 \u0642\u0635\u064A\u0631\u0629: \u0641\u064A \u0627\u0644\u062F\u0627\u0626\u0631\u0629 \u0627\u0644\u0642\u0635\u064A\u0631\u0629 \u064A\u0641\u0635\u0644 \u0627\u0644\u0642\u0627\u0637\u0639 \u0627\u0644\u0645\u063A\u0646\u0627\u0637\u064A\u0633\u064A \u0627\u0644\u062D\u0631\u0627\u0631\u064A. \u064A\u0628\u0642\u0649 \u0645\u064F\u0633\u0644\u064E\u0651\u062D\u064B\u0627 \u0645\u0639 \u0627\u0644\u062E\u0637\u0648\u0637 \u0627\u0644\u0623\u062E\u0631\u0649\u060C \u0623\u064A \u0623\u0646\u0647 \u064A\u0639\u0645\u0644: \u0627\u0644\u062A\u0633\u0631\u0651\u0628 \u0641\u064A \u0627\u0644\u062E\u0637 \u0627\u0644\u0630\u064A \u064A\u062C\u0639\u0644\u0647 \u064A\u0641\u0635\u0644.",
+    "Il differenziale scatta quando una linea disperde. Apri i tre magnetotermici, riarma il differenziale e richiudi una linea alla volta.": "\u064A\u0641\u0635\u0644 \u0627\u0644\u0642\u0627\u0637\u0639 \u0627\u0644\u062A\u0641\u0627\u0636\u0644\u064A \u0639\u0646\u062F\u0645\u0627 \u064A\u062A\u0633\u0631\u0651\u0628 \u0623\u062D\u062F \u0627\u0644\u062E\u0637\u0648\u0637. \u0627\u0641\u062A\u062D \u0627\u0644\u0642\u0648\u0627\u0637\u0639 \u0627\u0644\u0645\u063A\u0646\u0627\u0637\u064A\u0633\u064A\u0629 \u0627\u0644\u062D\u0631\u0627\u0631\u064A\u0629 \u0627\u0644\u062B\u0644\u0627\u062B\u0629\u060C \u0648\u0623\u0639\u062F \u062A\u0633\u0644\u064A\u062D \u0627\u0644\u0642\u0627\u0637\u0639 \u0627\u0644\u062A\u0641\u0627\u0636\u0644\u064A\u060C \u062B\u0645 \u0623\u063A\u0644\u0642 \u062E\u0637\u064B\u0627 \u0648\u0627\u062D\u062F\u064B\u0627 \u0641\u064A \u0643\u0644 \u0645\u0631\u0629.",
+    "Il differenziale \xE8 guasto.": "\u0627\u0644\u0642\u0627\u0637\u0639 \u0627\u0644\u062A\u0641\u0627\u0636\u0644\u064A \u0645\u0639\u0637\u0651\u0644.",
+    "Il differenziale \xE8 scattato e al buio non si vede niente. Apri i tre magnetotermici, riarma il differenziale e richiudi una linea alla volta. Quando hai trovato la linea, rispondi.": "\u0641\u0635\u0644 \u0627\u0644\u0642\u0627\u0637\u0639 \u0627\u0644\u062A\u0641\u0627\u0636\u0644\u064A \u0648\u0644\u0627 \u064A\u064F\u0631\u0649 \u0634\u064A\u0621 \u0641\u064A \u0627\u0644\u0639\u062A\u0645\u0629. \u0627\u0641\u062A\u062D \u0627\u0644\u0642\u0648\u0627\u0637\u0639 \u0627\u0644\u0645\u063A\u0646\u0627\u0637\u064A\u0633\u064A\u0629 \u0627\u0644\u062D\u0631\u0627\u0631\u064A\u0629 \u0627\u0644\u062B\u0644\u0627\u062B\u0629\u060C \u0648\u0623\u0639\u062F \u062A\u0633\u0644\u064A\u062D \u0627\u0644\u0642\u0627\u0637\u0639 \u0627\u0644\u062A\u0641\u0627\u0636\u0644\u064A\u060C \u062B\u0645 \u0623\u063A\u0644\u0642 \u062E\u0637\u064B\u0627 \u0648\u0627\u062D\u062F\u064B\u0627 \u0641\u064A \u0643\u0644 \u0645\u0631\u0629. \u0639\u0646\u062F\u0645\u0627 \u062A\u062C\u062F \u0627\u0644\u062E\u0637\u060C \u0623\u062C\u0628.",
+    "Il differenziale \xE8 scattato: trova la linea che disperde.": "\u0641\u0635\u0644 \u0627\u0644\u0642\u0627\u0637\u0639 \u0627\u0644\u062A\u0641\u0627\u0636\u0644\u064A: \u0627\u0639\u062B\u0631 \u0639\u0644\u0649 \u0627\u0644\u062E\u0637 \u0627\u0644\u0645\u062A\u0633\u0631\u0651\u0628.",
+    "Il multimetro serve a controllare dove c\u2019\xE8 tensione: a monte del differenziale c\u2019\xE8 sempre, a valle solo se il differenziale \xE8 armato e la linea \xE8 chiusa.": "\u064A\u0641\u064A\u062F \u0627\u0644\u0645\u0642\u064A\u0627\u0633 \u0627\u0644\u0645\u062A\u0639\u062F\u062F \u0641\u064A \u0645\u0639\u0631\u0641\u0629 \u0623\u064A\u0646 \u064A\u0648\u062C\u062F \u0627\u0644\u062C\u0647\u062F: \u0642\u0628\u0644 \u0627\u0644\u0642\u0627\u0637\u0639 \u0627\u0644\u062A\u0641\u0627\u0636\u0644\u064A \u064A\u0648\u062C\u062F \u062F\u0627\u0626\u0645\u064B\u0627\u060C \u0648\u0628\u0639\u062F\u0647 \u0641\u0642\u0637 \u0625\u0630\u0627 \u0643\u0627\u0646 \u0627\u0644\u0642\u0627\u0637\u0639 \u0627\u0644\u062A\u0641\u0627\u0636\u0644\u064A \u0645\u064F\u0633\u0644\u064E\u0651\u062D\u064B\u0627 \u0648\u0627\u0644\u062E\u0637 \u0645\u063A\u0644\u0642\u064B\u0627.",
+    "Il nastro dell\u2019officina \xE8 stato appena montato. Collaudalo come si fa in cantiere: prova marcia, arresto, emergenza e finecorsa, poi simula un sovraccarico e guarda se il termico ferma davvero il nastro. Se qualcosa non va, trovalo e correggilo a salvamotore aperto.": "\u062A\u0645 \u0644\u0644\u062A\u0648 \u062A\u0631\u0643\u064A\u0628 \u0633\u064A\u0631 \u0627\u0644\u0648\u0631\u0634\u0629. \u0627\u062E\u062A\u0628\u0631\u0647 \u0643\u0645\u0627 \u064A\u064F\u0641\u0639\u0644 \u0641\u064A \u0627\u0644\u0645\u0648\u0642\u0639: \u062C\u0631\u0651\u0628 \u0627\u0644\u062A\u0634\u063A\u064A\u0644 \u0648\u0627\u0644\u0625\u064A\u0642\u0627\u0641 \u0648\u0627\u0644\u0637\u0648\u0627\u0631\u0626 \u0648\u0646\u0647\u0627\u064A\u0629 \u0627\u0644\u0634\u0648\u0637\u060C \u062B\u0645 \u062D\u0627\u0643\u0650 \u062D\u0645\u0644\u064B\u0627 \u0632\u0627\u0626\u062F\u064B\u0627 \u0648\u0627\u0646\u0638\u0631 \u0647\u0644 \u064A\u0648\u0642\u0641 \u0627\u0644\u0645\u0631\u062D\u0651\u0644 \u0627\u0644\u062D\u0631\u0627\u0631\u064A \u0627\u0644\u0633\u064A\u0631 \u0641\u0639\u0644\u064B\u0627. \u0625\u0646 \u0648\u064F\u062C\u062F \u062E\u0644\u0644 \u0641\u0627\u0639\u062B\u0631 \u0639\u0644\u064A\u0647 \u0648\u0635\u062D\u0651\u062D\u0647 \u0648\u0642\u0627\u0637\u0639 \u062D\u0645\u0627\u064A\u0629 \u0627\u0644\u0645\u062D\u0631\u0643 \u0645\u0641\u062A\u0648\u062D.",
+    "Il nastro \xE8 montato e gira. Collaudalo: premi Marcia, prova l\u2019arresto e l\u2019emergenza, poi simula un sovraccarico e guarda se il termico ferma il nastro. Quando hai capito che cosa non va, rispondi.": "\u0627\u0644\u0633\u064A\u0631 \u0645\u0631\u0643\u0651\u0628 \u0648\u064A\u062F\u0648\u0631. \u0627\u062E\u062A\u0628\u0631\u0647: \u0627\u0636\u063A\u0637 \u0627\u0644\u062A\u0634\u063A\u064A\u0644\u060C \u0648\u062C\u0631\u0651\u0628 \u0627\u0644\u0625\u064A\u0642\u0627\u0641 \u0648\u0627\u0644\u0637\u0648\u0627\u0631\u0626\u060C \u062B\u0645 \u062D\u0627\u0643\u0650 \u062D\u0645\u0644\u064B\u0627 \u0632\u0627\u0626\u062F\u064B\u0627 \u0648\u0627\u0646\u0638\u0631 \u0647\u0644 \u064A\u0648\u0642\u0641 \u0627\u0644\u0645\u0631\u062D\u0651\u0644 \u0627\u0644\u062D\u0631\u0627\u0631\u064A \u0627\u0644\u0633\u064A\u0631. \u0639\u0646\u062F\u0645\u0627 \u062A\u0641\u0647\u0645 \u0645\u0627 \u0627\u0644\u062E\u0644\u0644\u060C \u0623\u062C\u0628.",
+    "Il salvamotore \xE8 guasto.": "\u0642\u0627\u0637\u0639 \u062D\u0645\u0627\u064A\u0629 \u0627\u0644\u0645\u062D\u0631\u0643 \u0645\u0639\u0637\u0651\u0644.",
+    "Il termico ha scattato, quindi si \xE8 scaldato e il suo contatto \xE8 cambiato. Se il nastro gira lo stesso, quel contatto non \xE8 in serie nel circuito di comando: apre, ma non interrompe niente.": "\u0644\u0642\u062F \u0641\u0635\u0644 \u0627\u0644\u0645\u0631\u062D\u0651\u0644 \u0627\u0644\u062D\u0631\u0627\u0631\u064A\u060C \u0623\u064A \u0623\u0646\u0647 \u0633\u062E\u0646 \u0648\u062A\u063A\u064A\u0651\u0631 \u0645\u0644\u0627\u0645\u0633\u0647. \u0625\u0630\u0627 \u0638\u0644 \u0627\u0644\u0633\u064A\u0631 \u064A\u062F\u0648\u0631\u060C \u0641\u0647\u0630\u0627 \u0627\u0644\u0645\u0644\u0627\u0645\u0633 \u0644\u064A\u0633 \u0639\u0644\u0649 \u0627\u0644\u062A\u0633\u0644\u0633\u0644 \u0641\u064A \u062F\u0627\u0626\u0631\u0629 \u0627\u0644\u062A\u062D\u0643\u0645: \u064A\u0641\u062A\u062D \u0644\u0643\u0646\u0647 \u0644\u0627 \u064A\u0642\u0637\u0639 \u0634\u064A\u0626\u064B\u0627.",
+    "Il termico \xE8 tarato su una corrente troppo alta.": "\u0627\u0644\u0645\u0631\u062D\u0651\u0644 \u0627\u0644\u062D\u0631\u0627\u0631\u064A \u0645\u0636\u0628\u0648\u0637 \u0639\u0644\u0649 \u062A\u064A\u0627\u0631 \u0645\u0631\u062A\u0641\u0639 \u062C\u062F\u064B\u0627.",
+    "Il termico \xE8 tarato troppo basso.": "\u0627\u0644\u0645\u0631\u062D\u0651\u0644 \u0627\u0644\u062D\u0631\u0627\u0631\u064A \u0645\u0636\u0628\u0648\u0637 \u0639\u0644\u0649 \u0642\u064A\u0645\u0629 \u0645\u0646\u062E\u0641\u0636\u0629 \u062C\u062F\u064B\u0627.",
+    "La causa va rimossa prima di richiudere: un apparecchio difettoso si scollega e si fa riparare.": "\u064A\u062C\u0628 \u0625\u0632\u0627\u0644\u0629 \u0627\u0644\u0633\u0628\u0628 \u0642\u0628\u0644 \u0625\u0639\u0627\u062F\u0629 \u0627\u0644\u0625\u063A\u0644\u0627\u0642: \u0627\u0644\u062C\u0647\u0627\u0632 \u0627\u0644\u0645\u0639\u064A\u0628 \u064A\u064F\u0641\u0635\u0644 \u0648\u064A\u064F\u0635\u0644\u064E\u0651\u062D.",
+    "La linea che fa scattare di nuovo il differenziale appena la richiudi \xE8 quella che disperde.": "\u0627\u0644\u062E\u0637 \u0627\u0644\u0630\u064A \u064A\u062C\u0639\u0644 \u0627\u0644\u0642\u0627\u0637\u0639 \u0627\u0644\u062A\u0641\u0627\u0636\u0644\u064A \u064A\u0641\u0635\u0644 \u0645\u0646 \u062C\u062F\u064A\u062F \u0628\u0645\u062C\u0631\u062F \u0625\u063A\u0644\u0627\u0642\u0647 \u0647\u0648 \u0627\u0644\u062E\u0637 \u0627\u0644\u0645\u062A\u0633\u0631\u0651\u0628.",
+    "La linea della cucina.": "\u062E\u0637 \u0627\u0644\u0645\u0637\u0628\u062E.",
+    "La linea della luce.": "\u062E\u0637 \u0627\u0644\u0625\u0646\u0627\u0631\u0629.",
+    "La linea delle prese del soggiorno: un apparecchio collegato disperde.": "\u062E\u0637 \u0645\u0642\u0627\u0628\u0633 \u063A\u0631\u0641\u0629 \u0627\u0644\u0645\u0639\u064A\u0634\u0629: \u062C\u0647\u0627\u0632 \u0645\u0648\u0635\u0648\u0644 \u064A\u062A\u0633\u0631\u0651\u0628 \u0645\u0646\u0647 \u0627\u0644\u062A\u064A\u0627\u0631.",
+    "La linea delle prese disperde verso terra.": "\u062E\u0637 \u0627\u0644\u0645\u0642\u0627\u0628\u0633 \u064A\u062A\u0633\u0631\u0651\u0628 \u0646\u062D\u0648 \u0627\u0644\u0623\u0631\u0636.",
+    "La linea delle prese \xE8 in cortocircuito.": "\u062E\u0637 \u0627\u0644\u0645\u0642\u0627\u0628\u0633 \u0641\u064A \u062F\u0627\u0626\u0631\u0629 \u0642\u0635\u064A\u0631\u0629.",
+    "La protezione del motore si prova con un sovraccarico simulato: il termico deve scattare e fermare il nastro.": "\u062A\u064F\u062E\u062A\u0628\u0631 \u062D\u0645\u0627\u064A\u0629 \u0627\u0644\u0645\u062D\u0631\u0643 \u0628\u062D\u0645\u0644 \u0632\u0627\u0626\u062F \u0645\u062D\u0627\u0643\u0649: \u064A\u062C\u0628 \u0623\u0646 \u064A\u0641\u0635\u0644 \u0627\u0644\u0645\u0631\u062D\u0651\u0644 \u0627\u0644\u062D\u0631\u0627\u0631\u064A \u0648\u064A\u0648\u0642\u0641 \u0627\u0644\u0633\u064A\u0631.",
+    "Le prese del soggiorno e del forno sono alimentate": "\u0645\u0642\u0628\u0633 \u063A\u0631\u0641\u0629 \u0627\u0644\u0645\u0639\u064A\u0634\u0629 \u0648\u0645\u0642\u0628\u0633 \u0627\u0644\u0641\u0631\u0646 \u0645\u063A\u0630\u0651\u064A\u0627\u0646 \u0628\u0627\u0644\u0643\u0647\u0631\u0628\u0627\u0621",
+    "L\u2019appartamento di notte": "\u0627\u0644\u0634\u0642\u0629 \u0644\u064A\u0644\u064B\u0627",
+    "L\u2019officina": "\u0627\u0644\u0648\u0631\u0634\u0629",
+    "Magnetotermico cucina": "\u0627\u0644\u0642\u0627\u0637\u0639 \u0627\u0644\u0645\u063A\u0646\u0627\u0637\u064A\u0633\u064A \u0627\u0644\u062D\u0631\u0627\u0631\u064A \u0644\u0644\u0645\u0637\u0628\u062E",
+    "Nessuna: il differenziale \xE8 guasto.": "\u0644\u0627 \u0648\u0627\u062D\u062F: \u0627\u0644\u0642\u0627\u0637\u0639 \u0627\u0644\u062A\u0641\u0627\u0636\u0644\u064A \u0645\u0639\u0637\u0651\u0644.",
+    "Per provare il termico si simula un sovraccarico, per esempio un pacco incastrato che frena il nastro. Il motore assorbe troppa corrente, il termico si scalda e scatta: il suo contatto 95-96 deve aprire il comando e fermare il contattore.": "\u0644\u0627\u062E\u062A\u0628\u0627\u0631 \u0627\u0644\u0645\u0631\u062D\u0651\u0644 \u0627\u0644\u062D\u0631\u0627\u0631\u064A \u064A\u064F\u062D\u0627\u0643\u0649 \u062D\u0645\u0644 \u0632\u0627\u0626\u062F\u060C \u0645\u062B\u0644\u064B\u0627 \u0637\u0631\u062F \u0639\u0627\u0644\u0642 \u064A\u0643\u0628\u062D \u0627\u0644\u0633\u064A\u0631. \u064A\u0633\u062D\u0628 \u0627\u0644\u0645\u062D\u0631\u0643 \u062A\u064A\u0627\u0631\u064B\u0627 \u0632\u0627\u0626\u062F\u064B\u0627 \u0641\u064A\u0633\u062E\u0646 \u0627\u0644\u0645\u0631\u062D\u0651\u0644 \u0627\u0644\u062D\u0631\u0627\u0631\u064A \u0648\u064A\u0641\u0635\u0644: \u064A\u062C\u0628 \u0623\u0646 \u064A\u0641\u062A\u062D \u0645\u0644\u0627\u0645\u0633\u0647 95-96 \u062F\u0627\u0626\u0631\u0629 \u0627\u0644\u062A\u062D\u0643\u0645 \u0648\u064A\u0648\u0642\u0641 \u0627\u0644\u0643\u0648\u0646\u062A\u0627\u0643\u062A\u0648\u0631.",
+    "Per trovarla si aprono tutte le linee, si riarma il differenziale e si richiude una linea alla volta: la linea che lo fa scattare \xE8 quella che disperde.": "\u0644\u0644\u0639\u062B\u0648\u0631 \u0639\u0644\u064A\u0647 \u062A\u064F\u0641\u062A\u062D \u0643\u0644 \u0627\u0644\u062E\u0637\u0648\u0637\u060C \u0648\u064A\u064F\u0639\u0627\u062F \u062A\u0633\u0644\u064A\u062D \u0627\u0644\u0642\u0627\u0637\u0639 \u0627\u0644\u062A\u0641\u0627\u0636\u0644\u064A\u060C \u062B\u0645 \u064A\u064F\u063A\u0644\u0642 \u062E\u0637 \u0648\u0627\u062D\u062F \u0641\u064A \u0643\u0644 \u0645\u0631\u0629: \u0627\u0644\u062E\u0637 \u0627\u0644\u0630\u064A \u064A\u062C\u0639\u0644\u0647 \u064A\u0641\u0635\u0644 \u0647\u0648 \u0627\u0644\u062E\u0637 \u0627\u0644\u0645\u062A\u0633\u0631\u0651\u0628.",
+    "Perch\xE9, con il sovraccarico, il termico scatta ma il nastro non si ferma?": "\u0644\u0645\u0627\u0630\u0627 \u064A\u0641\u0635\u0644 \u0627\u0644\u0645\u0631\u062D\u0651\u0644 \u0627\u0644\u062D\u0631\u0627\u0631\u064A \u0639\u0646\u062F \u0627\u0644\u062D\u0645\u0644 \u0627\u0644\u0632\u0627\u0626\u062F \u0628\u064A\u0646\u0645\u0627 \u0644\u0627 \u064A\u062A\u0648\u0642\u0641 \u0627\u0644\u0633\u064A\u0631\u061F",
+    "Premi Marcia, poi simula il sovraccarico: il termico scatta, ma il nastro si ferma?": "\u0627\u0636\u063A\u0637 \u0627\u0644\u062A\u0634\u063A\u064A\u0644 \u062B\u0645 \u062D\u0627\u0643\u0650 \u0627\u0644\u062D\u0645\u0644 \u0627\u0644\u0632\u0627\u0626\u062F: \u064A\u0641\u0635\u0644 \u0627\u0644\u0645\u0631\u062D\u0651\u0644 \u0627\u0644\u062D\u0631\u0627\u0631\u064A\u060C \u0644\u0643\u0646 \u0647\u0644 \u064A\u062A\u0648\u0642\u0641 \u0627\u0644\u0633\u064A\u0631\u061F",
+    "Presa del forno": "\u0645\u0642\u0628\u0633 \u0627\u0644\u0641\u0631\u0646",
+    "Presa del soggiorno": "\u0645\u0642\u0628\u0633 \u063A\u0631\u0641\u0629 \u0627\u0644\u0645\u0639\u064A\u0634\u0629",
+    "Quale linea disperde verso terra?": "\u0623\u064A \u062E\u0637 \u064A\u062A\u0633\u0631\u0651\u0628 \u0646\u062D\u0648 \u0627\u0644\u0623\u0631\u0636\u061F",
+    "Scollega l\u2019apparecchio difettoso (toccalo nella scena o nel pannello del guasto), riarma il differenziale, richiudi le linee e premi Verifica.": "\u0627\u0641\u0635\u0644 \u0627\u0644\u062C\u0647\u0627\u0632 \u0627\u0644\u0645\u0639\u064A\u0628 (\u0627\u0644\u0645\u0633\u0647 \u0641\u064A \u0627\u0644\u0645\u0634\u0647\u062F \u0623\u0648 \u0641\u064A \u0644\u0648\u062D\u0629 \u0627\u0644\u0639\u0637\u0644)\u060C \u0648\u0623\u0639\u062F \u062A\u0633\u0644\u064A\u062D \u0627\u0644\u0642\u0627\u0637\u0639 \u0627\u0644\u062A\u0641\u0627\u0636\u0644\u064A\u060C \u0648\u0623\u063A\u0644\u0642 \u0627\u0644\u062E\u0637\u0648\u0637\u060C \u062B\u0645 \u0627\u0636\u063A\u0637 \u062A\u062D\u0642\u0642.",
+    "Se il differenziale scatta e non resta armato, c\u2019\xE8 una dispersione verso terra da qualche parte dopo di lui.": "\u0625\u0630\u0627 \u0641\u0635\u0644 \u0627\u0644\u0642\u0627\u0637\u0639 \u0627\u0644\u062A\u0641\u0627\u0636\u0644\u064A \u0648\u0644\u0645 \u064A\u0628\u0642\u064E \u0645\u064F\u0633\u0644\u064E\u0651\u062D\u064B\u0627\u060C \u0641\u0641\u064A \u0645\u0643\u0627\u0646 \u0645\u0627 \u0628\u0639\u062F\u0647 \u062A\u0633\u0631\u0651\u0628 \u0646\u062D\u0648 \u0627\u0644\u0623\u0631\u0636.",
+    "Se il differenziale \xE8 scattato, da qualche parte c\u2019\xE8 una dispersione verso terra. Non si cerca a caso: si isolano le linee. Apri tutti i magnetotermici, riarma il differenziale, poi richiudi una linea alla volta. La linea che lo fa scattare di nuovo \xE8 quella che disperde.": "\u0625\u0630\u0627 \u0641\u0635\u0644 \u0627\u0644\u0642\u0627\u0637\u0639 \u0627\u0644\u062A\u0641\u0627\u0636\u0644\u064A \u0641\u0641\u064A \u0645\u0643\u0627\u0646 \u0645\u0627 \u062A\u0633\u0631\u0651\u0628 \u0646\u062D\u0648 \u0627\u0644\u0623\u0631\u0636. \u0644\u0627 \u064A\u064F\u0628\u062D\u062B \u0639\u0634\u0648\u0627\u0626\u064A\u064B\u0627: \u062A\u064F\u0639\u0632\u0644 \u0627\u0644\u062E\u0637\u0648\u0637. \u0627\u0641\u062A\u062D \u0643\u0644 \u0627\u0644\u0642\u0648\u0627\u0637\u0639 \u0627\u0644\u0645\u063A\u0646\u0627\u0637\u064A\u0633\u064A\u0629 \u0627\u0644\u062D\u0631\u0627\u0631\u064A\u0629\u060C \u0648\u0623\u0639\u062F \u062A\u0633\u0644\u064A\u062D \u0627\u0644\u0642\u0627\u0637\u0639 \u0627\u0644\u062A\u0641\u0627\u0636\u0644\u064A\u060C \u062B\u0645 \u0623\u063A\u0644\u0642 \u062E\u0637\u064B\u0627 \u0648\u0627\u062D\u062F\u064B\u0627 \u0641\u064A \u0643\u0644 \u0645\u0631\u0629. \u0627\u0644\u062E\u0637 \u0627\u0644\u0630\u064A \u064A\u062C\u0639\u0644\u0647 \u064A\u0641\u0635\u0644 \u0645\u0646 \u062C\u062F\u064A\u062F \u0647\u0648 \u0627\u0644\u062E\u0637 \u0627\u0644\u0645\u062A\u0633\u0631\u0651\u0628.",
+    "Si corregge un impianto a salvamotore aperto, mai in tensione.": "\u064A\u064F\u0635\u062D\u064E\u0651\u062D \u0627\u0644\u062A\u0631\u0643\u064A\u0628 \u0648\u0642\u0627\u0637\u0639 \u062D\u0645\u0627\u064A\u0629 \u0627\u0644\u0645\u062D\u0631\u0643 \u0645\u0641\u062A\u0648\u062D\u060C \u0648\u0644\u064A\u0633 \u062A\u062D\u062A \u0627\u0644\u062C\u0647\u062F \u0623\u0628\u062F\u064B\u0627.",
+    "Sulla linea colpevole c\u2019\xE8 un apparecchio con l\u2019isolante rovinato: scollegalo, poi riarma il differenziale e richiudi le linee.": "\u0639\u0644\u0649 \u0627\u0644\u062E\u0637 \u0627\u0644\u0645\u0633\u0628\u0650\u0651\u0628 \u062C\u0647\u0627\u0632 \u0639\u0627\u0632\u0644\u0647 \u062A\u0627\u0644\u0641: \u0627\u0641\u0635\u0644\u0647\u060C \u062B\u0645 \u0623\u0639\u062F \u062A\u0633\u0644\u064A\u062D \u0627\u0644\u0642\u0627\u0637\u0639 \u0627\u0644\u062A\u0641\u0627\u0636\u0644\u064A \u0648\u0623\u063A\u0644\u0642 \u0627\u0644\u062E\u0637\u0648\u0637.",
+    "Tasto di prova del differenziale: tutto si spegne": "\u0632\u0631 \u0627\u062E\u062A\u0628\u0627\u0631 \u0627\u0644\u0642\u0627\u0637\u0639 \u0627\u0644\u062A\u0641\u0627\u0636\u0644\u064A: \u064A\u0646\u0637\u0641\u0626 \u0643\u0644 \u0634\u064A\u0621",
+    "Un impianto appena montato non si consegna finch\xE9 non lo si \xE8 provato. Il collaudo guarda tutte le funzioni, comprese quelle che non servono quasi mai ma che salvano le persone e la macchina: l\u2019arresto, l\u2019emergenza, il finecorsa e il termico.": "\u0644\u0627 \u064A\u064F\u0633\u0644\u064E\u0651\u0645 \u062A\u0631\u0643\u064A\u0628 \u062C\u062F\u064A\u062F \u0642\u0628\u0644 \u0627\u062E\u062A\u0628\u0627\u0631\u0647. \u064A\u0641\u062D\u0635 \u0627\u0644\u0627\u062E\u062A\u0628\u0627\u0631 \u0643\u0644 \u0627\u0644\u0648\u0638\u0627\u0626\u0641\u060C \u0628\u0645\u0627 \u0641\u064A\u0647\u0627 \u0627\u0644\u062A\u064A \u0646\u0627\u062F\u0631\u064B\u0627 \u0645\u0627 \u062A\u064F\u0633\u062A\u0639\u0645\u0644 \u0644\u0643\u0646\u0647\u0627 \u062A\u0646\u0642\u0630 \u0627\u0644\u0623\u0634\u062E\u0627\u0635 \u0648\u0627\u0644\u0622\u0644\u0629: \u0627\u0644\u0625\u064A\u0642\u0627\u0641 \u0648\u0627\u0644\u0637\u0648\u0627\u0631\u0626 \u0648\u0646\u0647\u0627\u064A\u0629 \u0627\u0644\u0634\u0648\u0637 \u0648\u0627\u0644\u0645\u0631\u062D\u0651\u0644 \u0627\u0644\u062D\u0631\u0627\u0631\u064A.",
+    "Un termico che scatta ma non ferma il motore ha il contatto 95-96 fuori dal circuito di comando.": "\u0627\u0644\u0645\u0631\u062D\u0651\u0644 \u0627\u0644\u062D\u0631\u0627\u0631\u064A \u0627\u0644\u0630\u064A \u064A\u0641\u0635\u0644 \u062F\u0648\u0646 \u0623\u0646 \u064A\u0648\u0642\u0641 \u0627\u0644\u0645\u062D\u0631\u0643 \u064A\u0643\u0648\u0646 \u0645\u0644\u0627\u0645\u0633\u0647 95-96 \u062E\u0627\u0631\u062C \u062F\u0627\u0626\u0631\u0629 \u0627\u0644\u062A\u062D\u0643\u0645.",
+    "Una notte senza luce": "\u0644\u064A\u0644\u0629 \u0628\u0644\u0627 \u0636\u0648\u0621",
+    "\xC8 normale: il termico serve solo a segnalare.": "\u0647\u0630\u0627 \u0637\u0628\u064A\u0639\u064A: \u0627\u0644\u0645\u0631\u062D\u0651\u0644 \u0627\u0644\u062D\u0631\u0627\u0631\u064A \u064A\u0641\u064A\u062F \u0644\u0644\u0625\u0634\u0627\u0631\u0629 \u0641\u0642\u0637.",
+    "\xC8 notte e in casa \xE8 saltata la luce. Il quadro \xE8 quello che conosci: un differenziale all\u2019ingresso e un magnetotermico per ogni linea. Stavolta le linee sono tre: luce, prese e cucina.": "\u0625\u0646\u0647 \u0627\u0644\u0644\u064A\u0644 \u0648\u0627\u0646\u0642\u0637\u0639 \u0627\u0644\u0636\u0648\u0621 \u0641\u064A \u0627\u0644\u0628\u064A\u062A. \u0627\u0644\u0644\u0648\u062D\u0629 \u0647\u064A \u0627\u0644\u062A\u064A \u062A\u0639\u0631\u0641\u0647\u0627: \u0642\u0627\u0637\u0639 \u062A\u0641\u0627\u0636\u0644\u064A \u0639\u0646\u062F \u0627\u0644\u0645\u062F\u062E\u0644 \u0648\u0642\u0627\u0637\u0639 \u0645\u063A\u0646\u0627\u0637\u064A\u0633\u064A \u062D\u0631\u0627\u0631\u064A \u0644\u0643\u0644 \u062E\u0637. \u0647\u0630\u0647 \u0627\u0644\u0645\u0631\u0629 \u0627\u0644\u062E\u0637\u0648\u0637 \u062B\u0644\u0627\u062B\u0629: \u0627\u0644\u0625\u0646\u0627\u0631\u0629 \u0648\u0627\u0644\u0645\u0642\u0627\u0628\u0633 \u0648\u0627\u0644\u0645\u0637\u0628\u062E.",
+    "\xC8 notte e in casa \xE8 saltata la luce: il differenziale \xE8 scattato e non resta armato. Il quadro ha tre linee, luce, prese e cucina. Trova quella che disperde verso terra, rimetti in funzione le altre e rimuovi la causa.": "\u0625\u0646\u0647 \u0627\u0644\u0644\u064A\u0644 \u0648\u0627\u0646\u0642\u0637\u0639 \u0627\u0644\u0636\u0648\u0621 \u0641\u064A \u0627\u0644\u0628\u064A\u062A: \u0641\u0635\u0644 \u0627\u0644\u0642\u0627\u0637\u0639 \u0627\u0644\u062A\u0641\u0627\u0636\u0644\u064A \u0648\u0644\u0627 \u064A\u0628\u0642\u0649 \u0645\u064F\u0633\u0644\u064E\u0651\u062D\u064B\u0627. \u0641\u064A \u0627\u0644\u0644\u0648\u062D\u0629 \u062B\u0644\u0627\u062B\u0629 \u062E\u0637\u0648\u0637: \u0627\u0644\u0625\u0646\u0627\u0631\u0629 \u0648\u0627\u0644\u0645\u0642\u0627\u0628\u0633 \u0648\u0627\u0644\u0645\u0637\u0628\u062E. \u0627\u0639\u062B\u0631 \u0639\u0644\u0649 \u0627\u0644\u0630\u064A \u064A\u062A\u0633\u0631\u0651\u0628 \u0646\u062D\u0648 \u0627\u0644\u0623\u0631\u0636\u060C \u0648\u0623\u0639\u062F \u062A\u0634\u063A\u064A\u0644 \u0627\u0644\u0628\u0627\u0642\u064A\u060C \u0648\u0623\u0632\u0644 \u0627\u0644\u0633\u0628\u0628.",
+    "Fine corsa": "\u0646\u0647\u0627\u064A\u0629 \u0627\u0644\u0634\u0648\u0637",
+    "Inizio del nastro": "\u0628\u062F\u0627\u064A\u0629 \u0627\u0644\u0633\u064A\u0631",
+    "raggiunto": "\u062A\u0645 \u0628\u0644\u0648\u063A\u0647\u0627",
+    "non raggiunto": "\u0644\u0645 \u064A\u062A\u0645 \u0628\u0644\u0648\u063A\u0647\u0627"
   };
 
   // src/i18n/ar.js

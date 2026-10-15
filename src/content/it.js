@@ -77,6 +77,8 @@ const STATE_TEXT = {
   true: 'è alimentato', false: 'non è alimentato', null: 'non è collegato',
 };
 const stateText = v => STATE_TEXT[String(v)] || String(v);
+// Posizione del pacco sul nastro (prove con `expect.machine`).
+const MACHINE_TEXT = { 'machine.atEnd': 'Fine corsa', 'machine.atStart': 'Inizio del nastro' };
 
 // Un elemento del risultato (codice + parametri) in una frase.
 export function itemText(item, level) {
@@ -101,6 +103,7 @@ export function itemText(item, level) {
       const why = item.cause && item.cause !== 'work.checkFail'
         ? itemText({ code: item.cause, comp: item.comp }, level)
         : (item.comp === 'tripped' ? 'Protezioni scattate: ' + (item.got || 'nessuna') + '.'
+          : MACHINE_TEXT[item.comp] ? MACHINE_TEXT[item.comp] + ': ' + (item.got ? 'raggiunto' : 'non raggiunto') + '; atteso: ' + (item.want ? 'raggiunto' : 'non raggiunto') + '.'
           : nameOf(level, item.comp) + ': ' + stateText(item.got) + '; atteso: ' + stateText(item.want) + '.');
       return 'Prova non superata: ' + item.label + '. ' + why;
     }
