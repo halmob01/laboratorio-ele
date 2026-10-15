@@ -204,6 +204,7 @@ export function createScene(container, cb) {
   const plates = {};
   const FACE = { n: [0, 0, -1], s: [0, 0, 1], e: [1, 0, 0], w: [-1, 0, 0] };
   const FACE_ROT = { n: Math.PI, s: 0, e: Math.PI / 2, w: -Math.PI / 2 };
+  const HIT = new THREE.MeshBasicMaterial({ visible: false });
   function plate(x, z, face, mat, userData, size = 1) {
     const g = new THREE.Group();
     const base = rbox(g, mat, -0.09 * size, -0.12 * size, -0.015, 0.18 * size, 0.24 * size, 0.03, 0.012);
@@ -211,8 +212,11 @@ export function createScene(container, cb) {
     const d = FACE[face];
     g.position.set(x + d[0] * (T / 2 + 0.015), PLATE_Y, z + d[2] * (T / 2 + 0.015));
     g.rotation.y = FACE_ROT[face];
-    [g, base, rocker].forEach(o2 => (o2.userData = userData));
-    pick.push(base, rocker);
+    // zona di tocco invisibile, molto piu' grande della placca: sul telefono la placca vera e' di pochi pixel
+    const hitZone = new THREE.Mesh(new THREE.SphereGeometry(0.45, 12, 8), HIT);
+    [g, base, rocker, hitZone].forEach(o2 => (o2.userData = userData));
+    g.add(hitZone);
+    pick.push(base, rocker, hitZone);
     world.add(g);
     return { group: g, rocker };
   }
@@ -224,8 +228,10 @@ export function createScene(container, cb) {
   const brkDoor = rbox(brkG, M.panelDoor, -0.18, -0.15, 0.06, 0.36, 0.3, 0.012, 0.01);
   brkG.position.set(bk.x + FACE[bk.face][0] * (T / 2 + 0.02), 1.15, bk.z + FACE[bk.face][2] * (T / 2 + 0.02));
   brkG.rotation.y = FACE_ROT[bk.face];
-  [brkG, brkBox, brkDoor].forEach(o2 => (o2.userData = { breaker: true }));
-  if (!cb.bare) { pick.push(brkBox, brkDoor); world.add(brkG); }
+  const brkHit = new THREE.Mesh(new THREE.SphereGeometry(0.55, 12, 8), HIT);
+  brkG.add(brkHit);
+  [brkG, brkBox, brkDoor, brkHit].forEach(o2 => (o2.userData = { breaker: true }));
+  if (!cb.bare) { pick.push(brkBox, brkDoor, brkHit); world.add(brkG); }
 
   // ---- tetto ----
   const roofG = makeRoof(M, HOUSE.size);
