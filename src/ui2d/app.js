@@ -14,6 +14,8 @@ import { INTRO } from '../content/home.js';
 import { setLang, detect, onLang } from '../i18n/index.js';
 import '../i18n/ar.js';
 import { createHouse, isHouseLevel, firstCircuit } from '../trilocale/page.js';
+import { createProva } from '../prove/page.js';
+import { isProvaLevel } from '../prove/state.js';
 
 const $ = s => document.querySelector(s);
 const MQ = window.matchMedia('(max-width:919px)');
@@ -39,6 +41,7 @@ const session = createSession({ levels, deriveFull, storage });
 /* ---------- stato della sola vista ---------- */
 let S = null;           // ultima istantanea della sessione
 const house = createHouse(document.querySelector('#house'), { session, go: h => { location.hash = h; }, reduced: () => REDUCED.matches });
+const prova = createProva(document.querySelector('#house'), { session, reduced: () => REDUCED.matches });
 let comps = [];         // componenti con geometria per il livello corrente
 let lastKey = null;
 let rebuild = false;    // forza il ridisegno della scena anche se il livello non cambia
@@ -172,10 +175,11 @@ function renderLevelScreen() {
   const ph = S.unit ? S.unit.phase : 'build';
   const inLesson = !!S.unit && ph === 'lesson' && S.playMode === 'apprendimento';
   const scr = $('#screen-level');
-  const hl = isHouseLevel(S.level.id);
-  scr.className = 'phase-' + (inLesson ? 'learn' : 'play') + (S.playMode === 'verifica' ? ' verify' : '') + (hl ? ' with-house' : '');
-  $('#house').hidden = !hl;
+  const hl = isHouseLevel(S.level.id), pv = isProvaLevel(S.level);
+  scr.className = 'phase-' + (inLesson ? 'learn' : 'play') + (S.playMode === 'verifica' ? ' verify' : '') + (hl || pv ? ' with-house' : '');
+  $('#house').hidden = !(hl || pv);
   if (hl) house.sync(S); else if (house.isMounted()) house.unmount();
+  if (pv) prova.sync(S); else if (prova.isMounted()) prova.unmount();
   $('#lesson').hidden = !inLesson;
   $('#work').hidden = inLesson;
   if (inLesson) { renderLesson(); return; }
@@ -215,7 +219,7 @@ function render() {
   $('#screen-home').hidden = !home;
   $('#screen-quaderno').hidden = !qd;
   $('#screen-level').hidden = home || qd;
-  if (home || qd) house.unmount();
+  if (home || qd) { house.unmount(); prova.unmount(); }
   if (qd) { stopDemo(); demo.page = -1; $('#screen-quaderno').innerHTML = V.quadernoHTML(S, levels); return; }
   if (home) {
     stopDemo(); demo.page = -1;

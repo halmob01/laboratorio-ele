@@ -477,4 +477,8 @@ export default {
 "Inizio del nastro": "بداية السير",
 "raggiunto": "تم بلوغها",
 "non raggiunto": "لم يتم بلوغها",
+"Torna alla mappa": "العودة إلى الخريطة",
+"Pulsantiera": "لوحة الأزرار",
+"Rifai la prova": "أعد التجربة",
+"La scena 3D non è disponibile su questo dispositivo: l’esercizio funziona con il banco qui sotto.": "المشهد ثلاثي الأبعاد غير متاح على هذا الجهاز: يعمل التمرين بالطاولة الموجودة في الأسفل.",
 };

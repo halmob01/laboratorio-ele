@@ -254,10 +254,11 @@ export function unitHTML(s) {
   const ph = s.unit.phase;
   if (ph === 'fault') {
     const f = u.fault, d = s.unit.diag;
-    return `<div class="kick">Sfida guasto</div><h2>${esc(f.diagnosis.question)}</h2><p>${esc(f.say)}</p>
+    const pv = !!s.unit.prova;     // nella prova non si "esce dalla sfida": si torna alla mappa
+    return `<div class="kick">${pv ? 'Prova' : 'Sfida guasto'}</div><h2>${esc(f.diagnosis.question)}</h2><p>${esc(f.say)}</p>
       ${optButtons(f.diagnosis.options, d, f.diagnosis.correct, 'diag', true)}
       ${d ? `<p class="fb ${d.correct ? 'ok' : 'ko'}"><b>${d.correct ? 'Giusto.' : 'Non proprio.'}</b> ${d.correct ? esc(f.diagnosis.why) + ' ' + esc(f.fixSay) : 'Osserva i fili: gli aloni mostrano dove arriva la tensione. Puoi riprovare.'}</p>` : ''}
-      <div class="uact"><button class="btn" data-unit="leaveFault">Esci dalla sfida</button></div>`;
+      <div class="uact">${pv ? '<a class="btn" href="#/home">Torna alla mappa</a>' : '<button class="btn" data-unit="leaveFault">Esci dalla sfida</button>'}</div>`;
   }
   if (s.mode === 'contatore' && ph === 'done') {
     return `<div class="kick">Dal contatore</div><h2>${esc(L.title)}</h2><p>${esc(L.goal)}</p>`;

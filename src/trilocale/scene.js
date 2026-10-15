@@ -19,7 +19,7 @@ import { HOUSE } from '../content/trilocale.js';
 import { houseControls } from './house.js';
 import { WALL_H, FACADE_H, ASSETS, makeMaterials, furnish, doors, windows, roof as makeRoof, rbox, plane, MODELS, placeholder } from './props.js';
 
-const BG = 0x161c26;
+const BG_DAY = 0x161c26, BG_NIGHT = 0x080b12;
 const LAMP_Y = 2.0;
 const PLATE_Y = 1.1;
 
@@ -38,6 +38,11 @@ const smooth = k => k * k * (3 - 2 * k);
  */
 export function createScene(container, cb) {
   if (!supported()) return null;
+  // Opzioni per le prove dei moduli (la casa di notte, senza i comandi del Modulo 1): vedi src/scene3d/appartamento.js.
+  //   night: luce di luna, bare: niente piastrine e quadro del Modulo 1, noIntro + start: parte senza tetto da una vista data,
+  //   extend(ctx) -> { update(state), dispose() }: aggiunge oggetti alla scena, onPick(userData): tocchi sugli oggetti aggiunti.
+  const night = !!cb.night;
+  const BG = night ? BG_NIGHT : BG_DAY;
   // telefono o schermo piccolo: niente occlusione ambientale, ombre piu' leggere
   const lite = cb.lite !== undefined ? cb.lite : (window.matchMedia && window.matchMedia('(pointer: coarse)').matches) || container.clientWidth < 700;
   let renderer;
@@ -47,7 +52,7 @@ export function createScene(container, cb) {
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, lite ? 1.25 : 1.75));
   renderer.setClearColor(BG);
   renderer.toneMapping = THREE.AgXToneMapping;
-  renderer.toneMappingExposure = 0.95;
+  renderer.toneMappingExposure = night ? 1.3 : 0.95;
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   renderer.domElement.className = 'house3d';
@@ -75,13 +80,13 @@ export function createScene(container, cb) {
   new EXRLoader().load(ASSETS + 'ambiente.exr', t => {
     if (disposed) return;
     scene.environment = pmrem.fromEquirectangular(t).texture;
-    scene.environmentIntensity = 0.16;
-    hemi.intensity = 0.12;
+    scene.environmentIntensity = night ? 0.07 : 0.16;
+    hemi.intensity = night ? 0.07 : 0.12;
     t.dispose(); pmrem.dispose();
     redraw();
   }, undefined, () => {});
   // sole basso di sera, caldo, da sud-ovest
-  const sun = new THREE.DirectionalLight(0xff9f66, 1.0);
+  const sun = new THREE.DirectionalLight(night ? 0x8fa9e6 : 0xff9f66, night ? 0.4 : 1.0);
   sun.position.set(-9, 6, 12);
   sun.target.position.set(4.5, 0, 4);
   sun.castShadow = true;
@@ -94,7 +99,7 @@ export function createScene(container, cb) {
 
   const camera = new THREE.PerspectiveCamera(38, 1, 0.1, 120);
   const cx = HOUSE.size.w / 2, cz = HOUSE.size.d / 2;
-  const OVERVIEW = { tx: cx, tz: cz + 0.3, yaw: 0, pitch: 58, dist: 17.5 };
+  const OVERVIEW = { tx: cx, tz: cz + 0.3, yaw: 0, pitch: 58, dist: 17.5, ty: 0.6 };
   const view = { ...OVERVIEW };
 
   const world = new THREE.Group();
@@ -205,7 +210,7 @@ export function createScene(container, cb) {
     world.add(g);
     return { group: g, rocker };
   }
-  houseControls().forEach(c => { plates[c.circuit + '.' + c.id] = plate(c.x, c.z, c.face, M.plate, { circuit: c.circuit, ctl: c.id }); });
+  if (!cb.bare) houseControls().forEach(c => { plates[c.circuit + '.' + c.id] = plate(c.x, c.z, c.face, M.plate, { circuit: c.circuit, ctl: c.id }); });
   // quadro elettrico: centralino bianco con sportello fumé
   const bk = HOUSE.breaker;
   const brkG = new THREE.Group();
@@ -214,8 +219,7 @@ export function createScene(container, cb) {
   brkG.position.set(bk.x + FACE[bk.face][0] * (T / 2 + 0.02), 1.15, bk.z + FACE[bk.face][2] * (T / 2 + 0.02));
   brkG.rotation.y = FACE_ROT[bk.face];
   [brkG, brkBox, brkDoor].forEach(o2 => (o2.userData = { breaker: true }));
-  pick.push(brkBox, brkDoor);
-  world.add(brkG);
+  if (!cb.bare) { pick.push(brkBox, brkDoor); world.add(brkG); }
 
   // ---- tetto ----
   const roofG = makeRoof(M, HOUSE.size);
@@ -243,8 +247,11 @@ export function createScene(container, cb) {
     labels.push({ el, v: new THREE.Vector3(x, y, z) });
   }
   HOUSE.rooms.forEach(r => addLabel(r.name, r.x + r.w / 2, 0.15, r.z + r.d / 2 + (r.id === 'corridoio' ? 0.45 : 0.9), 'room'));
-  houseControls().forEach(c => addLabel(c.label, c.x + FACE[c.face][0] * 0.4, WALL_H + 0.25, c.z + FACE[c.face][2] * 0.4, 'ctl'));
-  addLabel(bk.label, bk.x + 0.55, WALL_H + 0.25, bk.z, 'ctl');
+  if (!cb.bare) {
+    houseControls().forEach(c => addLabel(c.label, c.x + FACE[c.face][0] * 0.4, WALL_H + 0.25, c.z + FACE[c.face][2] * 0.4, 'ctl'));
+    addLabel(bk.label, bk.x + 0.55, WALL_H + 0.25, bk.z, 'ctl');
+  }
+  const ext = cb.extend ? cb.extend({ world, M, pick, rooms, addLabel, animate, redraw, lite, FACE, FACE_ROT, T, WALL_H }) : null;
 
   // ---- post-elaborazione: alone delle lampade, occlusione ambientale, colore ----
   const rt = new THREE.WebGLRenderTarget(1, 1, { type: (renderer.extensions.has('EXT_color_buffer_half_float') || renderer.extensions.has('EXT_color_buffer_float')) ? THREE.HalfFloatType : THREE.UnsignedByteType, samples: lite ? 2 : 4 });
@@ -264,8 +271,8 @@ export function createScene(container, cb) {
   // ---- telecamera ----
   function placeCamera() {
     const p = rad(view.pitch), y = rad(view.yaw), r = view.dist;
-    camera.position.set(view.tx + Math.sin(y) * Math.cos(p) * r, Math.sin(p) * r, view.tz + Math.cos(y) * Math.cos(p) * r);
-    camera.lookAt(view.tx, 0.6, view.tz);
+    camera.position.set(view.tx + Math.sin(y) * Math.cos(p) * r, view.ty - 0.6 + Math.sin(p) * r, view.tz + Math.cos(y) * Math.cos(p) * r);
+    camera.lookAt(view.tx, view.ty, view.tz);
   }
   function resize() {
     const w = Math.max(1, container.clientWidth), h = Math.max(1, container.clientHeight);
@@ -308,7 +315,8 @@ export function createScene(container, cb) {
     return fn;
   }
 
-  let camAnim = null, intro = !cb.reduced, introTarget = {};
+  const still = cb.reduced || cb.noIntro;          // niente ingresso animato: parte gia' senza tetto
+  let camAnim = null, intro = !still, introTarget = {};
   function go(to, ms = 900) {
     if (intro) { introTarget = to; return; }      // durante l'ingresso si ricorda solo dove arrivare
     const target = { ...OVERVIEW, ...to };
@@ -329,7 +337,7 @@ export function createScene(container, cb) {
   }
 
   // ---- ingresso: casa vista da lontano col tetto, il tetto si alza e la camera scende ----
-  if (cb.reduced) { roofK = 0; roofOn = false; applyRoof(); }
+  if (still) { roofK = 0; roofOn = false; applyRoof(); if (cb.start) Object.assign(view, cb.start); }
   else {
     Object.assign(view, { tx: cx, tz: cz, yaw: -28, pitch: 30, dist: 27 });
     applyRoof();
@@ -369,7 +377,8 @@ export function createScene(container, cb) {
     const hit = ray.intersectObjects(pick, false)[0];
     if (!hit) return;
     const u = hit.object.userData || {};
-    if (u.breaker) cb.onBreaker();
+    if (u.ext) { if (cb.onPick) cb.onPick(u); }
+    else if (u.breaker) cb.onBreaker();
     else if (u.ctl) cb.onControl(u.circuit, u.ctl);
     else if (u.room) cb.onRoom(u.room);
   });
@@ -410,6 +419,7 @@ export function createScene(container, cb) {
   return {
     // state = houseState(...).rooms; controlStates di ogni circuito e' dentro rooms[id].controls
     update(state) {
+      if (ext && ext.update) ext.update(state);
       const lit = [];
       Object.keys(rooms).forEach(id => {
         const r = rooms[id], s = state.rooms[id] || {};
@@ -434,11 +444,21 @@ export function createScene(container, cb) {
       go({ tx: r.x + r.w / 2, tz: r.z + r.d / 2 + 0.3, dist: 12.5, yaw: 0, pitch: 60 });
     },
     overview() { go({}); },
+    look(to, ms) { go(to, ms); },
+    // Posizione sullo schermo del primo oggetto toccabile con quell'id (solo oggetti aggiunti da extend): per i test.
+    screenOf(id) {
+      const m = pick.find(p => p.userData && p.userData.id === id);
+      if (!m) return null;
+      m.updateWorldMatrix(true, false);
+      const v = new THREE.Vector3().setFromMatrixPosition(m.matrixWorld).project(camera);
+      return { x: ((v.x + 1) / 2) * container.clientWidth, y: ((1 - v.y) / 2) * container.clientHeight, visible: v.z < 1 };
+    },
     setRoof(on) { setRoof(on); if (on) go({ yaw: -18, pitch: 42, dist: 23 }, 1400); },
     roof() { return roofOn; },
     resize,
     dispose() {
       disposed = true;
+      if (ext && ext.dispose) ext.dispose();
       if (raf) cancelAnimationFrame(raf);
       if (ro) ro.disconnect();
       scene.traverse(o2 => {

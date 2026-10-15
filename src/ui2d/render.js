@@ -309,7 +309,7 @@ export function resultHTML(s) {
   const acts = [];
   if (r.pass) {
     if (u && u.summary.length) acts.push('<button class="btn" data-act="summary">Sintesi</button>');
-    if (u && u.hasFault && !u.faultSolved && s.playMode !== 'verifica' && s.mode === 'quadro') acts.push('<button class="btn" data-act="fault">Sfida guasto</button>');
+    if (u && u.hasFault && !u.faultSolved && s.playMode !== 'verifica' && s.mode === 'quadro') acts.push(`<button class="btn" data-act="fault">${u.prova ? 'Rifai la prova' : 'Sfida guasto'}</button>`);
     if (s.playMode !== 'verifica' && s.mode === 'quadro' && !s.level.quadroOnly) acts.push('<button class="btn" data-act="full">Sfida: parti dal contatore</button>');
     acts.push(last ? '' : toHouse ? '<button class="btn primary" id="bNext" data-href="#/modulo/1">Vai al trilocale</button>' : '<button class="btn primary" id="bNext">Livello successivo</button>');
   }

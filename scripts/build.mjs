@@ -39,3 +39,16 @@ const scene = await build({
 });
 await writeFile(join(root, 'trilocale.js'), scene.outputFiles[0].text);
 console.log('trilocale.js scritto (' + Math.round(scene.outputFiles[0].text.length / 1024) + ' KB)');
+
+// Pacchetto 3D delle prove dei moduli (appartamento di notte, officina): separato, si carica solo aprendo una prova.
+const prove = await build({
+  entryPoints: [join(root, 'src/scene3d/entry.js')],
+  bundle: true,
+  format: 'iife',
+  target: 'es2020',
+  minify: true,
+  write: false,
+  legalComments: 'eof',
+});
+await writeFile(join(root, 'prove3d.js'), prove.outputFiles[0].text);
+console.log('prove3d.js scritto (' + Math.round(prove.outputFiles[0].text.length / 1024) + ' KB)');
