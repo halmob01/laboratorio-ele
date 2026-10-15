@@ -1,6 +1,5 @@
 // Dizionario arabo, parte 18: schede delle milestone nella mappa (foto della scena, capolinea, strumenti, stanze).
 export default {
-"Milestone": "المحطة الكبرى",
 "Capolinea del modulo": "نهاية الوحدة",
 "Traguardo": "الهدف",
 "Cosa userai": "ما ستستخدمه",

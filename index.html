@@ -741,7 +741,6 @@ body.ms-intro .milestone .lessoncard{visibility:hidden}
 .msc:hover .msc-scene img{transform:scale(1.06)}
 .msc-scene::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(14,20,29,0) 45%,#0E141D 100%)}
 .msc-tags{position:absolute;left:14px;top:14px;z-index:1;display:flex;gap:8px;flex-wrap:wrap}
-.msc-3d{font:600 12px/1 'IBM Plex Mono',monospace;letter-spacing:.1em;text-transform:uppercase;padding:7px 9px;border-radius:6px;background:var(--lamp);color:#1B2230}
 .msc-st{font:500 12px/1 'IBM Plex Mono',monospace;padding:7px 9px;border-radius:6px;background:rgba(10,15,22,.74);color:#F3EFE6;border:1px solid rgba(255,255,255,.25)}
 .msc-body{position:relative;z-index:1;margin-top:-64px;padding:0 20px 20px;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:16px 24px;align-items:end}
 .msc .kick{color:#8CC3F2}
@@ -768,7 +767,6 @@ body.ms-intro .milestone .lessoncard{visibility:hidden}
 .msc.soon .msc-scene{aspect-ratio:7/2;background:linear-gradient(rgba(140,195,242,.12) 1px,transparent 1px) 0 0/24px 24px,linear-gradient(90deg,rgba(140,195,242,.12) 1px,transparent 1px) 0 0/24px 24px,#13233A}
 .msc.soon .msc-scene::after{background:linear-gradient(180deg,rgba(19,35,58,0) 40%,#13233A 100%)}
 .msc.soon .msc-scene svg{position:absolute;inset:0;width:100%;height:100%}
-.msc.soon .msc-3d{background:transparent;color:#8CC3F2;border:1.5px dashed #8CC3F2}
 .msc.soon .msc-side{min-width:0}
 .msc.soon .msc-txt{color:#B9C8DC}
 .msteaser{display:flex;align-items:center;gap:10px;color:var(--ink);border:1px solid var(--line);border-radius:10px;padding:4px 10px 4px 4px;background:var(--card);cursor:pointer;text-align:left;font:inherit}
@@ -10294,7 +10292,7 @@ body.ms-intro .milestone .lessoncard{visibility:hidden}
     const stName = soon ? "In arrivo" : STATUS_NAMES[o.st];
     const scene = soon ? blueprintHTML(o.art) : `<img src="${esc(o.src)}" alt="${esc(o.alt || "")}" width="1200" height="600" loading="lazy" decoding="async">`;
     return `<article class="msc${soon ? " soon" : ""}" id="${esc(o.id)}" data-st="${soon ? "soon" : o.st.replace(" ", "-")}">
-      <div class="msc-scene">${scene}<div class="msc-tags"><span class="msc-3d">Milestone \xB7 3D</span><span class="msc-st">${stName}</span></div></div>
+      <div class="msc-scene">${scene}<div class="msc-tags"><span class="msc-st">${stName}</span></div></div>
       <div class="msc-body"><div class="msc-main"><div class="kick">${esc(o.kick)}</div><h3>${esc(o.name)}</h3><p class="msc-txt">${esc(o.text)}</p>${o.extra || ""}</div>
         <div class="msc-side">${o.side || (soon ? '<span class="msc-ready">La scena \xE8 in preparazione</span>' : "")}</div></div>
     </article>`;
@@ -13484,7 +13482,6 @@ body.ms-intro .milestone .lessoncard{visibility:hidden}
 
   // src/i18n/ar-18.js
   var ar_18_default = {
-    "Milestone": "\u0627\u0644\u0645\u062D\u0637\u0629 \u0627\u0644\u0643\u0628\u0631\u0649",
     "Capolinea del modulo": "\u0646\u0647\u0627\u064A\u0629 \u0627\u0644\u0648\u062D\u062F\u0629",
     "Traguardo": "\u0627\u0644\u0647\u062F\u0641",
     "Cosa userai": "\u0645\u0627 \u0633\u062A\u0633\u062A\u062E\u062F\u0645\u0647",

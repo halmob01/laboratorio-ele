@@ -91,7 +91,7 @@ function milestoneCard(o) {
   const stName = soon ? 'In arrivo' : STATUS_NAMES[o.st];
   const scene = soon ? blueprintHTML(o.art) : `<img src="${esc(o.src)}" alt="${esc(o.alt || '')}" width="1200" height="600" loading="lazy" decoding="async">`;
   return `<article class="msc${soon ? ' soon' : ''}" id="${esc(o.id)}" data-st="${soon ? 'soon' : o.st.replace(' ', '-')}">
-      <div class="msc-scene">${scene}<div class="msc-tags"><span class="msc-3d">Milestone · 3D</span><span class="msc-st">${stName}</span></div></div>
+      <div class="msc-scene">${scene}<div class="msc-tags"><span class="msc-st">${stName}</span></div></div>
       <div class="msc-body"><div class="msc-main"><div class="kick">${esc(o.kick)}</div><h3>${esc(o.name)}</h3><p class="msc-txt">${esc(o.text)}</p>${o.extra || ''}</div>
         <div class="msc-side">${o.side || (soon ? '<span class="msc-ready">La scena è in preparazione</span>' : '')}</div></div>
     </article>`;

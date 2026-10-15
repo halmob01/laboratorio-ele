@@ -196,7 +196,7 @@ test('mappa: ogni modulo chiude con la scheda della sua milestone, preceduta dal
   const { d, errors } = home();
   const cards = [...d.querySelectorAll('.msc')];
   assert.deepEqual(cards.map(c => c.id), ['ms-trilocale', 'ms-c23-appartamento-notte', 'ms-c24-officina', 'ms-plc', 'ms-casa', 'ms-fabbrica']);
-  cards.forEach(c => assert.match(c.textContent, /Milestone · 3D/));
+  cards.forEach(c => assert.doesNotMatch(c.textContent, /Milestone/));
   assert.equal(d.querySelectorAll('.terminus').length, 5, 'tutte tranne il trilocale, che non ha un binario');
   assert.ok(!d.querySelector('.tricard'), 'le vecchie schede non ci sono piu');
   // le tre con una scena vera mostrano la foto, le altre il disegno tecnico
