@@ -6,6 +6,7 @@ import * as THREE from 'three';
 import { createScene } from '../trilocale/scene.js';
 import { HOUSE } from '../content/trilocale.js';
 import { kitMaterials, box, cylinder, centralino, textPlane } from './parts3d.js';
+import { createWiring, createSparks } from './wiring.js';
 
 // Viste: la prima e' quella d'insieme. Il centralino e' sul muro ovest dell'ingresso, rivolto a est.
 const VIEWS = {
@@ -14,11 +15,35 @@ const VIEWS = {
   soggiorno: { tx: 4.2, tz: 6.6, yaw: 0, pitch: 55, dist: 9 },
   corridoio: { tx: 4.5, tz: 4.6, yaw: 0, pitch: 60, dist: 10.5 },
   cucina: { tx: 1.5, tz: 1.5, yaw: 0, pitch: 58, dist: 9 },
+  ingresso: { tx: 1.4, tz: 6.2, yaw: 32, pitch: 50, dist: 7.5 },
+  dispersione: { tx: 3.2, tz: 6.0, yaw: 0, pitch: 52, dist: 10.5 },     // quadro e stufetta insieme: il percorso della corrente che scappa
+  esterno: { tx: 4.5, tz: 4.2, ty: 0.8, yaw: -24, pitch: 22, dist: 21 },
+  lontano: { tx: 4.5, tz: 4.2, ty: 0.8, yaw: -34, pitch: 18, dist: 30 },
 };
+
+// Percorsi dei fili, dal quadro (muro ovest dell'ingresso) ai carichi. Corrono appena sopra il taglio dei muri (WALL_H 1.45),
+// cosi' dall'alto sembrano dentro la sezione; scendono o salgono solo alle estremita'. Fase, neutro e terra affiancati.
+const Y = 1.47, Q = [0.12, 1.2, 6.5];
+const PATHS = {
+  luce: [Q, [0.12, Y, 6.5], [0.12, Y, 4.25], [0.12, 1.1, 4.25], [0.12, Y, 4.25], [4.5, Y, 4.25], [4.5, 2.0, 4.25]],
+  prese: [Q, [0.12, Y, 6.5], [0.12, Y, 5.0], [6.15, Y, 5.0], [6.15, 0.32, 5.07], [6.15, 0.3, 5.4]],
+  cucina: [Q, [0.12, Y, 6.5], [0.12, Y, 0.12], [2.35, Y, 0.12], [2.35, 0.3, 0.12]],
+};
+const CONDS = { luce: ['fase', 'neutro'], prese: ['fase', 'neutro', 'terra'], cucina: ['fase', 'neutro', 'terra'] };
+const ROUTES = {};
+Object.entries(PATHS).forEach(([line, pts]) => {
+  ROUTES[line] = {};
+  const base = line === 'luce' ? -0.12 : line === 'cucina' ? 0.12 : 0;
+  CONDS[line].forEach((c, i) => {
+    const k = base + (i - 1) * 0.05;
+    ROUTES[line][c] = pts.map(([x, y, z]) => [x + k, y, z + k]);
+  });
+});
+const LOAD = { luce: 'lamp', prese: 'socket', cucina: 'oven' };
 const SCALE = 2.5;            // il centralino e' piu' grande del vero, per poterlo toccare e leggere dal telefono
 
 function extension(ctx, cb) {
-  const { world, pick, addLabel, redraw, moved, FACE_ROT } = ctx;
+  const { world, pick, addLabel, redraw, moved, FACE_ROT, loop, animate } = ctx;
   const K = kitMaterials();
   const ray = new THREE.Raycaster(), ndc = new THREE.Vector2(), hit = new THREE.Vector3(), floor = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
   const grp = new THREE.Group();
@@ -84,6 +109,13 @@ function extension(ctx, cb) {
   heatLight.position.set(6.15, 0.35, 5.6);
   grp.add(tvLight, heatLight);
 
+  // ---- fili, scintille della dispersione, etichetta ----
+  const wiring = createWiring({ add: o => grp.add(o), loop, animate, redraw, reduced: !!cb.reduced }, ROUTES);
+  const sparks = createSparks({ add: o => grp.add(o), animate, redraw }, [6.15, 0.35, 5.45], ctx.lite ? 20 : 40);
+  const leakLabel = addLabel('Dispersione verso terra · 300 mA', 6.15, 1.25, 5.5, 'leak');
+  leakLabel.classList.add('off');
+  const prev = { luce: false, prese: false, cucina: false, loads: {}, rcd: false, plugged: true };
+
   // ---- torcia: un cono di luce dove punta il dito o il mouse (si accende dalla cornice della prova) ----
   const torch = new THREE.SpotLight(0xfff1d6, 0, 0, 0.11, 0.55, 2);       // stretta: illumina una stanza, non la casa
   torch.target.position.set(4.5, 0, 4.3);
@@ -97,12 +129,36 @@ function extension(ctx, cb) {
       rocker.rotation.x = (s.switchOn ? -1 : 1) * 0.25;
       const heaterOn = s.socket && s.heaterPlugged;
       barMat.emissiveIntensity = heaterOn ? 3.5 : 0;
-      if (cable.visible !== s.heaterPlugged) { cable.visible = s.heaterPlugged; moved(); }
+      if (s.heaterPlugged !== prev.plugged) {
+        prev.plugged = s.heaterPlugged;
+        if (!s.heaterPlugged && !cb.reduced) {
+          // la spina si sfila: il cavo scivola via dalla presa, poi sparisce
+          animate(320, k => { cable.position.z = 5.2 + k * 0.16; if (k >= 1) { cable.visible = false; moved(); } });
+        } else { cable.position.z = 5.2; cable.visible = s.heaterPlugged; moved(); }
+      }
       tvMat.emissive = new THREE.Color(s.socket ? 0x2c5c96 : 0x000000);
       tvMat.emissiveIntensity = s.socket ? 1.1 : 0;
       tvLight.intensity = s.socket ? 2.2 : 0;
       heatLight.intensity = heaterOn ? 2.6 : 0;
       ovenTxt.material.color.setHex(s.oven ? 0xffffff : 0x1c1c1c);
+      // fili: lo scatto spegne tutto di colpo; le leve accendono e spengono una linea alla volta
+      if (prev.rcd && !s.rcd.on) wiring.cut();
+      prev.rcd = s.rcd.on;
+      Object.keys(PATHS).forEach(line => {
+        const live = !!(s.supply && s.rcd.on && s.lines[line].on);
+        const load = !!s[LOAD[line]];
+        const leak = line === 'prese' && s.leak ? (s.leak === 'isolated' ? 1 : 0.14) : 0;
+        wiring.setLine(line, { live, flow: live && load ? (prev.loads[line] ? true : 'again') : false, earth: leak });
+        prev.loads[line] = live && load;
+      });
+      if (s.leak === 'isolated') { sparks.play(1600); leakLabel.classList.remove('off'); } else { sparks.stop(); leakLabel.classList.add('off'); }
+      redraw();
+    },
+    wires: wiring,
+    door(k) { cen.door(k); redraw(); },
+    // finestre di cucina e soggiorno (le altre stanze si accendono con le loro lampade): per la casa vista da fuori
+    windows(on) {
+      ['cucina', 'soggiorno'].forEach(id => ctx.rooms[id].wins.forEach(g => g.emissive.setHex(0xffb35c).multiplyScalar(on ? 1.2 : 0)));
       redraw();
     },
     torch(on) { torch.intensity = on ? 900 : 0; redraw(); },
@@ -135,6 +191,11 @@ export function createAppartamento(container, cb) {
   return {
     update(state) { api.update(state); },
     torch(on) { if (ext) ext.torch(on); },
+    wires: () => ext && ext.wires,
+    door(k) { if (ext) ext.door(k); },
+    windows(on) { if (ext) ext.windows(on); },
+    setRoof(on, ms) { api.setRoof(on, true, ms); },
+    view: name => ({ ...(VIEWS[name] || VIEWS.insieme) }),
     aim(x, y) {
       if (!ext) return;
       const r = container.getBoundingClientRect();
@@ -142,7 +203,7 @@ export function createAppartamento(container, cb) {
     },
     // su telefono in verticale il quadro va guardato piu' da vicino, per leggerlo e toccarlo
     look(name, ms) {
-      const v = { ...(VIEWS[name] || VIEWS.insieme) };
+      const v = typeof name === 'object' ? name : { ...(VIEWS[name] || VIEWS.insieme) };
       if (container.clientWidth < container.clientHeight * 0.9 && name === 'quadro') v.dist = 1.5;
       api.look(v, ms);
     },

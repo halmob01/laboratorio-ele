@@ -586,147 +586,220 @@ svg.ladder{display:block;min-width:360px;width:100%;max-width:640px;height:auto}
 /* Colori fissi scuri, scelti: e' sempre notte o capannone, in tema chiaro e scuro. */
 body.ms-mode{overflow:hidden}
 body.ms-mode .top,body.ms-mode #tabbar,body.ms-mode #footer,body.ms-mode .levelbar{display:none!important}
-.milestone{--hud:rgba(12,18,28,.84);--hud-solid:#0F1622;--hud-line:rgba(233,230,222,.16);--hud-ink:#F3EFE6;--hud-ink2:#AEB4C0;--hud-ink3:#7C8494;--hud-ok:#4CC38A;--hud-bad:#FF5A5F;--hud-led:#47FF8A}
+body.ms-intro .milestone .lessoncard{visibility:hidden}
+.milestone{--hud:rgba(10,15,23,.86);--hud-solid:#0F1622;--hud-line:rgba(233,230,222,.16);--hud-ink:#F3EFE6;--hud-ink2:#AEB4C0;--hud-ink3:#7C8494;--hud-ok:#4CC38A;--hud-bad:#FF5A5F;--hud-led:#47FF8A}
 .milestone .levelgrid{display:block!important}
-.milestone .house{position:fixed;inset:0;z-index:30;margin:0;background:#070B12;color:var(--hud-ink)}
-.milestone .house .hstage{position:absolute;inset:0;height:auto!important;min-height:0!important;border:0;border-radius:0;background:radial-gradient(120% 90% at 50% 40%,#0E1A14 0%,#070B12 70%)}
+.milestone .house{position:fixed;inset:0;z-index:30;margin:0;background:#05080D;color:var(--hud-ink)}
+.milestone .house .hstage{position:absolute;inset:0;height:auto!important;min-height:0!important;border:0;border-radius:0;background:radial-gradient(120% 90% at 50% 40%,#0B140F 0%,#05080D 70%)}
 .milestone .house .hmsg{top:50%;bottom:auto;left:50%;right:auto;transform:translate(-50%,-50%);border-radius:10px;max-width:min(420px,90vw);text-align:center}
-.milestone .house .hlabel.room{opacity:.55}
+.milestone .house .hlabel.room{opacity:.45}
 .milestone .house .hlabel.ctl{display:none!important}
+.hlabel.leak{background:#FF5A2A;color:#1B0A02;padding:5px 9px;border-radius:999px;font:600 12px/1 'IBM Plex Mono',monospace;box-shadow:0 0 24px rgba(255,90,42,.6)}
+.hlabel.off{visibility:hidden}
+.pvig{position:absolute;inset:0;pointer-events:none;background:radial-gradient(ellipse at 50% 45%,transparent 50%,rgba(0,0,0,.55) 100%)}
 .milestone .work{display:none}
 .milestone.drawer .work{display:flex;position:fixed;z-index:40;top:0;right:0;bottom:0;width:min(560px,100vw);overflow:auto;padding:14px max(14px,env(safe-area-inset-right,0px)) 120px 14px;background:var(--bg);box-shadow:-12px 0 40px rgba(0,0,0,.45);flex-direction:column;gap:12px}
 .milestone .work .unit{display:none}
+.drawerclose{display:none}
+.milestone.drawer .drawerclose{display:inline-flex;align-self:flex-end;position:sticky;top:0;z-index:2}
 .milestone .lessoncard{position:fixed;z-index:45;left:50%;top:50%;transform:translate(-50%,-50%);width:min(640px,calc(100vw - 24px));max-height:calc(100vh - 32px);overflow:auto;box-shadow:0 20px 60px rgba(0,0,0,.5)}
-.milestone .house.lesson .phud{display:none}
-.phud{position:fixed;z-index:35;background:var(--hud);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);border:1px solid var(--hud-line);border-radius:14px;color:var(--hud-ink)}
+.milestone .house.lesson .phud,.milestone .house.lesson .psub{display:none}
+.phud{position:fixed;z-index:35;color:var(--hud-ink);transition:opacity .5s ease,transform .6s cubic-bezier(.2,.8,.2,1)}
 .phud h2{margin:0}
-.phud button,.psheet button,.pintro button{font:inherit;color:inherit}
-.phud :focus-visible,.psheet :focus-visible,.pintro :focus-visible{outline:2px solid var(--lamp);outline-offset:2px}
+.phud button,.psheet button,.pintro button,.psub button{font:inherit;color:inherit}
+.phud :focus-visible,.psheet :focus-visible,.pintro :focus-visible,.psub :focus-visible,.ppin:focus-visible{outline:2px solid var(--lamp);outline-offset:2px}
 .pk{font:500 11px/1.2 'IBM Plex Mono',monospace;letter-spacing:.12em;text-transform:uppercase;color:var(--hud-ink2)}
 .vh{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
-/* missione */
-.pmission{top:calc(12px + env(safe-area-inset-top,0px));left:max(12px,env(safe-area-inset-left,0px));width:min(380px,calc(100vw - 24px));padding:14px 16px;display:flex;flex-direction:column;gap:10px}
-.pback{display:flex;justify-content:space-between;align-items:center;gap:8px}
-.pback a{color:var(--hud-ink);font-weight:600;text-decoration:none;font-size:14px;min-height:32px;display:inline-flex;align-items:center}
-.pclock{font:600 13px/1 'IBM Plex Mono',monospace;color:var(--lamp);font-variant-numeric:tabular-nums}
-.pmission h2{font:700 34px/.95 'Barlow Condensed',sans-serif;text-transform:uppercase;text-wrap:balance}
-.pgoal{color:var(--hud-ink2);font-size:14px;margin:0}
-.psteps{list-style:none;margin:0;padding:0;display:grid;gap:6px}
-.psteps li{display:grid;grid-template-columns:22px 1fr;gap:8px;align-items:center;font-size:14px;color:var(--hud-ink3)}
-.psteps li::before{content:attr(data-n);display:grid;place-items:center;width:22px;height:22px;border-radius:50%;border:1.5px solid var(--hud-ink3);font:600 11px/1 'IBM Plex Mono',monospace}
-.psteps li.cur{color:var(--hud-ink)}
-.psteps li.cur::before{border-color:var(--lamp);color:var(--lamp)}
+/* atti: durante la chiamata e l'arrivo la cornice non c'e'; i comandi salgono quando si apre il quadro */
+.house[data-act="call"] .phud,.house[data-act="arrive"] .phud{opacity:0;pointer-events:none}
+.house[data-act="find"] .psteps-box,.house[data-act="opening"] .psteps-box{opacity:0;pointer-events:none}
+.house[data-act="find"] .pdock,.house[data-act="opening"] .pdock,.house[data-act="finale"] .pdock{transform:translate(-50%,130%);pointer-events:none}
+.house[data-act="finale"] .psteps-box,.house[data-act="finale"] .ptop{opacity:0;pointer-events:none}
+/* barra in alto */
+.ptop{top:0;left:0;right:0;display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:12px;padding:calc(12px + env(safe-area-inset-top,0px)) max(18px,env(safe-area-inset-right,0px)) 26px max(18px,env(safe-area-inset-left,0px));background:linear-gradient(180deg,rgba(5,8,13,.88),rgba(5,8,13,0))}
+.pmap{color:var(--hud-ink);font-weight:600;text-decoration:none;font-size:14px;min-height:40px;display:inline-flex;align-items:center;justify-self:start}
+.ptitle{display:flex;flex-direction:column;align-items:center;gap:3px;text-align:center}
+.ptitle b{font:700 26px/1 'Barlow Condensed',sans-serif;text-transform:uppercase;letter-spacing:.02em}
+.ptools{display:flex;gap:6px;align-items:center;justify-self:end;flex-wrap:wrap;justify-content:flex-end}
+.pclock{font:600 15px/1 'IBM Plex Mono',monospace;color:var(--lamp);font-variant-numeric:tabular-nums;margin-right:6px}
+.pchip{border:1px solid var(--hud-line);background:rgba(255,255,255,.06);border-radius:999px;padding:8px 12px;min-height:38px;font:500 13px/1 'IBM Plex Sans',sans-serif;cursor:pointer}
+.pchip[aria-pressed="true"]{background:var(--lamp);color:#1B2230;border-color:var(--lamp)}
+/* il metodo: il binario della mappa, verticale */
+.psteps-box{left:max(18px,env(safe-area-inset-left,0px));top:50%;transform:translateY(-50%);width:250px;display:flex;flex-direction:column;gap:12px}
+.psteps{list-style:none;margin:0;padding:0 0 0 30px;position:relative;display:flex;flex-direction:column;gap:14px}
+.psteps::before{content:"";position:absolute;left:6px;top:8px;bottom:8px;width:9px;background:linear-gradient(90deg,var(--fase) 0 4px,transparent 4px 5px,var(--neutro) 5px 9px);opacity:.7}
+.psteps li{position:relative;font-size:13px;line-height:1.3;color:var(--hud-ink3);text-shadow:0 1px 6px #000}
+.pnode{position:absolute;left:-30px;top:-1px;width:21px;height:21px;border-radius:50%;background:#0E141D;border:2.5px solid var(--hud-ink3)}
 .psteps li.done{color:var(--hud-ink2)}
-.psteps li.done::before{content:"\2713";background:var(--hud-ok);border-color:var(--hud-ok);color:#06210F}
-/* registro */
-.plogbox{top:calc(12px + env(safe-area-inset-top,0px));right:max(12px,env(safe-area-inset-right,0px));width:270px;padding:12px 14px;display:flex;flex-direction:column;gap:8px;max-height:46vh}
-.plogbox h2{font:500 11px/1 'IBM Plex Mono',monospace;letter-spacing:.12em;text-transform:uppercase;color:var(--hud-ink2)}
+.psteps li.done .pnode{background:var(--lamp);border-color:#1B2230}
+.psteps li.cur{color:var(--hud-ink);font:600 17px/1.25 'IBM Plex Sans',sans-serif}
+.psteps li.cur .pnode{border-color:var(--lamp);box-shadow:0 0 0 0 rgba(245,184,0,.6);animation:pping 1.8s ease-out infinite}
+@keyframes pping{0%{box-shadow:0 0 0 0 rgba(245,184,0,.55)}100%{box-shadow:0 0 0 12px rgba(245,184,0,0)}}
+.phint{margin:0;padding:10px 12px;border-radius:10px;background:var(--hud);border:1px solid var(--hud-line);font-size:13px;color:var(--hud-ink2)}
+/* registro, a lato */
+.plogbox{top:calc(76px + env(safe-area-inset-top,0px));right:max(14px,env(safe-area-inset-right,0px));width:300px;max-height:calc(100vh - 340px);padding:12px 14px;display:flex;flex-direction:column;gap:8px;background:var(--hud);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);border:1px solid var(--hud-line);border-radius:14px}
+.plog-head{display:flex;justify-content:space-between;align-items:center}
+.plog-head h2{font:500 11px/1 'IBM Plex Mono',monospace;letter-spacing:.12em;text-transform:uppercase;color:var(--hud-ink2)}
 .plog{list-style:none;margin:0;padding:0;display:flex;flex-direction:column-reverse;gap:6px;overflow:auto;min-height:0}
 .plog li{display:grid;grid-template-columns:42px 1fr;gap:6px;font-size:13px;color:var(--hud-ink2)}
 .plog time{font:500 12px/1.45 'IBM Plex Mono',monospace;color:var(--hud-ink3);font-variant-numeric:tabular-nums}
 .plog li.trip{color:var(--hud-bad)}
 .plog li.good{color:var(--hud-ok)}
-.ptools{display:flex;gap:6px;flex-wrap:wrap}
-.pchip{border:1px solid var(--hud-line);background:rgba(255,255,255,.05);border-radius:999px;padding:8px 12px;min-height:38px;font:500 13px/1 'IBM Plex Sans',sans-serif;cursor:pointer}
-.pchip[aria-pressed="true"]{background:var(--lamp);color:#1B2230;border-color:var(--lamp)}
-.only-phone{display:none}
-/* quadro in basso */
-.pdock{left:50%;transform:translateX(-50%);bottom:calc(12px + env(safe-area-inset-bottom,0px));padding:12px 14px 12px;display:flex;flex-direction:column;gap:10px;width:min(720px,calc(100vw - 24px))}
-.pdockhead{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
-.pdockhead h2{font:500 11px/1 'IBM Plex Mono',monospace;letter-spacing:.12em;text-transform:uppercase;color:var(--hud-ink2)}
+/* il quadro in basso: un oggetto, grigio chiaro, con la guida DIN e i moduli */
+.pdock{left:50%;transform:translateX(-50%);bottom:calc(14px + env(safe-area-inset-bottom,0px));width:min(700px,calc(100vw - 24px))}
+.pbox{display:flex;flex-direction:column;gap:10px;padding:12px 14px 14px;border-radius:14px;background:linear-gradient(#E6E4DE,#CFCCC4);color:#1B2230;box-shadow:0 18px 50px rgba(0,0,0,.6),inset 0 1px 0 rgba(255,255,255,.8)}
+.pboxhead{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
+.pboxhead h2{font:600 11px/1 'IBM Plex Mono',monospace;letter-spacing:.12em;text-transform:uppercase;color:#4A5262}
+.pbox .pchip{border-color:#9A968B;background:rgba(255,255,255,.5);color:#1B2230}
 .prow{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
 .pbtn{display:inline-flex;align-items:center;justify-content:center;border:1px solid var(--hud-line);background:transparent;border-radius:10px;padding:0 16px;min-height:44px;cursor:pointer;font:600 15px/1 'IBM Plex Sans',sans-serif;color:var(--hud-ink);text-decoration:none}
 .pbtn.y{background:var(--lamp);color:#1B2230;border-color:var(--lamp)}
-.prail{display:grid;grid-template-columns:1.35fr 1fr 1fr 1fr;gap:6px;padding:10px;border-radius:10px;background:linear-gradient(#2A3140,#1D2330);box-shadow:inset 0 0 0 1px rgba(255,255,255,.06)}
-.pmod{position:relative;display:flex;flex-direction:column;align-items:center;gap:6px;padding:8px 6px 8px;border-radius:6px;background:linear-gradient(#F4F1EA,#E9E6DE);color:#1B2230;border:1px solid #B9B4A8;box-shadow:0 2px 0 rgba(0,0,0,.35);min-width:0}
+.prail{display:grid;grid-template-columns:1.3fr 1fr 1fr 1fr;gap:4px;padding:10px 10px 8px;border-radius:8px;background:linear-gradient(#3A4250,#262C37);box-shadow:inset 0 2px 6px rgba(0,0,0,.5)}
+.pmod{position:relative;display:flex;flex-direction:column;align-items:center;gap:6px;padding:10px 6px 8px;border-radius:4px;background:linear-gradient(90deg,#F4F3EF,#FFFFFF 40%,#EDEBE5);color:#1B2230;box-shadow:0 2px 0 rgba(0,0,0,.4),inset 0 0 0 1px #C9C6BD;min-width:0;transition:transform .12s}
+.pmod[data-trip="true"]{animation:pjolt .35s ease}
+@keyframes pjolt{25%{transform:translateY(-3px)}60%{transform:translateY(2px)}}
+.pled{position:absolute;left:8px;top:9px;width:8px;height:8px;border-radius:50%;background:#2E3A33;box-shadow:inset 0 1px 1px rgba(0,0,0,.6)}
+.pled.on{background:var(--hud-led);box-shadow:0 0 8px var(--hud-led)}
 .plever{display:flex;flex-direction:column;align-items:center;gap:6px;background:none;border:0;padding:0;cursor:pointer;width:100%;color:#1B2230!important}
-.pname{font:600 11px/1.1 'IBM Plex Mono',monospace;letter-spacing:.06em;text-transform:uppercase;text-align:center}
-.pknob{position:relative;width:34px;height:56px;border-radius:6px;background:#2C323C;box-shadow:inset 0 2px 4px rgba(0,0,0,.5)}
-.pknob::after{content:"";position:absolute;left:4px;right:4px;height:25px;border-radius:4px;background:linear-gradient(#3B4250,#252A33);top:27px;transition:top .14s cubic-bezier(.3,1.4,.5,1)}
-.pmod[data-on="true"] .pknob::after{top:4px;background:linear-gradient(#56606F,#3A414D)}
-.pmod.rcd[data-on="true"] .pknob::after{background:linear-gradient(#2E6BB5,#1F4E88)}
-.pmod[data-trip="true"] .pknob::after{top:15px}
-.pword{font:600 10px/1 'IBM Plex Mono',monospace;padding:4px 6px;border-radius:4px;background:#C9CED6;text-transform:uppercase;letter-spacing:.06em}
+.pknob{position:relative;width:34px;height:58px;border-radius:5px;background:linear-gradient(#20252D,#363C46);box-shadow:inset 0 2px 5px rgba(0,0,0,.7)}
+.pknob::after{content:"";position:absolute;left:4px;right:4px;height:26px;border-radius:3px;background:linear-gradient(#5A6270,#2D333D);top:28px;transition:top .16s cubic-bezier(.3,1.5,.5,1)}
+.pmod[data-on="true"] .pknob::after{top:4px;background:linear-gradient(#69727F,#3D444F)}
+.pmod.rcd[data-on="true"] .pknob::after{background:linear-gradient(#3D7FD0,#1F4E88)}
+.pmod[data-trip="true"] .pknob::after{top:16px}
+.pword{font:600 10px/1 'IBM Plex Mono',monospace;padding:4px 6px;border-radius:3px;background:#D8DCE2;text-transform:uppercase;letter-spacing:.06em}
 .pmod[data-trip="true"] .pword{background:var(--lamp)}
 .pmod.rcd[data-on="true"] .pword{background:#BFD6F2}
-.pvolt{font:600 13px/1 'IBM Plex Mono',monospace;font-variant-numeric:tabular-nums;padding:5px 6px;border-radius:4px;background:#1D2B22;color:#7A8F80;min-width:58px;text-align:center}
+.pname{font:600 11px/1.1 'IBM Plex Mono',monospace;letter-spacing:.06em;text-transform:uppercase;text-align:center}
+.pvolt{font:600 13px/1 'IBM Plex Mono',monospace;font-variant-numeric:tabular-nums;padding:5px 6px;border-radius:3px;background:#17241C;color:#5D7363;min-width:58px;text-align:center}
 .pvolt.live{color:var(--hud-led)}
-.psub{font:400 10px/1 'IBM Plex Mono',monospace;color:#5A6170}
-.ptest{position:absolute;top:8px;right:8px;width:30px;height:30px;border-radius:50%;border:2px solid #1F4E88;background:#2E6BB5;color:#fff!important;font:700 12px/1 'IBM Plex Mono',monospace;cursor:pointer}
-.pdev{display:flex;align-items:center;gap:10px;flex-wrap:wrap;border:1px solid var(--lamp);background:rgba(245,184,0,.08);border-radius:10px;padding:10px 12px;cursor:pointer;text-align:left}
-.pdev span{color:var(--hud-ink2);font-size:14px}
+.pamp{font:400 10px/1 'IBM Plex Mono',monospace;color:#5A6170}
+.ptest{position:absolute;top:6px;right:6px;width:28px;height:28px;border-radius:50%;border:2px solid #B88A00;background:radial-gradient(circle at 40% 35%,#FFE27A,#F5B800);color:#1B2230!important;font:700 12px/1 'IBM Plex Mono',monospace;cursor:pointer}
+.pdelta{position:absolute;left:50%;top:-14px;transform:translate(-50%,-100%);white-space:nowrap;background:var(--hud-bad);color:#fff;font:700 13px/1 'IBM Plex Mono',monospace;padding:7px 10px;border-radius:999px;box-shadow:0 0 24px rgba(255,90,95,.7);animation:ppop .3s cubic-bezier(.3,1.6,.5,1)}
+@keyframes ppop{from{transform:translate(-50%,-100%) scale(.5);opacity:0}}
+.pdev{display:flex;align-items:center;gap:10px;flex-wrap:wrap;border:1.5px solid #B88A00;background:rgba(245,184,0,.18);border-radius:10px;padding:10px 12px;cursor:pointer;text-align:left;color:#1B2230!important}
+.pdev span{color:#4A5262;font-size:14px}
 .pdev .pdo{margin-left:auto;background:var(--lamp);color:#1B2230;border-radius:8px;padding:6px 10px;font-weight:600}
-.phint{margin:0;font-size:13px;color:var(--hud-ink2);min-height:1.45em}
-/* lampo, scossa, avviso */
+/* sottotitoli: i momenti forti, come in un film */
+.psub{position:fixed;z-index:50;left:50%;bottom:calc(290px + env(safe-area-inset-bottom,0px));transform:translate(-50%,8px);width:min(640px,92vw);text-align:center;opacity:0;pointer-events:none;transition:opacity .25s,transform .25s;display:flex;flex-direction:column;align-items:center;gap:8px;color:var(--hud-ink)}
+.psub.go{opacity:1;transform:translate(-50%,0);pointer-events:auto}
+.psub b{font:700 76px/.9 'Barlow Condensed',sans-serif;color:var(--hud-bad);text-shadow:0 0 30px rgba(255,90,95,.55)}
+.psub span{font:500 16px/1.4 'IBM Plex Mono',monospace;text-shadow:0 1px 8px #000,0 0 2px #000}
+.house[data-act="find"] .psub,.house[data-act="finale"] .psub{bottom:calc(60px + env(safe-area-inset-bottom,0px))}
+.house[data-act="finale"] .psub b{color:var(--lamp);text-shadow:0 0 30px rgba(245,184,0,.5)}
+/* segnaposto del quadro, al buio */
+.ppin{position:absolute;left:0;top:0;z-index:36;margin:-22px 0 0 -22px;width:44px;height:44px;border-radius:50%;border:0;background:transparent;cursor:pointer}
+.ppin::before{content:"";position:absolute;inset:12px;border-radius:50%;background:var(--lamp);animation:pping 1.6s ease-out infinite}
+.ppin span{position:absolute;left:50%;top:-6px;transform:translate(-50%,-100%);font:600 12px/1 'IBM Plex Mono',monospace;letter-spacing:.08em;text-transform:uppercase;background:rgba(5,8,13,.8);color:var(--hud-ink);padding:5px 8px;border-radius:6px;white-space:nowrap}
+/* lampo e scossa */
 .pflash{position:absolute;inset:0;background:#fff;opacity:0;pointer-events:none}
 .pflash.go{animation:pflash .45s ease-out}
 @keyframes pflash{0%{opacity:.7}100%{opacity:0}}
 .house.shake .hscene{animation:pshake .3s linear}
 @keyframes pshake{20%{transform:translate(-6px,2px)}40%{transform:translate(5px,-3px)}60%{transform:translate(-3px,2px)}80%{transform:translate(2px,-1px)}}
-.ptoast{position:fixed;z-index:50;left:50%;top:36%;transform:translate(-50%,-50%) scale(.9);opacity:0;pointer-events:none;text-align:center;transition:opacity .2s,transform .2s;color:var(--hud-ink);width:min(560px,90vw)}
-.ptoast.go{opacity:1;transform:translate(-50%,-50%) scale(1)}
-.ptoast b{display:block;font:700 72px/.9 'Barlow Condensed',sans-serif;color:var(--hud-bad);text-shadow:0 0 30px rgba(255,90,95,.5)}
-.ptoast span{font:500 15px/1.35 'IBM Plex Mono',monospace;text-shadow:0 1px 6px #000}
-/* domanda e finale */
-.psheet{position:fixed;z-index:55;inset:0;display:grid;place-items:center;background:rgba(4,7,12,.6);padding:16px}
-.pcard{width:min(540px,100%);background:var(--hud-solid);border:1px solid var(--hud-line);border-radius:16px;padding:20px;display:flex;flex-direction:column;gap:12px;max-height:calc(100vh - 32px);overflow:auto;color:var(--hud-ink)}
+/* domanda e rapporto */
+.psheet{position:fixed;z-index:55;inset:0;display:grid;place-items:center;background:rgba(4,7,12,.62);padding:16px}
+.pcard{width:min(560px,100%);background:var(--hud-solid);border:1px solid var(--hud-line);border-radius:16px;padding:22px;display:flex;flex-direction:column;gap:12px;max-height:calc(100vh - 32px);overflow:auto;color:var(--hud-ink)}
 .pcard .pk{color:var(--lamp)}
 .pcard h2{margin:0;font:700 32px/1 'Barlow Condensed',sans-serif;text-transform:uppercase}
 .pcard p{margin:0;color:var(--hud-ink2)}
-.popt{display:block;width:100%;text-align:left;border:1px solid var(--hud-line);background:rgba(255,255,255,.03);border-radius:10px;padding:12px 14px;cursor:pointer;font-size:15px}
+.popts{display:grid;gap:8px}
+.popt{display:grid;grid-template-columns:32px 1fr;gap:10px;align-items:center;width:100%;text-align:left;border:1px solid var(--hud-line);background:rgba(255,255,255,.03);border-radius:12px;padding:12px 14px;cursor:pointer;font-size:15px}
 .popt:hover:not(:disabled){border-color:var(--hud-ink2)}
+.pletter{display:grid;place-items:center;width:32px;height:32px;border-radius:8px;background:rgba(255,255,255,.08);font:700 15px/1 'IBM Plex Mono',monospace}
 .popt.no{border-color:var(--hud-bad)}
+.popt.no .pletter{background:var(--hud-bad);color:#fff}
 .popt.yes{border-color:var(--hud-ok);background:rgba(76,195,138,.12)}
+.popt.yes .pletter{background:var(--hud-ok);color:#06210F}
 .pfb.ok b{color:var(--hud-ok)}
 .pfb.ko b{color:var(--hud-bad)}
+.preport{background:linear-gradient(#F4F1EA,#E9E5DA);color:#1B2230;border:0;box-shadow:0 30px 80px rgba(0,0,0,.6)}
+.preport .pk{color:#8F5600}
+.preport h2{color:#1B2230}
+.prep-head{display:flex;justify-content:space-between;align-items:center;border-bottom:1.5px dashed #B9B4A8;padding-bottom:10px}
+.prep-time{font:600 14px/1 'IBM Plex Mono',monospace;color:#4A5262}
+.prep{display:grid;grid-template-columns:110px 1fr;gap:10px 14px;margin:0}
+.prep dt{font:600 11px/1.6 'IBM Plex Mono',monospace;letter-spacing:.1em;text-transform:uppercase;color:#6A6457}
+.prep dd{margin:0;color:#2A3140}
 .pstars{display:flex;gap:6px}
-/* ingresso */
+.pstar{opacity:0;animation:pstar .4s cubic-bezier(.3,1.6,.5,1) forwards;animation-delay:calc(.3s + var(--i) * .28s)}
+@keyframes pstar{from{opacity:0;transform:scale(.3)}to{opacity:1;transform:none}}
+.preport .pbtn{color:#1B2230;border-color:#B9B4A8}
+.preport .pbtn.y{border-color:var(--lamp)}
+/* la chiamata */
 .pintro{position:fixed;z-index:60;inset:0;display:grid;place-items:center;background:#000;transition:opacity .9s ease;padding:24px;color:var(--hud-ink)}
 .pintro.out{opacity:0;pointer-events:none}
-.pintro-box{display:flex;flex-direction:column;align-items:center;gap:14px;text-align:center}
-.pintro .pk{opacity:0;animation:pup .6s .2s forwards}
-.pintro h2{margin:0;font:700 clamp(48px,10vw,104px)/.9 'Barlow Condensed',sans-serif;text-transform:uppercase;text-wrap:balance;opacity:0;animation:pup .7s .5s forwards}
-.ptag{font:600 18px/1 'IBM Plex Mono',monospace;color:var(--lamp);opacity:0;animation:pup .5s 1.3s forwards}
-.pload{width:200px;height:3px;border-radius:2px;background:rgba(255,255,255,.12);overflow:hidden;opacity:0;animation:pup .4s 1.1s forwards}
-.pload i{display:block;height:100%;width:0;background:var(--lamp);animation:pload 2.4s 1.1s ease-out forwards}
+.pcall{display:flex;flex-direction:column;align-items:center;gap:14px;text-align:center;max-width:620px}
+.pcall > *{opacity:0;animation:pup .6s forwards}
+.pcall > :nth-child(1){animation-delay:.1s}.pcall > :nth-child(2){animation-delay:.35s}.pcall > :nth-child(3){animation-delay:.6s}.pcall > :nth-child(4){animation-delay:1.1s}.pcall > :nth-child(5){animation-delay:1.6s}.pcall > :nth-child(6){animation-delay:1.6s}
+.pcall-head{display:flex;align-items:center;gap:10px;font:500 14px/1 'IBM Plex Mono',monospace;color:var(--hud-ink2)}
+.pcall-dot{width:9px;height:9px;border-radius:50%;background:var(--hud-bad);animation:pblink 1s steps(2) infinite}
+@keyframes pblink{50%{opacity:.2}}
+.pcall-time{color:var(--lamp);font-weight:600}
+.pcall h2{margin:0;font:700 clamp(48px,10vw,104px)/.9 'Barlow Condensed',sans-serif;text-transform:uppercase;text-wrap:balance}
+.pcall-quote{margin:0;font:italic 400 19px/1.45 'IBM Plex Sans',sans-serif;color:#D8D4CA;max-width:46ch}
+.pgo{min-width:180px;min-height:52px;font-size:17px}
+.pload{width:200px;height:3px;border-radius:2px;background:rgba(255,255,255,.12);overflow:hidden}
+.pload i{display:block;height:100%;width:30%;background:var(--lamp);animation:pload 1.4s ease-in-out infinite}
+.pload.done{visibility:hidden}
+.pintro.waiting .pgo{opacity:.6}
+@keyframes pload{0%{transform:translateX(-100%)}100%{transform:translateX(340%)}}
 .pskip{position:absolute;right:max(16px,env(safe-area-inset-right,0px));bottom:calc(16px + env(safe-area-inset-bottom,0px));background:none;border:1px solid var(--hud-line);border-radius:999px;padding:10px 16px;cursor:pointer;color:var(--hud-ink2)!important}
 @keyframes pup{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
-@keyframes pload{to{width:100%}}
-html[dir="rtl"] .phud,html[dir="rtl"] .psheet,html[dir="rtl"] .pintro,html[dir="rtl"] .ptoast{direction:rtl}
+html[dir="rtl"] .phud,html[dir="rtl"] .psheet,html[dir="rtl"] .pintro,html[dir="rtl"] .psub{direction:rtl}
 /* telefono */
 @media (max-width:760px){
-  .pmission{padding:10px 12px;gap:6px}
-  .pmission h2{font-size:26px}
-  .pgoal{display:none}
-  .psteps{grid-template-columns:repeat(6,1fr);gap:4px}
-  .psteps li{grid-template-columns:1fr;justify-items:center;text-align:center;gap:4px}
-  .psteps li span{display:none}
-  .psteps li.cur span{display:block;position:absolute;left:12px;right:12px;top:100%;margin-top:6px;padding:6px 10px;border-radius:8px;background:var(--hud);font-size:13px;text-align:left}
-  .plogbox{display:none}
-  .only-phone{display:inline-flex}
-  .pdock{padding:10px;gap:8px}
-  .pdockhead h2{display:none}
-  .pdockhead .prow{width:100%;flex-wrap:nowrap}
-  .pdockhead .pbtn{flex:1}
-  .prail{gap:4px;padding:6px}
-  .pmod{padding:6px 2px;gap:5px}
-  .psub{display:none}
+  .ptop{grid-template-columns:auto 1fr;padding-bottom:18px}
+  .ptitle{display:none}
+  .pclock{font-size:13px}
+  .pchip{padding:7px 9px;min-height:34px;font-size:12px}
+  .psteps-box{top:calc(64px + env(safe-area-inset-top,0px));left:12px;right:12px;width:auto;transform:none}
+  .psteps{flex-direction:row;padding:0;gap:0;justify-content:space-between}
+  .psteps::before{left:10px;right:10px;top:7px;bottom:auto;width:auto;height:7px;background:linear-gradient(180deg,var(--fase) 0 3px,transparent 3px 4px,var(--neutro) 4px 7px)}
+  .psteps li{flex:0 0 auto;width:21px;height:21px}
+  .psteps li .ptxt{display:none}
+  .psteps li.cur .ptxt{display:block;position:absolute;left:-12px;top:30px;width:calc(100vw - 24px);font-size:15px}
+  .psteps li.cur:nth-child(n+4) .ptxt{left:auto;right:-12px;text-align:right}
+  .pnode{position:static;display:block}
+  .phint{margin-top:30px}
+  .plogbox{left:12px;right:12px;width:auto;max-height:50vh}
+  .pdock{width:calc(100vw - 16px);bottom:calc(8px + env(safe-area-inset-bottom,0px))}
+  .pbox{padding:10px}
+  .pboxhead h2{display:none}
+  .pboxhead .prow{width:100%;flex-wrap:nowrap}
+  .pboxhead .pbtn{flex:1}
+  .prail{gap:3px;padding:6px}
+  .pmod{padding:8px 2px 6px;gap:5px}
+  .pamp{display:none}
+  .pmod.rcd .pname{padding-right:0}
   .pknob{width:28px;height:46px}
   .pknob::after{height:20px;top:22px}
   .pmod[data-trip="true"] .pknob::after{top:12px}
   .pvolt{min-width:0;font-size:11px;padding:4px}
-  .ptest{top:4px;right:4px;width:26px;height:26px}
-  .ptoast b{font-size:52px}
+  .ptest{top:4px;right:4px;width:24px;height:24px}
+  .psub{bottom:calc(220px + env(safe-area-inset-bottom,0px))}
+  .psub b{font-size:56px}
+  .psub span{font-size:14px}
+  .prep{grid-template-columns:1fr;gap:2px 0}
+  .prep dd{margin-bottom:8px}
+}
+/* telefono in orizzontale: poco spazio in altezza, il quadro si fa basso */
+@media (max-height:520px){
+  .pknob{width:24px;height:34px}
+  .pknob::after{height:14px;top:17px}
+  .pmod[data-on="true"] .pknob::after{top:3px}
+  .pmod[data-trip="true"] .pknob::after{top:10px}
+  .pword,.pamp{display:none}
+  .pmod{gap:3px;padding:5px 2px 4px}
+  .pboxhead .pbtn,.pboxhead .pchip{min-height:34px}
+  .psteps-box{display:none}
+  .psub{bottom:calc(150px + env(safe-area-inset-bottom,0px))}
 }
 @media (prefers-reduced-motion:reduce){
-  .pknob::after{transition:none}
-  .pintro *{animation-duration:.01s!important;animation-delay:0s!important}
-  .house.shake .hscene{animation:none}
+  .pknob::after,.phud{transition:none}
+  .pcall > *,.pstar{animation:none;opacity:1}
+  .house.shake .hscene,.pmod[data-trip="true"]{animation:none}
+  .psteps li.cur .pnode,.ppin::before{animation:none}
 }
-body.ms-intro .milestone .lessoncard{visibility:hidden}
-@media (max-width:760px){.pmod.rcd .pname{padding-right:22px}}
-.drawerclose{display:none}
-.milestone.drawer .drawerclose{display:inline-flex;align-self:flex-end;position:sticky;top:0;z-index:2}
 
 /* ---------- milestone in mappa: la prova 3D che chiude ogni modulo ---------- */
 /* Scheda scura fissa (e' una scena di notte o di officina), in tema chiaro e scuro. */
@@ -1236,18 +1309,18 @@ body.ms-intro .milestone .lessoncard{visibility:hidden}
     if (st.live !== void 0 && m.live !== st.live) return false;
     return true;
   }
-  function stepsState(steps, wires, ctx) {
-    const operated = new Set(ctx.operated || []);
+  function stepsState(steps, wires, ctx2) {
+    const operated = new Set(ctx2.operated || []);
     let ok = true;
     const done = steps.map((st) => {
       let d;
-      if (st.kind === "wire") d = !ctx.fault && wireDone(st, wires);
-      else if (st.kind === "power") d = !!ctx.power;
+      if (st.kind === "wire") d = !ctx2.fault && wireDone(st, wires);
+      else if (st.kind === "power") d = !!ctx2.power;
       else if (st.kind === "control") d = operated.has(st.id);
-      else if (st.kind === "measure") d = (ctx.measured || []).some((m) => measureMatches(st, m));
-      else if (st.kind === "rate") d = !!ctx.ratings && ctx.ratings[st.id] === st.value;
-      else if (st.kind === "program") d = ((ctx.programs || {})[st.plc] || []).filter((r) => r.do && r.do.length && r.if !== void 0).length >= (st.min || 1);
-      else if (st.kind === "verify") d = !!(ctx.result && ctx.result.pass);
+      else if (st.kind === "measure") d = (ctx2.measured || []).some((m) => measureMatches(st, m));
+      else if (st.kind === "rate") d = !!ctx2.ratings && ctx2.ratings[st.id] === st.value;
+      else if (st.kind === "program") d = ((ctx2.programs || {})[st.plc] || []).filter((r) => r.do && r.do.length && r.if !== void 0).length >= (st.min || 1);
+      else if (st.kind === "verify") d = !!(ctx2.result && ctx2.result.pass);
       else d = false;
       ok = ok && d;
       return ok;
@@ -2286,8 +2359,8 @@ body.ms-intro .milestone .lessoncard{visibility:hidden}
   }
   var withRatings = (level, ratings) => ratings && Object.keys(ratings).length ? { ...level, comps: level.comps.map((c2) => ratings[c2.id] ? { ...c2, in: ratings[c2.id] } : c2) } : level;
   var withPrograms = (level, programs) => programs && Object.keys(programs).length ? { ...level, comps: level.comps.map((c2) => c2.type === "plc" && programs[c2.id] ? { ...c2, program: programs[c2.id] } : c2) } : level;
-  function evaluateV2(level, wires, ctx = {}) {
-    level = withPrograms(withRatings(level, ctx.ratings), ctx.programs);
+  function evaluateV2(level, wires, ctx2 = {}) {
+    level = withPrograms(withRatings(level, ctx2.ratings), ctx2.programs);
     const out = { work: section2(), color: section2(), safe: section2() };
     const add = (sec, code, params) => out[sec].items.push(params ? { code, ...params } : { code });
     if (!wires.length) {
@@ -2306,14 +2379,14 @@ body.ms-intro .milestone .lessoncard{visibility:hidden}
     if (!failed.length) {
       out.work.ok = true;
       add("work", "work.allChecksOk", { n: runs.length });
-      const missing = (level.measures || []).filter((m) => !(ctx.measured || []).some((x) => measureMatches(m, x)));
+      const missing = (level.measures || []).filter((m) => !(ctx2.measured || []).some((x) => measureMatches(m, x)));
       if (missing.length) {
         out.work.ok = false;
         add("work", "work.measureMissing", { label: missing[0].label, n: missing.length });
       }
-      if ((ctx.faultOn || []).length) {
+      if ((ctx2.faultOn || []).length) {
         out.work.ok = false;
-        add("work", "work.faultActive", { comp: ctx.faultOn[0] });
+        add("work", "work.faultActive", { comp: ctx2.faultOn[0] });
       }
     } else {
       const first = failed[0].r.fail;
@@ -2369,7 +2442,7 @@ body.ms-intro .milestone .lessoncard{visibility:hidden}
           if (uf.f(x) !== uf.f(y)) fail("safe.noEarth", { comp: x.split(".")[0] });
         });
       }
-      if (S2.deadWork && (ctx.liveEdits || []).length) fail("safe.liveWork", { comp: S2.deadWork[0] });
+      if (S2.deadWork && (ctx2.liveEdits || []).length) fail("safe.liveWork", { comp: S2.deadWork[0] });
       if (S2.never) {
         const both = runs.some((x) => x.r.sim.kmHistory.some((on) => S2.never.some((pair) => pair.every((id) => on.includes(id)))));
         const sim = createSim(level, wires);
@@ -13503,6 +13576,35 @@ body.ms-intro .milestone .lessoncard{visibility:hidden}
     "LINEA": "\u0627\u0644\u062E\u0637"
   };
 
+  // src/i18n/ar-19.js
+  var ar_19_default = {
+    "Entra": "\u0627\u062F\u062E\u0644",
+    "Fili": "\u0627\u0644\u0623\u0633\u0644\u0627\u0643",
+    "Il metodo": "\u0627\u0644\u0637\u0631\u064A\u0642\u0629",
+    "Trova il quadro": "\u062C\u062F \u0627\u0644\u0644\u0648\u062D\u0629 \u0627\u0644\u0643\u0647\u0631\u0628\u0627\u0626\u064A\u0629",
+    "Via dei Tigli 7, interno 3": "\u0634\u0627\u0631\u0639 \u0627\u0644\u0632\u064A\u0632\u0641\u0648\u0646 7\u060C \u0627\u0644\u0634\u0642\u0629 3",
+    "\xAB\xC8 saltata la luce e non torna su. Ho provato a rialzarla ma scatta subito.\xBB": "\xAB\u0627\u0646\u0642\u0637\u0639\u062A \u0627\u0644\u0643\u0647\u0631\u0628\u0627\u0621 \u0648\u0644\u0627 \u062A\u0639\u0648\u062F. \u062D\u0627\u0648\u0644\u062A \u0631\u0641\u0639 \u0627\u0644\u0642\u0627\u0637\u0639 \u0644\u0643\u0646\u0647 \u064A\u0641\u0635\u0644 \u0641\u0648\u0631\u064B\u0627.\xBB",
+    "Trova il quadro elettrico: di solito \xE8 vicino alla porta d\u2019ingresso.": "\u062C\u062F \u0627\u0644\u0644\u0648\u062D\u0629 \u0627\u0644\u0643\u0647\u0631\u0628\u0627\u0626\u064A\u0629: \u0639\u0627\u062F\u0629\u064B \u062A\u0643\u0648\u0646 \u0642\u0631\u0628 \u0628\u0627\u0628 \u0627\u0644\u0645\u062F\u062E\u0644.",
+    "Apri il quadro": "\u0627\u0641\u062A\u062D \u0627\u0644\u0644\u0648\u062D\u0629",
+    "Quadro": "\u0627\u0644\u0644\u0648\u062D\u0629",
+    "Con la sola linea prese chiusa scatta: la dispersione \xE8 su questa linea.": "\u064A\u0641\u0635\u0644 \u0639\u0646\u062F\u0645\u0627 \u064A\u0643\u0648\u0646 \u062E\u0637 \u0627\u0644\u0645\u0642\u0627\u0628\u0633 \u0648\u062D\u062F\u0647 \u0645\u063A\u0644\u0642\u064B\u0627: \u0627\u0644\u062A\u0633\u0631\u0628 \u0639\u0644\u0649 \u0647\u0630\u0627 \u0627\u0644\u062E\u0637.",
+    "Il differenziale sente 300 mA che non tornano, ma non sa da quale linea vengono.": "\u064A\u0633\u062A\u0634\u0639\u0631 \u0627\u0644\u0642\u0627\u0637\u0639 \u0627\u0644\u062A\u0641\u0627\u0636\u0644\u064A 300 mA \u0644\u0627 \u062A\u0639\u0648\u062F\u060C \u0644\u0643\u0646\u0647 \u0644\u0627 \u064A\u0639\u0631\u0641 \u0645\u0646 \u0623\u064A \u062E\u0637 \u062A\u0623\u062A\u064A.",
+    "Il tasto T crea apposta una piccola dispersione: il differenziale funziona.": "\u0632\u0631 T \u064A\u064F\u062D\u062F\u062B \u062A\u0633\u0631\u0628\u064B\u0627 \u0635\u063A\u064A\u0631\u064B\u0627 \u0639\u0646 \u0642\u0635\u062F: \u0627\u0644\u0642\u0627\u0637\u0639 \u0627\u0644\u062A\u0641\u0627\u0636\u0644\u064A \u064A\u0639\u0645\u0644.",
+    "\u0394 300 mA > 30 mA": "\u0394 300 mA > 30 mA",
+    "Dispersione verso terra": "\u062A\u0633\u0631\u0628 \u0646\u062D\u0648 \u0627\u0644\u0623\u0631\u0636\u064A",
+    "Richiudi una linea alla volta e guarda i fili: quale fa scattare tutto?": "\u0623\u0639\u062F \u0625\u063A\u0644\u0627\u0642 \u062E\u0637 \u0648\u0627\u062D\u062F \u0641\u064A \u0643\u0644 \u0645\u0631\u0629 \u0648\u0627\u0646\u0638\u0631 \u0625\u0644\u0649 \u0627\u0644\u0623\u0633\u0644\u0627\u0643: \u0623\u064A\u0651\u0647\u0627 \u064A\u0641\u0635\u0644 \u0643\u0644 \u0634\u064A\u0621\u061F",
+    "Rapporto": "\u0627\u0644\u062A\u0642\u0631\u064A\u0631",
+    "Rapporto d\u2019intervento": "\u062A\u0642\u0631\u064A\u0631 \u0627\u0644\u062A\u062F\u062E\u0644",
+    "Dove": "\u0627\u0644\u0645\u0643\u0627\u0646",
+    "Guasto": "\u0627\u0644\u0639\u0637\u0644",
+    "Intervento": "\u0627\u0644\u062A\u062F\u062E\u0644",
+    "Esito": "\u0627\u0644\u0646\u062A\u064A\u062C\u0629",
+    "Dispersione verso terra sulla linea prese: la stufetta del soggiorno ha l\u2019isolante rovinato e perde circa 300 mA, dieci volte la soglia del differenziale.": "\u062A\u0633\u0631\u0628 \u0646\u062D\u0648 \u0627\u0644\u0623\u0631\u0636\u064A \u0639\u0644\u0649 \u062E\u0637 \u0627\u0644\u0645\u0642\u0627\u0628\u0633: \u0639\u0627\u0632\u0644 \u0645\u062F\u0641\u0623\u0629 \u063A\u0631\u0641\u0629 \u0627\u0644\u062C\u0644\u0648\u0633 \u062A\u0627\u0644\u0641 \u0648\u062A\u0633\u0631\u0651\u0628 \u0646\u062D\u0648 300 mA\u060C \u0623\u064A \u0639\u0634\u0631\u0629 \u0623\u0636\u0639\u0627\u0641 \u0639\u062A\u0628\u0629 \u0627\u0644\u0642\u0627\u0637\u0639 \u0627\u0644\u062A\u0641\u0627\u0636\u0644\u064A.",
+    "Stufetta scollegata, da far riparare. Differenziale riarmato, tre linee chiuse.": "\u0641\u064F\u0635\u0644\u062A \u0627\u0644\u0645\u062F\u0641\u0623\u0629 \u0648\u064A\u062C\u0628 \u0625\u0635\u0644\u0627\u062D\u0647\u0627. \u0623\u064F\u0639\u064A\u062F \u062A\u0633\u0644\u064A\u062D \u0627\u0644\u0642\u0627\u0637\u0639 \u0627\u0644\u062A\u0641\u0627\u0636\u0644\u064A\u060C \u0648\u0627\u0644\u062E\u0637\u0648\u0637 \u0627\u0644\u062B\u0644\u0627\u062B\u0629 \u0645\u063A\u0644\u0642\u0629.",
+    "Tutto acceso.": "\u0643\u0644 \u0634\u064A\u0621 \u0645\u0636\u0627\u0621.",
+    "Qualcosa non va ancora: nello schema trovi i controlli che non passano.": "\u0647\u0646\u0627\u0643 \u0634\u064A\u0621 \u0644\u0627 \u064A\u0639\u0645\u0644 \u0628\u0639\u062F: \u062A\u062C\u062F \u0641\u064A \u0627\u0644\u0645\u062E\u0637\u0637 \u0627\u0644\u0641\u062D\u0648\u0635 \u0627\u0644\u062A\u064A \u0644\u0645 \u062A\u0646\u062C\u062D."
+  };
+
   // src/i18n/ar.js
   var ROLE = { "del neutro": "\u0627\u0644\u0645\u062D\u0627\u064A\u062F", "di terra": "\u0627\u0644\u0623\u0631\u0636\u064A", "di fase": "\u0627\u0644\u0637\u0648\u0631", "a bassa tensione": "\u0627\u0644\u062C\u0647\u062F \u0627\u0644\u0645\u0646\u062E\u0641\u0636", "di comando": "\u0627\u0644\u062A\u062D\u0643\u0645" };
   var COLORI = { "blu": "\u0623\u0632\u0631\u0642", "giallo-verde": "\u0623\u0635\u0641\u0631-\u0623\u062E\u0636\u0631", "marrone, nero o grigio": "\u0628\u0646\u064A\u064B\u0651\u0627 \u0623\u0648 \u0623\u0633\u0648\u062F \u0623\u0648 \u0631\u0645\u0627\u062F\u064A\u064B\u0651\u0627", "rosso, marrone, nero o grigio": "\u0623\u062D\u0645\u0631 \u0623\u0648 \u0628\u0646\u064A\u064B\u0651\u0627 \u0623\u0648 \u0623\u0633\u0648\u062F \u0623\u0648 \u0631\u0645\u0627\u062F\u064A\u064B\u0651\u0627", "di un colore diverso da blu e giallo-verde": "\u0628\u0644\u0648\u0646 \u0645\u062E\u062A\u0644\u0641 \u0639\u0646 \u0627\u0644\u0623\u0632\u0631\u0642 \u0648\u0627\u0644\u0623\u0635\u0641\u0631-\u0627\u0644\u0623\u062E\u0636\u0631" };
@@ -13574,7 +13676,7 @@ body.ms-intro .milestone .lessoncard{visibility:hidden}
     [/^Portata (.+): (\d+) ampere\. Tocca per cambiarla$/, (m, t) => `\u0627\u0644\u0633\u0639\u0629 ${t(m[1])}: ${m[2]} \u0623\u0645\u0628\u064A\u0631. \u0627\u0644\u0645\u0633 \u0644\u062A\u063A\u064A\u064A\u0631\u0647\u0627`],
     [/^Protezioni scattate: (.+)\.$/, (m, t) => `\u062D\u0645\u0627\u064A\u0627\u062A \u0641\u0635\u0644\u062A: ${t(m[1])}.`]
   ];
-  registerLang("ar", { ...ar_1_default, ...ar_2_default, ...ar_3_default, ...ar_4_default, ...ar_5_default, ...ar_6_default, ...ar_7_default, ...ar_8_default, ...ar_9_default, ...ar_10_default, ...ar_11_default, ...ar_12_default, ...ar_13_default, ...ar_14_default, ...ar_15_default, ...ar_16_default, ...ar_17_default, ...ar_18_default }, PAT);
+  registerLang("ar", { ...ar_1_default, ...ar_2_default, ...ar_3_default, ...ar_4_default, ...ar_5_default, ...ar_6_default, ...ar_7_default, ...ar_8_default, ...ar_9_default, ...ar_10_default, ...ar_11_default, ...ar_12_default, ...ar_13_default, ...ar_14_default, ...ar_15_default, ...ar_16_default, ...ar_17_default, ...ar_18_default, ...ar_19_default }, PAT);
 
   // src/trilocale/house.js
   function houseState(session2, on = true) {
@@ -13910,7 +14012,24 @@ body.ms-intro .milestone .lessoncard{visibility:hidden}
       ],
       // l'apparecchio difettoso: compare tra i comandi solo dopo la diagnosi giusta (nella scena si tocca sempre)
       device: { id: "G", name: "Stufetta del soggiorno", plugged: "collegata", unplugged: "scollegata", act: "Scollega", undo: "Ricollega", view: "soggiorno" },
+      // la chiamata che apre la prova
+      call: { where: "Via dei Tigli 7, interno 3", quote: "\xAB\xC8 saltata la luce e non torna su. Ho provato a rialzarla ma scatta subito.\xBB" },
+      findHint: "Trova il quadro elettrico: di solito \xE8 vicino alla porta d\u2019ingresso.",
+      // le tre storie dello scatto (vedi tripStory in src/prove/hud.js)
+      story: {
+        isolated: "Con la sola linea prese chiusa scatta: la dispersione \xE8 su questa linea.",
+        multi: "Il differenziale sente 300 mA che non tornano, ma non sa da quale linea vengono.",
+        test: "Il tasto T crea apposta una piccola dispersione: il differenziale funziona.",
+        delta: "\u0394 300 mA > 30 mA"
+      },
+      report: {
+        title: "Rapporto d\u2019intervento",
+        fault: "Dispersione verso terra sulla linea prese: la stufetta del soggiorno ha l\u2019isolante rovinato e perde circa 300 mA, dieci volte la soglia del differenziale.",
+        fix: "Stufetta scollegata, da far riparare. Differenziale riarmato, tre linee chiuse.",
+        end: "Tutto acceso."
+      },
       steps: [
+        "Trova il quadro",
         "Apri i tre magnetotermici",
         "Riarma il differenziale",
         "Richiudi una linea alla volta",
@@ -13948,7 +14067,7 @@ body.ms-intro .milestone .lessoncard{visibility:hidden}
   // src/prove/hud.js
   var esc5 = (t) => String(t).replace(/[&<>"']/g, (c2) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c2]);
   var provaOf = (name) => PROVE[name] || null;
-  var newMemory = () => ({ opened: false, rearmed: false, found: false });
+  var newMemory = () => ({ panel: false, opened: false, rearmed: false, found: false });
   function remember(name, mem, action, before, after) {
     if (name !== "appartamento" || !after) return mem;
     const m = { ...mem };
@@ -13969,12 +14088,21 @@ body.ms-intro .milestone .lessoncard{visibility:hidden}
     let done;
     if (name === "appartamento") {
       const diagOk = !!(unit && unit.diag && unit.diag.correct);
-      done = [mem.opened, mem.rearmed, mem.found, diagOk, !ps.heaterPlugged, unit && unit.phase === "done"];
+      done = [mem.panel, mem.opened, mem.rearmed, mem.found, diagOk, !ps.heaterPlugged, unit && unit.phase === "done"];
     } else done = cfg.steps.map(() => false);
     if (unit && unit.phase === "done") done = done.map(() => true);
     const last = done.lastIndexOf(true);
     const cur = done.findIndex((d, i) => !d && i > last);
     return cfg.steps.map((text2, i) => ({ text: text2, done: !!done[i], cur: i === cur }));
+  }
+  function tripStory(name, action, before, after) {
+    if (name !== "appartamento" || !before || !after || !action) return null;
+    const tripped = after.rcd.tripped && (!before.rcd.tripped || action.kind === "toggle" && action.id === "D");
+    if (!tripped) return null;
+    if (action.kind === "test") return { kind: "test" };
+    const closed = ["luce", "prese", "cucina"].filter((l) => after.lines[l].on);
+    if (closed.length === 1 && closed[0] === "prese" && after.heaterPlugged) return { kind: "isolated", line: "prese", closed };
+    return { kind: "multi", closed };
   }
   function describe(name, action, before, after) {
     const cfg = PROVE[name];
@@ -14010,25 +14138,28 @@ body.ms-intro .milestone .lessoncard{visibility:hidden}
     const h = Math.floor(t / 60) % 24, m = t % 60;
     return h + ":" + (m < 10 ? "0" : "") + m;
   };
-  function introHTML2(cfg) {
-    return `<div class="pintro-box"><span class="pk">${esc5(cfg.kick)} \xB7 ${esc5(cfg.place)}</span>
+  function callHTML(cfg, ready) {
+    return `<div class="pcall"><span class="pk">${esc5(cfg.kick)} \xB7 ${esc5(cfg.place)}</span>
+      <div class="pcall-head"><span class="pcall-dot" aria-hidden="true"></span><span class="pcall-time">${esc5(clockText(cfg, 0))}</span><span class="pcall-where">${esc5(cfg.call.where)}</span></div>
       <h2>${esc5(cfg.title)}</h2>
-      <span class="pload" aria-hidden="true"><i></i></span>
-      <span class="ptag">${esc5(cfg.tagline)}</span></div>
+      <p class="pcall-quote">${esc5(cfg.call.quote)}</p>
+      <button class="pbtn y pgo" type="button" data-pui="enter">Entra</button>
+      <span class="pload${ready ? " done" : ""}" aria-hidden="true"><i></i></span></div>
     <button class="pskip" type="button" data-pui="skipIntro">Salta</button>`;
   }
-  function missionHTML(cfg, steps, clock) {
-    const li = steps.map((st, i) => `<li class="${st.done ? "done" : st.cur ? "cur" : ""}" data-n="${i + 1}"><span>${esc5(st.text)}</span></li>`).join("");
-    return `<div class="pback"><a href="#/home">&larr; Mappa</a><span class="pk">${esc5(cfg.kick)}</span><span class="pclock" aria-label="Ora">${esc5(clock)}</span></div>
-    <h2>${esc5(cfg.title)}</h2>
-    <p class="pgoal">${esc5(cfg.goal)}</p>
-    <ol class="psteps">${li}</ol>`;
-  }
-  function logHTML(entries, tools) {
-    const li = entries.map((e) => `<li class="${e.trip ? "trip" : e.good ? "good" : ""}"><time>${esc5(e.clock)}</time><span>${esc5(e.text)}</span></li>`).join("");
+  function topHTML(cfg, clock, ui2) {
     const t = (k, label, pressed) => `<button class="pchip" type="button" data-pui="${k}"${pressed === void 0 ? "" : ` aria-pressed="${!!pressed}"`}>${label}</button>`;
-    return `<h2>Registro</h2><ol class="plog" aria-live="polite">${li}</ol>
-    <div class="ptools">${t("insieme", "Vista d\u2019insieme")}${t("quadro", "Quadro")}${t("torch", "Torcia", tools.torch)}${t("sound", "Suono", tools.sound)}</div>`;
+    return `<a class="pmap" href="#/home">&larr; Mappa</a>
+    <div class="ptitle"><span class="pk">${esc5(cfg.kick)}</span><b>${esc5(cfg.title)}</b></div>
+    <div class="ptools"><span class="pclock" aria-label="Ora">${esc5(clock)}</span>${t("wires", "Fili", ui2.wires)}${t("torch", "Torcia", ui2.torch)}${t("sound", "Suono", ui2.sound)}${t("log", "Registro", ui2.log)}</div>`;
+  }
+  function stepsHTML(steps) {
+    const li = steps.map((st, i) => `<li class="${st.done ? "done" : st.cur ? "cur" : ""}"><span class="pnode" aria-hidden="true"></span><span class="ptxt"><span class="vh">${i + 1}. </span>${esc5(st.text)}</span></li>`).join("");
+    return `<h2 class="vh">Il metodo</h2><ol class="psteps">${li}</ol>`;
+  }
+  function logHTML(entries) {
+    const li = entries.map((e) => `<li class="${e.trip ? "trip" : e.good ? "good" : ""}"><time>${esc5(e.clock)}</time><span>${esc5(e.text)}</span></li>`).join("");
+    return `<div class="plog-head"><h2>Registro</h2><button class="pchip" type="button" data-pui="log">Chiudi</button></div><ol class="plog" aria-live="polite">${li}</ol>`;
   }
   var STATE_WORD = { on: "Chiuso", off: "Aperto", tripped: "Scattato", armed: "Armato" };
   function dockHTML(cfg, ps, unit, ui2) {
@@ -14046,29 +14177,31 @@ body.ms-intro .milestone .lessoncard{visibility:hidden}
       }
       const word = trip2 ? STATE_WORD.tripped : c2.kind === "rcd" ? on ? STATE_WORD.armed : STATE_WORD.off : on ? STATE_WORD.on : STATE_WORD.off;
       const test = c2.kind === "rcd" ? `<button class="ptest" type="button" data-pact="test" data-pid="${c2.id}" aria-label="Tasto di prova del differenziale">T</button>` : "";
-      return `<div class="pmod ${c2.kind}" data-on="${on}" data-trip="${!!trip2}">
-        <button class="plever" type="button" data-pact="toggle" data-pid="${c2.id}"><span class="pname">${esc5(c2.short || c2.name)}</span><span class="pknob" aria-hidden="true"></span><span class="pword">${word}</span></button>
-        <span class="pvolt${live ? " live" : ""}"><span class="vh">Tensione a valle</span> ${live ? "230 V" : "0 V"}</span>${test}<span class="psub">${esc5(c2.sub)}</span>
+      const delta = c2.kind === "rcd" && ui2.delta ? `<span class="pdelta" role="status">${esc5(cfg.story.delta)}</span>` : "";
+      return `<div class="pmod ${c2.kind}" data-on="${on}" data-trip="${!!trip2}"${c2.line ? ` data-line="${c2.line}"` : ""}>
+        <span class="pled${live ? " on" : ""}" aria-hidden="true"></span>${test}${delta}
+        <button class="plever" type="button" data-pact="toggle" data-pid="${c2.id}"${c2.line ? ` data-line="${c2.line}"` : ""}><span class="pknob" aria-hidden="true"></span><span class="pword">${word}</span></button>
+        <span class="pname">${esc5(c2.short || c2.name)}</span>
+        <span class="pvolt${live ? " live" : ""}"><span class="vh">Tensione a valle</span> ${live ? "230 V" : "0 V"}</span><span class="pamp">${esc5(c2.sub)}</span>
       </div>`;
     }).join("");
     const d = cfg.device, diagOk = !!(unit && unit.diag && unit.diag.correct);
     const dev = d && diagOk && unit.phase === "fault" ? `<button class="pdev" type="button" data-pact="toggle" data-pid="${d.id}"><b>${esc5(d.name)}</b><span>${esc5(ps.heaterPlugged ? d.plugged : d.unplugged)}</span><span class="pdo">${esc5(ps.heaterPlugged ? d.act : d.undo)}</span></button>` : "";
     let main = "";
     if (unit && unit.phase === "fault") main = diagOk ? '<button class="pbtn y" type="button" data-pui="check">Verifica</button>' : '<button class="pbtn y" type="button" data-pui="answer">Rispondi</button>';
-    else if (unit && unit.phase === "done") main = '<button class="pbtn y" type="button" data-pui="finale">Esito della prova</button>';
-    return `<div class="pdockhead"><h2>${esc5(cfg.dockTitle)}</h2><div class="prow">
-      <button class="pchip" type="button" data-pui="schema" aria-pressed="${!!ui2.schema}">${ui2.schema ? "Chiudi lo schema" : "Schema e multimetro"}</button>
-      <button class="pchip only-phone" type="button" data-pui="torch" aria-pressed="${!!ui2.torch}">Torcia</button>${main}</div></div>
-    <div class="prail">${mods}</div>${dev}
-    <p class="phint" role="status">${esc5(ui2.hint || "")}</p>`;
+    else if (unit && unit.phase === "done") main = '<button class="pbtn y" type="button" data-pui="finale">Rapporto</button>';
+    return `<div class="pbox"><div class="pboxhead"><h2>${esc5(cfg.dockTitle)}</h2><div class="prow">
+      <button class="pchip" type="button" data-pui="schema" aria-pressed="${!!ui2.schema}">${ui2.schema ? "Chiudi lo schema" : "Schema e multimetro"}</button>${main}</div></div>
+    <div class="prail">${mods}</div>${dev}</div>`;
   }
   function hintOf(name, steps) {
     if (name !== "appartamento") return "";
     const i = steps.findIndex((s) => s.cur);
     return [
+      PROVE.appartamento.findHint,
       "Prima apri le tre linee: cos\xEC il differenziale potr\xE0 restare armato.",
       "Ora riarma il differenziale: con le linee aperte non ha niente da sentire.",
-      "Richiudi una linea alla volta e guarda la casa: quale fa scattare tutto?",
+      "Richiudi una linea alla volta e guarda i fili: quale fa scattare tutto?",
       "Hai visto quale linea lo fa scattare. Rispondi.",
       "Togli la causa: scollega l\u2019apparecchio che disperde, nella scena o qui sotto.",
       "Riarma il differenziale, richiudi le tre linee e premi Verifica."
@@ -14076,21 +14209,183 @@ body.ms-intro .milestone .lessoncard{visibility:hidden}
   }
   function questionHTML(unitDef, diag) {
     const f = unitDef.fault, q = f.diagnosis;
-    const opts = q.options.map((o) => {
+    const opts = q.options.map((o, i) => {
       const cls = diag && diag.option === o.id ? diag.correct ? " yes" : " no" : "";
-      return `<button class="popt${cls}" type="button" data-pdiag="${o.id}"${diag && diag.correct ? " disabled" : ""}>${esc5(o.text)}</button>`;
+      return `<button class="popt${cls}" type="button" data-pdiag="${o.id}"${diag && diag.correct ? " disabled" : ""}><span class="pletter" aria-hidden="true">${"ABCD"[i]}</span><span>${esc5(o.text)}</span></button>`;
     }).join("");
     const fb = !diag ? "" : diag.correct ? `<p class="pfb ok"><b>Giusto.</b> ${esc5(q.why)}</p><p class="pfb">${esc5(f.fixSay)}</p>` : '<p class="pfb ko"><b>Non proprio.</b> Richiudi solo quella linea con il differenziale armato: se non scatta, non \xE8 lei.</p>';
-    return `<div class="pcard" role="dialog" aria-modal="true" aria-labelledby="pQ"><span class="pk">Prova</span><h2 id="pQ">${esc5(q.question)}</h2>${opts}${fb}
+    return `<div class="pcard" role="dialog" aria-modal="true" aria-labelledby="pQ"><span class="pk">Prova</span><h2 id="pQ">${esc5(q.question)}</h2><div class="popts">${opts}</div>${fb}
       <div class="prow"><button class="pbtn${diag && diag.correct ? " y" : ""}" type="button" data-pui="closeSheet">${diag && diag.correct ? "Torna al quadro" : "Chiudi"}</button></div></div>`;
   }
   var STAR2 = (on) => `<svg width="30" height="30" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2l3 6.9 7.4.7-5.6 4.9 1.7 7.3L12 17.9 5.5 21.8l1.7-7.3L1.6 9.6 9 8.9z" fill="${on ? "#F5B800" : "none"}" stroke="${on ? "#1B2230" : "#7C8494"}" stroke-width="1.5" stroke-linejoin="round"/></svg>`;
-  function finaleHTML(cfg, stars2, solved) {
-    return `<div class="pcard" role="dialog" aria-modal="true" aria-labelledby="pW"><span class="pk">${solved ? "Prova superata" : "Impianto funzionante"}</span><h2 id="pW">${esc5(cfg.win.title)}</h2>
-      <div class="pstars" role="img" aria-label="${stars2} stelle su 3">${[0, 1, 2].map((i) => STAR2(i < stars2)).join("")}</div>
-      <p>${esc5(cfg.win.text)}</p>
+  function reportHTML(cfg, stars2, solved, from, to) {
+    const R = cfg.report;
+    return `<div class="pcard preport" role="dialog" aria-modal="true" aria-labelledby="pW">
+      <div class="prep-head"><span class="pk">${solved ? "Prova superata" : "Impianto funzionante"}</span><span class="prep-time">${esc5(from)}\u2013${esc5(to)}</span></div>
+      <h2 id="pW">${esc5(R.title)}</h2>
+      <dl class="prep">
+        <dt>Dove</dt><dd>${esc5(cfg.call.where)}</dd>
+        <dt>Guasto</dt><dd>${esc5(R.fault)}</dd>
+        <dt>Intervento</dt><dd>${esc5(R.fix)}</dd>
+        <dt>Esito</dt><dd><span class="pstars" role="img" aria-label="${stars2} stelle su 3">${[0, 1, 2].map((i) => `<span class="pstar" style="--i:${i}">${STAR2(i < stars2)}</span>`).join("")}</span></dd>
+      </dl>
       <div class="prow"><a class="pbtn y" href="#/home">Torna alla mappa</a><button class="pbtn" type="button" data-pui="again">Rifai la prova</button><button class="pbtn" type="button" data-pui="summary">Sintesi</button><button class="pbtn" type="button" data-pui="closeSheet">Guarda la casa</button></div></div>`;
   }
+
+  // src/prove/sound.js
+  var ac = null;
+  var master = null;
+  var enabled = true;
+  var hums = {};
+  function ctx() {
+    if (ac) return ac;
+    try {
+      ac = new (window.AudioContext || window.webkitAudioContext)();
+      master = ac.createGain();
+      master.gain.value = 0.9;
+      master.connect(ac.destination);
+    } catch (e) {
+      ac = null;
+    }
+    return ac;
+  }
+  function burst(dur, gain, freq, q = 1, type = "bandpass") {
+    const a = ctx();
+    if (!a || !enabled) return;
+    const n = Math.floor(a.sampleRate * dur), b = a.createBuffer(1, n, a.sampleRate), d = b.getChannelData(0);
+    for (let i = 0; i < n; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / n, 4);
+    const s = a.createBufferSource();
+    s.buffer = b;
+    const f = a.createBiquadFilter();
+    f.type = type;
+    f.frequency.value = freq;
+    f.Q.value = q;
+    const g = a.createGain();
+    g.gain.value = gain;
+    s.connect(f);
+    f.connect(g);
+    g.connect(master);
+    s.start();
+  }
+  function thump(freq, gain, dur) {
+    const a = ctx();
+    if (!a || !enabled) return;
+    const o = a.createOscillator(), g = a.createGain(), t = a.currentTime;
+    o.frequency.setValueAtTime(freq, t);
+    o.frequency.exponentialRampToValueAtTime(freq * 0.5, t + dur);
+    g.gain.setValueAtTime(gain, t);
+    g.gain.exponentialRampToValueAtTime(1e-4, t + dur);
+    o.connect(g);
+    g.connect(master);
+    o.start(t);
+    o.stop(t + dur + 0.02);
+  }
+  function makeHum(kind) {
+    const a = ctx();
+    if (!a) return null;
+    const g = a.createGain();
+    g.gain.value = 0;
+    g.connect(master);
+    const nodes = [];
+    if (kind === "frigo") {
+      [50, 100, 150].forEach((f, i) => {
+        const o = a.createOscillator();
+        o.frequency.value = f;
+        const og = a.createGain();
+        og.gain.value = [0.5, 0.35, 0.12][i];
+        o.connect(og);
+        og.connect(g);
+        o.start();
+        nodes.push(o);
+      });
+    } else {
+      const n = a.sampleRate * 2, b = a.createBuffer(1, n, a.sampleRate), d = b.getChannelData(0);
+      for (let i = 0; i < n; i++) d[i] = Math.random() * 2 - 1;
+      const s = a.createBufferSource();
+      s.buffer = b;
+      s.loop = true;
+      const f = a.createBiquadFilter();
+      f.type = "bandpass";
+      f.frequency.value = kind === "tv" ? 1800 : 300;
+      f.Q.value = kind === "tv" ? 0.6 : 0.4;
+      s.connect(f);
+      f.connect(g);
+      s.start();
+      nodes.push(s);
+      if (kind === "tv") {
+        const lfo = a.createOscillator(), lg = a.createGain();
+        lfo.frequency.value = 0.7;
+        lg.gain.value = 4e-3;
+        lfo.connect(lg);
+        lg.connect(g.gain);
+        lfo.start();
+        nodes.push(lfo);
+      }
+    }
+    return { g, level: { frigo: 0.018, tv: 8e-3, stufa: 0.01 }[kind] };
+  }
+  var sound = {
+    // da chiamare dentro un tocco: sblocca l'audio
+    unlock() {
+      const a = ctx();
+      if (a && a.state === "suspended") a.resume();
+    },
+    setEnabled(on) {
+      enabled = !!on;
+      if (!enabled) Object.keys(hums).forEach((k) => this.hum(k, false, true));
+    },
+    enabled: () => enabled,
+    click() {
+      burst(0.04, 0.5, 2400, 1.2);
+      thump(140, 0.15, 0.06);
+    },
+    tac() {
+      burst(0.16, 1.4, 900, 0.9);
+      thump(90, 0.6, 0.18);
+      burst(0.05, 0.6, 3200, 2);
+    },
+    chime(i = 0) {
+      const a = ctx();
+      if (!a || !enabled) return;
+      const o = a.createOscillator(), g = a.createGain(), t = a.currentTime;
+      o.type = "sine";
+      o.frequency.value = [660, 880, 1100][i % 3];
+      g.gain.setValueAtTime(1e-4, t);
+      g.gain.exponentialRampToValueAtTime(0.12, t + 0.02);
+      g.gain.exponentialRampToValueAtTime(1e-4, t + 0.5);
+      o.connect(g);
+      g.connect(master);
+      o.start(t);
+      o.stop(t + 0.55);
+    },
+    // acceso o spento un ronzio; instant: si ferma di colpo (lo scatto)
+    hum(kind, on, instant) {
+      const a = ctx();
+      if (!a) return;
+      if (!hums[kind]) {
+        if (!on) return;
+        hums[kind] = makeHum(kind);
+      }
+      const h = hums[kind];
+      if (!h) return;
+      const t = a.currentTime, v = on && enabled ? h.level : 0;
+      h.g.gain.cancelScheduledValues(t);
+      if (instant) h.g.gain.setValueAtTime(v, t);
+      else {
+        h.g.gain.setValueAtTime(h.g.gain.value, t);
+        h.g.gain.linearRampToValueAtTime(v, t + 0.6);
+      }
+    },
+    silence() {
+      Object.keys(hums).forEach((k) => this.hum(k, false, true));
+    },
+    vibrate(p) {
+      try {
+        if (navigator.vibrate) navigator.vibrate(p);
+      } catch (e) {
+      }
+    }
+  };
 
   // src/prove/page.js
   var VIEW_LABEL = {
@@ -14101,8 +14396,8 @@ body.ms-intro .milestone .lessoncard{visibility:hidden}
     pulsantiera: "Pulsantiera",
     motore: "Motore"
   };
-  var INTRO_MS = 2400;
   var SOUND_KEY = "fase-e-neutro-suono";
+  var LOAD_MAX = 8e3;
   var scriptPromise2 = null;
   function loadScript2() {
     if (window.FaseNeutroProve) return Promise.resolve(true);
@@ -14121,41 +14416,36 @@ body.ms-intro .milestone .lessoncard{visibility:hidden}
     }
     return scriptPromise2;
   }
-  var audio = null;
-  function noise(dur, gain, freq) {
-    try {
-      audio = audio || new (window.AudioContext || window.webkitAudioContext)();
-      const n = Math.floor(audio.sampleRate * dur), b = audio.createBuffer(1, n, audio.sampleRate), d = b.getChannelData(0);
-      for (let i = 0; i < n; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / n, 4);
-      const s = audio.createBufferSource();
-      s.buffer = b;
-      const f = audio.createBiquadFilter();
-      f.type = "bandpass";
-      f.frequency.value = freq;
-      const g = audio.createGain();
-      g.gain.value = gain;
-      s.connect(f);
-      f.connect(g);
-      g.connect(audio.destination);
-      s.start();
-    } catch (e) {
-    }
-  }
   function createProva(host2, env) {
     let scene = null, sceneState = "idle", mounted = false, token = 0, name = null, lastSnap = null;
     let el = {};
     const holding = /* @__PURE__ */ new Set();
+    const timers = /* @__PURE__ */ new Set();
     let mem = newMemory(), log = [], minutes = 0, phase = null, sheet = null;
-    let intro2 = null, override = null, introTimer = 0, outTimer = 0, finTimer = 0;
-    const ui2 = { schema: false, torch: false, sound: true };
+    let act2 = null, override = null, story = null, t0clock = 0, callT0 = 0;
+    const ui2 = { schema: false, torch: false, sound: true, wires: true, log: false, delta: false };
     try {
       ui2.sound = localStorage.getItem(SOUND_KEY) !== "0";
     } catch (e) {
     }
+    sound.setEnabled(ui2.sound);
     const s = () => env.session;
     const cfg = () => provaOf(name);
-    const inLesson = () => !!(lastSnap && lastSnap.unit && lastSnap.unit.phase === "lesson");
     const reduced = () => !!(env.reduced && env.reduced());
+    const inLesson = () => !!(lastSnap && lastSnap.unit && lastSnap.unit.phase === "lesson");
+    const later = (ms, fn) => {
+      const t = setTimeout(() => {
+        timers.delete(t);
+        if (mounted) fn();
+      }, reduced() ? 0 : ms);
+      timers.add(t);
+      return t;
+    };
+    const clearLater = () => {
+      timers.forEach(clearTimeout);
+      timers.clear();
+    };
+    const wires = () => scene && scene.wires ? scene.wires() : null;
     function build() {
       el = {};
       if (!cfg()) {
@@ -14167,48 +14457,69 @@ body.ms-intro .milestone .lessoncard{visibility:hidden}
         };
         return;
       }
-      host2.innerHTML = `<div class="hstage"><div class="hscene" id="pScene"></div><div class="hmsg" id="pMsg" role="status" hidden></div><div class="pflash" id="pFlash"></div></div>
-      <section class="phud pmission" id="pMission" aria-label="Missione"></section>
-      <aside class="phud plogbox" id="pLog" aria-label="Registro"></aside>
+      host2.innerHTML = `<div class="hstage"><div class="hscene" id="pScene"></div><div class="hmsg" id="pMsg" role="status" hidden></div><div class="pflash" id="pFlash"></div><div class="pvig"></div></div>
+      <header class="phud ptop" id="pTop"></header>
+      <nav class="phud psteps-box" id="pSteps" aria-label="Il metodo"></nav>
       <section class="phud pdock" id="pDock" aria-label="Comandi"></section>
-      <div class="ptoast" id="pToast" aria-live="assertive"><b>Tac.</b><span></span></div>
+      <aside class="phud plogbox" id="pLog" aria-label="Registro" hidden></aside>
+      <div class="psub" id="pSub" aria-live="assertive"></div>
+      <button class="ppin" id="pPin" type="button" data-pui="openPanel" hidden><span>Quadro</span></button>
       <div class="psheet" id="pSheet" hidden></div>
       <div class="pintro" id="pIntro" hidden></div>`;
-      ["pScene", "pMsg", "pFlash", "pMission", "pLog", "pDock", "pToast", "pSheet", "pIntro"].forEach((id) => el[id] = host2.querySelector("#" + id));
+      ["pScene", "pMsg", "pFlash", "pTop", "pSteps", "pDock", "pLog", "pSub", "pPin", "pSheet", "pIntro"].forEach((id) => el[id] = host2.querySelector("#" + id));
       host2.onclick = onClick;
       el.pScene.addEventListener("pointermove", (e) => {
-        if (scene && scene.aim) scene.aim(e.clientX, e.clientY);
+        if (scene && scene.aim && ui2.torch) scene.aim(e.clientX, e.clientY);
+      });
+      const hi = (e) => {
+        const l = e.target.closest && e.target.closest("[data-line]");
+        const w = wires();
+        if (w) w.highlight(l ? l.dataset.line : null);
+      };
+      el.pDock.addEventListener("pointerover", hi);
+      el.pDock.addEventListener("pointerleave", () => {
+        const w = wires();
+        if (w) w.highlight(null);
+      });
+      el.pDock.addEventListener("focusin", hi);
+      el.pDock.addEventListener("focusout", () => {
+        const w = wires();
+        if (w) w.highlight(null);
       });
     }
-    function act2(action, run) {
+    function doAct(action, run) {
+      if (story) {
+        endStory();
+        return;
+      }
       const before = lastSnap && provaState(lastSnap);
       run();
-      const snap = s().snapshot();
-      const after = provaState(snap);
+      const after = provaState(s().snapshot());
       if (!before || !after) return;
       mem = remember(name, mem, action, before, after);
       const ev2 = describe(name, action, before, after);
-      if (ev2) {
-        note(ev2.text, ev2);
-        if (ev2.trip) effectTrip(ev2.text);
-        else if (ui2.sound) noise(0.04, 0.5, 2400);
-        if (ev2.view && scene) scene.look(ev2.view);
+      const st = tripStory(name, action, before, after);
+      if (ev2) note(ev2.text, ev2);
+      if (st) playStory(st, after);
+      else {
+        sound.click();
+        if (ev2 && ev2.view && scene) scene.look(ev2.view);
       }
       renderHud();
     }
     function note(text2, ev2 = {}) {
       minutes++;
       log.push({ clock: clockText(cfg(), minutes), text: text2, trip: !!ev2.trip, good: !!ev2.good });
-      if (log.length > 30) log.shift();
+      if (log.length > 40) log.shift();
     }
     function tap(u) {
-      if (inLesson() || intro2) return;
-      if (u.kind === "toggle") act2({ kind: "toggle", id: u.id }, () => s().toggleControl(u.id));
-      else if (u.kind === "test") act2({ kind: "test", id: u.part }, () => s().testPart(u.part));
-      else if (u.kind === "reset") act2({ kind: "reset", id: u.part }, () => s().resetPart(u.part));
+      if (inLesson() || act2 && act2 !== "play") return;
+      if (u.kind === "toggle") doAct({ kind: "toggle", id: u.id }, () => s().toggleControl(u.id));
+      else if (u.kind === "test") doAct({ kind: "test", id: u.part }, () => s().testPart(u.part));
+      else if (u.kind === "reset") doAct({ kind: "reset", id: u.part }, () => s().resetPart(u.part));
     }
     function press2(u) {
-      if (inLesson() || intro2) return;
+      if (inLesson() || act2 && act2 !== "play") return;
       holding.add(u.id);
       s().press(u.id);
     }
@@ -14227,13 +14538,23 @@ body.ms-intro .milestone .lessoncard{visibility:hidden}
         s().answerDiagnosis(d.dataset.pdiag);
         const dg = s().snapshot().unit.diag;
         if (dg) note(dg.correct ? cfg().log.answerOk : cfg().log.answerKo, { good: dg.correct });
+        if (dg && dg.correct) sound.chime(1);
         renderHud();
         return;
       }
       const u = e.target.closest("[data-pui]");
-      if (!u) return;
+      if (!u) {
+        if (story) endStory();
+        return;
+      }
       const k = u.dataset.pui;
-      if (k === "skipIntro") endIntro(true);
+      if (k === "enter") {
+        sound.unlock();
+        arrive();
+      } else if (k === "skipIntro") {
+        sound.unlock();
+        skipArrive();
+      } else if (k === "openPanel") openPanel();
       else if (k === "answer") {
         sheet = "question";
         renderHud();
@@ -14243,11 +14564,14 @@ body.ms-intro .milestone .lessoncard{visibility:hidden}
         renderHud();
         focusSheet();
       } else if (k === "closeSheet") {
+        const wasFinale = sheet === "finale";
         sheet = null;
         renderHud();
+        if (wasFinale) backInside();
       } else if (k === "check") check();
       else if (k === "again") {
         sheet = null;
+        backInside();
         s().startFault();
       } else if (k === "summary") {
         if (env.summary) env.summary();
@@ -14256,11 +14580,23 @@ body.ms-intro .milestone .lessoncard{visibility:hidden}
         if (env.drawer) env.drawer(ui2.schema);
         renderHud();
       } else if (k === "torch") {
-        ui2.torch = !ui2.torch;
-        if (scene && scene.torch) scene.torch(ui2.torch);
+        setTorch(!ui2.torch);
+        renderHud();
+      } else if (k === "wires") {
+        ui2.wires = !ui2.wires;
+        const w = wires();
+        if (w) w.setVisible(ui2.wires);
+        renderHud();
+      } else if (k === "log") {
+        ui2.log = !ui2.log;
         renderHud();
       } else if (k === "sound") {
         ui2.sound = !ui2.sound;
+        sound.setEnabled(ui2.sound);
+        if (ui2.sound) {
+          sound.unlock();
+          hums2();
+        }
         try {
           localStorage.setItem(SOUND_KEY, ui2.sound ? "1" : "0");
         } catch (x) {
@@ -14270,103 +14606,286 @@ body.ms-intro .milestone .lessoncard{visibility:hidden}
         if (scene) scene.look(k);
       }
     }
+    function setTorch(on) {
+      ui2.torch = on;
+      if (scene && scene.torch) scene.torch(on);
+    }
     function check() {
       const r = s().check();
       note(r.pass ? cfg().log.checkOk : cfg().log.checkKo, { good: r.pass, trip: !r.pass });
       if (r.pass) {
-        if (scene) scene.look("insieme");
-        if (ui2.sound) noise(0.05, 0.5, 1800);
-        if (lastSnap.unit.phase !== "done") openFinale();
+        if (lastSnap.unit.phase !== "done") finale();
       } else {
-        toast("Qualcosa non va ancora", "Nello schema trovi i controlli che non passano.");
+        subtitle("", "Qualcosa non va ancora: nello schema trovi i controlli che non passano.", 3200);
         ui2.schema = true;
         if (env.drawer) env.drawer(true);
       }
       renderHud();
     }
-    function openFinale() {
-      clearTimeout(finTimer);
-      finTimer = setTimeout(() => {
-        if (!mounted) return;
-        sheet = "finale";
-        renderHud();
-        focusSheet();
-      }, reduced() ? 0 : 900);
-    }
-    function onKey(e) {
-      if (e.key === "Escape" && sheet) {
-        sheet = null;
-        renderHud();
-      }
-    }
     function focusSheet() {
       const b = el.pSheet && el.pSheet.querySelector("button,a");
       if (b && b.focus) b.focus({ preventScroll: true });
     }
-    function toast(big, small) {
-      const t = el.pToast;
-      t.querySelector("b").textContent = big;
-      t.querySelector("span").textContent = small;
-      t.classList.remove("go");
-      void t.offsetWidth;
-      t.classList.add("go");
-      clearTimeout(t._h);
-      t._h = setTimeout(() => t.classList.remove("go"), 1600);
-    }
-    function effectTrip(text2) {
-      if (ui2.sound) noise(0.18, 1.4, 900);
-      if (!reduced()) {
-        const f = el.pFlash;
-        f.classList.remove("go");
-        void f.offsetWidth;
-        f.classList.add("go");
-        host2.classList.remove("shake");
-        void host2.offsetWidth;
-        host2.classList.add("shake");
-      }
-      toast("Tac.", text2);
-    }
-    function startIntro() {
-      const c2 = cfg();
-      if (!c2) return;
-      intro2 = { t0: Date.now() };
-      document.body.classList.add("ms-intro");
-      el.pIntro.innerHTML = introHTML2(c2);
-      el.pIntro.hidden = false;
-      el.pIntro.classList.remove("out");
-      clearTimeout(introTimer);
-      introTimer = setTimeout(() => endIntro(false), reduced() ? 300 : INTRO_MS);
-    }
-    function endIntro(force) {
-      if (!intro2) return;
-      if (!force && sceneState === "loading" && Date.now() - intro2.t0 < 8e3) {
-        introTimer = setTimeout(() => endIntro(false), 200);
+    function onKey(e) {
+      if (e.key !== "Escape") return;
+      if (story) {
+        endStory();
         return;
       }
-      intro2 = null;
-      document.body.classList.remove("ms-intro");
-      clearTimeout(introTimer);
-      el.pIntro.classList.add("out");
-      setTimeout(() => {
-        if (el.pIntro && !intro2) el.pIntro.hidden = true;
-      }, reduced() ? 0 : 900);
-      lightsOut();
+      if (sheet) {
+        const wasFinale = sheet === "finale";
+        sheet = null;
+        renderHud();
+        if (wasFinale) backInside();
+      } else if (ui2.log) {
+        ui2.log = false;
+        renderHud();
+      }
+    }
+    function subtitle(big, small, ms, button) {
+      const n = el.pSub;
+      if (!n) return;
+      n.innerHTML = `${big ? `<b>${big}</b>` : ""}${small ? `<span>${small}</span>` : ""}${button || ""}`;
+      n.classList.remove("go");
+      void n.offsetWidth;
+      n.classList.add("go");
+      clearTimeout(n._h);
+      if (ms) n._h = setTimeout(() => n.classList.remove("go"), ms);
+    }
+    function flash() {
+      if (reduced() || !el.pFlash) return;
+      el.pFlash.classList.remove("go");
+      void el.pFlash.offsetWidth;
+      el.pFlash.classList.add("go");
+      host2.classList.remove("shake");
+      void host2.offsetWidth;
+      host2.classList.add("shake");
+    }
+    function tac(text2) {
+      sound.tac();
+      sound.silence();
+      sound.vibrate([30, 40, 80]);
+      flash();
+      subtitle("Tac.", text2, 3600);
+    }
+    function hums2(ps) {
+      ps = ps || override || lastSnap && provaState(lastSnap);
+      if (!ps || name !== "appartamento" || act2 === "call") return;
+      sound.hum("frigo", !!ps.oven);
+      sound.hum("tv", !!ps.socket);
+      sound.hum("stufa", !!(ps.socket && ps.heaterPlugged));
+    }
+    function playStory(st, after) {
+      const c2 = cfg();
+      if (!scene || reduced()) {
+        ui2.delta = true;
+        tac(c2.story[st.kind]);
+        later(1600, () => {
+          ui2.delta = false;
+          renderHud();
+        });
+        return;
+      }
+      const on = (l) => st.closed && st.closed.includes(l);
+      override = { ...after, rcd: { ...after.rcd, on: true, tripped: false }, lamp: on("luce") && after.switchOn, socket: on("prese"), oven: on("cucina"), dark: false, leak: st.kind === "test" ? null : st.kind };
+      story = { st, t: [] };
+      push();
+      hums2(override);
+      if (st.kind === "isolated") scene.look("dispersione", 500);
+      story.t.push(later(st.kind === "test" ? 150 : 600, () => {
+        ui2.delta = true;
+        renderHud();
+      }));
+      story.t.push(later(st.kind === "isolated" ? 1250 : st.kind === "multi" ? 1e3 : 650, endStory));
+    }
+    function endStory() {
+      if (!story) return;
+      const st = story.st;
+      story.t.forEach((t) => {
+        clearTimeout(t);
+        timers.delete(t);
+      });
+      story = null;
+      override = null;
+      push();
+      tac(cfg().story[st.kind]);
+      later(1800, () => {
+        ui2.delta = false;
+        renderHud();
+      });
       renderHud();
     }
-    function lightsOut() {
+    function setAct(a) {
+      act2 = a;
+      host2.dataset.act = a;
+      document.body.classList.toggle("ms-intro", a === "call" || a === "arrive");
+      renderHud();
+    }
+    function startCall() {
+      setAct("call");
+      callT0 = Date.now();
+      el.pIntro.innerHTML = callHTML(cfg(), sceneState === "ready");
+      el.pIntro.hidden = false;
+      el.pIntro.classList.remove("out");
+      const b = el.pIntro.querySelector('[data-pui="enter"]');
+      if (b && b.focus) b.focus({ preventScroll: true });
+    }
+    function litHouse() {
       const ps = lastSnap && provaState(lastSnap);
-      if (!ps || !scene || reduced() || name !== "appartamento" || ps.rcd.on) {
-        push();
+      if (!ps) return null;
+      return { ...ps, rcd: { ...ps.rcd, on: true, tripped: false }, lines: { luce: { on: true }, prese: { on: true }, cucina: { on: true } }, lamp: true, socket: true, oven: true, dark: false, allRooms: true };
+    }
+    function prepareOutside() {
+      if (!scene || !scene.setRoof) return;
+      override = litHouse();
+      scene.setRoof(true, 1);
+      scene.windows(true);
+      scene.door(0);
+      const w = wires();
+      if (w) w.setVisible(false);
+      scene.look("lontano", 1);
+      push();
+    }
+    function hideCall() {
+      el.pIntro.classList.add("out");
+      later(900, () => {
+        if (el.pIntro) el.pIntro.hidden = true;
+      });
+    }
+    function arrive() {
+      if (act2 !== "call") return;
+      if (sceneState === "loading" && Date.now() - callT0 < LOAD_MAX) {
+        el.pIntro.classList.add("waiting");
+        const t = setTimeout(() => {
+          timers.delete(t);
+          if (mounted) arrive();
+        }, 200);
+        timers.add(t);
         return;
       }
-      override = { ...ps, rcd: { ...ps.rcd, on: true, tripped: false }, lines: { luce: { on: true }, prese: { on: true }, cucina: { on: true } }, lamp: true, socket: true, oven: true, dark: false };
-      push();
-      clearTimeout(outTimer);
-      outTimer = setTimeout(() => {
+      hideCall();
+      if (!scene || sceneState !== "ready") {
+        afterArrive();
+        return;
+      }
+      setAct("arrive");
+      hums2(override);
+      scene.look("esterno", 2400);
+      later(2500, () => {
         override = null;
+        scene.windows(false);
         push();
-        if (mounted) effectTrip(cfg().log.start);
-      }, 900);
+        tac(cfg().log.start);
+      });
+      later(3300, () => {
+        scene.setRoof(false, 1300);
+        scene.look("ingresso", 1700);
+      });
+      later(5100, afterArrive);
+    }
+    function skipArrive() {
+      if (act2 !== "call" && act2 !== "arrive") return;
+      clearLater();
+      hideCall();
+      override = null;
+      if (scene && scene.setRoof) {
+        scene.windows(false);
+        scene.setRoof(false, 1);
+        scene.look("ingresso", 1);
+      }
+      push();
+      afterArrive();
+    }
+    function afterArrive() {
+      const w = wires();
+      if (w) w.setVisible(ui2.wires);
+      if (inLesson()) {
+        setAct("brief");
+        return;
+      }
+      findPanel();
+    }
+    function findPanel() {
+      if (!scene || mem.panel) {
+        mem.panel = true;
+        if (scene) scene.door(1);
+        setAct("play");
+        return;
+      }
+      setAct("find");
+      setTorch(true);
+      if (scene.aim) {
+        const r = host2.getBoundingClientRect();
+        const p = scene.screenOf && scene.screenOf("D");
+        if (p) scene.aim(r.left + p.x, r.top + p.y);
+      }
+      placePin();
+      subtitle("", cfg().findHint, 0, '<button class="pbtn y" type="button" data-pui="openPanel">Apri il quadro</button>');
+    }
+    function placePin() {
+      if (!el.pPin) return;
+      const p = act2 === "find" && scene && scene.screenOf && scene.screenOf("D");
+      el.pPin.hidden = !p;
+      if (p) el.pPin.style.transform = `translate(${Math.round(p.x)}px, ${Math.round(p.y)}px)`;
+    }
+    function openPanel() {
+      if (act2 !== "find") return;
+      mem.panel = true;
+      el.pSub.classList.remove("go");
+      el.pPin.hidden = true;
+      if (!scene) {
+        setAct("play");
+        return;
+      }
+      setAct("opening");
+      scene.look("quadro", 900);
+      later(950, () => {
+        sound.click();
+        const t0 = performance.now();
+        const step = () => {
+          const k = Math.min(1, (performance.now() - t0) / 500);
+          scene.door(k * k * (3 - 2 * k));
+          if (k < 1 && mounted) requestAnimationFrame(step);
+        };
+        if (reduced()) scene.door(1);
+        else step();
+      });
+      later(1700, () => {
+        scene.look("insieme", 1e3);
+        setTorch(false);
+      });
+      later(2100, () => setAct("play"));
+    }
+    function finale() {
+      if (act2 === "finale") return;
+      setAct("finale");
+      hums2();
+      if (scene && scene.setRoof) {
+        later(500, () => {
+          override = litHouse();
+          push();
+          scene.setRoof(true, 1400);
+          scene.windows(true);
+          scene.look("esterno", 2200);
+        });
+        later(1800, () => subtitle(clockText(cfg(), minutes), cfg().report.end, 2400));
+      }
+      later(scene ? 3600 : 0, () => {
+        sheet = "finale";
+        setAct("play");
+        focusSheet();
+        const lv = lastSnap.levels.find((l) => l.id === lastSnap.level.id) || {};
+        const n = lastSnap.result && lastSnap.result.stars || lv.stars || 0;
+        for (let i = 0; i < n; i++) later(300 + i * 280, () => sound.chime(i));
+      });
+    }
+    function backInside() {
+      if (!scene || !scene.setRoof) return;
+      override = null;
+      push();
+      scene.setRoof(false, 1100);
+      scene.windows(false);
+      scene.look("insieme", 1200);
     }
     function loadScene(snap) {
       if (sceneState !== "idle") return;
@@ -14381,15 +14900,25 @@ body.ms-intro .milestone .lessoncard{visibility:hidden}
           scene = api;
           sceneState = "ready";
           host2._scene = api;
-          if (ui2.torch && api.torch) api.torch(true);
           if (el.pTools) el.pTools.innerHTML = api.views.map((v) => `<button class="btn small" data-pview="${v}">${VIEW_LABEL[v] || v}</button>`).join("");
+          if (act2 === "call") prepareOutside();
+          else if (cfg() && scene.door) {
+            scene.door(mem.panel ? 1 : 0);
+            if (act2 === "play") scene.door(1);
+          }
+          if (ui2.torch && api.torch) api.torch(true);
+          if (act2 === "find") findPanel();
         } else sceneState = "failed";
         apply();
         push();
+        if (el.pIntro && act2 === "call") {
+          const l = el.pIntro.querySelector(".pload");
+          if (l) l.classList.add("done");
+        }
       });
     }
     function apply() {
-      el.pMsg.hidden = !(sceneState === "loading" || sceneState === "failed");
+      el.pMsg.hidden = !(sceneState === "loading" || sceneState === "failed") || act2 === "call";
       el.pMsg.textContent = sceneState === "loading" ? "Caricamento della scena" : "La scena 3D non \xE8 disponibile su questo dispositivo: la prova funziona con i comandi e con lo schema.";
       el.pScene.hidden = sceneState !== "ready";
       host2.classList.toggle("noscene", sceneState === "failed");
@@ -14406,7 +14935,7 @@ body.ms-intro .milestone .lessoncard{visibility:hidden}
       if (ps.scene === "appartamento") {
         const rooms = {};
         HOUSE.rooms.forEach((r) => {
-          rooms[r.id] = { lit: r.id === "corridoio" && ps.lamp, controls: {} };
+          rooms[r.id] = { lit: ps.allRooms ? !!r.lamp : r.id === "corridoio" && ps.lamp, controls: {} };
         });
         scene.update({ rooms, prova: ps });
       } else scene.update(ps);
@@ -14424,29 +14953,34 @@ body.ms-intro .milestone .lessoncard{visibility:hidden}
     function renderHud() {
       const c2 = cfg();
       if (!c2 || !lastSnap) return;
-      const ps = provaState(lastSnap), unit = lastSnap.unit;
-      host2.classList.toggle("lesson", inLesson());
-      if (!ps || inLesson()) return;
+      const ps = story && override || provaState(lastSnap), unit = lastSnap.unit;
+      host2.classList.toggle("lesson", inLesson() || act2 === "brief");
+      if (!ps) return;
       const steps = stepsOf(name, ps, unit, mem);
-      ui2.hint = unit.phase === "fault" ? hintOf(name, steps) : "";
-      setHTML(el.pMission, missionHTML(c2, steps, clockText(c2, minutes)));
-      setHTML(el.pLog, logHTML(log, ui2));
+      setHTML(el.pTop, topHTML(c2, clockText(c2, minutes), ui2));
+      setHTML(el.pSteps, stepsHTML(steps) + (unit.phase === "fault" && act2 === "play" ? `<p class="phint">${hintOf(name, steps)}</p>` : ""));
       setHTML(el.pDock, dockHTML(c2, ps, unit, ui2));
+      el.pLog.hidden = !ui2.log;
+      if (ui2.log) setHTML(el.pLog, logHTML(log));
       let sh = "";
       if (sheet === "question" && unit.phase === "fault") sh = questionHTML(lastSnap.level.unit, unit.diag);
       else if (sheet === "finale") {
         const lv = lastSnap.levels.find((l) => l.id === lastSnap.level.id) || {};
-        sh = finaleHTML(c2, lastSnap.result && lastSnap.result.stars || lv.stars || 0, !!unit.faultSolved);
+        sh = reportHTML(c2, lastSnap.result && lastSnap.result.stars || lv.stars || 0, !!unit.faultSolved, clockText(c2, 0), clockText(c2, minutes));
       } else sheet = null;
       el.pSheet.hidden = !sh;
       setHTML(el.pSheet, sh);
+      placePin();
     }
-    function restart() {
-      mem = newMemory();
+    function restart(keepPanel) {
+      mem = { ...newMemory(), panel: !!keepPanel };
       log = [];
       minutes = 0;
       sheet = null;
       note(cfg().log.start, { trip: true });
+    }
+    function onResize() {
+      placePin();
     }
     return {
       // Chiamata a ogni ridisegno della pagina con il livello aperto.
@@ -14459,19 +14993,39 @@ body.ms-intro .milestone .lessoncard{visibility:hidden}
           build();
           apply();
           document.addEventListener("keydown", onKey);
+          window.addEventListener("resize", onResize);
         }
         const ph = snapshot.unit ? snapshot.unit.phase : null;
-        const wasFault = phase === "fault";
+        const prevPhase = phase;
         lastSnap = snapshot;
         if (sceneState === "idle") loadScene(snapshot);
-        if (cfg() && wasFault && ph === "done") openFinale();
-        if (cfg() && ph === "fault" && (!wasFault || first)) {
-          restart();
-          if (!first && !intro2) lightsOut();
+        if (cfg()) {
+          if (first) {
+            if (ph === "lesson" || ph === "fault") {
+              if (ph === "fault") restart(false);
+              startCall();
+            } else {
+              mem.panel = true;
+              setAct("play");
+            }
+          } else if (ph === "fault" && prevPhase === "lesson") {
+            restart(false);
+            findPanel();
+          } else if (ph === "fault" && prevPhase === "done") {
+            restart(true);
+            setAct("play");
+            override = litHouse();
+            push();
+            later(700, () => {
+              override = null;
+              push();
+              tac(cfg().log.start);
+            });
+          } else if (ph === "done" && prevPhase === "fault" && act2 !== "finale") finale();
         }
-        if (first && (ph === "lesson" || ph === "fault") && cfg()) startIntro();
         phase = ph;
         if (!override) push();
+        hums2();
         renderHud();
       },
       unmount() {
@@ -14482,10 +15036,10 @@ body.ms-intro .milestone .lessoncard{visibility:hidden}
           }
         });
         holding.clear();
-        clearTimeout(introTimer);
-        clearTimeout(outTimer);
-        clearTimeout(finTimer);
+        clearLater();
+        sound.silence();
         document.removeEventListener("keydown", onKey);
+        window.removeEventListener("resize", onResize);
         if (scene) {
           scene.dispose();
           scene = null;
@@ -14493,9 +15047,9 @@ body.ms-intro .milestone .lessoncard{visibility:hidden}
         if (ui2.schema && env.drawer) env.drawer(false);
         host2._scene = null;
         name = null;
-        intro2 = null;
         override = null;
-        document.body.classList.remove("ms-intro");
+        story = null;
+        act2 = null;
         sceneState = "idle";
         mounted = false;
         lastSnap = null;
@@ -14503,8 +15057,12 @@ body.ms-intro .milestone .lessoncard{visibility:hidden}
         phase = null;
         ui2.schema = false;
         ui2.torch = false;
+        ui2.log = false;
+        ui2.delta = false;
         host2.innerHTML = "";
         host2.onclick = null;
+        delete host2.dataset.act;
+        document.body.classList.remove("ms-intro");
         host2.className = host2.className.replace(/\b(lesson|noscene|shake)\b/g, "").trim();
       },
       isMounted: () => mounted,

@@ -10,13 +10,22 @@ Tutte le prove hanno la stessa cornice, cosi' chi gioca la riconosce e sa dove g
 - **Ingresso**: schermata nera con modulo, titolo e una riga d'atmosfera ("Ore 22:40. Tac."). Copre il caricamento della scena
   (almeno 2,4 secondi, al massimo 8; si puo' saltare).
 - **Scena a tutto schermo**, senza barra in alto e piede di pagina.
-- **Missione** in alto a sinistra: titolo, obiettivo, i passi del metodo che si spuntano da soli.
-- **Registro** in alto a destra: cosa e' successo, con l'ora; da qui le viste, la torcia e il suono.
+- **Barra in alto**: mappa, titolo, ora della prova e strumenti (fili, torcia, suono, registro).
+- **Il metodo** a sinistra, come il binario della mappa: i passi si spuntano da soli, il corrente e' scritto grande.
+- **Registro** a lato, su richiesta: cosa e' successo, con l'ora.
 - **Comandi** in basso: il quadro (o la pulsantiera) da usare, sempre a portata, anche da tastiera. Sotto, un suggerimento
   che dice il passo corrente con parole sue. Qui anche "Rispondi" e "Verifica".
 - **Schema e multimetro**: il banco 2D di prima, con il multimetro e l'esito dei controlli, si apre a lato.
 - **Momento forte**: quando succede la cosa che conta (lo scatto del differenziale) lampo, scossa, scritta grande e un suono.
-- **Finale**: stelle, cosa era il guasto, torna alla mappa o rifai la prova.
+- **Finale**: il rapporto d'intervento (dove, guasto, intervento, stelle), torna alla mappa o rifai la prova.
+- **Vista dei fili** (`src/scene3d/wiring.js`): i conduttori dal quadro ai carichi, che si accendono quando sono in tensione
+  e mostrano la corrente che corre; si nascondono dal pulsante "Fili".
+- **Suono** (`src/prove/sound.js`): leve, scatto e i ronzii degli apparecchi legati allo stato vero.
+
+Impaginazione: barra in alto (mappa, titolo, ora, strumenti), il metodo a sinistra come il binario della mappa, il quadro in
+basso come oggetto fisico, sottotitoli per i momenti forti, registro a lato, la chiamata all'inizio.
+La prova dell'appartamento e' raccontata in atti (chiamata, arrivo, lezione, trova il quadro, gioco, finale): vedi
+`docs/PROGETTO-APPARTAMENTO.md`.
 
 Cambia da prova a prova:
 

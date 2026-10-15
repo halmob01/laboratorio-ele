@@ -9,8 +9,8 @@ export const provaOf = name => PROVE[name] || null;
 
 /* ---------- memoria della prova e passi ---------- */
 
-// Quello che lo stato del momento non dice ma i passi devono ricordare (le linee sono gia' state aperte tutte, ecc.).
-export const newMemory = () => ({ opened: false, rearmed: false, found: false });
+// Quello che lo stato del momento non dice ma i passi devono ricordare (quadro trovato, linee gia' aperte tutte, ecc.).
+export const newMemory = () => ({ panel: false, opened: false, rearmed: false, found: false });
 
 // action: { kind: 'toggle' | 'test', id }; before/after: provaState prima e dopo l'azione.
 export function remember(name, mem, action, before, after) {
@@ -32,12 +32,29 @@ export function stepsOf(name, ps, unit, mem) {
   let done;
   if (name === 'appartamento') {
     const diagOk = !!(unit && unit.diag && unit.diag.correct);
-    done = [mem.opened, mem.rearmed, mem.found, diagOk, !ps.heaterPlugged, unit && unit.phase === 'done'];
+    done = [mem.panel, mem.opened, mem.rearmed, mem.found, diagOk, !ps.heaterPlugged, unit && unit.phase === 'done'];
   } else done = cfg.steps.map(() => false);
   if (unit && unit.phase === 'done') done = done.map(() => true);
   const last = done.lastIndexOf(true);
   const cur = done.findIndex((d, i) => !d && i > last);
   return cfg.steps.map((text, i) => ({ text, done: !!done[i], cur: i === cur }));
+}
+
+/* ---------- scatti: quale storia raccontare ---------- */
+
+// Uno scatto del differenziale appena successo, e cosa mostrare:
+//  'isolated': una sola linea chiusa, quella che disperde: si vede dove scappa la corrente;
+//  'multi':    piu' linee chiuse: il differenziale sente la dispersione ma non sa da dove (serve il metodo);
+//  'test':     il tasto T, che crea apposta una piccola dispersione.
+// null se non e' scattato niente.
+export function tripStory(name, action, before, after) {
+  if (name !== 'appartamento' || !before || !after || !action) return null;
+  const tripped = after.rcd.tripped && (!before.rcd.tripped || (action.kind === 'toggle' && action.id === 'D'));
+  if (!tripped) return null;
+  if (action.kind === 'test') return { kind: 'test' };
+  const closed = ['luce', 'prese', 'cucina'].filter(l => after.lines[l].on);
+  if (closed.length === 1 && closed[0] === 'prese' && after.heaterPlugged) return { kind: 'isolated', line: 'prese', closed };
+  return { kind: 'multi', closed };
 }
 
 /* ---------- registro ---------- */
@@ -81,32 +98,40 @@ export const clockText = (cfg, minutes) => {
 
 /* ---------- pezzi della pagina ---------- */
 
-export function introHTML(cfg) {
-  return `<div class="pintro-box"><span class="pk">${esc(cfg.kick)} · ${esc(cfg.place)}</span>
+// La chiamata che apre la prova. Il pulsante sblocca anche l'audio.
+export function callHTML(cfg, ready) {
+  return `<div class="pcall"><span class="pk">${esc(cfg.kick)} · ${esc(cfg.place)}</span>
+      <div class="pcall-head"><span class="pcall-dot" aria-hidden="true"></span><span class="pcall-time">${esc(clockText(cfg, 0))}</span><span class="pcall-where">${esc(cfg.call.where)}</span></div>
       <h2>${esc(cfg.title)}</h2>
-      <span class="pload" aria-hidden="true"><i></i></span>
-      <span class="ptag">${esc(cfg.tagline)}</span></div>
+      <p class="pcall-quote">${esc(cfg.call.quote)}</p>
+      <button class="pbtn y pgo" type="button" data-pui="enter">Entra</button>
+      <span class="pload${ready ? ' done' : ''}" aria-hidden="true"><i></i></span></div>
     <button class="pskip" type="button" data-pui="skipIntro">Salta</button>`;
 }
 
-export function missionHTML(cfg, steps, clock) {
-  const li = steps.map((st, i) => `<li class="${st.done ? 'done' : st.cur ? 'cur' : ''}" data-n="${i + 1}"><span>${esc(st.text)}</span></li>`).join('');
-  return `<div class="pback"><a href="#/home">&larr; Mappa</a><span class="pk">${esc(cfg.kick)}</span><span class="pclock" aria-label="Ora">${esc(clock)}</span></div>
-    <h2>${esc(cfg.title)}</h2>
-    <p class="pgoal">${esc(cfg.goal)}</p>
-    <ol class="psteps">${li}</ol>`;
+// Barra in alto: mappa, titolo e ora; a destra gli strumenti.
+export function topHTML(cfg, clock, ui) {
+  const t = (k, label, pressed) => `<button class="pchip" type="button" data-pui="${k}"${pressed === undefined ? '' : ` aria-pressed="${!!pressed}"`}>${label}</button>`;
+  return `<a class="pmap" href="#/home">&larr; Mappa</a>
+    <div class="ptitle"><span class="pk">${esc(cfg.kick)}</span><b>${esc(cfg.title)}</b></div>
+    <div class="ptools"><span class="pclock" aria-label="Ora">${esc(clock)}</span>${t('wires', 'Fili', ui.wires)}${t('torch', 'Torcia', ui.torch)}${t('sound', 'Suono', ui.sound)}${t('log', 'Registro', ui.log)}</div>`;
 }
 
-export function logHTML(entries, tools) {
+// Il metodo come il binario della mappa: fase e neutro, un nodo per passo; il passo corrente e' scritto grande.
+export function stepsHTML(steps) {
+  const li = steps.map((st, i) => `<li class="${st.done ? 'done' : st.cur ? 'cur' : ''}"><span class="pnode" aria-hidden="true"></span><span class="ptxt"><span class="vh">${i + 1}. </span>${esc(st.text)}</span></li>`).join('');
+  return `<h2 class="vh">Il metodo</h2><ol class="psteps">${li}</ol>`;
+}
+
+export function logHTML(entries) {
   const li = entries.map(e => `<li class="${e.trip ? 'trip' : e.good ? 'good' : ''}"><time>${esc(e.clock)}</time><span>${esc(e.text)}</span></li>`).join('');
-  const t = (k, label, pressed) => `<button class="pchip" type="button" data-pui="${k}"${pressed === undefined ? '' : ` aria-pressed="${!!pressed}"`}>${label}</button>`;
-  return `<h2>Registro</h2><ol class="plog" aria-live="polite">${li}</ol>
-    <div class="ptools">${t('insieme', 'Vista d’insieme')}${t('quadro', 'Quadro')}${t('torch', 'Torcia', tools.torch)}${t('sound', 'Suono', tools.sound)}</div>`;
+  return `<div class="plog-head"><h2>Registro</h2><button class="pchip" type="button" data-pui="log">Chiudi</button></div><ol class="plog" aria-live="polite">${li}</ol>`;
 }
 
 const STATE_WORD = { on: 'Chiuso', off: 'Aperto', tripped: 'Scattato', armed: 'Armato' };
 
-// Comandi in basso: i moduli del quadro con la leva, la tensione a valle e, dopo la diagnosi, l'apparecchio da scollegare.
+// Il quadro in basso: moduli DIN con la leva, la spia, la tensione a valle; sul differenziale il tasto T e il bollino Δ.
+// Dopo la diagnosi giusta, anche l'apparecchio da scollegare.
 export function dockHTML(cfg, ps, unit, ui) {
   const mods = cfg.controls.map(c => {
     let on, trip, live;
@@ -114,9 +139,12 @@ export function dockHTML(cfg, ps, unit, ui) {
     else { const l = ps.lines[c.line]; on = l.on; trip = l.tripped; live = ps.supply && ps.rcd.on && l.on; }
     const word = trip ? STATE_WORD.tripped : c.kind === 'rcd' ? (on ? STATE_WORD.armed : STATE_WORD.off) : (on ? STATE_WORD.on : STATE_WORD.off);
     const test = c.kind === 'rcd' ? `<button class="ptest" type="button" data-pact="test" data-pid="${c.id}" aria-label="Tasto di prova del differenziale">T</button>` : '';
-    return `<div class="pmod ${c.kind}" data-on="${on}" data-trip="${!!trip}">
-        <button class="plever" type="button" data-pact="toggle" data-pid="${c.id}"><span class="pname">${esc(c.short || c.name)}</span><span class="pknob" aria-hidden="true"></span><span class="pword">${word}</span></button>
-        <span class="pvolt${live ? ' live' : ''}"><span class="vh">Tensione a valle</span> ${live ? '230 V' : '0 V'}</span>${test}<span class="psub">${esc(c.sub)}</span>
+    const delta = c.kind === 'rcd' && ui.delta ? `<span class="pdelta" role="status">${esc(cfg.story.delta)}</span>` : '';
+    return `<div class="pmod ${c.kind}" data-on="${on}" data-trip="${!!trip}"${c.line ? ` data-line="${c.line}"` : ''}>
+        <span class="pled${live ? ' on' : ''}" aria-hidden="true"></span>${test}${delta}
+        <button class="plever" type="button" data-pact="toggle" data-pid="${c.id}"${c.line ? ` data-line="${c.line}"` : ''}><span class="pknob" aria-hidden="true"></span><span class="pword">${word}</span></button>
+        <span class="pname">${esc(c.short || c.name)}</span>
+        <span class="pvolt${live ? ' live' : ''}"><span class="vh">Tensione a valle</span> ${live ? '230 V' : '0 V'}</span><span class="pamp">${esc(c.sub)}</span>
       </div>`;
   }).join('');
   const d = cfg.device, diagOk = !!(unit && unit.diag && unit.diag.correct);
@@ -124,47 +152,55 @@ export function dockHTML(cfg, ps, unit, ui) {
     ? `<button class="pdev" type="button" data-pact="toggle" data-pid="${d.id}"><b>${esc(d.name)}</b><span>${esc(ps.heaterPlugged ? d.plugged : d.unplugged)}</span><span class="pdo">${esc(ps.heaterPlugged ? d.act : d.undo)}</span></button>` : '';
   let main = '';
   if (unit && unit.phase === 'fault') main = diagOk ? '<button class="pbtn y" type="button" data-pui="check">Verifica</button>' : '<button class="pbtn y" type="button" data-pui="answer">Rispondi</button>';
-  else if (unit && unit.phase === 'done') main = '<button class="pbtn y" type="button" data-pui="finale">Esito della prova</button>';
-  return `<div class="pdockhead"><h2>${esc(cfg.dockTitle)}</h2><div class="prow">
-      <button class="pchip" type="button" data-pui="schema" aria-pressed="${!!ui.schema}">${ui.schema ? 'Chiudi lo schema' : 'Schema e multimetro'}</button>
-      <button class="pchip only-phone" type="button" data-pui="torch" aria-pressed="${!!ui.torch}">Torcia</button>${main}</div></div>
-    <div class="prail">${mods}</div>${dev}
-    <p class="phint" role="status">${esc(ui.hint || '')}</p>`;
+  else if (unit && unit.phase === 'done') main = '<button class="pbtn y" type="button" data-pui="finale">Rapporto</button>';
+  return `<div class="pbox"><div class="pboxhead"><h2>${esc(cfg.dockTitle)}</h2><div class="prow">
+      <button class="pchip" type="button" data-pui="schema" aria-pressed="${!!ui.schema}">${ui.schema ? 'Chiudi lo schema' : 'Schema e multimetro'}</button>${main}</div></div>
+    <div class="prail">${mods}</div>${dev}</div>`;
 }
 
-// Suggerimento sotto il quadro: dice il passo corrente con parole sue.
+// Suggerimento: dice il passo corrente con parole sue.
 export function hintOf(name, steps) {
   if (name !== 'appartamento') return '';
   const i = steps.findIndex(s => s.cur);
   return [
+    PROVE.appartamento.findHint,
     'Prima apri le tre linee: così il differenziale potrà restare armato.',
     'Ora riarma il differenziale: con le linee aperte non ha niente da sentire.',
-    'Richiudi una linea alla volta e guarda la casa: quale fa scattare tutto?',
+    'Richiudi una linea alla volta e guarda i fili: quale fa scattare tutto?',
     'Hai visto quale linea lo fa scattare. Rispondi.',
     'Togli la causa: scollega l’apparecchio che disperde, nella scena o qui sotto.',
     'Riarma il differenziale, richiudi le tre linee e premi Verifica.',
   ][i] || '';
 }
 
-// Domanda della prova: le opzioni della diagnosi, con l'esito dopo la risposta.
+// Domanda della prova: le opzioni della diagnosi come carte con la lettera, con l'esito dopo la risposta.
 export function questionHTML(unitDef, diag) {
   const f = unitDef.fault, q = f.diagnosis;
-  const opts = q.options.map(o => {
+  const opts = q.options.map((o, i) => {
     const cls = diag && diag.option === o.id ? (diag.correct ? ' yes' : ' no') : '';
-    return `<button class="popt${cls}" type="button" data-pdiag="${o.id}"${diag && diag.correct ? ' disabled' : ''}>${esc(o.text)}</button>`;
+    return `<button class="popt${cls}" type="button" data-pdiag="${o.id}"${diag && diag.correct ? ' disabled' : ''}><span class="pletter" aria-hidden="true">${'ABCD'[i]}</span><span>${esc(o.text)}</span></button>`;
   }).join('');
   const fb = !diag ? '' : diag.correct
     ? `<p class="pfb ok"><b>Giusto.</b> ${esc(q.why)}</p><p class="pfb">${esc(f.fixSay)}</p>`
     : '<p class="pfb ko"><b>Non proprio.</b> Richiudi solo quella linea con il differenziale armato: se non scatta, non è lei.</p>';
-  return `<div class="pcard" role="dialog" aria-modal="true" aria-labelledby="pQ"><span class="pk">Prova</span><h2 id="pQ">${esc(q.question)}</h2>${opts}${fb}
+  return `<div class="pcard" role="dialog" aria-modal="true" aria-labelledby="pQ"><span class="pk">Prova</span><h2 id="pQ">${esc(q.question)}</h2><div class="popts">${opts}</div>${fb}
       <div class="prow"><button class="pbtn${diag && diag.correct ? ' y' : ''}" type="button" data-pui="closeSheet">${diag && diag.correct ? 'Torna al quadro' : 'Chiudi'}</button></div></div>`;
 }
 
 const STAR = on => `<svg width="30" height="30" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2l3 6.9 7.4.7-5.6 4.9 1.7 7.3L12 17.9 5.5 21.8l1.7-7.3L1.6 9.6 9 8.9z" fill="${on ? '#F5B800' : 'none'}" stroke="${on ? '#1B2230' : '#7C8494'}" stroke-width="1.5" stroke-linejoin="round"/></svg>`;
 
-export function finaleHTML(cfg, stars, solved) {
-  return `<div class="pcard" role="dialog" aria-modal="true" aria-labelledby="pW"><span class="pk">${solved ? 'Prova superata' : 'Impianto funzionante'}</span><h2 id="pW">${esc(cfg.win.title)}</h2>
-      <div class="pstars" role="img" aria-label="${stars} stelle su 3">${[0, 1, 2].map(i => STAR(i < stars)).join('')}</div>
-      <p>${esc(cfg.win.text)}</p>
+// Il finale: il rapporto d'intervento, come quello che l'elettricista lascia al cliente.
+export function reportHTML(cfg, stars, solved, from, to) {
+  const R = cfg.report;
+  return `<div class="pcard preport" role="dialog" aria-modal="true" aria-labelledby="pW">
+      <div class="prep-head"><span class="pk">${solved ? 'Prova superata' : 'Impianto funzionante'}</span><span class="prep-time">${esc(from)}–${esc(to)}</span></div>
+      <h2 id="pW">${esc(R.title)}</h2>
+      <dl class="prep">
+        <dt>Dove</dt><dd>${esc(cfg.call.where)}</dd>
+        <dt>Guasto</dt><dd>${esc(R.fault)}</dd>
+        <dt>Intervento</dt><dd>${esc(R.fix)}</dd>
+        <dt>Esito</dt><dd><span class="pstars" role="img" aria-label="${stars} stelle su 3">${[0, 1, 2].map(i => `<span class="pstar" style="--i:${i}">${STAR(i < stars)}</span>`).join('')}</span></dd>
+      </dl>
       <div class="prow"><a class="pbtn y" href="#/home">Torna alla mappa</a><button class="pbtn" type="button" data-pui="again">Rifai la prova</button><button class="pbtn" type="button" data-pui="summary">Sintesi</button><button class="pbtn" type="button" data-pui="closeSheet">Guarda la casa</button></div></div>`;
 }
+

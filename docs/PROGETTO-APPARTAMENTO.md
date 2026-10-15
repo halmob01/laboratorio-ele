@@ -1,5 +1,10 @@
 # Progetto: "Una notte senza luce", la prima milestone che deve fare effetto
 
+**Stato: realizzato** (vista dei fili, tre scatti, atti, suono, nuova impaginazione). Differenze rispetto al progetto:
+il quadro e' in HTML e CSS (moduli DIN disegnati con gli stili) invece che in SVG; al passo "Trova il quadro" si aggiunge
+un'inquadratura `dispersione` che tiene insieme quadro e stufetta durante la sequenza della linea isolata.
+Verificato: 0 chiamate di disegno a riposo; screenshot di ogni atto su computer e telefono.
+
 Documento di progetto per chi lo realizza. La prova c23 oggi funziona (cornice a tutto schermo, quadro in basso,
 scatto con lampo), ma la scena 3D resta uno sfondo: il quadro e' un pannello 2D, lo scatto e' un lampo in CSS che non
 spiega niente. Qui si progetta la versione che fa effetto ed e' fluida.

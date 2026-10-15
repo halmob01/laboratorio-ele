@@ -206,9 +206,17 @@ export function centralino(M, scale = 1) {
     textPlane(g, m.label, x + m.w / 2, -0.085, 0.066, m.w + 0.004, 0.022, { size: 0.4 });
     x += m.w + gap;
   });
+  // sportello fume' incernierato a sinistra: chiuso lascia intravedere i moduli, aperto si ribalta di lato
+  const hinge = new THREE.Group();
+  hinge.position.set(-total / 2 - 0.02, 0, 0.115);
+  const door = box(hinge, M.glassDoor, total / 2 + 0.02, 0, 0, total + 0.04, H + 0.04, 0.006, 0.004);
+  door.renderOrder = 2; door.castShadow = false;
+  g.add(hinge);
   g.scale.setScalar(scale);
   return {
     group: g, picks, width: total * scale,
+    // k: 0 chiuso, 1 aperto
+    door(k) { hinge.rotation.y = -1.95 * k; },
     set(st) {
       byId.D.set({ on: st.rcd.on, tripped: st.rcd.tripped, live: st.rcd.on });
       byId.M1.set({ on: st.lines.luce.on, tripped: st.lines.luce.tripped, live: st.lines.luce.on && st.rcd.on });

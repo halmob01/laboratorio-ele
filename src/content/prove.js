@@ -20,7 +20,24 @@ export const PROVE = {
     ],
     // l'apparecchio difettoso: compare tra i comandi solo dopo la diagnosi giusta (nella scena si tocca sempre)
     device: { id: 'G', name: 'Stufetta del soggiorno', plugged: 'collegata', unplugged: 'scollegata', act: 'Scollega', undo: 'Ricollega', view: 'soggiorno' },
+    // la chiamata che apre la prova
+    call: { where: 'Via dei Tigli 7, interno 3', quote: '«È saltata la luce e non torna su. Ho provato a rialzarla ma scatta subito.»' },
+    findHint: 'Trova il quadro elettrico: di solito è vicino alla porta d’ingresso.',
+    // le tre storie dello scatto (vedi tripStory in src/prove/hud.js)
+    story: {
+      isolated: 'Con la sola linea prese chiusa scatta: la dispersione è su questa linea.',
+      multi: 'Il differenziale sente 300 mA che non tornano, ma non sa da quale linea vengono.',
+      test: 'Il tasto T crea apposta una piccola dispersione: il differenziale funziona.',
+      delta: 'Δ 300 mA > 30 mA',
+    },
+    report: {
+      title: 'Rapporto d’intervento',
+      fault: 'Dispersione verso terra sulla linea prese: la stufetta del soggiorno ha l’isolante rovinato e perde circa 300 mA, dieci volte la soglia del differenziale.',
+      fix: 'Stufetta scollegata, da far riparare. Differenziale riarmato, tre linee chiuse.',
+      end: 'Tutto acceso.',
+    },
     steps: [
+      'Trova il quadro',
       'Apri i tre magnetotermici',
       'Riarma il differenziale',
       'Richiudi una linea alla volta',

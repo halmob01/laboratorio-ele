@@ -256,6 +256,7 @@ export function createScene(container, cb) {
     el.textContent = text;
     labelLayer.appendChild(el);
     labels.push({ el, v: new THREE.Vector3(x, y, z) });
+    return el;
   }
   HOUSE.rooms.forEach(r => addLabel(r.name, r.x + r.w / 2, 0.15, r.z + r.d / 2 + (r.id === 'corridoio' ? 0.45 : 0.9), 'room'));
   if (!cb.bare) {
@@ -265,7 +266,7 @@ export function createScene(container, cb) {
   // muri, arredi, porte e finestre non si muovono: si accorpano per materiale (la facciata si abbassa col tetto, resta a parte)
   mergeStatic(world, [facade]);
   // redraw: si ridisegna; moved: un oggetto aggiunto si e' spostato o e' comparso, anche le ombre vanno rifatte
-  const ext = cb.extend ? cb.extend({ world, M, pick, rooms, addLabel, animate: (ms, step) => animate(ms, k => { dirtyShadows(); return step(k); }), redraw, moved: () => { dirtyShadows(); redraw(); }, lite, FACE, FACE_ROT, T, WALL_H, camera, scene }) : null;
+  const ext = cb.extend ? cb.extend({ world, M, pick, rooms, addLabel, animate: (ms, step) => animate(ms, k => { dirtyShadows(); return step(k); }), redraw, moved: () => { dirtyShadows(); redraw(); }, loop: fn => { anims.add(fn); schedule(); }, lite, FACE, FACE_ROT, T, WALL_H, camera, scene }) : null;
 
   // ---- post-elaborazione: alone delle lampade, occlusione ambientale, colore ----
   const pipe = createPipeline(renderer, scene, camera, { lite });
@@ -354,7 +355,8 @@ export function createScene(container, cb) {
   }
 
   // ---- ingresso: casa vista da lontano col tetto, il tetto si alza e la camera scende ----
-  if (still) { roofK = 0; roofOn = false; applyRoof(); if (cb.start) Object.assign(view, cb.start); }
+  // startRoof: si parte con il tetto (la casa vista da fuori), senza l'ingresso animato del trilocale
+  if (still) { roofK = cb.startRoof ? 1 : 0; roofOn = !!cb.startRoof; applyRoof(); if (cb.start) Object.assign(view, cb.start); }
   else {
     Object.assign(view, { tx: cx, tz: cz, yaw: -28, pitch: 30, dist: 27 });
     applyRoof();
@@ -470,7 +472,8 @@ export function createScene(container, cb) {
       const v = new THREE.Vector3().setFromMatrixPosition(m.matrixWorld).project(camera);
       return { x: ((v.x + 1) / 2) * container.clientWidth, y: ((1 - v.y) / 2) * container.clientHeight, visible: v.z < 1 };
     },
-    setRoof(on) { setRoof(on); if (on) go({ yaw: -18, pitch: 42, dist: 23 }, 1400); },
+    // keepView: il tetto si muove ma la telecamera resta dov'e' (la regia la muove a parte)
+    setRoof(on, keepView, ms) { setRoof(on, ms); if (on && !keepView) go({ yaw: -18, pitch: 42, dist: 23 }, 1400); },
     roof() { return roofOn; },
     resize,
     dispose() {

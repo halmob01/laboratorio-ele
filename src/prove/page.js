@@ -1,17 +1,19 @@
 // Pagina delle prove 3D (milestone: appartamento di notte, officina). La scena occupa tutto lo schermo e sopra ci sta la cornice
-// comune: ingresso, missione con i passi, registro, comandi in basso, domanda e finale (pezzi in hud.js, testi in content/prove.js).
-// Non contiene regole: legge lo stato della sessione (state.js), lo passa alla scena e riporta i tocchi alla sessione.
+// (pezzi in hud.js, testi in content/prove.js). La prova e' raccontata in atti:
+//   chiamata -> arrivo (la casa vista da fuori si spegne) -> lezione (se non vista) -> trova il quadro -> gioco -> finale.
+// La sessione non sa niente degli atti: la pagina sceglie solo cosa mostrare e quando. Non contiene regole del gioco.
 
 import { HOUSE } from '../content/trilocale.js';
 import { provaState } from './state.js';
 import * as H from './hud.js';
+import { sound } from './sound.js';
 
 const VIEW_LABEL = {
   insieme: 'Vista d’insieme', quadro: 'Quadro', soggiorno: 'Soggiorno', cucina: 'Cucina',
   pulsantiera: 'Pulsantiera', motore: 'Motore',
 };
-const INTRO_MS = 2400;          // l'ingresso dura almeno questo, e comunque finche' la scena non e' pronta
 const SOUND_KEY = 'fase-e-neutro-suono';
+const LOAD_MAX = 8000;          // la chiamata aspetta la scena al massimo questo, poi si gioca con i comandi
 
 // Caricamento del pacchetto 3D: una sola volta per pagina.
 let scriptPromise = null;
@@ -29,20 +31,6 @@ function loadScript() {
   return scriptPromise;
 }
 
-// Suoni brevi sintetizzati (clic della leva, scatto del differenziale): partono solo dopo un tocco.
-let audio = null;
-function noise(dur, gain, freq) {
-  try {
-    audio = audio || new (window.AudioContext || window.webkitAudioContext)();
-    const n = Math.floor(audio.sampleRate * dur), b = audio.createBuffer(1, n, audio.sampleRate), d = b.getChannelData(0);
-    for (let i = 0; i < n; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / n, 4);
-    const s = audio.createBufferSource(); s.buffer = b;
-    const f = audio.createBiquadFilter(); f.type = 'bandpass'; f.frequency.value = freq;
-    const g = audio.createGain(); g.gain.value = gain;
-    s.connect(f); f.connect(g); g.connect(audio.destination); s.start();
-  } catch (e) { /* senza audio si gioca lo stesso */ }
-}
-
 /**
  * @param {HTMLElement} host   contenitore (#house)
  * @param {{session, reduced:()=>boolean, drawer?:(open:boolean)=>void, summary?:()=>void}} env
@@ -51,16 +39,21 @@ export function createProva(host, env) {
   let scene = null, sceneState = 'idle', mounted = false, token = 0, name = null, lastSnap = null;
   let el = {};
   const holding = new Set();
+  const timers = new Set();
   // stato della sola cornice
   let mem = H.newMemory(), log = [], minutes = 0, phase = null, sheet = null;
-  let intro = null, override = null, introTimer = 0, outTimer = 0, finTimer = 0;
-  const ui = { schema: false, torch: false, sound: true };
+  let act = null, override = null, story = null, t0clock = 0, callT0 = 0;
+  const ui = { schema: false, torch: false, sound: true, wires: true, log: false, delta: false };
   try { ui.sound = localStorage.getItem(SOUND_KEY) !== '0'; } catch (e) { /* predefinito: suono acceso */ }
+  sound.setEnabled(ui.sound);
 
   const s = () => env.session;
   const cfg = () => H.provaOf(name);
-  const inLesson = () => !!(lastSnap && lastSnap.unit && lastSnap.unit.phase === 'lesson');
   const reduced = () => !!(env.reduced && env.reduced());
+  const inLesson = () => !!(lastSnap && lastSnap.unit && lastSnap.unit.phase === 'lesson');
+  const later = (ms, fn) => { const t = setTimeout(() => { timers.delete(t); if (mounted) fn(); }, reduced() ? 0 : ms); timers.add(t); return t; };
+  const clearLater = () => { timers.forEach(clearTimeout); timers.clear(); };
+  const wires = () => (scene && scene.wires ? scene.wires() : null);
 
   function build() {
     el = {};
@@ -71,44 +64,53 @@ export function createProva(host, env) {
       host.onclick = e => { const b = e.target.closest('[data-pview]'); if (b && scene) scene.look(b.dataset.pview); };
       return;
     }
-    host.innerHTML = `<div class="hstage"><div class="hscene" id="pScene"></div><div class="hmsg" id="pMsg" role="status" hidden></div><div class="pflash" id="pFlash"></div></div>
-      <section class="phud pmission" id="pMission" aria-label="Missione"></section>
-      <aside class="phud plogbox" id="pLog" aria-label="Registro"></aside>
+    host.innerHTML = `<div class="hstage"><div class="hscene" id="pScene"></div><div class="hmsg" id="pMsg" role="status" hidden></div><div class="pflash" id="pFlash"></div><div class="pvig"></div></div>
+      <header class="phud ptop" id="pTop"></header>
+      <nav class="phud psteps-box" id="pSteps" aria-label="Il metodo"></nav>
       <section class="phud pdock" id="pDock" aria-label="Comandi"></section>
-      <div class="ptoast" id="pToast" aria-live="assertive"><b>Tac.</b><span></span></div>
+      <aside class="phud plogbox" id="pLog" aria-label="Registro" hidden></aside>
+      <div class="psub" id="pSub" aria-live="assertive"></div>
+      <button class="ppin" id="pPin" type="button" data-pui="openPanel" hidden><span>Quadro</span></button>
       <div class="psheet" id="pSheet" hidden></div>
       <div class="pintro" id="pIntro" hidden></div>`;
-    ['pScene', 'pMsg', 'pFlash', 'pMission', 'pLog', 'pDock', 'pToast', 'pSheet', 'pIntro'].forEach(id => (el[id] = host.querySelector('#' + id)));
+    ['pScene', 'pMsg', 'pFlash', 'pTop', 'pSteps', 'pDock', 'pLog', 'pSub', 'pPin', 'pSheet', 'pIntro'].forEach(id => (el[id] = host.querySelector('#' + id)));
     host.onclick = onClick;
-    el.pScene.addEventListener('pointermove', e => { if (scene && scene.aim) scene.aim(e.clientX, e.clientY); });
+    el.pScene.addEventListener('pointermove', e => { if (scene && scene.aim && ui.torch) scene.aim(e.clientX, e.clientY); });
+    // passando su una leva si illumina la sua linea nei fili
+    const hi = e => { const l = e.target.closest && e.target.closest('[data-line]'); const w = wires(); if (w) w.highlight(l ? l.dataset.line : null); };
+    el.pDock.addEventListener('pointerover', hi);
+    el.pDock.addEventListener('pointerleave', () => { const w = wires(); if (w) w.highlight(null); });
+    el.pDock.addEventListener('focusin', hi);
+    el.pDock.addEventListener('focusout', () => { const w = wires(); if (w) w.highlight(null); });
   }
 
   /* ---------- tocchi: tutto passa da act(), che registra cosa e' successo ---------- */
-  function act(action, run) {
+  function doAct(action, run) {
+    if (story) { endStory(); return; }                  // un tocco durante la sequenza la porta alla fine
     const before = lastSnap && provaState(lastSnap);
     run();
-    const snap = s().snapshot();
-    const after = provaState(snap);
+    const after = provaState(s().snapshot());
     if (!before || !after) return;
     mem = H.remember(name, mem, action, before, after);
     const ev = H.describe(name, action, before, after);
-    if (ev) {
-      note(ev.text, ev);
-      if (ev.trip) effectTrip(ev.text);
-      else if (ui.sound) noise(0.04, 0.5, 2400);
-      if (ev.view && scene) scene.look(ev.view);
+    const st = H.tripStory(name, action, before, after);
+    if (ev) note(ev.text, ev);
+    if (st) playStory(st, after);
+    else {
+      sound.click();
+      if (ev && ev.view && scene) scene.look(ev.view);
     }
     renderHud();
   }
-  function note(text, ev = {}) { minutes++; log.push({ clock: H.clockText(cfg(), minutes), text, trip: !!ev.trip, good: !!ev.good }); if (log.length > 30) log.shift(); }
+  function note(text, ev = {}) { minutes++; log.push({ clock: H.clockText(cfg(), minutes), text, trip: !!ev.trip, good: !!ev.good }); if (log.length > 40) log.shift(); }
 
   function tap(u) {
-    if (inLesson() || intro) return;
-    if (u.kind === 'toggle') act({ kind: 'toggle', id: u.id }, () => s().toggleControl(u.id));
-    else if (u.kind === 'test') act({ kind: 'test', id: u.part }, () => s().testPart(u.part));
-    else if (u.kind === 'reset') act({ kind: 'reset', id: u.part }, () => s().resetPart(u.part));
+    if (inLesson() || (act && act !== 'play')) return;
+    if (u.kind === 'toggle') doAct({ kind: 'toggle', id: u.id }, () => s().toggleControl(u.id));
+    else if (u.kind === 'test') doAct({ kind: 'test', id: u.part }, () => s().testPart(u.part));
+    else if (u.kind === 'reset') doAct({ kind: 'reset', id: u.part }, () => s().resetPart(u.part));
   }
-  function press(u) { if (inLesson() || intro) return; holding.add(u.id); s().press(u.id); }
+  function press(u) { if (inLesson() || (act && act !== 'play')) return; holding.add(u.id); s().press(u.id); }
   function release(u) { if (!holding.delete(u.id)) return; s().release(u.id); }
 
   function onClick(e) {
@@ -119,95 +121,221 @@ export function createProva(host, env) {
       s().answerDiagnosis(d.dataset.pdiag);
       const dg = s().snapshot().unit.diag;
       if (dg) note(dg.correct ? cfg().log.answerOk : cfg().log.answerKo, { good: dg.correct });
+      if (dg && dg.correct) sound.chime(1);
       renderHud();
       return;
     }
     const u = e.target.closest('[data-pui]');
-    if (!u) return;
+    if (!u) { if (story) endStory(); return; }
     const k = u.dataset.pui;
-    if (k === 'skipIntro') endIntro(true);
+    if (k === 'enter') { sound.unlock(); arrive(); }
+    else if (k === 'skipIntro') { sound.unlock(); skipArrive(); }
+    else if (k === 'openPanel') openPanel();
     else if (k === 'answer') { sheet = 'question'; renderHud(); focusSheet(); }
     else if (k === 'finale') { sheet = 'finale'; renderHud(); focusSheet(); }
-    else if (k === 'closeSheet') { sheet = null; renderHud(); }
+    else if (k === 'closeSheet') { const wasFinale = sheet === 'finale'; sheet = null; renderHud(); if (wasFinale) backInside(); }
     else if (k === 'check') check();
-    else if (k === 'again') { sheet = null; s().startFault(); }
+    else if (k === 'again') { sheet = null; backInside(); s().startFault(); }
     else if (k === 'summary') { if (env.summary) env.summary(); }
     else if (k === 'schema') { ui.schema = !ui.schema; if (env.drawer) env.drawer(ui.schema); renderHud(); }
-    else if (k === 'torch') { ui.torch = !ui.torch; if (scene && scene.torch) scene.torch(ui.torch); renderHud(); }
-    else if (k === 'sound') { ui.sound = !ui.sound; try { localStorage.setItem(SOUND_KEY, ui.sound ? '1' : '0'); } catch (x) { /* ok */ } renderHud(); }
+    else if (k === 'torch') { setTorch(!ui.torch); renderHud(); }
+    else if (k === 'wires') { ui.wires = !ui.wires; const w = wires(); if (w) w.setVisible(ui.wires); renderHud(); }
+    else if (k === 'log') { ui.log = !ui.log; renderHud(); }
+    else if (k === 'sound') { ui.sound = !ui.sound; sound.setEnabled(ui.sound); if (ui.sound) { sound.unlock(); hums(); } try { localStorage.setItem(SOUND_KEY, ui.sound ? '1' : '0'); } catch (x) { /* ok */ } renderHud(); }
     else if (k === 'insieme' || k === 'quadro') { if (scene) scene.look(k); }
   }
+  function setTorch(on) { ui.torch = on; if (scene && scene.torch) scene.torch(on); }
 
   function check() {
     const r = s().check();
     note(r.pass ? cfg().log.checkOk : cfg().log.checkKo, { good: r.pass, trip: !r.pass });
-    if (r.pass) {
-      if (scene) scene.look('insieme');
-      if (ui.sound) noise(0.05, 0.5, 1800);
-      if (lastSnap.unit.phase !== 'done') openFinale();      // impianto a posto ma prova non chiusa (diagnosi sbagliata): esito lo stesso
-    } else {
-      toast('Qualcosa non va ancora', 'Nello schema trovi i controlli che non passano.');
+    if (r.pass) { if (lastSnap.unit.phase !== 'done') finale(); }      // impianto a posto ma prova non chiusa (diagnosi sbagliata): esito lo stesso
+    else {
+      subtitle('', 'Qualcosa non va ancora: nello schema trovi i controlli che non passano.', 3200);
       ui.schema = true; if (env.drawer) env.drawer(true);
     }
     renderHud();
   }
-  // L'esito, dopo un attimo per guardare la casa che si riaccende. Vale anche per la Verifica premuta nello schema.
-  function openFinale() {
-    clearTimeout(finTimer);
-    finTimer = setTimeout(() => { if (!mounted) return; sheet = 'finale'; renderHud(); focusSheet(); }, reduced() ? 0 : 900);
-  }
-  function onKey(e) { if (e.key === 'Escape' && sheet) { sheet = null; renderHud(); } }
   function focusSheet() { const b = el.pSheet && el.pSheet.querySelector('button,a'); if (b && b.focus) b.focus({ preventScroll: true }); }
-
-  /* ---------- effetti ---------- */
-  function toast(big, small) {
-    const t = el.pToast;
-    t.querySelector('b').textContent = big;
-    t.querySelector('span').textContent = small;
-    t.classList.remove('go'); void t.offsetWidth; t.classList.add('go');
-    clearTimeout(t._h); t._h = setTimeout(() => t.classList.remove('go'), 1600);
-  }
-  function effectTrip(text) {
-    if (ui.sound) noise(0.18, 1.4, 900);
-    if (!reduced()) {
-      const f = el.pFlash; f.classList.remove('go'); void f.offsetWidth; f.classList.add('go');
-      host.classList.remove('shake'); void host.offsetWidth; host.classList.add('shake');
-    }
-    toast('Tac.', text);
+  function onKey(e) {
+    if (e.key !== 'Escape') return;
+    if (story) { endStory(); return; }
+    if (sheet) { const wasFinale = sheet === 'finale'; sheet = null; renderHud(); if (wasFinale) backInside(); }
+    else if (ui.log) { ui.log = false; renderHud(); }
   }
 
-  /* ---------- ingresso e "luci che si spengono" ---------- */
-  function startIntro() {
+  /* ---------- sottotitoli, lampo, suoni ---------- */
+  function subtitle(big, small, ms, button) {
+    const n = el.pSub;
+    if (!n) return;
+    n.innerHTML = `${big ? `<b>${big}</b>` : ''}${small ? `<span>${small}</span>` : ''}${button || ''}`;
+    n.classList.remove('go'); void n.offsetWidth; n.classList.add('go');
+    clearTimeout(n._h);
+    if (ms) n._h = setTimeout(() => n.classList.remove('go'), ms);
+  }
+  function flash() {
+    if (reduced() || !el.pFlash) return;
+    el.pFlash.classList.remove('go'); void el.pFlash.offsetWidth; el.pFlash.classList.add('go');
+    host.classList.remove('shake'); void host.offsetWidth; host.classList.add('shake');
+  }
+  function tac(text) {
+    sound.tac(); sound.silence(); sound.vibrate([30, 40, 80]);
+    flash();
+    subtitle('Tac.', text, 3600);
+  }
+  // i ronzii seguono lo stato vero: frigorifero sulla linea cucina, TV e stufetta sulla linea prese
+  function hums(ps) {
+    ps = ps || override || (lastSnap && provaState(lastSnap));
+    if (!ps || name !== 'appartamento' || act === 'call') return;
+    sound.hum('frigo', !!ps.oven);
+    sound.hum('tv', !!ps.socket);
+    sound.hum('stufa', !!(ps.socket && ps.heaterPlugged));
+  }
+
+  /* ---------- le tre storie dello scatto ---------- */
+  function playStory(st, after) {
     const c = cfg();
-    if (!c) return;
-    intro = { t0: Date.now() };
-    document.body.classList.add('ms-intro');      // la scheda della lezione aspetta la fine dell'ingresso
-    el.pIntro.innerHTML = H.introHTML(c);
-    el.pIntro.hidden = false;
-    el.pIntro.classList.remove('out');
-    clearTimeout(introTimer);
-    introTimer = setTimeout(() => endIntro(false), reduced() ? 300 : INTRO_MS);
+    if (!scene || reduced()) { ui.delta = true; tac(c.story[st.kind]); later(1600, () => { ui.delta = false; renderHud(); }); return; }
+    const on = l => st.closed && st.closed.includes(l);
+    // un attimo prima dello scatto: il differenziale ancora armato, le linee chiuse in tensione
+    override = { ...after, rcd: { ...after.rcd, on: true, tripped: false }, lamp: on('luce') && after.switchOn, socket: on('prese'), oven: on('cucina'), dark: false, leak: st.kind === 'test' ? null : st.kind };
+    story = { st, t: [] };
+    push(); hums(override);
+    if (st.kind === 'isolated') scene.look('dispersione', 500);
+    story.t.push(later(st.kind === 'test' ? 150 : 600, () => { ui.delta = true; renderHud(); }));
+    story.t.push(later(st.kind === 'isolated' ? 1250 : st.kind === 'multi' ? 1000 : 650, endStory));
   }
-  function endIntro(force) {
-    if (!intro) return;
-    // si aspetta la scena, ma non per sempre: su una rete lenta resta il messaggio di caricamento e si gioca con i comandi
-    if (!force && sceneState === 'loading' && Date.now() - intro.t0 < 8000) { introTimer = setTimeout(() => endIntro(false), 200); return; }
-    intro = null;
-    document.body.classList.remove('ms-intro');
-    clearTimeout(introTimer);
-    el.pIntro.classList.add('out');
-    setTimeout(() => { if (el.pIntro && !intro) el.pIntro.hidden = true; }, reduced() ? 0 : 900);
-    lightsOut();
+  function endStory() {
+    if (!story) return;
+    const st = story.st;
+    story.t.forEach(t => { clearTimeout(t); timers.delete(t); });
+    story = null; override = null;
+    push();
+    tac(cfg().story[st.kind]);
+    later(1800, () => { ui.delta = false; renderHud(); });
     renderHud();
   }
-  // La casa per un attimo com'era prima del guasto, poi lo scatto: il buio.
-  function lightsOut() {
+
+  /* ---------- atti ---------- */
+  function setAct(a) {
+    act = a; host.dataset.act = a;
+    document.body.classList.toggle('ms-intro', a === 'call' || a === 'arrive');      // la scheda della lezione aspetta l'arrivo
+    renderHud();
+  }
+  // La chiamata: la scena intanto si carica, la casa e' accesa e vista da lontano.
+  function startCall() {
+    setAct('call');
+    callT0 = Date.now();
+    el.pIntro.innerHTML = H.callHTML(cfg(), sceneState === 'ready');
+    el.pIntro.hidden = false; el.pIntro.classList.remove('out');
+    const b = el.pIntro.querySelector('[data-pui="enter"]'); if (b && b.focus) b.focus({ preventScroll: true });
+  }
+  function litHouse() {
     const ps = lastSnap && provaState(lastSnap);
-    if (!ps || !scene || reduced() || name !== 'appartamento' || ps.rcd.on) { push(); return; }
-    override = { ...ps, rcd: { ...ps.rcd, on: true, tripped: false }, lines: { luce: { on: true }, prese: { on: true }, cucina: { on: true } }, lamp: true, socket: true, oven: true, dark: false };
+    if (!ps) return null;
+    return { ...ps, rcd: { ...ps.rcd, on: true, tripped: false }, lines: { luce: { on: true }, prese: { on: true }, cucina: { on: true } }, lamp: true, socket: true, oven: true, dark: false, allRooms: true };
+  }
+  function prepareOutside() {
+    if (!scene || !scene.setRoof) return;
+    override = litHouse();
+    scene.setRoof(true, 1);
+    scene.windows(true);
+    scene.door(0);
+    const w = wires(); if (w) w.setVisible(false);
+    scene.look('lontano', 1);
     push();
-    clearTimeout(outTimer);
-    outTimer = setTimeout(() => { override = null; push(); if (mounted) effectTrip(cfg().log.start); }, 900);
+  }
+  function hideCall() {
+    el.pIntro.classList.add('out');
+    later(900, () => { if (el.pIntro) el.pIntro.hidden = true; });
+  }
+  // Arrivo: carrellata sulla casa accesa, tac, buio e silenzio, il tetto si alza, si scende sull'ingresso.
+  function arrive() {
+    if (act !== 'call') return;
+    if (sceneState === 'loading' && Date.now() - callT0 < LOAD_MAX) {
+      el.pIntro.classList.add('waiting');
+      const t = setTimeout(() => { timers.delete(t); if (mounted) arrive(); }, 200); timers.add(t);
+      return;
+    }
+    hideCall();
+    if (!scene || sceneState !== 'ready') { afterArrive(); return; }
+    setAct('arrive');
+    hums(override);
+    scene.look('esterno', 2400);
+    later(2500, () => {
+      override = null; scene.windows(false); push();
+      tac(cfg().log.start);
+    });
+    later(3300, () => { scene.setRoof(false, 1300); scene.look('ingresso', 1700); });
+    later(5100, afterArrive);
+  }
+  function skipArrive() {
+    if (act !== 'call' && act !== 'arrive') return;
+    clearLater(); hideCall();
+    override = null;
+    if (scene && scene.setRoof) { scene.windows(false); scene.setRoof(false, 1); scene.look('ingresso', 1); }
+    push();
+    afterArrive();
+  }
+  function afterArrive() {
+    const w = wires(); if (w) w.setVisible(ui.wires);
+    if (inLesson()) { setAct('brief'); return; }
+    findPanel();
+  }
+  // Trova il quadro: al buio, con la torcia. Toccandolo lo sportello si apre e i comandi salgono.
+  function findPanel() {
+    if (!scene || mem.panel) { mem.panel = true; if (scene) scene.door(1); setAct('play'); return; }
+    setAct('find');
+    setTorch(true);
+    if (scene.aim) { const r = host.getBoundingClientRect(); const p = scene.screenOf && scene.screenOf('D'); if (p) scene.aim(r.left + p.x, r.top + p.y); }
+    placePin();
+    subtitle('', cfg().findHint, 0, '<button class="pbtn y" type="button" data-pui="openPanel">Apri il quadro</button>');
+  }
+  function placePin() {
+    if (!el.pPin) return;
+    const p = act === 'find' && scene && scene.screenOf && scene.screenOf('D');
+    el.pPin.hidden = !p;
+    if (p) el.pPin.style.transform = `translate(${Math.round(p.x)}px, ${Math.round(p.y)}px)`;
+  }
+  function openPanel() {
+    if (act !== 'find') return;
+    mem.panel = true;
+    el.pSub.classList.remove('go');
+    el.pPin.hidden = true;
+    if (!scene) { setAct('play'); return; }
+    setAct('opening');
+    scene.look('quadro', 900);
+    later(950, () => {
+      sound.click();
+      const t0 = performance.now();
+      const step = () => { const k = Math.min(1, (performance.now() - t0) / 500); scene.door(k * k * (3 - 2 * k)); if (k < 1 && mounted) requestAnimationFrame(step); };
+      if (reduced()) scene.door(1); else step();
+    });
+    later(1700, () => { scene.look('insieme', 1000); setTorch(false); });
+    later(2100, () => setAct('play'));
+  }
+  // Finale: la casa si riaccende vista da fuori, poi il rapporto d'intervento.
+  function finale() {
+    if (act === 'finale') return;
+    setAct('finale');
+    hums();
+    if (scene && scene.setRoof) {
+      // da fuori la casa si riaccende tutta, come la si era vista arrivando
+      later(500, () => { override = litHouse(); push(); scene.setRoof(true, 1400); scene.windows(true); scene.look('esterno', 2200); });
+      later(1800, () => subtitle(H.clockText(cfg(), minutes), cfg().report.end, 2400));
+    }
+    later(scene ? 3600 : 0, () => {
+      sheet = 'finale'; setAct('play'); focusSheet();
+      const lv = lastSnap.levels.find(l => l.id === lastSnap.level.id) || {};
+      const n = (lastSnap.result && lastSnap.result.stars) || lv.stars || 0;
+      for (let i = 0; i < n; i++) later(300 + i * 280, () => sound.chime(i));
+    });
+  }
+  // Chiuso il rapporto si torna dentro la casa.
+  function backInside() {
+    if (!scene || !scene.setRoof) return;
+    override = null; push();
+    scene.setRoof(false, 1100); scene.windows(false); scene.look('insieme', 1200);
   }
 
   /* ---------- scena ---------- */
@@ -222,29 +350,32 @@ export function createProva(host, env) {
       const api = ok && window.FaseNeutroProve && window.FaseNeutroProve.createScene(name, el.pScene, { reduced: reduced(), onTap: tap, onPress: press, onRelease: release });
       if (api) {
         scene = api; sceneState = 'ready'; host._scene = api;
-        if (ui.torch && api.torch) api.torch(true);
         if (el.pTools) el.pTools.innerHTML = api.views.map(v => `<button class="btn small" data-pview="${v}">${VIEW_LABEL[v] || v}</button>`).join('');
-      }
-      else sceneState = 'failed';
+        if (act === 'call') prepareOutside();
+        else if (cfg() && scene.door) { scene.door(mem.panel ? 1 : 0); if (act === 'play') scene.door(1); }
+        if (ui.torch && api.torch) api.torch(true);
+        if (act === 'find') findPanel();
+      } else sceneState = 'failed';
       apply(); push();
+      if (el.pIntro && act === 'call') { const l = el.pIntro.querySelector('.pload'); if (l) l.classList.add('done'); }
     });
   }
   function apply() {
-    el.pMsg.hidden = !(sceneState === 'loading' || sceneState === 'failed');
+    el.pMsg.hidden = !(sceneState === 'loading' || sceneState === 'failed') || act === 'call';
     el.pMsg.textContent = sceneState === 'loading' ? 'Caricamento della scena' : 'La scena 3D non è disponibile su questo dispositivo: la prova funziona con i comandi e con lo schema.';
     el.pScene.hidden = sceneState !== 'ready';
     host.classList.toggle('noscene', sceneState === 'failed');
     const st = host.querySelector('.hstage');
     if (el.pTools) { st.style.height = sceneState === 'failed' ? 'auto' : ''; st.style.minHeight = sceneState === 'failed' ? '0' : ''; }
   }
-  // Stato per la scena: l'appartamento riusa il trilocale, che vuole anche le stanze accese (qui solo la lampada del corridoio).
+  // Stato per la scena: l'appartamento riusa il trilocale, che vuole anche le stanze accese.
   function push() {
     if (!scene || !lastSnap) return;
     const ps = override || provaState(lastSnap);
     if (!ps) return;
     if (ps.scene === 'appartamento') {
       const rooms = {};
-      HOUSE.rooms.forEach(r => { rooms[r.id] = { lit: r.id === 'corridoio' && ps.lamp, controls: {} }; });
+      HOUSE.rooms.forEach(r => { rooms[r.id] = { lit: ps.allRooms ? !!r.lamp : (r.id === 'corridoio' && ps.lamp), controls: {} }; });
       scene.update({ rooms, prova: ps });
     } else scene.update(ps);
   }
@@ -260,60 +391,76 @@ export function createProva(host, env) {
   function renderHud() {
     const c = cfg();
     if (!c || !lastSnap) return;
-    const ps = provaState(lastSnap), unit = lastSnap.unit;
-    host.classList.toggle('lesson', inLesson());
-    if (!ps || inLesson()) return;
+    // durante la sequenza dello scatto i comandi mostrano l'attimo prima (differenziale armato, linee in tensione)
+    const ps = (story && override) || provaState(lastSnap), unit = lastSnap.unit;
+    host.classList.toggle('lesson', inLesson() || act === 'brief');
+    if (!ps) return;
     const steps = H.stepsOf(name, ps, unit, mem);
-    ui.hint = unit.phase === 'fault' ? H.hintOf(name, steps) : '';
-    setHTML(el.pMission, H.missionHTML(c, steps, H.clockText(c, minutes)));
-    setHTML(el.pLog, H.logHTML(log, ui));
+    setHTML(el.pTop, H.topHTML(c, H.clockText(c, minutes), ui));
+    setHTML(el.pSteps, H.stepsHTML(steps) + (unit.phase === 'fault' && act === 'play' ? `<p class="phint">${H.hintOf(name, steps)}</p>` : ''));
     setHTML(el.pDock, H.dockHTML(c, ps, unit, ui));
+    el.pLog.hidden = !ui.log;
+    if (ui.log) setHTML(el.pLog, H.logHTML(log));
     let sh = '';
     if (sheet === 'question' && unit.phase === 'fault') sh = H.questionHTML(lastSnap.level.unit, unit.diag);
     else if (sheet === 'finale') {
       const lv = lastSnap.levels.find(l => l.id === lastSnap.level.id) || {};
-      sh = H.finaleHTML(c, (lastSnap.result && lastSnap.result.stars) || lv.stars || 0, !!unit.faultSolved);
+      sh = H.reportHTML(c, (lastSnap.result && lastSnap.result.stars) || lv.stars || 0, !!unit.faultSolved, H.clockText(c, 0), H.clockText(c, minutes));
     } else sheet = null;
     el.pSheet.hidden = !sh;
     setHTML(el.pSheet, sh);
+    placePin();
   }
   // Ogni volta che la prova (ri)parte da capo: registro e passi azzerati, la casa al buio.
-  function restart() {
-    mem = H.newMemory(); log = []; minutes = 0; sheet = null;
+  function restart(keepPanel) {
+    mem = { ...H.newMemory(), panel: !!keepPanel }; log = []; minutes = 0; sheet = null;
     note(cfg().log.start, { trip: true });
   }
+  function onResize() { placePin(); }
 
   return {
     // Chiamata a ogni ridisegno della pagina con il livello aperto.
     sync(snapshot) {
       if (mounted && name && snapshot.level.prova && snapshot.level.prova.scene !== name) this.unmount();   // da una prova a un'altra: scena nuova
       const first = !mounted;
-      if (first) { mounted = true; name = snapshot.level.prova.scene; build(); apply(); document.addEventListener('keydown', onKey); }
+      if (first) {
+        mounted = true; name = snapshot.level.prova.scene; build(); apply();
+        document.addEventListener('keydown', onKey); window.addEventListener('resize', onResize);
+      }
       const ph = snapshot.unit ? snapshot.unit.phase : null;
-      const wasFault = phase === 'fault';
+      const prevPhase = phase;
       lastSnap = snapshot;
       if (sceneState === 'idle') loadScene(snapshot);
-      if (cfg() && wasFault && ph === 'done') openFinale();
-      if (cfg() && ph === 'fault' && (!wasFault || first)) {
-        restart();
-        if (!first && !intro) lightsOut();
+      if (cfg()) {
+        if (first) {
+          if (ph === 'lesson' || ph === 'fault') { if (ph === 'fault') restart(false); startCall(); }
+          else { mem.panel = true; setAct('play'); }
+        } else if (ph === 'fault' && prevPhase === 'lesson') { restart(false); findPanel(); }
+        else if (ph === 'fault' && prevPhase === 'done') {
+          // "Rifai la prova": il quadro e' gia' aperto, la casa si spegne di nuovo
+          restart(true); setAct('play');
+          override = litHouse(); push();
+          later(700, () => { override = null; push(); tac(cfg().log.start); });
+        } else if (ph === 'done' && prevPhase === 'fault' && act !== 'finale') finale();
       }
-      if (first && (ph === 'lesson' || ph === 'fault') && cfg()) startIntro();
       phase = ph;
       if (!override) push();
+      hums();
       renderHud();
     },
     unmount() {
       holding.forEach(id => { try { s().release(id); } catch (e) { /* si lascia la pagina */ } });
       holding.clear();
-      clearTimeout(introTimer); clearTimeout(outTimer); clearTimeout(finTimer);
-      document.removeEventListener('keydown', onKey);
+      clearLater();
+      sound.silence();
+      document.removeEventListener('keydown', onKey); window.removeEventListener('resize', onResize);
       if (scene) { scene.dispose(); scene = null; }
       if (ui.schema && env.drawer) env.drawer(false);
-      host._scene = null; name = null; intro = null; override = null;
+      host._scene = null; name = null; override = null; story = null; act = null;
+      sceneState = 'idle'; mounted = false; lastSnap = null; token++; phase = null; ui.schema = false; ui.torch = false; ui.log = false; ui.delta = false;
+      host.innerHTML = ''; host.onclick = null; delete host.dataset.act;
       document.body.classList.remove('ms-intro');
-      sceneState = 'idle'; mounted = false; lastSnap = null; token++; phase = null; ui.schema = false; ui.torch = false;
-      host.innerHTML = ''; host.onclick = null; host.className = host.className.replace(/\b(lesson|noscene|shake)\b/g, '').trim();
+      host.className = host.className.replace(/\b(lesson|noscene|shake)\b/g, '').trim();
     },
     isMounted: () => mounted,
     // lo schema si chiude anche dal suo pulsante (sul telefono copre i comandi)

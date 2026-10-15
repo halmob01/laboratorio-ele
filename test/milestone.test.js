@@ -18,8 +18,8 @@ const open = () => { const s = createSession({ levels, deriveFull, initialLevel:
 // Gioca come la pagina: ogni azione passa da remember/describe con lo stato prima e dopo.
 function player() {
   const s = open();
-  let mem = H.newMemory();
-  const log = [];
+  let mem = { ...H.newMemory(), panel: true };      // il quadro e' gia' stato trovato e aperto
+  const log = [], stories = [];
   const act = (kind, id) => {
     const before = provaState(s.snapshot());
     if (kind === 'test') s.testPart(id); else s.toggleControl(id);
@@ -27,44 +27,78 @@ function player() {
     mem = H.remember('appartamento', mem, { kind, id }, before, after);
     const ev = H.describe('appartamento', { kind, id }, before, after);
     if (ev) log.push(ev);
+    stories.push(H.tripStory('appartamento', { kind, id }, before, after));
     return ev;
   };
   const steps = () => H.stepsOf('appartamento', provaState(s.snapshot()), s.snapshot().unit, mem);
-  return { s, act, steps, log, mem: () => mem };
+  return { s, act, steps, log, stories, mem: () => mem };
 }
 const doneCount = st => st.filter(x => x.done).length;
 const cur = st => st.findIndex(x => x.cur);
 
+test('passi: il primo e\' trovare il quadro', () => {
+  const s = open();
+  const st = H.stepsOf('appartamento', provaState(s.snapshot()), s.snapshot().unit, H.newMemory());
+  assert.equal(st.length, 7);
+  assert.equal(cur(st), 0);
+  assert.equal(st[0].text, 'Trova il quadro');
+});
+
 test('passi: avanzano con il metodo giusto, dalla casa al buio alla verifica', () => {
   const p = player();
-  assert.equal(doneCount(p.steps()), 0);
-  assert.equal(cur(p.steps()), 0);
+  assert.equal(doneCount(p.steps()), 1);
+  assert.equal(cur(p.steps()), 1);
   ['M1', 'M2', 'M3'].forEach(id => p.act('toggle', id));
-  assert.equal(cur(p.steps()), 1, 'linee aperte: tocca riarmare');
+  assert.equal(cur(p.steps()), 2, 'linee aperte: tocca riarmare');
   p.act('toggle', 'D');
-  assert.equal(cur(p.steps()), 2, 'riarmato: una linea alla volta');
+  assert.equal(cur(p.steps()), 3, 'riarmato: una linea alla volta');
   p.act('toggle', 'M1'); p.act('toggle', 'M3');
-  assert.equal(cur(p.steps()), 2, 'luce e cucina non scattano: si continua a cercare');
+  assert.equal(cur(p.steps()), 3, 'luce e cucina non scattano: si continua a cercare');
   const ev = p.act('toggle', 'M2');
   assert.equal(ev.trip, true);
   assert.equal(ev.text, PROVE.appartamento.log.lineOnTrip.prese);
-  assert.equal(cur(p.steps()), 3, 'trovata: si risponde');
+  assert.equal(cur(p.steps()), 4, 'trovata: si risponde');
   p.s.answerDiagnosis('b');
-  assert.equal(cur(p.steps()), 4, 'risposta giusta: si toglie la causa');
+  assert.equal(cur(p.steps()), 5, 'risposta giusta: si toglie la causa');
   p.act('toggle', 'G');
-  assert.equal(cur(p.steps()), 5);
+  assert.equal(cur(p.steps()), 6);
   p.act('toggle', 'D');
   assert.equal(p.s.check().pass, true);
-  assert.equal(doneCount(p.steps()), 6, 'prova chiusa: tutti i passi fatti');
+  assert.equal(doneCount(p.steps()), 7, 'prova chiusa: tutti i passi fatti');
+});
+
+test('scatti: la dispersione si vede solo con la linea isolata; con piu\' linee il differenziale non sa da dove viene', () => {
+  // riarmare senza aprire niente: scatta con tre linee chiuse
+  let p = player();
+  p.act('toggle', 'D');
+  assert.deepEqual(p.stories.at(-1), { kind: 'multi', closed: ['luce', 'prese', 'cucina'] });
+  // il metodo: tutte aperte, riarmo, luce e cucina non scattano, prese da sola si'
+  p = player();
+  ['M1', 'M2', 'M3', 'D', 'M2'].forEach(id => p.act('toggle', id));
+  assert.deepEqual(p.stories.at(-1), { kind: 'isolated', line: 'prese', closed: ['prese'] });
+  // con luce e cucina gia' chiuse la linea prese fa scattare, ma le linee chiuse sono tre: niente rivelazione
+  p = player();
+  ['M1', 'M2', 'M3', 'D', 'M1', 'M3', 'M2'].forEach(id => p.act('toggle', id));
+  assert.equal(p.stories.at(-1).kind, 'multi');
+  assert.equal(p.stories.slice(0, -1).filter(Boolean).length, 0, 'aprire e chiudere linee sane non fa scattare niente');
+  // il tasto T
+  p = player();
+  ['M1', 'M2', 'M3', 'D'].forEach(id => p.act('toggle', id));
+  p.act('test', 'D');
+  assert.deepEqual(p.stories.at(-1), { kind: 'test' });
+  // stufetta scollegata: niente scatti
+  p = player();
+  ['G', 'D'].forEach(id => p.act('toggle', id));
+  assert.equal(p.stories.at(-1), null);
 });
 
 test('passi: chi risponde subito senza cercare salta avanti, ma i passi saltati restano da fare', () => {
   const p = player();
   p.s.answerDiagnosis('b');
   const st = p.steps();
-  assert.equal(st[3].done, true);
-  assert.equal(st[0].done, false);
-  assert.equal(cur(st), 4);
+  assert.equal(st[4].done, true);
+  assert.equal(st[1].done, false, 'le linee non sono state aperte');
+  assert.equal(cur(st), 5);
 });
 
 test('registro: riarmare con la linea colpevole chiusa scatta subito; il tasto T scatta; luce e stufetta', () => {
@@ -135,16 +169,22 @@ test('pagina: la prova si apre a tutto schermo e si gioca dalla cornice fino al 
   assert.ok($('#screen-level').classList.contains('milestone'));
   assert.ok(d.body.classList.contains('ms-mode'));
   assert.ok($('#pIntro'), 'ingresso');
+  assert.match($('#pIntro').textContent, /Via dei Tigli 7/, 'la chiamata');
+  assert.ok($('#pIntro [data-pui="enter"]'));
   click(w, $('[data-pui="skipIntro"]'));
   click(w, $('[data-unit="skip"]'));
   await wait(400);
-  assert.match($('#pMission').textContent, /Una notte senza luce/);
-  assert.equal(d.querySelectorAll('#pMission .psteps li').length, 6);
+  assert.equal($('#house').dataset.act, 'play', 'senza scena 3D si arriva subito ai comandi');
+  assert.match($('#pTop').textContent, /Una notte senza luce/);
+  assert.equal(d.querySelectorAll('#pSteps .psteps li').length, 7);
+  click(w, $('[data-pui="log"]'));
+  assert.equal($('#pLog').hidden, false);
   assert.match($('#pLog').textContent, /Il differenziale è scattato/);
   const lever = id => $(`#pDock [data-pact="toggle"][data-pid="${id}"]`);
   ['M1', 'M2', 'M3', 'D', 'M1', 'M3', 'M2'].forEach(id => click(w, lever(id)));
   assert.match($('#pLog').textContent, /Chiusa la linea prese: il differenziale scatta/);
-  assert.equal(d.querySelectorAll('#pMission .psteps li.done').length, 3);
+  assert.equal(d.querySelectorAll('#pSteps .psteps li.done').length, 4);
+  assert.match($('#pSub').textContent, /Tac\./, 'lo scatto si racconta nei sottotitoli');
   click(w, $('[data-pui="answer"]'));
   assert.equal($('#pSheet').hidden, false);
   click(w, $('[data-pdiag="b"]'));
@@ -157,7 +197,8 @@ test('pagina: la prova si apre a tutto schermo e si gioca dalla cornice fino al 
   await wait(50);
   assert.equal($('#pSheet').hidden, false, 'finale');
   assert.match($('#pSheet').textContent, /Prova superata/);
-  assert.match($('#pSheet').textContent, /La luce è tornata/);
+  assert.match($('#pSheet').textContent, /Rapporto d’intervento/);
+  assert.match($('#pSheet').textContent, /Via dei Tigli 7/);
   click(w, $('[data-pui="schema"]'));
   assert.ok($('#screen-level').classList.contains('drawer'), 'lo schema si apre a lato');
   click(w, $('#bDrawerClose'));
