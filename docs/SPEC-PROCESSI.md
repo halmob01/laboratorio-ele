@@ -196,6 +196,18 @@ volta sola; se l'allievo la disfa, l'evento non la rifà. Non sono guasti: nient
 Dopo la fine del periodo non scattano. Il rapporto dello scenario aggiunge `events: [{ id, label, at, firedAt }]` per il registro e il
 verbale; `faults`, `pick` e `downtime` non cambiano (la fabbrica c51 ha `events: []`).
 
+**Il processo aspetta il via.** In un livello con `scenario.startWhen` il processo non avanza finché il periodo non comincia: la
+serata parte dalle 16:30 quando si chiude il generale, anche se l'allievo ci mette cinque minuti. Nella fabbrica non cambia niente
+(il robot senza potenza è già fermo).
+
+**Il contatore che stacca toglie tensione all'impianto (`process.cutSupply`).** Con `cutSupply: 'blackout'` la grandezza `blackout`
+del processo, quando è vera, toglie la rete a tutto il circuito (PLC, relè, sirena), come la levetta del quadro aperta. Prima il
+modello spegneva solo i carichi del contatore, e le spie e la sirena restavano vive in una casa "al buio". Nel modello `casa`, al
+buio, nessun carico (nemmeno il forno) e la batteria non si scarica.
+
+**Comfort.** Il modello `casa` conta per ogni zona i secondi fuori da `comfortLo`-`comfortHi` (19,5-22,5 °C), solo dopo che la stanza
+ci è arrivata la prima volta (`warmK`, `outK`): servono al verbale della serata.
+
 ## 9. Fuori da questa specifica
 
 Bus di campo, manutenzione predittiva, pannello operatore con allarmi (6.8: si appoggia sul tracciato e sulle parole del PLC, ma la sua interfaccia è da progettare), modelli della linea (P7).

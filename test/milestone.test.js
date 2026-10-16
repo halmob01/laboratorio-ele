@@ -551,6 +551,131 @@ test('pagina: la fabbrica a tutto schermo: consegna del turno, barra del turno, 
   assert.deepEqual(errors, []);
 });
 
+/* ---------- casa (Modulo 5): una sera d'inverno ---------- */
+const CASA = 'c55-sera-inverno';
+function casa() {
+  const s = createSession({ levels, deriveFull, initialLevel: CASA }); s.start(); s.skipLesson();
+  let mem = H.newMemory();
+  const kinds = [];
+  const ps = () => provaState(s.snapshot());
+  const step = (action, run) => { const b = ps(); run(); const a = ps(); H.casaEvents(action, b, a).forEach(e => kinds.push(e.kind)); mem = H.remember('casa', mem, action, b, a); mem = H.rememberFixed(mem, H.plantFixed('casa', s.snapshot())); };
+  const tick = n => { for (let i = 0; i < n; i++) step(null, () => s.tick(0.5)); };
+  const tickTo = t => { for (let g = 0; g < 4000 && ps().shift.t < t && !ps().shift.done; g++) tick(1); };
+  const steps = () => H.stepsOf('casa', ps(), s.snapshot().unit, mem);
+  return { s, ps, step, tick, tickTo, steps, kinds, mem: () => mem };
+}
+
+test('casa: lo stato della scena ha i campi del contratto (docs/PIANO-CASA.md)', () => {
+  const o = casa();
+  const p = o.ps();
+  ['scene', 'powered', 'blackout', 'hour', 'sun', 'kw', 'soc', 'ev', 'hp', 'zones', 'oven', 'flood', 'rooms', 'shift'].forEach(k => assert.ok(k in p, k));
+  assert.equal(p.scene, 'casa');
+  assert.deepEqual(Object.keys(p.kw).sort(), ['batt', 'grid', 'limit', 'load', 'pv']);
+  assert.deepEqual(Object.keys(p.ev).sort(), ['charging', 'kwh', 'plugged']);
+  assert.deepEqual(Object.keys(p.hp).sort(), ['broken', 'on']);
+  assert.deepEqual(p.zones.map(z => z.id), ['soggiorno', 'camera']);
+  assert.deepEqual(Object.keys(p.flood).sort(), ['siren', 'wet']);
+  assert.deepEqual(Object.keys(p.rooms).sort(), ['bagno', 'camera', 'corridoio', 'cucina', 'ingresso', 'soggiorno']);
+  assert.equal(p.powered, false, 'il generale e\' aperto');
+  assert.equal(p.hour, 16.5);
+  assert.ok(Object.values(p.rooms).every(v => v === 0));
+});
+
+test('casa: la serata con il programma del collega: il generale, l\'auto, il forno, il buio; poi la correzione e la serata rifatta', () => {
+  const o = casa();
+  const P = PROVE.casa;
+  assert.equal(o.steps().length, 6);
+  assert.equal(cur(o.steps()), 0);
+  assert.equal(H.shiftClock(P, o.ps().shift), '16:30');
+  assert.match(H.shiftHTML(P, o.ps(), {}), /Generale aperto/);
+  o.step({ kind: 'toggle', id: 'QG' }, () => o.s.toggleControl('QG'));
+  assert.equal(o.kinds[0], 'shiftStart');
+  assert.equal(o.ps().powered, true);
+  assert.match(H.shiftHTML(P, o.ps(), {}), /Fine serata tra 6 h/);
+  o.tickTo(260);
+  ['car', 'oven', 'blackout'].forEach(k => assert.ok(o.kinds.includes(k), k + ' in ' + o.kinds.join()));
+  assert.ok(o.kinds.indexOf('car') < o.kinds.indexOf('oven') && o.kinds.indexOf('oven') < o.kinds.indexOf('blackout'));
+  assert.equal(o.ps().blackout, true);
+  assert.equal(o.ps().powered, false);
+  assert.ok(Object.values(o.ps().rooms).every(v => v === 0), 'al buio tutte le stanze sono spente');
+  assert.equal(o.mem().blackout, true);
+  assert.deepEqual(o.steps().map(x => x.done), [true, true, false, false, false, false]);
+  // il tablet al buio mostra gli ultimi valori prima dello stacco
+  const dock = H.dockHTML(P, o.ps(), o.s.snapshot().unit, { lastLit: { ...o.ps(), blackout: false, kw: { ...o.ps().kw, grid: 7.1 } }, blackoutAt: '19:47' });
+  ['data-pid="QG"', 'data-phold="TA"', 'data-pid="S2"', 'data-pid="W1"', 'data-pui="replay"', 'data-pui="answer"', 'Contatore staccato', 'Ultimi valori prima del buio', 'fondo scala'].forEach(x => assert.ok(dock.includes(x), x));
+  assert.match(dock, /data-pid="S2" disabled/, 'la sonda asciutta non si tocca');
+  o.s.answerDiagnosis('b');
+  assert.equal(cur(o.steps()), 3, 'tocca correggere il programma');
+  const lv = levels.find(l => l.id === CASA);
+  o.step({ kind: 'program' }, () => o.s.setProgram('PLC', lv.solutionPrograms.PLC));
+  assert.equal(o.mem().fixed, true);
+  o.step({ kind: 'replay' }, () => o.s.restartShift());
+  assert.equal(o.ps().blackout, false);
+  assert.equal(o.ps().shift.started, false, 'la serata rifatta riparte dal generale');
+  assert.equal(o.steps()[1].done, true, 'il buio gia\' visto resta tra i passi fatti');
+  o.step({ kind: 'toggle', id: 'QG' }, () => o.s.toggleControl('QG'));
+  o.tickTo(301);
+  assert.ok(o.kinds.includes('shed'), 'il PLC stacca la colonnina a cena');
+  assert.ok(o.kinds.includes('flood'));
+  assert.equal(o.ps().flood.siren, true);
+  // tacitare con la sonda bagnata non basta
+  o.step({ kind: 'press', id: 'TA' }, () => o.s.press('TA'));
+  o.step({ kind: 'release', id: 'TA' }, () => o.s.release('TA'));
+  assert.ok(o.kinds.includes('silenceWet'));
+  o.step({ kind: 'toggle', id: 'S2' }, () => o.s.toggleControl('S2'));
+  assert.ok(o.kinds.includes('dried'));
+  o.step({ kind: 'press', id: 'TA' }, () => o.s.press('TA'));
+  o.step({ kind: 'release', id: 'TA' }, () => o.s.release('TA'));
+  assert.ok(o.kinds.includes('fixed'));
+  assert.equal(o.ps().flood.siren, false);
+  o.tickTo(400);
+  assert.ok(o.kinds.includes('end'));
+  assert.equal(o.ps().blackout, false);
+  assert.equal(o.steps()[4].done, true);
+  const r = o.s.check();
+  assert.equal(r.pass, true, JSON.stringify(r.work.items));
+  assert.equal(o.s.snapshot().unit.phase, 'done');
+  const html = H.serataReportHTML(P, r.stars, true, o.ps(), 'Sara', true, o.mem());
+  ['Verbale di consegna', 'prelevata', 'Auto caricata', 'Comfort', 'mai a vuoto', 'mai staccato', 'gestito alle 21:', 'Soglia di distacco portata a 5800 W', 'Sara'].forEach(x => assert.ok(html.includes(x), x));
+  assert.match(html, /\d+,\d\d €/);
+});
+
+test('casa: la sonda si asciuga solo dal pannello; il PLC lo vede come programma corretto solo sotto il limite', () => {
+  const lv = levels.find(l => l.id === CASA);
+  assert.equal(H.casaFixed({ PLC: lv.unit.fault.programs.PLC }, lv), false);
+  assert.equal(H.casaFixed({ PLC: lv.solutionPrograms.PLC }, lv), true);
+  assert.equal(H.casaFixed({ PLC: [] }, lv), false);
+  assert.equal(H.isPlant('casa'), true);
+});
+
+test('pagina: la casa a tutto schermo: consegna, barra della serata, pannello della casa, generale', async () => {
+  const { w, d, errors } = page('#/livello/' + CASA);
+  const $ = q => d.querySelector(q);
+  assert.ok($('#screen-level').classList.contains('milestone'));
+  assert.match($('#pIntro').textContent, /Consegna dell’impianto/);
+  click(w, $('[data-pui="skipIntro"]'));
+  click(w, $('[data-unit="skip"]'));
+  await wait(400);
+  assert.equal($('#house').dataset.act, 'play');
+  assert.match($('#pTop').textContent, /Una sera d’inverno/);
+  assert.match($('#pTop').textContent, /16:30/);
+  assert.match($('#pShift').textContent, /Generale aperto/);
+  assert.equal(d.querySelectorAll('#pSteps .psteps li').length, 6);
+  assert.match($('#pDock').textContent, /Pannello della casa/);
+  assert.ok($('#pDock [data-pid="S2"]').disabled, 'sonda asciutta: niente da asciugare');
+  click(w, $('#pDock [data-pid="QG"]'));
+  await wait(20);
+  assert.match($('#pShift').textContent, /Fine serata tra 6 h/);
+  click(w, $('[data-pui="log"]'));
+  assert.match($('#pLog').textContent, /la serata comincia/);
+  click(w, $('[data-pui="check"]') || $('[data-pui="answer"]'));
+  click(w, $('[data-pdiag="b"]'));
+  click(w, $('[data-pui="closeSheet"]'));
+  click(w, $('[data-pui="check"]'));                       // a serata in corso la verifica aspetta
+  assert.match($('#pSub').textContent, /serata non è finita/);
+  assert.deepEqual(errors, []);
+});
+
 /* ---------- schede delle milestone nella mappa ---------- */
 function home(storage) {
   const errors = [];

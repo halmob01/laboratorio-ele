@@ -1115,6 +1115,45 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
 .pfab-door.open{box-shadow:inset 0 0 0 2px #E3B61F}
 .pverb-tests b.ko{color:var(--hud-bad,#B21E16)}
 .pverb-tests b.late{color:#B8860B}
+/* casa (c55): il pannello a muro (un tablet) e i tasti accanto; niente strisce gialle e nere, e' una casa */
+.pcasa::before{display:none}
+.pcasa .pboxhead .prow{flex-wrap:wrap;justify-content:flex-end}
+.pcasa .pboxhead .pbtn,.pcasa .pboxhead .pchip{white-space:nowrap}
+.pcasa-in{display:grid;grid-template-columns:minmax(0,1fr) 200px;gap:10px;align-items:start}
+.pcasa-tab{grid-column:auto}
+.pcasa-tab.dark{box-shadow:inset 0 0 0 2px #E5484D}
+.pcasa-p,.pcasa-row{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px 12px;margin:7px 0 4px;font:500 12px/1.3 'IBM Plex Mono',monospace}
+.pcasa-row{grid-template-columns:repeat(3,minmax(0,1fr))}
+.pcasa-p > span,.pcasa-row > span{display:flex;flex-direction:column;gap:2px;min-width:0}
+.pcasa-p i,.pcasa-row i{font-style:normal;color:#8E9AAD;font-size:10px;text-transform:uppercase;letter-spacing:.05em}
+.pcasa-p b,.pcasa-row b{color:#F2F6FB;font-weight:600;font-size:14px}
+.pcasa-p small,.pcasa-row small{color:#8E9AAD;font-size:10px;line-height:1.3}
+.pcasa-grid.over b{color:#FF8A8D}
+.pcasa-bar{position:relative;display:block;height:6px;border-radius:3px;background:linear-gradient(90deg,#4FA3FF calc(var(--g)*100%),#2B3647 0)}
+.pcasa-grid.over .pcasa-bar{background:linear-gradient(90deg,#E5484D calc(var(--g)*100%),#2B3647 0)}
+.pcasa-bar::after{content:"";position:absolute;top:-3px;bottom:-3px;left:calc(var(--l)*100%);width:2px;background:#FFC61A}
+.pcasa-zs{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin:4px 0 6px}
+.pcasa-z{display:flex;flex-direction:column;gap:2px;padding:5px 8px;border-radius:7px;background:rgba(255,255,255,.05);font:500 11px/1.3 'IBM Plex Mono',monospace;color:#B5C0D0}
+.pcasa-z .pst-name{color:#8E9AAD;width:auto}
+.pcasa-z b{font-size:17px;color:#F2F6FB}
+.pcasa-z.win{box-shadow:inset 0 0 0 1px #4FA3FF}
+.phmi-a.rientrato{background:rgba(255,198,26,.14);color:#FFE08A}
+.pcasa-keys{grid-template-columns:1fr;align-content:start}
+.pcasa-keys .pst-mod{grid-column:auto}
+.pcasa-keys .pst-btn{flex-direction:row;justify-content:flex-start;gap:10px;padding:4px 2px}
+.pcasa-keys .pst-cap{width:30px;height:30px}
+.pcasa-keys .pchip{grid-column:auto;justify-self:stretch;min-height:38px}
+.pcasa-keys .pchip:disabled{opacity:.45;cursor:default}
+@media (max-width:760px){
+  .pcasa-in{grid-template-columns:minmax(0,1fr);gap:6px}
+  .pcasa-p{grid-template-columns:repeat(2,minmax(0,1fr));gap:4px 10px}
+  .pcasa-row{gap:4px 8px}
+  .pcasa-p b,.pcasa-row b{font-size:13px}
+  .pcasa-z b{font-size:15px}
+  .pcasa-keys{grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}
+  .pcasa-keys .pst-btn{padding:2px}
+  .pcasa-keys .pst-cap{width:26px;height:26px}
+}
 @media (max-width:760px){
   .pshift{top:calc(52px + env(safe-area-inset-top,0px));left:12px;right:12px;transform:none;max-width:none}
   .pshift-in{font-size:11px;gap:2px 12px;padding:5px 10px;border-radius:12px}
@@ -1631,18 +1670,18 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
     if (data.v >= PROGRESS_VERSION) {
       const out2 = emptyProgress();
       const isObj = (o) => o && typeof o === "object" && !Array.isArray(o);
-      const num2 = (x, max) => {
+      const num3 = (x, max) => {
         const n = Math.floor(Number(x));
         return n >= 0 ? Math.min(n, max) : 0;
       };
       if (isObj(data.stars)) Object.keys(data.stars).forEach((k) => {
-        out2.stars[k] = num2(data.stars[k], 3);
+        out2.stars[k] = num3(data.stars[k], 3);
       });
       if (isObj(data.best)) {
         Object.keys(data.best).forEach((k) => {
           const r = data.best[k];
           if (!isObj(r)) return;
-          out2.best[k] = { base: num2(r.base, 110), pred: r.pred === true, fault: r.fault === true, skipped: r.skipped === true };
+          out2.best[k] = { base: num3(r.base, 110), pred: r.pred === true, fault: r.fault === true, skipped: r.skipped === true };
         });
       }
       out2.last = typeof data.last === "string" ? data.last : null;
@@ -2004,8 +2043,8 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
   function sanitizeProgram(program) {
     const addr = (a) => typeof a === "string" && ADDR.test(a) ? a : null;
     const word = (a) => typeof a === "string" && WORD.test(a) ? a : null;
-    const num2 = (v) => isNum(v) && Math.abs(v) <= 1e6 ? v : null;
-    const operand = (v) => isNum(v) ? num2(v) : word(v);
+    const num3 = (v) => isNum(v) && Math.abs(v) <= 1e6 ? v : null;
+    const operand = (v) => isNum(v) ? num3(v) : word(v);
     const expr = (e, depth = 0) => {
       if (depth > 4) return null;
       if (typeof e === "string") return addr(e);
@@ -2025,11 +2064,11 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
       if (i.op === "ctu") return /^C\d{1,2}$/.test(i.id) && i.pv > 0 && i.pv <= 999 ? { op: "ctu", id: i.id, pv: Math.floor(Number(i.pv)), ...addr(i.r) ? { r: i.r } : {} } : null;
       const wout = (a) => typeof a === "string" && /^(AQ|MW)\d{1,2}$/.test(a) ? a : null;
       if (i.op === "move") return operand(i.v) !== null && wout(i.out) ? { op: "move", v: i.v, out: i.out } : null;
-      if (i.op === "scale") return /^AI\d{1,2}$/.test(i.in) && wout(i.out) && num2(i.lo) !== null && num2(i.hi) !== null ? { op: "scale", in: i.in, out: i.out, lo: i.lo, hi: i.hi } : null;
+      if (i.op === "scale") return /^AI\d{1,2}$/.test(i.in) && wout(i.out) && num3(i.lo) !== null && num3(i.hi) !== null ? { op: "scale", in: i.in, out: i.out, lo: i.lo, hi: i.hi } : null;
       if (i.op === "pid") {
-        const gain = (v, pos) => isNum(v) ? pos ? num2(v) > 0 : num2(v) >= 0 : word(v) !== null;
+        const gain = (v, pos) => isNum(v) ? pos ? num3(v) > 0 : num3(v) >= 0 : word(v) !== null;
         if (operand(i.pv) === null || operand(i.sp) === null || !wout(i.out) || !gain(i.kp, true) || !gain(i.ti ?? 0) || !gain(i.td ?? 0)) return null;
-        return { op: "pid", id: typeof i.id === "string" && /^PID\d$/.test(i.id) ? i.id : i.out, pv: i.pv, sp: i.sp, out: i.out, kp: i.kp, ti: i.ti ?? 0, td: i.td ?? 0, ...num2(i.lo) !== null ? { lo: i.lo } : {}, ...num2(i.hi) !== null ? { hi: i.hi } : {}, ...i.windup === true ? { windup: true } : {} };
+        return { op: "pid", id: typeof i.id === "string" && /^PID\d$/.test(i.id) ? i.id : i.out, pv: i.pv, sp: i.sp, out: i.out, kp: i.kp, ti: i.ti ?? 0, td: i.td ?? 0, ...num3(i.lo) !== null ? { lo: i.lo } : {}, ...num3(i.hi) !== null ? { hi: i.hi } : {}, ...i.windup === true ? { windup: true } : {} };
       }
       return null;
     };
@@ -2406,8 +2445,9 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
     const Z = MODELS.zone, E = MODELS.energia;
     const zoneKeys = Object.keys(Z.init);
     MODELS.casa = {
-      init: { ...E.init, ...Z.init, hpRun: 0 },
-      params: { ...Z.params, ...E.params },
+      // warmK: la zona K ha raggiunto il comfort almeno una volta; outK: secondi fuori dal comfort dopo (per il verbale della serata)
+      init: { ...E.init, ...Z.init, hpRun: 0, warm1: 0, warm2: 0, warm3: 0, out1: 0, out2: 0, out3: 0 },
+      params: { ...Z.params, ...E.params, comfortLo: 19.5, comfortHi: 22.5 },
       acts: { ...E.acts, ...Z.acts, hp: 0, pump: 0 },
       step(s, a, p, dt) {
         if (s.blackout) a = { ...a, house: 0, boiler: 0, ev: 0, wash: 0, batt: 0 };
@@ -2416,7 +2456,13 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
         const zs = Object.fromEntries(zoneKeys.map((k) => [k, s[k]]));
         const z = Z.step(zs, { ...a, pump: run }, zp, dt);
         const e = E.step(s, { ...a, hp: run }, p, dt);
-        return { ...s, ...z, ...e, hpRun: run };
+        const out = { ...s, ...z, ...e, hpRun: run };
+        for (let i = 1; i <= clamp2(Math.round(p.n), 1, 3); i++) {
+          const T2 = out["T" + i];
+          if (T2 >= p.comfortLo) out["warm" + i] = 1;
+          if (out["warm" + i] && (T2 < p.comfortLo || T2 > p.comfortHi)) out["out" + i] = s["out" + i] + dt;
+        }
+        return out;
       },
       expose(s, p) {
         const z = Z.expose(s, { ...p, pumpKw: p.hpKw }), e = E.expose(s, p);
@@ -2557,21 +2603,21 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
   }
   var processVars = (sim) => sim.process ? exposeProcess(sim.level.process, sim.process) : {};
   function traceValue(sim, name, vars = processVars(sim)) {
-    const num2 = (x) => typeof x === "boolean" ? x ? 1 : 0 : Number(x) || 0;
-    if (name in vars) return num2(vars[name]);
+    const num3 = (x) => typeof x === "boolean" ? x ? 1 : 0 : Number(x) || 0;
+    if (name in vars) return num3(vars[name]);
     const [id, k] = name.split(".");
     const c2 = sim.level.comps.find((x) => x.id === id);
     const s = sim.parts[id];
     if (!c2 || !s) return 0;
     if (c2.type === "plc" && k) {
-      if (/^Q\d+$/.test(k)) return num2(!!s.q[k]);
-      if (/^AQ\d+$/.test(k)) return num2(s.aq[k]);
-      if (/^AI\d+$/.test(k)) return num2(s.ai[k]);
+      if (/^Q\d+$/.test(k)) return num3(!!s.q[k]);
+      if (/^AQ\d+$/.test(k)) return num3(s.aq[k]);
+      if (/^AI\d+$/.test(k)) return num3(s.ai[k]);
       const m = s.mem || {};
-      return num2(/^(AI|AQ|MW)\d+$/.test(k) ? (m.words || {})[k] : (m.bits || {})[k]);
+      return num3(/^(AI|AQ|MW)\d+$/.test(k) ? (m.words || {})[k] : (m.bits || {})[k]);
     }
-    if (c2.type === "tx") return num2(s.mA);
-    return num2(s.run !== void 0 ? s.run : s.on !== void 0 ? s.on : s.act);
+    if (c2.type === "tx") return num3(s.mA);
+    return num3(s.run !== void 0 ? s.run : s.on !== void 0 ? s.on : s.act);
   }
   function recordTrace(sim) {
     const names = sim.traceNames || sim.level.process && sim.level.process.trace;
@@ -3293,7 +3339,8 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
         if (dir === "fwd") sim.pos = Math.min(m.length, sim.pos + v);
         if (dir === "rev") sim.pos = Math.max(0, sim.pos - v);
       }
-      if (sim.process) sim.process = stepProcess(sim.level.process, sim.process, actuatorsOf(sim, an), STEP);
+      const waiting = sim.scenario && sim.scenario.t0 === null;
+      if (sim.process && !waiting) sim.process = stepProcess(sim.level.process, sim.process, actuatorsOf(sim, an), STEP);
       sim.plcDt = STEP;
       settle(sim);
       scenarioTick(sim);
@@ -9084,6 +9131,8 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
     safety: { coilReturn: ["PLC", "KA"] },
     solution: W55,
     solutionPrograms: { PLC: PROG_55 },
+    solutionStart: ["toggle QG"],
+    // per i test: la serata comincia chiudendo il generale
     hints: [
       "Per cominciare chiudi il generale: la serata parte dalle 16:30.",
       "Se il contatore stacca, guarda sul pannello la potenza della rete prima del buio: era sopra la riga del limite e nessun carico si \xE8 staccato. Allora il PLC non ha visto la potenza superare la soglia di distacco.",
@@ -14440,7 +14489,7 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
       wires: W55,
       programs: { PLC: PROG_55_FAULT },
       diagnosis: {
-        question: "Alle 19:30 il contatore ha staccato tutta la casa. Sul pannello, prima del buio, la rete era al fondo scala sopra la riga del limite, auto e pompa erano accese e nessun carico si era staccato. Perch\xE9?",
+        question: "Verso le 19:45 il contatore ha staccato tutta la casa. Sul pannello, prima del buio, la rete era al fondo scala sopra la riga del limite, auto e pompa erano accese e nessun carico si era staccato. Perch\xE9?",
         options: [
           { id: "a", text: "Il forno non si pu\xF2 staccare: con il forno acceso il contatore stacca sempre." },
           { id: "b", text: "La soglia di distacco (6500 W) \xE8 sopra il limite e oltre il fondo scala del misuratore: il PLC non l\u2019ha mai vista superata." },
@@ -16559,8 +16608,8 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
         <ol class="uplist">${m.levels.map((x) => `<li>${esc(x)}</li>`).join("")}</ol>
         ${terminusHTML()}${milestoneCard({ id: "ms-" + m.project.art, kick: m.project.kick, name: m.project.name, text: m.project.text, art: m.project.art, st: "soon" })}
       </section>` }));
-    const num2 = (tag) => Number((tag.match(/\d+/) || [0])[0]);
-    const listed = MODULES.map((m, i) => ({ n: num2(m.tag), html: mods[i] })).concat(upItems);
+    const num3 = (tag) => Number((tag.match(/\d+/) || [0])[0]);
+    const listed = MODULES.map((m, i) => ({ n: num3(m.tag), html: mods[i] })).concat(upItems);
     const ordered = listed.sort((a, b) => a.n - b.n).map((x) => x.html).join("");
     return `<div class="homegrid">
       <div class="homemain">${cont.replace('class="cont"', 'class="cont only-narrow"')}${ordered}${trNoteHTML()}</div>
@@ -16895,9 +16944,9 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
       const sizes = kids.map(size);
       const extra = (w - sizes.reduce((s, k) => s + k.w, 0)) / kids.length;
       kids.forEach((k, i) => {
-        const kw2 = sizes[i].w + extra;
-        o2 += draw(k, px2, y, kw2, bits, names, on, cx, path.length ? path : [i], words);
-        px2 += kw2;
+        const kw3 = sizes[i].w + extra;
+        o2 += draw(k, px2, y, kw3, bits, names, on, cx, path.length ? path : [i], words);
+        px2 += kw3;
       });
       return o2;
     }
@@ -22545,7 +22594,131 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
   };
 
   // src/i18n/ar-46.js
+  var kw2 = (x) => iso(x) + " \u0643\u064A\u0644\u0648\u0648\u0627\u0637";
+  registerLang("ar", {}, [
+    [/^Fine serata tra (.+)$/, (m, t) => `\u062A\u0646\u062A\u0647\u064A \u0627\u0644\u0633\u0647\u0631\u0629 \u0628\u0639\u062F ${t(m[1])}`],
+    [/^Casa al buio dalle (\d+:\d+)$/, (m) => `\u0627\u0644\u0628\u064A\u062A \u0641\u064A \u0627\u0644\u0638\u0644\u0627\u0645 \u0645\u0646\u0630 ${iso(m[1])}`],
+    [/^Rete ([\d,.-]+) kW \/ ([\d,.]+) kW$/, (m) => `\u0627\u0644\u0634\u0628\u0643\u0629 ${kw2(m[1])} / ${kw2(m[2])}`],
+    [/^Batteria (\d+) %$/, (m) => `\u0627\u0644\u0628\u0637\u0627\u0631\u064A\u0629 ${iso(m[1])}\u066A`],
+    [/^Auto ([\d,.]+) kWh$/, (m) => `\u0627\u0644\u0633\u064A\u0627\u0631\u0629 ${iso(m[1])} \u0643\u064A\u0644\u0648\u0648\u0627\u0637 \u0633\u0627\u0639\u0629`],
+    [/^si carica ([\d,.]+) kW$/, (m) => `\u062A\u064F\u0634\u062D\u0646 ${kw2(m[1])}`],
+    [/^dà ([\d,.]+) kW alla casa$/, (m) => `\u062A\u0639\u0637\u064A \u0627\u0644\u0628\u064A\u062A ${kw2(m[1])}`],
+    [/^limite ([\d,.]+) kW · il misuratore legge ([\d,.-]+) kW( \(fondo scala\))?$/, (m) => `\u0627\u0644\u062D\u062F ${kw2(m[1])} \xB7 \u064A\u0642\u0631\u0623 \u062C\u0647\u0627\u0632 \u0627\u0644\u0642\u064A\u0627\u0633 ${kw2(m[2])}${m[3] ? " (\u0646\u0647\u0627\u064A\u0629 \u0627\u0644\u0645\u062F\u0649)" : ""}`],
+    [/^alle (\d+:\d+)$/, (m) => `\u0641\u064A ${iso(m[1])}`],
+    [/^staccato alle (\d+:\d+)$/, (m) => `\u0641\u0635\u0644 \u0641\u064A ${iso(m[1])}`],
+    [/^(valvola aperta|valvola chiusa)( · finestra aperta)?$/, (m) => `${m[1] === "valvola aperta" ? "\u0627\u0644\u0635\u0645\u0627\u0645 \u0645\u0641\u062A\u0648\u062D" : "\u0627\u0644\u0635\u0645\u0627\u0645 \u0645\u063A\u0644\u0642"}${m[2] ? " \xB7 \u0627\u0644\u0646\u0627\u0641\u0630\u0629 \u0645\u0641\u062A\u0648\u062D\u0629" : ""}`],
+    [/^(sonda bagnata|sonda asciutta)( · sirena)?$/, (m) => `${m[1] === "sonda bagnata" ? "\u0627\u0644\u062D\u0633\u0651\u0627\u0633 \u0645\u0628\u0644\u0644" : "\u0627\u0644\u062D\u0633\u0651\u0627\u0633 \u062C\u0627\u0641"}${m[2] ? " \xB7 \u0635\u0641\u0627\u0631\u0629 \u0627\u0644\u0625\u0646\u0630\u0627\u0631" : ""}`],
+    [/^alle (\d+:\d+), non gestito$/, (m) => `\u0641\u064A ${iso(m[1])}\u060C \u0644\u0645 \u064A\u064F\u0639\u0627\u0644\u064E\u062C`],
+    [/^alle (\d+:\d+), gestito alle (\d+:\d+)( \(in ritardo\))?$/, (m) => `\u0641\u064A ${iso(m[1])}\u060C \u0639\u0648\u0644\u062C \u0641\u064A ${iso(m[2])}${m[3] ? " (\u0645\u062A\u0623\u062E\u0631\u064B\u0627)" : ""}`],
+    [/^prodotta ([\d,.]+) kWh · prelevata ([\d,.]+) kWh · immessa ([\d,.]+) kWh · costo ([\d,.]+) €$/, (m) => `\u0627\u0644\u0645\u0646\u062A\u064E\u062C\u0629 ${iso(m[1])} \u0643\u064A\u0644\u0648\u0648\u0627\u0637 \u0633\u0627\u0639\u0629 \xB7 \u0627\u0644\u0645\u0633\u062D\u0648\u0628\u0629 ${iso(m[2])} \u0643\u064A\u0644\u0648\u0648\u0627\u0637 \u0633\u0627\u0639\u0629 \xB7 \u0627\u0644\u0645\u0636\u062E\u0648\u062E\u0629 ${iso(m[3])} \u0643\u064A\u0644\u0648\u0648\u0627\u0637 \u0633\u0627\u0639\u0629 \xB7 \u0627\u0644\u0643\u0644\u0641\u0629 ${iso(m[4])} \u20AC`],
+    [/^Soggiorno (\d+) · Camera (\d+)$/, (m) => `\u063A\u0631\u0641\u0629 \u0627\u0644\u062C\u0644\u0648\u0633 ${iso(m[1])} \xB7 \u063A\u0631\u0641\u0629 \u0627\u0644\u0646\u0648\u0645 ${iso(m[2])}`]
+  ]);
   var ar_46_default = {
+    // cornice della prova (src/content/prove.js, PROVE.casa) e pannello della casa
+    "Modulo 5 \xB7 prova": "\u0627\u0644\u0648\u062D\u062F\u0629 5 \xB7 \u0627\u0644\u0627\u062E\u062A\u0628\u0627\u0631",
+    "Modulo 5": "\u0627\u0644\u0648\u062D\u062F\u0629 5",
+    "Modulo 5 completato": "\u0627\u0643\u062A\u0645\u0644\u062A \u0627\u0644\u0648\u062D\u062F\u0629 5",
+    "Casa": "\u0627\u0644\u0628\u064A\u062A",
+    "Ore 16:30. Il sole cala.": "\u0627\u0644\u0633\u0627\u0639\u0629 16:30. \u0627\u0644\u0634\u0645\u0633 \u062A\u063A\u064A\u0628.",
+    "La casa intelligente della famiglia Rossi \xE8 finita. Chiudi il generale e guardala lavorare da sola fino alle 23: l\u2019auto arriva, si cucina, qualcuno apre la finestra. Se qualcosa non va, capisci perch\xE9, correggi il programma e rifai la serata. Poi consegna.": "\u0627\u0644\u0628\u064A\u062A \u0627\u0644\u0630\u0643\u064A \u0644\u0639\u0627\u0626\u0644\u0629 \u0631\u0648\u0633\u064A \u062C\u0627\u0647\u0632. \u0623\u063A\u0644\u0642 \u0627\u0644\u0642\u0627\u0637\u0639 \u0627\u0644\u0631\u0626\u064A\u0633\u064A \u0648\u0631\u0627\u0642\u0628\u0647 \u064A\u0639\u0645\u0644 \u0648\u062D\u062F\u0647 \u062D\u062A\u0649 23: \u062A\u0635\u0644 \u0627\u0644\u0633\u064A\u0627\u0631\u0629\u060C \u064A\u064F\u0637\u0628\u062E \u0627\u0644\u0639\u0634\u0627\u0621\u060C \u064A\u0641\u062A\u062D \u0623\u062D\u062F\u0647\u0645 \u0627\u0644\u0646\u0627\u0641\u0630\u0629. \u0625\u0630\u0627 \u0644\u0645 \u064A\u0633\u0631 \u0634\u064A\u0621 \u0643\u0645\u0627 \u064A\u062C\u0628\u060C \u0627\u0641\u0647\u0645 \u0627\u0644\u0633\u0628\u0628\u060C \u0635\u062D\u0651\u062D \u0627\u0644\u0628\u0631\u0646\u0627\u0645\u062C \u0648\u0623\u0639\u062F \u0627\u0644\u0633\u0647\u0631\u0629. \u062B\u0645 \u0633\u0644\u0651\u0645.",
+    "Pannello della casa": "\u0644\u0648\u062D\u0629 \u0627\u0644\u0628\u064A\u062A",
+    "Consegna dell\u2019impianto": "\u062A\u0633\u0644\u064A\u0645 \u0627\u0644\u062A\u0631\u0643\u064A\u0628",
+    "Famiglia Rossi, Via Roma 12": "\u0639\u0627\u0626\u0644\u0629 \u0631\u0648\u0633\u064A\u060C \u0634\u0627\u0631\u0639 \u0631\u0648\u0645\u0627 12",
+    "\xABL\u2019impianto \xE8 finito, stasera la casa va da sola. Chiudi il generale, guardala lavorare fino alle 23 e consegnaci le chiavi.\xBB": "\xAB\u0627\u0644\u062A\u0631\u0643\u064A\u0628 \u062C\u0627\u0647\u0632\u060C \u0627\u0644\u0644\u064A\u0644\u0629 \u064A\u0639\u0645\u0644 \u0627\u0644\u0628\u064A\u062A \u0648\u062D\u062F\u0647. \u0623\u063A\u0644\u0642 \u0627\u0644\u0642\u0627\u0637\u0639 \u0627\u0644\u0631\u0626\u064A\u0633\u064A\u060C \u0631\u0627\u0642\u0628\u0647 \u064A\u0639\u0645\u0644 \u062D\u062A\u0649 23 \u0648\u0633\u0644\u0651\u0645\u0646\u0627 \u0627\u0644\u0645\u0641\u0627\u062A\u064A\u062D.\xBB",
+    "Chiudi il generale": "\u0623\u063A\u0644\u0642 \u0627\u0644\u0642\u0627\u0637\u0639 \u0627\u0644\u0631\u0626\u064A\u0633\u064A",
+    "Guarda la serata": "\u0631\u0627\u0642\u0628 \u0627\u0644\u0633\u0647\u0631\u0629",
+    "Rispondi: perch\xE9 \xE8 saltata la casa?": "\u0623\u062C\u0628: \u0644\u0645\u0627\u0630\u0627 \u0627\u0646\u0642\u0637\u0639 \u0627\u0644\u0628\u064A\u062A\u061F",
+    "Correggi il programma": "\u0635\u062D\u0651\u062D \u0627\u0644\u0628\u0631\u0646\u0627\u0645\u062C",
+    "Rifai la serata fino alle 23": "\u0623\u0639\u062F \u0627\u0644\u0633\u0647\u0631\u0629 \u062D\u062A\u0649 23",
+    "Consegna": "\u0633\u0644\u0651\u0645",
+    "La casa \xE8 al buio.": "\u0627\u0644\u0628\u064A\u062A \u0641\u064A \u0627\u0644\u0638\u0644\u0627\u0645.",
+    "Il contatore ha staccato: la casa ha prelevato troppo per troppo tempo.": "\u0641\u0635\u0644 \u0627\u0644\u0639\u062F\u0651\u0627\u062F: \u0633\u062D\u0628 \u0627\u0644\u0628\u064A\u062A \u0623\u0643\u062B\u0631 \u0645\u0646 \u0627\u0644\u0644\u0627\u0632\u0645 \u0644\u0645\u062F\u0629 \u0637\u0648\u064A\u0644\u0629.",
+    "Allagamento in bagno.": "\u0641\u064A\u0636\u0627\u0646 \u0641\u064A \u0627\u0644\u062D\u0645\u0651\u0627\u0645.",
+    "Prima asciuga la sonda, poi tacita la sirena.": "\u062C\u0641\u0651\u0641 \u0627\u0644\u062D\u0633\u0651\u0627\u0633 \u0623\u0648\u0644\u064B\u0627\u060C \u062B\u0645 \u0623\u0633\u0643\u062A \u0635\u0641\u0627\u0631\u0629 \u0627\u0644\u0625\u0646\u0630\u0627\u0631.",
+    "La sonda \xE8 ancora bagnata: la sirena riparte.": "\u0627\u0644\u062D\u0633\u0651\u0627\u0633 \u0645\u0627 \u0632\u0627\u0644 \u0645\u0628\u0644\u0644\u064B\u0627: \u062A\u0639\u0648\u062F \u0635\u0641\u0627\u0631\u0629 \u0627\u0644\u0625\u0646\u0630\u0627\u0631.",
+    "La pompa di calore si \xE8 guastata: ha girato con le valvole chiuse.": "\u062A\u0639\u0637\u0644\u062A \u0627\u0644\u0645\u0636\u062E\u0629 \u0627\u0644\u062D\u0631\u0627\u0631\u064A\u0629: \u0639\u0645\u0644\u062A \u0648\u0627\u0644\u0635\u0645\u0627\u0645\u0627\u062A \u0645\u063A\u0644\u0642\u0629.",
+    "Le 23:00. La casa va a dormire.": "\u0627\u0644\u0633\u0627\u0639\u0629 23:00. \u0627\u0644\u0628\u064A\u062A \u064A\u062E\u0644\u062F \u0625\u0644\u0649 \u0627\u0644\u0646\u0648\u0645.",
+    "Il contatore non si riarma: rifai la serata da capo.": "\u0627\u0644\u0639\u062F\u0651\u0627\u062F \u0644\u0627 \u064A\u0639\u064A\u062F \u0627\u0644\u062A\u0648\u0635\u064A\u0644: \u0623\u0639\u062F \u0627\u0644\u0633\u0647\u0631\u0629 \u0645\u0646 \u0627\u0644\u0628\u062F\u0627\u064A\u0629.",
+    "Verbale di consegna": "\u0645\u062D\u0636\u0631 \u0627\u0644\u062A\u0633\u0644\u064A\u0645",
+    "Casa intelligente, Via Roma 12": "\u0628\u064A\u062A \u0630\u0643\u064A\u060C \u0634\u0627\u0631\u0639 \u0631\u0648\u0645\u0627 12",
+    "Le 23:00. Buonanotte.": "\u0627\u0644\u0633\u0627\u0639\u0629 23:00. \u062A\u0635\u0628\u062D\u0648\u0646 \u0639\u0644\u0649 \u062E\u064A\u0631.",
+    "Energia della serata": "\u0637\u0627\u0642\u0629 \u0627\u0644\u0633\u0647\u0631\u0629",
+    "Auto caricata": "\u0627\u0644\u0633\u064A\u0627\u0631\u0629 \u0627\u0644\u0645\u0634\u062D\u0648\u0646\u0629",
+    "Comfort (minuti fuori da 19,5\u201322,5 \xB0C)": "\u0627\u0644\u0631\u0627\u062D\u0629 (\u062F\u0642\u0627\u0626\u0642 \u062E\u0627\u0631\u062C 19,5\u201322,5 \xB0C)",
+    "mai a vuoto": "\u0644\u0645 \u062A\u0639\u0645\u0644 \u0641\u064A \u0627\u0644\u0641\u0631\u0627\u063A \u0623\u0628\u062F\u064B\u0627",
+    "guasta: ha girato a vuoto": "\u0645\u0639\u0637\u0644\u0629: \u0639\u0645\u0644\u062A \u0641\u064A \u0627\u0644\u0641\u0631\u0627\u063A",
+    "Allagamento": "\u0627\u0644\u0641\u064A\u0636\u0627\u0646",
+    "nessuno": "\u0644\u0627 \u0634\u064A\u0621",
+    "Contatore": "\u0627\u0644\u0639\u062F\u0651\u0627\u062F",
+    "mai staccato": "\u0644\u0645 \u064A\u0641\u0635\u0644 \u0623\u0628\u062F\u064B\u0627",
+    "Nel programma la soglia di distacco era 6500 W: sopra il limite del contatore (6 kW) e oltre il fondo scala del misuratore. Il PLC non vedeva mai la soglia superata e alle 19:30, con forno, auto e pompa, il contatore staccava la casa.": "\u0641\u064A \u0627\u0644\u0628\u0631\u0646\u0627\u0645\u062C \u0643\u0627\u0646\u062A \u0639\u062A\u0628\u0629 \u0627\u0644\u0641\u0635\u0644 6500 \u0648\u0627\u0637: \u0641\u0648\u0642 \u062D\u062F \u0627\u0644\u0639\u062F\u0651\u0627\u062F (6 \u0643\u064A\u0644\u0648\u0648\u0627\u0637) \u0648\u0628\u0639\u062F \u0646\u0647\u0627\u064A\u0629 \u0645\u062F\u0649 \u062C\u0647\u0627\u0632 \u0627\u0644\u0642\u064A\u0627\u0633. \u0644\u0645 \u064A\u0643\u0646 \u0627\u0644\u0640 PLC \u064A\u0631\u0649 \u0627\u0644\u0639\u062A\u0628\u0629 \u0645\u062A\u062C\u0627\u0648\u064E\u0632\u0629 \u0623\u0628\u062F\u064B\u0627\u060C \u0648\u0641\u064A 19:30\u060C \u0645\u0639 \u0627\u0644\u0641\u0631\u0646 \u0648\u0627\u0644\u0633\u064A\u0627\u0631\u0629 \u0648\u0627\u0644\u0645\u0636\u062E\u0629\u060C \u0643\u0627\u0646 \u0627\u0644\u0639\u062F\u0651\u0627\u062F \u064A\u0641\u0635\u0644 \u0627\u0644\u0628\u064A\u062A.",
+    "Soglia di distacco portata a 5800 W nei due gradini, sotto il limite con margine. Serata rifatta fino alle 23.": "\u0639\u062A\u0628\u0629 \u0627\u0644\u0641\u0635\u0644 \u0635\u0627\u0631\u062A 5800 \u0648\u0627\u0637 \u0641\u064A \u0627\u0644\u062F\u0631\u062C\u062A\u064A\u0646\u060C \u062A\u062D\u062A \u0627\u0644\u062D\u062F \u0645\u0639 \u0647\u0627\u0645\u0634. \u0623\u064F\u0639\u064A\u062F\u062A \u0627\u0644\u0633\u0647\u0631\u0629 \u062D\u062A\u0649 23.",
+    "Sicurezza": "\u0627\u0644\u0633\u0644\u0627\u0645\u0629",
+    "nessun errore": "\u0644\u0627 \u0623\u062E\u0637\u0627\u0621",
+    "regole di sicurezza non rispettate": "\u0642\u0648\u0627\u0639\u062F \u0627\u0644\u0633\u0644\u0627\u0645\u0629 \u0644\u0645 \u062A\u064F\u062D\u062A\u0631\u0645",
+    "Impianto finito. Il generale \xE8 aperto.": "\u0627\u0644\u062A\u0631\u0643\u064A\u0628 \u062C\u0627\u0647\u0632. \u0627\u0644\u0642\u0627\u0637\u0639 \u0627\u0644\u0631\u0626\u064A\u0633\u064A \u0645\u0641\u062A\u0648\u062D.",
+    "Chiuso il generale: la serata comincia.": "\u0623\u064F\u063A\u0644\u0642 \u0627\u0644\u0642\u0627\u0637\u0639 \u0627\u0644\u0631\u0626\u064A\u0633\u064A: \u062A\u0628\u062F\u0623 \u0627\u0644\u0633\u0647\u0631\u0629.",
+    "Aperto il generale.": "\u0641\u064F\u062A\u062D \u0627\u0644\u0642\u0627\u0637\u0639 \u0627\u0644\u0631\u0626\u064A\u0633\u064A.",
+    "Chiuso il generale.": "\u0623\u064F\u063A\u0644\u0642 \u0627\u0644\u0642\u0627\u0637\u0639 \u0627\u0644\u0631\u0626\u064A\u0633\u064A.",
+    "L\u2019auto si attacca alla colonnina.": "\u062A\u064F\u0648\u0635\u064E\u0644 \u0627\u0644\u0633\u064A\u0627\u0631\u0629 \u0628\u0645\u062D\u0637\u0629 \u0627\u0644\u0634\u062D\u0646.",
+    "Il PLC stacca la colonnina.": "\u064A\u0641\u0635\u0644 \u0627\u0644\u0640 PLC \u0645\u062D\u0637\u0629 \u0627\u0644\u0634\u062D\u0646.",
+    "La colonnina riprende a caricare.": "\u062A\u0639\u0648\u062F \u0645\u062D\u0637\u0629 \u0627\u0644\u0634\u062D\u0646 \u0625\u0644\u0649 \u0627\u0644\u0634\u062D\u0646.",
+    "Si accende il forno.": "\u064A\u064F\u0634\u063A\u064E\u0651\u0644 \u0627\u0644\u0641\u0631\u0646.",
+    "Si spegne il forno.": "\u064A\u064F\u0637\u0641\u0623 \u0627\u0644\u0641\u0631\u0646.",
+    "Si apre la finestra del soggiorno.": "\u062A\u064F\u0641\u062A\u062D \u0646\u0627\u0641\u0630\u0629 \u063A\u0631\u0641\u0629 \u0627\u0644\u062C\u0644\u0648\u0633.",
+    "Si chiude la finestra del soggiorno.": "\u062A\u064F\u063A\u0644\u0642 \u0646\u0627\u0641\u0630\u0629 \u063A\u0631\u0641\u0629 \u0627\u0644\u062C\u0644\u0648\u0633.",
+    "La sonda del bagno \xE8 bagnata: suona la sirena.": "\u062D\u0633\u0651\u0627\u0633 \u0627\u0644\u062D\u0645\u0651\u0627\u0645 \u0645\u0628\u0644\u0644: \u062A\u062F\u0648\u0651\u064A \u0635\u0641\u0627\u0631\u0629 \u0627\u0644\u0625\u0646\u0630\u0627\u0631.",
+    "Asciugata la sonda.": "\u062C\u064F\u0641\u0651\u0641 \u0627\u0644\u062D\u0633\u0651\u0627\u0633.",
+    "Tacitata la sirena.": "\u0623\u064F\u0633\u0643\u062A\u062A \u0635\u0641\u0627\u0631\u0629 \u0627\u0644\u0625\u0646\u0630\u0627\u0631.",
+    "Tacitata la sirena con la sonda bagnata: riparte.": "\u0623\u064F\u0633\u0643\u062A\u062A \u0635\u0641\u0627\u0631\u0629 \u0627\u0644\u0625\u0646\u0630\u0627\u0631 \u0648\u0627\u0644\u062D\u0633\u0651\u0627\u0633 \u0645\u0628\u0644\u0644: \u062A\u0639\u0648\u062F.",
+    "Allagamento gestito.": "\u0639\u0648\u0644\u062C \u0627\u0644\u0641\u064A\u0636\u0627\u0646.",
+    "Allagamento gestito in ritardo.": "\u0639\u0648\u0644\u062C \u0627\u0644\u0641\u064A\u0636\u0627\u0646 \u0645\u062A\u0623\u062E\u0631\u064B\u0627.",
+    "Il contatore stacca: la casa \xE8 al buio.": "\u064A\u0641\u0635\u0644 \u0627\u0644\u0639\u062F\u0651\u0627\u062F: \u0627\u0644\u0628\u064A\u062A \u0641\u064A \u0627\u0644\u0638\u0644\u0627\u0645.",
+    "La pompa di calore si guasta.": "\u062A\u062A\u0639\u0637\u0644 \u0627\u0644\u0645\u0636\u062E\u0629 \u0627\u0644\u062D\u0631\u0627\u0631\u064A\u0629.",
+    "Programma del PLC cambiato.": "\u062A\u063A\u064A\u0651\u0631 \u0628\u0631\u0646\u0627\u0645\u062C \u0627\u0644\u0640 PLC.",
+    "Programma cambiato: la soglia di distacco \xE8 sotto il limite.": "\u062A\u063A\u064A\u0651\u0631 \u0627\u0644\u0628\u0631\u0646\u0627\u0645\u062C: \u0639\u062A\u0628\u0629 \u0627\u0644\u0641\u0635\u0644 \u062A\u062D\u062A \u0627\u0644\u062D\u062F.",
+    "Serata rifatta da capo.": "\u0623\u064F\u0639\u064A\u062F\u062A \u0627\u0644\u0633\u0647\u0631\u0629 \u0645\u0646 \u0627\u0644\u0628\u062F\u0627\u064A\u0629.",
+    "Le 23:00: fine della serata.": "\u0627\u0644\u0633\u0627\u0639\u0629 23:00: \u0646\u0647\u0627\u064A\u0629 \u0627\u0644\u0633\u0647\u0631\u0629.",
+    "Risposta giusta: la soglia di distacco \xE8 sopra il limite e il PLC non la vede mai.": "\u0625\u062C\u0627\u0628\u0629 \u0635\u062D\u064A\u062D\u0629: \u0639\u062A\u0628\u0629 \u0627\u0644\u0641\u0635\u0644 \u0641\u0648\u0642 \u0627\u0644\u062D\u062F \u0648\u0644\u0627 \u064A\u0631\u0627\u0647\u0627 \u0627\u0644\u0640 PLC \u0623\u0628\u062F\u064B\u0627.",
+    "Verifica: casa consegnata.": "\u0627\u0644\u062A\u062D\u0642\u0642: \u0633\u064F\u0644\u0651\u0645 \u0627\u0644\u0628\u064A\u062A.",
+    "Chiudi il generale: la serata comincia alle 16:30.": "\u0623\u063A\u0644\u0642 \u0627\u0644\u0642\u0627\u0637\u0639 \u0627\u0644\u0631\u0626\u064A\u0633\u064A: \u062A\u0628\u062F\u0623 \u0627\u0644\u0633\u0647\u0631\u0629 \u0641\u064A 16:30.",
+    "Guarda il pannello: le potenze, la batteria, l\u2019auto e le due stanze.": "\u0631\u0627\u0642\u0628 \u0627\u0644\u0644\u0648\u062D\u0629: \u0627\u0644\u0642\u062F\u0631\u0627\u062A\u060C \u0627\u0644\u0628\u0637\u0627\u0631\u064A\u0629\u060C \u0627\u0644\u0633\u064A\u0627\u0631\u0629 \u0648\u0627\u0644\u063A\u0631\u0641\u062A\u064A\u0646.",
+    "La casa \xE8 saltata: prima del buio la rete era sopra il limite e nessun carico si era staccato. Perch\xE9? Rispondi.": "\u0627\u0646\u0642\u0637\u0639 \u0627\u0644\u0628\u064A\u062A: \u0642\u0628\u0644 \u0627\u0644\u0638\u0644\u0627\u0645 \u0643\u0627\u0646\u062A \u0627\u0644\u0634\u0628\u0643\u0629 \u0641\u0648\u0642 \u0627\u0644\u062D\u062F \u0648\u0644\u0645 \u064A\u064F\u0641\u0635\u0644 \u0623\u064A \u062D\u0650\u0645\u0644. \u0644\u0645\u0627\u0630\u0627\u061F \u0623\u062C\u0628.",
+    "Apri il banco: nei due gradini del distacco la soglia va sotto il limite, con margine.": "\u0627\u0641\u062A\u062D \u0627\u0644\u0637\u0627\u0648\u0644\u0629: \u0641\u064A \u062F\u0631\u062C\u062A\u064A \u0627\u0644\u0641\u0635\u0644 \u062A\u0648\u0636\u0639 \u0627\u0644\u0639\u062A\u0628\u0629 \u062A\u062D\u062A \u0627\u0644\u062D\u062F\u060C \u0645\u0639 \u0647\u0627\u0645\u0634.",
+    "Rifai la serata da capo e guardala fino alle 23. Alle 21:30 tieni d\u2019occhio il bagno.": "\u0623\u0639\u062F \u0627\u0644\u0633\u0647\u0631\u0629 \u0645\u0646 \u0627\u0644\u0628\u062F\u0627\u064A\u0629 \u0648\u0631\u0627\u0642\u0628\u0647\u0627 \u062D\u062A\u0649 23. \u0641\u064A 21:30 \u0627\u0646\u062A\u0628\u0647 \u0644\u0644\u062D\u0645\u0651\u0627\u0645.",
+    "Serata finita: premi Verifica e consegna.": "\u0627\u0646\u062A\u0647\u062A \u0627\u0644\u0633\u0647\u0631\u0629: \u0627\u0636\u063A\u0637 \u0627\u0644\u062A\u062D\u0642\u0642 \u0648\u0633\u0644\u0651\u0645.",
+    "Casa consegnata": "\u0633\u064F\u0644\u0651\u0645 \u0627\u0644\u0628\u064A\u062A",
+    "La soglia di distacco era sopra il limite del contatore e oltre il fondo scala del misuratore: il PLC non staccava mai niente. Con la soglia a 5800 W la casa ha retto la cena con l\u2019auto in carica e la pompa accesa.": "\u0643\u0627\u0646\u062A \u0639\u062A\u0628\u0629 \u0627\u0644\u0641\u0635\u0644 \u0641\u0648\u0642 \u062D\u062F \u0627\u0644\u0639\u062F\u0651\u0627\u062F \u0648\u0628\u0639\u062F \u0646\u0647\u0627\u064A\u0629 \u0645\u062F\u0649 \u062C\u0647\u0627\u0632 \u0627\u0644\u0642\u064A\u0627\u0633: \u0644\u0645 \u064A\u0643\u0646 \u0627\u0644\u0640 PLC \u064A\u0641\u0635\u0644 \u0634\u064A\u0626\u064B\u0627. \u0645\u0639 \u0627\u0644\u0639\u062A\u0628\u0629 5800 \u0648\u0627\u0637 \u0635\u0645\u062F \u0627\u0644\u0628\u064A\u062A \u0623\u062B\u0646\u0627\u0621 \u0627\u0644\u0639\u0634\u0627\u0621 \u0648\u0627\u0644\u0633\u064A\u0627\u0631\u0629 \u062A\u064F\u0634\u062D\u0646 \u0648\u0627\u0644\u0645\u0636\u062E\u0629 \u062A\u0639\u0645\u0644.",
+    "Banco e programma": "\u0627\u0644\u0637\u0627\u0648\u0644\u0629 \u0648\u0627\u0644\u0628\u0631\u0646\u0627\u0645\u062C",
+    "Rifai la serata": "\u0623\u0639\u062F \u0627\u0644\u0633\u0647\u0631\u0629",
+    "Ultimi valori prima del buio": "\u0622\u062E\u0631 \u0627\u0644\u0642\u064A\u0645 \u0642\u0628\u0644 \u0627\u0644\u0638\u0644\u0627\u0645",
+    "La casa adesso": "\u0627\u0644\u0628\u064A\u062A \u0627\u0644\u0622\u0646",
+    "Sole": "\u0627\u0644\u0634\u0645\u0633",
+    "Batteria": "\u0627\u0644\u0628\u0637\u0627\u0631\u064A\u0629",
+    "Rete": "\u0627\u0644\u0634\u0628\u0643\u0629",
+    "Auto": "\u0627\u0644\u0633\u064A\u0627\u0631\u0629",
+    "Forno": "\u0627\u0644\u0641\u0631\u0646",
+    "acceso": "\u064A\u0639\u0645\u0644",
+    "spento": "\u0645\u062A\u0648\u0642\u0641",
+    "ferma": "\u0645\u062A\u0648\u0642\u0641\u0629",
+    "guasta": "\u0645\u0639\u0637\u0644\u0629",
+    "in funzione": "\u062A\u0639\u0645\u0644",
+    "non c\u2019\xE8": "\u063A\u064A\u0631 \u0645\u0648\u062C\u0648\u062F\u0629",
+    "in carica": "\u0641\u064A \u0627\u0644\u0634\u062D\u0646",
+    "attaccata, ferma": "\u0645\u0648\u0635\u0648\u0644\u0629\u060C \u0645\u062A\u0648\u0642\u0641\u0629",
+    "Contatore staccato": "\u0627\u0644\u0639\u062F\u0651\u0627\u062F \u0645\u0641\u0635\u0648\u0644",
+    "Allagamento in bagno": "\u0641\u064A\u0636\u0627\u0646 \u0641\u064A \u0627\u0644\u062D\u0645\u0651\u0627\u0645",
+    "Pompa di calore guasta": "\u0627\u0644\u0645\u0636\u062E\u0629 \u0627\u0644\u062D\u0631\u0627\u0631\u064A\u0629 \u0645\u0639\u0637\u0644\u0629",
+    "ha girato a vuoto": "\u0639\u0645\u0644\u062A \u0641\u064A \u0627\u0644\u0641\u0631\u0627\u063A",
+    "Asciuga la sonda": "\u062C\u0641\u0651\u0641 \u0627\u0644\u062D\u0633\u0651\u0627\u0633",
+    "Apri la finestra": "\u0627\u0641\u062A\u062D \u0627\u0644\u0646\u0627\u0641\u0630\u0629",
+    "Chiudi la finestra": "\u0623\u063A\u0644\u0642 \u0627\u0644\u0646\u0627\u0641\u0630\u0629",
+    "Casa al buio": "\u0627\u0644\u0628\u064A\u062A \u0641\u064A \u0627\u0644\u0638\u0644\u0627\u0645",
+    "Generale aperto: chiudilo per cominciare": "\u0627\u0644\u0642\u0627\u0637\u0639 \u0627\u0644\u0631\u0626\u064A\u0633\u064A \u0645\u0641\u062A\u0648\u062D: \u0623\u063A\u0644\u0642\u0647 \u0644\u0644\u0628\u062F\u0621",
+    "Serata finita": "\u0627\u0646\u062A\u0647\u062A \u0627\u0644\u0633\u0647\u0631\u0629",
+    "Installatore": "\u0627\u0644\u0645\u0631\u0643\u0651\u0628",
+    "La serata non \xE8 finita: guarda la casa fino alle 23:00.": "\u0644\u0645 \u062A\u0646\u062A\u0647\u0650 \u0627\u0644\u0633\u0647\u0631\u0629: \u0631\u0627\u0642\u0628 \u0627\u0644\u0628\u064A\u062A \u062D\u062A\u0649 23:00.",
+    "La serata non \xE8 cominciata: chiudi il generale.": "\u0644\u0645 \u062A\u0628\u062F\u0623 \u0627\u0644\u0633\u0647\u0631\u0629: \u0623\u063A\u0644\u0642 \u0627\u0644\u0642\u0627\u0637\u0639 \u0627\u0644\u0631\u0626\u064A\u0633\u064A.",
     // nomi tecnici e sigle
     "PLC.AI2+": "PLC.AI2+",
     "PLC.AI2-": "PLC.AI2-",
@@ -22571,8 +22744,8 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
     "Contatto Potenza ancora alta": "\u0645\u0644\u0627\u0645\u0633 \u0627\u0644\u0642\u062F\u0631\u0629 \u0645\u0627 \u0632\u0627\u0644\u062A \u0645\u0631\u062A\u0641\u0639\u0629",
     "Contatto Valvola camera": "\u0645\u0644\u0627\u0645\u0633 \u0635\u0645\u0627\u0645 \u0627\u0644\u0646\u0648\u0645",
     "Contatto Valvola soggiorno": "\u0645\u0644\u0627\u0645\u0633 \u0635\u0645\u0627\u0645 \u0627\u0644\u062C\u0644\u0648\u0633",
-    "Morsetto PLC AI2+": "\u0637\u0631\u0641 PLC AI2+",
-    "Morsetto PLC AI2-": "\u0637\u0631\u0641 PLC AI2-",
+    "Morsetto PLC AI2+": "\u0627\u0644\u0645\u0631\u0628\u0637 AI2+ \u0641\u064A \u0627\u0644\u0640PLC",
+    "Morsetto PLC AI2-": "\u0627\u0644\u0645\u0631\u0628\u0637 AI2- \u0641\u064A \u0627\u0644\u0640PLC",
     "Pompa permessa": "\u0627\u0644\u0645\u0636\u062E\u0629 \u0645\u0633\u0645\u0648\u062D \u0628\u0647\u0627",
     "Potenza ancora alta": "\u0627\u0644\u0642\u062F\u0631\u0629 \u0645\u0627 \u0632\u0627\u0644\u062A \u0645\u0631\u062A\u0641\u0639\u0629",
     "TON 5 s": "TON 5 \u062B",
@@ -22647,7 +22820,7 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
     "Allagamento: prima si asciuga la sonda, poi si tacita la sirena.": "\u0627\u0644\u0641\u064A\u0636\u0627\u0646: \u0623\u0648\u0644\u064B\u0627 \u064A\u064F\u062C\u0641\u064E\u0651\u0641 \u0627\u0644\u062D\u0633\u0651\u0627\u0633\u060C \u062B\u0645 \u062A\u064F\u0633\u0643\u064E\u062A \u0635\u0641\u0627\u0631\u0629 \u0627\u0644\u0625\u0646\u0630\u0627\u0631.",
     // unita': guasto della prova
     "La casa \xE8 finita e programmata. Chiudi il generale: la serata comincia alle 16:30. Guarda il pannello. Se qualcosa non va, rispondi alla domanda.": "\u0627\u0644\u0628\u064A\u062A \u062C\u0627\u0647\u0632 \u0648\u0645\u0628\u0631\u0645\u062C. \u0623\u063A\u0644\u0642 \u0627\u0644\u0642\u0627\u0637\u0639 \u0627\u0644\u0631\u0626\u064A\u0633\u064A: \u062A\u0628\u062F\u0623 \u0627\u0644\u0633\u0647\u0631\u0629 \u0641\u064A 16:30. \u0631\u0627\u0642\u0628 \u0627\u0644\u0644\u0648\u062D\u0629. \u0625\u0630\u0627 \u0644\u0645 \u064A\u0633\u0631 \u0634\u064A\u0621 \u0643\u0645\u0627 \u064A\u062C\u0628\u060C \u0623\u062C\u0628 \u0639\u0646 \u0627\u0644\u0633\u0624\u0627\u0644.",
-    "Alle 19:30 il contatore ha staccato tutta la casa. Sul pannello, prima del buio, la rete era al fondo scala sopra la riga del limite, auto e pompa erano accese e nessun carico si era staccato. Perch\xE9?": "\u0641\u064A 19:30 \u0641\u0635\u0644 \u0627\u0644\u0639\u062F\u0651\u0627\u062F \u0627\u0644\u0628\u064A\u062A \u0643\u0644\u0647. \u0641\u064A \u0627\u0644\u0644\u0648\u062D\u0629\u060C \u0642\u0628\u0644 \u0627\u0644\u0638\u0644\u0627\u0645\u060C \u0643\u0627\u0646\u062A \u0627\u0644\u0634\u0628\u0643\u0629 \u0639\u0646\u062F \u0646\u0647\u0627\u064A\u0629 \u0627\u0644\u0645\u062F\u0649 \u0641\u0648\u0642 \u062E\u0637 \u0627\u0644\u062D\u062F\u060C \u0648\u0627\u0644\u0633\u064A\u0627\u0631\u0629 \u0648\u0627\u0644\u0645\u0636\u062E\u0629 \u062A\u0639\u0645\u0644\u0627\u0646\u060C \u0648\u0644\u0645 \u064A\u064F\u0641\u0635\u0644 \u0623\u064A \u062D\u0650\u0645\u0644. \u0644\u0645\u0627\u0630\u0627\u061F",
+    "Verso le 19:45 il contatore ha staccato tutta la casa. Sul pannello, prima del buio, la rete era al fondo scala sopra la riga del limite, auto e pompa erano accese e nessun carico si era staccato. Perch\xE9?": "\u0646\u062D\u0648 19:45 \u0641\u0635\u0644 \u0627\u0644\u0639\u062F\u0651\u0627\u062F \u0627\u0644\u0628\u064A\u062A \u0643\u0644\u0647. \u0641\u064A \u0627\u0644\u0644\u0648\u062D\u0629\u060C \u0642\u0628\u0644 \u0627\u0644\u0638\u0644\u0627\u0645\u060C \u0643\u0627\u0646\u062A \u0627\u0644\u0634\u0628\u0643\u0629 \u0639\u0646\u062F \u0646\u0647\u0627\u064A\u0629 \u0627\u0644\u0645\u062F\u0649 \u0641\u0648\u0642 \u062E\u0637 \u0627\u0644\u062D\u062F\u060C \u0648\u0627\u0644\u0633\u064A\u0627\u0631\u0629 \u0648\u0627\u0644\u0645\u0636\u062E\u0629 \u062A\u0639\u0645\u0644\u0627\u0646\u060C \u0648\u0644\u0645 \u064A\u064F\u0641\u0635\u0644 \u0623\u064A \u062D\u0650\u0645\u0644. \u0644\u0645\u0627\u0630\u0627\u061F",
     "Il forno non si pu\xF2 staccare: con il forno acceso il contatore stacca sempre.": "\u0627\u0644\u0641\u0631\u0646 \u0644\u0627 \u064A\u0645\u0643\u0646 \u0641\u0635\u0644\u0647: \u0645\u0639 \u0627\u0644\u0641\u0631\u0646 \u0627\u0644\u0645\u0634\u063A\u0651\u0644 \u064A\u0641\u0635\u0644 \u0627\u0644\u0639\u062F\u0651\u0627\u062F \u062F\u0627\u0626\u0645\u064B\u0627.",
     "La soglia di distacco (6500 W) \xE8 sopra il limite e oltre il fondo scala del misuratore: il PLC non l\u2019ha mai vista superata.": "\u0639\u062A\u0628\u0629 \u0627\u0644\u0641\u0635\u0644 (6500 \u0648\u0627\u0637) \u0641\u0648\u0642 \u0627\u0644\u062D\u062F \u0648\u0628\u0639\u062F \u0646\u0647\u0627\u064A\u0629 \u0645\u062F\u0649 \u062C\u0647\u0627\u0632 \u0627\u0644\u0642\u064A\u0627\u0633: \u0644\u0645 \u064A\u0631\u064E\u0647\u0627 \u0627\u0644\u0640 PLC \u0645\u062A\u062C\u0627\u0648\u064E\u0632\u0629 \u0623\u0628\u062F\u064B\u0627.",
     "La batteria era scarica.": "\u0643\u0627\u0646\u062A \u0627\u0644\u0628\u0637\u0627\u0631\u064A\u0629 \u0641\u0627\u0631\u063A\u0629.",
@@ -23863,12 +24036,75 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
       flow: snap.flow || null
     };
   }
+  var ROOM_HOURS = {
+    ingresso: [[17.25, 22]],
+    corridoio: [[17.25, 23]],
+    soggiorno: [[17.25, 23]],
+    cucina: [[19, 21]],
+    bagno: [[21.25, 21.75], [22.5, 23]],
+    camera: [[22.25, 23]]
+  };
+  var CASA_ROOMS = Object.keys(ROOM_HOURS);
+  function casaRooms(hour, sun, powered) {
+    const out = {};
+    CASA_ROOMS.forEach((id) => {
+      const on = powered && sun < 0.15 && ROOM_HOURS[id].some(([a, b]) => hour >= a && hour < b);
+      out[id] = on ? id === "corridoio" || id === "ingresso" ? 0.5 : 1 : 0;
+    });
+    return out;
+  }
+  var num2 = (x, d = 0) => Number.isFinite(Number(x)) ? Number(x) : d;
+  function casaState(snap) {
+    const o = snap.obs;
+    if (!o) return null;
+    const p = o.process || {}, lv = snap.level || {}, params = { ...lv.process && lv.process.params || {} };
+    const qg = !!part(o, "QG").on, blackout = !!p.blackout;
+    const powered = !!o.supply && qg && !blackout;
+    const hour = num2(p.hour, 16.5);
+    const sun = num2(p.sun);
+    const plc = part(o, "PLC");
+    const minPerSec = 1440 / num2(params.dayLen, 1440);
+    return {
+      scene: "casa",
+      powered,
+      // generale chiuso e contatore non staccato
+      blackout,
+      // il contatore ha staccato: tutta la casa al buio (momento forte)
+      qg,
+      // la leva del generale (chiusa anche al buio)
+      hour,
+      // ora della serata dal motore, 16.5 ... 23
+      sun,
+      // altezza del sole (0 dopo il tramonto)
+      kw: { pv: num2(p.pv), load: num2(p.load), grid: num2(p.grid), batt: num2(p.pb), limit: num2(params.limit, 6) },
+      soc: num2(p.soc),
+      ev: { plugged: !!part(o, "EV").on, charging: powered && o.loads.HE === "on", kwh: num2(p.eEv) },
+      hp: { on: !!p.hpRun, broken: !!p.broken },
+      zones: [
+        { id: "soggiorno", T: num2(p.T1, 17), valve: num2(p.p1), window: !!part(o, "W1").on },
+        { id: "camera", T: num2(p.T2, 17), valve: num2(p.p2), window: false }
+      ],
+      oven: powered && !!p.oven,
+      flood: { wet: !!part(o, "S2").on, siren: o.loads.B === "on" },
+      silence: !!part(o, "TA").pressed,
+      // il tasto di tacitazione tenuto premuto
+      rooms: casaRooms(hour, sun, powered),
+      // luce di ogni stanza 0..1
+      shift: o.scenario || null,
+      // come la fabbrica: duration, t, done, started, faults, events
+      // per il pannello e il verbale (non servono alla scena)
+      plc: { on: !!plc.mem, outputs: { ...plc.q || {} } },
+      energy: { prod: num2(p.eProd), imp: num2(p.eImp), exp: num2(p.eExp), cost: num2(p.cost) },
+      comfort: { soggiorno: Math.round(num2(p.out1) * minPerSec), camera: Math.round(num2(p.out2) * minPerSec) }
+    };
+  }
   function provaState(snap) {
     const sc = snap && snap.level && snap.level.prova && snap.level.prova.scene;
     if (sc === "appartamento") return appartamentoState(snap);
     if (sc === "officina") return officinaState(snap);
     if (sc === "automatico") return automaticoState(snap);
     if (sc === "fabbrica") return fabbricaState(snap);
+    if (sc === "casa") return casaState(snap);
     return null;
   }
 
@@ -24166,6 +24402,101 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
         title: "Turno consegnato",
         text: "La cella ha prodotto per tutta la notte. Ogni guasto \xE8 stato trovato dal pannello e riparato in sicurezza, con il robot senza potenza."
       }
+    },
+    casa: {
+      kick: "Modulo 5 \xB7 prova",
+      place: "Casa",
+      title: "Una sera d\u2019inverno",
+      tagline: "Ore 16:30. Il sole cala.",
+      clock: [16, 30],
+      shiftHours: 6.5,
+      // la serata (scenario.duration) va dalle 16:30 alle 23:00
+      goal: "La casa intelligente della famiglia Rossi \xE8 finita. Chiudi il generale e guardala lavorare da sola fino alle 23: l\u2019auto arriva, si cucina, qualcuno apre la finestra. Se qualcosa non va, capisci perch\xE9, correggi il programma e rifai la serata. Poi consegna.",
+      dockTitle: "Pannello della casa",
+      tools: ["sound", "log"],
+      call: { label: "Consegna dell\u2019impianto", where: "Famiglia Rossi, Via Roma 12", quote: "\xABL\u2019impianto \xE8 finito, stasera la casa va da sola. Chiudi il generale, guardala lavorare fino alle 23 e consegnaci le chiavi.\xBB", go: "Entra" },
+      steps: ["Chiudi il generale", "Guarda la serata", "Rispondi: perch\xE9 \xE8 saltata la casa?", "Correggi il programma", "Rifai la serata fino alle 23", "Consegna"],
+      zoneNames: { soggiorno: "Soggiorno", camera: "Camera" },
+      story: {
+        blackout: "La casa \xE8 al buio.",
+        blackoutWhy: "Il contatore ha staccato: la casa ha prelevato troppo per troppo tempo.",
+        flood: "Allagamento in bagno.",
+        floodWhy: "Prima asciuga la sonda, poi tacita la sirena.",
+        wet: "La sonda \xE8 ancora bagnata: la sirena riparte.",
+        broken: "La pompa di calore si \xE8 guastata: ha girato con le valvole chiuse.",
+        end: "Le 23:00. La casa va a dormire.",
+        replay: "Il contatore non si riarma: rifai la serata da capo."
+      },
+      report: {
+        title: "Verbale di consegna",
+        sub: "Casa intelligente, Via Roma 12",
+        end: "Le 23:00. Buonanotte.",
+        energy: "Energia della serata",
+        prod: "prodotta",
+        imp: "prelevata",
+        exp: "immessa",
+        cost: "costo",
+        car: "Auto caricata",
+        comfort: "Comfort (minuti fuori da 19,5\u201322,5 \xB0C)",
+        pump: "Pompa di calore",
+        pumpOk: "mai a vuoto",
+        pumpKo: "guasta: ha girato a vuoto",
+        flood: "Allagamento",
+        arrived: "alle",
+        fixed: "gestito alle",
+        open: "non gestito",
+        late: "in ritardo",
+        none: "nessuno",
+        meter: "Contatore",
+        meterOk: "mai staccato",
+        meterKo: "staccato alle",
+        fault: "Nel programma la soglia di distacco era 6500 W: sopra il limite del contatore (6 kW) e oltre il fondo scala del misuratore. Il PLC non vedeva mai la soglia superata e alle 19:30, con forno, auto e pompa, il contatore staccava la casa.",
+        fix: "Soglia di distacco portata a 5800 W nei due gradini, sotto il limite con margine. Serata rifatta fino alle 23.",
+        safety: "Sicurezza",
+        safeOk: "nessun errore",
+        safeKo: "regole di sicurezza non rispettate"
+      },
+      log: {
+        start: "Impianto finito. Il generale \xE8 aperto.",
+        shiftStart: "Chiuso il generale: la serata comincia.",
+        qgOff: "Aperto il generale.",
+        qgOn: "Chiuso il generale.",
+        car: "L\u2019auto si attacca alla colonnina.",
+        shed: "Il PLC stacca la colonnina.",
+        unshed: "La colonnina riprende a caricare.",
+        oven: "Si accende il forno.",
+        ovenOff: "Si spegne il forno.",
+        windowOpen: "Si apre la finestra del soggiorno.",
+        windowClose: "Si chiude la finestra del soggiorno.",
+        flood: "La sonda del bagno \xE8 bagnata: suona la sirena.",
+        dried: "Asciugata la sonda.",
+        silenced: "Tacitata la sirena.",
+        silenceWet: "Tacitata la sirena con la sonda bagnata: riparte.",
+        fixed: "Allagamento gestito.",
+        late: "Allagamento gestito in ritardo.",
+        blackout: "Il contatore stacca: la casa \xE8 al buio.",
+        broken: "La pompa di calore si guasta.",
+        program: "Programma del PLC cambiato.",
+        programOk: "Programma cambiato: la soglia di distacco \xE8 sotto il limite.",
+        replay: "Serata rifatta da capo.",
+        end: "Le 23:00: fine della serata.",
+        answerOk: "Risposta giusta: la soglia di distacco \xE8 sopra il limite e il PLC non la vede mai.",
+        answerKo: "Risposta sbagliata. Si pu\xF2 riprovare.",
+        checkOk: "Verifica: casa consegnata.",
+        checkKo: "Verifica: qualcosa non va ancora."
+      },
+      hints: [
+        "Chiudi il generale: la serata comincia alle 16:30.",
+        "Guarda il pannello: le potenze, la batteria, l\u2019auto e le due stanze.",
+        "La casa \xE8 saltata: prima del buio la rete era sopra il limite e nessun carico si era staccato. Perch\xE9? Rispondi.",
+        "Apri il banco: nei due gradini del distacco la soglia va sotto il limite, con margine.",
+        "Rifai la serata da capo e guardala fino alle 23. Alle 21:30 tieni d\u2019occhio il bagno.",
+        "Serata finita: premi Verifica e consegna."
+      ],
+      win: {
+        title: "Casa consegnata",
+        text: "La soglia di distacco era sopra il limite del contatore e oltre il fondo scala del misuratore: il PLC non staccava mai niente. Con la soglia a 5800 W la casa ha retto la cena con l\u2019auto in carica e la pompa accesa."
+      }
     }
   };
 
@@ -24184,8 +24515,8 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
     if (m.rearmed && line2 && before && before.rcd.on && !before.lines[line2].on && after.lines[line2].on && after.rcd.tripped) m.found = true;
     return m;
   }
-  var isPlant = (name) => name === "officina" || name === "automatico" || name === "fabbrica";
-  var plantEvents = (name, action, before, after) => name === "automatico" ? automaticoEvents(action, before, after) : name === "fabbrica" ? fabbricaEvents(action, before, after) : officinaEvents(action, before, after);
+  var isPlant = (name) => name === "officina" || name === "automatico" || name === "fabbrica" || name === "casa";
+  var plantEvents = (name, action, before, after) => name === "automatico" ? automaticoEvents(action, before, after) : name === "fabbrica" ? fabbricaEvents(action, before, after) : name === "casa" ? casaEvents(action, before, after) : officinaEvents(action, before, after);
   var lineOf = (name, id) => {
     const c2 = (PROVE[name].controls || []).find((x) => x.id === id);
     return c2 ? c2.line : null;
@@ -24203,6 +24534,10 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
       const allFixed = sh.faults.length > 0 && sh.faults.every((f2) => f2.fixedAt !== null && !f2.late);
       done = [!!sh.started, diagOk, f0.fixedAt != null && !f0.late, allFixed, !!sh.done, unit && unit.phase === "done"];
       ko = [false, false, !!f0.late || !!sh.done && f0.fixedAt == null, sh.faults.some((f2) => f2.late || sh.done && f2.fixedAt === null), false, false];
+    } else if (name === "casa") {
+      const sh = ps && ps.shift || {};
+      done = [!!sh.started || !!mem.blackout, !!mem.blackout || !!sh.done && !ps.blackout, diagOk, !!mem.fixed, !!mem.fixed && !!sh.done && !ps.blackout, unit && unit.phase === "done"];
+      ko = [false, false, false, false, !!mem.fixed && !!ps.blackout, false];
     } else if (isPlant(name)) {
       const t = mem.tests || {};
       done = cfg.tests.map((x) => t[x.id] === "ok").concat([diagOk, !!mem.fixed, unit && unit.phase === "done"]);
@@ -24270,7 +24605,7 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
     const ctu = ((programs || {}).PLC || []).map((r) => (r.do || []).find((i) => i.op === "ctu")).find(Boolean);
     return !!ctu && ctu.r === "I1" && ctu.pv === 4;
   }
-  var plantFixed = (name, snap) => name === "automatico" ? automaticoFixed(snap.programs) : name === "fabbrica" ? false : officinaFixed(snap.wires);
+  var plantFixed = (name, snap) => name === "automatico" ? automaticoFixed(snap.programs) : name === "fabbrica" ? false : name === "casa" ? casaFixed(snap.programs, snap.level) : officinaFixed(snap.wires);
   var shiftClock = (cfg, sh, t = sh ? sh.t : 0) => clockText(cfg, sh && sh.duration ? Math.round(t / sh.duration * cfg.shiftHours * 60) : 0);
   function shiftSpan(cfg, sh, sec) {
     const m = sh && sh.duration ? Math.round(sec / sh.duration * cfg.shiftHours * 60) : 0;
@@ -24313,7 +24648,8 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
     if (!b.done && a.done) ev2.push({ kind: "end", text: L.end, good: true });
     return ev2;
   }
-  function shiftHTML(cfg, ps) {
+  function shiftHTML(cfg, ps, mem) {
+    if (ps && ps.scene === "casa") return casaShiftHTML(cfg, ps, mem);
     const sh = ps && ps.shift;
     if (!sh) return "";
     const fired = sh.faults.filter((f2) => f2.firedAt !== null), fixed = fired.filter((f2) => f2.fixedAt !== null);
@@ -24371,6 +24707,12 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
   function rememberEvents(mem, events) {
     if (!events.length) return mem;
     const m = { ...mem, tests: { ...mem.tests || {} } };
+    events.forEach((e) => {
+      if (e.kind === "blackout") {
+        m.blackout = true;
+        m.blackoutAt = e.clock || m.blackoutAt || null;
+      }
+    });
     events.forEach((e) => {
       if (e.test && e.result && m.tests[e.test] !== "ok") m.tests[e.test] = e.result;
     });
@@ -24458,7 +24800,7 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
   }
   var STATE_WORD = { on: "Chiuso", off: "Aperto", tripped: "Scattato", armed: "Armato" };
   function dockHTML(cfg, ps, unit, ui2) {
-    if (cfg.shiftHours) return fabbricaDockHTML(cfg, ps, unit, ui2);
+    if (cfg.shiftHours) return ps.scene === "casa" ? casaDockHTML(cfg, ps, unit, ui2) : fabbricaDockHTML(cfg, ps, unit, ui2);
     if (cfg.tests) return stationHTML(cfg, ps, unit, ui2);
     const mods = cfg.controls.map((c2) => {
       let on, trip2, live;
@@ -24569,6 +24911,123 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
         <dt>Esito</dt><dd><span class="pstars" role="img" aria-label="${stars2} stelle su 3">${[0, 1, 2].map((i) => `<span class="pstar" style="--i:${i}">${STAR2(i < stars2)}</span>`).join("")}</span></dd>
       </dl>
       <div class="prow"><a class="pbtn y" href="#/home">Torna alla mappa</a><button class="pbtn" type="button" data-pui="again">Rifai la prova</button><button class="pbtn" type="button" data-pui="summary">Sintesi</button><button class="pbtn" type="button" data-pui="closeSheet">Guarda la casa</button></div></div>`;
+  }
+  function casaFixed(programs, level) {
+    const limit = ((level && level.process && level.process.params || {}).limit || 6) * 1e3;
+    const found = [];
+    const walk = (e) => {
+      if (!Array.isArray(e)) return;
+      if (e[0] === "gt" && e[1] === "MW0" && typeof e[2] === "number") found.push(e[2]);
+      else e.slice(1).forEach(walk);
+    };
+    ((programs || {}).PLC || []).forEach((r) => walk(r.if));
+    return found.length > 0 && found.every((x) => x < limit);
+  }
+  function casaEvents(action, before, after) {
+    if (!before || !after) return [];
+    const L = PROVE.casa.log, ev2 = [];
+    const id = action && action.id, kind = action && action.kind;
+    const b = before.shift || { faults: [], events: [] }, a = after.shift || { faults: [], events: [] };
+    if (id === "QG" && kind === "toggle") {
+      if (!b.started && a.started) ev2.push({ kind: "shiftStart", text: L.shiftStart, good: true });
+      else ev2.push({ kind: after.qg ? "qgOn" : "qgOff", text: after.qg ? L.qgOn : L.qgOff });
+    } else if (id === "S2" && kind === "toggle" && before.flood.wet && !after.flood.wet) ev2.push({ kind: "dried", text: L.dried, good: true });
+    else if (id === "TA" && kind === "release" && after.flood.siren && after.flood.wet) ev2.push({ kind: "silenceWet", text: L.silenceWet, trip: true });
+    if (!before.ev.plugged && after.ev.plugged) ev2.push({ kind: "car", text: L.car, view: "tettoia" });
+    else if (before.ev.plugged && after.ev.plugged && after.powered) {
+      if (before.ev.charging && !after.ev.charging) ev2.push({ kind: "shed", text: L.shed });
+      else if (!before.ev.charging && after.ev.charging && before.powered) ev2.push({ kind: "unshed", text: L.unshed, good: true });
+    }
+    if (!before.oven && after.oven) ev2.push({ kind: "oven", text: L.oven });
+    else if (before.oven && !after.oven && after.powered) ev2.push({ kind: "ovenOff", text: L.ovenOff });
+    const w0 = before.zones[0].window, w1 = after.zones[0].window;
+    if (w0 !== w1) ev2.push({ kind: w1 ? "windowOpen" : "windowClose", text: w1 ? L.windowOpen : L.windowClose });
+    if (!before.flood.wet && after.flood.wet) ev2.push({ kind: "flood", text: L.flood, trip: true, view: "bagno" });
+    if (!before.blackout && after.blackout) ev2.push({ kind: "blackout", text: L.blackout, trip: true, view: "esterno" });
+    if (!before.hp.broken && after.hp.broken) ev2.push({ kind: "broken", text: L.broken, trip: true });
+    a.faults.forEach((f2) => {
+      const was = b.faults.find((x) => x.id === f2.id);
+      if (f2.fixedAt !== null && (!was || was.fixedAt === null)) ev2.push({ kind: "fixed", text: f2.late ? L.late : L.fixed, good: !f2.late, trip: f2.late });
+    });
+    if (!b.done && a.done) ev2.push({ kind: "end", text: L.end, good: !after.blackout });
+    return ev2;
+  }
+  var kwText = (x) => (Math.round(x * 10) / 10).toFixed(1).replace(".", ",") + " kW";
+  var num1 = (x) => (Math.round(x * 10) / 10).toFixed(1).replace(".", ",");
+  var meterKw = (g, limit) => Math.min(g, limit * (1 + 0.5 / 16 * 2));
+  function casaShiftHTML(cfg, ps, mem) {
+    const sh = ps.shift;
+    if (!sh) return "";
+    const left = sh.started ? shiftSpan(cfg, sh, Math.max(0, sh.duration - sh.t)) : "";
+    const state = ps.blackout ? "Casa al buio" + (mem && mem.blackoutAt ? " dalle " + mem.blackoutAt : "") : !sh.started ? "Generale aperto: chiudilo per cominciare" : sh.done ? "Serata finita" : "Fine serata tra " + left;
+    const over = ps.kw.grid > ps.kw.limit;
+    return `<div class="pshift-in" role="status"><span class="pshift-state">${esc5(state)}</span>
+    <span class="pshift-down${over || ps.blackout ? " on" : ""}">Rete ${esc5(kwText(ps.kw.grid))} / ${esc5(kwText(ps.kw.limit))}</span>
+    <span>Batteria ${Math.round(ps.soc)} %</span>
+    <span>Auto ${esc5(num1(ps.ev.kwh))} kWh</span></div>`;
+  }
+  function casaDockHTML(cfg, ps, unit, ui2) {
+    const diagOk = !!(unit && unit.diag && unit.diag.correct);
+    const sh = ps.shift || {};
+    let main = "";
+    if (unit && unit.phase === "fault") main = diagOk ? '<button class="pbtn y" type="button" data-pui="check">Verifica</button>' : '<button class="pbtn y" type="button" data-pui="answer">Rispondi</button>';
+    else if (unit && unit.phase === "done") main = '<button class="pbtn y" type="button" data-pui="finale">Verbale</button>';
+    const replay = unit && unit.phase === "fault" && (ps.blackout || sh.done) ? '<button class="pchip" type="button" data-pui="replay">Rifai la serata</button>' : "";
+    const v = ps.blackout && ui2 && ui2.lastLit ? ui2.lastLit : ps;
+    const k = v.kw, lim = k.limit;
+    const bar = (x) => Math.max(0, Math.min(1, x / (lim * 1.5)));
+    const metered = meterKw(k.grid, lim), sat = k.grid > metered + 1e-6;
+    const zones = v.zones.map((z) => `<div class="pcasa-z${z.window ? " win" : ""}"><span class="pst-name">${esc5(cfg.zoneNames[z.id] || z.id)}</span><b>${esc5(num1(z.T))} \xB0C</b><span>${z.valve > 0.5 ? "valvola aperta" : "valvola chiusa"}${z.window ? " \xB7 finestra aperta" : ""}</span></div>`).join("");
+    const alarms = [];
+    if (ps.blackout) alarms.push(`<li class="phmi-a attivo"><b>Contatore staccato</b><span>${esc5(ui2 && ui2.blackoutAt ? "alle " + ui2.blackoutAt : "")}</span></li>`);
+    if (ps.flood.siren || ps.flood.wet) alarms.push(`<li class="phmi-a ${ps.flood.siren ? "attivo" : "rientrato"}"><b>Allagamento in bagno</b><span>${ps.flood.wet ? "sonda bagnata" : "sonda asciutta"}${ps.flood.siren ? " \xB7 sirena" : ""}</span></li>`);
+    if (ps.hp.broken) alarms.push('<li class="phmi-a attivo"><b>Pompa di calore guasta</b><span>ha girato a vuoto</span></li>');
+    const hp = ps.hp.broken ? "guasta" : v.hp.on ? "in funzione" : "ferma";
+    const car = !v.ev.plugged ? "non c\u2019\xE8" : v.ev.charging ? "in carica" : "attaccata, ferma";
+    return `<div class="pbox pstation pcasa"><div class="pboxhead"><h2>${esc5(cfg.dockTitle)}</h2><div class="prow">
+      <button class="pchip" type="button" data-pui="schema" aria-pressed="${!!(ui2 && ui2.schema)}">${ui2 && ui2.schema ? "Chiudi il banco" : "Banco e programma"}</button>${replay}${main}</div></div>
+    <div class="pcasa-in">
+      <div class="phmi pcasa-tab${ps.blackout ? " dark" : ""}">
+        <div class="phmi-head"><b>${ps.blackout ? "Ultimi valori prima del buio" : "La casa adesso"}</b><span>${esc5(clockText(cfg, Math.round((v.hour - cfg.clock[0] - cfg.clock[1] / 60) * 60)))}</span></div>
+        <div class="pcasa-p">
+          <span><i>Sole</i><b>${esc5(kwText(k.pv))}</b></span>
+          <span><i>Casa</i><b>${esc5(kwText(k.load))}</b></span>
+          <span><i>Batteria</i><b>${Math.round(v.soc)} %</b><small>${esc5(k.batt > 0.05 ? "si carica " + kwText(k.batt) : k.batt < -0.05 ? "d\xE0 " + kwText(-k.batt) + " alla casa" : "ferma")}</small></span>
+          <span class="pcasa-grid${k.grid > lim ? " over" : ""}"><i>Rete</i><b>${esc5(kwText(k.grid))}</b><span class="pcasa-bar" style="--g:${bar(k.grid)};--l:${bar(lim)}" aria-hidden="true"></span><small>limite ${esc5(kwText(lim))} \xB7 il misuratore legge ${esc5(kwText(metered))}${sat ? " (fondo scala)" : ""}</small></span>
+        </div>
+        <div class="pcasa-row"><span><i>Auto</i><b>${esc5(car)}</b><small>${esc5(num1(v.ev.kwh))} kWh</small></span><span><i>Pompa di calore</i><b>${esc5(hp)}</b></span><span><i>Forno</i><b>${v.oven ? "acceso" : "spento"}</b></span></div>
+        <div class="pcasa-zs">${zones}</div>
+        <ul class="phmi-al" aria-live="polite">${alarms.join("") || '<li class="phmi-none">Nessun allarme</li>'}</ul>
+      </div>
+      <div class="pst-side pcasa-keys">
+        <div class="pst-mod${ps.qg ? "" : " open"}"><span class="pst-name">Generale</span><button class="pst-sw" type="button" data-pact="toggle" data-pid="QG" aria-pressed="${!!ps.qg}">${ps.qg ? "Chiuso" : "Aperto"}</button></div>
+        <button class="pst-btn pst-reset" type="button" data-phold="TA" data-pid="TA" aria-pressed="${!!ps.silence}"><span class="pst-cap" aria-hidden="true"></span><span>Tacitazione</span></button>
+        <button class="pchip" type="button" data-pact="toggle" data-pid="S2"${ps.flood.wet ? "" : " disabled"}>Asciuga la sonda</button>
+        <button class="pchip" type="button" data-pact="toggle" data-pid="W1" aria-pressed="${!!ps.zones[0].window}">${ps.zones[0].window ? "Chiudi la finestra" : "Apri la finestra"}</button>
+      </div>
+    </div></div>`;
+  }
+  function serataReportHTML(cfg, stars2, solved, ps, who, safeOk, mem = {}) {
+    const R = cfg.report, sh = ps.shift || { faults: [] }, e = ps.energy;
+    const fl = (sh.faults || []).find((f2) => f2.id === "allagamento");
+    const flood = !fl || fl.firedAt === null ? R.none : `${R.arrived} ${shiftClock(cfg, sh, fl.firedAt)}, ${fl.fixedAt === null ? R.open : R.fixed + " " + shiftClock(cfg, sh, fl.fixedAt) + (fl.late ? " (" + R.late + ")" : "")}`;
+    const euro = (x) => (Math.round(x * 100) / 100).toFixed(2).replace(".", ",") + " \u20AC";
+    return `<div class="pcard preport pverbale" role="dialog" aria-modal="true" aria-labelledby="pW">
+      <div class="prep-head"><span class="pk">${solved ? esc5(cfg.kick.split(" \xB7 ")[0] + " completato") : "Casa consegnata"}</span><span class="prep-time">${esc5(shiftClock(cfg, sh, 0))}\u2013${esc5(shiftClock(cfg, sh))}</span></div>
+      <h2 id="pW">${esc5(R.title)}</h2><p class="pverb-sub">${esc5(R.sub)}</p>
+      <dl class="prep">
+        <dt>${esc5(R.energy)}</dt><dd>${esc5(`${R.prod} ${num1(e.prod)} kWh \xB7 ${R.imp} ${num1(e.imp)} kWh \xB7 ${R.exp} ${num1(e.exp)} kWh \xB7 ${R.cost} ${euro(e.cost)}`)}</dd>
+        <dt>${esc5(R.car)}</dt><dd>${esc5(num1(ps.ev.kwh) + " kWh")}</dd>
+        <dt>${esc5(R.comfort)}</dt><dd>${esc5(`${cfg.zoneNames.soggiorno} ${ps.comfort.soggiorno} \xB7 ${cfg.zoneNames.camera} ${ps.comfort.camera}`)}</dd>
+        <dt>${esc5(R.pump)}</dt><dd>${esc5(ps.hp.broken ? R.pumpKo : R.pumpOk)}</dd>
+        <dt>${esc5(R.meter)}</dt><dd>${esc5(ps.blackout ? R.meterKo + " " + (mem.blackoutAt || "") : R.meterOk)}</dd>
+        <dt>${esc5(R.flood)}</dt><dd>${esc5(flood)}</dd>
+        ${solved ? `<dt>Guasto</dt><dd>${esc5(R.fault)}</dd><dt>Intervento</dt><dd>${esc5(R.fix)}</dd>` : ""}
+        <dt>${esc5(R.safety)}</dt><dd>${esc5(safeOk ? R.safeOk : R.safeKo)}</dd>
+        <dt>Esito</dt><dd><span class="pstars" role="img" aria-label="${stars2} stelle su 3">${[0, 1, 2].map((i) => `<span class="pstar" style="--i:${i}">${STAR2(i < stars2)}</span>`).join("")}</span></dd>
+        <dt>Installatore</dt><dd class="tsign"${who ? " data-notr" : ""}>${esc5(who || "Giocatore")}</dd>
+      </dl>
+      <div class="prow"><a class="pbtn y" href="#/home">Torna alla mappa</a><button class="pbtn" type="button" data-pui="again">Rifai la serata</button><button class="pbtn" type="button" data-pui="summary">Sintesi</button><button class="pbtn" type="button" data-pui="closeSheet">Guarda la casa</button></div></div>`;
   }
 
   // src/prove/page.js
@@ -24736,6 +25195,10 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
     }
     function tap(u) {
       if (inLesson() || act2 && act2 !== "play") return;
+      if (u.kind === "toggle" && name === "casa" && u.id === "S2") {
+        const ps = provaState(lastSnap);
+        if (!ps || !ps.flood.wet) return;
+      }
       if (u.kind === "toggle") doAct({ kind: "toggle", id: u.id }, () => s().toggleControl(u.id));
       else if (u.kind === "test") doAct({ kind: "test", id: u.part }, () => s().testPart(u.part));
       else if (u.kind === "reset") doAct({ kind: "reset", id: u.part }, () => s().resetPart(u.part));
@@ -24822,7 +25285,8 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
         backInside();
         s().startFault();
         if (cfg().shiftHours) s().restartShift();
-      } else if (k === "summary") {
+      } else if (k === "replay") replay();
+      else if (k === "summary") {
         if (env.summary) env.summary();
       } else if (k === "schema") schema();
       else if (k === "overload") {
@@ -24891,8 +25355,37 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
       renderHud();
       if (!opening && plant() && scene) scene.look("insieme", 900);
     }
+    function replay() {
+      if (name !== "casa" || !lastSnap || lastSnap.unit.phase !== "fault") return;
+      if (ui2.schema) {
+        ui2.schema = false;
+        if (env.drawer) env.drawer(false);
+      }
+      s().restartShift();
+      ui2.lastLit = null;
+      ui2.blackoutAt = null;
+      prevPs = provaState(s().snapshot());
+      note(cfg().log.replay);
+      if (scene) {
+        if (scene.evening) scene.evening(false);
+        scene.look("insieme", 1200);
+      }
+      subtitle("", cfg().hints[0], 3200);
+      renderHud();
+    }
     function check() {
       const sh = cfg().shiftHours && shiftNow();
+      if (sh && name === "casa") {
+        const ps = provaState(lastSnap);
+        if (ps && ps.blackout) {
+          subtitle("", cfg().story.replay, 3600);
+          return;
+        }
+        if (!sh.done) {
+          subtitle("", sh.started ? "La serata non \xE8 finita: guarda la casa fino alle 23:00." : "La serata non \xE8 cominciata: chiudi il generale.", 3200);
+          return;
+        }
+      }
       if (sh && !sh.done) {
         subtitle("", sh.started ? "Il turno non \xE8 finito: tieni la cella in produzione fino alle 6:00." : "Il turno non \xE8 cominciato: riarma e premi Marcia.", 3200);
         return;
@@ -24961,6 +25454,7 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
         sound.motor(act2 !== "finale" && ps.powered && ps.cycle, 0);
         return;
       }
+      if (name === "casa") return;
       if (plant()) {
         sound.motor(act2 !== "finale" && ps.motor === "fwd", ps.overload ? 1 : ps.thermal.heat * 0.5);
         return;
@@ -24975,8 +25469,9 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
       if (!ps) return;
       const before = prevPs;
       prevPs = ps;
-      const sig = name === "automatico" ? JSON.stringify(snapshot.programs || {}) : null, progBefore = progSig;
+      const sig = name === "automatico" || name === "casa" ? JSON.stringify(snapshot.programs || {}) : null, progBefore = progSig;
       progSig = sig;
+      if (name === "casa" && ps.powered) ui2.lastLit = ps;
       if (!before || act2 !== "play" || inLesson() || snapshot.unit.phase === "lesson") return;
       const action = pending;
       const events = plantEvents(name, action, before, ps);
@@ -24985,7 +25480,10 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
       mem = rememberFixed(mem, snapshot.unit.phase === "fault" && plantFixed(name, snapshot));
       events.forEach((e) => note(e.text, e));
       const c2 = cfg();
-      if (sig !== null && progBefore !== null && sig !== progBefore) note(before.motor === "fwd" ? c2.log.programLive : c2.log.program, { trip: before.motor === "fwd" });
+      if (sig !== null && progBefore !== null && sig !== progBefore) {
+        if (name === "casa") note(casaFixed(snapshot.programs, snapshot.level) ? c2.log.programOk : c2.log.program, { good: casaFixed(snapshot.programs, snapshot.level) });
+        else note(before.motor === "fwd" ? c2.log.programLive : c2.log.program, { trip: before.motor === "fwd" });
+      }
       if (!wasFixed && mem.fixed) {
         note(c2.log.fixed, { good: true });
         sound.chime(1);
@@ -25019,14 +25517,37 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
           }
           subtitle(c2.story.stop, c2.story.stopWhy, 4200);
           if (scene && scene.alert) scene.alert(2600);
-        } else if (e.kind === "safety") subtitle(c2.story.safety, c2.story.safetyWhy, 3200);
+        } else if (e.kind === "blackout") {
+          ui2.blackoutAt = clockNow();
+          mem = { ...mem, blackout: true, blackoutAt: ui2.blackoutAt };
+          sound.tac();
+          sound.silence();
+          sound.vibrate([30, 40, 80]);
+          flash();
+          subtitle(c2.story.blackout, c2.story.blackoutWhy, 4800);
+          if (scene && scene.blackout) scene.blackout();
+          if (scene) scene.look("esterno", 1200);
+        } else if (e.kind === "flood") {
+          sound.siren();
+          subtitle(c2.story.flood, c2.story.floodWhy, 4200);
+          if (scene) {
+            if (scene.alert) scene.alert(2600);
+            scene.look("bagno", 1200);
+          }
+        } else if (e.kind === "silenceWet") subtitle("", c2.story.wet, 3200);
+        else if (e.kind === "broken") {
+          sound.tac();
+          subtitle("", c2.story.broken, 4200);
+        } else if (e.kind === "car" && scene) scene.look("tettoia", 1200);
+        else if (e.kind === "safety") subtitle(c2.story.safety, c2.story.safetyWhy, 3200);
         else if (e.kind === "panelLost") subtitle("", c2.story.panel, 3200);
         else if (e.kind === "repairLive") {
           sound.tac();
           subtitle("", c2.story.inside, 4200);
         } else if (e.kind === "fixed" && e.good) sound.chime(1);
         else if (e.kind === "end") {
-          sound.siren();
+          if (name !== "casa") sound.siren();
+          else sound.chime(1);
           subtitle(c2.story.end, "", 3200);
         } else if (e.kind === "lotto") {
           sound.clunk();
@@ -25105,7 +25626,8 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
     }
     function prepareOutside() {
       if (scene && plant()) {
-        scene.outside();
+        if (scene.outside) scene.outside();
+        else scene.look("esterno", 1);
         const w2 = wires();
         if (w2) w2.setVisible(false);
         return;
@@ -25150,6 +25672,11 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
         });
         return;
       }
+      if (name === "casa") {
+        scene.look("insieme", 2400);
+        later(2600, afterArrive);
+        return;
+      }
       if (name === "officina") {
         later(300, () => {
           scene.shutter(true, 1600);
@@ -25183,7 +25710,7 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
       hideCall();
       override = null;
       if (scene && plant()) {
-        scene.inside();
+        if (scene.inside) scene.inside();
         scene.look("insieme", 1);
       }
       if (scene && scene.setRoof) {
@@ -25276,7 +25803,11 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
           if (env.drawer) env.drawer(false);
         }
         sound.siren();
-        if (scene) {
+        if (scene && name === "casa") {
+          if (scene.evening) scene.evening(true);
+          scene.look("esterno", 2600);
+          later(1300, () => subtitle(cfg().report.end, "", 2600));
+        } else if (scene) {
           scene.shift(true);
           scene.look("turno", 2600);
           later(1300, () => subtitle(cfg().report.end, "", 2600));
@@ -25312,7 +25843,9 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
     }
     function backInside() {
       if (scene && plant()) {
-        scene.shift(false);
+        if (name === "casa") {
+          if (scene.evening) scene.evening(false);
+        } else scene.shift(false);
         scene.look("insieme", 1200);
         return;
       }
@@ -25400,7 +25933,7 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
       if (!ps) return;
       const steps = stepsOf(name, ps, unit, mem);
       setHTML(el.pTop, topHTML2(c2, clockNow(), ui2));
-      if (el.pShift) setHTML(el.pShift, shiftHTML(c2, ps));
+      if (el.pShift) setHTML(el.pShift, shiftHTML(c2, ps, mem));
       setHTML(el.pSteps, stepsHTML(steps) + (unit.phase === "fault" && act2 === "play" ? `<p class="phint">${hintOf(name, steps)}</p>` : ""));
       setHTML(el.pDock, dockHTML(c2, ps, unit, ui2));
       el.pLog.hidden = !ui2.log;
@@ -25410,7 +25943,8 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
       else if (sheet === "finale") {
         const lv = lastSnap.levels.find((l) => l.id === lastSnap.level.id) || {};
         const stars2 = lastSnap.result && lastSnap.result.stars || lv.stars || 0;
-        sh = c2.shiftHours ? turnoReportHTML(c2, stars2, !!unit.faultSolved, ps, env.name ? env.name() : "", !(lastSnap.result && lastSnap.result.safe && lastSnap.result.safe.items.some((i) => i.code === "safe.repairLive"))) : c2.tests ? verbaleHTML(c2, stars2, !!unit.faultSolved, clockText(c2, 0), clockText(c2, Math.max(minutes, 20)), env.name ? env.name() : "") : reportHTML(c2, stars2, !!unit.faultSolved, clockText(c2, 0), clockText(c2, minutes));
+        const safeOk = !(lastSnap.result && lastSnap.result.safe && !lastSnap.result.safe.ok);
+        sh = name === "casa" ? serataReportHTML(c2, stars2, !!unit.faultSolved, ps, env.name ? env.name() : "", safeOk, mem) : c2.shiftHours ? turnoReportHTML(c2, stars2, !!unit.faultSolved, ps, env.name ? env.name() : "", !(lastSnap.result && lastSnap.result.safe && lastSnap.result.safe.items.some((i) => i.code === "safe.repairLive"))) : c2.tests ? verbaleHTML(c2, stars2, !!unit.faultSolved, clockText(c2, 0), clockText(c2, Math.max(minutes, 20)), env.name ? env.name() : "") : reportHTML(c2, stars2, !!unit.faultSolved, clockText(c2, 0), clockText(c2, minutes));
       } else sheet = null;
       el.pSheet.hidden = !sh;
       setHTML(el.pSheet, sh);
@@ -25463,7 +25997,11 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
             restart2(true);
             setAct("play");
             if (plant()) {
-              if (scene) scene.shift(false);
+              if (scene) {
+                if (name === "casa") {
+                  if (scene.evening) scene.evening(false);
+                } else scene.shift(false);
+              }
               prevPs = provaState(snapshot);
             } else {
               override = litHouse();
@@ -25508,6 +26046,8 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
         pending = null;
         pointerHold = null;
         ui2.alarm = false;
+        ui2.lastLit = null;
+        ui2.blackoutAt = null;
         sceneState = "idle";
         mounted = false;
         lastSnap = null;

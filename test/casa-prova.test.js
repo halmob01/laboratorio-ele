@@ -222,3 +222,20 @@ test('c55: la fabbrica non cambia: il rapporto di c51 ha gli eventi vuoti', () =
   const sim = createSim(c51, wiresOf(c51));
   assert.deepEqual(scenarioReport(sim).events, []);
 });
+
+test('casa: minuti fuori dal comfort contati solo dopo che la stanza ci e\' arrivata la prima volta', () => {
+  const cold = run('casa', { T1: 16, T2: 16 }, { house: 1 }, 120);
+  assert.equal(cold.out1, 0, 'mai arrivata a 19,5: il riscaldamento iniziale non conta');
+  const warm = run('casa', { T1: 21, T2: 21 }, { house: 1 }, 120, { pvKw: 0, loss: 0.15 });
+  assert.equal(warm.warm1, 1);
+  assert.ok(warm.out1 > 60 && warm.out1 < 120, 'raffreddandosi esce dal comfort: ' + warm.out1);
+});
+
+test('c55: prima del generale la serata non comincia: l\'ora resta alle 16:30', () => {
+  const sim = createSim({ ...L55, comps: L55.comps.map(c => (c.type === 'plc' ? { ...c, program: PROG_55 } : c)) }, wiresOf(L55));
+  advance(sim, 120);
+  assert.equal(observe(sim).process.hour, 16.5);
+  act(sim, 'toggle', 'QG');
+  advance(sim, 60);
+  assert.ok(Math.abs(observe(sim).process.hour - 17.5) < 0.05, 'un\'ora dopo il generale: ' + observe(sim).process.hour);
+});

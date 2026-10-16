@@ -5068,7 +5068,7 @@ UNITS_V2['c55-sera-inverno'] = {
     wires: W55,
     programs: { PLC: PROG_55_FAULT },
     diagnosis: {
-      question: 'Alle 19:30 il contatore ha staccato tutta la casa. Sul pannello, prima del buio, la rete era al fondo scala sopra la riga del limite, auto e pompa erano accese e nessun carico si era staccato. Perché?',
+      question: 'Verso le 19:45 il contatore ha staccato tutta la casa. Sul pannello, prima del buio, la rete era al fondo scala sopra la riga del limite, auto e pompa erano accese e nessun carico si era staccato. Perché?',
       options: [
         { id: 'a', text: 'Il forno non si può staccare: con il forno acceso il contatore stacca sempre.' },
         { id: 'b', text: 'La soglia di distacco (6500 W) è sopra il limite e oltre il fondo scala del misuratore: il PLC non l’ha mai vista superata.' },

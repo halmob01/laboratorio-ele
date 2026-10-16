@@ -128,6 +128,8 @@ export function createProva(host, env) {
 
   function tap(u) {
     if (inLesson() || (act && act !== 'play')) return;
+    // casa: la sonda si asciuga solo se e' bagnata (toccandola asciutta si allagherebbe da sola)
+    if (u.kind === 'toggle' && name === 'casa' && u.id === 'S2') { const ps = provaState(lastSnap); if (!ps || !ps.flood.wet) return; }
     if (u.kind === 'toggle') doAct({ kind: 'toggle', id: u.id }, () => s().toggleControl(u.id));
     else if (u.kind === 'test') doAct({ kind: 'test', id: u.part }, () => s().testPart(u.part));
     else if (u.kind === 'reset') doAct({ kind: 'reset', id: u.part }, () => s().resetPart(u.part));
@@ -173,6 +175,7 @@ export function createProva(host, env) {
     else if (k === 'closeSheet') { const wasFinale = sheet === 'finale'; sheet = null; renderHud(); if (wasFinale) backInside(); }
     else if (k === 'check') check();
     else if (k === 'again') { sheet = null; backInside(); s().startFault(); if (cfg().shiftHours) s().restartShift(); }
+    else if (k === 'replay') replay();
     else if (k === 'summary') { if (env.summary) env.summary(); }
     else if (k === 'schema') schema();
     // incastrare un pacco: il pacco riparte dall'inizio, cosi' il termico (3 s) arriva sempre prima del finecorsa (6 s)
@@ -204,8 +207,26 @@ export function createProva(host, env) {
     if (!opening && plant() && scene) scene.look('insieme', 900);
   }
 
+  // casa: il contatore non si riarma: la serata si rifa' da capo (il programma resta quello del banco). Il buio gia' visto e il
+  // programma corretto restano nella memoria dei passi; il registro lo dice.
+  function replay() {
+    if (name !== 'casa' || !lastSnap || lastSnap.unit.phase !== 'fault') return;
+    if (ui.schema) { ui.schema = false; if (env.drawer) env.drawer(false); }
+    s().restartShift();
+    ui.lastLit = null; ui.blackoutAt = null;
+    prevPs = provaState(s().snapshot());
+    note(cfg().log.replay);
+    if (scene) { if (scene.evening) scene.evening(false); scene.look('insieme', 1200); }
+    subtitle('', cfg().hints[0], 3200);
+    renderHud();
+  }
   function check() {
     const sh = cfg().shiftHours && shiftNow();
+    if (sh && name === 'casa') {
+      const ps = provaState(lastSnap);
+      if (ps && ps.blackout) { subtitle('', cfg().story.replay, 3600); return; }
+      if (!sh.done) { subtitle('', sh.started ? 'La serata non è finita: guarda la casa fino alle 23:00.' : 'La serata non è cominciata: chiudi il generale.', 3200); return; }
+    }
     if (sh && !sh.done) { subtitle('', sh.started ? 'Il turno non è finito: tieni la cella in produzione fino alle 6:00.' : 'Il turno non è cominciato: riarma e premi Marcia.', 3200); return; }
     const r = s().check();
     note(r.pass ? cfg().log.checkOk : cfg().log.checkKo, { good: r.pass, trip: !r.pass });
@@ -248,6 +269,7 @@ export function createProva(host, env) {
     ps = ps || override || (lastSnap && provaState(lastSnap));
     if (!ps || act === 'call') return;
     if (name === 'fabbrica') { sound.motor(act !== 'finale' && ps.powered && ps.cycle, 0); return; }
+    if (name === 'casa') return;
     if (plant()) { sound.motor(act !== 'finale' && ps.motor === 'fwd', ps.overload ? 1 : ps.thermal.heat * 0.5); return; }
     if (name !== 'appartamento') return;
     sound.hum('frigo', !!ps.oven);
@@ -261,7 +283,8 @@ export function createProva(host, env) {
     const ps = provaState(snapshot);
     if (!ps) return;
     const before = prevPs; prevPs = ps;
-    const sig = name === 'automatico' ? JSON.stringify(snapshot.programs || {}) : null, progBefore = progSig; progSig = sig;
+    const sig = name === 'automatico' || name === 'casa' ? JSON.stringify(snapshot.programs || {}) : null, progBefore = progSig; progSig = sig;
+    if (name === 'casa' && ps.powered) ui.lastLit = ps;      // il tablet mostra gli ultimi valori prima del buio
     if (!before || act !== 'play' || inLesson() || snapshot.unit.phase === 'lesson') return;
     const action = pending;
     const events = H.plantEvents(name, action, before, ps);
@@ -270,7 +293,10 @@ export function createProva(host, env) {
     mem = H.rememberFixed(mem, snapshot.unit.phase === 'fault' && H.plantFixed(name, snapshot));
     events.forEach(e => note(e.text, e));
     const c = cfg();
-    if (sig !== null && progBefore !== null && sig !== progBefore) note(before.motor === 'fwd' ? c.log.programLive : c.log.program, { trip: before.motor === 'fwd' });
+    if (sig !== null && progBefore !== null && sig !== progBefore) {
+      if (name === 'casa') note(H.casaFixed(snapshot.programs, snapshot.level) ? c.log.programOk : c.log.program, { good: H.casaFixed(snapshot.programs, snapshot.level) });
+      else note(before.motor === 'fwd' ? c.log.programLive : c.log.program, { trip: before.motor === 'fwd' });
+    }
     if (!wasFixed && mem.fixed) { note(c.log.fixed, { good: true }); sound.chime(1); }
     events.forEach(e => {
       if (e.kind === 'tripKo') {
@@ -294,11 +320,24 @@ export function createProva(host, env) {
         if (!mem.stopSeen) { mem = { ...mem, stopSeen: true }; sound.tac(); sound.vibrate([30, 40, 80]); flash(); }
         subtitle(c.story.stop, c.story.stopWhy, 4200);
         if (scene && scene.alert) scene.alert(2600);
-      } else if (e.kind === 'safety') subtitle(c.story.safety, c.story.safetyWhy, 3200);
+      } else if (e.kind === 'blackout') {
+        // casa: il contatore stacca, tutto al buio insieme con il "tac"; il tablet resta acceso con gli ultimi valori
+        ui.blackoutAt = clockNow(); mem = { ...mem, blackout: true, blackoutAt: ui.blackoutAt };
+        sound.tac(); sound.silence(); sound.vibrate([30, 40, 80]); flash();
+        subtitle(c.story.blackout, c.story.blackoutWhy, 4800);
+        if (scene && scene.blackout) scene.blackout();
+        if (scene) scene.look('esterno', 1200);
+      } else if (e.kind === 'flood') {
+        sound.siren(); subtitle(c.story.flood, c.story.floodWhy, 4200);
+        if (scene) { if (scene.alert) scene.alert(2600); scene.look('bagno', 1200); }
+      } else if (e.kind === 'silenceWet') subtitle('', c.story.wet, 3200);
+      else if (e.kind === 'broken') { sound.tac(); subtitle('', c.story.broken, 4200); }
+      else if (e.kind === 'car' && scene) scene.look('tettoia', 1200);
+      else if (e.kind === 'safety') subtitle(c.story.safety, c.story.safetyWhy, 3200);
       else if (e.kind === 'panelLost') subtitle('', c.story.panel, 3200);
       else if (e.kind === 'repairLive') { sound.tac(); subtitle('', c.story.inside, 4200); }
       else if (e.kind === 'fixed' && e.good) sound.chime(1);
-      else if (e.kind === 'end') { sound.siren(); subtitle(c.story.end, '', 3200); }
+      else if (e.kind === 'end') { if (name !== 'casa') sound.siren(); else sound.chime(1); subtitle(c.story.end, '', 3200); }
       else if (e.kind === 'lotto') {
         sound.clunk(); later(250, () => sound.chime(1));
         subtitle(c.story.lot, '', 2600);
@@ -357,7 +396,7 @@ export function createProva(host, env) {
     return { ...ps, rcd: { ...ps.rcd, on: true, tripped: false }, lines: { luce: { on: true }, prese: { on: true }, cucina: { on: true } }, lamp: true, socket: true, oven: true, dark: false, allRooms: true };
   }
   function prepareOutside() {
-    if (scene && plant()) { scene.outside(); const w = wires(); if (w) w.setVisible(false); return; }
+    if (scene && plant()) { if (scene.outside) scene.outside(); else scene.look('esterno', 1); const w = wires(); if (w) w.setVisible(false); return; }
     if (!scene || !scene.setRoof) return;
     override = litHouse();
     scene.setRoof(true, 1);
@@ -384,6 +423,7 @@ export function createProva(host, env) {
     setAct('arrive');
     // nastro automatico: di giorno si entra dal piazzale; fabbrica: di notte, con la saracinesca che sale
     if (scene.arrival) { later(300, () => { if (name === 'fabbrica') sound.shutter(1600); later(scene.arrival(), afterArrive); }); return; }
+    if (name === 'casa') { scene.look('insieme', 2400); later(2600, afterArrive); return; }
     if (name === 'officina') {
       // la saracinesca sale, le plafoniere si accendono una fila alla volta, si entra
       later(300, () => { scene.shutter(true, 1600); sound.shutter(1600); });
@@ -405,7 +445,7 @@ export function createProva(host, env) {
     if (act !== 'call' && act !== 'arrive') return;
     clearLater(); hideCall();
     override = null;
-    if (scene && plant()) { scene.inside(); scene.look('insieme', 1); }
+    if (scene && plant()) { if (scene.inside) scene.inside(); scene.look('insieme', 1); }
     if (scene && scene.setRoof) { scene.windows(false); scene.setRoof(false, 1); scene.look('ingresso', 1); }
     push();
     afterArrive();
@@ -459,7 +499,8 @@ export function createProva(host, env) {
       ui.alarm = false;
       if (ui.schema) { ui.schema = false; if (env.drawer) env.drawer(false); }
       sound.siren();
-      if (scene) { scene.shift(true); scene.look('turno', 2600); later(1300, () => subtitle(cfg().report.end, '', 2600)); }
+      if (scene && name === 'casa') { if (scene.evening) scene.evening(true); scene.look('esterno', 2600); later(1300, () => subtitle(cfg().report.end, '', 2600)); }
+      else if (scene) { scene.shift(true); scene.look('turno', 2600); later(1300, () => subtitle(cfg().report.end, '', 2600)); }
       later(scene ? 3900 : 0, () => {
         sheet = 'finale'; setAct('play'); focusSheet();
         const lv = lastSnap.levels.find(l => l.id === lastSnap.level.id) || {};
@@ -482,7 +523,7 @@ export function createProva(host, env) {
   }
   // Chiuso il rapporto si torna dentro la casa.
   function backInside() {
-    if (scene && plant()) { scene.shift(false); scene.look('insieme', 1200); return; }
+    if (scene && plant()) { if (name === 'casa') { if (scene.evening) scene.evening(false); } else scene.shift(false); scene.look('insieme', 1200); return; }
     if (!scene || !scene.setRoof) return;
     override = null; push();
     scene.setRoof(false, 1100); scene.windows(false); scene.look('insieme', 1200);
@@ -554,7 +595,7 @@ export function createProva(host, env) {
     if (!ps) return;
     const steps = H.stepsOf(name, ps, unit, mem);
     setHTML(el.pTop, H.topHTML(c, clockNow(), ui));
-    if (el.pShift) setHTML(el.pShift, H.shiftHTML(c, ps));
+    if (el.pShift) setHTML(el.pShift, H.shiftHTML(c, ps, mem));
     setHTML(el.pSteps, H.stepsHTML(steps) + (unit.phase === 'fault' && act === 'play' ? `<p class="phint">${H.hintOf(name, steps)}</p>` : ''));
     setHTML(el.pDock, H.dockHTML(c, ps, unit, ui));
     el.pLog.hidden = !ui.log;
@@ -564,7 +605,9 @@ export function createProva(host, env) {
     else if (sheet === 'finale') {
       const lv = lastSnap.levels.find(l => l.id === lastSnap.level.id) || {};
       const stars = (lastSnap.result && lastSnap.result.stars) || lv.stars || 0;
-      sh = c.shiftHours ? H.turnoReportHTML(c, stars, !!unit.faultSolved, ps, env.name ? env.name() : '', !(lastSnap.result && lastSnap.result.safe && lastSnap.result.safe.items.some(i => i.code === 'safe.repairLive')))
+      const safeOk = !(lastSnap.result && lastSnap.result.safe && !lastSnap.result.safe.ok);
+      sh = name === 'casa' ? H.serataReportHTML(c, stars, !!unit.faultSolved, ps, env.name ? env.name() : '', safeOk, mem)
+        : c.shiftHours ? H.turnoReportHTML(c, stars, !!unit.faultSolved, ps, env.name ? env.name() : '', !(lastSnap.result && lastSnap.result.safe && lastSnap.result.safe.items.some(i => i.code === 'safe.repairLive')))
         : c.tests ? H.verbaleHTML(c, stars, !!unit.faultSolved, H.clockText(c, 0), H.clockText(c, Math.max(minutes, 20)), env.name ? env.name() : '')
         : H.reportHTML(c, stars, !!unit.faultSolved, H.clockText(c, 0), H.clockText(c, minutes));
     } else sheet = null;
@@ -603,7 +646,7 @@ export function createProva(host, env) {
         else if (ph === 'fault' && prevPhase === 'done') {
           // "Rifai la prova": il quadro e' gia' aperto, la casa si spegne di nuovo
           restart(true); setAct('play');
-          if (plant()) { if (scene) scene.shift(false); prevPs = provaState(snapshot); }
+          if (plant()) { if (scene) { if (name === 'casa') { if (scene.evening) scene.evening(false); } else scene.shift(false); } prevPs = provaState(snapshot); }
           else {
             override = litHouse(); push();
             later(700, () => { override = null; push(); tac(cfg().log.start); });
@@ -624,7 +667,7 @@ export function createProva(host, env) {
       if (scene) { scene.dispose(); scene = null; }
       if (ui.schema && env.drawer) env.drawer(false);
       progSig = null;
-      host._scene = null; name = null; override = null; story = null; act = null; prevPs = null; pending = null; pointerHold = null; ui.alarm = false;
+      host._scene = null; name = null; override = null; story = null; act = null; prevPs = null; pending = null; pointerHold = null; ui.alarm = false; ui.lastLit = null; ui.blackoutAt = null;
       sceneState = 'idle'; mounted = false; lastSnap = null; token++; phase = null; ui.schema = false; ui.torch = false; ui.log = false; ui.delta = false;
       host.innerHTML = ''; host.onclick = null; delete host.dataset.act;
       document.body.classList.remove('ms-intro');

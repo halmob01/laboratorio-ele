@@ -759,7 +759,10 @@ export function advance(sim, seconds) {
       if (dir === 'fwd') sim.pos = Math.min(m.length, sim.pos + v);
       if (dir === 'rev') sim.pos = Math.max(0, sim.pos - v);
     }
-    if (sim.process) sim.process = stepProcess(sim.level.process, sim.process, actuatorsOf(sim, an), STEP);
+    // un periodo con il via (`scenario.startWhen`): il processo resta fermo finche' il periodo non comincia (la serata della casa
+    // parte alle 16:30 quando si chiude il generale, non quando si apre il livello)
+    const waiting = sim.scenario && sim.scenario.t0 === null;
+    if (sim.process && !waiting) sim.process = stepProcess(sim.level.process, sim.process, actuatorsOf(sim, an), STEP);
     sim.plcDt = STEP;
     settle(sim);
     scenarioTick(sim);

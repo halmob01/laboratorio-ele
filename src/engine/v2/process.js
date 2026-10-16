@@ -200,8 +200,9 @@ export const MODELS = {
   const Z = MODELS.zone, E = MODELS.energia;
   const zoneKeys = Object.keys(Z.init);
   MODELS.casa = {
-    init: { ...E.init, ...Z.init, hpRun: 0 },
-    params: { ...Z.params, ...E.params },
+    // warmK: la zona K ha raggiunto il comfort almeno una volta; outK: secondi fuori dal comfort dopo (per il verbale della serata)
+    init: { ...E.init, ...Z.init, hpRun: 0, warm1: 0, warm2: 0, warm3: 0, out1: 0, out2: 0, out3: 0 },
+    params: { ...Z.params, ...E.params, comfortLo: 19.5, comfortHi: 22.5 },
     acts: { ...E.acts, ...Z.acts, hp: 0, pump: 0 },
     step(s, a, p, dt) {
       // a contatore staccato la casa e' spenta: nessun carico (la batteria non si scarica su una casa al buio), pompa ferma
@@ -211,7 +212,13 @@ export const MODELS = {
       const zs = Object.fromEntries(zoneKeys.map(k => [k, s[k]]));
       const z = Z.step(zs, { ...a, pump: run }, zp, dt);
       const e = E.step(s, { ...a, hp: run }, p, dt);
-      return { ...s, ...z, ...e, hpRun: run };
+      const out = { ...s, ...z, ...e, hpRun: run };
+      for (let i = 1; i <= clamp(Math.round(p.n), 1, 3); i++) {
+        const T = out['T' + i];
+        if (T >= p.comfortLo) out['warm' + i] = 1;
+        if (out['warm' + i] && (T < p.comfortLo || T > p.comfortHi)) out['out' + i] = s['out' + i] + dt;
+      }
+      return out;
     },
     expose(s, p) {
       const z = Z.expose(s, { ...p, pumpKw: p.hpKw }), e = E.expose(s, p);
