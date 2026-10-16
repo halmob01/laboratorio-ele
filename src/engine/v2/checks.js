@@ -3,8 +3,9 @@
 
 import { makeUF } from '../circuit.js';
 import { PHASE_COLORS } from '../wires.js';
-import { act, advance, rewind, createSim, observe, setSupply, sourcesOf, stillOnIfOpen, settle } from './sim.js';
+import { act, advance, rewind, createSim, observe, setSupply, sourcesOf, stillOnIfOpen, settle, traceValue, processVars } from './sim.js';
 import { partOf, POWER_PATH } from './parts.js';
+import { withTuned } from './process.js';
 import { measureMatches } from '../steps.js';
 
 const section = () => ({ ok: false, status: 'ko', items: [] });
@@ -43,6 +44,64 @@ function mismatch(obs, expect) {
       if (obs.machine[k] !== v) return { comp: 'machine.' + k, want: v, got: obs.machine[k] };
     }
   }
+  if (expect.process) {
+    for (const [k, v] of Object.entries(expect.process)) {
+      const got = obs.process ? obs.process[k] : undefined;
+      const ok = Array.isArray(v) ? typeof got === 'number' && got >= v[0] && got <= v[1] : got === v;
+      if (!ok) return { comp: 'process.' + k, want: Array.isArray(v) ? v.join('-') : v, got: typeof got === 'number' ? round1(got) : got ?? null };
+    }
+  }
+  return null;
+}
+
+const round1 = x => Math.round(x * 10) / 10;
+
+// Grandezze che le prove di un livello guardano nel tracciato (oltre a quelle dichiarate in process.trace).
+function traceNamesOf(level, check) {
+  const names = new Set((level.process && level.process.trace) || []);
+  const stages = check.steps || [{ expect: check.expect || {} }];
+  stages.forEach(st => ((st.expect && st.expect.trace) || []).forEach(r => names.add(r.v)));
+  return [...names];
+}
+
+/**
+ * Regole sul tracciato (docs/SPEC-PROCESSI.md, sezione 6). Tempi in secondi dall'inizio della prova.
+ *   { v, within: [lo, hi], from?, to? }   { v, min }   { v, max }   { v, maxSwitches }   { v, reaches, by? }   { v, drops, by? }
+ * Ritorna null oppure { comp: 'trace.v', rule, want, got, at }.
+ */
+export function traceMismatch(rows, rules) {
+  for (const r of rules || []) {
+    const from = r.from ?? 0, to = r.to ?? Infinity;
+    const win = rows.filter(x => x.t >= from - 1e-9 && x.t <= to + 1e-9 && r.v in x);
+    const fail = (rule, want, got, at) => ({ comp: 'trace.' + r.v, rule, want, got: typeof got === 'number' ? round1(got) : got, at });
+    if (!win.length) return fail('noData', null, null, from);
+    if (r.within) {
+      const bad = win.find(x => x[r.v] < r.within[0] || x[r.v] > r.within[1]);
+      if (bad) return fail('within', r.within.join('-'), bad[r.v], bad.t);
+    }
+    if (r.min !== undefined) {
+      const bad = win.find(x => x[r.v] < r.min);
+      if (bad) return fail('min', r.min, bad[r.v], bad.t);
+    }
+    if (r.max !== undefined) {
+      const bad = win.reduce((a, x) => (x[r.v] > r.max && (!a || x[r.v] > a[r.v]) ? x : a), null);
+      if (bad) return fail('max', r.max, bad[r.v], bad.t);
+    }
+    if (r.maxSwitches !== undefined) {
+      let n = 0;
+      for (let k = 1; k < win.length; k++) if (!!win[k][r.v] !== !!win[k - 1][r.v]) n++;
+      if (n > r.maxSwitches) return fail('maxSwitches', r.maxSwitches, n);
+    }
+    if (r.reaches !== undefined || r.drops !== undefined) {
+      const by = r.by ?? Infinity;
+      const part = win.filter(x => x.t <= by + 1e-9);
+      const hit = r.reaches !== undefined ? part.some(x => x[r.v] >= r.reaches) : part.some(x => x[r.v] <= r.drops);
+      if (!hit) {
+        const vals = part.map(x => x[r.v]);
+        return r.reaches !== undefined ? fail('reaches', r.reaches, Math.max(...vals), by) : fail('drops', r.drops, Math.min(...vals), by);
+      }
+    }
+  }
   return null;
 }
 
@@ -56,6 +115,7 @@ function blockingOf(o, allowTrip) {
   const q = o.faults.find(x => x.code === 'quadro');
   if (q) return { code: QUADRO[q.cause] || 'work.short' };
   const f = o.faults.find(x => BLOCKING[x.code]);
+  if (f && f.code === 'instabile' && f.cause === 'plc') return { code: 'work.unstablePlc' };
   if (f) return f.comp ? { code: BLOCKING[f.code], comp: f.comp } : { code: BLOCKING[f.code] };
   const tr = o.tripped.find(x => !allowTrip.has(x));
   if (tr) return { code: 'work.tripped', comp: tr };
@@ -67,6 +127,11 @@ function blockingOf(o, allowTrip) {
 // Esegue una prova. Ritorna { ok, sim, fail?: { code, ... }, states: [observe...] }.
 export function runCheck(level, wires, check) {
   const sim = createSim(level, wires);
+  if (level.process) {
+    sim.traceNames = traceNamesOf(level, check);
+    const vars = processVars(sim);
+    sim.trace = [Object.fromEntries([['t', sim.t], ...sim.traceNames.map(n => [n, traceValue(sim, n, vars)])])];
+  }
   const states = [observe(sim)];
   const stages = check.steps || [{ do: check.do || [], expect: check.expect || {} }];
   const allowTrip = new Set();
@@ -84,7 +149,7 @@ export function runCheck(level, wires, check) {
     const o = observe(sim);
     const f = blockingOf(o, allowTrip);
     if (f) return { ok: false, sim, states, fail: f };
-    const mm = mismatch(o, st.expect || {});
+    const mm = mismatch(o, st.expect || {}) || (st.expect && st.expect.trace ? traceMismatch(sim.trace, st.expect.trace) : null);
     if (mm) return { ok: false, sim, states, fail: { code: 'work.checkFail', ...mm } };
   }
   return { ok: true, sim, states };
@@ -92,7 +157,7 @@ export function runCheck(level, wires, check) {
 
 /* ---------- ruoli dei fili per i colori ---------- */
 
-const CTL_TYPES = new Set(['pb', 'pbnc', 'fungo', 'port', 'spia', 'fc', 'ri', 'tmr', 'kt', 'rs', 'plc']);
+const CTL_TYPES = new Set(['pb', 'pbnc', 'fungo', 'port', 'spia', 'fc', 'ri', 'tmr', 'kt', 'rs', 'plc', 'sens', 'tx', 'sw']);
 function isCtlTerm(level, term) {
   const [id, t] = term.split('.');
   const c = level.comps.find(x => x.id === id);
@@ -157,7 +222,7 @@ const withPrograms = (level, programs) => (programs && Object.keys(programs).len
   : level);
 
 export function evaluateV2(level, wires, ctx = {}) {
-  level = withPrograms(withRatings(level, ctx.ratings), ctx.programs);
+  level = withTuned(withPrograms(withRatings(level, ctx.ratings), ctx.programs), ctx.tuned);
   const out = { work: section(), color: section(), safe: section() };
   const add = (sec, code, params) => out[sec].items.push(params ? { code, ...params } : { code });
 
@@ -183,7 +248,7 @@ export function evaluateV2(level, wires, ctx = {}) {
     const first = failed[0].r.fail;
     if (first.code !== 'work.checkFail' && failed.every(x => x.r.fail.code === first.code)) add('work', first.code, first.comp ? { comp: first.comp } : undefined);
     else {
-      failed.slice(0, 3).forEach(({ ch, r }) => add('work', 'work.checkFail', { check: ch.id, label: ch.label, cause: r.fail.code, want: r.fail.want, got: r.fail.got, comp: r.fail.comp }));
+      failed.slice(0, 3).forEach(({ ch, r }) => add('work', 'work.checkFail', { check: ch.id, label: ch.label, cause: r.fail.code, want: r.fail.want, got: r.fail.got, comp: r.fail.comp, ...(r.fail.rule ? { rule: r.fail.rule, at: r.fail.at } : {}) }));
       if (failed.length > 3) add('work', 'work.checkMore', { n: failed.length - 3 });
     }
   }

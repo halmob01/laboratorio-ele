@@ -25,6 +25,8 @@ import p21 from './ar-21.js';
 import p22 from './ar-22.js';
 import p23 from './ar-23.js';
 import p24 from './ar-24.js';
+import p25 from './ar-25.js';
+import p26 from './ar-26.js';
 
 const ROLE = { 'del neutro': 'المحايد', 'di terra': 'الأرضي', 'di fase': 'الطور', 'a bassa tensione': 'الجهد المنخفض', 'di comando': 'التحكم' };
 const COLORI = { 'blu': 'أزرق', 'giallo-verde': 'أصفر-أخضر', 'marrone, nero o grigio': 'بنيًّا أو أسود أو رماديًّا', 'rosso, marrone, nero o grigio': 'أحمر أو بنيًّا أو أسود أو رماديًّا', 'di un colore diverso da blu e giallo-verde': 'بلون مختلف عن الأزرق والأصفر-الأخضر' };
@@ -33,6 +35,25 @@ const cap = s => s[0].toUpperCase() + s.slice(1);
 const PAT = [
   [/^Casa vista dall’alto\. Stanze con la luce accesa: (.+)$/, (m, t) => `منزل من الأعلى. الغرف المضاءة: ${m[1].split(', ').map(x => t(x)).join('، ')}`],
   [/^[\d,.]+ kWh$/, m => iso(m[0])],
+  // motivi di una prova sul tracciato (processText in it.js): il nome della grandezza si traduce a parte
+  [/^(.+) vale ([\d,.-]+) \(a ([\d,.]+) s\): deve restare tra ([\d,.-]+) e ([\d,.-]+)\.$/, (m, t) => `${t(m[1])} قيمتها ${iso(m[2])} (عند ${iso(m[3])} ث): يجب أن تبقى بين ${iso(m[4])} و${iso(m[5])}.`],
+  [/^(.+) scende a ([\d,.-]+) \(a ([\d,.]+) s\): non deve andare sotto ([\d,.-]+)\.$/, (m, t) => `${t(m[1])} تنخفض إلى ${iso(m[2])} (عند ${iso(m[3])} ث): يجب ألا تنزل عن ${iso(m[4])}.`],
+  [/^(.+) arriva a ([\d,.-]+) \(a ([\d,.]+) s\): non deve superare ([\d,.-]+)\.$/, (m, t) => `${t(m[1])} تبلغ ${iso(m[2])} (عند ${iso(m[3])} ث): يجب ألا تتجاوز ${iso(m[4])}.`],
+  [/^(.+) cambia stato (\d+) volte: al massimo (\d+)\.$/, (m, t) => `${t(m[1])} تغيّر حالتها ${iso(m[2])} مرة: الحد الأقصى ${iso(m[3])}.`],
+  [/^(.+) arriva al massimo a ([\d,.-]+)(?: entro ([\d,.]+) s)?: doveva raggiungere ([\d,.-]+)\.$/, (m, t) => `${t(m[1])} تبلغ كحد أقصى ${iso(m[2])}${m[3] ? ' خلال ' + iso(m[3]) + ' ث' : ''}: كان يجب أن تبلغ ${iso(m[4])}.`],
+  [/^(.+) scende al minimo a ([\d,.-]+)(?: entro ([\d,.]+) s)?: doveva arrivare a ([\d,.-]+)\.$/, (m, t) => `${t(m[1])} تنخفض كحد أدنى إلى ${iso(m[2])}${m[3] ? ' خلال ' + iso(m[3]) + ' ث' : ''}: كان يجب أن تصل إلى ${iso(m[4])}.`],
+  [/^(.+): nessun valore registrato\.$/, (m, t) => `${t(m[1])}: لا توجد قيمة مسجّلة.`],
+  // pannello del processo (serbatoio, forno, nastro): valori che cambiano a ogni istante
+  [/^livello ([\d,.]+) %$/, m => `المستوى ${iso(m[1])}٪`],
+  [/^([\d,.]+) %$/, m => `${iso(m[1])}٪`],
+  [/^trasmette ([\d,.]+) mA$/, m => `يرسل ${iso(m[1])} ميلي أمبير`],
+  [/^([\d,.]+) mA$/, m => `${iso(m[1])} ميلي أمبير`],
+  [/^tempo × (\d+)$/, m => `الزمن × ${iso(m[1])}`],
+  [/^([\d,.-]+) °C$/, m => `${iso(m[1])} °م`],
+  [/^([\d,.]+) Hz$/, m => `${iso(m[1])} هرتز`],
+  [/^velocità ([\d,.]+) % della nominale$/, m => `السرعة ${iso(m[1])}٪ من الاسمية`],
+  [/^resistenza ([\d,.]+) %$/, m => `المقاومة ${iso(m[1])}٪`],
+  [/^resistenza (accesa|spenta)$/, m => (m[1] === 'accesa' ? 'المقاومة تعمل' : 'المقاومة متوقفة')],
   [/^(\d+) di (\d+) completati$/, m => `اكتمل ${iso(m[1])} من ${iso(m[2])}`],
   [/^(\d+) di (\d+)$/, m => `${iso(m[1])} من ${iso(m[2])}`],
   [/^(\d+) \/ (\d+)$/, m => `${iso(m[1])} / ${iso(m[2])}`],
@@ -96,4 +117,4 @@ const PAT = [
   [/^Protezioni scattate: (.+)\.$/, (m, t) => `حمايات فصلت: ${t(m[1])}.`],
 ];
 
-registerLang('ar', { ...p1, ...p2, ...p3, ...p4, ...p5, ...p6, ...p7, ...p8, ...p9, ...p10, ...p11, ...p12, ...p13, ...p14, ...p15, ...p16, ...p17, ...p18, ...p19, ...p20, ...p21, ...p22, ...p23, ...p24 }, PAT);
+registerLang('ar', { ...p1, ...p2, ...p3, ...p4, ...p5, ...p6, ...p7, ...p8, ...p9, ...p10, ...p11, ...p12, ...p13, ...p14, ...p15, ...p16, ...p17, ...p18, ...p19, ...p20, ...p21, ...p22, ...p23, ...p24, ...p25, ...p26 }, PAT);

@@ -31,4 +31,5 @@ export function openIsolators(s, L) {
 // Programma di soluzione dei livelli in cui l'allievo scrive il ladder (level.solutionPrograms).
 export function doPrograms(s, L) {
   Object.entries(L.solutionPrograms || {}).forEach(([id, prog]) => s.setProgram(id, prog));
+  Object.entries(L.solutionTuned || {}).forEach(([name, v]) => s.tune(name, v));   // cursori di regolazione dei livelli con un processo
 }

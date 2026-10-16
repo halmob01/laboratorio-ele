@@ -8,18 +8,23 @@ const CW = 68, CH = 54, PAD = 14, OUT_W = 96;
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
 // Valore di un'espressione sui bit osservati (per colorare i contatti).
-export function evalBits(e, bits) {
+const CMP = { gt: '>', lt: '<', ge: '≥', le: '≤' };
+const num = (v, words) => (typeof v === 'number' ? v : Number(words[v]) || 0);
+export function evalBits(e, bits, words = {}) {
   if (typeof e === 'string') return !!bits[e];
   if (!Array.isArray(e)) return false;
   const [op, ...a] = e;
-  if (op === 'not') return !evalBits(a[0], bits);
-  if (op === 'and') return a.every(x => evalBits(x, bits));
-  if (op === 'or') return a.some(x => evalBits(x, bits));
+  if (op === 'not') return !evalBits(a[0], bits, words);
+  if (op === 'and') return a.every(x => evalBits(x, bits, words));
+  if (op === 'or') return a.some(x => evalBits(x, bits, words));
   if (op === 'rise') return !!bits[a[0]];
+  if (CMP[op]) { const x = num(a[0], words), y = num(a[1], words); return op === 'gt' ? x > y : op === 'lt' ? x < y : op === 'ge' ? x >= y : x <= y; }
   return false;
 }
 
-const isLeaf = e => typeof e === 'string' || (Array.isArray(e) && (e[0] === 'not' || e[0] === 'rise'));
+const isCmp = e => Array.isArray(e) && !!CMP[e[0]];
+const isLeaf = e => typeof e === 'string' || (Array.isArray(e) && (e[0] === 'not' || e[0] === 'rise' || isCmp(e)));
+const numTxt = v => (typeof v === 'number' ? String(v).replace('.', ',') : v);
 
 function size(e) {
   if (e === undefined || e === null) return { w: CW, h: CH };
@@ -32,8 +37,13 @@ function size(e) {
 const same = (a, b) => a && b && a.kind === b.kind && a.r === b.r && a.cell === b.cell && a.alt === b.alt && a.out === b.out;
 
 // Disegna e ritorna l'SVG. Il filo corre a y + CH/2 (la "riga" del gradino). `cx`: { edit, sel, r } per i punti di tocco.
-function draw(e, x, y, w, bits, names, on, cx, path = []) {
+function draw(e, x, y, w, bits, names, on, cx, path = [], words = {}) {
   const my = y + CH / 2;
+  if (isCmp(e)) {
+    // contatto di confronto: una scatola con la condizione (es. AI0 < 3,6), colorata se e' vera
+    const v = evalBits(e, bits, words), mx = x + w / 2, bw = Math.min(w - 8, 64);
+    return `<path class="lad-wire ${on ? 'lad-on' : ''}" d="M${x} ${my}H${mx - bw / 2}M${mx + bw / 2} ${my}H${x + w}"/><rect class="lad-box ${v ? 'lad-done' : ''}" x="${mx - bw / 2}" y="${y + 9}" width="${bw}" height="${CH - 18}" rx="5"/><text class="lad-s" x="${mx}" y="${my - 1}" text-anchor="middle">${esc(numTxt(e[1]))}</text><text class="lad-s" x="${mx}" y="${my + 11}" text-anchor="middle">${CMP[e[0]]} ${esc(numTxt(e[2]))}</text>`;
+  }
   if (isLeaf(e)) {
     const addr = typeof e === 'string' ? e : e[1], nc = Array.isArray(e) && e[0] === 'not', rise = Array.isArray(e) && e[0] === 'rise';
     const v = evalBits(e, bits);
@@ -56,7 +66,7 @@ function draw(e, x, y, w, bits, names, on, cx, path = []) {
     let o = '', px = x;
     const sizes = kids.map(size);
     const extra = (w - sizes.reduce((s, k) => s + k.w, 0)) / kids.length;
-    kids.forEach((k, i) => { const kw = sizes[i].w + extra; o += draw(k, px, y, kw, bits, names, on, cx, path.length ? path : [i]); px += kw; });
+    kids.forEach((k, i) => { const kw = sizes[i].w + extra; o += draw(k, px, y, kw, bits, names, on, cx, path.length ? path : [i], words); px += kw; });
     return o;
   }
   // parallelo: ogni ramo su una riga, uniti da due barre verticali
@@ -66,7 +76,7 @@ function draw(e, x, y, w, bits, names, on, cx, path = []) {
     const s = size(k);
     rows.push(py + CH / 2);
     o += `<path class="lad-wire ${on ? 'lad-on' : ''}" d="M${x} ${py + CH / 2}H${x + PAD}M${x + w - PAD} ${py + CH / 2}H${x + w}"/>`;
-    o += draw(k, x + PAD, py, w - 2 * PAD, bits, names, on, cx, path.length ? path.concat([j]) : [0, j]);
+    o += draw(k, x + PAD, py, w - 2 * PAD, bits, names, on, cx, path.length ? path.concat([j]) : [0, j], words);
     py += s.h;
   });
   o += `<path class="lad-wire ${on ? 'lad-on' : ''}" d="M${x} ${rows[0]}V${rows[rows.length - 1]}M${x + w} ${rows[0]}V${rows[rows.length - 1]}"/>`;
@@ -81,6 +91,10 @@ function drawOut(ins, x, y, bits, names, on, cx, k) {
     const t = ins.op === 'ton' ? `TON ${ins.pt} s` : `CTU ${ins.pv}`;
     return `<path class="lad-wire ${on ? 'lad-on' : ''}" d="M${x} ${my}H${x + 10}"/><rect class="lad-box ${bits[ins.id] ? 'lad-done' : ''}" x="${x + 10}" y="${y + 6}" width="${OUT_W - 10}" height="${CH - 12}" rx="5"/><text class="lad-s" x="${x + 10 + (OUT_W - 10) / 2}" y="${my - 1}" text-anchor="middle">${t}</text><text class="lad-a" x="${x + 10 + (OUT_W - 10) / 2}" y="${my + 12}" text-anchor="middle">${ins.id}</text>${hit}`;
   }
+  if (ins.op === 'move' || ins.op === 'scale' || ins.op === 'pid') {
+    const t = ins.op === 'move' ? ['MOVE', numTxt(ins.v) + ' → ' + ins.out] : ins.op === 'scale' ? ['SCALE', ins.in + ' → ' + ins.out] : ['PID', ins.pv + ' → ' + ins.out];
+    return `<path class="lad-wire ${on ? 'lad-on' : ''}" d="M${x} ${my}H${x + 10}"/><rect class="lad-box ${on ? 'lad-done' : ''}" x="${x + 10}" y="${y + 6}" width="${OUT_W - 10}" height="${CH - 12}" rx="5"/><text class="lad-s" x="${x + 10 + (OUT_W - 10) / 2}" y="${my - 1}" text-anchor="middle">${t[0]}</text><text class="lad-a" x="${x + 10 + (OUT_W - 10) / 2}" y="${my + 12}" text-anchor="middle">${esc(t[1])}</text>${hit}`;
+  }
   const v = !!bits[ins.a];
   const mx = x + OUT_W / 2;
   return `<path class="lad-wire ${on ? 'lad-on' : ''}" d="M${x} ${my}H${mx - 13}"/><text class="lad-coil ${v ? 'lad-on' : 'lad-off'}" x="${mx}" y="${my + 8}" text-anchor="middle">${OUT_TXT[ins.op]}</text><text class="lad-n" x="${mx}" y="${y + 8}" text-anchor="middle">${esc(names[ins.a] || '')}</text><text class="lad-a" x="${mx}" y="${y + CH - 2}" text-anchor="middle">${ins.a}</text>${hit}`;
@@ -94,6 +108,7 @@ function drawOut(ins, x, y, bits, names, on, cx, k) {
  */
 export function ladderHTML(program, st, names = {}, opt = {}) {
   const bits = (st && st.bits) || {};
+  const words = { ...(st && st.words), ...(st && st.ai), ...(st && st.aq) };
   const rungs = (st && st.rungs) || [];
   if (!program.length) {
     return `<svg class="ladder" viewBox="0 0 360 70" role="img" aria-label="Programma vuoto"><path class="lad-rail" d="M22 6V64M330 6V64"/><text class="lad-a" x="176" y="40" text-anchor="middle">Programma vuoto</text></svg>`;
@@ -114,7 +129,7 @@ export function ladderHTML(program, st, names = {}, opt = {}) {
     if (r.if === undefined || r.if === null) {
       body += `<path class="lad-wire" d="M${x0} ${y + CH / 2}H${x0 + w + 4}" stroke-dasharray="4 6"/><text class="lad-a" x="${x0 + 10}" y="${y + CH / 2 - 8}">nessun contatto</text>`;
     } else {
-      body += `<g>${draw(r.if, x0, y, w, bits, names, on, cx)}</g>`;
+      body += `<g>${draw(r.if, x0, y, w, bits, names, on, cx, [], words)}</g>`;
       body += `<path class="lad-wire ${on ? 'lad-on' : ''}" d="M${x0 + s.w} ${y + CH / 2}H${x0 + w + 4}"/>`;
     }
     if (r.do.length) r.do.forEach((ins, k) => { body += drawOut(ins, x0 + w + 4, y + k * CH, bits, names, on, cx, k); });

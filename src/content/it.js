@@ -87,6 +87,24 @@ const stateText = v => STATE_TEXT[String(v)] || String(v);
 // Posizione del pacco sul nastro (prove con `expect.machine`).
 // Collegamento del motore a sei morsetti (prove con `expect.modes`).
 const MODE_TEXT = { star: 'a stella', delta: 'a triangolo', null: 'né a stella né a triangolo' };
+// Prove sul processo (docs/SPEC-PROCESSI.md, sezione 6): il nome della grandezza viene da level.process.labels, se c'e'.
+const numIt = x => (typeof x === 'number' ? String(x).replace('.', ',') : String(x));
+function processText(level, item) {
+  const v = String(item.comp).split('.').slice(1).join('.');
+  const name = (level.process && level.process.labels && level.process.labels[v]) || v;
+  const at = item.at === undefined || item.at === null || item.at === Infinity ? '' : ' (a ' + numIt(item.at) + ' s)';
+  const range = String(item.want).replace('-', ' e ');
+  switch (item.rule) {
+    case 'within': return name + ' vale ' + numIt(item.got) + at + ': deve restare tra ' + range + '.';
+    case 'min': return name + ' scende a ' + numIt(item.got) + at + ': non deve andare sotto ' + numIt(item.want) + '.';
+    case 'max': return name + ' arriva a ' + numIt(item.got) + at + ': non deve superare ' + numIt(item.want) + '.';
+    case 'maxSwitches': return name + ' cambia stato ' + item.got + ' volte: al massimo ' + item.want + '.';
+    case 'reaches': return name + ' arriva al massimo a ' + numIt(item.got) + (at ? ' entro ' + numIt(item.at) + ' s' : '') + ': doveva raggiungere ' + numIt(item.want) + '.';
+    case 'drops': return name + ' scende al minimo a ' + numIt(item.got) + (at ? ' entro ' + numIt(item.at) + ' s' : '') + ': doveva arrivare a ' + numIt(item.want) + '.';
+    case 'noData': return name + ': nessun valore registrato.';
+    default: return name + ' vale ' + numIt(item.got) + '; atteso: ' + (String(item.want).includes('-') ? 'tra ' + range : numIt(item.want)) + '.';
+  }
+}
 const MACHINE_TEXT = { 'machine.atEnd': 'Fine corsa', 'machine.atStart': 'Inizio del nastro' };
 
 // Un elemento del risultato (codice + parametri) in una frase.
@@ -111,6 +129,7 @@ export function itemText(item, level) {
     case 'work.checkFail': {
       const why = item.cause && item.cause !== 'work.checkFail'
         ? itemText({ code: item.cause, comp: item.comp }, level)
+        : /^(trace|process)\./.test(String(item.comp)) ? processText(level, item)
         : (item.comp === 'tripped' ? 'Protezioni scattate: ' + (item.got || 'nessuna') + '.'
           : MACHINE_TEXT[item.comp] ? MACHINE_TEXT[item.comp] + ': ' + (item.got ? 'raggiunto' : 'non raggiunto') + '; atteso: ' + (item.want ? 'raggiunto' : 'non raggiunto') + '.'
           : String(item.comp).endsWith('.mode') ? nameOf(level, item.comp.slice(0, -5)) + ': collegato ' + MODE_TEXT[String(item.got)] + '; atteso: ' + MODE_TEXT[String(item.want)] + '.'
@@ -121,6 +140,7 @@ export function itemText(item, level) {
     case 'work.measureMissing': return 'Prima di verificare serve ancora una misura con il multimetro: ' + item.label + '.';
     case 'work.checkMore': return 'E altre ' + item.n + ' prove non superate.';
     case 'work.secondaryMixed': return 'Il secondario del trasformatore è collegato alla rete: la bassa tensione non è più separata dai 230 V.';
+    case 'work.unstablePlc': return 'Un’uscita del PLC si accende e si spegne a ogni ciclo: il programma si contraddice (per esempio un’uscita comandata dal suo stesso contatto negato).';
     case 'work.unstable': return 'Un relè si apre e si chiude da solo: la sua bobina è alimentata attraverso il suo stesso contatto NC.';
     case 'work.cableBurnt': return 'Il cavo della linea si è surriscaldato: la corrente ha superato la sua portata e l’interruttore non è scattato. La portata dell’interruttore deve essere minore o uguale a quella del cavo.';
     case 'work.tripped': return 'È scattata una protezione (' + nameOf(level, item.comp) + ').';

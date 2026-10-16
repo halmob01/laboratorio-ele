@@ -996,3 +996,220 @@ LEVELS_V2.push({
     'La spia Q1 segue il contatore: contatto C1 e bobina Q1.',
   ],
 });
+
+// c33: il sensore 4-20 mA (Modulo 6). Un serbatoio con trasmettitore di livello: si cabla l'anello di corrente e le due lampade;
+// il programma (gia' scritto) scala i milliampere in percentuale e riconosce il filo interrotto (sotto 3,6 mA).
+const W33_FIXED = [
+  ['Q.L1', 'PLC.A1', 'rosso'], ['PLC.A2', 'Q.N', 'blu'], ['PLC.IC', 'Q.N', 'blu'],
+  ['Q.L1', 'SA.a', 'rosso'], ['SA.b', 'PLC.I0', 'rosso'],
+  ['Q.L1', 'PLC.Q0A', 'rosso'], ['PLC.Q0B', 'HP.X1', 'rosso'], ['HP.X2', 'Q.N', 'blu'],
+];
+const W33_LOOP = [['TT.+', 'PLC.AI0+', 'rosso'], ['TT.-', 'PLC.AI0-', 'rosso']];
+const W33_LAMPS = [
+  ['Q.L1', 'PLC.Q1A', 'rosso'], ['PLC.Q1B', 'HH.X1', 'rosso'], ['HH.X2', 'Q.N', 'blu'],
+  ['Q.L1', 'PLC.Q2A', 'rosso'], ['PLC.Q2B', 'HF.X1', 'rosso'], ['HF.X2', 'Q.N', 'blu'],
+];
+LEVELS_V2.push({
+  id: 'c33-sensore', code: 'c33', n: 0, ...IND, flow: 'onDemand',
+  name: 'Il sensore 4-20 mA', title: 'Il sensore 4-20 mA',
+  blurb: 'Il livello del serbatoio arriva al PLC come una corrente: 4 mA vuoto, 20 mA pieno. Sotto 4 mA il filo è interrotto.',
+  goal: 'Un serbatoio ha un trasmettitore di livello 4-20 mA. Il PLC è già alimentato e comanda la pompa con l’interruttore. Cabla l’anello di corrente dal trasmettitore all’ingresso analogico AI0 (il + al +, il − al −) e le due lampade: Q1 “Livello alto” (sopra l’80 %) e Q2 “Guasto sensore” (corrente sotto 3,6 mA). Il programma è già scritto.',
+  fixed: W33_FIXED,
+  comps: [
+    Q3,
+    C('PLC', 'plc', 'PLC', 'PLC con un ingresso analogico', T('A1', 'A2', 'I0', 'IC', 'AI0+', 'AI0-', 'Q0A', 'Q0B', 'Q1A', 'Q1B', 'Q2A', 'Q2B'), {
+      program: [
+        { if: 'I0', do: [{ op: 'coil', a: 'Q0' }] },
+        { if: ['ge', 'AI0', 3.6], do: [{ op: 'scale', in: 'AI0', out: 'MW0', lo: 0, hi: 100 }] },
+        { if: ['and', ['ge', 'AI0', 3.6], ['gt', 'MW0', 80]], do: [{ op: 'coil', a: 'Q1' }] },
+        { if: ['lt', 'AI0', 3.6], do: [{ op: 'coil', a: 'Q2' }] },
+      ],
+      symbols: { I0: 'Pompa', Q0: 'Pompa', Q1: 'Livello alto', Q2: 'Guasto sensore', AI0: 'Livello (mA)', MW0: 'Livello (%)' },
+    }),
+    C('TT', 'tx', 'Trasmettitore', 'Trasmettitore di livello 4-20 mA', T('+', '-'), { sense: { v: 'h', lo: 0, hi: 100 } }),
+    C('SA', 'sw', 'Pompa', 'Interruttore della pompa', T('a', 'b')),
+    C('HP', 'spia', 'Pompa', 'Pompa in marcia', T('X1', 'X2')),
+    C('HH', 'spia', 'Livello alto', 'Lampada di livello alto', T('X1', 'X2')),
+    C('HF', 'spia', 'Guasto sensore', 'Lampada di guasto del sensore', T('X1', 'X2')),
+  ],
+  controls: ['SA'],
+  process: {
+    model: 'serbatoio', title: 'Il serbatoio', alt: 'Serbatoio con la pompa e il livello',
+    params: { qIn: 36, qOut: 12 }, init: { h: 30 }, speed: 20,
+    actuators: { pump: { load: 'HP' }, valve: { value: 1 } },
+    trace: ['h'], labels: { h: 'Il livello' },
+    graph: { vars: [{ v: 'h', label: 'Livello %', lo: 0, hi: 100 }], window: 300, lines: [{ value: 80, label: 'livello alto' }] },
+  },
+  demoDo: [{ do: ['toggle SA'], say: '' }],
+  checks: [
+    { id: 'riposo', label: 'Serbatoio a metà e pompa ferma: nessuna lampada di allarme', do: [], expect: { loads: { HH: 'off', HF: 'off', HP: 'off' }, process: { h: [29, 31] } } },
+    { id: 'pieno', label: 'Accendi la pompa: il livello sale e sopra l’80 % si accende “Livello alto”', do: ['toggle SA', 'wait 200'], expect: { loads: { HP: 'on', HH: 'on', HF: 'off' }, process: { h: [95, 100] } } },
+    { id: 'sale', label: 'Il trasmettitore segue il livello: dopo 60 secondi di pompa non c’è ancora l’allarme', do: ['toggle SA', 'wait 60'], expect: { loads: { HH: 'off', HF: 'off' } } },
+  ],
+  safety: { coilReturn: ['PLC'] },
+  solution: W33_FIXED.concat(W33_LOOP, W33_LAMPS),
+  hints: [
+    'Il trasmettitore ha due morsetti, + e −. L’ingresso analogico AI0 ha lo stesso: AI0+ e AI0−. Il + va al +, il − va al −.',
+    'Se i due fili sono scambiati il PLC legge 0 mA, come se il filo fosse staccato: si accende il guasto sensore.',
+    'Le lampade sono carichi comandati da un’uscita a relè: la fase entra in QnA, esce da QnB e va alla lampada; l’altro capo va al neutro.',
+  ],
+});
+
+// c34: il variatore (Modulo 6). Un nastro con variatore di frequenza: l'allievo cabla la marcia e il comando del variatore;
+// il riferimento di velocita' e' un'uscita analogica che si regola con il cursore. Si vede la rampa.
+const W34_FIXED = [
+  ['Q.L1', 'PLC.A1', 'rosso'], ['PLC.A2', 'Q.N', 'blu'], ['PLC.IC', 'Q.N', 'blu'],
+];
+const W34_RUN = [
+  ['Q.L1', 'SA.a', 'rosso'], ['SA.b', 'PLC.I0', 'rosso'],
+  ['Q.L1', 'PLC.Q0A', 'rosso'], ['PLC.Q0B', 'HV.X1', 'rosso'], ['HV.X2', 'Q.N', 'blu'],
+];
+LEVELS_V2.push({
+  id: 'c34-variatore', code: 'c34', n: 0, ...IND, flow: 'onDemand',
+  name: 'Il variatore', title: 'Il variatore',
+  blurb: 'La velocità del nastro non salta: il variatore la porta al valore voluto con una rampa.',
+  goal: 'Un nastro ha un variatore di frequenza. Il PLC è alimentato e il suo programma è scritto: con l’interruttore dà il consenso di marcia al variatore (uscita Q0) e gli manda il riferimento di velocità dal cursore. Cabla l’interruttore all’ingresso I0 e l’uscita Q0 alla spia “Variatore in marcia”. Poi accendi e guarda la rampa.',
+  fixed: W34_FIXED,
+  comps: [
+    Q3,
+    C('PLC', 'plc', 'PLC', 'PLC con un’uscita analogica', T('A1', 'A2', 'I0', 'IC', 'Q0A', 'Q0B'), {
+      program: [
+        { if: 'I0', do: [{ op: 'coil', a: 'Q0' }] },
+        { if: ['ge', 'MW0', 0], do: [{ op: 'move', v: 'MW0', out: 'AQ0' }] },
+      ],
+      symbols: { I0: 'Marcia', Q0: 'Marcia variatore', MW0: 'Velocità voluta (%)', AQ0: 'Riferimento (%)' },
+    }),
+    C('SA', 'sw', 'Marcia', 'Interruttore di marcia', T('a', 'b')),
+    C('HV', 'spia', 'Variatore in marcia', 'Spia di marcia del variatore', T('X1', 'X2')),
+  ],
+  controls: ['SA'],
+  process: {
+    model: 'nastro', title: 'Il nastro con il variatore', alt: 'Nastro con la frequenza e la velocità',
+    params: { fmax: 50, fNom: 50, ramp: 10 }, speed: 1,
+    actuators: { run: { plc: 'PLC.Q0' }, ref: { analog: 'PLC.AQ0' } },
+    trace: ['v', 'f'], labels: { v: 'La velocità' },
+    tunable: { vel: { word: 'PLC.MW0', min: 0, max: 100, step: 5, init: 60, unit: '%' } },
+    tunableLabels: { vel: 'Velocità voluta' },
+    graph: { vars: [{ v: 'v', label: 'Velocità %', lo: 0, hi: 100 }], window: 30, lines: [{ tuned: 'vel', label: 'voluta' }] },
+  },
+  demoDo: [{ do: ['toggle SA'], say: '' }],
+  checks: [
+    { id: 'fermo', label: 'Con l’interruttore aperto il nastro è fermo', do: ['wait 5'], expect: { loads: { HV: 'off' }, process: { v: [0, 1] } } },
+    { id: 'rampa', label: 'All’avvio la velocità sale con una rampa: dopo 2 secondi non è ancora a regime', do: ['toggle SA', 'wait 2'], expect: { loads: { HV: 'on' }, trace: [{ v: 'v', max: 50, to: 2.5 }, { v: 'v', min: 1, from: 1.5 }] } },
+    { id: 'regime', label: 'Dopo 10 secondi la velocità è quella voluta', do: ['toggle SA', 'wait 10'], expect: { trace: [{ v: 'v', within: [55, 65], from: 9 }] } },
+    { id: 'stop', label: 'Spegnendo, la velocità scende con la rampa e il nastro si ferma', steps: [{ do: ['toggle SA', 'wait 10'], expect: { trace: [{ v: 'v', min: 55, from: 9 }] } }, { do: ['toggle SA', 'wait 2'], expect: { trace: [{ v: 'v', min: 5, from: 10, to: 12.5 }] } }] },
+  ],
+  safety: { coilReturn: ['PLC'] },
+  solution: W34_FIXED.concat(W34_RUN),
+  hints: [
+    'L’interruttore è un contatto: la fase entra in un capo, esce dall’altro e va all’ingresso I0. Il comune IC è già al neutro.',
+    'L’uscita Q0 è un contatto a relè: la fase entra in Q0A, esce da Q0B e va alla spia; l’altro capo della spia va al neutro.',
+    'Il riferimento di velocità non ha fili: è un’uscita analogica del PLC che arriva al variatore. Si cambia con il cursore sotto il grafico.',
+  ],
+});
+
+// c35: il serbatoio (Modulo 6). Due galleggianti e una pompa: l'allievo scrive il programma con Set e Reset (isteresi).
+const W35 = [
+  ['Q.L1', 'PLC.A1', 'rosso'], ['PLC.A2', 'Q.N', 'blu'], ['PLC.IC', 'Q.N', 'blu'],
+  ['Q.L1', 'LH.3', 'rosso'], ['LH.4', 'PLC.I0', 'rosso'],
+  ['Q.L1', 'LL.3', 'rosso'], ['LL.4', 'PLC.I1', 'rosso'],
+  ['Q.L1', 'PLC.Q0A', 'rosso'], ['PLC.Q0B', 'HP.X1', 'rosso'], ['HP.X2', 'Q.N', 'blu'],
+];
+const PROG_35 = [
+  { if: 'I1', do: [{ op: 'set', a: 'Q0' }] },
+  { if: 'I0', do: [{ op: 'reset', a: 'Q0' }] },
+];
+LEVELS_V2.push({
+  id: 'c35-serbatoio', code: 'c35', n: 0, ...IND, flow: 'onDemand',
+  name: 'Il serbatoio', title: 'Il serbatoio',
+  blurb: 'Due soglie e una pompa: perché un solo galleggiante non basta.',
+  goal: 'Il serbatoio si svuota di continuo e la pompa lo riempie. Due galleggianti guardano il livello: quello basso (I1) scatta sotto il 20 %, quello alto (I0) sopra l’80 %. L’impianto è cablato: scrivi il programma perché la pompa parta quando il livello è basso e si fermi quando è alto, senza accendersi e spegnersi di continuo.',
+  fixed: W35,
+  comps: [
+    Q3,
+    C('PLC', 'plc', 'PLC', 'PLC (programma da scrivere)', T('A1', 'A2', 'I0', 'I1', 'IC', 'Q0A', 'Q0B'), {
+      symbols: { I0: 'Livello alto', I1: 'Livello basso', Q0: 'Pompa' },
+      edit: { markers: 0, timers: 0, counters: 0, ops: ['coil', 'set', 'reset'] },
+    }),
+    C('LH', 'sens', 'Galleggiante alto', 'Galleggiante di livello alto (80 %)', T('1', '2', '3', '4'), { sense: { v: 'h', above: 80 } }),
+    C('LL', 'sens', 'Galleggiante basso', 'Galleggiante di livello basso (20 %)', T('1', '2', '3', '4'), { sense: { v: 'h', below: 20 } }),
+    C('HP', 'spia', 'Pompa', 'Pompa in marcia', T('X1', 'X2')),
+  ],
+  process: {
+    model: 'serbatoio', title: 'Il serbatoio', alt: 'Serbatoio con due galleggianti e la pompa',
+    params: { qIn: 36, qOut: 12 }, init: { h: 50 }, speed: 30,
+    actuators: { pump: { load: 'HP' }, valve: { value: 1 } },
+    trace: ['h', 'PLC.Q0'], labels: { h: 'Il livello' },
+    graph: { vars: [{ v: 'h', label: 'Livello %', lo: 0, hi: 100 }], window: 600, lines: [{ value: 80, label: 'alto' }, { value: 20, label: 'basso' }] },
+  },
+  demoDo: [{ do: ['wait 200'], say: '' }],
+  checks: [
+    { id: 'isteresi', label: 'In 20 minuti il livello resta tra i due galleggianti e la pompa non si accende e si spegne di continuo', do: ['wait 1200'], expect: { trace: [{ v: 'h', within: [15, 85] }, { v: 'h', reaches: 80 }, { v: 'h', drops: 21 }, { v: 'PLC.Q0', maxSwitches: 8 }] } },
+    { id: 'riempie', label: 'Quando il livello scende sotto il 20 % la pompa parte e continua fino all’80 %', do: ['wait 600'], expect: { trace: [{ v: 'h', reaches: 79 }] } },
+  ],
+  safety: { coilReturn: ['PLC'] },
+  solution: W35,
+  solutionPrograms: { PLC: PROG_35 },
+  hints: [
+    'La pompa è l’uscita Q0. Il galleggiante basso è I1: quando scatta la pompa deve partire e restare accesa anche quando il livello risale sopra il 20 %.',
+    'Per far restare acceso Q0 dopo che I1 si è spento serve una memoria: l’uscita Set. Set accende e tiene acceso, finché un Reset non lo spegne.',
+    'Primo gradino: contatto I1, uscita Set su Q0. Secondo gradino: contatto I0 (livello alto), uscita Reset su Q0.',
+  ],
+});
+
+// c36: il PID (Modulo 6). Un forno con trasmettitore e regolatore PID nel PLC: l'impianto e il programma sono fatti;
+// l'allievo regola Kp, Ti e Td con i cursori guardando il grafico, finche' la temperatura arriva a 60 gradi senza oscillare.
+const W36 = [
+  ['Q.L1', 'PLC.A1', 'rosso'], ['PLC.A2', 'Q.N', 'blu'], ['PLC.IC', 'Q.N', 'blu'],
+  ['Q.L1', 'SA.a', 'rosso'], ['SA.b', 'PLC.I0', 'rosso'],
+  ['TT.+', 'PLC.AI0+', 'rosso'], ['TT.-', 'PLC.AI0-', 'rosso'],
+  ['Q.L1', 'PLC.Q0A', 'rosso'], ['PLC.Q0B', 'HR.X1', 'rosso'], ['HR.X2', 'Q.N', 'blu'],
+];
+LEVELS_V2.push({
+  id: 'c36-pid', code: 'c36', n: 0, ...IND, flow: 'onDemand',
+  name: 'Il PID', title: 'Il PID',
+  blurb: 'Un forno da portare a 60 °C: P, I e D con i cursori e il grafico.',
+  goal: 'Un forno deve stare a 60 °C. L’impianto è cablato: il trasmettitore di temperatura è collegato al PLC e il PLC comanda la resistenza con un regolatore PID. Accendi la regolazione e prova i cursori Kp, Ti e Td guardando il grafico. Cerca valori con cui la temperatura arriva a 60 °C, non supera i 66 °C e resta ferma entro 2 gradi.',
+  fixed: W36,
+  comps: [
+    Q3,
+    C('PLC', 'plc', 'PLC', 'PLC con regolatore PID', T('A1', 'A2', 'I0', 'IC', 'AI0+', 'AI0-', 'Q0A', 'Q0B'), {
+      program: [
+        { if: 'I0', do: [{ op: 'coil', a: 'Q0' }] },
+        { if: ['ge', 'AI0', 0], do: [{ op: 'scale', in: 'AI0', out: 'MW0', lo: 0, hi: 200 }] },
+        { if: 'I0', do: [{ op: 'pid', id: 'PID1', pv: 'MW0', sp: 60, out: 'AQ0', kp: 'MW2', ti: 'MW3', td: 'MW4' }] },
+        { if: ['not', 'I0'], do: [{ op: 'move', v: 0, out: 'AQ0' }] },
+      ],
+      symbols: { I0: 'Regolazione', Q0: 'Spia', AI0: 'Temperatura (mA)', MW0: 'Temperatura (°C)', MW2: 'Kp', MW3: 'Ti', MW4: 'Td', AQ0: 'Resistenza (%)' },
+    }),
+    C('TT', 'tx', 'Trasmettitore', 'Trasmettitore di temperatura 4-20 mA (0-200 °C)', T('+', '-'), { sense: { v: 'T', lo: 0, hi: 200 } }),
+    C('SA', 'sw', 'Regolazione', 'Interruttore della regolazione', T('a', 'b')),
+    C('HR', 'spia', 'Regolazione attiva', 'Spia di regolazione attiva', T('X1', 'X2')),
+  ],
+  controls: ['SA'],
+  process: {
+    model: 'forno', title: 'Il forno', alt: 'Forno con la temperatura',
+    speed: 20, actuators: { heater: { analog: 'PLC.AQ0' } },
+    trace: ['T', 'PLC.AQ0'], labels: { T: 'La temperatura' },
+    tunable: {
+      kp: { word: 'PLC.MW2', min: 0.1, max: 20, step: 0.1, init: 1 },
+      ti: { word: 'PLC.MW3', min: 0, max: 300, step: 5, init: 0, unit: 's' },
+      td: { word: 'PLC.MW4', min: 0, max: 60, step: 1, init: 0, unit: 's' },
+    },
+    tunableLabels: { kp: 'Kp (proporzionale)', ti: 'Ti (integrale)', td: 'Td (derivativa)' },
+    graph: { vars: [{ v: 'T', label: 'Temperatura °C', lo: 0, hi: 100, color: '#C0262D' }, { v: 'PLC.AQ0', label: 'Resistenza %', lo: 0, hi: 100, color: '#2563B0' }], window: 450, lines: [{ value: 60, label: 'voluta 60 °C', var: 'T' }] },
+  },
+  solutionTuned: { kp: 3, ti: 100, td: 15 },
+  demoDo: [{ do: ['toggle SA'], say: '' }],
+  checks: [
+    { id: 'fermo', label: 'Senza regolazione il forno resta freddo', do: ['wait 60'], expect: { trace: [{ v: 'T', max: 25 }] } },
+    { id: 'regola', label: 'Con la regolazione la temperatura arriva a 60 °C, non supera 66 °C e dopo 7 minuti resta tra 58 e 62', do: ['toggle SA', 'wait 900'], expect: { trace: [{ v: 'T', reaches: 58, by: 400 }, { v: 'T', max: 66 }, { v: 'T', within: [58, 62], from: 420 }] } },
+  ],
+  safety: { coilReturn: ['PLC'] },
+  solution: W36,
+  hints: [
+    'Con il solo Kp (Ti e Td a zero) la temperatura si ferma sotto i 60 °C: per dare ancora potenza serve un errore, e l’errore resta. Prova Kp tra 2 e 5.',
+    'L’integrale (Ti) accumula l’errore nel tempo e lo azzera: con Ti attorno a 100 secondi la temperatura arriva a 60 °C. Un Ti troppo piccolo fa oscillare.',
+    'La derivativa (Td) frena quando la temperatura sale in fretta: con Td di 10-20 secondi la sovraelongazione si riduce. Un Kp troppo alto fa oscillare comunque.',
+  ],
+});

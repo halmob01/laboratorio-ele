@@ -388,3 +388,12 @@ test('il temporizzatore fa correre l\'orologio della sessione fin dal primo ista
   advance(s, 3);
   assert.equal(needsClock(L, observe(s)), false, 'tempo scaduto: l\'orologio si puo\' fermare');
 });
+
+test('programma che si contraddice (Q0 da "non Q0"): instabile per colpa del PLC, con il suo messaggio', () => {
+  const P = [{ if: ['not', 'Q0'], do: [{ op: 'coil', a: 'Q0' }] }];
+  const r = evaluateV2({ ...L29, comps: L29.comps.map(c => (c.type === 'plc' ? { ...c, program: P } : c)) }, W29(L29.solution));
+  assert.equal(r.work.items[0].code, 'work.unstablePlc');
+  // un relè che si alimenta dal suo NC resta un'instabilità del circuito, non del PLC
+  const s = createSim(L29, W29(L29.solution));
+  assert.equal(observe(s).faults.some(f => f.code === 'instabile'), false);
+});

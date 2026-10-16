@@ -153,6 +153,13 @@ export function schemV2(c, s, L, ui) {
         o += ln(x, 22, x, mid - 40, L(t));
         if (t !== 'IC') o += `<circle cx="${x}" cy="${mid - 30}" r="4.5" fill="${st.inputs[t] ? '#F59F00' : 'none'}" stroke="var(--sch)" stroke-width="1.6"/>`;
       });
+      // ingressi analogici 4-20 mA: il valore letto compare sotto il morsetto
+      Object.keys(c.terms).filter(t => /^AI\d+\+$/.test(t)).forEach(t => {
+        const k = t.slice(0, -1), xp = w * c.terms[t].f, xm = w * c.terms[k + '-'].f, mA = st.ai && st.ai[k];
+        o += ln(xp, 22, xp, mid - 40, L(t)) + ln(xm, 22, xm, mid - 40, L(k + '-'));
+        o += lab(xp, mid - 22, '+') + lab(xm, mid - 22, '−');
+        o += lab((xp + xm) / 2, mid - 8 + 14, st.powered ? (mA ? String(Math.round(mA * 10) / 10).replace('.', ',') + ' mA' : '0 mA') : '', 'middle');
+      });
       Object.keys(c.terms).filter(t => /^Q\d+A$/.test(t)).forEach(a => {
         const k = a.slice(0, -1), b = k + 'B', on = !!st.q[k];
         const xa = w * c.terms[a].f, xb = w * c.terms[b].f, ym = h - 54;
@@ -214,6 +221,23 @@ export function schemV2(c, s, L, ui) {
       const act = !!part.act;
       o += pole(w * c.terms['1'].f, 22, h - 22, !act, L('1'), L('2')) + pole(w * c.terms['3'].f, 22, h - 22, act, L('3'), L('4'));
       o += lab(w / 2, h - 6, act ? 'PREMUTO DAL PACCO' : 'A RIPOSO');
+      break;
+    }
+    case 'sens': {
+      // sensore digitale di processo (galleggiante, termostato): contatto NC 1-2 e NA 3-4 comandati dalla grandezza del processo
+      const act = !!part.act;
+      o += pole(w * c.terms['1'].f, 22, h - 22, !act, L('1'), L('2')) + pole(w * c.terms['3'].f, 22, h - 22, act, L('3'), L('4'));
+      o += lab(w / 2, h - 6, act ? 'SCATTATO' : 'A RIPOSO');
+      break;
+    }
+    case 'tx': {
+      // trasmettitore 4-20 mA: la corrente (valore del processo) dipende dall'anello chiuso con la polarita' giusta
+      const xp = w * c.terms['+'].f, xm = w * c.terms['-'].f, cy = mid;
+      o += ln(xp, 22, xp, cy - 22, L('+')) + ln(xm, cy + 22, xm, h - 22, L('-'));
+      o += `<circle cx="${w / 2}" cy="${cy}" r="22" fill="#F0EBDD" stroke="var(--comp-edge)" stroke-width="2"/>`;
+      o += `<text x="${w / 2}" y="${cy + 5}" text-anchor="middle" style="font:600 14px 'IBM Plex Mono',monospace;fill:var(--ink)">mA</text>`;
+      o += lab(xp + 10, cy - 28, '+') + lab(xm + 10, cy + 40, '−');
+      if (c.sense && part.mA) o += lab(w / 2, h - 6, 'trasmette ' + String(Math.round(part.mA * 10) / 10).replace('.', ',') + ' mA');
       break;
     }
     case 'trafo': {
@@ -295,7 +319,7 @@ export function schemV2(c, s, L, ui) {
 }
 
 // Tipi che il disegno v2 gestisce al posto di quelli del motore v1 (sw, dev e inv restano come nel v1).
-export const V2_TYPES = new Set(['quadro', 'mt', 'rcd', 'mt3', 'sez', 'pb', 'pbnc', 'fungo', 'port', 'rs', 'ri', 'rel', 'tmr', 'km', 'ft', 'fc', 'trafo', 'bell', 'spia', 'lamp', 'presa', 'motor3', 'motor6', 'kt', 'plc', 'gu']);
+export const V2_TYPES = new Set(['quadro', 'mt', 'rcd', 'mt3', 'sez', 'pb', 'pbnc', 'fungo', 'port', 'rs', 'ri', 'rel', 'tmr', 'km', 'ft', 'fc', 'sens', 'tx', 'trafo', 'bell', 'spia', 'lamp', 'presa', 'motor3', 'motor6', 'kt', 'plc', 'gu']);
 
 /* ---------- scena della stanza / della macchina (livelli v2) ---------- */
 const DEV = new Set(['lamp', 'spia', 'bell', 'presa', 'motor3', 'motor6']);
