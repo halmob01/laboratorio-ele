@@ -1,11 +1,11 @@
 # Piano di lavoro automatico, terza parte della notte (13-14 ottobre 2026): Moduli 2 e 3
 
-Scritto da Opus, da eseguire con Sonnet in autonomia, senza domande a Matteo. I piani precedenti (fasi A-F, D, E) sono chiusi e uniti in `main`; restano nella storia di git.
+Scritto da Opus, da eseguire con Sonnet in autonomia, senza domande a Gianluca. I piani precedenti (fasi A-F, D, E) sono chiusi e uniti in `main`; restano nella storia di git.
 
 Riferimenti obbligatori:
 - `docs/SPEC-MOTORE-V2.md`: il motore nuovo (nucleo già scritto e provato da Opus in `src/engine/v2/`, test in `test/v2-engine.test.js`);
 - `docs/LEZIONE-ED-ESERCIZIO.md`: modello di lezione ed esercizio, valido anche qui;
-- `docs/SYLLABUS.md` sezione 4; `docs/DOMANDE-PER-MATTEO.md`; `docs/STATO-AVANZAMENTO.md`.
+- `docs/SYLLABUS.md` sezione 4; `docs/DOMANDE-PER-GIANLUCA.md`; `docs/STATO-AVANZAMENTO.md`.
 
 ## 0. Protocollo
 
@@ -25,11 +25,11 @@ Riferimenti obbligatori:
 - Unione in `main` (merge senza riscrittura, poi push) solo ai gate (sezione 2): test verdi, screenshot a 390 e 1280 px guardati davvero, revisione Opus fatta, problemi gravi e medi corretti.
 - Mai `push --force`, mai riscrivere `main`. `CONTACT_EMAIL` resta vuoto.
 
-**Il motore v2**: il nucleo (`src/engine/v2/parts.js`, `sim.js`, `checks.js`) è di Opus. Se serve cambiarlo, il cambiamento è piccolo, ha un test che lo motiva e va segnalato nella revisione del gate successivo ("modifiche al nucleo: ..."). Se un livello sembra richiedere un cambiamento grande, si semplifica il livello e si annota in `DOMANDE-PER-MATTEO.md`.
+**Il motore v2**: il nucleo (`src/engine/v2/parts.js`, `sim.js`, `checks.js`) è di Opus. Se serve cambiarlo, il cambiamento è piccolo, ha un test che lo motiva e va segnalato nella revisione del gate successivo ("modifiche al nucleo: ..."). Se un livello sembra richiedere un cambiamento grande, si semplifica il livello e si annota in `DOMANDE-PER-GIANLUCA.md`.
 
-**Quando qualcosa non è chiaro**: scegli l'opzione più semplice coerente con questo piano, annota domanda, scelta e come cambiarla in `DOMANDE-PER-MATTEO.md`, vai avanti.
+**Quando qualcosa non è chiaro**: scegli l'opzione più semplice coerente con questo piano, annota domanda, scelta e come cambiarla in `DOMANDE-PER-GIANLUCA.md`, vai avanti.
 
-**Regole sui contenuti**: italiano sobrio e tecnico, seconda persona singolare, frasi brevi, niente emoji, slogan, punti esclamativi o toni infantili. Sul sito: "Modulo", "Prova del modulo", "livello"; mai codici interni, "milestone", "build". Termini fissi: fase, neutro, terra, morsetto, contattore, bobina, contatto NA (normalmente aperto), contatto NC (normalmente chiuso), autoritenuta, relè termico, salvamotore, differenziale, magnetotermico. Ogni frase tecnica dubbia va in `DOMANDE-PER-MATTEO.md` sotto "Da far controllare al collega di laboratorio".
+**Regole sui contenuti**: italiano sobrio e tecnico, seconda persona singolare, frasi brevi, niente emoji, slogan, punti esclamativi o toni infantili. Sul sito: "Modulo", "Prova del modulo", "livello"; mai codici interni, "milestone", "build". Termini fissi: fase, neutro, terra, morsetto, contattore, bobina, contatto NA (normalmente aperto), contatto NC (normalmente chiuso), autoritenuta, relè termico, salvamotore, differenziale, magnetotermico. Ogni frase tecnica dubbia va in `DOMANDE-PER-GIANLUCA.md` sotto "Da far controllare al collega di laboratorio".
 
 **Revisioni**: chi scrive non rivede. Ai gate: Agent con `model: "opus"`, `subagent_type: "general-purpose"`, sola lettura, problemi concreti con file, riga e scenario. Controllo visivo con Playwright e Chromium (`/opt/pw-browsers`), profilo di prova come nelle fasi precedenti (script nello scratchpad).
 

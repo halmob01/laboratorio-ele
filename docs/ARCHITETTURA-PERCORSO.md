@@ -1,6 +1,6 @@
 # Architettura del percorso: dal quadro di casa alla fabbrica
 
-Stato: proposta, 14 ottobre 2026, rivista dopo una revisione indipendente. Prende come direzione il syllabus Moduli 2-6 (allegato da Matteo) e lo ricostruisce su quello che il gioco ha già, senza rifare quello che funziona. Dove il syllabus e questo documento divergono, la ragione è scritta accanto.
+Stato: proposta, 14 ottobre 2026, rivista dopo una revisione indipendente. Prende come direzione il syllabus Moduli 2-6 (allegato da Gianluca) e lo ricostruisce su quello che il gioco ha già, senza rifare quello che funziona. Dove il syllabus e questo documento divergono, la ragione è scritta accanto.
 
 ## 1. Da dove si parte
 
@@ -117,9 +117,9 @@ Differenze dal syllabus: bus di campo e manutenzione predittiva sono tolti dal p
 
 ### Modulo 5, La casa intelligente
 
-Decisione di Matteo (14 ottobre): il Modulo 5 entra nel percorso, tra il Modulo 4 e la fabbrica. Resta fuori dal percorso minimo verso la fabbrica: non è un prerequisito, ma è un modulo che l'allievo può fare e che sulla mappa compare come tappa normale.
+Decisione di Gianluca (14 ottobre): il Modulo 5 entra nel percorso, tra il Modulo 4 e la fabbrica. Resta fuori dal percorso minimo verso la fabbrica: non è un prerequisito, ma è un modulo che l'allievo può fare e che sulla mappa compare come tappa normale.
 
-Revisione del 16 ottobre (decisioni di Gianluca, da far confermare a Matteo): il modulo si chiama **La casa intelligente** ed è **un solo modulo** con un solo traguardo; la divisione 5A (energia) e 5B (comando) era una divisione del lavoro, non dell'allievo, e sparisce. I livelli seguono la difficoltà crescente e la casa si completa un pezzo alla volta.
+Revisione del 16 ottobre (decisioni di Gianluca): il modulo si chiama **La casa intelligente** ed è **un solo modulo** con un solo traguardo; la divisione 5A (energia) e 5B (comando) era una divisione del lavoro, non dell'allievo, e sparisce. I livelli seguono la difficoltà crescente e la casa si completa un pezzo alla volta.
 
 Ordine di gioco: M1, M2, M3, M4, **M5**, M6. Ordine di costruzione diverso (vedi sezione 10): l'energia chiede il simulatore (E7) e la corrente continua (E8), che sono nati con la regolazione del Modulo 6.
 
@@ -140,7 +140,7 @@ Ordine di gioco: M1, M2, M3, M4, **M5**, M6. Ordine di costruzione diverso (vedi
 
 Perché questo ordine: il comando (5.1-5.4) riprende i pezzi di M2 e il PLC appena imparato; poi l'energia, già costruita, che si ragiona bene solo dopo aver visto i carichi, le protezioni e un processo nel tempo; la gestione dei carichi chiude l'energia; il clima è il livello più ricco e usa PLC, sonde, isteresi e consenso insieme.
 
-**Videocitofono.** Sul mercato si installano soprattutto sistemi a due fili con bus digitale (voce, video e alimentazione sugli stessi fili). Il motore non simula i bus: il livello insegna ciò che resta uguale (alimentatore separato dalla rete, chiamata dal posto esterno, apriporta a 12 V con il suo tempo, niente 230 V sulla pulsantiera) e il bus si spiega in una pagina della lezione. Da far confermare a Matteo.
+**Videocitofono.** Sul mercato si installano soprattutto sistemi a due fili con bus digitale (voce, video e alimentazione sugli stessi fili). Il motore non simula i bus: il livello insegna ciò che resta uguale (alimentatore separato dalla rete, chiamata dal posto esterno, apriporta a 12 V con il suo tempo, niente 230 V sulla pulsantiera) e il bus si spiega in una pagina della lezione.
 
 **Fuori dal piano (16 ottobre):** condominio (autoclave, ascensore, lampade di emergenza, sgancio antincendio) come idea futura; gru, comando a due mani, palchi e spettacoli; bus di campo e manutenzione predittiva (erano facoltativi dopo la fabbrica).
 
@@ -283,9 +283,9 @@ Ogni fase si chiude con lo stesso controllo di oggi: test verdi, schermate a 390
 
 P4 viene prima del PLC perché non ne ha bisogno e consolida la sicurezza cablata. Le fasi più rischiose sono P5 (editor ladder su telefono) e P6 (modelli giusti ma semplici): per entrambe un prototipo da far provare a una classe prima di scrivere i livelli.
 
-## 11. Decisioni per Matteo
+## 11. Decisioni per Gianluca
 
-1. **Modulo 5:** deciso da Matteo il 14 ottobre, entra tra il Modulo 4 e la fabbrica (sezione 3), fuori dal percorso minimo. Il 16 ottobre è diventato un solo modulo, "La casa intelligente", con il videocitofono e senza la divisione energia/comando: da far confermare.
+1. **Modulo 5:** deciso da Gianluca il 14 ottobre, entra tra il Modulo 4 e la fabbrica (sezione 3), fuori dal percorso minimo. Il 16 ottobre è diventato un solo modulo, "La casa intelligente", con il videocitofono e senza la divisione energia/comando.
 2. **Percorso minimo:** c08 e c09 fuori dal minimo, c10 dentro. Va bene?
 3. **Multimetro** come primo livello di M2 e **lavoro fuori tensione** obbligatorio da M3, con la modifica di c13-c16 che serve. Va bene?
 4. **Colori:** rosso per il comando in alternata (in uso da c13), blu per il comando in continua del PLC. Da confermare con il collega.
