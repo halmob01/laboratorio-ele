@@ -1,6 +1,6 @@
 // Unita' didattiche dei Moduli 2 e 3. Stessa forma di units.js.
 
-import { W46, PROG_46_FAULT } from './levels-v2.js';
+import { W46, PROG_46_FAULT, W52_FIXED } from './levels-v2.js';
 
 export const UNITS_V2 = {
   'c17-multimetro': {
@@ -4535,4 +4535,374 @@ UNITS_V2['c50-allarme'] = {
     },
     fixSay: 'Collega la tacitazione al contatto 11 del relè, e il contatto 14 alla bobina A1. Poi premi Verifica.',
   },
+};
+
+// ---- c52 Lavori in sicurezza, c53 La gestione dei carichi, c54 Il clima per zone ----
+
+UNITS_V2['c52-lavori-sicurezza'] = {
+  support: 'passi',
+  lesson: {
+    pages: [
+      {
+        type: 'spiegazione',
+        title: 'Perché si lavora fuori tensione',
+        paras: [
+          'La corrente non si vede e non si sente prima di toccarla. Un filo in tensione sembra uguale a uno spento, e bastano pochi decimi di secondo per un danno grave. Per questo il lavoro sugli impianti si fa, quando è possibile, con l’impianto spento: fuori tensione.',
+          'Spegnere però non basta: bisogna essere sicuri che l’impianto resti spento mentre ci lavori, e sicuri che sia davvero spento. Ci vuole una procedura, sempre uguale e sempre nello stesso ordine, come una lista di controllo prima del decollo.',
+        ],
+        warn: 'Un impianto “spento” che nessuno ha verificato va considerato in tensione.',
+      },
+      {
+        type: 'spiegazione',
+        title: 'La procedura, nell’ordine',
+        paras: [
+          'In bassa tensione i passi sono questi. L’ordine non si cambia: ogni passo protegge dall’errore del passo prima.',
+        ],
+        table: {
+          head: ['Passo', 'Che cosa fai', 'Perché'],
+          rows: [
+            ['1 Sezionare', 'apri l’interruttore a monte', 'togli la tensione ai fili su cui lavori'],
+            ['2 Bloccare', 'metti il lucchetto sull’interruttore aperto', 'nessuno può richiuderlo mentre lavori'],
+            ['3 Verificare', 'misuri che non ci sia tensione', 'ti accorgi di un altro circuito o di un errore'],
+            ['4 Lavorare', 'metti le mani sui fili', 'solo adesso'],
+            ['5 Rimettere in servizio', 'togli il lucchetto e richiudi', 'solo tu, che l’hai messo'],
+          ],
+        },
+      },
+      {
+        type: 'spiegazione',
+        title: 'Il lucchetto: perché non basta aprire',
+        paras: [
+          'Un interruttore aperto si richiude con un dito. Un collega che non sa che stai lavorando, vede la macchina ferma e riarma il quadro: la tensione torna sui fili che hai in mano.',
+          'Il lucchetto, con il tuo nome o un cartello, impedisce la richiusura e dice a tutti che c’è qualcuno al lavoro. La chiave la tieni tu: il lucchetto lo toglie solo chi l’ha messo. Nel gioco, a lucchetto messo il salvamotore non si richiude.',
+        ],
+      },
+      {
+        type: 'spiegazione',
+        title: 'Verificare l’assenza di tensione: prima si prova lo strumento',
+        paras: [
+          'Per verificare si misura la tensione con il multimetro tra ogni conduttore su cui lavori e il neutro: deve leggere zero. Ma un multimetro con la batteria scarica o un puntale interrotto legge zero anche su un filo in tensione, e ti dice che è tutto a posto quando non lo è.',
+          'Per questo prima si prova lo strumento su un punto che sai in tensione, a monte dell’interruttore aperto: deve leggere 230 V. Se li legge, lo strumento funziona, e uno zero a valle vale.',
+        ],
+        table: {
+          head: ['Misura', 'Tra', 'Che cosa ti aspetti', 'A che serve'],
+          rows: [
+            ['1', 'morsetto 1 del salvamotore e neutro', '230 V', 'prova che lo strumento funziona'],
+            ['2', 'morsetto 2 del salvamotore e neutro', '0 V', 'la prima fase è spenta'],
+            ['3', 'morsetto 4 del salvamotore e neutro', '0 V', 'la seconda fase è spenta'],
+            ['4', 'morsetto 6 del salvamotore e neutro', '0 V', 'la terza fase è spenta'],
+          ],
+        },
+        warn: 'Si misurano tutte le fasi: una sola fase ancora in tensione basta per prendere la scossa.',
+      },
+      {
+        type: 'pezzi',
+        title: 'Il banco di oggi',
+        focus: ['QM', 'SBE', 'SB0', 'SB1'],
+        paras: [
+          'Accanto alla leva del salvamotore c’è il pulsante con il lucchetto: si mette solo a salvamotore aperto. Il multimetro si accende dal suo pulsante; il primo morsetto che tocchi è il puntale rosso, il secondo il nero.',
+          'L’impianto è già cablato: marcia, arresto, contattore e motore. Manca il fungo di emergenza, che si aggiunge in serie al comando.',
+        ],
+      },
+      {
+        type: 'spiegazione',
+        title: 'Il lavoro: aggiungere il fungo',
+        paras: [
+          'Il fungo di emergenza è un contatto normalmente chiuso: a riposo lascia passare la fase al comando; premuto, la interrompe e il contattore cade. Come l’arresto, sta in serie sul comando: se un contatto qualunque si apre, la bobina perde la tensione.',
+          'Va messo per primo, prima dell’arresto: dal morsetto 2 del salvamotore (a valle, dove prende la fase il comando) al morsetto 1 del fungo, e dal morsetto 2 del fungo al morsetto 1 dell’arresto. Sono due fili: ma prima la procedura.',
+        ],
+      },
+      {
+        type: 'previsione',
+        question: 'Hai aperto il salvamotore ma non hai messo il lucchetto. Un collega, che non sa che stai lavorando, lo richiude. Che cosa succede?',
+        options: [
+          { id: 'a', text: 'Niente: i fili sono collegati e basta.' },
+          { id: 'b', text: 'La tensione torna sui fili mentre ci hai le mani: è il rischio che il lucchetto evita.' },
+          { id: 'c', text: 'Il salvamotore scatta e si riapre da solo.' },
+        ],
+        correct: 'b',
+        why: 'Un interruttore aperto si richiude con un dito, e chi lo fa non sa che stai lavorando. Il lucchetto impedisce la richiusura e dice agli altri che c’è qualcuno al lavoro.',
+      },
+      {
+        type: 'previsione',
+        question: 'Il multimetro legge 0 V tra il morsetto 2 del salvamotore e il neutro. Basta per dire che a valle non c’è tensione?',
+        options: [
+          { id: 'a', text: 'Sì: uno zero è uno zero.' },
+          { id: 'b', text: 'No: prima devi aver provato lo strumento su un punto in tensione, perché uno strumento guasto legge zero comunque.' },
+          { id: 'c', text: 'Sì, ma solo se lo misuri due volte.' },
+        ],
+        correct: 'b',
+        why: 'Uno zero può venire da un impianto spento o da uno strumento rotto. Solo se lo stesso strumento ha appena letto 230 V su un punto in tensione, lo zero a valle significa che è davvero spento.',
+      },
+      { type: 'sintesi', title: 'Da ricordare' },
+    ],
+  },
+  steps: [
+    { kind: 'control', id: 'QM', short: '1 Sezionare', title: 'Apri il salvamotore', text: 'Tocca la leva del salvamotore per aprirlo. Perché: senza la tensione a monte, i fili a valle sono spenti.' },
+    { kind: 'lock', id: 'QM', short: '2 Lucchetto', title: 'Metti il lucchetto', text: 'Tocca il pulsante con il lucchetto, accanto alla leva del salvamotore. Perché: da ora nessuno può richiuderlo mentre lavori.' },
+    { kind: 'measure', between: ['QM.1', 'Q.N'], mode: 'V', value: 230, short: '3 Prova', title: 'Prova lo strumento', text: 'Accendi il multimetro e misura tra il morsetto 1 del salvamotore (a monte) e il neutro: devi leggere 230 V. Perché: se lo strumento legge 230 V dove la tensione c’è, uno zero a valle è affidabile.' },
+    { kind: 'measure', between: ['QM.2', 'Q.N'], mode: 'V', value: 0, short: '4 Fase 1', title: 'Verifica la prima fase', text: 'Misura tra il morsetto 2 del salvamotore e il neutro: devi leggere 0 V. Perché: a valle non deve esserci tensione.' },
+    { kind: 'measure', between: ['QM.4', 'Q.N'], mode: 'V', value: 0, short: '5 Fase 2', title: 'Verifica la seconda fase', text: 'Misura tra il morsetto 4 e il neutro: 0 V. Perché: una sola fase in tensione basta per prendere la scossa.' },
+    { kind: 'measure', between: ['QM.6', 'Q.N'], mode: 'V', value: 0, short: '6 Fase 3', title: 'Verifica la terza fase', text: 'Misura tra il morsetto 6 e il neutro: 0 V. Ora l’assenza di tensione è verificata.' },
+    { kind: 'wire', from: 'QM.2', to: ['SBE.1'], color: 'rosso', short: '7 Fungo', title: 'Dal salvamotore al fungo', text: 'Dal morsetto 2 del salvamotore al morsetto 1 del fungo, in rosso (comando). Perché: il fungo è il primo contatto del comando.' },
+    { kind: 'wire', from: 'SBE.2', to: ['SB0.1'], color: 'rosso', short: '8 Serie', title: 'Dal fungo all’arresto', text: 'Dal morsetto 2 del fungo al morsetto 1 dell’arresto. Perché: fungo e arresto sono in serie, ne basta uno aperto per fermare la macchina.' },
+    { kind: 'control', id: 'SB1', short: '9 Collauda', title: 'Togli il lucchetto e collauda', text: 'Togli il lucchetto, richiudi il salvamotore e prova: Marcia, poi il fungo.' },
+    { kind: 'verify', short: '10 Verifica', title: 'Controlla l’impianto', text: 'Premi Verifica.' },
+  ],
+  summary: [
+    'Si lavora fuori tensione: sezionare, bloccare con il lucchetto, verificare l’assenza di tensione, lavorare, rimettere in servizio. In questo ordine.',
+    'L’interruttore aperto non basta: il lucchetto impedisce la richiusura e dice agli altri che qualcuno sta lavorando.',
+    'Prima di verificare si prova lo strumento su un punto in tensione: uno strumento guasto legge zero comunque.',
+    'Si verificano tutte le fasi: una sola fase in tensione è già pericolosa.',
+    'Il fungo di emergenza è un contatto normalmente chiuso in serie al comando, come l’arresto.',
+  ],
+  fault: {
+    say: 'L’impianto è cablato con il fungo e l’arresto. Premendo il fungo il motore si ferma, ma premendo Arresto il motore non si ferma più. Guarda come è collegato il fungo.',
+    wires: W52_FIXED.concat([['QM.2', 'SB0.1', 'rosso'], ['SBE.1', 'SB0.1', 'rosso'], ['SBE.2', 'SB0.2', 'rosso']]),
+    diagnosis: {
+      question: 'Perché Arresto non ferma più il motore?',
+      options: [
+        { id: 'a', text: 'Il fungo è in parallelo all’arresto: con due contatti in parallelo ne basta uno chiuso, e il fungo a riposo è chiuso.' },
+        { id: 'b', text: 'Il pulsante di arresto è guasto.' },
+        { id: 'c', text: 'Il contattore ha il contatto incollato.' },
+      ],
+      correct: 'a',
+      why: 'Il fungo è un contatto normalmente chiuso messo in parallelo ai morsetti dell’arresto: la fase passa dal fungo anche quando l’arresto è aperto. Per fermare la macchina ogni contatto di sicurezza deve essere in serie, così basta che uno solo si apra.',
+    },
+    fixSay: 'Togli i fili del fungo. Collega il morsetto 2 del salvamotore al morsetto 1 del fungo e il morsetto 2 del fungo al morsetto 1 dell’arresto. Ricorda la procedura: salvamotore aperto, lucchetto, verifica. Poi premi Verifica.',
+  },
+};
+
+UNITS_V2['c53-carichi'] = {
+  support: 'passi',
+  lesson: {
+    pages: [
+      {
+        type: 'spiegazione',
+        title: 'Un contatore, tanti carichi',
+        paras: [
+          'Il contatore della casa ha un limite di potenza: 6 kW. Se la casa preleva di più per più di 20 secondi, il contatore stacca tutto e al buio ci va l’intera casa. In una sera d’inverno i carichi si sommano: l’auto in carica, la pompa di calore, il forno, le luci.',
+          'Sommati fanno più del limite, e allora qualcuno deve aspettare. Il PLC comanda l’auto e la pompa di calore. Il forno no: lo accendono le persone, e il PLC non può spegnerlo.',
+        ],
+        table: {
+          head: ['Carico', 'Potenza', 'Lo comanda il PLC?'],
+          rows: [
+            ['Colonnina (auto)', '3,7 kW', 'sì'],
+            ['Pompa di calore', '1,5 kW', 'sì'],
+            ['Forno (19:30-20:30)', '3,5 kW', 'no, lo accendono le persone'],
+            ['Resto della casa', '0,4-1,5 kW', 'no'],
+          ],
+        },
+        warn: 'Il contatore stacca dopo 20 secondi sopra il limite: il PLC deve intervenire prima, con un po’ di scorta sotto i 6 kW.',
+      },
+      {
+        type: 'spiegazione',
+        title: 'La priorità: chi si stacca per primo',
+        paras: [
+          'Si stacca per primo il carico che dà meno fastidio. L’auto può caricarsi anche più tardi, nessuno se ne accorge. La pompa di calore ha un’inerzia: la casa è calda e qualche minuto senza non si sente. Il forno e le luci no: se si spengono se ne accorgono subito.',
+          'Quindi: si stacca la colonnina; se non basta, anche la pompa di calore. Quando torna il margine, si riattaccano al contrario: prima la pompa di calore (più importante), poi la colonnina.',
+        ],
+        table: {
+          head: ['Ordine di distacco', 'Carico', 'Perché'],
+          rows: [
+            ['1', 'colonnina', 'può aspettare, nessuno se ne accorge'],
+            ['2', 'pompa di calore', 'la casa ha inerzia, per qualche minuto non si sente'],
+            ['mai', 'forno e luci', 'se si spengono se ne accorgono subito'],
+          ],
+        },
+      },
+      {
+        type: 'spiegazione',
+        title: 'Soglie diverse per staccare e per riattaccare',
+        paras: [
+          'Si stacca sopra una soglia alta, per esempio 5800 W, poco sotto il limite. Si riattacca solo sotto una soglia più bassa, scelta così: la soglia di riattacco più la potenza del carico deve restare sotto la soglia di distacco.',
+          'La pompa assorbe 1,5 kW: riattacca sotto 4200 W, perché 4200 più 1500 fa 5700, sotto i 5800. La colonnina assorbe 3,7 kW: riattacca sotto 2000 W, perché 2000 più 3700 fa 5700. Con una soglia più alta, appena riattaccato il carico la potenza supererebbe di nuovo 5800 e lo staccheresti subito.',
+        ],
+        table: {
+          head: ['Carico', 'Si stacca sopra', 'Riattacca sotto', 'Controllo'],
+          rows: [
+            ['Colonnina 3,7 kW', '5800 W', '2000 W', '2000 + 3700 = 5700 W'],
+            ['Pompa di calore 1,5 kW', '5800 W', '4200 W', '4200 + 1500 = 5700 W'],
+          ],
+        },
+      },
+      {
+        type: 'spiegazione',
+        title: 'Il ritardo: il margine deve durare',
+        paras: [
+          'C’è un secondo trucco. La potenza cala appena stacchi un carico. Se riattacchi non appena la potenza è sotto soglia, la casa torna sopra e stacchi di nuovo: pendoli. Ogni commutazione consuma il contattore, e il contatore, nel frattempo, conta i secondi.',
+          'Per questo il riattacco chiede un margine che duri: un temporizzatore (TON) da 30 secondi. La condizione “potenza sotto la soglia” deve essere vera per 30 secondi di fila, e solo dopo si riattacca. Un calo di un attimo non basta.',
+        ],
+        table: {
+          head: ['Senza il ritardo', 'Con il ritardo da 30 secondi'],
+          rows: [
+            ['stacchi, la potenza scende subito sotto soglia', 'stacchi, la potenza scende sotto soglia'],
+            ['riattacchi al primo istante', 'aspetti 30 secondi di margine continuo'],
+            ['la potenza risale e stacchi di nuovo', 'riattacchi solo se il margine è vero e stabile'],
+            ['decine di commutazioni nella serata', 'poche commutazioni, una per ciclo'],
+          ],
+        },
+      },
+      {
+        type: 'spiegazione',
+        title: 'Il programma, gradino per gradino',
+        paras: [
+          'Il primo gradino è già scritto: legge la potenza del contatore e la porta in watt in MW0. Gli altri sei li scrivi tu.',
+        ],
+        table: {
+          head: ['Gradino', 'Condizione', 'Istruzione', 'Perché'],
+          rows: [
+            ['2', 'MW0 maggiore di 5800 E Q0 accesa', 'Reset su Q0', 'si stacca prima la colonnina'],
+            ['3', 'MW0 maggiore di 5800 E Q0 spenta', 'Reset su Q1', 'se non basta, la pompa di calore'],
+            ['4', 'MW0 minore di 4200', 'TON T1, 30 s', 'margine per la pompa'],
+            ['5', 'T1 scaduto', 'Set su Q1', 'riattacca la pompa'],
+            ['6', 'MW0 minore di 2000 E Q1 accesa', 'TON T2, 30 s', 'margine per la colonnina'],
+            ['7', 'T2 scaduto', 'Set su Q0', 'riattacca la colonnina'],
+          ],
+        },
+      },
+      {
+        type: 'previsione',
+        question: 'Togli i due temporizzatori: ora riattacchi la colonnina e la pompa appena la potenza è sotto soglia. Che cosa vedi sul grafico?',
+        options: [
+          { id: 'a', text: 'Niente di diverso: la potenza resta sotto il limite lo stesso.' },
+          { id: 'b', text: 'I carichi pendolano: si staccano e riattaccano decine di volte nella serata.' },
+          { id: 'c', text: 'La colonnina non riattacca mai.' },
+        ],
+        correct: 'b',
+        why: 'Appena stacchi un carico la potenza scende sotto soglia: senza ritardo riattacchi subito, la potenza risale, stacchi di nuovo. Il contatore potrebbe anche reggere, ma i contattori si usurano e la casa è un andirivieni di accensioni.',
+      },
+      {
+        type: 'previsione',
+        question: 'Cambi la priorità: stacchi la pompa di calore per prima e la colonnina per seconda. Che cosa succede?',
+        options: [
+          { id: 'a', text: 'Il contatore stacca comunque: la priorità non conta.' },
+          { id: 'b', text: 'Il contatore regge, ma la casa perde il riscaldamento mentre l’auto continua a caricare: la priorità è sbagliata.' },
+          { id: 'c', text: 'La casa si scalda di più.' },
+        ],
+        correct: 'b',
+        why: 'La potenza si abbassa lo stesso, ma si è tolto il carico che serve (il riscaldamento) e si è lasciato quello che può aspettare (l’auto). La priorità è una scelta sulla vita delle persone che abitano la casa, non solo un calcolo di watt.',
+      },
+      { type: 'sintesi', title: 'Da ricordare' },
+    ],
+  },
+  steps: [
+    { kind: 'program', plc: 'PLC', min: 2, short: '1 Colonnina', title: 'Stacca prima la colonnina', text: 'Nuovo gradino: confronto MW0 maggiore di 5800 E contatto Q0; uscita Reset su Q0. Perché: la colonnina è il carico che può aspettare.' },
+    { kind: 'program', plc: 'PLC', min: 3, short: '2 Pompa', title: 'Poi la pompa di calore', text: 'Gradino: MW0 maggiore di 5800 E Q0 spento (contatto normalmente chiuso); uscita Reset su Q1. Perché: se la colonnina è già staccata e non basta, tocca alla pompa.' },
+    { kind: 'program', plc: 'PLC', min: 5, short: '3 Pompa riparte', title: 'La pompa riparte con margine', text: 'Due gradini: MW0 minore di 4200 con un TON da 30 s (T1); poi T1 con Set su Q1. Perché: 4200 più 1500 resta sotto 5800, e il ritardo evita il pendolamento.' },
+    { kind: 'program', plc: 'PLC', min: 7, short: '4 Auto riparte', title: 'La colonnina riparte dopo', text: 'Due gradini: MW0 minore di 2000 E Q1 accesa, TON da 30 s (T2); poi T2 con Set su Q0. Perché: 2000 più 3700 resta sotto 5800; riparte solo quando la pompa è già in marcia.' },
+    { kind: 'verify', short: '5 Verifica', title: 'Guarda la serata', text: 'Premi Verifica: il tempo corre dalle 17. Nel grafico la potenza della rete deve passare sopra il limite solo per pochi secondi, quando si accende il forno, e il contatore non deve staccare.' },
+  ],
+  summary: [
+    'Più carichi su un contatore: la potenza sommata supera il limite, e qualcuno deve aspettare.',
+    'Priorità: si stacca prima il carico che può aspettare (l’auto), poi quello con inerzia (la pompa di calore). Il forno e le luci no.',
+    'Soglia di riattacco più potenza del carico deve restare sotto la soglia di distacco, altrimenti riparte e si ferma.',
+    'Il margine deve durare: un temporizzatore evita il pendolamento, cioè le decine di commutazioni nella serata.',
+    'Il PLC comanda solo i carichi che gli sono collegati: il forno lo accendono le persone.',
+  ],
+};
+
+UNITS_V2['c54-clima-zone'] = {
+  support: 'passi',
+  lesson: {
+    pages: [
+      {
+        type: 'spiegazione',
+        title: 'Una pompa, due stanze',
+        paras: [
+          'In una casa con il clima per zone c’è una sola pompa di calore, e ogni stanza ha il suo termostato. L’acqua calda arriva a tutte le stanze, ma una valvola per zona decide a quale lasciarla passare. Se la camera è calda la sua valvola si chiude e il calore va dove serve.',
+          'Il PLC legge la temperatura di ogni stanza con una sonda, e comanda le valvole e la pompa. È lo stesso schema del serbatoio di c35, con i gradi al posto del livello.',
+        ],
+        table: {
+          head: ['Pezzo', 'Che cosa fa', 'Sul PLC'],
+          rows: [
+            ['Sonda di temperatura', 'misura i gradi della stanza', 'ingresso analogico, in MW0 e MW1'],
+            ['Valvola di zona', 'lascia passare il calore alla stanza', 'uscita Q1 (soggiorno), Q2 (camera)'],
+            ['Pompa di calore', 'produce il calore', 'uscita Q0'],
+            ['Finestra del soggiorno', 'quando è aperta, il calore se ne va', 'ingresso I0'],
+          ],
+        },
+      },
+      {
+        type: 'spiegazione',
+        title: 'Il termostato con isteresi',
+        paras: [
+          'Con una sola soglia, per esempio 21 gradi, la valvola si aprirebbe e chiuderebbe di continuo attorno a quel valore: a 20,9 apre, a 21,1 chiude. Per evitarlo si usano due soglie, 20 e 22 gradi: apre sotto 20 e chiude sopra 22. Tra le due non cambia niente. Questa è l’isteresi.',
+          'Nel PLC si scrive con Set e Reset: Set sulla valvola quando la temperatura è sotto 20; Reset quando è sopra 22. Una bobina semplice non basta, perché non ricorda.',
+        ],
+        table: {
+          head: ['Temperatura', 'Che cosa succede alla valvola'],
+          rows: [
+            ['sotto 20 °C', 'Set: si apre e riscalda'],
+            ['tra 20 e 22 °C', 'resta com’è (riscalda se era aperta, aspetta se era chiusa)'],
+            ['sopra 22 °C', 'Reset: si chiude'],
+          ],
+        },
+      },
+      {
+        type: 'spiegazione',
+        title: 'La pompa non deve girare a vuoto',
+        paras: [
+          'La pompa fa circolare l’acqua attraverso le valvole aperte. Se tutte le valvole sono chiuse, l’acqua non ha dove andare: la pompa gira a vuoto e si surriscalda. Dopo un minuto si guasta e non riparte.',
+          'Per questo la pompa parte solo se almeno una zona chiede calore: almeno una valvola aperta. Nel circuito è un O: due contatti in parallelo, Q1 oppure Q2.',
+        ],
+        table: {
+          head: ['Valvola soggiorno', 'Valvola camera', 'Pompa'],
+          rows: [
+            ['chiusa', 'chiusa', 'ferma'],
+            ['aperta', 'chiusa', 'in marcia'],
+            ['chiusa', 'aperta', 'in marcia'],
+            ['aperta', 'aperta', 'in marcia'],
+          ],
+        },
+        warn: 'Con tutte le valvole chiuse la pompa lavora a vuoto: dopo un minuto si guasta.',
+      },
+      {
+        type: 'spiegazione',
+        title: 'La finestra aperta',
+        paras: [
+          'Se il soggiorno ha la finestra aperta il calore esce, e scaldarlo vuol dire scaldare la strada. Il contatto della finestra arriva all’ingresso I0: quando vale 1 la valvola del soggiorno si chiude, con un gradino Reset su Q1.',
+          'Il PLC legge i gradini dall’alto in basso e vince l’ultimo che scrive la stessa uscita. Il gradino della finestra va quindi dopo il Set della valvola: così, anche se la stanza è fredda, a finestra aperta la valvola resta chiusa. Quando richiudi la finestra, il Set riapre la valvola se serve.',
+        ],
+      },
+      {
+        type: 'previsione',
+        question: 'Hai messo come consenso alla pompa solo la valvola del soggiorno. La camera chiede calore e il soggiorno è già caldo. Che cosa succede?',
+        options: [
+          { id: 'a', text: 'La camera si scalda comunque.' },
+          { id: 'b', text: 'La valvola della camera è aperta ma la pompa è ferma: la camera non si scalda.' },
+          { id: 'c', text: 'La pompa gira a vuoto e si guasta.' },
+        ],
+        correct: 'b',
+        why: 'Il consenso alla pompa deve tenere conto di tutte le zone: almeno una valvola aperta, Q1 oppure Q2. Con la sola valvola del soggiorno, il calore non parte mai per la camera.',
+      },
+      {
+        type: 'previsione',
+        question: 'Lasci il consenso della pompa sempre acceso, qualunque cosa facciano le valvole. Le stanze si scaldano e le valvole si chiudono. Che cosa succede?',
+        options: [
+          { id: 'a', text: 'Niente: la pompa riposa da sola.' },
+          { id: 'b', text: 'La pompa gira a vuoto con tutte le valvole chiuse e dopo un minuto si guasta.' },
+          { id: 'c', text: 'Le stanze si scaldano di più.' },
+        ],
+        correct: 'b',
+        why: 'Con le valvole chiuse l’acqua non circola. Una pompa che gira a vuoto si surriscalda e si blocca: è il guasto che il consenso a “almeno una valvola aperta” evita.',
+      },
+      { type: 'sintesi', title: 'Da ricordare' },
+    ],
+  },
+  steps: [
+    { kind: 'program', plc: 'PLC', min: 4, short: '1 Soggiorno', title: 'Il termostato del soggiorno', text: 'Due gradini: MW0 minore di 20 con Set su Q1; MW0 maggiore di 22 con Reset su Q1. Perché: due soglie diverse, l’isteresi, evitano che la valvola apra e chiuda di continuo.' },
+    { kind: 'program', plc: 'PLC', min: 5, short: '2 Finestra', title: 'La finestra chiude la valvola', text: 'Un gradino con il contatto I0 e Reset su Q1, dopo il Set. Perché: vince l’ultimo gradino, e a finestra aperta la valvola del soggiorno deve restare chiusa.' },
+    { kind: 'program', plc: 'PLC', min: 7, short: '3 Camera', title: 'Il termostato della camera', text: 'Come il soggiorno, con MW1 e Q2: Set sotto 20, Reset sopra 22.' },
+    { kind: 'program', plc: 'PLC', min: 8, short: '4 Pompa', title: 'La pompa con il consenso', text: 'Una bobina Q0 con la condizione “Q1 oppure Q2” (due contatti in parallelo). Perché: la pompa parte solo se almeno una valvola è aperta, altrimenti gira a vuoto.' },
+    { kind: 'power', short: '5 Levetta', title: 'Dai corrente', text: 'Tocca la levetta del quadro: il tempo corre dalle 17.' },
+    { kind: 'control', id: 'W1', short: '6 Prova', title: 'Apri la finestra', text: 'Simula la finestra aperta del soggiorno: la valvola si chiude e il soggiorno si raffredda, la camera resta calda.' },
+    { kind: 'verify', short: '7 Verifica', title: 'Guarda la serata', text: 'Premi Verifica. Nel grafico le due temperature restano tra le linee minima e massima.' },
+  ],
+  summary: [
+    'Un termostato per stanza: la valvola di zona si apre sotto 20 °C e si chiude sopra 22 °C (isteresi, Set e Reset).',
+    'Con una sola soglia la valvola aprirebbe e chiuderebbe di continuo: servono due soglie diverse.',
+    'La pompa di calore parte solo se almeno una valvola è aperta: con tutte chiuse gira a vuoto e si guasta.',
+    'La finestra aperta chiude la valvola del soggiorno: il gradino va dopo il Set, perché vince l’ultimo.',
+  ],
 };

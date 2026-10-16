@@ -39,4 +39,4 @@ Scritta il 16 ottobre 2026 da Gianluca, dopo la collisione evitata tra la casa i
 | Prova 3D della fabbrica "Il turno di notte" | c51 | claude/stoic-hawking-u5cka0 (altra sessione) | in lavorazione |
 | File arabi della fabbrica 3D | da ar-41 | claude/stoic-hawking-u5cka0 | prenotati |
 | Lavori in sicurezza, Gestione dei carichi, Clima per zone | c52, c53, c54 | livelli-casa-sicurezza | in lavorazione |
-| File arabi dei tre livelli | ar-42, ar-43, ar-44 | livelli-casa-sicurezza | prenotati |
+| File arabi dei tre livelli | ar-42 (usato); ar-43 e ar-44 liberi | livelli-casa-sicurezza | ar-42 usato |

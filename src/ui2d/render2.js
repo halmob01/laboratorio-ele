@@ -45,11 +45,12 @@ function poles(c, tops, bots, closed, L, y1 = 22, y2 = c.h - 22) {
 const faultBtn = (id, kind, x, y, text, aria) => `<g class="tbtn" data-${kind}="${id}" role="button" tabindex="0" aria-label="${aria}"><rect x="${x}" y="${y}" width="60" height="26" rx="5" fill="#F6E1C8" stroke="var(--comp-edge)" stroke-width="1.4"/><text x="${x + 30}" y="${y + 17}" text-anchor="middle" style="font:600 10px 'IBM Plex Mono',monospace;fill:#222">${text}</text></g>`;
 
 // Lucchetto sul sezionamento del lavoro fuori tensione (level.safety.lockout): si tocca per metterlo o toglierlo.
+// Sta accanto alla leva, dove non coprono i morsetti: aperto e' vuoto, bloccato e' pieno e arancione.
 const lockBtn = (c, s, part, w) => {
   if (!s.lockout || s.lockout.iso !== c.id) return '';
-  const on = !!part.locked, x = w / 2 - 36;
-  const icon = `<rect x="${x + 8}" y="13" width="11" height="9" rx="1.5" fill="${on ? '#B5651D' : 'none'}" stroke="var(--comp-edge)" stroke-width="1.4"/><path d="M${x + 10} 13 v-3 a3.5 3.5 0 0 1 7 0 ${on ? 'v3' : 'v-1'}" fill="none" stroke="var(--comp-edge)" stroke-width="1.4"/>`;
-  return `<g class="tbtn" data-lock="${c.id}" role="button" tabindex="0" aria-label="${on ? 'Togli il lucchetto da' : 'Metti il lucchetto su'} ${c.short}"><rect x="${x}" y="3" width="72" height="24" rx="5" fill="${on ? '#F6E1C8' : '#EDE7D4'}" stroke="var(--comp-edge)" stroke-width="1.4"/>${icon}<text x="${x + 46}" y="19" text-anchor="middle" style="font:600 9px 'IBM Plex Mono',monospace" fill="#1B2230">${on ? 'BLOCCATO' : 'LUCCHETTO'}</text></g>`;
+  const on = !!part.locked, x = w / 2 + 24, y = c.h / 2 - 13;
+  const icon = `<rect x="${x + 11}" y="${y + 12}" width="16" height="10" rx="2" fill="${on ? '#B5651D' : 'none'}" stroke="var(--comp-edge)" stroke-width="1.6"/><path d="M${x + 14} ${y + 12} v-3.5 a5 5 0 0 1 10 0 ${on ? 'v3.5' : 'v-1.5'}" fill="none" stroke="var(--comp-edge)" stroke-width="1.6"/>`;
+  return `<g class="tbtn" data-lock="${c.id}" role="button" tabindex="0" aria-label="${on ? 'Togli il lucchetto da' : 'Metti il lucchetto su'} ${c.short}"><title>${on ? 'Lucchetto messo' : 'Metti il lucchetto'}</title><rect x="${x}" y="${y}" width="38" height="28" rx="5" fill="${on ? '#F6E1C8' : '#EDE7D4'}" stroke="var(--comp-edge)" stroke-width="1.4"/>${icon}</g>`;
 };
 
 export function schemV2(c, s, L, ui) {

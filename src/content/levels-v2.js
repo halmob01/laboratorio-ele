@@ -1956,3 +1956,177 @@ LEVELS_V2.push({
     'La tacitazione è un contatto normalmente chiuso messo in testa a tutto: premendolo si toglie la fase ai sensori e alla memoria. La sirena si alimenta dalla stessa linea di A1.',
   ],
 });
+
+// ---- Livelli di Lavori in sicurezza (Modulo 3), Gestione dei carichi e Clima per zone (Modulo 5): c52, c53, c54 ----
+
+// c52: lavori in sicurezza (Modulo 3, prima dell'officina). La macchina e' cablata ma manca il fungo di emergenza: si aggiungono due fili
+// seguendo la procedura (sezionare, lucchetto, verificare l'assenza di tensione). Motore: safety.lockout, docs/SPEC-MOTORE-V2.md.
+export const W52_FIXED = [
+  ['Q.L1', 'QM.1', 'marrone'], ['Q.L2', 'QM.3', 'nero'], ['Q.L3', 'QM.5', 'grigio'],
+  ['QM.2', 'KM.1', 'marrone'], ['QM.4', 'KM.3', 'nero'], ['QM.6', 'KM.5', 'grigio'],
+  ['KM.2', 'M.U', 'marrone'], ['KM.4', 'M.V', 'nero'], ['KM.6', 'M.W', 'grigio'], ['M.PE', 'Q.PE', 'gv'],
+  ['SB0.2', 'SB1.3', 'rosso'], ['SB1.4', 'KM.A1', 'rosso'], ['KM.A2', 'Q.N', 'blu'],
+  ['SB1.3', 'KM.13', 'rosso'], ['KM.14', 'SB1.4', 'rosso'], ['H.X1', 'KM.A1', 'rosso'], ['H.X2', 'Q.N', 'blu'],
+];
+const W52 = W52_FIXED.concat([['QM.2', 'SBE.1', 'rosso'], ['SBE.2', 'SB0.1', 'rosso']]);
+LEVELS_V2.push({
+  id: 'c52-lavori-sicurezza', code: 'c52', n: 0, ...IND, flow: 'onDemand', meter: true,
+  name: 'Lavori in sicurezza', title: 'Lavori in sicurezza',
+  blurb: 'Sezionare, bloccare con il lucchetto, verificare che non ci sia tensione: solo dopo si mettono le mani sui fili.',
+  goal: 'Un cliente chiede di aggiungere il fungo di emergenza alla macchina di Marcia e Arresto: l’impianto è cablato, mancano due fili. Prima di toccare qualcosa segui la procedura: apri il salvamotore, metti il lucchetto, prova il multimetro su un punto in tensione e verifica che a valle non ci sia tensione su tutte e tre le fasi. Poi aggiungi il fungo in serie al comando, togli il lucchetto e collauda.',
+  fixed: W52_FIXED,
+  comps: [
+    Q3,
+    C('QM', 'mt3', 'Salvamotore', 'Salvamotore magnetotermico', T(...T6)),
+    C('KM', 'km', 'Contattore', 'Contattore KM', T('A1', 'A2', ...T6, '13', '14')),
+    C('SBE', 'fungo', 'Emergenza', 'Pulsante di emergenza a fungo', T('1', '2')),
+    C('SB0', 'pbnc', 'Arresto', 'Pulsante di arresto (NC)', T('1', '2')),
+    C('SB1', 'pb', 'Marcia', 'Pulsante di marcia (NA)', T('3', '4')),
+    C('H', 'spia', 'Spia', 'Spia di marcia', T('X1', 'X2')),
+    C('M', 'motor3', 'Motore', 'Motore trifase', T('U', 'V', 'W', 'PE')),
+  ],
+  controls: ['QM', 'SBE', 'SB0', 'SB1'],
+  demoDo: [{ do: press('SB1'), say: '' }],
+  checks: [
+    { id: 'marcia', label: 'Premi Marcia: il motore parte e resta in marcia, la spia è accesa', do: press('SB1'), expect: { motors: { M: 'fwd' }, loads: { H: 'on' } } },
+    { id: 'arresto', label: 'Premi Arresto: il motore si ferma', steps: [{ do: press('SB1'), expect: { motors: { M: 'fwd' } } }, { do: press('SB0'), expect: { motors: { M: 'off' } } }] },
+    { id: 'emergenza', label: 'Premi il fungo: il motore si ferma', steps: [{ do: press('SB1'), expect: { motors: { M: 'fwd' } } }, { do: ['toggle SBE'], expect: { motors: { M: 'off' } } }] },
+    { id: 'riparte', label: 'Sbloccato il fungo il motore non riparte da solo', steps: [{ do: press('SB1'), expect: { motors: { M: 'fwd' } } }, { do: ['toggle SBE', 'toggle SBE'], expect: { motors: { M: 'off' } } }] },
+    { id: 'fermo', label: 'Senza comandi il motore è fermo', do: [], expect: { motors: { M: 'off' } } },
+  ],
+  safety: {
+    lockout: { iso: 'QM', test: [['QM.2', 'Q.N'], ['QM.4', 'Q.N'], ['QM.6', 'Q.N']], known: ['QM.1', 'Q.N'] },
+    earth: [['M.PE', 'Q.PE']], stopWins: 'SB0', coilReturn: ['KM'], protectedBy: { M: 'QM', KM: 'QM' },
+  },
+  solution: W52,
+  hints: [
+    'La procedura ha un ordine che non si cambia: prima apri il salvamotore, poi metti il lucchetto (il pulsante accanto alla leva del salvamotore), poi misuri. Solo dopo tocchi i fili.',
+    'Con il multimetro in tensione: prima la prova dello strumento, 230 V tra il morsetto 1 del salvamotore (a monte, sempre in tensione) e il neutro. Poi 0 V tra i morsetti 2, 4 e 6 e il neutro. Se mancasse la prova dello strumento, uno strumento rotto leggerebbe 0 V e ti farebbe credere che sia tutto spento.',
+    'Il fungo va in serie al comando, prima dell’arresto: dal morsetto 2 del salvamotore al morsetto 1 del fungo, e dal morsetto 2 del fungo al morsetto 1 dell’arresto. Premuto, il fungo toglie la fase a tutto il comando.',
+    'Finito il lavoro togli il lucchetto (tocchi di nuovo il pulsante), richiudi il salvamotore e collauda.',
+  ],
+});
+
+// c53: la gestione dei carichi (Modulo 5). Colonnina (3,7 kW) e pompa di calore (1,5 kW) comandate dal PLC, forno serale di 3 kW non comandabile,
+// contatore da 6 kW. Priorita': si stacca prima la colonnina, poi la pompa di calore. Il riattacco vuole un margine che duri (TON), altrimenti pendolano.
+const W53 = [
+  ['Q.L1', 'PLC.A1', 'rosso'], ['PLC.A2', 'Q.N', 'blu'],
+  ['TT.+', 'PLC.AI0+', 'rosso'], ['TT.-', 'PLC.AI0-', 'rosso'],
+  ['Q.L1', 'PLC.Q0A', 'rosso'], ['PLC.Q0B', 'HE.X1', 'rosso'], ['HE.X2', 'Q.N', 'blu'],
+  ['Q.L1', 'PLC.Q1A', 'rosso'], ['PLC.Q1B', 'HP.X1', 'rosso'], ['HP.X2', 'Q.N', 'blu'],
+];
+const PROG_53 = START_5.concat([
+  { if: ['and', ['gt', 'MW0', 5800], 'Q0'], do: [{ op: 'reset', a: 'Q0' }] },
+  { if: ['and', ['gt', 'MW0', 5800], ['not', 'Q0']], do: [{ op: 'reset', a: 'Q1' }] },
+  { if: ['lt', 'MW0', 4200], do: [{ op: 'ton', id: 'T1', pt: 30 }] },
+  { if: 'T1', do: [{ op: 'set', a: 'Q1' }] },
+  { if: ['and', ['lt', 'MW0', 2000], 'Q1'], do: [{ op: 'ton', id: 'T2', pt: 30 }] },
+  { if: 'T2', do: [{ op: 'set', a: 'Q0' }] },
+]);
+LEVELS_V2.push({
+  id: 'c53-carichi', code: 'c53', n: 0, ...IND, flow: 'onDemand',
+  name: 'La gestione dei carichi', title: 'La gestione dei carichi',
+  blurb: 'Più carichi e un solo contatore: chi si stacca per primo, e quando può ripartire.',
+  goal: 'Una sera d’inverno: il contatore da 6 kW stacca tutta la casa se la potenza prelevata resta sopra il limite per più di 20 secondi. Il PLC comanda la colonnina (3,7 kW) e la pompa di calore (1,5 kW). Dalle 19:30 alle 20:30 le persone cucinano con il forno (3,5 kW), che il PLC non può staccare. Scrivi il programma: sopra la soglia si stacca prima la colonnina e, se non basta, la pompa di calore; riattaccano solo quando c’è margine che dura, prima la pompa di calore e poi la colonnina, senza pendolare.',
+  fixed: W53,
+  comps: [
+    Q3,
+    C('PLC', 'plc', 'PLC', 'PLC (programma da scrivere)', T('A1', 'A2', 'AI0+', 'AI0-', 'Q0A', 'Q0B', 'Q1A', 'Q1B'), {
+      symbols: { AI0: 'Potenza scambiata (mA)', MW0: 'Potenza scambiata (W)', Q0: 'Colonnina', Q1: 'Pompa di calore', T1: 'Margine per la pompa', T2: 'Margine per la colonnina' },
+      edit: { start: START_5, markers: 0, timers: 2, counters: 0, words: ['MW0'], ops: ['set', 'reset', 'ton'] },
+    }),
+    GRID_TX(),
+    C('HE', 'spia', 'Colonnina', 'Auto in ricarica', T('X1', 'X2')),
+    C('HP', 'spia', 'Pompa di calore', 'Pompa di calore in funzione', T('X1', 'X2')),
+  ],
+  process: {
+    model: 'energia', title: 'La serata', alt: 'La casa di sera con il forno acceso, la colonnina e la pompa di calore',
+    params: { pvKw: 0, ovenKw: 3.5, limit: 6 }, init: { hour: 17 }, speed: 40,
+    actuators: { ev: { load: 'HE' }, hp: { load: 'HP' }, house: { value: 1 } },
+    trace: ['load', 'grid', 'PLC.Q0', 'PLC.Q1'], labels: { grid: 'La potenza della rete', eEv: 'L’energia caricata nell’auto (kWh)' },
+    graph: { vars: [{ v: 'load', label: 'Consumo kW', lo: 0, hi: 10, color: '#C0262D' }, { v: 'grid', label: 'Rete kW', lo: 0, hi: 10, color: '#2563B0' }], window: 1500, lines: [{ value: 6, label: 'limite del contatore', var: 'grid' }] },
+  },
+  demoDo: [{ do: ['wait 300'], say: '' }],
+  checks: [
+    { id: 'limite', label: 'Il contatore non stacca mai: la casa resta alimentata per tutta la serata', do: ['wait 540'], expect: { process: { blackout: false } } },
+    { id: 'ricarica', label: 'L’auto si carica comunque: almeno 2 kWh', do: ['wait 540'], expect: { process: { eEv: [2, 100] } } },
+    { id: 'commutazioni', label: 'La colonnina e la pompa di calore non si accendono e si spengono di continuo', do: ['wait 540'], expect: { trace: [{ v: 'PLC.Q0', maxSwitches: 6 }, { v: 'PLC.Q1', maxSwitches: 6 }] } },
+  ],
+  safety: { coilReturn: ['PLC'] },
+  solution: W53,
+  solutionPrograms: { PLC: PROG_53 },
+  hints: [
+    'La potenza della rete è in MW0, in watt. Il limite è 6000 W: stacca prima, per esempio sopra 5800 W, perché il contatore aspetta 20 secondi ma il forno non aspetta.',
+    'Priorità: sopra la soglia Reset su Q0 (la colonnina) se è accesa; se la colonnina è già staccata e la potenza è ancora alta, Reset su Q1 (la pompa di calore). Il secondo gradino ha come condizione “MW0 maggiore di 5800 E Q0 spenta”.',
+    'Per riattaccare serve margine che dura. Un temporizzatore (TON) da 30 secondi con la condizione “MW0 minore di 4200”: quando scatta, Set su Q1 (la pompa riparte per prima, è più importante).',
+    'Per la colonnina serve più margine, perché assorbe 3,7 kW: un secondo TON da 30 secondi con la condizione “MW0 minore di 2000 E Q1 accesa”, e quando scatta Set su Q0. Senza questi ritardi la potenza torna sotto soglia appena stacchi un carico, quindi riattacchi subito e la potenza risale: i carichi pendolano.',
+  ],
+});
+
+// c54: il clima per zone (Modulo 5). Due stanze con una valvola per zona e una pompa di calore. Il consenso alla pompa e' "almeno una zona chiede calore":
+// con tutte le valvole chiuse la pompa lavora a vuoto e si guasta. La finestra aperta della zona 1 e' il contatto sul PLC I0.
+const W54 = [
+  ['Q.L1', 'PLC.A1', 'rosso'], ['PLC.A2', 'Q.N', 'blu'], ['PLC.IC', 'Q.N', 'blu'],
+  ['TT1.+', 'PLC.AI0+', 'rosso'], ['TT1.-', 'PLC.AI0-', 'rosso'],
+  ['TT2.+', 'PLC.AI1+', 'rosso'], ['TT2.-', 'PLC.AI1-', 'rosso'],
+  ['Q.L1', 'W1.a', 'rosso'], ['W1.b', 'PLC.I0', 'rosso'],
+  ['Q.L1', 'PLC.Q0A', 'rosso'], ['PLC.Q0B', 'HP.X1', 'rosso'], ['HP.X2', 'Q.N', 'blu'],
+  ['Q.L1', 'PLC.Q1A', 'rosso'], ['PLC.Q1B', 'HV1.X1', 'rosso'], ['HV1.X2', 'Q.N', 'blu'],
+  ['Q.L1', 'PLC.Q2A', 'rosso'], ['PLC.Q2B', 'HV2.X1', 'rosso'], ['HV2.X2', 'Q.N', 'blu'],
+];
+const START_54 = [
+  { if: ['ge', 'AI0', 3.6], do: [{ op: 'scale', in: 'AI0', out: 'MW0', lo: 0, hi: 40 }] },
+  { if: ['ge', 'AI1', 3.6], do: [{ op: 'scale', in: 'AI1', out: 'MW1', lo: 0, hi: 40 }] },
+];
+const PROG_54 = START_54.concat([
+  { if: ['lt', 'MW0', 20], do: [{ op: 'set', a: 'Q1' }] },
+  { if: ['gt', 'MW0', 22], do: [{ op: 'reset', a: 'Q1' }] },
+  { if: 'I0', do: [{ op: 'reset', a: 'Q1' }] },
+  { if: ['lt', 'MW1', 20], do: [{ op: 'set', a: 'Q2' }] },
+  { if: ['gt', 'MW1', 22], do: [{ op: 'reset', a: 'Q2' }] },
+  { if: ['or', 'Q1', 'Q2'], do: [{ op: 'coil', a: 'Q0' }] },
+]);
+LEVELS_V2.push({
+  id: 'c54-clima-zone', code: 'c54', n: 0, ...IND, flow: 'onDemand',
+  name: 'Il clima per zone', title: 'Il clima per zone',
+  blurb: 'Un termostato per stanza, una sola pompa di calore: parte solo se almeno una stanza chiede calore.',
+  goal: 'Soggiorno e camera hanno ciascuno una sonda di temperatura e una valvola; una pompa di calore scalda le due zone. Il soggiorno ha una finestra con un contatto sul PLC. Scrivi il programma: ogni stanza si scalda tra 20 e 22 °C (isteresi), la finestra aperta chiude la valvola del soggiorno, e la pompa parte solo se almeno una valvola è aperta: con tutte le valvole chiuse la pompa lavora a vuoto e si guasta.',
+  fixed: W54,
+  comps: [
+    Q3,
+    C('PLC', 'plc', 'PLC', 'PLC (programma da scrivere)', T('A1', 'A2', 'I0', 'IC', 'AI0+', 'AI0-', 'AI1+', 'AI1-', 'Q0A', 'Q0B', 'Q1A', 'Q1B', 'Q2A', 'Q2B'), {
+      symbols: { I0: 'Finestra soggiorno aperta', AI0: 'Soggiorno (mA)', AI1: 'Camera (mA)', MW0: 'Soggiorno (°C)', MW1: 'Camera (°C)', Q0: 'Pompa di calore', Q1: 'Valvola soggiorno', Q2: 'Valvola camera' },
+      edit: { start: START_54, markers: 0, timers: 0, counters: 0, words: ['MW0', 'MW1'], ops: ['coil', 'set', 'reset'] },
+    }),
+    C('TT1', 'tx', 'Sonda soggiorno', 'Sonda di temperatura del soggiorno, 0…40 °C, 4-20 mA', T('+', '-'), { sense: { v: 'T1', lo: 0, hi: 40 } }),
+    C('TT2', 'tx', 'Sonda camera', 'Sonda di temperatura della camera, 0…40 °C, 4-20 mA', T('+', '-'), { sense: { v: 'T2', lo: 0, hi: 40 } }),
+    C('W1', 'sw', 'Finestra', 'Contatto della finestra del soggiorno (chiuso se aperta)', { a: { l: '1' }, b: { l: '2' } }),
+    C('HP', 'spia', 'Pompa di calore', 'Pompa di calore in funzione', T('X1', 'X2')),
+    C('HV1', 'spia', 'Valvola soggiorno', 'Valvola del soggiorno aperta', T('X1', 'X2')),
+    C('HV2', 'spia', 'Valvola camera', 'Valvola della camera aperta', T('X1', 'X2')),
+  ],
+  controls: ['W1'],
+  process: {
+    model: 'zone', title: 'La casa di sera', alt: 'Due stanze riscaldate da una pompa di calore, con una valvola per stanza',
+    params: { n: 2 }, init: { hour: 17, T1: 16, T2: 16 }, speed: 40,
+    actuators: { pump: { load: 'HP' }, v1: { load: 'HV1' }, v2: { load: 'HV2' }, w1: { ctl: 'W1' } },
+    trace: ['T1', 'T2', 'PLC.Q0', 'PLC.Q1', 'PLC.Q2'], labels: { T1: 'La temperatura del soggiorno', T2: 'La temperatura della camera', dry: 'La pompa a vuoto' },
+    graph: { vars: [{ v: 'T1', label: 'Soggiorno °C', lo: 10, hi: 30, color: '#C0262D' }, { v: 'T2', label: 'Camera °C', lo: 10, hi: 30, color: '#2563B0' }], window: 1500, lines: [{ value: 20, label: 'minima', var: 'T1' }, { value: 22, label: 'massima', var: 'T1' }] },
+  },
+  demoDo: [{ do: ['wait 300'], say: '' }],
+  checks: [
+    { id: 'comfort', label: 'Le due stanze restano tra 19,5 e 22,5 °C dopo il riscaldamento iniziale', do: ['wait 1200'], expect: { trace: [{ v: 'T1', within: [19.5, 22.5], from: 600 }, { v: 'T2', within: [19.5, 22.5], from: 600 }] } },
+    { id: 'pompa', label: 'La pompa di calore non lavora mai a vuoto e non si guasta', do: ['wait 1200'], expect: { process: { broken: false } } },
+    { id: 'finestra', label: 'Finestra aperta: la valvola del soggiorno si chiude e la camera resta calda', steps: [{ do: ['wait 500'], expect: {} }, { do: ['toggle W1', 'wait 300'], expect: { process: { p1: [0, 0.01], T2: [19.5, 22.5] } } }] },
+    { id: 'commutazioni', label: 'Le valvole non si aprono e si chiudono di continuo', do: ['wait 1200'], expect: { trace: [{ v: 'PLC.Q1', maxSwitches: 12 }, { v: 'PLC.Q2', maxSwitches: 12 }] } },
+  ],
+  safety: { coilReturn: ['PLC'] },
+  solution: W54,
+  solutionPrograms: { PLC: PROG_54 },
+  hints: [
+    'Le temperature sono in MW0 (soggiorno) e MW1 (camera), in gradi. Ogni stanza ha la sua isteresi, come il serbatoio di c35: Set sulla valvola sotto 20 °C, Reset sopra 22 °C. Senza i due livelli diversi la valvola si aprirebbe e chiuderebbe di continuo.',
+    'Soggiorno: confronto MW0 minore di 20, Set su Q1; confronto MW0 maggiore di 22, Reset su Q1. Camera: lo stesso con MW1 e Q2.',
+    'La finestra aperta (I0 vale 1) deve chiudere la valvola del soggiorno: un gradino con I0 e Reset su Q1. Mettilo dopo il Set: vale l’ultimo gradino, e deve vincere la finestra.',
+    'La pompa di calore Q0 parte solo se almeno una valvola è aperta: una bobina su Q0 con la condizione “Q1 oppure Q2” (due contatti in parallelo). Con tutte le valvole chiuse la pompa lavora a vuoto e si guasta dopo un minuto.',
+  ],
+});

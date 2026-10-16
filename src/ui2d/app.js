@@ -288,7 +288,8 @@ function ladderAct(act, data) {
   else if (act === 'up' || act === 'down') { const d = act === 'up' ? -1 : 1; next = moveRung(prog, sel.r, d); nsel = { kind: 'r', r: sel.r + d }; }
   else if (act === 'delRung') { next = removeRung(prog, sel.r); nsel = null; }
   else if (cur && act === 'type' && data.v === 'cmp') next = setContact(prog, sel.r, sel.cell, sel.alt, cur.cmp ? cur : { cmp: 'gt', a: addrs.words[0], b: 0 });
-  else if (cur && act === 'type') next = setContact(prog, sel.r, sel.cell, sel.alt, { a: cur.cmp ? addrs.inputs[0] : cur.a, ...(data.v === 'not' ? { not: true } : data.v === 'rise' ? { rise: true } : {}) });
+  // senza ingressi digitali (c53) il bit di partenza di un contatto che era un confronto e' un'uscita
+  else if (cur && act === 'type') next = setContact(prog, sel.r, sel.cell, sel.alt, { a: cur.cmp ? (addrs.inputs[0] || addrs.outputs[0]) : cur.a, ...(data.v === 'not' ? { not: true } : data.v === 'rise' ? { rise: true } : {}) });
   else if (cur && cur.cmp && act === 'cmpop') next = setContact(prog, sel.r, sel.cell, sel.alt, { ...cur, cmp: data.v });
   else if (cur && cur.cmp && act === 'cmpb') { const b = Number(String(data.v).replace(',', '.')); if (Number.isFinite(b)) next = setContact(prog, sel.r, sel.cell, sel.alt, { ...cur, b: Math.max(-1e5, Math.min(1e5, b)) }); }
   else if (cur && act === 'addr') next = setContact(prog, sel.r, sel.cell, sel.alt, { ...cur, a: data.v });

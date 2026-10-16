@@ -56,7 +56,9 @@ function beltScene(level, s) {
 const kw = v => String(Math.round(v * 100) / 100).replace('.', ',') + ' kW';
 function houseScene(level, s) {
   const p = s.obs.process;
-  const hr = p.hour, sunUp = p.sun > 0 || (hr > 6 && hr < 20);
+  // senza fotovoltaico (pvKw 0, la gestione dei carichi d'inverno) non c'e' il sole: sera, luna e niente pannelli
+  const noPv = ((level.process && level.process.params) || {}).pvKw === 0;
+  const hr = p.hour, sunUp = !noPv && (p.sun > 0 || (hr > 6 && hr < 20));
   const t = clamp((hr - 6) / 14, 0, 1), sx = 40 + 320 * t, sy = 70 - 52 * Math.sin(Math.PI * t);
   const hh = String(Math.floor(hr)).padStart(2, '0') + ':' + String(Math.floor((hr % 1) * 60)).padStart(2, '0');
   let o = `<rect x="0" y="0" width="400" height="160" fill="${sunUp ? '#EAF3FB' : '#26324A'}" opacity=".55"/>`;
@@ -65,16 +67,46 @@ function houseScene(level, s) {
   o += `<text x="12" y="20" style="font:600 12px 'IBM Plex Mono',monospace;fill:var(--ink)">ore ${hh}</text>`;
   o += `<path d="M110 120 V86 L170 52 L230 86 V120 Z" fill="#F0EBDD" stroke="var(--comp-edge)" stroke-width="2.2"/><path d="M104 88 L170 48 L236 88" fill="none" stroke="${p.pv > 0.05 ? '#2E9E5B' : 'var(--comp-edge)'}" stroke-width="${3 + 2 * clamp(p.pv / 4, 0, 1)}"/>`;
   o += `<text x="170" y="108" text-anchor="middle" style="font:600 11px 'IBM Plex Mono',monospace;fill:var(--ink)">casa ${kw(p.load)}</text>`;
-  o += `<text x="170" y="136" text-anchor="middle" style="font:600 11px 'IBM Plex Mono',monospace;fill:#2E9E5B">pannelli ${kw(p.pv)}</text>`;
+  if (!noPv) o += `<text x="170" y="136" text-anchor="middle" style="font:600 11px 'IBM Plex Mono',monospace;fill:#2E9E5B">pannelli ${kw(p.pv)}</text>`;
   // contatore e rete
   const g = p.grid, ex = g < -0.01;
   o += `<rect x="290" y="92" width="44" height="30" rx="4" fill="#EDE7D4" stroke="var(--comp-edge)" stroke-width="1.8"/><text x="312" y="111" text-anchor="middle" style="font:600 10px 'IBM Plex Mono',monospace;fill:#222">kWh</text>`;
   o += `<path d="M232 106 H290" stroke="${Math.abs(g) > 0.01 ? (ex ? '#2E9E5B' : '#C0262D') : 'var(--line)'}" stroke-width="4"/>`;
   o += `<path d="M334 106 H372" stroke="var(--ink2)" stroke-width="3"/><text x="312" y="136" text-anchor="middle" style="font:600 10px 'IBM Plex Mono',monospace;fill:${ex ? '#2E9E5B' : 'var(--ink)'}">${ex ? 'immette ' + kw(-g) : g > 0.01 ? 'preleva ' + kw(g) : 'in pareggio'}</text>`;
+  // carichi comandati dal PLC (gestione dei carichi): auto, pompa di calore, forno acceso dalle persone
+  const act = s.obs.processAct || {};
+  [[act.ev > 0, 'auto in ricarica'], [act.hp > 0, 'pompa di calore'], [p.oven > 0, 'forno acceso']].filter(x => x[0]).forEach((x, i) => {
+    o += `<text x="388" y="${20 + 14 * i}" text-anchor="end" style="font:600 10px 'IBM Plex Mono',monospace;fill:${x[1] === 'forno acceso' ? '#C0262D' : '#2E9E5B'}">${x[1]}</text>`;
+  });
   if (p.blackout) o += `<text x="200" y="152" text-anchor="middle" style="font:700 12px 'IBM Plex Mono',monospace;fill:#C0262D">CONTATORE SCATTATO</text>`;
   // batteria
   if (level.process.battery) {
     o += `<rect x="24" y="96" width="34" height="48" rx="4" fill="none" stroke="var(--comp-edge)" stroke-width="2"/><rect x="26" y="${142 - 44 * p.soc / 100}" width="30" height="${44 * p.soc / 100}" fill="${p.pb < -0.01 ? '#F59F00' : '#2E9E5B'}" opacity=".85"/><text x="41" y="90" text-anchor="middle" style="font:600 10px 'IBM Plex Mono',monospace;fill:var(--ink)">${Math.round(p.soc)} %</text>`;
+  }
+  return o;
+}
+
+// Clima per zone (modello `zone`): due o tre stanze affiancate con la temperatura, la valvola della zona e la finestra; a sinistra la pompa di calore.
+function zoneScene(level, s) {
+  const p = s.obs.process, a = s.obs.processAct || {}, n = clamp(Math.round((level.process.params || {}).n || 2), 1, 3);
+  const names = ['soggiorno', 'camera', 'bagno'], w = 96, x0 = 100, gap = 10;
+  const hh = String(Math.floor(p.hour)).padStart(2, '0') + ':' + String(Math.floor((p.hour % 1) * 60)).padStart(2, '0');
+  let o = `<text x="12" y="20" style="font:600 12px 'IBM Plex Mono',monospace;fill:var(--ink)">ore ${hh}${p.night ? ' · notte' : ''}</text>`;
+  o += `<text x="388" y="20" text-anchor="end" style="font:600 10px 'IBM Plex Mono',monospace;fill:var(--ink2)">fuori ${NS((level.process.params || {}).Text ?? 5)} °C</text>`;
+  // pompa di calore
+  const run = (a.pump || 0) > 0 && !p.broken;
+  o += `<rect x="14" y="62" width="62" height="52" rx="6" fill="${p.broken ? '#F6D4D4' : run ? '#E9F4EC' : '#F0EBDD'}" stroke="var(--comp-edge)" stroke-width="2"/>`;
+  o += `<text x="45" y="84" text-anchor="middle" style="font:600 10px 'IBM Plex Mono',monospace;fill:var(--ink)">pompa</text><text x="45" y="100" text-anchor="middle" style="font:600 10px 'IBM Plex Mono',monospace;fill:${p.broken ? '#C0262D' : run ? '#2E9E5B' : 'var(--ink2)'}">${p.broken ? 'GUASTA' : run ? 'in marcia' : 'ferma'}</text>`;
+  if (p.dryRun && !p.broken) o += `<text x="45" y="130" text-anchor="middle" style="font:700 10px 'IBM Plex Mono',monospace;fill:#C0262D">a vuoto!</text>`;
+  for (let i = 1; i <= n; i++) {
+    const x = x0 + (i - 1) * (w + gap), T = p['T' + i], t = clamp((T - 10) / 15, 0, 1), pos = p['p' + i] || 0, win = (a['w' + i] || 0) > 0;
+    const r = Math.round(200 + 55 * t), g = Math.round(215 - 60 * t), b = Math.round(240 - 150 * t);
+    o += `<line x1="76" y1="${70 + 8 * i}" x2="${x}" y2="${70 + 8 * i}" stroke="${pos > 0.05 && run ? '#E5484D' : 'var(--line)'}" stroke-width="4"/>`;
+    o += `<rect x="${x}" y="40" width="${w}" height="96" rx="6" fill="rgb(${r},${g},${b})" stroke="var(--comp-edge)" stroke-width="2.2"/>`;
+    o += `<text x="${x + w / 2}" y="82" text-anchor="middle" style="font:600 20px 'IBM Plex Mono',monospace;fill:#222">${NS(T)} °</text>`;
+    o += `<text x="${x + w / 2}" y="56" text-anchor="middle" style="font:600 10px 'IBM Plex Sans',sans-serif;fill:#222">${names[i - 1]}</text>`;
+    o += `<text x="${x + w / 2}" y="104" text-anchor="middle" style="font:500 10px 'IBM Plex Mono',monospace;fill:#222">valvola ${pos > 0.95 ? 'aperta' : pos < 0.05 ? 'chiusa' : NS(pos * 100) + ' %'}</text>`;
+    if (win) o += `<text x="${x + w / 2}" y="124" text-anchor="middle" style="font:700 10px 'IBM Plex Mono',monospace;fill:#C0262D">finestra aperta</text>`;
   }
   return o;
 }
@@ -119,7 +151,7 @@ function parcelScene(level, s) {
   return o;
 }
 
-export const SCENES = { serbatoio: tankScene, forno: ovenScene, nastro: beltScene, energia: houseScene, linea: lineScene, pacchi: parcelScene };
+export const SCENES = { serbatoio: tankScene, forno: ovenScene, nastro: beltScene, energia: houseScene, zone: zoneScene, linea: lineScene, pacchi: parcelScene };
 
 // ---------- grafico ----------
 // level.process.graph = { vars: [{ v, label, lo, hi }], window: secondi, lines: [{ tuned: 'sp', var: 'T' }] }
