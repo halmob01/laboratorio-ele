@@ -68,6 +68,18 @@ decide A in A3 guardando come `page.js` usa la fabbrica, chiamando i metodi solo
 un metodo in piu' lo scrive qui. Se A o B hanno bisogno di un
 campo nuovo lo aggiungono qui (solo aggiunte) e lo scrivono nello STATO.
 
+Aggiunte di B (fase B2, 17 ottobre), tutte facoltative per A:
+- campo `qg: bool` in `casaState`: il generale e' chiuso (anche a contatore staccato). Se manca, la leva del quadro
+  segue `powered || blackout`.
+- `look(nome, ms)` mette e toglie il tetto da sola: con il tetto `tetto`, `tettoia`, `esterno`, `pompa` (la pompa di
+  calore sul muro nord, vista in piu'); senza `insieme`, `quadro`, `bagno`. Con un oggetto `{ tx, ty, tz, yaw, pitch, dist }`
+  sposta solo la telecamera. Su telefono in verticale `insieme` guarda la casa da est (la pianta entra nel lato lungo).
+- `blackout()` e `evening(fine)` ritornano quanti millisecondi durano; `evening(false)` rimette le luci come dice lo stato.
+- `outside()` (casa da lontano con il tetto, per la chiamata), `arrival()` (dalla strada alla vista d'insieme, ritorna i
+  millisecondi), `view(nome)` (la vista come oggetto).
+- I tocchi arrivano a `cb.onTap` come `{ id, kind }` (QG, S2, W1 `toggle`; TA `press`). La scena non ha `onPress`.
+- `cb.reduced`: niente movimenti (auto gia' parcheggiata, sirena accesa fissa, ventola ferma).
+
 ## Sessione A: motore, livello, cornice (ramo `casa-motore-cornice`)
 
 **A1. Motore** (Opus, regole del gioco: motivo scritto in `docs/SPEC-PROCESSI.md` e test).

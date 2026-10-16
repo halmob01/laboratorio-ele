@@ -5,8 +5,9 @@ import { createAppartamento } from './appartamento.js';
 import { createOfficina } from './officina.js';
 import { createAutomatico } from './automatico.js';
 import { createFabbrica } from './fabbrica.js';
+import { createCasa } from './casa.js';
 
-const SCENES = { appartamento: createAppartamento, officina: createOfficina, automatico: createAutomatico, fabbrica: createFabbrica };
+const SCENES = { appartamento: createAppartamento, officina: createOfficina, automatico: createAutomatico, fabbrica: createFabbrica, casa: createCasa };
 
 if (typeof window !== 'undefined') {
   window.FaseNeutroProve = {

@@ -38,6 +38,9 @@ export function createScene(container, cb) {
   // Opzioni per le prove dei moduli (la casa di notte, senza i comandi del Modulo 1): vedi src/scene3d/appartamento.js.
   //   night: luce di luna, bare: niente piastrine e quadro del Modulo 1, noIntro + start: parte senza tetto da una vista data,
   //   extend(ctx) -> { update(state), dispose() }: aggiunge oggetti alla scena, onPick(userData): tocchi sugli oggetti aggiunti.
+  // Opzioni della casa intelligente (src/scene3d/casa.js), tutte facoltative: dayBg colore del cielo prima della notte,
+  //   roomWindows: le finestre si accendono solo con la luce della stanza (non tutte di sera), porch: false niente luce
+  //   sopra la porta, limits { yaw, pitch }: dove arriva il trascinamento. Nel ctx anche sun e roof (gruppo del tetto).
   const night = !!cb.night;
   const BG = night ? BG_NIGHT : BG_DAY;
   // telefono o schermo piccolo: niente occlusione ambientale, ombre piu' leggere
@@ -160,7 +163,7 @@ export function createScene(container, cb) {
   // finestre: si accendono con la lampada della stanza; a sera (finale) tutte, anche delle stanze senza circuito
   const allWins = windows(world, facade, M, HOUSE.size).map(wn => ({ glass: wn.glass, room: rooms[wn.room] || null }));
   const WARM = new THREE.Color(0xffb35c);
-  function glowWins() { allWins.forEach(w => w.glass.emissive.copy(WARM).multiplyScalar(Math.max(w.room ? 0.9 * w.room.level : 0, 0.8 * nightK))); }
+  function glowWins() { allWins.forEach(w => w.glass.emissive.copy(WARM).multiplyScalar(Math.max(w.room ? 0.9 * w.room.level : 0, cb.roomWindows ? 0 : 0.8 * nightK))); }
   // luce sopra la porta d'ingresso, accesa solo di sera
   const porch = new THREE.PointLight(0xffb35c, 0, 7, 1.6);
   porch.position.set(1.4, 2.5, D + 0.7);
@@ -280,13 +283,13 @@ export function createScene(container, cb) {
   // muri, arredi, porte e finestre non si muovono: si accorpano per materiale (la facciata si abbassa col tetto, resta a parte)
   mergeStatic(world, [facade]);
   // redraw: si ridisegna; moved: un oggetto aggiunto si e' spostato o e' comparso, anche le ombre vanno rifatte
-  const ext = cb.extend ? cb.extend({ world, M, pick, rooms, addLabel, animate: (ms, step) => animate(ms, k => { dirtyShadows(); return step(k); }), redraw, moved: () => { dirtyShadows(); redraw(); }, loop: fn => { anims.add(fn); schedule(); }, lite, FACE, FACE_ROT, T, WALL_H, camera, scene }) : null;
+  const ext = cb.extend ? cb.extend({ world, M, pick, rooms, addLabel, animate: (ms, step) => animate(ms, k => { dirtyShadows(); return step(k); }), redraw, moved: () => { dirtyShadows(); redraw(); }, loop: fn => { anims.add(fn); schedule(); }, lite, FACE, FACE_ROT, T, WALL_H, camera, scene, sun, roof: roofG }) : null;
 
   // ---- fili posati dal giocatore (trilocale a tutto schermo) ----
   const wireSet = cb.wires ? createWireSet({ add: o => world.add(o), loop: fn => { anims.add(fn); schedule(); }, redraw, reduced: !!cb.reduced }) : null;
 
   // ---- dal tramonto alla notte: luce del sole, cielo, esposizione (k: 0 tramonto, 1 notte) ----
-  const DAY = { sun: new THREE.Color(0xff9f66), sunI: 1.0, env: 0.16, hemi: 0.12, exp: 0.95, bg: new THREE.Color(BG_DAY) };
+  const DAY = { sun: new THREE.Color(0xff9f66), sunI: 1.0, env: 0.16, hemi: 0.12, exp: 0.95, bg: new THREE.Color(cb.dayBg === undefined ? BG_DAY : cb.dayBg) };
   const NIGHT = { sun: new THREE.Color(0x8fa9e6), sunI: 0.34, env: 0.05, hemi: 0.045, exp: 1.3, bg: new THREE.Color(BG_NIGHT) };
   function applyNight() {
     const k = nightK, mix = (a, b) => a + (b - a) * k;
@@ -297,7 +300,7 @@ export function createScene(container, cb) {
     scene.fog.color.copy(scene.background);
     renderer.setClearColor(scene.background);
     if (envReady) { scene.environmentIntensity = mix(DAY.env, NIGHT.env); hemi.intensity = mix(DAY.hemi, NIGHT.hemi); }
-    porch.intensity = 5 * k;
+    porch.intensity = cb.porch === false ? 0 : 5 * k;
     glowWins();
     redraw();
   }
@@ -415,8 +418,9 @@ export function createScene(container, cb) {
     if (Math.abs(dx) + Math.abs(dy) > 6) down.moved = true;
     if (down.moved) {
       if (camAnim) { anims.delete(camAnim); camAnim = null; }
-      view.yaw = Math.max(-35, Math.min(35, down.yaw - dx * 0.25));
-      view.pitch = Math.max(38, Math.min(75, down.pitch + dy * 0.2));
+      const lim = cb.limits || {}, ly = lim.yaw || [-35, 35], lp = lim.pitch || [38, 75];
+      view.yaw = Math.max(ly[0], Math.min(ly[1], down.yaw - dx * 0.25));
+      view.pitch = Math.max(lp[0], Math.min(lp[1], down.pitch + dy * 0.2));
       redraw();
     }
   });
@@ -509,6 +513,8 @@ export function createScene(container, cb) {
       if (cb.reduced || ms <= 1) { nightK = to; applyNight(); return; }
       animate(ms, k => { nightK = from + (to - from) * smooth(k); applyNight(); });
     },
+    // la notte a un livello dato, senza animazione (0 tramonto, 1 notte): il cielo della casa segue l'ora del motore
+    nightLevel(k) { nightK = Math.max(0, Math.min(1, k)); applyNight(); },
     look(to, ms) { go(to, ms); },
     // Posizione sullo schermo del primo oggetto toccabile con quell'id (solo oggetti aggiunti da extend): per i test.
     screenOf(id) {
