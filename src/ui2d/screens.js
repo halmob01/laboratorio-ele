@@ -213,7 +213,7 @@ export function footerHTML() {
   }).join('');
   // Sul telefono resta solo una firma: i due fili corrono lungo la pagina e si alzano nella torre.
   const mini = `<div class="fmini">${groundSVG(72, 1.5)}</div>`;
-  return mini + `<div class="fwrap"><div class="fabout"><div class="ftower">${towerSVG('spira', { size: 110 })}<div class="wordmark" data-notr>Fase <i>e</i> Neutro</div></div><p>Laboratorio di impianti elettrici per chi parte da zero.</p>${trNoteHTML()}</div><div class="fcols">${cols}</div></div>`;
+  return mini + `<div class="fwrap"><div class="fabout"><div class="ftower">${towerSVG('spira', { size: 110 })}<div class="wordmark" data-notr>Fase <i>e</i> Neutro</div></div>${trNoteHTML()}</div><div class="fcols">${cols}</div></div>`;
 }
 
 /* ---------- schede informative (finestre) ---------- */

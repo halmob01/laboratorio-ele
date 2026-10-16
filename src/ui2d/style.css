@@ -277,10 +277,10 @@ button:disabled{cursor:default}
 }
 @media (min-width:920px){
   .sitefooter{display:block;border-top:1.5px solid var(--ink);padding-top:28px;margin-top:24px}
-  .fwrap{display:flex;flex-wrap:wrap;gap:32px 64px;justify-content:space-between}
-  .fabout{flex:1 1 240px;max-width:320px}
+  .fwrap{display:flex;flex-direction:column;align-items:center;gap:32px;text-align:center}
+  .fabout{display:flex;flex-direction:column;align-items:center}
   .fabout p{font-size:14px;color:var(--ink2);margin-top:8px}
-  .fcols{display:flex;flex-wrap:wrap;gap:32px 64px}
+  .fcols{display:flex;flex-wrap:wrap;gap:32px 64px;justify-content:center;text-align:left}
   .fcol{display:flex;flex-direction:column;gap:8px}
   .ftitle{text-transform:uppercase;font:500 12px/1 'IBM Plex Mono',monospace;letter-spacing:.1em;color:var(--ink2);margin-bottom:2px}
   .fbtn{min-height:44px;display:flex;align-items:center;gap:6px;padding:0 18px;border:1.5px solid var(--ink);background:var(--card);border-radius:8px;font:600 15px/1 'IBM Plex Sans',sans-serif;color:var(--ink);text-decoration:none;cursor:pointer}
@@ -1025,7 +1025,7 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
 .hmsg .tw-fase{stroke:#E9A15F}
 .hmsg .tw-neutro{stroke:#8CC3F2}
 .hmsg .tw-ghost{stroke:#fff;opacity:.4}
-.ftower{display:flex;align-items:flex-end;gap:16px}
+.ftower{display:flex;flex-direction:column;align-items:center;gap:12px}
 .ftower .tw{flex:none;margin-bottom:-2px}
 
 /* pannello operatore (HMI): sempre uno schermo scuro, anche con il tema chiaro */
