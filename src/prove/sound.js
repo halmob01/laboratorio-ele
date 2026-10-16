@@ -56,6 +56,21 @@ function makeHum(kind) {
   return { g, level: { frigo: 0.018, tv: 0.008, stufa: 0.01 }[kind] };
 }
 
+// il motore: tre armoniche gravi piu' un fruscio, sempre lo stesso nodo (si alza e si abbassa)
+let motorNode = null;
+function makeMotor(a) {
+  const g = a.createGain(); g.gain.value = 0; g.connect(master);
+  const osc = [100, 200, 300].map((f, i) => { const o = a.createOscillator(); o.type = i ? 'sine' : 'triangle'; o.frequency.value = f; const og = a.createGain(); og.gain.value = [0.6, 0.25, 0.1][i]; o.connect(og); og.connect(g); o.start(); return o; });
+  return { g, osc };
+}
+function motorStop(instant) {
+  if (!motorNode || !ac) return;
+  const t = ac.currentTime;
+  motorNode.g.gain.cancelScheduledValues(t);
+  if (instant) motorNode.g.gain.setValueAtTime(0, t);
+  else { motorNode.g.gain.setValueAtTime(motorNode.g.gain.value, t); motorNode.g.gain.linearRampToValueAtTime(0, t + 0.5); }
+}
+
 export const sound = {
   // da chiamare dentro un tocco: sblocca l'audio
   unlock() { const a = ctx(); if (a && a.state === 'suspended') a.resume(); },
@@ -83,6 +98,45 @@ export const sound = {
     if (instant) h.g.gain.setValueAtTime(v, t);
     else { h.g.gain.setValueAtTime(h.g.gain.value, t); h.g.gain.linearRampToValueAtTime(v, t + 0.6); }
   },
-  silence() { Object.keys(hums).forEach(k => this.hum(k, false, true)); },
+  silence() { Object.keys(hums).forEach(k => this.hum(k, false, true)); motorStop(true); },
+  // motore del nastro: ronzio grave; load da 0 a 1 (sovraccarico) abbassa il tono e alza il volume
+  motor(on, load = 0) {
+    const a = ctx();
+    if (!a) return;
+    if (!on || !enabled) { motorStop(false); return; }
+    if (!motorNode) motorNode = makeMotor(a);
+    const t = a.currentTime;
+    motorNode.g.gain.cancelScheduledValues(t);
+    motorNode.g.gain.setValueAtTime(motorNode.g.gain.value, t);
+    motorNode.g.gain.linearRampToValueAtTime(0.02 + 0.03 * load, t + 0.4);
+    motorNode.osc.forEach((o, i) => { o.frequency.cancelScheduledValues(t); o.frequency.setValueAtTime(o.frequency.value, t); o.frequency.linearRampToValueAtTime([100, 200, 300][i] * (1 - 0.18 * load), t + 0.6); });
+  },
+  // la sirena del turno: due note lunghe
+  siren() {
+    const a = ctx();
+    if (!a || !enabled) return;
+    [0, 1.1].forEach((d, i) => {
+      const o = a.createOscillator(), g = a.createGain(), t = a.currentTime + d;
+      o.type = 'sawtooth'; o.frequency.setValueAtTime(i ? 520 : 440, t); o.frequency.linearRampToValueAtTime(i ? 560 : 470, t + 0.9);
+      const f = a.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = 1400;
+      g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.06, t + 0.12); g.gain.setValueAtTime(0.06, t + 0.8); g.gain.exponentialRampToValueAtTime(0.0001, t + 1.0);
+      o.connect(f); f.connect(g); g.connect(master); o.start(t); o.stop(t + 1.05);
+    });
+  },
+  // la saracinesca: rumore di rulli che sale di tono
+  shutter(ms = 1600) {
+    const a = ctx();
+    if (!a || !enabled) return;
+    const dur = ms / 1000, n = Math.floor(a.sampleRate * dur), b = a.createBuffer(1, n, a.sampleRate), d = b.getChannelData(0);
+    for (let i = 0; i < n; i++) d[i] = (Math.random() * 2 - 1) * (0.6 + 0.4 * Math.sin(i / 90));
+    const s = a.createBufferSource(); s.buffer = b;
+    const f = a.createBiquadFilter(); f.type = 'bandpass'; f.Q.value = 1.4;
+    const t = a.currentTime;
+    f.frequency.setValueAtTime(260, t); f.frequency.linearRampToValueAtTime(620, t + dur);
+    const g = a.createGain(); g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.22, t + 0.15); g.gain.setValueAtTime(0.22, t + dur - 0.2); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    s.connect(f); f.connect(g); g.connect(master); s.start(t);
+  },
+  // il contattore che apre: un tonfo secco
+  clunk() { thump(70, 0.5, 0.14); burst(0.05, 0.5, 1800, 1.5); },
   vibrate(p) { try { if (navigator.vibrate) navigator.vibrate(p); } catch (e) { /* non disponibile */ } },
 };

@@ -793,6 +793,69 @@ html[dir="rtl"] .phud,html[dir="rtl"] .psheet,html[dir="rtl"] .pintro,html[dir="
   .psteps li.cur .pnode,.ppin::before{animation:none}
 }
 
+/* ---------- officina: pulsantiera, prove del verbale, verbale di collaudo ---------- */
+.psteps li.ko{color:var(--hud-bad)}
+.psteps li.ko .pnode{background:var(--hud-bad);border-color:#1B2230}
+.pcall-label{font-weight:600;color:var(--hud-ink);text-transform:uppercase;letter-spacing:.1em;font-size:12px;border:1px solid var(--hud-line);border-radius:999px;padding:5px 10px}
+.house[data-act="arrive"] .psub{opacity:0}
+.house[data-act="call"] .hlabels,.house[data-act="arrive"] .hlabels{visibility:hidden}
+.house.ofc .psteps-box{background:rgba(10,15,23,.74);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);padding:14px 14px 14px 12px;border-radius:14px;border:1px solid var(--hud-line)}
+.house.ofc .psteps li{color:var(--hud-ink2)}
+.pstation{background:linear-gradient(#E9E6DE,#D3CFC5);position:relative;overflow:hidden}
+.pstation::before{content:"";position:absolute;left:0;right:0;top:0;height:6px;background:repeating-linear-gradient(-45deg,#E3B61F 0 10px,#17181A 10px 20px)}
+.pst{display:grid;grid-template-columns:auto 1fr;gap:12px;align-items:stretch}
+.pst-panel{display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:10px;background:linear-gradient(#F0C52A,#D9AE16);box-shadow:inset 0 1px 0 rgba(255,255,255,.6),0 3px 0 rgba(0,0,0,.25)}
+.pst-btn,.pst-mush,.pst-lamp{display:flex;flex-direction:column;align-items:center;gap:6px;background:none;border:0;padding:0;cursor:pointer;color:#17181A!important;font:600 11px/1 'IBM Plex Mono',monospace;text-transform:uppercase;letter-spacing:.05em;touch-action:none;user-select:none;-webkit-user-select:none}
+.pst-cap{display:block;width:46px;height:46px;border-radius:50%;box-shadow:0 0 0 5px #23262A,0 4px 0 5px #111;transition:transform .08s}
+.pst-btn.pst-go .pst-cap{background:radial-gradient(circle at 40% 35%,#5FE08F,#1F8F45)}
+.pst-btn.pst-stop .pst-cap{background:radial-gradient(circle at 40% 35%,#E8453B,#9E140D)}
+.pst-btn[aria-pressed="true"] .pst-cap,.pst-btn:active .pst-cap{transform:translateY(3px);box-shadow:0 0 0 5px #23262A,0 1px 0 5px #111}
+.pst-mush .pst-cap{width:58px;height:58px;background:radial-gradient(circle at 40% 30%,#FF7468,#C4261D 60%,#8E140E);box-shadow:0 0 0 6px #E3B61F,0 0 0 8px #17181A,0 6px 0 8px #111}
+.pst-mush[aria-pressed="true"] .pst-cap{transform:translateY(4px) scale(.96);box-shadow:0 0 0 6px #E3B61F,0 0 0 8px #17181A,0 2px 0 8px #111}
+.pst-mush.alarm .pst-cap{animation:palarm .8s ease-in-out infinite}
+@keyframes palarm{50%{box-shadow:0 0 0 6px #E3B61F,0 0 0 8px #17181A,0 6px 0 8px #111,0 0 0 18px rgba(255,90,95,.45)}}
+.pst-lamp{cursor:default}
+.pst-lamp .pst-cap{width:26px;height:26px;background:#244a31;box-shadow:0 0 0 4px #23262A}
+.pst-lamp.on .pst-cap{background:radial-gradient(circle,#B9FFD0,#2EE66A);box-shadow:0 0 0 4px #23262A,0 0 18px #2EE66A}
+.pst-side{display:grid;grid-template-columns:1fr 1fr;gap:8px;align-content:center}
+.pst-lever{grid-column:1/-1;display:flex;align-items:center;gap:10px;border:1.5px solid #B88A00;background:rgba(245,184,0,.16);border-radius:10px;padding:8px 12px;cursor:pointer;color:#1B2230!important;font-weight:600;text-align:left;min-height:44px}
+.pst-knob{position:relative;width:38px;height:20px;border-radius:999px;background:#5d646b;flex:none;transition:background .2s}
+.pst-knob::after{content:"";position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:50%;background:#fff;transition:left .2s}
+.pst-lever[aria-pressed="true"] .pst-knob{background:#C4261D}
+.pst-lever[aria-pressed="true"] .pst-knob::after{left:20px}
+.pst-mod{position:relative;display:flex;flex-wrap:wrap;align-items:center;gap:6px;padding:7px 9px;border-radius:8px;background:#F7F5F0;box-shadow:inset 0 0 0 1px #C9C6BD;color:#1B2230;min-width:0}
+.pst-name{font:600 10px/1 'IBM Plex Mono',monospace;text-transform:uppercase;letter-spacing:.06em;color:#4A5262;width:100%}
+.pst-sw{border:1px solid #9A968B;background:#fff;border-radius:6px;padding:5px 9px;cursor:pointer;font:600 13px/1 'IBM Plex Sans',sans-serif;color:#1B2230!important;min-height:32px}
+.pst-sw:disabled{opacity:.45;cursor:default}
+.pst-mod.open{box-shadow:inset 0 0 0 2px #E3B61F}
+.pst-tag{font:700 10px/1 'IBM Plex Mono',monospace;background:#F5C400;color:#17181A;padding:4px 6px;border-radius:3px;text-transform:uppercase}
+.pst-heat{flex:1;min-width:30px;height:6px;border-radius:3px;background:linear-gradient(90deg,#FF7A1A var(--h),#D8DCE2 var(--h))}
+.pst-state{font:600 12px/1 'IBM Plex Mono',monospace}
+.pst-mod.fr.trip{box-shadow:inset 0 0 0 2px var(--hud-bad)}
+.pst-mod.fr.trip .pst-state{color:#B21E16}
+.pst-side .pchip{grid-column:1/-1;justify-self:start;border-color:#9A968B;background:rgba(255,255,255,.5);color:#1B2230}
+.pverb-sub{margin:-6px 0 0!important;color:#6A6457!important;font-style:italic}
+.pverb-tests{list-style:none;margin:0;padding:0;display:grid;gap:4px}
+.pverb-tests li{display:flex;justify-content:space-between;gap:10px;border-bottom:1px dotted #B9B4A8;padding-bottom:3px}
+.pverb-tests b{color:#1F7A44;font:600 12px/1.6 'IBM Plex Mono',monospace;text-transform:uppercase}
+@media (max-width:760px){
+  .pst{grid-template-columns:1fr;gap:8px}
+  .pst-panel{justify-content:space-around;padding:8px}
+  .pst-cap{width:38px;height:38px}
+  .pst-mush .pst-cap{width:46px;height:46px}
+  .pst-side{grid-template-columns:1fr 1fr 1fr}
+  .pst-lever{grid-column:1/-1;min-height:38px;padding:6px 10px}
+  .pst-side .pchip{grid-column:auto;align-self:stretch}
+  .pst-heat{display:none}
+}
+@media (max-height:520px){
+  .pst{grid-template-columns:auto 1fr}
+  .pst-cap{width:32px;height:32px}
+  .pst-mush .pst-cap{width:38px;height:38px}
+  .pst-btn span:last-child,.pst-mush span:last-child,.pst-lamp span:nth-child(2){font-size:9px}
+}
+@media (prefers-reduced-motion:reduce){.pst-mush.alarm .pst-cap{animation:none}}
+
 /* ---------- trilocale a tutto schermo: la casa dietro, il banco in un pannello accanto ---------- */
 .trimode{--benchw:min(52vw,760px)}
 .trimode .house .hstage{background:linear-gradient(#2A3346,#141A26)}

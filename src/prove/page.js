@@ -13,7 +13,8 @@ const VIEW_LABEL = {
   pulsantiera: 'Pulsantiera', motore: 'Motore',
 };
 const SOUND_KEY = 'fase-e-neutro-suono';
-const LOAD_MAX = 8000;          // la chiamata aspetta la scena al massimo questo, poi si gioca con i comandi
+const LOAD_MAX = 8000;
+const ROW_MS = 180;             // officina: le file di plafoniere si accendono a questa distanza (come ROW_MS in scene3d/officina.js)          // la chiamata aspetta la scena al massimo questo, poi si gioca con i comandi
 
 // Caricamento del pacchetto 3D: una sola volta per pagina.
 let scriptPromise = null;
@@ -33,7 +34,7 @@ function loadScript() {
 
 /**
  * @param {HTMLElement} host   contenitore (#house)
- * @param {{session, reduced:()=>boolean, drawer?:(open:boolean)=>void, summary?:()=>void}} env
+ * @param {{session, reduced:()=>boolean, drawer?:(open:boolean)=>void, summary?:()=>void, name?:()=>string}} env
  */
 export function createProva(host, env) {
   let scene = null, sceneState = 'idle', mounted = false, token = 0, name = null, lastSnap = null;
@@ -43,7 +44,9 @@ export function createProva(host, env) {
   // stato della sola cornice
   let mem = H.newMemory(), log = [], minutes = 0, phase = null, sheet = null;
   let act = null, override = null, story = null, t0clock = 0, callT0 = 0;
-  const ui = { schema: false, torch: false, sound: true, wires: true, log: false, delta: false };
+  // officina: lo stato di prima (per gli eventi che arrivano col tempo: finecorsa, termico) e l'azione in corso
+  let prevPs = null, pending = null, pointerHold = null;
+  const ui = { schema: false, torch: false, sound: true, wires: true, log: false, delta: false, alarm: false };
   try { ui.sound = localStorage.getItem(SOUND_KEY) !== '0'; } catch (e) { /* predefinito: suono acceso */ }
   sound.setEnabled(ui.sound);
 
@@ -82,10 +85,23 @@ export function createProva(host, env) {
     el.pDock.addEventListener('pointerleave', () => { const w = wires(); if (w) w.highlight(null); });
     el.pDock.addEventListener('focusin', hi);
     el.pDock.addEventListener('focusout', () => { const w = wires(); if (w) w.highlight(null); });
+    // officina: Marcia e Arresto si tengono premuti (il tocco breve basta: il contattore si autoalimenta)
+    el.pDock.addEventListener('pointerdown', e => {
+      const b = e.target.closest('[data-phold]');
+      if (!b) return;
+      e.preventDefault();
+      pointerHold = b.dataset.phold;
+      try { b.setPointerCapture(e.pointerId); } catch (x) { /* ok */ }
+      press({ id: pointerHold });
+    });
+    const up = () => { if (!pointerHold) return; const id = pointerHold; pointerHold = null; release({ id }); };
+    el.pDock.addEventListener('pointerup', up);
+    el.pDock.addEventListener('pointercancel', up);
   }
 
   /* ---------- tocchi: tutto passa da act(), che registra cosa e' successo ---------- */
   function doAct(action, run) {
+    if (name === 'officina') { pending = action; run(); pending = null; renderHud(); return; }   // gli eventi li legge sync()
     if (story) { endStory(); return; }                  // un tocco durante la sequenza la porta alla fine
     const before = lastSnap && provaState(lastSnap);
     run();
@@ -110,12 +126,19 @@ export function createProva(host, env) {
     else if (u.kind === 'test') doAct({ kind: 'test', id: u.part }, () => s().testPart(u.part));
     else if (u.kind === 'reset') doAct({ kind: 'reset', id: u.part }, () => s().resetPart(u.part));
   }
-  function press(u) { if (inLesson() || (act && act !== 'play')) return; holding.add(u.id); s().press(u.id); }
-  function release(u) { if (!holding.delete(u.id)) return; s().release(u.id); }
+  function press(u) {
+    if (inLesson() || (act && act !== 'play')) return;
+    holding.add(u.id);
+    if (name === 'officina') { sound.click(); doAct({ kind: 'press', id: u.id }, () => s().press(u.id)); } else s().press(u.id);
+  }
+  function release(u) { if (!holding.delete(u.id)) return; if (name === 'officina') doAct({ kind: 'release', id: u.id }, () => s().release(u.id)); else s().release(u.id); }
 
   function onClick(e) {
     const a = e.target.closest('[data-pact]');
-    if (a) { tap(a.dataset.pact === 'test' ? { kind: 'test', part: a.dataset.pid } : { kind: 'toggle', id: a.dataset.pid }); return; }
+    if (a) { const k = a.dataset.pact; tap(k === 'test' || k === 'reset' ? { kind: k, part: a.dataset.pid } : { kind: 'toggle', id: a.dataset.pid }); return; }
+    // tasti da tenere premuti azionati da tastiera (Invio, spazio): premi e rilascia
+    const hb = e.target.closest('[data-phold]');
+    if (hb) { if (e.detail === 0 && !inLesson() && act === 'play') { sound.click(); doAct({ kind: 'press', id: hb.dataset.phold }, () => s().toggleControl(hb.dataset.phold)); } return; }
     const d = e.target.closest('[data-pdiag]');
     if (d) {
       s().answerDiagnosis(d.dataset.pdiag);
@@ -137,7 +160,10 @@ export function createProva(host, env) {
     else if (k === 'check') check();
     else if (k === 'again') { sheet = null; backInside(); s().startFault(); }
     else if (k === 'summary') { if (env.summary) env.summary(); }
-    else if (k === 'schema') { ui.schema = !ui.schema; if (env.drawer) env.drawer(ui.schema); renderHud(); }
+    else if (k === 'schema') schema();
+    // incastrare un pacco: il pacco riparte dall'inizio, cosi' il termico (3 s) arriva sempre prima del finecorsa (6 s)
+    else if (k === 'overload') { if (act === 'play' && !inLesson()) doAct({ kind: 'overload' }, () => { const on = !lastSnap.overload; if (on) s().rewind(); s().setOverload(on); }); }
+    else if (k === 'rewind') { if (act === 'play' && !inLesson()) doAct({ kind: 'rewind' }, () => s().rewind()); }
     else if (k === 'torch') { setTorch(!ui.torch); renderHud(); }
     else if (k === 'wires') { ui.wires = !ui.wires; const w = wires(); if (w) w.setVisible(ui.wires); renderHud(); }
     else if (k === 'log') { ui.log = !ui.log; renderHud(); }
@@ -145,6 +171,17 @@ export function createProva(host, env) {
     else if (k === 'insieme' || k === 'quadro') { if (scene) scene.look(k); }
   }
   function setTorch(on) { ui.torch = on; if (scene && scene.torch) scene.torch(on); }
+  // Il banco a lato. Nell'officina, per correggere si lavora fuori tensione: con il salvamotore chiuso prima lo si apre.
+  function schema() {
+    const opening = !ui.schema;
+    if (opening && name === 'officina' && lastSnap.unit.phase === 'fault' && lastSnap.unit.diag && lastSnap.unit.diag.correct && !mem.fixed) {
+      const ps = provaState(lastSnap);
+      if (ps && ps.qm) { subtitle('', cfg().story.dead, 3600); if (scene) scene.look('quadro', 900); return; }
+      if (scene) scene.look('quadro', 900);
+    }
+    ui.schema = opening; if (env.drawer) env.drawer(ui.schema); renderHud();
+    if (!opening && name === 'officina' && scene) scene.look('insieme', 900);
+  }
 
   function check() {
     const r = s().check();
@@ -183,13 +220,53 @@ export function createProva(host, env) {
     flash();
     subtitle('Tac.', text, 3600);
   }
-  // i ronzii seguono lo stato vero: frigorifero sulla linea cucina, TV e stufetta sulla linea prese
+  // i ronzii seguono lo stato vero: frigorifero sulla linea cucina, TV e stufetta sulla linea prese; nell'officina il motore
   function hums(ps) {
     ps = ps || override || (lastSnap && provaState(lastSnap));
-    if (!ps || name !== 'appartamento' || act === 'call') return;
+    if (!ps || act === 'call') return;
+    if (name === 'officina') { sound.motor(act !== 'finale' && ps.motor === 'fwd', ps.overload ? 1 : ps.thermal.heat * 0.5); return; }
+    if (name !== 'appartamento') return;
     sound.hum('frigo', !!ps.oven);
     sound.hum('tv', !!ps.socket);
     sound.hum('stufa', !!(ps.socket && ps.heaterPlugged));
+  }
+
+  /* ---------- officina: eventi del nastro e momento forte ---------- */
+  // Chiamata da sync() a ogni nuovo stato: confronta con lo stato di prima (azione in corso o tempo che passa).
+  function observeOfficina(snapshot) {
+    const ps = provaState(snapshot);
+    if (!ps) return;
+    const before = prevPs; prevPs = ps;
+    if (!before || act !== 'play' || inLesson() || snapshot.unit.phase === 'lesson') return;
+    const action = pending;
+    const events = H.officinaEvents(action, before, ps);
+    mem = H.remember('officina', mem, action, before, ps);
+    const wasFixed = mem.fixed;
+    mem = H.rememberFixed(mem, snapshot.unit.phase === 'fault' && H.officinaFixed(snapshot.wires));
+    events.forEach(e => note(e.text, e));
+    if (!wasFixed && mem.fixed) { note(cfg().log.fixed, { good: true }); sound.chime(1); }
+    const c = cfg();
+    events.forEach(e => {
+      if (e.kind === 'tripKo') {
+        // il termico scatta ma il nastro continua: il momento forte
+        ui.alarm = true;
+        sound.tac(); sound.vibrate([30, 40, 80]); flash();
+        subtitle(c.story.nonStop, c.story.pressStop, 0);
+        if (scene) scene.look('insieme', 900);
+      } else if (e.kind === 'overload' && ps.overload && ps.motor !== 'fwd') {
+        subtitle('', c.story.jamStart, 3600);
+      } else if (e.kind === 'tripOk') {
+        sound.clunk(); later(250, () => sound.chime(1));
+        subtitle(c.story.stopped, '', 3000);
+      }
+    });
+    // l'allarme finisce quando il nastro si ferma: con il fungo (giusto) o perche' il pacco arriva in fondo
+    if (ui.alarm && ps.motor !== 'fwd') {
+      ui.alarm = false;
+      if (ps.emergency) { el.pSub.classList.remove('go'); sound.silence(); }
+      else subtitle('', c.story.endStop, 3200);
+    }
+    if (events.some(e => ['marcia', 'arresto', 'fungo', 'fine'].includes(e.kind)) && !events.some(e => e.kind === 'tripKo')) sound.click();
   }
 
   /* ---------- le tre storie dello scatto ---------- */
@@ -236,6 +313,7 @@ export function createProva(host, env) {
     return { ...ps, rcd: { ...ps.rcd, on: true, tripped: false }, lines: { luce: { on: true }, prese: { on: true }, cucina: { on: true } }, lamp: true, socket: true, oven: true, dark: false, allRooms: true };
   }
   function prepareOutside() {
+    if (scene && name === 'officina') { scene.outside(); const w = wires(); if (w) w.setVisible(false); return; }
     if (!scene || !scene.setRoof) return;
     override = litHouse();
     scene.setRoof(true, 1);
@@ -260,6 +338,14 @@ export function createProva(host, env) {
     hideCall();
     if (!scene || sceneState !== 'ready') { afterArrive(); return; }
     setAct('arrive');
+    if (name === 'officina') {
+      // la saracinesca sale, le plafoniere si accendono una fila alla volta, si entra
+      later(300, () => { scene.shutter(true, 1600); sound.shutter(1600); });
+      later(1700, () => { scene.lampsOn(); for (let i = 0; i < 4; i++) later(i * ROW_MS, () => sound.click()); });
+      later(2000, () => scene.look('insieme', 2200));
+      later(4300, afterArrive);
+      return;
+    }
     hums(override);
     scene.look('esterno', 2400);
     later(2500, () => {
@@ -273,6 +359,7 @@ export function createProva(host, env) {
     if (act !== 'call' && act !== 'arrive') return;
     clearLater(); hideCall();
     override = null;
+    if (scene && name === 'officina') { scene.inside(); scene.look('insieme', 1); }
     if (scene && scene.setRoof) { scene.windows(false); scene.setRoof(false, 1); scene.look('ingresso', 1); }
     push();
     afterArrive();
@@ -280,10 +367,12 @@ export function createProva(host, env) {
   function afterArrive() {
     const w = wires(); if (w) w.setVisible(ui.wires);
     if (inLesson()) { setAct('brief'); return; }
+    if (name === 'officina') { mem.panel = true; setAct('play'); subtitle('', H.hintOf(name, H.stepsOf(name, provaState(lastSnap), lastSnap.unit, mem)), 3600); return; }
     findPanel();
   }
   // Trova il quadro: al buio, con la torcia. Toccandolo lo sportello si apre e i comandi salgono.
   function findPanel() {
+    if (name === 'officina') { mem.panel = true; setAct('play'); return; }
     if (!scene || mem.panel) { mem.panel = true; if (scene) scene.door(1); setAct('play'); return; }
     setAct('find');
     setTorch(true);
@@ -319,6 +408,20 @@ export function createProva(host, env) {
     if (act === 'finale') return;
     setAct('finale');
     hums();
+    if (name === 'officina') {
+      // le 7:00: la sirena del turno, i pacchi scorrono uno dietro l'altro, poi il verbale di collaudo
+      ui.alarm = false;
+      if (ui.schema) { ui.schema = false; if (env.drawer) env.drawer(false); }
+      sound.siren();
+      if (scene) { scene.shift(true); scene.look('turno', 2600); later(1300, () => subtitle(cfg().report.end, '', 2600)); }
+      later(scene ? 3900 : 0, () => {
+        sheet = 'finale'; setAct('play'); focusSheet();
+        const lv = lastSnap.levels.find(l => l.id === lastSnap.level.id) || {};
+        const n = (lastSnap.result && lastSnap.result.stars) || lv.stars || 0;
+        for (let i = 0; i < n; i++) later(300 + i * 280, () => sound.chime(i));
+      });
+      return;
+    }
     if (scene && scene.setRoof) {
       // da fuori la casa si riaccende tutta, come la si era vista arrivando
       later(500, () => { override = litHouse(); push(); scene.setRoof(true, 1400); scene.windows(true); scene.look('esterno', 2200); });
@@ -333,6 +436,7 @@ export function createProva(host, env) {
   }
   // Chiuso il rapporto si torna dentro la casa.
   function backInside() {
+    if (scene && name === 'officina') { scene.shift(false); scene.look('insieme', 1200); return; }
     if (!scene || !scene.setRoof) return;
     override = null; push();
     scene.setRoof(false, 1100); scene.windows(false); scene.look('insieme', 1200);
@@ -405,7 +509,9 @@ export function createProva(host, env) {
     if (sheet === 'question' && unit.phase === 'fault') sh = H.questionHTML(lastSnap.level.unit, unit.diag);
     else if (sheet === 'finale') {
       const lv = lastSnap.levels.find(l => l.id === lastSnap.level.id) || {};
-      sh = H.reportHTML(c, (lastSnap.result && lastSnap.result.stars) || lv.stars || 0, !!unit.faultSolved, H.clockText(c, 0), H.clockText(c, minutes));
+      const stars = (lastSnap.result && lastSnap.result.stars) || lv.stars || 0;
+      sh = c.tests ? H.verbaleHTML(c, stars, !!unit.faultSolved, H.clockText(c, 0), H.clockText(c, Math.max(minutes, 20)), env.name ? env.name() : '')
+        : H.reportHTML(c, stars, !!unit.faultSolved, H.clockText(c, 0), H.clockText(c, minutes));
     } else sheet = null;
     el.pSheet.hidden = !sh;
     setHTML(el.pSheet, sh);
@@ -414,7 +520,8 @@ export function createProva(host, env) {
   // Ogni volta che la prova (ri)parte da capo: registro e passi azzerati, la casa al buio.
   function restart(keepPanel) {
     mem = { ...H.newMemory(), panel: !!keepPanel }; log = []; minutes = 0; sheet = null;
-    note(cfg().log.start, { trip: true });
+    note(cfg().log.start, { trip: name === 'appartamento' });
+    prevPs = lastSnap ? provaState(lastSnap) : null; ui.alarm = false;     // il confronto riparte da adesso: la prima azione conta
   }
   function onResize() { placePin(); }
 
@@ -425,11 +532,13 @@ export function createProva(host, env) {
       const first = !mounted;
       if (first) {
         mounted = true; name = snapshot.level.prova.scene; build(); apply();
+        host.classList.toggle('ofc', name === 'officina');
         document.addEventListener('keydown', onKey); window.addEventListener('resize', onResize);
       }
       const ph = snapshot.unit ? snapshot.unit.phase : null;
       const prevPhase = phase;
       lastSnap = snapshot;
+      if (name === 'officina' && cfg()) observeOfficina(snapshot);
       if (sceneState === 'idle') loadScene(snapshot);
       if (cfg()) {
         if (first) {
@@ -439,8 +548,11 @@ export function createProva(host, env) {
         else if (ph === 'fault' && prevPhase === 'done') {
           // "Rifai la prova": il quadro e' gia' aperto, la casa si spegne di nuovo
           restart(true); setAct('play');
-          override = litHouse(); push();
-          later(700, () => { override = null; push(); tac(cfg().log.start); });
+          if (name === 'officina') { if (scene) scene.shift(false); prevPs = provaState(snapshot); }
+          else {
+            override = litHouse(); push();
+            later(700, () => { override = null; push(); tac(cfg().log.start); });
+          }
         } else if (ph === 'done' && prevPhase === 'fault' && act !== 'finale') finale();
       }
       phase = ph;
@@ -456,15 +568,15 @@ export function createProva(host, env) {
       document.removeEventListener('keydown', onKey); window.removeEventListener('resize', onResize);
       if (scene) { scene.dispose(); scene = null; }
       if (ui.schema && env.drawer) env.drawer(false);
-      host._scene = null; name = null; override = null; story = null; act = null;
+      host._scene = null; name = null; override = null; story = null; act = null; prevPs = null; pending = null; pointerHold = null; ui.alarm = false;
       sceneState = 'idle'; mounted = false; lastSnap = null; token++; phase = null; ui.schema = false; ui.torch = false; ui.log = false; ui.delta = false;
       host.innerHTML = ''; host.onclick = null; delete host.dataset.act;
       document.body.classList.remove('ms-intro');
-      host.className = host.className.replace(/\b(lesson|noscene|shake)\b/g, '').trim();
+      host.className = host.className.replace(/\b(lesson|noscene|shake|ofc)\b/g, '').trim();
     },
     isMounted: () => mounted,
     // lo schema si chiude anche dal suo pulsante (sul telefono copre i comandi)
-    closeDrawer() { ui.schema = false; if (env.drawer) env.drawer(false); renderHud(); const b = el.pDock && el.pDock.querySelector('[data-pui="schema"]'); if (b && b.focus) b.focus({ preventScroll: true }); },
+    closeDrawer() { ui.schema = false; if (env.drawer) env.drawer(false); renderHud(); if (name === 'officina' && scene) scene.look('insieme', 900); const b = el.pDock && el.pDock.querySelector('[data-pui="schema"]'); if (b && b.focus) b.focus({ preventScroll: true }); },
     // la prova ha la cornice a tutto schermo (milestone)?
     framed: snapshot => !!(snapshot && snapshot.level.prova && H.provaOf(snapshot.level.prova.scene)),
   };

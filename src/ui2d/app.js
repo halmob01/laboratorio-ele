@@ -57,6 +57,7 @@ const prova = createProva(document.querySelector('#house'), {
   // prove a tutto schermo: lo schema (banco, multimetro, esito) si apre a lato; la sintesi nella finestra solita
   drawer: open => $('#screen-level').classList.toggle('drawer', !!open),
   summary: () => { opener = document.activeElement; openOverlay('summary', V.summaryHTML(S)); },
+  name: () => profile.name,
 });
 let comps = [];         // componenti con geometria per il livello corrente
 let lastKey = null;

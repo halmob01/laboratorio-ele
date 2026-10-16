@@ -209,10 +209,139 @@ test('pagina: la prova si apre a tutto schermo e si gioca dalla cornice fino al 
   assert.ok(!d.body.classList.contains('ms-mode'), 'tornando alla mappa la pagina torna normale');
 });
 
-test('pagina: l’officina resta con la scena accanto al banco (cornice non ancora progettata)', async () => {
-  const { d, errors } = page('#/livello/c24-officina');
-  assert.ok(!d.querySelector('#screen-level').classList.contains('milestone'));
-  assert.ok(d.querySelector('#house .htools'));
+/* ---------- officina (Modulo 3): collaudo del nastro ---------- */
+const OFC = 'c24-officina';
+function officina() {
+  const s = createSession({ levels, deriveFull, initialLevel: OFC }); s.start(); s.skipLesson();
+  let mem = H.newMemory();
+  const kinds = [];
+  const ps = () => provaState(s.snapshot());
+  const step = (action, run) => { const b = ps(); run(); const a = ps(); H.officinaEvents(action, b, a).forEach(e => kinds.push(e.kind)); mem = H.remember('officina', mem, action, b, a); };
+  const tick = n => { for (let i = 0; i < n; i++) step(null, () => s.tick(0.5)); };
+  const press = id => { step({ kind: 'press', id }, () => s.press(id)); step({ kind: 'release', id }, () => s.release(id)); };
+  const steps = () => H.stepsOf('officina', ps(), s.snapshot().unit, mem);
+  return { s, ps, step, tick, press, steps, kinds, mem: () => mem, setMem: m => (mem = m) };
+}
+
+test('officina: le cinque prove si riconoscono da quello che fa il nastro; il sovraccarico non passa', () => {
+  const o = officina();
+  assert.equal(o.steps().length, 8);
+  assert.equal(cur(o.steps()), 0, 'si comincia dalla marcia');
+  o.press('SB1');
+  assert.equal(o.ps().motor, 'fwd');
+  o.tick(16);                                   // il pacco arriva in fondo: il finecorsa ferma il nastro
+  o.step({ kind: 'rewind' }, () => o.s.rewind());
+  o.press('SB1'); o.press('SB0');
+  o.step({ kind: 'rewind' }, () => o.s.rewind());
+  o.press('SB1'); o.step({ kind: 'toggle', id: 'SBE' }, () => o.s.toggleControl('SBE'));
+  o.step({ kind: 'toggle', id: 'SBE' }, () => o.s.toggleControl('SBE'));
+  o.step({ kind: 'rewind' }, () => o.s.rewind());
+  o.press('SB1'); o.step({ kind: 'overload' }, () => o.s.setOverload(true));
+  o.tick(8);
+  assert.deepEqual(o.kinds.filter(k => ['marcia', 'fine', 'arresto', 'fungo', 'tripKo'].includes(k)), ['marcia', 'fine', 'marcia', 'arresto', 'marcia', 'fungo', 'marcia', 'tripKo']);
+  assert.equal(o.ps().motor, 'fwd', 'il termico e\' scattato ma il nastro gira: il guasto');
+  assert.deepEqual(o.mem().tests, { marcia: 'ok', fine: 'ok', arresto: 'ok', emergenza: 'ok', sovraccarico: 'ko' });
+  const st = o.steps();
+  assert.equal(st.filter(x => x.done).length, 4);
+  assert.equal(st[4].ko, true, 'il sovraccarico e\' segnato in rosso');
+  assert.equal(cur(st), 5, 'tocca trovare il guasto');
+  assert.equal(H.describe('officina', null, { ...o.ps(), thermal: { tripped: false, heat: 0.9 } }, o.ps()).text, PROVE.officina.log.tripKo);
+});
+
+test('officina: correzione a salvamotore aperto, ricollaudo e verifica', () => {
+  const o = officina();
+  o.press('SB1'); o.step({ kind: 'overload' }, () => o.s.setOverload(true)); o.tick(8);
+  o.s.answerDiagnosis('a');
+  o.step({ kind: 'toggle', id: 'SBE' }, () => o.s.toggleControl('SBE'));
+  o.step({ kind: 'toggle', id: 'QM' }, () => o.s.toggleControl('QM'));
+  assert.equal(o.ps().qm, false);
+  assert.equal(H.officinaFixed(o.s.snapshot().wires), false);
+  const bad = o.s.snapshot().wires.find(w => [w.a, w.b].sort().join('~') === 'QM.2~SBE.1');
+  o.s.removeWire(bad.id); o.s.addWire('QM.2', 'FR.95', 'rosso'); o.s.addWire('FR.96', 'SBE.1', 'rosso');
+  assert.equal(H.officinaFixed(o.s.snapshot().wires), true);
+  o.setMem(H.rememberFixed(o.mem(), true));
+  assert.deepEqual(o.mem().tests, {}, 'corretto: le prove si rifanno');
+  assert.equal(cur(o.steps()), 7, 'ricollaudo e verifica');
+  // cambiando i fili il motore riparte dai comandi iniziali: fungo sbloccato, termico armato; resta da richiudere il salvamotore
+  assert.equal(o.ps().emergency, false);
+  o.step({ kind: 'toggle', id: 'QM' }, () => o.s.toggleControl('QM'));
+  o.step({ kind: 'overload' }, () => o.s.setOverload(false));
+  o.step({ kind: 'rewind' }, () => o.s.rewind());
+  o.press('SB1'); o.step({ kind: 'overload' }, () => o.s.setOverload(true)); o.tick(8);
+  assert.equal(o.kinds.at(-1), 'tripOk', 'ora il termico ferma il nastro');
+  assert.equal(o.ps().motor, 'off');
+  assert.equal(o.mem().tests.sovraccarico, 'ok');
+  o.step({ kind: 'overload' }, () => o.s.setOverload(false)); o.step({ kind: 'reset' }, () => o.s.resetPart('FR'));
+  const r = o.s.check();
+  assert.equal(r.pass, true);
+  assert.equal(o.s.snapshot().unit.phase, 'done');
+  assert.equal(o.steps().filter(x => x.done).length, 8);
+  const v = H.verbaleHTML(PROVE.officina, 3, true, '6:40', '7:00', 'Sara');
+  assert.match(v, /Verbale di collaudo/);
+  assert.equal((v.match(/Superata/g) || []).length, 5);
+  assert.match(v, /Sara/);
+});
+
+test('officina: ogni filo del banco ha il suo percorso nella scena, acceso secondo lo stato vero', async () => {
+  const { officinaWires, anchorOf } = await import('../src/scene3d/officina-wires.js');
+  const lv = levels.find(l => l.id === OFC);
+  const all = lv.solution.concat(lv.unit.fault.wires).map(([a, b, c], i) => ({ id: i + 1, a, b, c }));
+  all.forEach(w => { assert.ok(anchorOf(w.a), w.a); assert.ok(anchorOf(w.b), w.b); });
+  const o = officina();
+  o.press('SB1');
+  const snap = o.s.snapshot();
+  const list = officinaWires(snap.wires, snap.flow);
+  assert.equal(list.length, snap.wires.length);
+  list.forEach(w => assert.ok(w.pts.length >= 4 && w.pts.every(p => p.length === 3 && p.every(Number.isFinite)), w.id));
+  assert.ok(list.some(w => w.live && w.current), 'in marcia: fili in tensione e percorsi da corrente');
+  const bypass = list.find(w => /QM\.2-SBE\.1/.test(w.id));
+  assert.ok(bypass && bypass.live, 'il filo che scavalca il termico e\' in tensione');
+});
+
+test('pagina: l’officina a tutto schermo: scheda di collaudo, pulsantiera, il nastro che non si ferma, lavoro fuori tensione', async () => {
+  const { w, d, errors } = page('#/livello/' + OFC);
+  const $ = q => d.querySelector(q);
+  assert.ok($('#screen-level').classList.contains('milestone'));
+  assert.match($('#pIntro').textContent, /Scheda di collaudo/);
+  assert.match($('#pIntro').textContent, /Capannone Ferri/);
+  click(w, $('[data-pui="skipIntro"]'));
+  click(w, $('[data-unit="skip"]'));
+  await wait(400);
+  assert.equal($('#house').dataset.act, 'play');
+  assert.match($('#pTop').textContent, /L’officina/);
+  assert.ok(!$('#pTop [data-pui="torch"]'), 'niente torcia nell’officina');
+  assert.equal(d.querySelectorAll('#pSteps .psteps li').length, 8);
+  assert.ok($('#pDock [data-phold="SB1"]') && $('#pDock [data-phold="SB0"]') && $('#pDock [data-pid="SBE"]'));
+  // i tasti si devono poter toccare: nessuno stile del banco (per esempio .stop, che non riceve tocchi) li deve colpire
+  ['SB1', 'SB0'].forEach(id => assert.notEqual(w.getComputedStyle($(`#pDock [data-phold="${id}"]`)).pointerEvents, 'none', id));
+  click(w, $('#pDock [data-phold="SB1"]'));               // da tastiera (click senza puntatore): premi e rilascia
+  await wait(20);
+  assert.ok($('#pDock .pst-lamp.on'), 'la spia si accende');
+  click(w, $('[data-pui="log"]'));
+  assert.match($('#pLog').textContent, /Premuto Marcia: il nastro parte/, 'la prima azione dopo la lezione si registra');
+  assert.ok(d.querySelector('#pSteps li.done'), 'la marcia e\' spuntata');
+  click(w, $('[data-pui="log"]'));
+  click(w, $('#pDock [data-pui="overload"]'));
+  await wait(3800);                                        // l'orologio della pagina: il termico scatta dopo 3 s
+  assert.match($('#pSub').textContent, /Il nastro non si ferma/);
+  assert.ok($('#pDock .pst-mush.alarm'), 'il fungo pulsa');
+  assert.ok(d.querySelector('#pSteps li.ko'), 'sovraccarico non superato');
+  click(w, $('#pDock [data-pid="SBE"]'));
+  await wait(20);
+  assert.ok(!$('#pDock .pst-mush.alarm'));
+  click(w, $('[data-pui="log"]'));
+  assert.match($('#pLog').textContent, /il nastro continua/);
+  click(w, $('[data-pui="answer"]'));
+  click(w, $('[data-pdiag="a"]'));
+  assert.match($('#pSheet').textContent, /Giusto/);
+  click(w, $('[data-pui="closeSheet"]'));
+  click(w, $('[data-pui="schema"]'));
+  assert.ok(!$('#screen-level').classList.contains('drawer'), 'con il salvamotore chiuso il banco non si apre');
+  assert.match($('#pSub').textContent, /Apri il salvamotore/);
+  click(w, $('#pDock [data-pact="toggle"][data-pid="QM"]'));
+  assert.match($('#pDock').textContent, /Lavori in corso/);
+  click(w, $('[data-pui="schema"]'));
+  assert.ok($('#screen-level').classList.contains('drawer'), 'a salvamotore aperto il banco si apre a lato');
   assert.deepEqual(errors, []);
 });
 

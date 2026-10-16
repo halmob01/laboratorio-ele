@@ -210,3 +210,77 @@ export function createWireSet(env) {
     clear() { this.sync([]); },
   };
 }
+
+// Fili vivi (officina): i fili veri del banco, ciascuno con il suo stato dal motore. In tensione si accende partendo dal
+// primo morsetto; percorso da corrente mostra i trattini che scorrono, finche' la corrente c'e'. Un filo nuovo si stende,
+// uno tolto sparisce. Stesso materiale della vista dei fili. list: [{ id, pts, color, live, current }]
+export function createLiveWires(env) {
+  const group = new THREE.Group();
+  group.renderOrder = 20;
+  env.add(group);
+  const wires = new Map();           // id -> { mesh, u, born, live, current, t0, from, to }
+  let running = false;
+  function tick() {
+    if (running) return;
+    running = true;
+    env.loop(() => {
+      const now = performance.now();
+      let busy = false;
+      wires.forEach(w => {
+        w.u.uTime.value = now / 1000;
+        if (w.born) { const k = Math.min(1, (now - w.born) / 520); w.u.uShow.value = k; if (k >= 1) w.born = 0; else busy = true; }
+        if (w.t0) {
+          const k = Math.min(1, (now - w.t0) / (w.to > w.from ? 420 : 240));
+          w.u.uFront.value = w.from + (w.to - w.from) * k * k * (3 - 2 * k);
+          if (k >= 1) w.t0 = 0; else busy = true;
+        }
+        const f = w.current ? 1 : Math.max(0, w.u.uFlow.value - 0.08);
+        w.u.uFlow.value = env.reduced ? 0 : f;
+        if (f > 0 && !env.reduced) busy = true;
+      });
+      if (!busy) { running = false; return false; }
+      return true;
+    });
+  }
+  function make(pts, color) {
+    const path = new THREE.CurvePath();
+    for (let i = 1; i < pts.length; i++) path.add(new THREE.LineCurve3(new THREE.Vector3(...pts[i - 1]), new THREE.Vector3(...pts[i])));
+    const len = path.getLength();
+    const geo = new THREE.TubeGeometry(path, Math.max(16, Math.round(len * 10)), 0.009, 5, false);
+    const u = {
+      uColor: { value: new THREE.Color(WIRE_HEX[color] || 0xffffff) }, uFront: { value: 0 }, uFlow: { value: 0 }, uTime: { value: 0 },
+      uDir: { value: 1 }, uLen: { value: len }, uHi: { value: 0 }, uShow: { value: 1 }, uRev: { value: 0 },
+    };
+    const mat = new THREE.ShaderMaterial({ uniforms: u, vertexShader: VS, fragmentShader: FS, transparent: true, blending: THREE.AdditiveBlending, depthTest: false, depthWrite: false });
+    const mesh = new THREE.Mesh(geo, mat);
+    mesh.renderOrder = 20; mesh.frustumCulled = false;
+    return { mesh, u };
+  }
+  return {
+    sync(list, animateNew = true) {
+      const keep = new Set();
+      list.forEach(d => {
+        keep.add(d.id);
+        let w = wires.get(d.id);
+        if (!w) {
+          w = { ...make(d.pts, d.color), born: animateNew && !env.reduced ? performance.now() : 0, live: false, current: false, t0: 0, from: 0, to: 0 };
+          if (w.born) w.u.uShow.value = 0;
+          group.add(w.mesh);
+          wires.set(d.id, w);
+        }
+        if (!!d.live !== w.live) {
+          w.live = !!d.live;
+          if (env.reduced) w.u.uFront.value = w.live ? 1 : 0;
+          else { w.from = w.u.uFront.value; w.to = w.live ? 1 : 0; w.t0 = performance.now(); }
+        }
+        w.current = !!d.current && w.live;
+      });
+      wires.forEach((w, id) => { if (!keep.has(id)) { group.remove(w.mesh); w.mesh.geometry.dispose(); w.mesh.material.dispose(); wires.delete(id); } });
+      tick(); env.redraw();
+    },
+    // mette in evidenza alcuni fili (per esempio quello che scavalca il termico)
+    highlight(ids) { wires.forEach((w, id) => (w.u.uHi.value = ids && ids.includes(id) ? 1 : 0)); env.redraw(); },
+    setVisible(on) { group.visible = !!on; env.redraw(); },
+    clear() { this.sync([]); },
+  };
+}

@@ -1,6 +1,18 @@
 # Progetto: "Il turno parte alle 7", la prova dell'officina (Modulo 3)
 
-**Stato: progetto, non realizzato.**
+**Stato: realizzato.** Differenze rispetto al progetto:
+- l'atto 3 (trovare il quadro con il segnaposto) non c'e': si gioca subito dalla pulsantiera, il quadro si guarda aprendo il banco;
+- "Incastra un pacco" rimette prima il pacco all'inizio del nastro: cosi' il termico (3 s) scatta sempre prima del finecorsa (6 s);
+  a nastro fermo un sottotitolo dice di premere Marcia;
+- i fili nella scena sono i fili veri del banco, ciascuno acceso con lo stato del motore (`snapshot.flow`): mappa e percorsi in
+  `src/scene3d/officina-wires.js`, disegno in `createLiveWires` (`src/scene3d/wiring.js`);
+- cambiando i fili il motore riparte dai comandi iniziali (fungo sbloccato, termico armato): resta da richiudere il salvamotore;
+- traduzioni in `src/i18n/ar-29.js` (`ar-27.js` e `ar-28.js` sono di P6).
+
+Fluidita' misurata dopo la realizzazione (Chromium con rendering software): a riposo 0 chiamate di disegno; nastro in marcia
+81 per fotogramma su telefono, 185 su computer, dove a tutto schermo l'occlusione ambientale ridisegna la scena una seconda
+volta (e' il primo gradino che la qualita' adattiva toglie: senza, circa 110). Il pacco e i pacchi del turno hanno l'ombra
+finta: le ombre del sole non si ricalcolano mentre il nastro gira.
 
 Decisioni prese:
 - **Orologio finto**: dalle 6:40 alle 7:00, solo atmosfera. Nessuna penalità, nessun bonus, nessun conto alla rovescia.
@@ -268,7 +280,7 @@ bene; con la fila di pacchi del finale e la passerella diventerebbe la scena pi�
 
 ## Testi
 
-Tutti i testi nuovi, pronti da copiare. A destra la bozza in arabo per un nuovo `src/i18n/ar-27.js` (P6 è arrivata fino ad `ar-26.js`)
+Tutti i testi nuovi, pronti da copiare. A destra la traduzione in arabo, ora in `src/i18n/ar-29.js`
 (da ricontrollare con `node scripts/check-lang.mjs ar` dopo l'inserimento).
 
 | Italiano | Arabo |

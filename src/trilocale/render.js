@@ -36,6 +36,9 @@ export function createPipeline(renderer, scene, camera, { lite, bloom = 0.45 }) 
     // a meta' risoluzione: e' un'ombra morbida e passa dal filtro che la ammorbidisce, la differenza non si vede e costa un quarto
     const setSize = gtao.setSize.bind(gtao);
     gtao.setSize = (w, h) => setSize(Math.max(1, Math.ceil(w / 2)), Math.max(1, Math.ceil(h / 2)));
+    // gli oggetti trasparenti (fili, vetri, scritte) non fanno occlusione: fuori dal disegno delle normali, che e' la scena una seconda volta
+    const hide = gtao._overrideVisibility.bind(gtao);
+    gtao._overrideVisibility = function () { hide(); this.scene.traverse(o => { if (o.visible && o.isMesh && o.material && o.material.transparent) o.visible = false; }); };
     composer.addPass(gtao);
   }
   const bloomPass = new UnrealBloomPass(new THREE.Vector2(1, 1), bloom, 0.45, 1.0);
