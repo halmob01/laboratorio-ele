@@ -1,6 +1,6 @@
 # Progetto: "Il turno di notte", la prova della fabbrica (Modulo 6)
 
-**Stato: fasi 1 e 2 fatte** (motore e livello c51; cornice a tempo, vedi sezione 8). Prossima: fase 3, i pezzi del kit.
+**Stato: fasi 1, 2 e 3a fatte** (motore e livello c51; cornice a tempo; portale e finecorsa in `parts-cella.js`, vedi sezione 8). In corso: fase 3b in un'altra sessione (ramo `fabbrica-fase3b`). Poi: fase 4, la scena.
 Fase 2: la prova si gioca dall'inizio alla fine senza scena (consegna del turno, ora del turno dal motore, barra del turno con
 pezzi, fermo e guasti, pulsantiera con Riarmo, pannello operatore con Riconosci e "Ricollega il cavo", portella, i sensori della
 cella con il LED da sostituire con un tocco, momento forte al primo "Ciclo bloccato", rapporto di fine turno). Il registro dice
