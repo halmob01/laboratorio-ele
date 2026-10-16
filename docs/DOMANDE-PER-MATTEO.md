@@ -56,3 +56,12 @@ Da far controllare al collega di laboratorio:
 
 - Modulo 5 (energia e casa intelligente): inserito nel percorso tra Modulo 4 e fabbrica, ramo opzionale fuori dal percorso minimo (docs/ARCHITETTURA-PERCORSO.md, sezione 3).
 - Valori tecnici ricercati con fonti: docs/VALORI-TECNICI.md. Le sei domande per il collega sono in fondo a quel file.
+
+## La casa intelligente (16 ottobre)
+
+- Il Modulo 5 diventa un solo modulo, "La casa intelligente", con un solo traguardo 3D: comando (videocitofono, sensore e attuatore, casa col PLC, allarme) ed energia (c38-c42) insieme, in ordine di difficoltà. c38-c42 si spostano dopo i livelli di comando sulla mappa. Va bene?
+- Videocitofono: sul mercato si installano soprattutto sistemi a due fili con bus digitale. Nel gioco il livello usa il trasformatore a 12 V, la chiamata e l'apriporta; il bus si spiega solo in una pagina della lezione. Basta, o conviene un livello con un morsetto bus?
+- Tempo di apertura della serratura nel videocitofono: 3 secondi (valore didattico). Valori reali?
+- Allarme fumo e allagamento: contatti NC in serie come in antifurto reale, memoria dell'allarme con tacitazione. Il rilevatore reale ha un contatto di uscita libero da tensione: va bene rappresentarlo con un contatto normale?
+- Lavori in sicurezza (Modulo 3, prima dell'officina): procedura sezionare, bloccare con lucchetto, verificare l'assenza di tensione, lavorare. La sequenza e i termini ("lucchetto", "cartello") vanno bene o usate le cinque regole d'oro di cantiere con altre parole?
+- Tolti dal piano: condominio (autoclave, ascensore, lampade di emergenza, sgancio antincendio), gru, comando a due mani, palchi, bus di campo, manutenzione predittiva. Il condominio resta come idea futura.

@@ -78,6 +78,7 @@ Differenze dal syllabus: multimetro come livello a sé e primo del modulo; c08 e
 | 3.4 | Marcia e arresto (c13) | autoritenuta, STOP chiuso a riposo | esiste | sì |
 | 3.5 | Il relè termico (c14) | 95-96 nel comando, riarmo | esiste | sì |
 | 3.6 | Il nastro (c16) | finecorsa, quadro su una macchina | esiste | sì |
+| 3.7 | Lavori in sicurezza | sezionare, bloccare con il lucchetto, verificare l'assenza di tensione con il multimetro, poi lavorare | nuovo: serve il passo "lucchetto" in sessione e verifica; prima della prova dell'officina | sì |
 
 Il lavoro fuori tensione (fatto in P2) non ha toccato i livelli esistenti: c12-c16 e c22 dichiarano `safety.deadWork: ['QM']` e la sessione registra i fili toccati mentre erano in tensione per colpa del salvamotore chiuso. In c13-c16 il salvamotore resta chiuso all'inizio, e l'allievo deve aprirlo prima di cablare.
 
@@ -96,7 +97,7 @@ Differenze dal syllabus: inversione e interblocco restano un solo livello (c15).
 
 ### Modulo 6, La fabbrica
 
-Il Modulo 5 non è un prerequisito della fabbrica, ma sta nel percorso prima di essa (vedi sotto). Il Modulo 6 si costruisce prima del 5B perché è la meta.
+Il Modulo 5 non è un prerequisito della fabbrica, ma sta nel percorso prima di essa (vedi sotto). Il Modulo 6 si costruisce prima dei livelli di comando del Modulo 5 perché è la meta.
 
 | # | Livello | Si impara | Tipo | Minimo |
 |---|---|---|---|---|
@@ -112,26 +113,36 @@ Il Modulo 5 non è un prerequisito della fabbrica, ma sta nel percorso prima di 
 | 6.10 | Gestione guasti | tre guasti dalla libreria, a tempo | regolazione | sì |
 | 6.11 | La fabbrica | cablare, programmare, mettere in sicurezza, gestire un turno | tutti | sì |
 
-Differenze dal syllabus: bus di campo e manutenzione predittiva diventano facoltativi dopo la fabbrica (molto lavoro per concetti che non servono ai livelli successivi). Il pannello operatore è nel minimo perché la gestione guasti parte dagli allarmi.
+Differenze dal syllabus: bus di campo e manutenzione predittiva sono tolti dal percorso (molto lavoro per concetti che non servono ai livelli successivi; eventuali idee future). Il pannello operatore è nel minimo perché la gestione guasti parte dagli allarmi.
 
-### Modulo 5, Impianti del futuro
+### Modulo 5, La casa intelligente
 
-Decisione di Matteo (14 ottobre): il Modulo 5 entra nel percorso, tra il Modulo 4 e la fabbrica. Resta fuori dal percorso minimo verso la fabbrica: non è un prerequisito, ma è un ramo che l'allievo può fare e che sulla mappa compare come tappa normale.
+Decisione di Matteo (14 ottobre): il Modulo 5 entra nel percorso, tra il Modulo 4 e la fabbrica. Resta fuori dal percorso minimo verso la fabbrica: non è un prerequisito, ma è un modulo che l'allievo può fare e che sulla mappa compare come tappa normale.
 
-Ordine di gioco: M1, M2, M3, M4, **M5**, M6. Ordine di costruzione diverso (vedi sezione 10): il Modulo 5 chiede il simulatore (E7) e la corrente continua (E8), che nascono con la regolazione del Modulo 6.
+Revisione del 16 ottobre (decisioni di Gianluca, da far confermare a Matteo): il modulo si chiama **La casa intelligente** ed è **un solo modulo** con un solo traguardo; la divisione 5A (energia) e 5B (comando) era una divisione del lavoro, non dell'allievo, e sparisce. I livelli seguono la difficoltà crescente e la casa si completa un pezzo alla volta.
 
-| # | Livello | Si impara | Chiede | Minimo |
+Ordine di gioco: M1, M2, M3, M4, **M5**, M6. Ordine di costruzione diverso (vedi sezione 10): l'energia chiede il simulatore (E7) e la corrente continua (E8), che sono nati con la regolazione del Modulo 6.
+
+| # | Livello | Si impara | Chiede | Stato |
 |---|---|---|---|---|
-| 5.1 | Il sensore e l'attuatore (5B) | sensore di presenza e luce, tapparella, comando a bassa tensione | M2, c10 | no |
-| 5.2 | La casa col PLC (5B) | luci e tapparelle da programma, scene (esce, torna) | M4 (PLC) | no |
-| 5.3 | La corrente continua (5A) | polarità, serie e parallelo, un pannello e un carico | E8 | no |
-| 5.4 | Il pannello fotovoltaico (5A) | stringa, inverter, produzione nella giornata simulata | E7, E8 | no |
-| 5.5 | Il contatore e lo scambio (5A) | consumo, produzione, immissione | E7 | no |
-| 5.6 | L'accumulo (5A) | batteria: carica di giorno, scarica di sera | E7, E8 | no |
-| 5.7 | La colonnina (5A) | potenza di ricarica, gestione del carico, limite del contatore | E7, PLC | no |
-| 5.8 | La casa intelligente | una giornata simulata: sole, batteria, auto, carichi, scene | tutti i precedenti | no |
+| 5.1 | Il videocitofono | trasformatore e bassa tensione, chiamata dal posto esterno, apriporta con la serratura a 12 V e il suo tempo | M2, c10 | nuovo, pezzi esistenti |
+| 5.2 | Il sensore e l'attuatore | sensore di presenza e luce, tapparella, comando a bassa tensione | M2, c10 | nuovo, pezzi esistenti |
+| 5.3 | La casa col PLC | luci e tapparelle da programma, scene (esco, torno) | M4 (PLC) | nuovo |
+| 5.4 | Allarme fumo e allagamento | contatto NC che protegge anche se il filo si stacca, memoria dell'allarme, tacitazione | M2, M4 | nuovo, pezzi esistenti |
+| 5.5 | La corrente continua (c38) | polarità, serie e parallelo, un pannello e un carico | E8 | esiste |
+| 5.6 | Il pannello fotovoltaico (c39) | stringa, inverter, produzione nella giornata simulata | E7, E8 | esiste |
+| 5.7 | Il contatore e lo scambio (c40) | consumo, produzione, immissione | E7 | esiste |
+| 5.8 | L'accumulo (c41) | batteria: carica di giorno, scarica di sera | E7, E8 | esiste |
+| 5.9 | La colonnina (c42) | un carico staccato prima del limite del contatore | E7, PLC | esiste |
+| 5.10 | La gestione dei carichi | più carichi con priorità, il riattacco con ritardo (il pendolamento), seconda prova con le fasce orarie | E7 ampliato | nuovo, serve l'ampliamento di `energia` |
+| 5.11 | Il clima per zone | termostato con isteresi per zona, consenso alla pompa di calore (almeno una zona chiede), finestra aperta, giorno e notte | E7 con il modello `zone` | nuovo, serve il modello `zone` |
+| Prova | La casa intelligente (3D) | una sera d'inverno con sole, batteria, auto, clima e allarme insieme | tutti i precedenti | da fare |
 
-Perché qui: la casa intelligente riprende l'appartamento del Modulo 1 con i sensori e il PLC appena imparati; l'energia si ragiona bene solo dopo aver visto i carichi, le protezioni e un processo nel tempo. Meglio dopo l'automazione e prima della fabbrica: la fabbrica riusa lo stesso simulatore con processi più grandi. La mappa può mostrare il Modulo 5 come ramo opzionale, con la fabbrica raggiungibile anche senza averlo fatto.
+Perché questo ordine: il comando (5.1-5.4) riprende i pezzi di M2 e il PLC appena imparato; poi l'energia, già costruita, che si ragiona bene solo dopo aver visto i carichi, le protezioni e un processo nel tempo; la gestione dei carichi chiude l'energia; il clima è il livello più ricco e usa PLC, sonde, isteresi e consenso insieme.
+
+**Videocitofono.** Sul mercato si installano soprattutto sistemi a due fili con bus digitale (voce, video e alimentazione sugli stessi fili). Il motore non simula i bus: il livello insegna ciò che resta uguale (alimentatore separato dalla rete, chiamata dal posto esterno, apriporta a 12 V con il suo tempo, niente 230 V sulla pulsantiera) e il bus si spiega in una pagina della lezione. Da far confermare a Matteo.
+
+**Fuori dal piano (16 ottobre):** condominio (autoclave, ascensore, lampade di emergenza, sgancio antincendio) come idea futura; gru, comando a due mani, palchi e spettacoli; bus di campo e manutenzione predittiva (erano facoltativi dopo la fabbrica).
 
 ## 4. Estensioni del motore
 
@@ -188,7 +199,7 @@ Le estensioni sono additive: i livelli esistenti non cambiano (salvo M3, vedi so
 - Ogni grandezza si registra nel tempo. Prove sul tracciato: `expect: { trace: { T: { within: [58, 62], after: 60 } } }`, `maxSwitches`, `never`.
 - **4-20 mA in forma simbolica**: se l'anello è chiuso con la polarità giusta, la corrente è quella che dà il modello (4 mA a 0 per cento, 20 mA a 100); anello aperto vale 0 mA. Non serve E8 per il Modulo 6.
 
-### E8. Corrente continua (per M5A)
+### E8. Corrente continua (per il Modulo 5)
 
 Polarità e serie/parallelo di generatori non si fanno con i potenziali simbolici. Serve un piccolo calcolo numerico limitato ai circuiti in continua (pochi nodi, soluzione esatta), separato dalla rete in alternata e usato solo dai livelli che lo dichiarano.
 
@@ -266,15 +277,15 @@ Ogni fase si chiude con lo stesso controllo di oggi: test verdi, schermate a 390
 | P3 | Prove 3D di M2 e M3 sul kit comune | due prove nuove |
 | P4 | E6 sicurezza funzionale sul nastro di c16 | 6.1-6.3 |
 | P5 | `kt`, `motor6`, stella-triangolo; E5 PLC, scansione, editor ladder, `emergencyHardwired` | M4 completo e prova 3D di M4 |
-| P6 | E7 modelli, pannello di regolazione, 4-20 mA simbolico; E8 corrente continua | 6.4-6.8 e Modulo 5A (5.3-5.7) |
+| P6 | E7 modelli, pannello di regolazione, 4-20 mA simbolico; E8 corrente continua | 6.4-6.8 e i livelli di energia del Modulo 5 (5.5-5.9) |
 | P7 | Linea, libreria guasti, corrente visibile per reti grandi, fabbrica, prova 3D finale | 6.9-6.11 |
-| P8 | Modulo 5B (casa col PLC) e finale 5.8 | Modulo 5 completo |
+| P8 | Livelli di comando del Modulo 5 (5.1-5.4), poi modelli `zone` ed `energia` ampliato (5.10-5.11), poi la prova 3D della casa | Modulo 5 completo |
 
 P4 viene prima del PLC perché non ne ha bisogno e consolida la sicurezza cablata. Le fasi più rischiose sono P5 (editor ladder su telefono) e P6 (modelli giusti ma semplici): per entrambe un prototipo da far provare a una classe prima di scrivere i livelli.
 
 ## 11. Decisioni per Matteo
 
-1. **Modulo 5:** deciso da Matteo il 14 ottobre, entra tra il Modulo 4 e la fabbrica (sezione 3), come ramo opzionale fuori dal percorso minimo.
+1. **Modulo 5:** deciso da Matteo il 14 ottobre, entra tra il Modulo 4 e la fabbrica (sezione 3), fuori dal percorso minimo. Il 16 ottobre è diventato un solo modulo, "La casa intelligente", con il videocitofono e senza la divisione energia/comando: da far confermare.
 2. **Percorso minimo:** c08 e c09 fuori dal minimo, c10 dentro. Va bene?
 3. **Multimetro** come primo livello di M2 e **lavoro fuori tensione** obbligatorio da M3, con la modifica di c13-c16 che serve. Va bene?
 4. **Colori:** rosso per il comando in alternata (in uso da c13), blu per il comando in continua del PLC. Da confermare con il collega.
@@ -295,9 +306,9 @@ P4 viene prima del PLC perché non ne ha bisogno e consolida la sicurezza cablat
 | M3-1 … M3-6 | 3.1 … 3.6 |
 | M4-1, M4-2 | 4.1 (c15, un solo livello) |
 | M4-3 … M4-7 | 4.2 … 4.6 (4.3 rifà c13 nel PLC) |
-| M5A, M5B | Modulo 5 (decisione 1) |
+| M5A, M5B | Modulo 5, un solo modulo (decisione 1) |
 | M6-1 … M6-7 | 6.1 … 6.7 (6.1-6.3 sul nastro cablato) |
-| M6-8 bus di campo | facoltativo dopo la fabbrica |
+| M6-8 bus di campo | tolto dal percorso |
 | M6-9 SCADA | 6.8 |
-| M6-10 manutenzione predittiva | facoltativo dopo la fabbrica |
+| M6-10 manutenzione predittiva | tolto dal percorso |
 | M6-11, M6-12, M6-13 | 6.9, 6.10, 6.11 |
