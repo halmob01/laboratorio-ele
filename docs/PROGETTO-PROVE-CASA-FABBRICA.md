@@ -1,6 +1,8 @@
 # Progetto: le prove 3D che mancano (Modulo 5 la casa, Modulo 6 la fabbrica)
 
-**Stato: proposta da approvare.** Nessun codice scritto. Le decisioni aperte sono in fondo (sezione 5).
+**Stato (16 ottobre sera): la fabbrica e' fatta e in `main` (c51, vedi `docs/PROGETTO-FABBRICA.md`). La casa ha la specifica
+aggiornata in `docs/PROGETTO-CASA.md`, che sostituisce la sezione 3 qui sotto, e il piano per due sessioni in `docs/PIANO-CASA.md`.**
+Questo documento resta come storia della proposta.
 
 Le prove 3D fatte: trilocale (M1), appartamento di notte (M2), officina (M3), nastro automatico (M4). Mancano la casa
 intelligente (M5) e la fabbrica (M6). Il piano aggiornato del percorso (`docs/ARCHITETTURA-PERCORSO.md`, 16 ottobre) mette la

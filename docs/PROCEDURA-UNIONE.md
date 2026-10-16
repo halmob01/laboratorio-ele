@@ -41,3 +41,5 @@ Scritta il 16 ottobre 2026 da Gianluca, dopo la collisione evitata tra la casa i
 | Lavori in sicurezza, Gestione dei carichi, Clima per zone | c52, c53, c54 | livelli-casa-sicurezza | in lavorazione |
 | File arabi dei tre livelli | ar-42 (usato); ar-43 e ar-44 liberi | livelli-casa-sicurezza | ar-42 usato |
 | Fabbrica fase 3b (pezzi del reparto, nessun numero) | - | fabbrica-fase3b, da `claude/stoic-hawking-u5cka0` | in `main` |
+| Prova 3D della casa "Una sera d'inverno": motore, livello, cornice | c55, ar-46 | casa-motore-cornice (sessione A di `docs/PIANO-CASA.md`) | prenotato |
+| Prova 3D della casa: scena e scheda in mappa | ar-47 | casa-scena-3d (sessione B di `docs/PIANO-CASA.md`) | prenotato |
