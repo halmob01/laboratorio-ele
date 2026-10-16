@@ -11,10 +11,25 @@ export const ROW_MS = 180;                          // le file di plafoniere si 
 const LAMP = 17;
 const WH = 3.6;
 
+// L'ora della notte (prova della fabbrica, "Il turno di notte"): sole quasi spento e bluastro che non fa ombra, ambiente basso,
+// finestre scure, accesa solo la fila di plafoniere sopra la cella. Si passa a buildHall cosi' com'e' ({ ...NOTTE, reduced }).
+export const NOTTE = {
+  sun: { color: 0x6f86c4, intensity: 0.12, pos: [7, 9, -6] },
+  mood: { sun: [0.06, 0.1], cold: 0x5d74b0, warm: 0x9fb2e0, env: [0.03, 0.05] },
+  sunShadow: false,
+  windows: 0.06,
+  rowsOn: [2],
+  bg: 0x070b14,
+  exposure: 1.0,
+};
+
 /**
  * @param {object} stage   palco (createStage)
  * @param {object} M       materiali del kit (kitMaterials)
- * @param {{ reduced?: boolean, sun?: { color, intensity, pos }, mood?: { sun:[number,number], cold:number, warm:number, env:[number,number] }, shadowRow?: number }} o
+ * @param {{ reduced?: boolean, sun?: { color, intensity, pos }, mood?: { sun:[number,number], cold:number, warm:number, env:[number,number] }, shadowRow?: number,
+ *   rowsOn?: number[], sunShadow?: boolean, windows?: number, bg?: number, exposure?: number }} o
+ *   rowsOn: file di plafoniere accese (le altre spente, anche dopo lampsOn); sunShadow: false per un sole che non fa ombra;
+ *   windows: luminosita' delle finestre (emissivo; sotto 0,2 anche il vetro si fa scuro); bg: colore del cielo; exposure: esposizione. Senza queste opzioni il capannone e' quello di sempre.
  */
 export function buildHall(stage, M, o = {}) {
   const { world, lite } = stage;
@@ -24,7 +39,7 @@ export function buildHall(stage, M, o = {}) {
   const sun = new THREE.DirectionalLight(sunO.color || 0xdfe8ff, sunO.intensity || 1.5);
   sun.position.set(...(sunO.pos || [7, 9, -6]));
   sun.target.position.set(5.5, 0, 3.5);
-  sun.castShadow = true;
+  sun.castShadow = o.sunShadow !== false;
   sun.shadow.mapSize.set(lite ? 1024 : 2048, lite ? 1024 : 2048);
   Object.assign(sun.shadow.camera, { left: -9, right: 9, top: 9, bottom: -9, near: 1, far: 30 });
   sun.shadow.bias = -0.0004; sun.shadow.normalBias = 0.02; sun.shadow.radius = 4;
@@ -45,6 +60,8 @@ export function buildHall(stage, M, o = {}) {
     return { light: l, mat, level: 1 };
   });
   function setRow(r, v) { r.level = v; r.light.intensity = LAMP * v; r.mat.emissiveIntensity = 0.05 + 2.35 * v; r.mat.color.setScalar(0.35 + 0.65 * v); }
+  const lit = i => !o.rowsOn || o.rowsOn.includes(i);      // fila che si accende (tutte, senza rowsOn)
+  if (o.rowsOn) rows.forEach((r, i) => { if (!lit(i)) setRow(r, 0); });
   // con le plafoniere spente resta la luce del sole (fredda all'alba)
   const md = o.mood || { sun: [0.55, 0.95], cold: 0x9fb4e0, warm: 0xdfe8ff, env: [0.1, 0.12] };
   const warm = new THREE.Color(md.warm);
@@ -55,6 +72,10 @@ export function buildHall(stage, M, o = {}) {
     stage.setEnvIntensity(md.env[0] + md.env[1] * k);
     stage.redraw();
   }
+
+  if (o.windows !== undefined) { M.windowGlow.emissiveIntensity = o.windows; if (o.windows < 0.2) M.windowGlow.color.setHex(0x1c2636); }
+  if (o.exposure !== undefined && stage.renderer) stage.renderer.toneMappingExposure = o.exposure;
+  if (o.bg !== undefined && stage.THREE_scene && stage.THREE_scene.background) stage.THREE_scene.background.setHex(o.bg);
 
   // ---- pavimento, pareti, piazzale ----
   const floor = new THREE.Mesh(new THREE.PlaneGeometry(14, 11), M.concrete);
@@ -128,10 +149,10 @@ export function buildHall(stage, M, o = {}) {
     shutterK: () => shutterK,
     // le plafoniere si accendono una fila alla volta, con il tremolio dei tubi (fino al livello `to`)
     lampsOn(to = 1) {
-      if (o.reduced) { rows.forEach(r => setRow(r, to)); mood(); return; }
+      if (o.reduced) { rows.forEach((r, i) => setRow(r, lit(i) ? to : 0)); mood(); return; }
       const flick = t => (t < 0 ? 0 : t < 50 ? 0.7 : t < 100 ? 0.05 : t < 150 ? 1 : t < 190 ? 0.35 : 1);
       const total = ROW_MS * rows.length + 260;
-      stage.animate(total, k => { rows.forEach((r, i) => setRow(r, to * flick(k * total - i * ROW_MS))); mood(); });
+      stage.animate(total, k => { rows.forEach((r, i) => setRow(r, lit(i) ? to * flick(k * total - i * ROW_MS) : 0)); mood(); });
     },
     shutterTo(open, ms = 1600) {
       const from = shutterK, to = open ? 1 : 0;
