@@ -25,10 +25,12 @@ export const PARTS = {
   rs: { coil: ['A1', 'A2'], contacts: (c, s) => pole(s.on, [['13', '14'], ['23', '24']]), init: () => ({ on: false, coil: false, ready: false, held: false, disc: false }) },
 
   // protezioni e sezionamento (chiusi all'inizio, salvo `init: 0`)
+  // `lock` (lavoro fuori tensione con il lucchetto, level.safety.lockout): solo aperto si blocca; bloccato non si richiude.
+  // `verified`: letture di assenza di tensione fatte a lucchetto messo (le registra la sessione), si azzera togliendo o mettendo il lucchetto.
   // `in` (portata, A) e `ratings` (portate tra cui scegliere) rendono il sovraccarico simulato (E1): vedi sim.js, lineCurrent.
-  mt: { protect: 'corto', contacts: (c, s) => pole(s.on, [['1', '2'], ['N1', 'N2']]), poles: { F: ['1', '2'], N: ['N1', 'N2'] }, init: c => ({ on: c.init !== 0, tripped: false, in: c.in || null, heat: 0 }), actions: ['toggle', 'rate'] },
-  mt3: { protect: 'corto', contacts: (c, s) => pole(s.on, [['1', '2'], ['3', '4'], ['5', '6']]), init: c => ({ on: c.init !== 0, tripped: false }), actions: ['toggle'] },
-  sez: { contacts: (c, s) => pole(s.on, [['1', '2'], ['3', '4'], ['5', '6']]), init: c => ({ on: c.init !== 0, tripped: false }), actions: ['toggle'] },
+  mt: { protect: 'corto', contacts: (c, s) => pole(s.on, [['1', '2'], ['N1', 'N2']]), poles: { F: ['1', '2'], N: ['N1', 'N2'] }, init: c => ({ on: c.init !== 0, tripped: false, in: c.in || null, heat: 0, locked: false, verified: [] }), actions: ['toggle', 'rate', 'lock'] },
+  mt3: { protect: 'corto', contacts: (c, s) => pole(s.on, [['1', '2'], ['3', '4'], ['5', '6']]), init: c => ({ on: c.init !== 0, tripped: false, locked: false, verified: [] }), actions: ['toggle', 'lock'] },
+  sez: { contacts: (c, s) => pole(s.on, [['1', '2'], ['3', '4'], ['5', '6']]), init: c => ({ on: c.init !== 0, tripped: false, locked: false, verified: [] }), actions: ['toggle', 'lock'] },
   rcd: { protect: 'terra', contacts: (c, s) => pole(s.on, [['1', '2'], ['N1', 'N2']]), poles: { F: ['1', '2'], N: ['N1', 'N2'] }, init: c => ({ on: c.init !== 0, tripped: false }), actions: ['toggle', 'test'] },
 
   // dispersione verso terra (guasto d'isolamento): non ha morsetti. `at` e' il punto del circuito dove l'isolante cede, `levels` le correnti disperse (mA) tra cui scegliere

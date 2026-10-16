@@ -208,6 +208,7 @@ export function itemText(item, level) {
     case 'safe.emergency': return 'Con il pulsante di emergenza premuto qualcosa resta alimentato: l’emergenza deve fermare tutto.';
     case 'safe.restartAfterEmergency': return 'Sbloccando l’emergenza la macchina riparte da sola: deve ripartire solo con un nuovo comando di marcia.';
     case 'safe.notCovered': return 'Un carico (' + nameOf(level, item.comp) + ') non è protetto dal differenziale.';
+    case 'safe.lockout': return 'Hai cambiato i fili senza finire la procedura di sicurezza su ' + nameOf(level, item.comp) + ': prima si apre il sezionamento, si mette il lucchetto e si verifica con il multimetro che non ci sia tensione. Premi Annulla tutto e rifai il lavoro in quest’ordine.';
     case 'safe.liveWork': return 'Hai cambiato i fili mentre il sezionamento (' + nameOf(level, item.comp) + ') era chiuso e i morsetti erano in tensione. Premi Annulla tutto, apri il sezionamento e cabla da capo.';
     case 'safe.programRunning': return 'Hai cambiato il programma con la macchina (' + nameOf(level, item.comp) + ') in moto: il PLC riparte da zero e la macchina può fermarsi o ripartire mentre qualcuno ci lavora. Premi Annulla tutto, ferma la macchina e correggi il programma da capo.';
     case 'safe.singleChannel': return 'I due canali dipendono dallo stesso contatto: se si incolla o viene scavalcato da un cortocircuito, restano chiusi tutti e due. Ogni canale deve avere il suo percorso.';
@@ -251,6 +252,9 @@ export function sessionMessage(msg) {
         ? 'Il magnetotermico è scattato: la fase tocca il neutro (cortocircuito).'
         : 'È scattato il differenziale: la fase è finita sul filo di terra.';
     case 'programLiveNow': return 'Attenzione: stai cambiando il programma con la macchina in moto. Fermala prima: così com’è, perdi la stella di sicurezza.';
+    case 'lockWorkNow': return 'Attenzione: hai toccato i fili prima di finire la procedura (sezionamento aperto, lucchetto messo, assenza di tensione verificata con il multimetro). Così com’è, perdi la stella di sicurezza.';
+    case 'isoLocked': return 'Il sezionamento è bloccato con il lucchetto: toglilo prima di richiuderlo.';
+    case 'lockNeedsOpen': return 'Il lucchetto si mette solo a sezionamento aperto: aprilo prima.';
     case 'liveWorkNow': return 'Attenzione: stai toccando morsetti in tensione. Apri il sezionamento prima di cablare: così com’è, perdi la stella di sicurezza.';
     case 'editWhileLive': return 'Per sicurezza il quadro si è spento: non si toccano i fili con la corrente.';
     case 'powerOff': return 'Quadro spento.';

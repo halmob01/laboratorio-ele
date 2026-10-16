@@ -44,6 +44,14 @@ function poles(c, tops, bots, closed, L, y1 = 22, y2 = c.h - 22) {
 // Pulsante di guasto simulato (galleggiante bloccato, filo interrotto) nei livelli con il pannello operatore.
 const faultBtn = (id, kind, x, y, text, aria) => `<g class="tbtn" data-${kind}="${id}" role="button" tabindex="0" aria-label="${aria}"><rect x="${x}" y="${y}" width="60" height="26" rx="5" fill="#F6E1C8" stroke="var(--comp-edge)" stroke-width="1.4"/><text x="${x + 30}" y="${y + 17}" text-anchor="middle" style="font:600 10px 'IBM Plex Mono',monospace;fill:#222">${text}</text></g>`;
 
+// Lucchetto sul sezionamento del lavoro fuori tensione (level.safety.lockout): si tocca per metterlo o toglierlo.
+const lockBtn = (c, s, part, w) => {
+  if (!s.lockout || s.lockout.iso !== c.id) return '';
+  const on = !!part.locked, x = w / 2 - 36;
+  const icon = `<rect x="${x + 8}" y="13" width="11" height="9" rx="1.5" fill="${on ? '#B5651D' : 'none'}" stroke="var(--comp-edge)" stroke-width="1.4"/><path d="M${x + 10} 13 v-3 a3.5 3.5 0 0 1 7 0 ${on ? 'v3' : 'v-1'}" fill="none" stroke="var(--comp-edge)" stroke-width="1.4"/>`;
+  return `<g class="tbtn" data-lock="${c.id}" role="button" tabindex="0" aria-label="${on ? 'Togli il lucchetto da' : 'Metti il lucchetto su'} ${c.short}"><rect x="${x}" y="3" width="72" height="24" rx="5" fill="${on ? '#F6E1C8' : '#EDE7D4'}" stroke="var(--comp-edge)" stroke-width="1.4"/>${icon}<text x="${x + 46}" y="19" text-anchor="middle" style="font:600 9px 'IBM Plex Mono',monospace" fill="#1B2230">${on ? 'BLOCCATO' : 'LUCCHETTO'}</text></g>`;
+};
+
 export function schemV2(c, s, L, ui) {
   const w = c.w, h = c.h, st = s.controlStates[c.id] ? 1 : 0, part = obsOf(s, c.id), obs = s.obs || { loads: {}, motors: {}, coils: {} };
   let o = '';
@@ -71,12 +79,14 @@ export function schemV2(c, s, L, ui) {
         o += `<g class="tbtn" data-rate="${c.id}" role="button" tabindex="0" aria-label="Portata ${c.short}: ${part.in} ampere. Tocca per cambiarla"><rect x="${w / 2 - 25}" y="${h - 50}" width="50" height="26" rx="5" fill="#EDE7D4" stroke="var(--comp-edge)" stroke-width="1.4"/><text x="${w / 2}" y="${h - 32}" text-anchor="middle" style="font:600 13px 'IBM Plex Mono',monospace;fill:#222">${part.in} A</text></g>`;
         o += lab(w / 2, h - 12, amps ? amps.toFixed(1).replace('.', ',') + ' A' : '0 A');
       }
+      if (c.type === 'mt') o += lockBtn(c, s, part, w);
       if (c.type === 'rcd') o += `<g class="tbtn" data-test="${c.id}" role="button" tabindex="0" aria-label="Tasto di prova ${c.short}"><rect x="${w / 2 - 15}" y="${h - 46}" width="30" height="24" rx="5" fill="#EDE7D4" stroke="var(--comp-edge)" stroke-width="1.4"/><text x="${w / 2}" y="${h - 29}" text-anchor="middle" style="font:600 12px 'IBM Plex Mono',monospace;fill:#222">T</text></g>`;
       break;
     }
     case 'mt3': case 'sez': {
       o += poles(c, ['1', '3', '5'], ['2', '4', '6'], part.on, L);
       o += lever(w / 2, mid, part.on, part.tripped);
+      o += lockBtn(c, s, part, w);
       break;
     }
     case 'pb': case 'pbnc': {

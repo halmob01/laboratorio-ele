@@ -27,7 +27,7 @@ for (const L of withUnit) {
   });
 
   test(`${L.id}: i passi si completano con la soluzione`, () => {
-    const st = stepsState(u.steps, W(L.solution), { power: true, operated: new Set((L.controls || []).concat((L.safety && L.safety.deadWork) || [])), result: { pass: true }, measured: loggedMeasures(L), ratings: L.solutionRatings, programs: L.solutionPrograms });
+    const st = stepsState(u.steps, W(L.solution), { power: true, operated: new Set((L.controls || []).concat((L.safety && L.safety.deadWork) || []).concat(L.safety && L.safety.lockout ? ['lock:' + L.safety.lockout.iso] : [])), result: { pass: true }, measured: loggedMeasures(L), ratings: L.solutionRatings, programs: L.solutionPrograms });
     assert.ok(st.done.every(Boolean), JSON.stringify(st));
     const dp = u.lesson.pages.find(p => p.type === 'demo');
     if (dp) assert.ok(demoFrames(L, dp.captions).length > L.solution.length);

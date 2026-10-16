@@ -40,6 +40,7 @@ import p36 from './ar-36.js';
 import p37 from './ar-37.js';
 import p38 from './ar-38.js';
 import p39 from './ar-39.js';
+import p40 from './ar-40.js';
 
 const ROLE = { 'del neutro': 'المحايد', 'di terra': 'الأرضي', 'di fase': 'الطور', 'a bassa tensione': 'الجهد المنخفض', 'di comando': 'التحكم', 'del positivo': 'الموجب', 'del negativo': 'السالب', 'in continua': 'التيار المستمر' };
 const COLORI = { 'blu': 'أزرق', 'giallo-verde': 'أصفر-أخضر', 'marrone, nero o grigio': 'بنيًّا أو أسود أو رماديًّا', 'rosso, marrone, nero o grigio': 'أحمر أو بنيًّا أو أسود أو رماديًّا', 'di un colore diverso da blu e giallo-verde': 'بلون مختلف عن الأزرق والأصفر-الأخضر', 'rosso': 'أحمر', 'nero': 'أسود', 'rosso o nero': 'أحمر أو أسود' };
@@ -156,7 +157,10 @@ const PAT = [
   [/^portata ([\d,.]+) A$/, m => `السعة ${m[1]} أمبير`],
   [/^Corrente dispersa: (\d+) milliampere\. Tocca per cambiarla$/, m => `التيار المتسرّب: ${m[1]} مللي أمبير. المس لتغييره`],
   [/^Portata (.+): (\d+) ampere\. Tocca per cambiarla$/, (m, t) => `السعة ${t(m[1])}: ${m[2]} أمبير. المس لتغييرها`],
+  [/^Hai cambiato i fili senza finire la procedura di sicurezza su (.+): prima si apre il sezionamento, si mette il lucchetto e si verifica con il multimetro che non ci sia tensione\. Premi Annulla tutto e rifai il lavoro in quest’ordine\.$/, (m, t) => `غيّرت الأسلاك دون إنهاء إجراء السلامة على ${t(m[1])}: أولًا يُفتح عنصر الفصل، ثم يوضع القفل، ثم يُتحقَّق بجهاز القياس المتعدد من انعدام الجهد. اضغط «إلغاء الكل» وأعد العمل بهذا الترتيب.`],
+  [/^Metti il lucchetto su (.+)$/, (m, t) => `ضع القفل على ${t(m[1])}`],
+  [/^Togli il lucchetto da (.+)$/, (m, t) => `أزل القفل عن ${t(m[1])}`],
   [/^Protezioni scattate: (.+)\.$/, (m, t) => `حمايات فصلت: ${t(m[1])}.`],
 ];
 
-registerLang('ar', { ...p1, ...p2, ...p3, ...p4, ...p5, ...p6, ...p7, ...p8, ...p9, ...p10, ...p11, ...p12, ...p13, ...p14, ...p15, ...p16, ...p17, ...p18, ...p19, ...p20, ...p21, ...p22, ...p23, ...p24, ...p25, ...p26, ...p27, ...p28, ...p29, ...p30, ...p31, ...p32, ...p33, ...p34, ...p35, ...p36, ...p37, ...p38, ...p39 }, PAT);
+registerLang('ar', { ...p1, ...p2, ...p3, ...p4, ...p5, ...p6, ...p7, ...p8, ...p9, ...p10, ...p11, ...p12, ...p13, ...p14, ...p15, ...p16, ...p17, ...p18, ...p19, ...p20, ...p21, ...p22, ...p23, ...p24, ...p25, ...p26, ...p27, ...p28, ...p29, ...p30, ...p31, ...p32, ...p33, ...p34, ...p35, ...p36, ...p37, ...p38, ...p39, ...p40 }, PAT);

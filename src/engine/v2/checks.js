@@ -347,7 +347,9 @@ export function evaluateV2(level, wires, ctx = {}) {
       wires.forEach(w => uf.u(w.a, w.b));
       S.earth.forEach(([x, y]) => { if (uf.f(x) !== uf.f(y)) fail('safe.noEarth', { comp: x.split('.')[0] }); });
     }
-    if (S.deadWork && (ctx.liveEdits || []).length) fail('safe.liveWork', { comp: S.deadWork[0] });
+    // lucchetto: fili cambiati senza la procedura completa (sezionare, bloccare, verificare l'assenza di tensione), registrati dalla sessione
+    if (S.lockout && (ctx.liveEdits || []).length) fail('safe.lockout', { comp: S.lockout.iso });
+    else if (S.deadWork && (ctx.liveEdits || []).length) fail('safe.liveWork', { comp: S.deadWork[0] });
     if (S.programStopped && ctx.programLive) fail('safe.programRunning', { comp: S.programStopped[0] });
     if (S.never) {
       const both = runs.some(x => x.r.sim.kmHistory.some(on => S.never.some(pair => pair.every(id => on.includes(id)))));

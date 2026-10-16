@@ -217,3 +217,15 @@ Codici: `safe.notProtected` `{ comp, by }`, `safe.neutralBroken`, `safe.noEarth`
 - Nastro: il finecorsa ferma il motore a fine corsa.
 - Instabilità: contattore alimentato attraverso il proprio NC dà `instabile`, non un ciclo infinito.
 - I livelli v1 non cambiano: tutti i test esistenti restano verdi.
+
+## Lucchetto: il lavoro fuori tensione con la procedura (16 ottobre)
+
+Scritto da Opus con il codice, per il livello 3.7 "Lavori in sicurezza". Test in `test/lucchetto.test.js`.
+
+- **Livello**: `safety.lockout = { iso: 'QS', test: [['QS.2', 'QS.N2'], ...], known: ['QS.1', 'QS.N1'] }`. `iso` è il sezionamento (`mt`, `mt3` o `sez`); `test` le coppie di morsetti a valle su cui verificare l'assenza di tensione (tutte); `known`, facoltativo, un punto che resta in tensione a monte, per provare che lo strumento funziona (230 V). Il livello ha il multimetro (`meter: true`).
+- **Motore** (`parts.js`, `sim.js`): azione `lock` su `mt`, `mt3`, `sez`. Si mette solo a sezionamento aperto; bloccato, `toggle` non lo richiude. `verified` raccoglie le letture valide e si azzera mettendo o togliendo il lucchetto.
+- **Sessione**: `lockControl(id)` mette o toglie il lucchetto (messaggio `lockNeedsOpen` se il sezionamento è chiuso, `isoLocked` se si prova a richiuderlo bloccato). Una lettura del multimetro conta se il sezionamento è aperto e bloccato e l'impianto è alimentato: 0 V su una coppia di `test`, 230 V su `known`. Ogni filo aggiunto, tolto o annullato prima che la procedura sia completa si registra (messaggio `lockWorkNow`) e la verifica dà `safe.lockout` (stella di sicurezza persa). "Annulla tutto" azzera il registro. Lucchetto e letture si salvano con il lavoro (`iso: { QS: { lock: [coppie] } }`).
+- **Vista**: `snapshot().lockout = { iso, locked, done, verified, need }`; sul banco il pulsante LUCCHETTO / BLOCCATO (`data-lock`) sopra il sezionamento.
+- **Passi**: `{ kind: 'lock', id }` è fatto quando il lucchetto è stato messo almeno una volta.
+- **Didattica** (per chi scrive il livello): la sequenza è sezionare, bloccare, verificare l'assenza di tensione (prima provando lo strumento su un punto in tensione), lavorare, togliere il lucchetto, richiudere e collaudare. La regola non guarda se i morsetti toccati erano davvero in tensione: conta la procedura, come in cantiere.
+
