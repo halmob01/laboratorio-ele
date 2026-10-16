@@ -816,6 +816,69 @@ html[dir="rtl"] .phud,html[dir="rtl"] .psheet,html[dir="rtl"] .pintro,html[dir="
   .psteps li.cur .pnode,.ppin::before{animation:none}
 }
 
+/* ---------- officina: pulsantiera, prove del verbale, verbale di collaudo ---------- */
+.psteps li.ko{color:var(--hud-bad)}
+.psteps li.ko .pnode{background:var(--hud-bad);border-color:#1B2230}
+.pcall-label{font-weight:600;color:var(--hud-ink);text-transform:uppercase;letter-spacing:.1em;font-size:12px;border:1px solid var(--hud-line);border-radius:999px;padding:5px 10px}
+.house[data-act="arrive"] .psub{opacity:0}
+.house[data-act="call"] .hlabels,.house[data-act="arrive"] .hlabels{visibility:hidden}
+.house.ofc .psteps-box{background:rgba(10,15,23,.74);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);padding:14px 14px 14px 12px;border-radius:14px;border:1px solid var(--hud-line)}
+.house.ofc .psteps li{color:var(--hud-ink2)}
+.pstation{background:linear-gradient(#E9E6DE,#D3CFC5);position:relative;overflow:hidden}
+.pstation::before{content:"";position:absolute;left:0;right:0;top:0;height:6px;background:repeating-linear-gradient(-45deg,#E3B61F 0 10px,#17181A 10px 20px)}
+.pst{display:grid;grid-template-columns:auto 1fr;gap:12px;align-items:stretch}
+.pst-panel{display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:10px;background:linear-gradient(#F0C52A,#D9AE16);box-shadow:inset 0 1px 0 rgba(255,255,255,.6),0 3px 0 rgba(0,0,0,.25)}
+.pst-btn,.pst-mush,.pst-lamp{display:flex;flex-direction:column;align-items:center;gap:6px;background:none;border:0;padding:0;cursor:pointer;color:#17181A!important;font:600 11px/1 'IBM Plex Mono',monospace;text-transform:uppercase;letter-spacing:.05em;touch-action:none;user-select:none;-webkit-user-select:none}
+.pst-cap{display:block;width:46px;height:46px;border-radius:50%;box-shadow:0 0 0 5px #23262A,0 4px 0 5px #111;transition:transform .08s}
+.pst-btn.pst-go .pst-cap{background:radial-gradient(circle at 40% 35%,#5FE08F,#1F8F45)}
+.pst-btn.pst-stop .pst-cap{background:radial-gradient(circle at 40% 35%,#E8453B,#9E140D)}
+.pst-btn[aria-pressed="true"] .pst-cap,.pst-btn:active .pst-cap{transform:translateY(3px);box-shadow:0 0 0 5px #23262A,0 1px 0 5px #111}
+.pst-mush .pst-cap{width:58px;height:58px;background:radial-gradient(circle at 40% 30%,#FF7468,#C4261D 60%,#8E140E);box-shadow:0 0 0 6px #E3B61F,0 0 0 8px #17181A,0 6px 0 8px #111}
+.pst-mush[aria-pressed="true"] .pst-cap{transform:translateY(4px) scale(.96);box-shadow:0 0 0 6px #E3B61F,0 0 0 8px #17181A,0 2px 0 8px #111}
+.pst-mush.alarm .pst-cap{animation:palarm .8s ease-in-out infinite}
+@keyframes palarm{50%{box-shadow:0 0 0 6px #E3B61F,0 0 0 8px #17181A,0 6px 0 8px #111,0 0 0 18px rgba(255,90,95,.45)}}
+.pst-lamp{cursor:default}
+.pst-lamp .pst-cap{width:26px;height:26px;background:#244a31;box-shadow:0 0 0 4px #23262A}
+.pst-lamp.on .pst-cap{background:radial-gradient(circle,#B9FFD0,#2EE66A);box-shadow:0 0 0 4px #23262A,0 0 18px #2EE66A}
+.pst-side{display:grid;grid-template-columns:1fr 1fr;gap:8px;align-content:center}
+.pst-lever{grid-column:1/-1;display:flex;align-items:center;gap:10px;border:1.5px solid #B88A00;background:rgba(245,184,0,.16);border-radius:10px;padding:8px 12px;cursor:pointer;color:#1B2230!important;font-weight:600;text-align:left;min-height:44px}
+.pst-knob{position:relative;width:38px;height:20px;border-radius:999px;background:#5d646b;flex:none;transition:background .2s}
+.pst-knob::after{content:"";position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:50%;background:#fff;transition:left .2s}
+.pst-lever[aria-pressed="true"] .pst-knob{background:#C4261D}
+.pst-lever[aria-pressed="true"] .pst-knob::after{left:20px}
+.pst-mod{position:relative;display:flex;flex-wrap:wrap;align-items:center;gap:6px;padding:7px 9px;border-radius:8px;background:#F7F5F0;box-shadow:inset 0 0 0 1px #C9C6BD;color:#1B2230;min-width:0}
+.pst-name{font:600 10px/1 'IBM Plex Mono',monospace;text-transform:uppercase;letter-spacing:.06em;color:#4A5262;width:100%}
+.pst-sw{border:1px solid #9A968B;background:#fff;border-radius:6px;padding:5px 9px;cursor:pointer;font:600 13px/1 'IBM Plex Sans',sans-serif;color:#1B2230!important;min-height:32px}
+.pst-sw:disabled{opacity:.45;cursor:default}
+.pst-mod.open{box-shadow:inset 0 0 0 2px #E3B61F}
+.pst-tag{font:700 10px/1 'IBM Plex Mono',monospace;background:#F5C400;color:#17181A;padding:4px 6px;border-radius:3px;text-transform:uppercase}
+.pst-heat{flex:1;min-width:30px;height:6px;border-radius:3px;background:linear-gradient(90deg,#FF7A1A var(--h),#D8DCE2 var(--h))}
+.pst-state{font:600 12px/1 'IBM Plex Mono',monospace}
+.pst-mod.fr.trip{box-shadow:inset 0 0 0 2px var(--hud-bad)}
+.pst-mod.fr.trip .pst-state{color:#B21E16}
+.pst-side .pchip{grid-column:1/-1;justify-self:start;border-color:#9A968B;background:rgba(255,255,255,.5);color:#1B2230}
+.pverb-sub{margin:-6px 0 0!important;color:#6A6457!important;font-style:italic}
+.pverb-tests{list-style:none;margin:0;padding:0;display:grid;gap:4px}
+.pverb-tests li{display:flex;justify-content:space-between;gap:10px;border-bottom:1px dotted #B9B4A8;padding-bottom:3px}
+.pverb-tests b{color:#1F7A44;font:600 12px/1.6 'IBM Plex Mono',monospace;text-transform:uppercase}
+@media (max-width:760px){
+  .pst{grid-template-columns:1fr;gap:8px}
+  .pst-panel{justify-content:space-around;padding:8px}
+  .pst-cap{width:38px;height:38px}
+  .pst-mush .pst-cap{width:46px;height:46px}
+  .pst-side{grid-template-columns:1fr 1fr 1fr}
+  .pst-lever{grid-column:1/-1;min-height:38px;padding:6px 10px}
+  .pst-side .pchip{grid-column:auto;align-self:stretch}
+  .pst-heat{display:none}
+}
+@media (max-height:520px){
+  .pst{grid-template-columns:auto 1fr}
+  .pst-cap{width:32px;height:32px}
+  .pst-mush .pst-cap{width:38px;height:38px}
+  .pst-btn span:last-child,.pst-mush span:last-child,.pst-lamp span:nth-child(2){font-size:9px}
+}
+@media (prefers-reduced-motion:reduce){.pst-mush.alarm .pst-cap{animation:none}}
+
 /* ---------- trilocale a tutto schermo: la casa dietro, il banco in un pannello accanto ---------- */
 .trimode{--benchw:min(52vw,760px)}
 .trimode .house .hstage{background:linear-gradient(#2A3346,#141A26)}
@@ -3344,15 +3407,15 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
       if (S2.stopWins) {
         const sim = createSim(level, wires);
         act(sim, "press", S2.stopWins);
-        const running2 = (o) => Object.values(o.motors).some((m) => m !== "off") || Object.values(o.coils).some(Boolean);
+        const running3 = (o) => Object.values(o.motors).some((m) => m !== "off") || Object.values(o.coils).some(Boolean);
         let bad2 = false;
         level.comps.filter((c2) => c2.type === "pb").forEach((c2) => {
           act(sim, "press", c2.id);
-          if (running2(observe(sim))) bad2 = true;
+          if (running3(observe(sim))) bad2 = true;
           act(sim, "release", c2.id);
         });
         act(sim, "release", S2.stopWins);
-        if (bad2 || running2(observe(sim))) fail2("safe.stopNotPriority");
+        if (bad2 || running3(observe(sim))) fail2("safe.stopNotPriority");
       }
       if (S2.emergency) {
         const sim = createSim(level, wires);
@@ -3392,7 +3455,7 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
         const { reset, load } = S2.restartNeedsReset;
         [].concat(S2.restartNeedsReset.stop).forEach((stop) => {
           const sim = createSim(level, wires);
-          const running2 = () => {
+          const running3 = () => {
             const o = observe(sim);
             return o.loads[load] === "on" || o.motors[load] && o.motors[load] !== "off";
           };
@@ -3404,15 +3467,15 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
             act(sim, "press", a);
             act(sim, "release", a);
           });
-          if (!running2()) return;
+          if (!running3()) return;
           act(sim, "toggle", stop);
-          if (running2()) fail2("safe.stopNotHeld");
+          if (running3()) fail2("safe.stopNotHeld");
           act(sim, "toggle", stop);
-          if (running2()) fail2("safe.restartByItself");
+          if (running3()) fail2("safe.restartByItself");
           if (reset) {
             act(sim, "press", reset);
             act(sim, "release", reset);
-            if (!running2()) fail2("safe.noRestart");
+            if (!running3()) fail2("safe.noRestart");
           }
         });
       }
@@ -17265,6 +17328,82 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
     "\u22126 V: in continua il segno dice da che parte sta il positivo.": "\u22126 \u0641\u0648\u0644\u062A: \u0641\u064A \u0627\u0644\u062A\u064A\u0627\u0631 \u0627\u0644\u0645\u0633\u062A\u0645\u0631 \u062A\u062F\u0644 \u0627\u0644\u0625\u0634\u0627\u0631\u0629 \u0639\u0644\u0649 \u062C\u0647\u0629 \u0627\u0644\u0645\u0648\u062C\u0628."
   };
 
+  // src/i18n/ar-29.js
+  var ar_29_default = {
+    "Modulo 3": "\u0627\u0644\u0648\u062D\u062F\u0629 3",
+    "Modulo 3 \xB7 prova finale": "\u0627\u0644\u0648\u062D\u062F\u0629 3 \xB7 \u0627\u0644\u0627\u062E\u062A\u0628\u0627\u0631 \u0627\u0644\u0646\u0647\u0627\u0626\u064A",
+    "Ore 6:40. Il turno parte alle 7.": "\u0627\u0644\u0633\u0627\u0639\u0629 6:40. \u062A\u0628\u062F\u0623 \u0627\u0644\u0648\u0631\u062F\u064A\u0629 \u0641\u064A \u0627\u0644\u0633\u0627\u0628\u0639\u0629.",
+    "Il nastro \xE8 montato: collaudalo prima che parta il turno. Prova marcia, finecorsa, arresto, emergenza e sovraccarico, e se qualcosa non va trovalo e correggilo a salvamotore aperto.": "\u0627\u0644\u062D\u0632\u0627\u0645 \u0645\u0631\u0643\u064E\u0651\u0628: \u0627\u062E\u062A\u0628\u0631\u0647 \u0642\u0628\u0644 \u0623\u0646 \u062A\u0628\u062F\u0623 \u0627\u0644\u0648\u0631\u062F\u064A\u0629. \u062C\u0631\u0651\u0628 \u0627\u0644\u062A\u0634\u063A\u064A\u0644 \u0648\u0646\u0647\u0627\u064A\u0629 \u0627\u0644\u0645\u0634\u0648\u0627\u0631 \u0648\u0627\u0644\u0625\u064A\u0642\u0627\u0641 \u0648\u0627\u0644\u0637\u0648\u0627\u0631\u0626 \u0648\u0627\u0644\u062D\u0645\u0644 \u0627\u0644\u0632\u0627\u0626\u062F\u060C \u0648\u0625\u0646 \u0644\u0645 \u064A\u0639\u0645\u0644 \u0634\u064A\u0621 \u0641\u062C\u062F \u0627\u0644\u0639\u0637\u0644 \u0648\u0635\u062D\u0651\u062D\u0647 \u0648\u0627\u0644\u0642\u0627\u0637\u0639 \u0627\u0644\u062D\u0627\u0645\u064A \u0644\u0644\u0645\u062D\u0631\u0643 \u0645\u0641\u062A\u0648\u062D.",
+    "Pulsantiera del nastro": "\u0644\u0648\u062D\u0629 \u0623\u0632\u0631\u0627\u0631 \u0627\u0644\u062D\u0632\u0627\u0645",
+    "Scheda di collaudo": "\u0628\u0637\u0627\u0642\u0629 \u0627\u0644\u0627\u062E\u062A\u0628\u0627\u0631",
+    "Capannone Ferri, Via dell\u2019Industria 4": "\u0645\u0633\u062A\u0648\u062F\u0639 \u0641\u064A\u0631\u0651\u064A\u060C \u0634\u0627\u0631\u0639 \u0627\u0644\u0635\u0646\u0627\u0639\u0629 4",
+    "\xABIl nastro \xE8 montato. Il turno parte alle 7: collaudalo prima che arrivino gli operai.\xBB": "\xAB\u0627\u0644\u062D\u0632\u0627\u0645 \u0645\u0631\u0643\u064E\u0651\u0628. \u062A\u0628\u062F\u0623 \u0627\u0644\u0648\u0631\u062F\u064A\u0629 \u0641\u064A \u0627\u0644\u0633\u0627\u0628\u0639\u0629: \u0627\u062E\u062A\u0628\u0631\u0647 \u0642\u0628\u0644 \u0648\u0635\u0648\u0644 \u0627\u0644\u0639\u0645\u0651\u0627\u0644.\xBB",
+    "Sovraccarico": "\u062D\u0645\u0644 \u0632\u0627\u0626\u062F",
+    "Trova il guasto": "\u062C\u062F \u0627\u0644\u0639\u0637\u0644",
+    "Correggi a salvamotore aperto": "\u0635\u062D\u0651\u062D \u0648\u0627\u0644\u0642\u0627\u0637\u0639 \u0627\u0644\u062D\u0627\u0645\u064A \u0644\u0644\u0645\u062D\u0631\u0643 \u0645\u0641\u062A\u0648\u062D",
+    "Ricollauda e verifica": "\u0623\u0639\u062F \u0627\u0644\u0627\u062E\u062A\u0628\u0627\u0631 \u0648\u062A\u062D\u0642\u0651\u0642",
+    "Il nastro non si ferma.": "\u0627\u0644\u062D\u0632\u0627\u0645 \u0644\u0627 \u064A\u062A\u0648\u0642\u0641.",
+    "Premi il fungo.": "\u0627\u0636\u063A\u0637 \u0632\u0631 \u0627\u0644\u0637\u0648\u0627\u0631\u0626.",
+    "Il termico ha fermato il nastro.": "\u0623\u0648\u0642\u0641 \u0627\u0644\u0645\u0631\u062D\u0650\u0651\u0644 \u0627\u0644\u062D\u0631\u0627\u0631\u064A \u0627\u0644\u062D\u0632\u0627\u0645.",
+    "Si \xE8 fermato solo a fine corsa.": "\u0644\u0645 \u064A\u062A\u0648\u0642\u0641 \u0625\u0644\u0627 \u0639\u0646\u062F \u0646\u0647\u0627\u064A\u0629 \u0627\u0644\u0645\u0634\u0648\u0627\u0631.",
+    "Apri il salvamotore prima di toccare i fili.": "\u0627\u0641\u062A\u062D \u0627\u0644\u0642\u0627\u0637\u0639 \u0627\u0644\u062D\u0627\u0645\u064A \u0644\u0644\u0645\u062D\u0631\u0643 \u0642\u0628\u0644 \u0644\u0645\u0633 \u0627\u0644\u0623\u0633\u0644\u0627\u0643.",
+    "Ora premi Marcia: il motore dovr\xE0 spingere il pacco incastrato.": "\u0627\u0644\u0622\u0646 \u0627\u0636\u063A\u0637 \u0627\u0644\u062A\u0634\u063A\u064A\u0644: \u0639\u0644\u0649 \u0627\u0644\u0645\u062D\u0631\u0643 \u0623\u0646 \u064A\u062F\u0641\u0639 \u0627\u0644\u0637\u0631\u062F \u0627\u0644\u0645\u062D\u0634\u0648\u0631.",
+    "Verbale di collaudo": "\u0645\u062D\u0636\u0631 \u0627\u0644\u0627\u062E\u062A\u0628\u0627\u0631",
+    "Nastro trasportatore, linea 1": "\u0627\u0644\u062D\u0632\u0627\u0645 \u0627\u0644\u0646\u0627\u0642\u0644\u060C \u0627\u0644\u062E\u0637 1",
+    "Contatto 95-96 del termico fuori dal circuito di comando: con il sovraccarico il termico scattava ma il nastro non si fermava.": "\u062A\u0644\u0627\u0645\u0633 95-96 \u0644\u0644\u0645\u0631\u062D\u0650\u0651\u0644 \u0627\u0644\u062D\u0631\u0627\u0631\u064A \u062E\u0627\u0631\u062C \u062F\u0627\u0626\u0631\u0629 \u0627\u0644\u062A\u062D\u0643\u0645: \u0645\u0639 \u0627\u0644\u062D\u0645\u0644 \u0627\u0644\u0632\u0627\u0626\u062F \u0643\u0627\u0646 \u0627\u0644\u0645\u0631\u062D\u0650\u0651\u0644 \u064A\u0641\u0635\u0644 \u0644\u0643\u0646 \u0627\u0644\u062D\u0632\u0627\u0645 \u0644\u0627 \u064A\u062A\u0648\u0642\u0641.",
+    "A salvamotore aperto, il 95-96 del termico messo in serie prima del fungo.": "\u0648\u0627\u0644\u0642\u0627\u0637\u0639 \u0627\u0644\u062D\u0627\u0645\u064A \u0644\u0644\u0645\u062D\u0631\u0643 \u0645\u0641\u062A\u0648\u062D\u060C \u0648\u064F\u0636\u0639 \u062A\u0644\u0627\u0645\u0633 95-96 \u0644\u0644\u0645\u0631\u062D\u0650\u0651\u0644 \u0627\u0644\u062D\u0631\u0627\u0631\u064A \u0639\u0644\u0649 \u0627\u0644\u062A\u0648\u0627\u0644\u064A \u0642\u0628\u0644 \u0632\u0631 \u0627\u0644\u0637\u0648\u0627\u0631\u0626.",
+    "Ore 7:00. Il turno pu\xF2 partire.": "\u0627\u0644\u0633\u0627\u0639\u0629 7:00. \u064A\u0645\u0643\u0646 \u0623\u0646 \u062A\u0628\u062F\u0623 \u0627\u0644\u0648\u0631\u062F\u064A\u0629.",
+    "Superata": "\u0646\u0627\u062C\u062D",
+    "Non superata": "\u063A\u064A\u0631 \u0646\u0627\u062C\u062D",
+    "Nastro montato. Inizia il collaudo.": "\u0627\u0644\u062D\u0632\u0627\u0645 \u0645\u0631\u0643\u064E\u0651\u0628. \u064A\u0628\u062F\u0623 \u0627\u0644\u0627\u062E\u062A\u0628\u0627\u0631.",
+    "Premuto Marcia: il nastro parte, la spia \xE8 accesa.": "\u0636\u064F\u063A\u0637 \u0627\u0644\u062A\u0634\u063A\u064A\u0644: \u064A\u0646\u0637\u0644\u0642 \u0627\u0644\u062D\u0632\u0627\u0645\u060C \u0648\u0627\u0644\u0645\u0635\u0628\u0627\u062D \u0627\u0644\u062F\u0644\u064A\u0644\u064A \u0645\u0636\u0627\u0621.",
+    "Premuto Marcia: il nastro non parte.": "\u0636\u064F\u063A\u0637 \u0627\u0644\u062A\u0634\u063A\u064A\u0644: \u0627\u0644\u062D\u0632\u0627\u0645 \u0644\u0627 \u064A\u0646\u0637\u0644\u0642.",
+    "Premuto Arresto: il nastro si ferma.": "\u0636\u064F\u063A\u0637 \u0627\u0644\u0625\u064A\u0642\u0627\u0641: \u0627\u0644\u062D\u0632\u0627\u0645 \u064A\u062A\u0648\u0642\u0641.",
+    "Premuto Arresto.": "\u0636\u064F\u063A\u0637 \u0627\u0644\u0625\u064A\u0642\u0627\u0641.",
+    "Premuto il fungo di emergenza: il nastro si ferma.": "\u0636\u064F\u063A\u0637 \u0632\u0631 \u0627\u0644\u0637\u0648\u0627\u0631\u0626: \u0627\u0644\u062D\u0632\u0627\u0645 \u064A\u062A\u0648\u0642\u0641.",
+    "Premuto il fungo di emergenza.": "\u0636\u064F\u063A\u0637 \u0632\u0631 \u0627\u0644\u0637\u0648\u0627\u0631\u0626.",
+    "Sbloccato il fungo di emergenza.": "\u062D\u064F\u0631\u0650\u0651\u0631 \u0632\u0631 \u0627\u0644\u0637\u0648\u0627\u0631\u0626.",
+    "Il pacco arriva in fondo: il finecorsa ferma il nastro.": "\u064A\u0635\u0644 \u0627\u0644\u0637\u0631\u062F \u0625\u0644\u0649 \u0627\u0644\u0646\u0647\u0627\u064A\u0629: \u0645\u0641\u062A\u0627\u062D \u0646\u0647\u0627\u064A\u0629 \u0627\u0644\u0645\u0634\u0648\u0627\u0631 \u064A\u0648\u0642\u0641 \u0627\u0644\u062D\u0632\u0627\u0645.",
+    "Pacco incastrato: il motore assorbe troppo.": "\u0637\u0631\u062F \u0645\u062D\u0634\u0648\u0631: \u0627\u0644\u0645\u062D\u0631\u0643 \u064A\u0633\u062D\u0628 \u062A\u064A\u0627\u0631\u064B\u0627 \u0632\u0627\u0626\u062F\u064B\u0627.",
+    "Pacco liberato.": "\u062D\u064F\u0631\u0650\u0651\u0631 \u0627\u0644\u0637\u0631\u062F.",
+    "Il termico \xE8 scattato, ma il nastro continua.": "\u0641\u0635\u0644 \u0627\u0644\u0645\u0631\u062D\u0650\u0651\u0644 \u0627\u0644\u062D\u0631\u0627\u0631\u064A\u060C \u0644\u0643\u0646 \u0627\u0644\u062D\u0632\u0627\u0645 \u064A\u0633\u062A\u0645\u0631.",
+    "Il termico \xE8 scattato e ferma il nastro.": "\u0641\u0635\u0644 \u0627\u0644\u0645\u0631\u062D\u0650\u0651\u0644 \u0627\u0644\u062D\u0631\u0627\u0631\u064A \u0648\u0623\u0648\u0642\u0641 \u0627\u0644\u062D\u0632\u0627\u0645.",
+    "Riarmato il termico.": "\u0623\u064F\u0639\u064A\u062F \u062A\u0633\u0644\u064A\u062D \u0627\u0644\u0645\u0631\u062D\u0650\u0651\u0644 \u0627\u0644\u062D\u0631\u0627\u0631\u064A.",
+    "Aperto il salvamotore: lavori in corso.": "\u0641\u064F\u062A\u062D \u0627\u0644\u0642\u0627\u0637\u0639 \u0627\u0644\u062D\u0627\u0645\u064A \u0644\u0644\u0645\u062D\u0631\u0643: \u0623\u0639\u0645\u0627\u0644 \u062C\u0627\u0631\u064A\u0629.",
+    "Richiuso il salvamotore.": "\u0623\u064F\u0639\u064A\u062F \u0625\u063A\u0644\u0627\u0642 \u0627\u0644\u0642\u0627\u0637\u0639 \u0627\u0644\u062D\u0627\u0645\u064A \u0644\u0644\u0645\u062D\u0631\u0643.",
+    "Pacco rimesso all\u2019inizio del nastro.": "\u0623\u064F\u0639\u064A\u062F \u0627\u0644\u0637\u0631\u062F \u0625\u0644\u0649 \u0628\u062F\u0627\u064A\u0629 \u0627\u0644\u062D\u0632\u0627\u0645.",
+    "Il 95-96 del termico ora \xE8 in serie nel comando.": "\u062A\u0644\u0627\u0645\u0633 95-96 \u0644\u0644\u0645\u0631\u062D\u0650\u0651\u0644 \u0627\u0644\u062D\u0631\u0627\u0631\u064A \u0627\u0644\u0622\u0646 \u0639\u0644\u0649 \u0627\u0644\u062A\u0648\u0627\u0644\u064A \u0641\u064A \u062F\u0627\u0626\u0631\u0629 \u0627\u0644\u062A\u062D\u0643\u0645.",
+    "Risposta giusta: il 95-96 del termico non \xE8 nel comando.": "\u0625\u062C\u0627\u0628\u0629 \u0635\u062D\u064A\u062D\u0629: \u062A\u0644\u0627\u0645\u0633 95-96 \u0644\u0644\u0645\u0631\u062D\u0650\u0651\u0644 \u0627\u0644\u062D\u0631\u0627\u0631\u064A \u0644\u064A\u0633 \u0641\u064A \u062F\u0627\u0626\u0631\u0629 \u0627\u0644\u062A\u062D\u0643\u0645.",
+    "Verifica: collaudo superato.": "\u0627\u0644\u062A\u062D\u0642\u0642: \u0646\u062C\u062D \u0627\u0644\u0627\u062E\u062A\u0628\u0627\u0631.",
+    "Premi Marcia: il nastro deve partire e la spia accendersi.": "\u0627\u0636\u063A\u0637 \u0627\u0644\u062A\u0634\u063A\u064A\u0644: \u064A\u062C\u0628 \u0623\u0646 \u064A\u0646\u0637\u0644\u0642 \u0627\u0644\u062D\u0632\u0627\u0645 \u0648\u064A\u0636\u064A\u0621 \u0627\u0644\u0645\u0635\u0628\u0627\u062D \u0627\u0644\u062F\u0644\u064A\u0644\u064A.",
+    "Lascia correre il pacco fino in fondo: il finecorsa deve fermarlo da solo.": "\u062F\u0639 \u0627\u0644\u0637\u0631\u062F \u064A\u062C\u0631\u064A \u062D\u062A\u0649 \u0627\u0644\u0646\u0647\u0627\u064A\u0629: \u064A\u062C\u0628 \u0623\u0646 \u064A\u0648\u0642\u0641\u0647 \u0645\u0641\u062A\u0627\u062D \u0646\u0647\u0627\u064A\u0629 \u0627\u0644\u0645\u0634\u0648\u0627\u0631 \u0648\u062D\u062F\u0647.",
+    "Rimetti il pacco, premi Marcia e poi Arresto.": "\u0623\u0639\u062F \u0627\u0644\u0637\u0631\u062F\u060C \u0648\u0627\u0636\u063A\u0637 \u0627\u0644\u062A\u0634\u063A\u064A\u0644 \u062B\u0645 \u0627\u0644\u0625\u064A\u0642\u0627\u0641.",
+    "Di nuovo in marcia, poi premi il fungo. Ricordati di sbloccarlo.": "\u0634\u063A\u0651\u0644 \u0645\u0646 \u062C\u062F\u064A\u062F\u060C \u062B\u0645 \u0627\u0636\u063A\u0637 \u0632\u0631 \u0627\u0644\u0637\u0648\u0627\u0631\u0626. \u062A\u0630\u0643\u0651\u0631 \u0623\u0646 \u062A\u062D\u0631\u0651\u0631\u0647.",
+    "In marcia, incastra un pacco: il motore si sforza e il termico deve fermare il nastro.": "\u0623\u062B\u0646\u0627\u0621 \u0627\u0644\u062A\u0634\u063A\u064A\u0644\u060C \u0627\u062D\u0634\u0631 \u0637\u0631\u062F\u064B\u0627: \u064A\u064F\u062C\u0647\u064E\u062F \u0627\u0644\u0645\u062D\u0631\u0643 \u0648\u064A\u062C\u0628 \u0623\u0646 \u064A\u0648\u0642\u0641 \u0627\u0644\u0645\u0631\u062D\u0650\u0651\u0644 \u0627\u0644\u062D\u0631\u0627\u0631\u064A \u0627\u0644\u062D\u0632\u0627\u0645.",
+    "Il termico \xE8 scattato ma il nastro girava: perch\xE9? Rispondi.": "\u0641\u0635\u0644 \u0627\u0644\u0645\u0631\u062D\u0650\u0651\u0644 \u0627\u0644\u062D\u0631\u0627\u0631\u064A \u0644\u0643\u0646 \u0627\u0644\u062D\u0632\u0627\u0645 \u0643\u0627\u0646 \u064A\u062F\u0648\u0631: \u0644\u0645\u0627\u0630\u0627\u061F \u0623\u062C\u0628.",
+    "Apri il salvamotore, poi apri il banco e sistema il comando del termico.": "\u0627\u0641\u062A\u062D \u0627\u0644\u0642\u0627\u0637\u0639 \u0627\u0644\u062D\u0627\u0645\u064A \u0644\u0644\u0645\u062D\u0631\u0643\u060C \u062B\u0645 \u0627\u0641\u062A\u062D \u0627\u0644\u0637\u0627\u0648\u0644\u0629 \u0648\u0623\u0635\u0644\u062D \u062A\u062D\u0643\u0645 \u0627\u0644\u0645\u0631\u062D\u0650\u0651\u0644 \u0627\u0644\u062D\u0631\u0627\u0631\u064A.",
+    "Richiudi il salvamotore, riarma il termico, rifai le prove e premi Verifica.": "\u0623\u0639\u062F \u0625\u063A\u0644\u0627\u0642 \u0627\u0644\u0642\u0627\u0637\u0639 \u0627\u0644\u062D\u0627\u0645\u064A \u0644\u0644\u0645\u062D\u0631\u0643\u060C \u0648\u0623\u0639\u062F \u062A\u0633\u0644\u064A\u062D \u0627\u0644\u0645\u0631\u062D\u0650\u0651\u0644 \u0627\u0644\u062D\u0631\u0627\u0631\u064A\u060C \u0648\u0623\u0639\u062F \u0627\u0644\u0627\u062E\u062A\u0628\u0627\u0631\u0627\u062A \u0648\u0627\u0636\u063A\u0637 \u062A\u062D\u0642\u0651\u0642.",
+    "Il turno pu\xF2 partire": "\u064A\u0645\u0643\u0646 \u0623\u0646 \u062A\u0628\u062F\u0623 \u0627\u0644\u0648\u0631\u062F\u064A\u0629",
+    "Il contatto 95-96 del termico non era nel circuito di comando: con il sovraccarico il termico scattava ma il nastro non si fermava. Ora \xE8 in serie prima del fungo e il collaudo \xE8 completo.": "\u0644\u0645 \u064A\u0643\u0646 \u062A\u0644\u0627\u0645\u0633 95-96 \u0644\u0644\u0645\u0631\u062D\u0650\u0651\u0644 \u0627\u0644\u062D\u0631\u0627\u0631\u064A \u0641\u064A \u062F\u0627\u0626\u0631\u0629 \u0627\u0644\u062A\u062D\u0643\u0645: \u0645\u0639 \u0627\u0644\u062D\u0645\u0644 \u0627\u0644\u0632\u0627\u0626\u062F \u0643\u0627\u0646 \u0627\u0644\u0645\u0631\u062D\u0650\u0651\u0644 \u064A\u0641\u0635\u0644 \u0644\u0643\u0646 \u0627\u0644\u062D\u0632\u0627\u0645 \u0644\u0627 \u064A\u062A\u0648\u0642\u0641. \u0627\u0644\u0622\u0646 \u0647\u0648 \u0639\u0644\u0649 \u0627\u0644\u062A\u0648\u0627\u0644\u064A \u0642\u0628\u0644 \u0632\u0631 \u0627\u0644\u0637\u0648\u0627\u0631\u0626 \u0648\u0627\u0644\u0627\u062E\u062A\u0628\u0627\u0631 \u0645\u0643\u062A\u0645\u0644.",
+    "Banco e schema": "\u0627\u0644\u0637\u0627\u0648\u0644\u0629 \u0648\u0627\u0644\u0645\u062E\u0637\u0637",
+    "Chiudi il banco": "\u0623\u063A\u0644\u0642 \u0627\u0644\u0637\u0627\u0648\u0644\u0629",
+    "Verbale": "\u0627\u0644\u0645\u062D\u0636\u0631",
+    "Sblocca": "\u062D\u0631\u0651\u0631",
+    "accesa": "\u0645\u0636\u0627\u0621",
+    "spenta": "\u0645\u0637\u0641\u0623",
+    "Incastra un pacco": "\u0627\u062D\u0634\u0631 \u0637\u0631\u062F\u064B\u0627",
+    "Libera il pacco": "\u062D\u0631\u0651\u0631 \u0627\u0644\u0637\u0631\u062F",
+    "Lavori in corso": "\u0623\u0639\u0645\u0627\u0644 \u062C\u0627\u0631\u064A\u0629",
+    "Scalda": "\u064A\u0633\u062E\u0646",
+    "Riarma": "\u0623\u0639\u062F \u0627\u0644\u062A\u0633\u0644\u064A\u062D",
+    "Rimetti il pacco": "\u0623\u0639\u062F \u0627\u0644\u0637\u0631\u062F",
+    "Modulo 3 completato": "\u0627\u0643\u062A\u0645\u0644\u062A \u0627\u0644\u0648\u062D\u062F\u0629 3",
+    "Prove": "\u0627\u0644\u0627\u062E\u062A\u0628\u0627\u0631\u0627\u062A",
+    "Collaudatore": "\u0627\u0644\u0645\u062E\u062A\u0628\u0650\u0631",
+    "Guarda il nastro": "\u0634\u0627\u0647\u062F \u0627\u0644\u062D\u0632\u0627\u0645",
+    "Officina con il nastro trasportatore. ": "\u0648\u0631\u0634\u0629 \u0641\u064A\u0647\u0627 \u062D\u0632\u0627\u0645 \u0646\u0627\u0642\u0644. "
+  };
+
   // src/i18n/ar.js
   var ROLE = { "del neutro": "\u0627\u0644\u0645\u062D\u0627\u064A\u062F", "di terra": "\u0627\u0644\u0623\u0631\u0636\u064A", "di fase": "\u0627\u0644\u0637\u0648\u0631", "a bassa tensione": "\u0627\u0644\u062C\u0647\u062F \u0627\u0644\u0645\u0646\u062E\u0641\u0636", "di comando": "\u0627\u0644\u062A\u062D\u0643\u0645", "del positivo": "\u0627\u0644\u0645\u0648\u062C\u0628", "del negativo": "\u0627\u0644\u0633\u0627\u0644\u0628", "in continua": "\u0627\u0644\u062A\u064A\u0627\u0631 \u0627\u0644\u0645\u0633\u062A\u0645\u0631" };
   var COLORI = { "blu": "\u0623\u0632\u0631\u0642", "giallo-verde": "\u0623\u0635\u0641\u0631-\u0623\u062E\u0636\u0631", "marrone, nero o grigio": "\u0628\u0646\u064A\u064B\u0651\u0627 \u0623\u0648 \u0623\u0633\u0648\u062F \u0623\u0648 \u0631\u0645\u0627\u062F\u064A\u064B\u0651\u0627", "rosso, marrone, nero o grigio": "\u0623\u062D\u0645\u0631 \u0623\u0648 \u0628\u0646\u064A\u064B\u0651\u0627 \u0623\u0648 \u0623\u0633\u0648\u062F \u0623\u0648 \u0631\u0645\u0627\u062F\u064A\u064B\u0651\u0627", "di un colore diverso da blu e giallo-verde": "\u0628\u0644\u0648\u0646 \u0645\u062E\u062A\u0644\u0641 \u0639\u0646 \u0627\u0644\u0623\u0632\u0631\u0642 \u0648\u0627\u0644\u0623\u0635\u0641\u0631-\u0627\u0644\u0623\u062E\u0636\u0631", "rosso": "\u0623\u062D\u0645\u0631", "nero": "\u0623\u0633\u0648\u062F", "rosso o nero": "\u0623\u062D\u0645\u0631 \u0623\u0648 \u0623\u0633\u0648\u062F" };
@@ -17361,7 +17500,7 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
     [/^Portata (.+): (\d+) ampere\. Tocca per cambiarla$/, (m, t) => `\u0627\u0644\u0633\u0639\u0629 ${t(m[1])}: ${m[2]} \u0623\u0645\u0628\u064A\u0631. \u0627\u0644\u0645\u0633 \u0644\u062A\u063A\u064A\u064A\u0631\u0647\u0627`],
     [/^Protezioni scattate: (.+)\.$/, (m, t) => `\u062D\u0645\u0627\u064A\u0627\u062A \u0641\u0635\u0644\u062A: ${t(m[1])}.`]
   ];
-  registerLang("ar", { ...ar_1_default, ...ar_2_default, ...ar_3_default, ...ar_4_default, ...ar_5_default, ...ar_6_default, ...ar_7_default, ...ar_8_default, ...ar_9_default, ...ar_10_default, ...ar_11_default, ...ar_12_default, ...ar_13_default, ...ar_14_default, ...ar_15_default, ...ar_16_default, ...ar_17_default, ...ar_18_default, ...ar_19_default, ...ar_20_default, ...ar_21_default, ...ar_22_default, ...ar_23_default, ...ar_24_default, ...ar_25_default, ...ar_26_default, ...ar_27_default, ...ar_28_default }, PAT);
+  registerLang("ar", { ...ar_1_default, ...ar_2_default, ...ar_3_default, ...ar_4_default, ...ar_5_default, ...ar_6_default, ...ar_7_default, ...ar_8_default, ...ar_9_default, ...ar_10_default, ...ar_11_default, ...ar_12_default, ...ar_13_default, ...ar_14_default, ...ar_15_default, ...ar_16_default, ...ar_17_default, ...ar_18_default, ...ar_19_default, ...ar_20_default, ...ar_21_default, ...ar_22_default, ...ar_23_default, ...ar_24_default, ...ar_25_default, ...ar_26_default, ...ar_27_default, ...ar_28_default, ...ar_29_default }, PAT);
 
   // src/trilocale/house.js
   function houseState(session2, on = true) {
@@ -17624,6 +17763,34 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
     }
     return { g, level: { frigo: 0.018, tv: 8e-3, stufa: 0.01 }[kind] };
   }
+  var motorNode = null;
+  function makeMotor(a) {
+    const g = a.createGain();
+    g.gain.value = 0;
+    g.connect(master);
+    const osc = [100, 200, 300].map((f2, i) => {
+      const o = a.createOscillator();
+      o.type = i ? "sine" : "triangle";
+      o.frequency.value = f2;
+      const og = a.createGain();
+      og.gain.value = [0.6, 0.25, 0.1][i];
+      o.connect(og);
+      og.connect(g);
+      o.start();
+      return o;
+    });
+    return { g, osc };
+  }
+  function motorStop(instant) {
+    if (!motorNode || !ac) return;
+    const t = ac.currentTime;
+    motorNode.g.gain.cancelScheduledValues(t);
+    if (instant) motorNode.g.gain.setValueAtTime(0, t);
+    else {
+      motorNode.g.gain.setValueAtTime(motorNode.g.gain.value, t);
+      motorNode.g.gain.linearRampToValueAtTime(0, t + 0.5);
+    }
+  }
   var sound = {
     // da chiamare dentro un tocco: sblocca l'audio
     unlock() {
@@ -17678,6 +17845,78 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
     },
     silence() {
       Object.keys(hums).forEach((k) => this.hum(k, false, true));
+      motorStop(true);
+    },
+    // motore del nastro: ronzio grave; load da 0 a 1 (sovraccarico) abbassa il tono e alza il volume
+    motor(on, load = 0) {
+      const a = ctx();
+      if (!a) return;
+      if (!on || !enabled) {
+        motorStop(false);
+        return;
+      }
+      if (!motorNode) motorNode = makeMotor(a);
+      const t = a.currentTime;
+      motorNode.g.gain.cancelScheduledValues(t);
+      motorNode.g.gain.setValueAtTime(motorNode.g.gain.value, t);
+      motorNode.g.gain.linearRampToValueAtTime(0.02 + 0.03 * load, t + 0.4);
+      motorNode.osc.forEach((o, i) => {
+        o.frequency.cancelScheduledValues(t);
+        o.frequency.setValueAtTime(o.frequency.value, t);
+        o.frequency.linearRampToValueAtTime([100, 200, 300][i] * (1 - 0.18 * load), t + 0.6);
+      });
+    },
+    // la sirena del turno: due note lunghe
+    siren() {
+      const a = ctx();
+      if (!a || !enabled) return;
+      [0, 1.1].forEach((d, i) => {
+        const o = a.createOscillator(), g = a.createGain(), t = a.currentTime + d;
+        o.type = "sawtooth";
+        o.frequency.setValueAtTime(i ? 520 : 440, t);
+        o.frequency.linearRampToValueAtTime(i ? 560 : 470, t + 0.9);
+        const f2 = a.createBiquadFilter();
+        f2.type = "lowpass";
+        f2.frequency.value = 1400;
+        g.gain.setValueAtTime(1e-4, t);
+        g.gain.exponentialRampToValueAtTime(0.06, t + 0.12);
+        g.gain.setValueAtTime(0.06, t + 0.8);
+        g.gain.exponentialRampToValueAtTime(1e-4, t + 1);
+        o.connect(f2);
+        f2.connect(g);
+        g.connect(master);
+        o.start(t);
+        o.stop(t + 1.05);
+      });
+    },
+    // la saracinesca: rumore di rulli che sale di tono
+    shutter(ms = 1600) {
+      const a = ctx();
+      if (!a || !enabled) return;
+      const dur = ms / 1e3, n = Math.floor(a.sampleRate * dur), b = a.createBuffer(1, n, a.sampleRate), d = b.getChannelData(0);
+      for (let i = 0; i < n; i++) d[i] = (Math.random() * 2 - 1) * (0.6 + 0.4 * Math.sin(i / 90));
+      const s = a.createBufferSource();
+      s.buffer = b;
+      const f2 = a.createBiquadFilter();
+      f2.type = "bandpass";
+      f2.Q.value = 1.4;
+      const t = a.currentTime;
+      f2.frequency.setValueAtTime(260, t);
+      f2.frequency.linearRampToValueAtTime(620, t + dur);
+      const g = a.createGain();
+      g.gain.setValueAtTime(1e-4, t);
+      g.gain.exponentialRampToValueAtTime(0.22, t + 0.15);
+      g.gain.setValueAtTime(0.22, t + dur - 0.2);
+      g.gain.exponentialRampToValueAtTime(1e-4, t + dur);
+      s.connect(f2);
+      f2.connect(g);
+      g.connect(master);
+      s.start(t);
+    },
+    // il contattore che apre: un tonfo secco
+    clunk() {
+      thump(70, 0.5, 0.14);
+      burst(0.05, 0.5, 1800, 1.5);
     },
     vibrate(p) {
       try {
@@ -18268,7 +18507,10 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
       stop: !!cs.SB0,
       emergency: !!cs.SBE,
       lamp: o.loads.H === "on",
-      overload: !!snap.overload
+      overload: !!snap.overload,
+      // i fili del banco e il loro stato (in tensione, percorsi da corrente): la scena li disegna come sono
+      wires: snap.wires || [],
+      flow: snap.flow || null
     };
   }
   function provaState(snap) {
@@ -18346,14 +18588,91 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
         title: "La luce \xE8 tornata",
         text: "La stufetta del soggiorno aveva l\u2019isolante rovinato: perdeva verso terra circa 300 mA, dieci volte la soglia del differenziale. Scollegata la stufetta, le tre linee restano chiuse e il differenziale armato."
       }
+    },
+    officina: {
+      kick: "Modulo 3 \xB7 prova finale",
+      place: "Officina",
+      title: "L\u2019officina",
+      tagline: "Ore 6:40. Il turno parte alle 7.",
+      clock: [6, 40],
+      goal: "Il nastro \xE8 montato: collaudalo prima che parta il turno. Prova marcia, finecorsa, arresto, emergenza e sovraccarico, e se qualcosa non va trovalo e correggilo a salvamotore aperto.",
+      dockTitle: "Pulsantiera del nastro",
+      tools: ["wires", "sound", "log"],
+      // la scheda di collaudo che apre la prova (al posto della chiamata)
+      call: { label: "Scheda di collaudo", where: "Capannone Ferri, Via dell\u2019Industria 4", quote: "\xABIl nastro \xE8 montato. Il turno parte alle 7: collaudalo prima che arrivino gli operai.\xBB", go: "Inizia" },
+      // le cinque prove del collaudo, nell'ordine del verbale
+      tests: [
+        { id: "marcia", name: "Marcia" },
+        { id: "fine", name: "Finecorsa" },
+        { id: "arresto", name: "Arresto" },
+        { id: "emergenza", name: "Emergenza" },
+        { id: "sovraccarico", name: "Sovraccarico" }
+      ],
+      steps: ["Marcia", "Finecorsa", "Arresto", "Emergenza", "Sovraccarico", "Trova il guasto", "Correggi a salvamotore aperto", "Ricollauda e verifica"],
+      story: {
+        nonStop: "Il nastro non si ferma.",
+        pressStop: "Premi il fungo.",
+        stopped: "Il termico ha fermato il nastro.",
+        endStop: "Si \xE8 fermato solo a fine corsa.",
+        dead: "Apri il salvamotore prima di toccare i fili.",
+        jamStart: "Ora premi Marcia: il motore dovr\xE0 spingere il pacco incastrato."
+      },
+      report: {
+        title: "Verbale di collaudo",
+        sub: "Nastro trasportatore, linea 1",
+        fault: "Contatto 95-96 del termico fuori dal circuito di comando: con il sovraccarico il termico scattava ma il nastro non si fermava.",
+        fix: "A salvamotore aperto, il 95-96 del termico messo in serie prima del fungo.",
+        end: "Ore 7:00. Il turno pu\xF2 partire.",
+        ok: "Superata",
+        ko: "Non superata"
+      },
+      log: {
+        start: "Nastro montato. Inizia il collaudo.",
+        marcia: "Premuto Marcia: il nastro parte, la spia \xE8 accesa.",
+        marciaNo: "Premuto Marcia: il nastro non parte.",
+        arresto: "Premuto Arresto: il nastro si ferma.",
+        arrestoIdle: "Premuto Arresto.",
+        fungo: "Premuto il fungo di emergenza: il nastro si ferma.",
+        fungoIdle: "Premuto il fungo di emergenza.",
+        fungoUp: "Sbloccato il fungo di emergenza.",
+        fine: "Il pacco arriva in fondo: il finecorsa ferma il nastro.",
+        overloadOn: "Pacco incastrato: il motore assorbe troppo.",
+        overloadOff: "Pacco liberato.",
+        tripKo: "Il termico \xE8 scattato, ma il nastro continua.",
+        tripOk: "Il termico \xE8 scattato e ferma il nastro.",
+        reset: "Riarmato il termico.",
+        qmOff: "Aperto il salvamotore: lavori in corso.",
+        qmOn: "Richiuso il salvamotore.",
+        rewind: "Pacco rimesso all\u2019inizio del nastro.",
+        fixed: "Il 95-96 del termico ora \xE8 in serie nel comando.",
+        answerOk: "Risposta giusta: il 95-96 del termico non \xE8 nel comando.",
+        answerKo: "Risposta sbagliata. Si pu\xF2 riprovare.",
+        checkOk: "Verifica: collaudo superato.",
+        checkKo: "Verifica: qualcosa non va ancora."
+      },
+      hints: [
+        "Premi Marcia: il nastro deve partire e la spia accendersi.",
+        "Lascia correre il pacco fino in fondo: il finecorsa deve fermarlo da solo.",
+        "Rimetti il pacco, premi Marcia e poi Arresto.",
+        "Di nuovo in marcia, poi premi il fungo. Ricordati di sbloccarlo.",
+        "In marcia, incastra un pacco: il motore si sforza e il termico deve fermare il nastro.",
+        "Il termico \xE8 scattato ma il nastro girava: perch\xE9? Rispondi.",
+        "Apri il salvamotore, poi apri il banco e sistema il comando del termico.",
+        "Richiudi il salvamotore, riarma il termico, rifai le prove e premi Verifica."
+      ],
+      win: {
+        title: "Il turno pu\xF2 partire",
+        text: "Il contatto 95-96 del termico non era nel circuito di comando: con il sovraccarico il termico scattava ma il nastro non si fermava. Ora \xE8 in serie prima del fungo e il collaudo \xE8 completo."
+      }
     }
   };
 
   // src/prove/hud.js
   var esc5 = (t) => String(t).replace(/[&<>"']/g, (c2) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c2]);
   var provaOf = (name) => PROVE[name] || null;
-  var newMemory = () => ({ panel: false, opened: false, rearmed: false, found: false });
+  var newMemory = () => ({ panel: false, opened: false, rearmed: false, found: false, tests: {}, fixed: false });
   function remember(name, mem, action, before, after) {
+    if (name === "officina") return rememberEvents(mem, officinaEvents(action, before, after));
     if (name !== "appartamento" || !after) return mem;
     const m = { ...mem };
     const lines = after.lines;
@@ -18371,14 +18690,65 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
     const cfg = PROVE[name];
     if (!cfg || !ps) return [];
     let done;
+    let ko = [];
+    const diagOk = !!(unit && unit.diag && unit.diag.correct);
     if (name === "appartamento") {
-      const diagOk = !!(unit && unit.diag && unit.diag.correct);
       done = [mem.panel, mem.opened, mem.rearmed, mem.found, diagOk, !ps.heaterPlugged, unit && unit.phase === "done"];
+    } else if (name === "officina") {
+      const t = mem.tests || {};
+      done = cfg.tests.map((x) => t[x.id] === "ok").concat([diagOk, !!mem.fixed, unit && unit.phase === "done"]);
+      ko = cfg.tests.map((x) => t[x.id] === "ko");
     } else done = cfg.steps.map(() => false);
-    if (unit && unit.phase === "done") done = done.map(() => true);
-    const last = done.lastIndexOf(true);
-    const cur = done.findIndex((d, i) => !d && i > last);
-    return cfg.steps.map((text2, i) => ({ text: text2, done: !!done[i], cur: i === cur }));
+    if (unit && unit.phase === "done") {
+      done = done.map(() => true);
+      ko = [];
+    }
+    const last = Math.max(done.lastIndexOf(true), ko.lastIndexOf(true));
+    const cur = done.findIndex((d, i) => !d && !ko[i] && i > last);
+    return cfg.steps.map((text2, i) => ({ text: text2, done: !!done[i], ko: !!ko[i], cur: i === cur }));
+  }
+  var running2 = (ps) => ps.motor === "fwd";
+  function officinaEvents(action, before, after) {
+    if (!before || !after) return [];
+    const L = PROVE.officina.log, ev2 = [];
+    const id = action && action.id;
+    const kind = action && action.kind;
+    if (id === "SB1" && (kind === "press" || kind === "toggle")) {
+      if (!running2(before) && running2(after)) ev2.push({ kind: "marcia", text: L.marcia, test: "marcia", result: after.lamp ? "ok" : null, good: true });
+      else if (!running2(after)) ev2.push({ kind: "marciaNo", text: L.marciaNo });
+    } else if (id === "SB0" && (kind === "press" || kind === "toggle")) {
+      if (running2(before) && !running2(after)) ev2.push({ kind: "arresto", text: L.arresto, test: "arresto", result: "ok", good: true });
+      else ev2.push({ kind: "arrestoIdle", text: L.arrestoIdle });
+    } else if (id === "SBE" && kind === "toggle") {
+      if (after.emergency && running2(before) && !running2(after)) ev2.push({ kind: "fungo", text: L.fungo, test: "emergenza", result: "ok", good: true });
+      else ev2.push({ kind: after.emergency ? "fungoIdle" : "fungoUp", text: after.emergency ? L.fungoIdle : L.fungoUp });
+    } else if (kind === "overload") ev2.push({ kind: "overload", text: after.overload ? L.overloadOn : L.overloadOff });
+    else if (kind === "reset") ev2.push({ kind: "reset", text: L.reset, good: true });
+    else if (id === "QM" && kind === "toggle") ev2.push({ kind: after.qm ? "qmOn" : "qmOff", text: after.qm ? L.qmOn : L.qmOff });
+    else if (kind === "rewind") ev2.push({ kind: "rewind", text: L.rewind });
+    if (!before.thermal.tripped && after.thermal.tripped) {
+      if (after.contactor) ev2.push({ kind: "tripKo", text: L.tripKo, test: "sovraccarico", result: "ko", trip: true });
+      else ev2.push({ kind: "tripOk", text: L.tripOk, test: "sovraccarico", result: "ok", good: true });
+    }
+    if (running2(before) && after.atEnd && !before.atEnd && !running2(after)) ev2.push({ kind: "fine", text: L.fine, test: "fine", result: "ok", good: true });
+    return ev2;
+  }
+  function rememberEvents(mem, events) {
+    if (!events.length) return mem;
+    const m = { ...mem, tests: { ...mem.tests || {} } };
+    events.forEach((e) => {
+      if (e.test && e.result && m.tests[e.test] !== "ok") m.tests[e.test] = e.result;
+    });
+    return m;
+  }
+  function officinaFixed(wires) {
+    const has2 = (t) => (wires || []).some((w) => w.a === t || w.b === t);
+    const bypass = (wires || []).some((w) => [w.a, w.b].sort().join("~") === "QM.2~SBE.1");
+    return has2("FR.95") && has2("FR.96") && !bypass;
+  }
+  function rememberFixed(mem, fixed) {
+    if (!fixed || mem.fixed) return mem;
+    return { ...mem, fixed: true, tests: {} };
   }
   function tripStory(name, action, before, after) {
     if (name !== "appartamento" || !before || !after || !action) return null;
@@ -18390,6 +18760,10 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
     return { kind: "multi", closed };
   }
   function describe(name, action, before, after) {
+    if (name === "officina") {
+      const ev2 = officinaEvents(action, before, after);
+      return ev2.length ? ev2[ev2.length - 1] : null;
+    }
     const cfg = PROVE[name];
     if (!cfg || !before || !after || !action) return null;
     const L = cfg.log;
@@ -18425,21 +18799,22 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
   };
   function callHTML(cfg, ready) {
     return `<div class="pcall"><span class="pk">${esc5(cfg.kick)} \xB7 ${esc5(cfg.place)}</span>
-      <div class="pcall-head"><span class="pcall-dot" aria-hidden="true"></span><span class="pcall-time">${esc5(clockText(cfg, 0))}</span><span class="pcall-where">${esc5(cfg.call.where)}</span></div>
+      <div class="pcall-head">${cfg.call.label ? `<span class="pcall-label">${esc5(cfg.call.label)}</span>` : '<span class="pcall-dot" aria-hidden="true"></span>'}<span class="pcall-time">${esc5(clockText(cfg, 0))}</span><span class="pcall-where">${esc5(cfg.call.where)}</span></div>
       <h2>${esc5(cfg.title)}</h2>
       <p class="pcall-quote">${esc5(cfg.call.quote)}</p>
-      <button class="pbtn y pgo" type="button" data-pui="enter">Entra</button>
+      <button class="pbtn y pgo" type="button" data-pui="enter">${esc5(cfg.call.go || "Entra")}</button>
       <span class="pload${ready ? " done" : ""}" aria-hidden="true"><i></i></span></div>
     <button class="pskip" type="button" data-pui="skipIntro">Salta</button>`;
   }
+  var TOOL = { wires: "Fili", torch: "Torcia", sound: "Suono", log: "Registro" };
   function topHTML2(cfg, clock, ui2) {
     const t = (k, label, pressed) => `<button class="pchip" type="button" data-pui="${k}"${pressed === void 0 ? "" : ` aria-pressed="${!!pressed}"`}>${label}</button>`;
     return `<a class="pmap" href="#/home">&larr; Mappa</a>
     <div class="ptitle"><span class="pk">${esc5(cfg.kick)}</span><b>${esc5(cfg.title)}</b></div>
-    <div class="ptools"><span class="pclock" aria-label="Ora">${esc5(clock)}</span>${t("wires", "Fili", ui2.wires)}${t("torch", "Torcia", ui2.torch)}${t("sound", "Suono", ui2.sound)}${t("log", "Registro", ui2.log)}</div>`;
+    <div class="ptools"><span class="pclock" aria-label="Ora">${esc5(clock)}</span>${(cfg.tools || ["wires", "torch", "sound", "log"]).map((k) => t(k, TOOL[k], ui2[k])).join("")}</div>`;
   }
   function stepsHTML(steps) {
-    const li = steps.map((st, i) => `<li class="${st.done ? "done" : st.cur ? "cur" : ""}"><span class="pnode" aria-hidden="true"></span><span class="ptxt"><span class="vh">${i + 1}. </span>${esc5(st.text)}</span></li>`).join("");
+    const li = steps.map((st, i) => `<li class="${st.ko ? "ko" : st.done ? "done" : st.cur ? "cur" : ""}"><span class="pnode" aria-hidden="true"></span><span class="ptxt"><span class="vh">${i + 1}. </span>${esc5(st.text)}</span></li>`).join("");
     return `<h2 class="vh">Il metodo</h2><ol class="psteps">${li}</ol>`;
   }
   function logHTML(entries) {
@@ -18448,6 +18823,7 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
   }
   var STATE_WORD = { on: "Chiuso", off: "Aperto", tripped: "Scattato", armed: "Armato" };
   function dockHTML(cfg, ps, unit, ui2) {
+    if (cfg.tests) return stationHTML(cfg, ps, unit, ui2);
     const mods = cfg.controls.map((c2) => {
       let on, trip2, live;
       if (c2.kind === "rcd") {
@@ -18480,6 +18856,7 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
     <div class="prail">${mods}</div>${dev}</div>`;
   }
   function hintOf(name, steps) {
+    if (name === "officina") return PROVE.officina.hints[steps.findIndex((s) => s.cur)] || "";
     if (name !== "appartamento") return "";
     const i = steps.findIndex((s) => s.cur);
     return [
@@ -18501,6 +18878,45 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
     const fb = !diag ? "" : diag.correct ? `<p class="pfb ok"><b>Giusto.</b> ${esc5(q.why)}</p><p class="pfb">${esc5(f2.fixSay)}</p>` : '<p class="pfb ko"><b>Non proprio.</b> Richiudi solo quella linea con il differenziale armato: se non scatta, non \xE8 lei.</p>';
     return `<div class="pcard" role="dialog" aria-modal="true" aria-labelledby="pQ"><span class="pk">Prova</span><h2 id="pQ">${esc5(q.question)}</h2><div class="popts">${opts}</div>${fb}
       <div class="prow"><button class="pbtn${diag && diag.correct ? " y" : ""}" type="button" data-pui="closeSheet">${diag && diag.correct ? "Torna al quadro" : "Chiudi"}</button></div></div>`;
+  }
+  function stationHTML(cfg, ps, unit, ui2) {
+    const diagOk = !!(unit && unit.diag && unit.diag.correct);
+    let main = "";
+    if (unit && unit.phase === "fault") main = diagOk ? '<button class="pbtn y" type="button" data-pui="check">Verifica</button>' : '<button class="pbtn y" type="button" data-pui="answer">Rispondi</button>';
+    else if (unit && unit.phase === "done") main = '<button class="pbtn y" type="button" data-pui="finale">Verbale</button>';
+    const fr = ps.thermal.tripped ? "Scattato" : ps.thermal.heat > 0.02 ? "Scalda" : "Armato";
+    return `<div class="pbox pstation"><div class="pboxhead"><h2>${esc5(cfg.dockTitle)}</h2><div class="prow">
+      <button class="pchip" type="button" data-pui="schema" aria-pressed="${!!ui2.schema}">${ui2.schema ? "Chiudi il banco" : "Banco e schema"}</button>${main}</div></div>
+    <div class="pst">
+      <div class="pst-panel">
+        <button class="pst-btn pst-go" type="button" data-phold="SB1" data-pid="SB1" aria-pressed="${!!ps.start}"><span class="pst-cap" aria-hidden="true"></span><span>Marcia</span></button>
+        <button class="pst-btn pst-stop" type="button" data-phold="SB0" data-pid="SB0" aria-pressed="${!!ps.stop}"><span class="pst-cap" aria-hidden="true"></span><span>Arresto</span></button>
+        <button class="pst-mush${ui2.alarm ? " alarm" : ""}" type="button" data-pact="toggle" data-pid="SBE" aria-pressed="${!!ps.emergency}"><span class="pst-cap" aria-hidden="true"></span><span>${ps.emergency ? "Sblocca" : "Emergenza"}</span></button>
+        <span class="pst-lamp${ps.lamp ? " on" : ""}"><span class="pst-cap" aria-hidden="true"></span><span>Spia</span><span class="vh">${ps.lamp ? "accesa" : "spenta"}</span></span>
+      </div>
+      <div class="pst-side">
+        <button class="pst-lever" type="button" data-pui="overload" aria-pressed="${!!ps.overload}"><span class="pst-knob" aria-hidden="true"></span><span>${ps.overload ? "Libera il pacco" : "Incastra un pacco"}</span></button>
+        <div class="pst-mod qm${ps.qm ? "" : " open"}"><span class="pst-name">Salvamotore</span><button class="pst-sw" type="button" data-pact="toggle" data-pid="QM" aria-pressed="${!!ps.qm}">${ps.qm ? "Chiuso" : "Aperto"}</button>${ps.qm ? "" : '<span class="pst-tag">Lavori in corso</span>'}</div>
+        <div class="pst-mod fr${ps.thermal.tripped ? " trip" : ""}"><span class="pst-name">Termico</span><span class="pst-heat" style="--h:${Math.round(ps.thermal.heat * 100)}%" aria-hidden="true"></span><span class="pst-state">${fr}</span><button class="pst-sw" type="button" data-pact="reset" data-pid="FR"${ps.thermal.tripped ? "" : " disabled"}>Riarma</button></div>
+        <button class="pchip" type="button" data-pui="rewind">Rimetti il pacco</button>
+      </div>
+    </div></div>`;
+  }
+  function verbaleHTML(cfg, stars2, solved, from, to, who) {
+    const R = cfg.report;
+    const rows = cfg.tests.map((t) => `<li><span>${esc5(t.name)}</span><b>${esc5(R.ok)}</b></li>`).join("");
+    return `<div class="pcard preport pverbale" role="dialog" aria-modal="true" aria-labelledby="pW">
+      <div class="prep-head"><span class="pk">${solved ? "Modulo 3 completato" : "Impianto funzionante"}</span><span class="prep-time">${esc5(from)}\u2013${esc5(to)}</span></div>
+      <h2 id="pW">${esc5(R.title)}</h2><p class="pverb-sub">${esc5(R.sub)}</p>
+      <dl class="prep">
+        <dt>Dove</dt><dd>${esc5(cfg.call.where)}</dd>
+        <dt>Prove</dt><dd><ul class="pverb-tests">${rows}</ul></dd>
+        <dt>Guasto</dt><dd>${esc5(R.fault)}</dd>
+        <dt>Intervento</dt><dd>${esc5(R.fix)}</dd>
+        <dt>Esito</dt><dd><span class="pstars" role="img" aria-label="${stars2} stelle su 3">${[0, 1, 2].map((i) => `<span class="pstar" style="--i:${i}">${STAR2(i < stars2)}</span>`).join("")}</span></dd>
+        <dt>Collaudatore</dt><dd class="tsign"${who ? " data-notr" : ""}>${esc5(who || "Giocatore")}</dd>
+      </dl>
+      <div class="prow"><a class="pbtn y" href="#/home">Torna alla mappa</a><button class="pbtn" type="button" data-pui="again">Rifai la prova</button><button class="pbtn" type="button" data-pui="summary">Sintesi</button><button class="pbtn" type="button" data-pui="closeSheet">Guarda il nastro</button></div></div>`;
   }
   var STAR2 = (on) => `<svg width="30" height="30" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2l3 6.9 7.4.7-5.6 4.9 1.7 7.3L12 17.9 5.5 21.8l1.7-7.3L1.6 9.6 9 8.9z" fill="${on ? "#F5B800" : "none"}" stroke="${on ? "#1B2230" : "#7C8494"}" stroke-width="1.5" stroke-linejoin="round"/></svg>`;
   function reportHTML(cfg, stars2, solved, from, to) {
@@ -18528,6 +18944,7 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
   };
   var SOUND_KEY2 = "fase-e-neutro-suono";
   var LOAD_MAX = 8e3;
+  var ROW_MS = 180;
   var scriptPromise2 = null;
   function loadScript2() {
     if (window.FaseNeutroProve) return Promise.resolve(true);
@@ -18553,7 +18970,8 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
     const timers = /* @__PURE__ */ new Set();
     let mem = newMemory(), log = [], minutes = 0, phase = null, sheet = null;
     let act2 = null, override = null, story = null, t0clock = 0, callT0 = 0;
-    const ui2 = { schema: false, torch: false, sound: true, wires: true, log: false, delta: false };
+    let prevPs = null, pending = null, pointerHold = null;
+    const ui2 = { schema: false, torch: false, sound: true, wires: true, log: false, delta: false, alarm: false };
     try {
       ui2.sound = localStorage.getItem(SOUND_KEY2) !== "0";
     } catch (e) {
@@ -18616,8 +19034,34 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
         const w = wires();
         if (w) w.highlight(null);
       });
+      el.pDock.addEventListener("pointerdown", (e) => {
+        const b = e.target.closest("[data-phold]");
+        if (!b) return;
+        e.preventDefault();
+        pointerHold = b.dataset.phold;
+        try {
+          b.setPointerCapture(e.pointerId);
+        } catch (x) {
+        }
+        press2({ id: pointerHold });
+      });
+      const up = () => {
+        if (!pointerHold) return;
+        const id = pointerHold;
+        pointerHold = null;
+        release({ id });
+      };
+      el.pDock.addEventListener("pointerup", up);
+      el.pDock.addEventListener("pointercancel", up);
     }
     function doAct(action, run) {
+      if (name === "officina") {
+        pending = action;
+        run();
+        pending = null;
+        renderHud();
+        return;
+      }
       if (story) {
         endStory();
         return;
@@ -18651,16 +19095,29 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
     function press2(u) {
       if (inLesson() || act2 && act2 !== "play") return;
       holding.add(u.id);
-      s().press(u.id);
+      if (name === "officina") {
+        sound.click();
+        doAct({ kind: "press", id: u.id }, () => s().press(u.id));
+      } else s().press(u.id);
     }
     function release(u) {
       if (!holding.delete(u.id)) return;
-      s().release(u.id);
+      if (name === "officina") doAct({ kind: "release", id: u.id }, () => s().release(u.id));
+      else s().release(u.id);
     }
     function onClick(e) {
       const a = e.target.closest("[data-pact]");
       if (a) {
-        tap(a.dataset.pact === "test" ? { kind: "test", part: a.dataset.pid } : { kind: "toggle", id: a.dataset.pid });
+        const k2 = a.dataset.pact;
+        tap(k2 === "test" || k2 === "reset" ? { kind: k2, part: a.dataset.pid } : { kind: "toggle", id: a.dataset.pid });
+        return;
+      }
+      const hb = e.target.closest("[data-phold]");
+      if (hb) {
+        if (e.detail === 0 && !inLesson() && act2 === "play") {
+          sound.click();
+          doAct({ kind: "press", id: hb.dataset.phold }, () => s().toggleControl(hb.dataset.phold));
+        }
         return;
       }
       const d = e.target.closest("[data-pdiag]");
@@ -18705,10 +19162,15 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
         s().startFault();
       } else if (k === "summary") {
         if (env.summary) env.summary();
-      } else if (k === "schema") {
-        ui2.schema = !ui2.schema;
-        if (env.drawer) env.drawer(ui2.schema);
-        renderHud();
+      } else if (k === "schema") schema();
+      else if (k === "overload") {
+        if (act2 === "play" && !inLesson()) doAct({ kind: "overload" }, () => {
+          const on = !lastSnap.overload;
+          if (on) s().rewind();
+          s().setOverload(on);
+        });
+      } else if (k === "rewind") {
+        if (act2 === "play" && !inLesson()) doAct({ kind: "rewind" }, () => s().rewind());
       } else if (k === "torch") {
         setTorch(!ui2.torch);
         renderHud();
@@ -18739,6 +19201,22 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
     function setTorch(on) {
       ui2.torch = on;
       if (scene && scene.torch) scene.torch(on);
+    }
+    function schema() {
+      const opening = !ui2.schema;
+      if (opening && name === "officina" && lastSnap.unit.phase === "fault" && lastSnap.unit.diag && lastSnap.unit.diag.correct && !mem.fixed) {
+        const ps = provaState(lastSnap);
+        if (ps && ps.qm) {
+          subtitle("", cfg().story.dead, 3600);
+          if (scene) scene.look("quadro", 900);
+          return;
+        }
+        if (scene) scene.look("quadro", 900);
+      }
+      ui2.schema = opening;
+      if (env.drawer) env.drawer(ui2.schema);
+      renderHud();
+      if (!opening && name === "officina" && scene) scene.look("insieme", 900);
     }
     function check() {
       const r = s().check();
@@ -18800,10 +19278,57 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
     }
     function hums2(ps) {
       ps = ps || override || lastSnap && provaState(lastSnap);
-      if (!ps || name !== "appartamento" || act2 === "call") return;
+      if (!ps || act2 === "call") return;
+      if (name === "officina") {
+        sound.motor(act2 !== "finale" && ps.motor === "fwd", ps.overload ? 1 : ps.thermal.heat * 0.5);
+        return;
+      }
+      if (name !== "appartamento") return;
       sound.hum("frigo", !!ps.oven);
       sound.hum("tv", !!ps.socket);
       sound.hum("stufa", !!(ps.socket && ps.heaterPlugged));
+    }
+    function observeOfficina(snapshot) {
+      const ps = provaState(snapshot);
+      if (!ps) return;
+      const before = prevPs;
+      prevPs = ps;
+      if (!before || act2 !== "play" || inLesson() || snapshot.unit.phase === "lesson") return;
+      const action = pending;
+      const events = officinaEvents(action, before, ps);
+      mem = remember("officina", mem, action, before, ps);
+      const wasFixed = mem.fixed;
+      mem = rememberFixed(mem, snapshot.unit.phase === "fault" && officinaFixed(snapshot.wires));
+      events.forEach((e) => note(e.text, e));
+      if (!wasFixed && mem.fixed) {
+        note(cfg().log.fixed, { good: true });
+        sound.chime(1);
+      }
+      const c2 = cfg();
+      events.forEach((e) => {
+        if (e.kind === "tripKo") {
+          ui2.alarm = true;
+          sound.tac();
+          sound.vibrate([30, 40, 80]);
+          flash();
+          subtitle(c2.story.nonStop, c2.story.pressStop, 0);
+          if (scene) scene.look("insieme", 900);
+        } else if (e.kind === "overload" && ps.overload && ps.motor !== "fwd") {
+          subtitle("", c2.story.jamStart, 3600);
+        } else if (e.kind === "tripOk") {
+          sound.clunk();
+          later(250, () => sound.chime(1));
+          subtitle(c2.story.stopped, "", 3e3);
+        }
+      });
+      if (ui2.alarm && ps.motor !== "fwd") {
+        ui2.alarm = false;
+        if (ps.emergency) {
+          el.pSub.classList.remove("go");
+          sound.silence();
+        } else subtitle("", c2.story.endStop, 3200);
+      }
+      if (events.some((e) => ["marcia", "arresto", "fungo", "fine"].includes(e.kind)) && !events.some((e) => e.kind === "tripKo")) sound.click();
     }
     function playStory(st, after) {
       const c2 = cfg();
@@ -18866,6 +19391,12 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
       return { ...ps, rcd: { ...ps.rcd, on: true, tripped: false }, lines: { luce: { on: true }, prese: { on: true }, cucina: { on: true } }, lamp: true, socket: true, oven: true, dark: false, allRooms: true };
     }
     function prepareOutside() {
+      if (scene && name === "officina") {
+        scene.outside();
+        const w2 = wires();
+        if (w2) w2.setVisible(false);
+        return;
+      }
       if (!scene || !scene.setRoof) return;
       override = litHouse();
       scene.setRoof(true, 1);
@@ -18899,6 +19430,19 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
         return;
       }
       setAct("arrive");
+      if (name === "officina") {
+        later(300, () => {
+          scene.shutter(true, 1600);
+          sound.shutter(1600);
+        });
+        later(1700, () => {
+          scene.lampsOn();
+          for (let i = 0; i < 4; i++) later(i * ROW_MS, () => sound.click());
+        });
+        later(2e3, () => scene.look("insieme", 2200));
+        later(4300, afterArrive);
+        return;
+      }
       hums2(override);
       scene.look("esterno", 2400);
       later(2500, () => {
@@ -18918,6 +19462,10 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
       clearLater();
       hideCall();
       override = null;
+      if (scene && name === "officina") {
+        scene.inside();
+        scene.look("insieme", 1);
+      }
       if (scene && scene.setRoof) {
         scene.windows(false);
         scene.setRoof(false, 1);
@@ -18933,9 +19481,20 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
         setAct("brief");
         return;
       }
+      if (name === "officina") {
+        mem.panel = true;
+        setAct("play");
+        subtitle("", hintOf(name, stepsOf(name, provaState(lastSnap), lastSnap.unit, mem)), 3600);
+        return;
+      }
       findPanel();
     }
     function findPanel() {
+      if (name === "officina") {
+        mem.panel = true;
+        setAct("play");
+        return;
+      }
       if (!scene || mem.panel) {
         mem.panel = true;
         if (scene) scene.door(1);
@@ -18990,6 +19549,28 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
       if (act2 === "finale") return;
       setAct("finale");
       hums2();
+      if (name === "officina") {
+        ui2.alarm = false;
+        if (ui2.schema) {
+          ui2.schema = false;
+          if (env.drawer) env.drawer(false);
+        }
+        sound.siren();
+        if (scene) {
+          scene.shift(true);
+          scene.look("turno", 2600);
+          later(1300, () => subtitle(cfg().report.end, "", 2600));
+        }
+        later(scene ? 3900 : 0, () => {
+          sheet = "finale";
+          setAct("play");
+          focusSheet();
+          const lv = lastSnap.levels.find((l) => l.id === lastSnap.level.id) || {};
+          const n = lastSnap.result && lastSnap.result.stars || lv.stars || 0;
+          for (let i = 0; i < n; i++) later(300 + i * 280, () => sound.chime(i));
+        });
+        return;
+      }
       if (scene && scene.setRoof) {
         later(500, () => {
           override = litHouse();
@@ -19010,6 +19591,11 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
       });
     }
     function backInside() {
+      if (scene && name === "officina") {
+        scene.shift(false);
+        scene.look("insieme", 1200);
+        return;
+      }
       if (!scene || !scene.setRoof) return;
       override = null;
       push();
@@ -19049,8 +19635,9 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
     }
     function apply() {
       el.pMsg.hidden = !(sceneState === "loading" || sceneState === "failed") || act2 === "call";
-      const loading = sceneState === "loading";
-      if (el.pMsg.classList.contains("load") !== loading) {
+      const loading = sceneState === "loading", k = loading ? "load" : "fail";
+      if (el.pMsg.dataset.k !== k) {
+        el.pMsg.dataset.k = k;
         el.pMsg.classList.toggle("load", loading);
         if (loading) el.pMsg.innerHTML = loaderHTML("Caricamento della scena");
         else el.pMsg.textContent = "La scena 3D non \xE8 disponibile su questo dispositivo: la prova funziona con i comandi e con lo schema.";
@@ -19101,7 +19688,8 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
       if (sheet === "question" && unit.phase === "fault") sh = questionHTML(lastSnap.level.unit, unit.diag);
       else if (sheet === "finale") {
         const lv = lastSnap.levels.find((l) => l.id === lastSnap.level.id) || {};
-        sh = reportHTML(c2, lastSnap.result && lastSnap.result.stars || lv.stars || 0, !!unit.faultSolved, clockText(c2, 0), clockText(c2, minutes));
+        const stars2 = lastSnap.result && lastSnap.result.stars || lv.stars || 0;
+        sh = c2.tests ? verbaleHTML(c2, stars2, !!unit.faultSolved, clockText(c2, 0), clockText(c2, Math.max(minutes, 20)), env.name ? env.name() : "") : reportHTML(c2, stars2, !!unit.faultSolved, clockText(c2, 0), clockText(c2, minutes));
       } else sheet = null;
       el.pSheet.hidden = !sh;
       setHTML(el.pSheet, sh);
@@ -19112,7 +19700,9 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
       log = [];
       minutes = 0;
       sheet = null;
-      note(cfg().log.start, { trip: true });
+      note(cfg().log.start, { trip: name === "appartamento" });
+      prevPs = lastSnap ? provaState(lastSnap) : null;
+      ui2.alarm = false;
     }
     function onResize() {
       placePin();
@@ -19127,12 +19717,14 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
           name = snapshot.level.prova.scene;
           build();
           apply();
+          host2.classList.toggle("ofc", name === "officina");
           document.addEventListener("keydown", onKey);
           window.addEventListener("resize", onResize);
         }
         const ph = snapshot.unit ? snapshot.unit.phase : null;
         const prevPhase = phase;
         lastSnap = snapshot;
+        if (name === "officina" && cfg()) observeOfficina(snapshot);
         if (sceneState === "idle") loadScene(snapshot);
         if (cfg()) {
           if (first) {
@@ -19149,13 +19741,18 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
           } else if (ph === "fault" && prevPhase === "done") {
             restart(true);
             setAct("play");
-            override = litHouse();
-            push();
-            later(700, () => {
-              override = null;
+            if (name === "officina") {
+              if (scene) scene.shift(false);
+              prevPs = provaState(snapshot);
+            } else {
+              override = litHouse();
               push();
-              tac(cfg().log.start);
-            });
+              later(700, () => {
+                override = null;
+                push();
+                tac(cfg().log.start);
+              });
+            }
           } else if (ph === "done" && prevPhase === "fault" && act2 !== "finale") finale();
         }
         phase = ph;
@@ -19185,6 +19782,10 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
         override = null;
         story = null;
         act2 = null;
+        prevPs = null;
+        pending = null;
+        pointerHold = null;
+        ui2.alarm = false;
         sceneState = "idle";
         mounted = false;
         lastSnap = null;
@@ -19198,7 +19799,7 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
         host2.onclick = null;
         delete host2.dataset.act;
         document.body.classList.remove("ms-intro");
-        host2.className = host2.className.replace(/\b(lesson|noscene|shake)\b/g, "").trim();
+        host2.className = host2.className.replace(/\b(lesson|noscene|shake|ofc)\b/g, "").trim();
       },
       isMounted: () => mounted,
       // lo schema si chiude anche dal suo pulsante (sul telefono copre i comandi)
@@ -19206,6 +19807,7 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
         ui2.schema = false;
         if (env.drawer) env.drawer(false);
         renderHud();
+        if (name === "officina" && scene) scene.look("insieme", 900);
         const b = el.pDock && el.pDock.querySelector('[data-pui="schema"]');
         if (b && b.focus) b.focus({ preventScroll: true });
       },
@@ -19306,7 +19908,8 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
     summary: () => {
       opener = document.activeElement;
       openOverlay("summary", summaryHTML(S));
-    }
+    },
+    name: () => profile.name
   });
   var comps = [];
   var lastKey = null;

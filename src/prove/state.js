@@ -47,6 +47,9 @@ export function officinaState(snap) {
     emergency: !!cs.SBE,
     lamp: o.loads.H === 'on',
     overload: !!snap.overload,
+    // i fili del banco e il loro stato (in tensione, percorsi da corrente): la scena li disegna come sono
+    wires: snap.wires || [],
+    flow: snap.flow || null,
   };
 }
 
