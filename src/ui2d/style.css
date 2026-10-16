@@ -951,3 +951,31 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
 .hmsg .tw-ghost{stroke:#fff;opacity:.4}
 .ftower{display:flex;align-items:flex-end;gap:16px}
 .ftower .tw{flex:none;margin-bottom:-2px}
+
+/* pannello operatore (HMI): sempre uno schermo scuro, anche con il tema chiaro */
+.hmi{background:#1D2430;color:#E8EEF5;border-radius:10px;padding:10px 12px;display:flex;flex-direction:column;gap:8px;font:500 13px 'IBM Plex Sans',sans-serif}
+.hmitop{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.hmitop b{font:600 12px 'IBM Plex Mono',monospace;letter-spacing:.06em;margin-right:auto}
+.hmilink{font:600 11px 'IBM Plex Mono',monospace;padding:2px 8px;border-radius:999px;background:#1F5E3A;color:#C8F2D8}
+.hmilink.off{background:#6B1E1E;color:#FFD6D6}
+.hmihorn{font:700 11px 'IBM Plex Mono',monospace;padding:2px 8px;border-radius:999px;background:#E5484D;color:#fff;animation:hmiblink 1s steps(2) infinite}
+.hmihorn[hidden]{display:none}
+.hmivals{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:6px}
+.hmival{background:#273142;border-radius:8px;padding:6px 8px;display:flex;flex-direction:column}
+.hmival span{font-size:12px;color:#A9B6C6}
+.hmival b{font:600 18px 'IBM Plex Mono',monospace;color:#9FE3B8}
+.hmival i{font:500 11px 'IBM Plex Mono',monospace;font-style:normal;color:#F5C26B;min-height:14px}
+.hmival.stale b{color:#7D8796;text-decoration:line-through dotted}
+.hmialms{display:flex;flex-direction:column;gap:4px}
+.hmiempty{margin:0;color:#A9B6C6;font-size:13px}
+.hmialm{display:grid;grid-template-columns:auto 1fr;gap:2px 8px;align-items:baseline;background:#273142;border-left:5px solid #7D8796;border-radius:6px;padding:5px 8px}
+.hmialm em{font:700 10px 'IBM Plex Mono',monospace;font-style:normal;grid-row:span 2}
+.hmialm i{font:500 11px 'IBM Plex Mono',monospace;font-style:normal;color:#A9B6C6}
+.hmialm.p-alta{border-left-color:#E5484D}.hmialm.p-alta em{color:#FF8A8D}
+.hmialm.p-media{border-left-color:#F59F00}.hmialm.p-media em{color:#FFC14D}
+.hmialm.p-bassa{border-left-color:#E8D44D}.hmialm.p-bassa em{color:#F2E37A}
+.hmialm.s-attivo,.hmialm.s-rientrato{animation:hmiblink 1.2s steps(2) infinite}
+.hmialm.s-riconosciuto,.hmialm.s-rientrato{opacity:.85}
+.hmiack{align-self:flex-start;min-height:44px}
+@keyframes hmiblink{50%{filter:brightness(1.5)}}
+@media (prefers-reduced-motion:reduce){.hmihorn,.hmialm{animation:none}}

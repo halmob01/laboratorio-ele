@@ -21,6 +21,7 @@ import { setLang, detect, onLang } from '../i18n/index.js';
 import '../i18n/ar.js';
 import { createHouse, isHouseLevel, firstCircuit } from '../trilocale/page.js';
 import { createProva } from '../prove/page.js';
+import { prefetchScenes } from './prefetch.js';
 import { isProvaLevel } from '../prove/state.js';
 
 const $ = s => document.querySelector(s);
@@ -285,9 +286,12 @@ function ladderAct(act, data) {
   }
   else if (act === 'up' || act === 'down') { const d = act === 'up' ? -1 : 1; next = moveRung(prog, sel.r, d); nsel = { kind: 'r', r: sel.r + d }; }
   else if (act === 'delRung') { next = removeRung(prog, sel.r); nsel = null; }
-  else if (cur && act === 'type') next = setContact(prog, sel.r, sel.cell, sel.alt, { a: cur.a, ...(data.v === 'not' ? { not: true } : data.v === 'rise' ? { rise: true } : {}) });
+  else if (cur && act === 'type' && data.v === 'cmp') next = setContact(prog, sel.r, sel.cell, sel.alt, cur.cmp ? cur : { cmp: 'gt', a: addrs.words[0], b: 0 });
+  else if (cur && act === 'type') next = setContact(prog, sel.r, sel.cell, sel.alt, { a: cur.cmp ? addrs.inputs[0] : cur.a, ...(data.v === 'not' ? { not: true } : data.v === 'rise' ? { rise: true } : {}) });
+  else if (cur && cur.cmp && act === 'cmpop') next = setContact(prog, sel.r, sel.cell, sel.alt, { ...cur, cmp: data.v });
+  else if (cur && cur.cmp && act === 'cmpb') { const b = Number(String(data.v).replace(',', '.')); if (Number.isFinite(b)) next = setContact(prog, sel.r, sel.cell, sel.alt, { ...cur, b: Math.max(-1e5, Math.min(1e5, b)) }); }
   else if (cur && act === 'addr') next = setContact(prog, sel.r, sel.cell, sel.alt, { ...cur, a: data.v });
-  else if (cur && act === 'parallel') { next = addParallel(prog, sel.r, sel.cell, { a: cur.a }); nsel = { kind: 'c', r: sel.r, cell: sel.cell, alt: cells[sel.cell].alts.length }; }
+  else if (cur && act === 'parallel') { next = addParallel(prog, sel.r, sel.cell, cur.cmp ? { ...cur } : { a: cur.a }); nsel = { kind: 'c', r: sel.r, cell: sel.cell, alt: cells[sel.cell].alts.length }; }
   else if (cur && act === 'delContact') { next = removeContact(prog, sel.r, sel.cell, sel.alt); nsel = { kind: 'r', r: sel.r }; }
   else if (sel.kind === 'o' && prog[sel.r] && prog[sel.r].do[sel.out]) {
     const ins = prog[sel.r].do[sel.out];
@@ -447,6 +451,8 @@ bench.addEventListener('click', e => {
   const rt = e.target.closest('[data-rate]'); if (rt) { clearSel(); session.rateControl(rt.dataset.rate); return; }
   const tp = e.target.closest('[data-test]'); if (tp) { clearSel(); session.testPart(tp.dataset.test); return; }
   const rp = e.target.closest('[data-reset]'); if (rp) { clearSel(); session.resetPart(rp.dataset.reset); return; }
+  const jm = e.target.closest('[data-jam]'); if (jm) { clearSel(); session.jamPart(jm.dataset.jam); return; }
+  const ct = e.target.closest('[data-cut]'); if (ct) { clearSel(); session.cutPart(ct.dataset.cut); return; }
   const c = e.target.closest('[data-ctl]'); if (c) { clearSel(); session.toggleControl(c.dataset.ctl); return; }
   // Il "click" che il telefono genera dopo il tocco arriva quando il banco e' gia' stato ridisegnato:
   // puo' cadere sul filo appena creato e cancellarlo. Quel filo non si cancella nel primo mezzo secondo.
@@ -491,6 +497,8 @@ bench.addEventListener('keydown', e => {
   if (hd) { e.preventDefault(); if (!e.repeat) holdStart(hd.dataset.hold); return; }
   const rt_ = e.target.closest('[data-rate]');
   if (rt_) { e.preventDefault(); session.rateControl(rt_.dataset.rate); return; }
+  const fb_ = e.target.closest('[data-jam],[data-cut]');
+  if (fb_) { e.preventDefault(); if (fb_.dataset.jam) session.jamPart(fb_.dataset.jam); else session.cutPart(fb_.dataset.cut); return; }
   const tr_ = e.target.closest('[data-test],[data-reset]');
   if (tr_) { e.preventDefault(); if (tr_.dataset.test) session.testPart(tr_.dataset.test); else session.resetPart(tr_.dataset.reset); return; }
   const t = e.target.closest('[data-term]');
@@ -505,6 +513,7 @@ bench.addEventListener('keydown', e => {
   const q = e.target.closest('[data-q]'); if (q) { e.preventDefault(); session.toggleBreaker(); return; }
   const h = e.target.closest('[data-help]'); if (h) { e.preventDefault(); setInfo(h.dataset.help); }
 });
+$('#process').addEventListener('click', e => { const b = e.target.closest('[data-hmiack]'); if (b && !b.disabled) session.ackPanel(b.dataset.hmiack); });
 $('#process').addEventListener('input', e => { const t = e.target.closest('[data-tune]'); if (t) session.tune(t.dataset.tune, Number(t.value)); });
 document.addEventListener('click', e => { if (e.target.closest('[data-overload]')) session.setOverload(!S.overload); });
 document.addEventListener('click', e => { if (e.target.closest('[data-rewind]')) session.rewind(); });
@@ -683,5 +692,7 @@ playWhenVisible($('#footer'));
 renderPalette();
 session.start();
 applyRoute();
+// le scene 3D si scaricano in sottofondo a pagina ferma: aprendo una prova arrivano dalla cache
+if (document.readyState === 'complete') prefetchScenes(); else window.addEventListener('load', () => prefetchScenes(), { once: true });
 
 document.addEventListener('click', e => { if (e.target.closest('[data-act="print"]')) window.print(); });

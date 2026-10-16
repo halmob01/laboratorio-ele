@@ -79,14 +79,19 @@ export function createScene(container, cb) {
   scene.add(hemi);
   const pmrem = new THREE.PMREMGenerator(renderer);
   let envReady = false, nightK = night ? 1 : 0;
+  // La luce ambiente cambia la variante di tutti i materiali: i programmi si preparano dopo che e' arrivata (al massimo 4 s),
+  // altrimenti si compilerebbero due volte, la seconda di colpo a scena aperta.
+  let envDone;
+  const envGate = new Promise(r => { envDone = r; setTimeout(r, 4000); });
   new EXRLoader().load(ASSETS + 'ambiente.exr', t => {
     if (disposed) return;
     scene.environment = pmrem.fromEquirectangular(t).texture;
     envReady = true;
     applyNight();
     t.dispose(); pmrem.dispose();
+    envDone();
     redraw();
-  }, undefined, () => {});
+  }, undefined, () => envDone());
   // sole basso di sera, caldo, da sud-ovest
   // di notte la luna: abbastanza per leggere la casa, non per vederci; la luce vera la fanno le lampade
   const sun = new THREE.DirectionalLight(night ? 0x8fa9e6 : 0xff9f66, night ? 0.22 : 1.0);
@@ -179,7 +184,7 @@ export function createScene(container, cb) {
       obj.position.set(md.x, 0, md.z);
       // shader preparati prima di mostrarlo: l'arrivo del modello non blocca la scena
       const show = () => { if (disposed) return; world.add(obj); if (ph) world.remove(ph); dirtyShadows(); redraw(); };
-      (renderer.compileAsync ? renderer.compileAsync(obj, camera, scene) : Promise.resolve()).then(show, show);
+      pipe.prepare(obj).then(show, show);
     }, undefined, () => {});
   });
 
@@ -342,7 +347,7 @@ export function createScene(container, cb) {
   }
   // Il primo disegno aspetta gli shader, preparati in parallelo: niente blocco della pagina all'apertura.
   let ready = false;
-  (renderer.compileAsync ? renderer.compileAsync(scene, camera) : Promise.resolve()).catch(() => {}).then(() => { ready = true; redraw(); });
+  envGate.then(() => (disposed ? null : pipe.warm())).then(() => { ready = true; redraw(); });
   function frame(t) {
     raf = 0;
     if (disposed) return;

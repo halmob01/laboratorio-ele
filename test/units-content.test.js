@@ -36,7 +36,9 @@ for (const L of withUnit) {
   if (u.fault) {
     test(`${L.id}: la sfida guasto parte guasta e si ripara`, () => {
       // i guasti da componente (`on`) hanno i fili giusti: il guasto e' nello stato, non nel cablaggio
-      if (!u.fault.on) assert.equal(evaluate(L, W(u.fault.wires), undefined, u.fault.programs).pass, false);
+      // anche il pannello staccato (`open` su un hmi) e' un guasto di stato
+      const stateFault = u.fault.on || (u.fault.open || []).some(id => L.comps.some(c => c.id === id && c.type === 'hmi'));
+      if (!stateFault) assert.equal(evaluate(L, W(u.fault.wires), undefined, u.fault.programs).pass, false);
       assert.equal(evaluate(L, W(L.solution), L.solutionRatings, L.solutionPrograms).pass, true);
       assert.ok(u.fault.diagnosis.options.some(o => o.id === u.fault.diagnosis.correct));
     });
@@ -66,6 +68,12 @@ for (const L of withUnit.filter(l => l.unit.fault)) {
       // con il guasto ancora acceso la verifica non passa: prima va tolto
       assert.equal(s.check().pass, false);
       L.unit.fault.on.forEach(id => s.toggleControl(id));
+    }
+    const cables = (L.unit.fault.open || []).filter(id => L.comps.some(c => c.id === id && c.type === 'hmi'));
+    if (cables.length) {
+      // il pannello e' rimasto staccato anche ricablando: la verifica non passa finche' non si ricollega
+      assert.equal(s.check().pass, false);
+      cables.forEach(id => s.toggleControl(id));
     }
     assert.equal(s.check().pass, true);
     assert.equal(s.snapshot().unit.faultSolved, true);
