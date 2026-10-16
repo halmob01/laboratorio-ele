@@ -25,8 +25,8 @@ export function remember(name, mem, action, before, after) {
   return m;
 }
 // Le prove "di reparto" (officina, nastro automatico): pulsantiera in basso, verbale delle prove, eventi letti dallo stato.
-export const isPlant = name => name === 'officina' || name === 'automatico';
-export const plantEvents = (name, action, before, after) => (name === 'automatico' ? automaticoEvents(action, before, after) : officinaEvents(action, before, after));
+export const isPlant = name => name === 'officina' || name === 'automatico' || name === 'fabbrica';
+export const plantEvents = (name, action, before, after) => (name === 'automatico' ? automaticoEvents(action, before, after) : name === 'fabbrica' ? fabbricaEvents(action, before, after) : officinaEvents(action, before, after));
 const lineOf = (name, id) => { const c = (PROVE[name].controls || []).find(x => x.id === id); return c ? c.line : null; };
 
 // Passi della prova: { text, done, cur }. Il passo corrente e' il primo non fatto dopo l'ultimo fatto.
@@ -38,6 +38,12 @@ export function stepsOf(name, ps, unit, mem) {
   const diagOk = !!(unit && unit.diag && unit.diag.correct);
   if (name === 'appartamento') {
     done = [mem.panel, mem.opened, mem.rearmed, mem.found, diagOk, !ps.heaterPlugged, unit && unit.phase === 'done'];
+  } else if (name === 'fabbrica') {
+    // il turno: avvio, risposta, primo guasto riparato, tutti i guasti in tempo, fine turno, verifica
+    const sh = (ps && ps.shift) || { faults: [] }, f0 = sh.faults[0] || {};
+    const allFixed = sh.faults.length > 0 && sh.faults.every(f => f.fixedAt !== null && !f.late);
+    done = [!!sh.started, diagOk, f0.fixedAt != null && !f0.late, allFixed, !!sh.done, unit && unit.phase === 'done'];
+    ko = [false, false, !!f0.late || (!!sh.done && f0.fixedAt == null), sh.faults.some(f => f.late || (sh.done && f.fixedAt === null)), false, false];
   } else if (isPlant(name)) {
     // le cinque prove del verbale, poi diagnosi, correzione, ricollaudo; una prova non superata conta come fatta (ma in rosso)
     const t = mem.tests || {};
@@ -113,7 +119,122 @@ export function automaticoFixed(programs) {
   const ctu = ((programs || {}).PLC || []).map(r => (r.do || []).find(i => i.op === 'ctu')).find(Boolean);
   return !!ctu && ctu.r === 'I1' && ctu.pv === 4;
 }
-export const plantFixed = (name, snap) => (name === 'automatico' ? automaticoFixed(snap.programs) : officinaFixed(snap.wires));
+export const plantFixed = (name, snap) => (name === 'automatico' ? automaticoFixed(snap.programs) : name === 'fabbrica' ? false : officinaFixed(snap.wires));
+
+/* ---------- fabbrica: il turno di notte ---------- */
+
+// Ora del turno: dalle 22:00 (cfg.clock) per cfg.shiftHours ore, in proporzione al tempo dello scenario.
+export const shiftMinutes = (cfg, sh) => (sh && sh.duration ? Math.round((sh.t / sh.duration) * cfg.shiftHours * 60) : 0);
+export const shiftClock = (cfg, sh, t = sh ? sh.t : 0) => clockText(cfg, sh && sh.duration ? Math.round((t / sh.duration) * cfg.shiftHours * 60) : 0);
+// secondi dello scenario -> durata nel turno, "1 h 05" o "47 min"
+export function shiftSpan(cfg, sh, sec) {
+  const m = sh && sh.duration ? Math.round((sec / sh.duration) * cfg.shiftHours * 60) : 0;
+  return m >= 60 ? Math.floor(m / 60) + ' h ' + String(m % 60).padStart(2, '0') : m + ' min';
+}
+const alarmState = (h, text) => { const a = h && h.alarms && h.alarms.find(x => x.text === text); return a ? a.state : 'off'; };
+// La cella e' ferma adesso (per la barra del turno): senza potenza, o con "Ciclo bloccato".
+export const cellDown = ps => !!(ps && ps.shift && ps.shift.started && !ps.shift.done && (!ps.powered || ['attivo', 'riconosciuto'].includes(alarmState(ps.hmi, 'Ciclo bloccato'))));
+
+// Che cosa e' successo nella cella, per un'azione o per il tempo che passa. Il registro dice i sintomi (il pannello), non la
+// causa: il guasto si nomina solo quando e' riparato.
+export function fabbricaEvents(action, before, after) {
+  if (!before || !after) return [];
+  const P = PROVE.fabbrica, L = P.log, ev = [];
+  const id = action && action.id, kind = action && action.kind;
+  // Marcia e Riarmo contano a pulsante rilasciato (o premuti e rilasciati da tastiera)
+  const released = btn => kind === 'release' || (kind === 'press' && !after[btn]);
+  if (id === 'SBR' && released('reset')) ev.push(after.ks ? { kind: 'reset', text: L.reset, good: true } : { kind: 'resetKo', text: L.resetKo, trip: true });
+  else if (id === 'SB1' && released('start')) ev.push(after.cycle ? { kind: 'marcia', text: L.marcia, good: true } : { kind: 'marciaIdle', text: L.marciaIdle });
+  else if (id === 'SB0' && kind === 'press') ev.push({ kind: 'arresto', text: L.arresto });
+  else if (id === 'E' && kind === 'toggle') ev.push(after.emergency ? { kind: 'fungo', text: L.fungo } : { kind: 'fungoUp', text: L.fungoUp });
+  else if (id === 'P' && kind === 'toggle') ev.push(after.door ? { kind: 'doorOpen', text: L.doorOpen } : { kind: 'doorClose', text: L.doorClose });
+  else if (kind === 'repair') {
+    const name = P.sensorNames[id] || id;
+    if (before.powered) ev.push({ kind: 'repairLive', text: L.repairLive, trip: true });
+    ev.push({ kind: 'repair', text: L.repair + name + '.', good: !before.powered });
+  } else if (kind === 'cable') ev.push({ kind: 'cable', text: L.cable, good: true });
+  else if (kind === 'ack') ev.push({ kind: 'ack', text: L.ack });
+  const b = before.shift || { faults: [] }, a = after.shift || { faults: [] };
+  if (!b.started && a.started) ev.push({ kind: 'shiftStart', text: L.shiftStart, good: true });
+  // allarmi nuovi sul pannello (solo se il pannello comunica)
+  if (after.hmi && after.hmi.link) (after.hmi.alarms || []).forEach(x => {
+    if (x.state !== 'attivo' || alarmState(before.hmi, x.text) === 'attivo') return;
+    const k = x.text === 'Ciclo bloccato' ? 'stop' : x.text === 'Sicurezze aperte' ? 'safety' : 'alarm';
+    if (k === 'safety' && !a.started) return;       // prima del riarmo le sicurezze sono aperte per forza
+    ev.push({ kind: k, text: L.alarm + x.text + '.', trip: true });
+  });
+  if (before.hmi && before.hmi.link && after.hmi && !after.hmi.link) ev.push({ kind: 'panelLost', text: L.panelLost, trip: true });
+  a.faults.forEach(f => {
+    const was = b.faults.find(x => x.id === f.id);
+    if (f.fixedAt !== null && (!was || was.fixedAt === null)) ev.push({ kind: 'fixed', text: (f.late ? L.late : L.fixed) + f.label + '.', good: !f.late, trip: f.late });
+  });
+  if (!b.done && a.done) ev.push({ kind: 'end', text: L.end, good: true });
+  return ev;
+}
+
+// Barra del turno sotto la barra in alto: ora, pezzi contro obiettivo, fermo (rosso quando la cella e' ferma), guasti.
+export function shiftHTML(cfg, ps) {
+  const sh = ps && ps.shift;
+  if (!sh) return '';
+  const fired = sh.faults.filter(f => f.firedAt !== null), fixed = fired.filter(f => f.fixedAt !== null);
+  const left = sh.started ? shiftSpan(cfg, sh, Math.max(0, sh.duration - sh.t)) : '';
+  const state = !sh.started ? 'Cella ferma: riarma e avvia' : sh.done ? 'Turno finito' : 'Fine turno tra ' + left;
+  return `<div class="pshift-in" role="status"><span class="pshift-state">${esc(state)}</span>
+    <span>Pezzi ${ps.robot.out} / ${ps.goal}</span>
+    <span class="pshift-down${cellDown(ps) ? ' on' : ''}">Fermo ${esc(shiftSpan(cfg, sh, sh.down || 0))}</span>
+    <span>Guasti riparati ${fixed.length} di ${fired.length}</span></div>`;
+}
+
+// La pulsantiera della cella con il pannello operatore, la portella e i sensori della cella (con il LED e "Sostituisci").
+function fabbricaDockHTML(cfg, ps, unit, ui) {
+  const diagOk = !!(unit && unit.diag && unit.diag.correct);
+  let main = '';
+  if (unit && unit.phase === 'fault') main = diagOk ? '<button class="pbtn y" type="button" data-pui="check">Verifica</button>' : '<button class="pbtn y" type="button" data-pui="answer">Rispondi</button>';
+  else if (unit && unit.phase === 'done') main = '<button class="pbtn y" type="button" data-pui="finale">Rapporto</button>';
+  const h = ps.hmi || { link: false, values: [], alarms: [] };
+  const STATE = { attivo: 'da riconoscere', riconosciuto: 'riconosciuto', rientrato: 'rientrato' };
+  const alarms = h.link
+    ? ((h.alarms || []).filter(a => a.state !== 'off').map(a => `<li class="phmi-a ${esc(a.state)}"><b>${esc(a.text)}</b><span>${esc(STATE[a.state] || a.state)}</span></li>`).join('') || '<li class="phmi-none">Nessun allarme</li>')
+    : '<li class="phmi-none">Nessun dato: il pannello non comunica</li>';
+  const values = h.link ? (h.values || []).map(v => `<span><i>${esc(v.label)}</i><b>${esc(v.text || '—')}</b></span>`).join('') : '';
+  // i sensori della cella: il LED dice se il PLC li vede azionati; un tocco sostituisce il sensore
+  const sensors = Object.keys(cfg.sensorNames).map(id => `<button class="psens-b" type="button" data-prepair="${id}" aria-label="Sostituisci il sensore ${esc(cfg.sensorNames[id])} (${ps.sensors[id] && ps.sensors[id].act ? 'azionato' : 'a riposo'})"><span class="psens-led${ps.sensors[id] && ps.sensors[id].act ? ' on' : ''}" aria-hidden="true"></span>${esc(cfg.sensorNames[id])}</button>`).join('');
+  return `<div class="pbox pstation pfab"><div class="pboxhead"><h2>${esc(cfg.dockTitle)}</h2><div class="prow">
+      <button class="pchip" type="button" data-pui="schema" aria-pressed="${!!ui.schema}">${ui.schema ? 'Chiudi il banco' : 'Banco e schema'}</button>${main}</div></div>
+    <div class="pst">
+      <div class="pst-panel">
+        <button class="pst-btn pst-go" type="button" data-phold="SB1" data-pid="SB1" aria-pressed="${!!ps.start}"><span class="pst-cap" aria-hidden="true"></span><span>Marcia</span></button>
+        <button class="pst-btn pst-stop" type="button" data-phold="SB0" data-pid="SB0" aria-pressed="${!!ps.stop}"><span class="pst-cap" aria-hidden="true"></span><span>Arresto</span></button>
+        <button class="pst-mush" type="button" data-pact="toggle" data-pid="E" aria-pressed="${!!ps.emergency}"><span class="pst-cap" aria-hidden="true"></span><span>${ps.emergency ? 'Sblocca' : 'Emergenza'}</span></button>
+        <button class="pst-btn pst-reset" type="button" data-phold="SBR" data-pid="SBR" aria-pressed="${!!ps.reset}"><span class="pst-cap" aria-hidden="true"></span><span>Riarmo</span></button>
+        <span class="pst-lamp${ps.powered ? ' on' : ''}"><span class="pst-cap" aria-hidden="true"></span><span>Robot</span><span class="vh">${ps.powered ? 'alimentato' : 'senza potenza'}</span></span>
+      </div>
+      <div class="pst-side pfab-side">
+        <div class="phmi${h.link ? '' : ' off'}"><div class="phmi-head"><b>Pannello operatore</b>${h.link ? '<button class="pchip" type="button" data-pui="ack">Riconosci</button>' : '<button class="pchip" type="button" data-pui="cable">Ricollega il cavo</button>'}</div>
+          <div class="phmi-v">${values}</div><ul class="phmi-al" aria-live="polite">${alarms}</ul></div>
+        <div class="pst-mod pfab-door${ps.door ? ' open' : ''}"><span class="pst-name">Portella</span><button class="pst-sw" type="button" data-pact="toggle" data-pid="P" aria-pressed="${!!ps.door}">${ps.door ? 'Aperta' : 'Chiusa'}</button></div>
+      </div>
+    </div>
+    <div class="psens"><span class="pst-name">Sensori della cella · tocca per sostituire</span><div class="psens-row">${sensors}</div></div></div>`;
+}
+
+// Il finale della fabbrica: il rapporto di fine turno, con i numeri del turno.
+export function turnoReportHTML(cfg, stars, solved, ps, who, safeOk) {
+  const R = cfg.report, sh = ps.shift;
+  const rows = sh.faults.filter(f => f.firedAt !== null).map(f => `<li><span>${esc(f.label)}</span><b class="${f.fixedAt === null ? 'ko' : f.late ? 'late' : ''}">${esc(R.arrived)} ${esc(shiftClock(cfg, sh, f.firedAt))}, ${f.fixedAt === null ? esc(R.open) : esc(R.fixed) + ' ' + esc(shiftClock(cfg, sh, f.fixedAt)) + (f.late ? ' (' + esc(R.late) + ')' : '')}</b></li>`).join('');
+  return `<div class="pcard preport pverbale" role="dialog" aria-modal="true" aria-labelledby="pW">
+      <div class="prep-head"><span class="pk">${solved ? esc(cfg.kick.split(' · ')[0] + ' completato') : 'Turno consegnato'}</span><span class="prep-time">${esc(shiftClock(cfg, sh, 0))}–${esc(shiftClock(cfg, sh))}</span></div>
+      <h2 id="pW">${esc(R.title)}</h2><p class="pverb-sub">${esc(R.sub)}</p>
+      <dl class="prep">
+        <dt>${esc(R.pieces)}</dt><dd>${esc(ps.robot.out + ' (' + R.goal + ' ' + ps.goal + ')')}</dd>
+        <dt>${esc(R.down)}</dt><dd>${esc(shiftSpan(cfg, sh, sh.down || 0))}</dd>
+        <dt>${esc(R.faults)}</dt><dd><ul class="pverb-tests">${rows}</ul></dd>
+        <dt>${esc(R.safety)}</dt><dd>${esc(safeOk ? R.safeOk : R.safeKo)}</dd>
+        <dt>Esito</dt><dd><span class="pstars" role="img" aria-label="${stars} stelle su 3">${[0, 1, 2].map(i => `<span class="pstar" style="--i:${i}">${STAR(i < stars)}</span>`).join('')}</span></dd>
+        <dt>Manutentore</dt><dd class="tsign"${who ? ' data-notr' : ''}>${esc(who || 'Giocatore')}</dd>
+      </dl>
+      <div class="prow"><a class="pbtn y" href="#/home">Torna alla mappa</a><button class="pbtn" type="button" data-pui="again">Rifai il turno</button><button class="pbtn" type="button" data-pui="summary">Sintesi</button><button class="pbtn" type="button" data-pui="closeSheet">Guarda la cella</button></div></div>`;
+}
 function rememberEvents(mem, events) {
   if (!events.length) return mem;
   const m = { ...mem, tests: { ...(mem.tests || {}) } };
@@ -228,6 +349,7 @@ const STATE_WORD = { on: 'Chiuso', off: 'Aperto', tripped: 'Scattato', armed: 'A
 // Il quadro in basso: moduli DIN con la leva, la spia, la tensione a valle; sul differenziale il tasto T e il bollino Δ.
 // Dopo la diagnosi giusta, anche l'apparecchio da scollegare.
 export function dockHTML(cfg, ps, unit, ui) {
+  if (cfg.shiftHours) return fabbricaDockHTML(cfg, ps, unit, ui);
   if (cfg.tests) return stationHTML(cfg, ps, unit, ui);
   const mods = cfg.controls.map(c => {
     let on, trip, live;

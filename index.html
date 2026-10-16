@@ -1081,6 +1081,51 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
 .shiftbar b{font:600 13px 'IBM Plex Mono',monospace;text-transform:uppercase}
 .shiftbar .late{color:var(--bad);font-weight:600}
 .shiftbar .btn{margin-left:auto;min-height:44px}
+
+/* ---------- fabbrica: barra del turno, pannello operatore e sensori nella pulsantiera ---------- */
+.pshift{top:calc(58px + env(safe-area-inset-top,0px));left:50%;transform:translateX(-50%);z-index:41;max-width:calc(100vw - 24px)}
+.pshift-in{display:flex;flex-wrap:wrap;justify-content:center;gap:6px 16px;padding:7px 14px;border-radius:999px;background:rgba(10,15,23,.8);border:1px solid var(--hud-line);color:var(--hud-ink2);font:500 13px/1.3 'IBM Plex Mono',monospace;-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px)}
+.pshift-in b{color:var(--hud-ink);font-weight:600}
+.pshift-state{color:var(--lamp)}
+.pshift-down.on,.pshift-down.on b{color:var(--hud-bad)}
+.pst-btn.pst-reset .pst-cap{background:radial-gradient(circle at 40% 35%,#6FA8F0,#1F4F9A)}
+.pfab .pst{grid-template-columns:auto 1fr}
+.pfab-side{grid-template-columns:1fr 1fr}
+.phmi{grid-column:1/-1;border-radius:10px;background:#141B26;color:#DDE6F2;padding:8px 10px;box-shadow:inset 0 0 0 2px #2B3647}
+.phmi.off{background:#3A3F47;color:#9AA3AF}
+.phmi-head{display:flex;justify-content:space-between;align-items:center;gap:8px;font:600 10px/1 'IBM Plex Mono',monospace;text-transform:uppercase;letter-spacing:.06em}
+.phmi-head .pchip{min-height:30px;padding:4px 10px;border-color:#5A6578;color:#DDE6F2;background:rgba(255,255,255,.06)}
+.phmi-v{display:flex;flex-wrap:wrap;gap:4px 14px;margin:6px 0 4px;font:500 12px/1.3 'IBM Plex Mono',monospace}
+.phmi-v i{font-style:normal;color:#8E9AAD;margin-right:6px}
+.phmi-al{list-style:none;margin:0;padding:0;display:grid;gap:3px;font-size:13px}
+.phmi-a{display:flex;justify-content:space-between;gap:8px;padding:3px 6px;border-radius:5px;background:rgba(255,255,255,.04)}
+.phmi-a.attivo{background:rgba(229,72,77,.22);color:#FFB3B5}
+.phmi-a.attivo b{animation:phmiBlink 1s steps(2) infinite}
+.phmi-a span{font:500 11px/1.6 'IBM Plex Mono',monospace;color:#8E9AAD}
+.phmi-none{color:#8E9AAD;font-style:italic}
+@keyframes phmiBlink{50%{opacity:.35}}
+.psens{margin-top:8px;padding:6px 9px;border-radius:8px;background:#F7F5F0;box-shadow:inset 0 0 0 1px #C9C6BD;color:#1B2230}
+.psens-row{display:flex;flex-wrap:wrap;gap:6px;margin-top:5px}
+.psens-b{display:inline-flex;align-items:center;gap:7px;min-height:34px;padding:4px 11px;border-radius:999px;border:1.5px solid #9A968B;background:#fff;color:#1B2230;font:500 13px/1 'IBM Plex Sans',sans-serif;cursor:pointer}
+.psens-b:hover{border-color:#1B2230}
+.psens-led{width:10px;height:10px;border-radius:50%;background:#5c4a1a;box-shadow:inset 0 0 0 1px #2a2208;flex:none}
+.psens-led.on{background:#FFC61A;box-shadow:0 0 8px #FFC61A}
+.pfab .pst-panel{align-self:start}
+.pfab-door{grid-column:1/-1;padding:5px 9px}
+.pfab-door.open{box-shadow:inset 0 0 0 2px #E3B61F}
+.pverb-tests b.ko{color:var(--hud-bad,#B21E16)}
+.pverb-tests b.late{color:#B8860B}
+@media (max-width:760px){
+  .pshift{top:calc(52px + env(safe-area-inset-top,0px));left:12px;right:12px;transform:none;max-width:none}
+  .pshift-in{font-size:11px;gap:2px 12px;padding:5px 10px;border-radius:12px}
+  .house.ofc .pshift ~ .psteps-box{top:calc(112px + env(safe-area-inset-top,0px))}
+  .pfab .pst{grid-template-columns:minmax(0,1fr)}
+  .pfab .pst-panel{flex-wrap:wrap;gap:6px 10px}
+  .pfab-side{grid-template-columns:minmax(0,1fr)}
+  .psens-b{min-height:30px;padding:3px 9px;font-size:12px}
+  .pshift-in{display:grid;grid-template-columns:auto auto;justify-content:center}
+}
+@media (prefers-reduced-motion:reduce){.phmi-a.attivo b{animation:none}}
 </style>
 </head>
 <body>
@@ -21088,6 +21133,22 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
   };
 
   // src/i18n/ar-41.js
+  registerLang("ar", {}, [
+    [/^Fine turno tra (.+)$/, (m, t) => `\u062A\u0646\u062A\u0647\u064A \u0627\u0644\u0645\u0646\u0627\u0648\u0628\u0629 \u0628\u0639\u062F ${t(m[1])}`],
+    [/^(\d+) h (\d+)$/, (m) => `${iso(m[1])} \u0633 ${iso(m[2])} \u062F`],
+    [/^(\d+) min$/, (m) => `${iso(m[1])} \u062F`],
+    [/^Pezzi (\d+) \/ (\d+)$/, (m) => `\u0627\u0644\u0642\u0637\u0639 ${iso(m[1])} / ${iso(m[2])}`],
+    [/^Fermo (.+)$/, (m, t) => `\u0627\u0644\u062A\u0648\u0642\u0641 ${t(m[1])}`],
+    [/^Guasti riparati (\d+) di (\d+)$/, (m) => `\u0623\u0639\u0637\u0627\u0644 \u0623\u064F\u0635\u0644\u062D\u062A ${iso(m[1])} \u0645\u0646 ${iso(m[2])}`],
+    [/^Sostituito il sensore: (.+)\.$/, (m, t) => `\u0627\u0633\u062A\u064F\u0628\u062F\u0644 \u0627\u0644\u0645\u0633\u062A\u0634\u0639\u0631: ${t(m[1])}.`],
+    [/^Il pannello segnala: (.+)\.$/, (m, t) => `\u062A\u0634\u064A\u0631 \u0627\u0644\u0644\u0648\u062D\u0629 \u0625\u0644\u0649: ${t(m[1])}.`],
+    [/^Riparato: (.+)\.$/, (m, t) => `\u0623\u064F\u0635\u0644\u062D: ${t(m[1])}.`],
+    [/^Riparato in ritardo: (.+)\.$/, (m, t) => `\u0623\u064F\u0635\u0644\u062D \u0645\u062A\u0623\u062E\u0631\u064B\u0627: ${t(m[1])}.`],
+    [/^Sostituisci il sensore (.+) \((azionato|a riposo)\)$/, (m, t) => `\u0627\u0633\u062A\u0628\u062F\u0644 \u0627\u0644\u0645\u0633\u062A\u0634\u0639\u0631 ${t(m[1])} (${m[2] === "azionato" ? "\u0645\u064F\u0641\u0639\u064E\u0651\u0644" : "\u0641\u064A \u0648\u0636\u0639 \u0627\u0644\u0631\u0627\u062D\u0629"})`],
+    [/^arrivato alle (\d+:\d+), non riparato$/, (m) => `\u0648\u0635\u0644 \u0641\u064A ${iso(m[1])}\u060C \u0644\u0645 \u064A\u064F\u0635\u0644\u064E\u062D`],
+    [/^arrivato alle (\d+:\d+), riparato alle (\d+:\d+)( \(in ritardo\))?$/, (m) => `\u0648\u0635\u0644 \u0641\u064A ${iso(m[1])}\u060C \u0623\u064F\u0635\u0644\u062D \u0641\u064A ${iso(m[2])}${m[3] ? " (\u0645\u062A\u0623\u062E\u0631\u064B\u0627)" : ""}`],
+    [/^(\d+) \(obiettivo (\d+)\)$/, (m) => `${iso(m[1])} (\u0627\u0644\u0647\u062F\u0641 ${iso(m[2])})`]
+  ]);
   var ar_41_default = {
     "Il turno di notte": "\u0627\u0644\u0645\u0646\u0627\u0648\u0628\u0629 \u0627\u0644\u0644\u064A\u0644\u064A\u0629",
     "La cella lavora tutta la notte: tu sei il manutentore. I guasti arrivano uno alla volta, ogni minuto fermo conta.": "\u0627\u0644\u062E\u0644\u064A\u0629 \u062A\u0639\u0645\u0644 \u0637\u0648\u0627\u0644 \u0627\u0644\u0644\u064A\u0644: \u0623\u0646\u062A \u0641\u0646\u064A \u0627\u0644\u0635\u064A\u0627\u0646\u0629. \u062A\u0635\u0644 \u0627\u0644\u0623\u0639\u0637\u0627\u0644 \u0648\u0627\u062D\u062F\u064B\u0627 \u062A\u0644\u0648 \u0627\u0644\u0622\u062E\u0631\u060C \u0648\u0643\u0644 \u062F\u0642\u064A\u0642\u0629 \u062A\u0648\u0642\u0641 \u0644\u0647\u0627 \u062B\u0645\u0646.",
@@ -21166,7 +21227,86 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
     "Uscita Sicurezze aperte": "\u0645\u062E\u0631\u062C \u0627\u0644\u0633\u0644\u0627\u0645\u0629 \u0645\u0641\u062A\u0648\u062D\u0629",
     // messaggi del motore
     "Attenzione: stai riparando dentro la cella con il robot alimentato. Apri prima la portella: cos\xEC com\u2019\xE8, perdi la stella di sicurezza.": "\u0627\u0646\u062A\u0628\u0647: \u0623\u0646\u062A \u062A\u0635\u0644\u062D \u062F\u0627\u062E\u0644 \u0627\u0644\u062E\u0644\u064A\u0629 \u0648\u0627\u0644\u0631\u0648\u0628\u0648\u062A \u062A\u062D\u062A \u0627\u0644\u062A\u063A\u0630\u064A\u0629. \u0627\u0641\u062A\u062D \u0627\u0644\u0628\u0648\u0627\u0628\u0629 \u0623\u0648\u0644\u064B\u0627: \u0643\u0645\u0627 \u0647\u0648 \u0627\u0644\u062D\u0627\u0644 \u0633\u062A\u0641\u0642\u062F \u0646\u062C\u0645\u0629 \u0627\u0644\u0633\u0644\u0627\u0645\u0629.",
-    "Hai riparato un pezzo dentro la cella con la macchina alimentata (Contattore chiuso): se il robot si muove mentre hai le mani nella cella, ti fa male. Prima apri la portella, poi ripari, poi richiudi e riarmi.": "\u0623\u0635\u0644\u062D\u062A \u0642\u0637\u0639\u0629 \u062F\u0627\u062E\u0644 \u0627\u0644\u062E\u0644\u064A\u0629 \u0648\u0627\u0644\u0622\u0644\u0629 \u062A\u062D\u062A \u0627\u0644\u062A\u063A\u0630\u064A\u0629 (\u0627\u0644\u0643\u0648\u0646\u062A\u0627\u0643\u062A\u0648\u0631 \u0645\u063A\u0644\u0642): \u0625\u0630\u0627 \u062A\u062D\u0631\u0643 \u0627\u0644\u0631\u0648\u0628\u0648\u062A \u0648\u064A\u062F\u0627\u0643 \u062F\u0627\u062E\u0644 \u0627\u0644\u062E\u0644\u064A\u0629 \u0641\u0633\u064A\u0624\u0630\u064A\u0643. \u0627\u0641\u062A\u062D \u0627\u0644\u0628\u0648\u0627\u0628\u0629 \u0623\u0648\u0644\u064B\u0627\u060C \u062B\u0645 \u0623\u0635\u0644\u062D\u060C \u062B\u0645 \u0623\u063A\u0644\u0642 \u0648\u0623\u0639\u062F \u0627\u0644\u062A\u0633\u0644\u064A\u062D."
+    "Hai riparato un pezzo dentro la cella con la macchina alimentata (Contattore chiuso): se il robot si muove mentre hai le mani nella cella, ti fa male. Prima apri la portella, poi ripari, poi richiudi e riarmi.": "\u0623\u0635\u0644\u062D\u062A \u0642\u0637\u0639\u0629 \u062F\u0627\u062E\u0644 \u0627\u0644\u062E\u0644\u064A\u0629 \u0648\u0627\u0644\u0622\u0644\u0629 \u062A\u062D\u062A \u0627\u0644\u062A\u063A\u0630\u064A\u0629 (\u0627\u0644\u0643\u0648\u0646\u062A\u0627\u0643\u062A\u0648\u0631 \u0645\u063A\u0644\u0642): \u0625\u0630\u0627 \u062A\u062D\u0631\u0643 \u0627\u0644\u0631\u0648\u0628\u0648\u062A \u0648\u064A\u062F\u0627\u0643 \u062F\u0627\u062E\u0644 \u0627\u0644\u062E\u0644\u064A\u0629 \u0641\u0633\u064A\u0624\u0630\u064A\u0643. \u0627\u0641\u062A\u062D \u0627\u0644\u0628\u0648\u0627\u0628\u0629 \u0623\u0648\u0644\u064B\u0627\u060C \u062B\u0645 \u0623\u0635\u0644\u062D\u060C \u062B\u0645 \u0623\u063A\u0644\u0642 \u0648\u0623\u0639\u062F \u0627\u0644\u062A\u0633\u0644\u064A\u062D.",
+    // cornice della prova (PROVE.fabbrica)
+    "Modulo 6 \xB7 prova": "\u0627\u0644\u0648\u062D\u062F\u0629 6 \xB7 \u0627\u0644\u0627\u062E\u062A\u0628\u0627\u0631",
+    "Modulo 6": "\u0627\u0644\u0648\u062D\u062F\u0629 6",
+    "Modulo 6 completato": "\u0627\u0643\u062A\u0645\u0644\u062A \u0627\u0644\u0648\u062D\u062F\u0629 6",
+    "Fabbrica": "\u0627\u0644\u0645\u0635\u0646\u0639",
+    "Ore 22:00. Comincia il turno.": "\u0627\u0644\u0633\u0627\u0639\u0629 22:00. \u062A\u0628\u062F\u0623 \u0627\u0644\u0645\u0646\u0627\u0648\u0628\u0629.",
+    "La cella lavora tutta la notte e tu sei il manutentore: avviala, tienila in produzione fino alle 6:00 e, quando si ferma, trova il guasto e riparalo in sicurezza.": "\u0627\u0644\u062E\u0644\u064A\u0629 \u062A\u0639\u0645\u0644 \u0637\u0648\u0627\u0644 \u0627\u0644\u0644\u064A\u0644 \u0648\u0623\u0646\u062A \u0641\u0646\u064A \u0627\u0644\u0635\u064A\u0627\u0646\u0629: \u0634\u063A\u0651\u0644\u0647\u0627\u060C \u0648\u0623\u0628\u0642\u0647\u0627 \u0645\u0646\u062A\u062C\u0629 \u062D\u062A\u0649 \u0627\u0644\u0633\u0627\u0639\u0629 6:00\u060C \u0648\u0639\u0646\u062F\u0645\u0627 \u062A\u062A\u0648\u0642\u0641 \u0627\u0639\u062B\u0631 \u0639\u0644\u0649 \u0627\u0644\u0639\u0637\u0644 \u0648\u0623\u0635\u0644\u062D\u0647 \u0628\u0623\u0645\u0627\u0646.",
+    "Pulsantiera della cella": "\u0644\u0648\u062D\u0629 \u0623\u0632\u0631\u0627\u0631 \u0627\u0644\u062E\u0644\u064A\u0629",
+    "Consegna del turno": "\u062A\u0633\u0644\u064A\u0645 \u0627\u0644\u0645\u0646\u0627\u0648\u0628\u0629",
+    "Capannone Ferri, linea 2": "\u0645\u0633\u062A\u0648\u062F\u0639 \u0641\u064A\u0631\u0651\u064A\u060C \u0627\u0644\u062E\u0637 2",
+    "\xABIl finecorsa del braccio ogni tanto non risponde, il resto va. Obiettivo della notte: 70 pezzi. Buon turno.\xBB": "\xAB\u0646\u0647\u0627\u064A\u0629 \u0634\u0648\u0637 \u0627\u0644\u0630\u0631\u0627\u0639 \u0644\u0627 \u062A\u0633\u062A\u062C\u064A\u0628 \u0623\u062D\u064A\u0627\u0646\u064B\u0627\u060C \u0648\u0627\u0644\u0628\u0627\u0642\u064A \u064A\u0639\u0645\u0644. \u0647\u062F\u0641 \u0627\u0644\u0644\u064A\u0644\u0629: 70 \u0642\u0637\u0639\u0629. \u0645\u0646\u0627\u0648\u0628\u0629 \u0645\u0648\u0641\u0642\u0629.\xBB",
+    "Inizia il turno": "\u0627\u0628\u062F\u0623 \u0627\u0644\u0645\u0646\u0627\u0648\u0628\u0629",
+    "Avvia la cella": "\u0634\u063A\u0651\u0644 \u0627\u0644\u062E\u0644\u064A\u0629",
+    "Rispondi: perch\xE9 si \xE8 fermata?": "\u0623\u062C\u0628: \u0644\u0645\u0627\u0630\u0627 \u062A\u0648\u0642\u0641\u062A\u061F",
+    "Ripara in sicurezza": "\u0623\u0635\u0644\u062D \u0628\u0623\u0645\u0627\u0646",
+    "Gestisci i guasti del turno": "\u062A\u0639\u0627\u0645\u0644 \u0645\u0639 \u0623\u0639\u0637\u0627\u0644 \u0627\u0644\u0645\u0646\u0627\u0648\u0628\u0629",
+    "Arriva alle 6:00": "\u0627\u0635\u0644 \u0625\u0644\u0649 \u0627\u0644\u0633\u0627\u0639\u0629 6:00",
+    "La cella si \xE8 fermata.": "\u062A\u0648\u0642\u0641\u062A \u0627\u0644\u062E\u0644\u064A\u0629.",
+    "Il pannello: \u201CCiclo bloccato\u201D. Il robot ha ancora potenza.": "\u0627\u0644\u0644\u0648\u062D\u0629: \xAB\u0627\u0644\u062F\u0648\u0631\u0629 \u0645\u062A\u0648\u0642\u0641\u0629\xBB. \u0645\u0627 \u0632\u0627\u0644 \u0627\u0644\u0631\u0648\u0628\u0648\u062A \u062A\u062D\u062A \u0627\u0644\u0642\u062F\u0631\u0629.",
+    "Sicurezze aperte.": "\u0627\u0644\u0633\u0644\u0627\u0645\u0629 \u0645\u0641\u062A\u0648\u062D\u0629.",
+    "Il robot ha perso la potenza: fungo o portella.": "\u0641\u0642\u062F \u0627\u0644\u0631\u0648\u0628\u0648\u062A \u0627\u0644\u0642\u062F\u0631\u0629: \u0632\u0631 \u0627\u0644\u0637\u0648\u0627\u0631\u0626 \u0623\u0648 \u0627\u0644\u0628\u0648\u0627\u0628\u0629.",
+    "Il pannello non comunica.": "\u0627\u0644\u0644\u0648\u062D\u0629 \u0644\u0627 \u062A\u062A\u0635\u0644.",
+    "Prima apri la portella: dentro la cella si lavora solo con il robot senza potenza.": "\u0627\u0641\u062A\u062D \u0627\u0644\u0628\u0648\u0627\u0628\u0629 \u0623\u0648\u0644\u064B\u0627: \u062F\u0627\u062E\u0644 \u0627\u0644\u062E\u0644\u064A\u0629 \u0644\u0627 \u064A\u064F\u0639\u0645\u0644 \u0625\u0644\u0627 \u0648\u0627\u0644\u0631\u0648\u0628\u0648\u062A \u0628\u0644\u0627 \u0642\u062F\u0631\u0629.",
+    "Ore 6:00. Cambio turno.": "\u0627\u0644\u0633\u0627\u0639\u0629 6:00. \u062A\u0628\u062F\u064A\u0644 \u0627\u0644\u0645\u0646\u0627\u0648\u0628\u0629.",
+    "Rapporto di fine turno": "\u062A\u0642\u0631\u064A\u0631 \u0646\u0647\u0627\u064A\u0629 \u0627\u0644\u0645\u0646\u0627\u0648\u0628\u0629",
+    "Linea 2, turno di notte": "\u0627\u0644\u062E\u0637 2\u060C \u0627\u0644\u0645\u0646\u0627\u0648\u0628\u0629 \u0627\u0644\u0644\u064A\u0644\u064A\u0629",
+    "Pezzi prodotti": "\u0627\u0644\u0642\u0637\u0639 \u0627\u0644\u0645\u0646\u062A\u062C\u0629",
+    "Tempo di fermo": "\u0632\u0645\u0646 \u0627\u0644\u062A\u0648\u0642\u0641",
+    "Guasti": "\u0627\u0644\u0623\u0639\u0637\u0627\u0644",
+    "Sicurezza": "\u0627\u0644\u0633\u0644\u0627\u0645\u0629",
+    "nessuna riparazione con il robot alimentato": "\u0644\u0627 \u0625\u0635\u0644\u0627\u062D \u0648\u0627\u0644\u0631\u0648\u0628\u0648\u062A \u062A\u062D\u062A \u0627\u0644\u062A\u063A\u0630\u064A\u0629",
+    "una riparazione dentro la cella con il robot alimentato": "\u0625\u0635\u0644\u0627\u062D \u062F\u0627\u062E\u0644 \u0627\u0644\u062E\u0644\u064A\u0629 \u0648\u0627\u0644\u0631\u0648\u0628\u0648\u062A \u062A\u062D\u062A \u0627\u0644\u062A\u063A\u0630\u064A\u0629",
+    "Manutentore": "\u0641\u0646\u064A \u0627\u0644\u0635\u064A\u0627\u0646\u0629",
+    "Turno consegnato": "\u0633\u064F\u0644\u0651\u0645\u062A \u0627\u0644\u0645\u0646\u0627\u0648\u0628\u0629",
+    "Rifai il turno": "\u0623\u0639\u062F \u0627\u0644\u0645\u0646\u0627\u0648\u0628\u0629",
+    "Guarda la cella": "\u0627\u0646\u0638\u0631 \u0625\u0644\u0649 \u0627\u0644\u062E\u0644\u064A\u0629",
+    "Presa in consegna la cella. Turno di notte.": "\u0627\u0633\u062A\u064F\u0644\u0645\u062A \u0627\u0644\u062E\u0644\u064A\u0629. \u0645\u0646\u0627\u0648\u0628\u0629 \u0644\u064A\u0644\u064A\u0629.",
+    "Riarmo fatto: il turno comincia.": "\u062A\u0645\u062A \u0625\u0639\u0627\u062F\u0629 \u0627\u0644\u062A\u0633\u0644\u064A\u062D: \u062A\u0628\u062F\u0623 \u0627\u0644\u0645\u0646\u0627\u0648\u0628\u0629.",
+    "Premuto il riarmo.": "\u0636\u064F\u063A\u0637 \u0632\u0631 \u0625\u0639\u0627\u062F\u0629 \u0627\u0644\u062A\u0633\u0644\u064A\u062D.",
+    "Premuto il riarmo: le sicurezze non sono a posto.": "\u0636\u064F\u063A\u0637 \u0632\u0631 \u0625\u0639\u0627\u062F\u0629 \u0627\u0644\u062A\u0633\u0644\u064A\u062D: \u0627\u0644\u0633\u0644\u0627\u0645\u0629 \u0644\u064A\u0633\u062A \u0633\u0644\u064A\u0645\u0629.",
+    "Premuto Marcia: la cella lavora.": "\u0636\u064F\u063A\u0637 \u0627\u0644\u062A\u0634\u063A\u064A\u0644: \u0627\u0644\u062E\u0644\u064A\u0629 \u062A\u0639\u0645\u0644.",
+    "Premuto Marcia.": "\u0636\u064F\u063A\u0637 \u0627\u0644\u062A\u0634\u063A\u064A\u0644.",
+    "Premuto Arresto: il ciclo si ferma alla fine.": "\u0636\u064F\u063A\u0637 \u0627\u0644\u0625\u064A\u0642\u0627\u0641: \u062A\u062A\u0648\u0642\u0641 \u0627\u0644\u062F\u0648\u0631\u0629 \u0639\u0646\u062F \u0646\u0647\u0627\u064A\u062A\u0647\u0627.",
+    "Premuto il fungo di emergenza: il robot perde la potenza.": "\u0636\u064F\u063A\u0637 \u0632\u0631 \u0627\u0644\u0637\u0648\u0627\u0631\u0626: \u064A\u0641\u0642\u062F \u0627\u0644\u0631\u0648\u0628\u0648\u062A \u0627\u0644\u0642\u062F\u0631\u0629.",
+    "Aperta la portella: il robot perde la potenza.": "\u0641\u064F\u062A\u062D\u062A \u0627\u0644\u0628\u0648\u0627\u0628\u0629: \u064A\u0641\u0642\u062F \u0627\u0644\u0631\u0648\u0628\u0648\u062A \u0627\u0644\u0642\u062F\u0631\u0629.",
+    "Chiusa la portella.": "\u0623\u064F\u063A\u0644\u0642\u062A \u0627\u0644\u0628\u0648\u0627\u0628\u0629.",
+    "Controllato il sensore: funziona, non serve sostituirlo.": "\u0641\u064F\u062D\u0635 \u0627\u0644\u0645\u0633\u062A\u0634\u0639\u0631: \u064A\u0639\u0645\u0644\u060C \u0644\u0627 \u062D\u0627\u062C\u0629 \u0644\u0627\u0633\u062A\u0628\u062F\u0627\u0644\u0647.",
+    "Riparazione dentro la cella con il robot alimentato.": "\u0625\u0635\u0644\u0627\u062D \u062F\u0627\u062E\u0644 \u0627\u0644\u062E\u0644\u064A\u0629 \u0648\u0627\u0644\u0631\u0648\u0628\u0648\u062A \u062A\u062D\u062A \u0627\u0644\u062A\u063A\u0630\u064A\u0629.",
+    "Ricollegato il cavo di rete del pannello.": "\u0623\u064F\u0639\u064A\u062F \u062A\u0648\u0635\u064A\u0644 \u0643\u0627\u0628\u0644 \u0634\u0628\u0643\u0629 \u0627\u0644\u0644\u0648\u062D\u0629.",
+    "Riconosciuti gli allarmi.": "\u062A\u0645 \u0627\u0644\u0625\u0642\u0631\u0627\u0631 \u0628\u0627\u0644\u0625\u0646\u0630\u0627\u0631\u0627\u062A.",
+    "Il pannello non comunica pi\xF9 con il PLC.": "\u0644\u0645 \u062A\u0639\u062F \u0627\u0644\u0644\u0648\u062D\u0629 \u062A\u062A\u0635\u0644 \u0628\u0627\u0644\u0640PLC.",
+    "Ore 6:00: fine del turno.": "\u0627\u0644\u0633\u0627\u0639\u0629 6:00: \u0646\u0647\u0627\u064A\u0629 \u0627\u0644\u0645\u0646\u0627\u0648\u0628\u0629.",
+    "Risposta giusta: il finecorsa \u201Cbraccio gi\xF9\u201D non risponde.": "\u0625\u062C\u0627\u0628\u0629 \u0635\u062D\u064A\u062D\u0629: \u0646\u0647\u0627\u064A\u0629 \u0627\u0644\u0634\u0648\u0637 \xAB\u0627\u0644\u0630\u0631\u0627\u0639 \u0644\u0644\u0623\u0633\u0641\u0644\xBB \u0644\u0627 \u062A\u0633\u062A\u062C\u064A\u0628.",
+    "Verifica: turno consegnato.": "\u062A\u062D\u0642\u0642: \u0633\u064F\u0644\u0651\u0645\u062A \u0627\u0644\u0645\u0646\u0627\u0648\u0628\u0629.",
+    "Riarma le sicurezze (tasto Riarmo) e premi Marcia: il turno comincia quando il robot riceve potenza.": "\u0623\u0639\u062F \u062A\u0633\u0644\u064A\u062D \u0627\u0644\u0633\u0644\u0627\u0645\u0629 (\u0632\u0631 \u0625\u0639\u0627\u062F\u0629 \u0627\u0644\u062A\u0633\u0644\u064A\u062D) \u0648\u0627\u0636\u063A\u0637 \u0627\u0644\u062A\u0634\u063A\u064A\u0644: \u062A\u0628\u062F\u0623 \u0627\u0644\u0645\u0646\u0627\u0648\u0628\u0629 \u0639\u0646\u062F\u0645\u0627 \u064A\u062A\u0644\u0642\u0649 \u0627\u0644\u0631\u0648\u0628\u0648\u062A \u0627\u0644\u0642\u062F\u0631\u0629.",
+    "La cella si \xE8 fermata: guarda il pannello e dove si \xE8 fermato il braccio, poi rispondi.": "\u062A\u0648\u0642\u0641\u062A \u0627\u0644\u062E\u0644\u064A\u0629: \u0627\u0646\u0638\u0631 \u0625\u0644\u0649 \u0627\u0644\u0644\u0648\u062D\u0629 \u0648\u0625\u0644\u0649 \u0623\u064A\u0646 \u062A\u0648\u0642\u0641 \u0627\u0644\u0630\u0631\u0627\u0639\u060C \u062B\u0645 \u0623\u062C\u0628.",
+    "Apri la portella, sostituisci il sensore che non risponde, richiudi, riarma e premi Marcia.": "\u0627\u0641\u062A\u062D \u0627\u0644\u0628\u0648\u0627\u0628\u0629\u060C \u0627\u0633\u062A\u0628\u062F\u0644 \u0627\u0644\u0645\u0633\u062A\u0634\u0639\u0631 \u0627\u0644\u0630\u064A \u0644\u0627 \u064A\u0633\u062A\u062C\u064A\u0628\u060C \u0623\u063A\u0644\u0642\u060C \u0623\u0639\u062F \u0627\u0644\u062A\u0633\u0644\u064A\u062D \u0648\u0627\u0636\u063A\u0637 \u0627\u0644\u062A\u0634\u063A\u064A\u0644.",
+    "Tieni d\u2019occhio il pannello: ogni guasto ha un tempo massimo.": "\u0631\u0627\u0642\u0628 \u0627\u0644\u0644\u0648\u062D\u0629: \u0644\u0643\u0644 \u0639\u0637\u0644 \u0632\u0645\u0646 \u0623\u0642\u0635\u0649.",
+    "Il turno finisce alle 6:00: intanto tieni la cella in produzione.": "\u062A\u0646\u062A\u0647\u064A \u0627\u0644\u0645\u0646\u0627\u0648\u0628\u0629 \u0641\u064A \u0627\u0644\u0633\u0627\u0639\u0629 6:00: \u0625\u0644\u0649 \u0630\u0644\u0643 \u0627\u0644\u062D\u064A\u0646 \u0623\u0628\u0642\u0650 \u0627\u0644\u062E\u0644\u064A\u0629 \u0645\u0646\u062A\u062C\u0629.",
+    "Turno finito: premi Verifica.": "\u0627\u0646\u062A\u0647\u062A \u0627\u0644\u0645\u0646\u0627\u0648\u0628\u0629: \u0627\u0636\u063A\u0637 \u062A\u062D\u0642\u0642.",
+    "La cella ha prodotto per tutta la notte. Ogni guasto \xE8 stato trovato dal pannello e riparato in sicurezza, con il robot senza potenza.": "\u0623\u0646\u062A\u062C\u062A \u0627\u0644\u062E\u0644\u064A\u0629 \u0637\u0648\u0627\u0644 \u0627\u0644\u0644\u064A\u0644. \u0639\u064F\u062B\u0631 \u0639\u0644\u0649 \u0643\u0644 \u0639\u0637\u0644 \u0645\u0646 \u0627\u0644\u0644\u0648\u062D\u0629 \u0648\u0623\u064F\u0635\u0644\u062D \u0628\u0623\u0645\u0627\u0646\u060C \u0648\u0627\u0644\u0631\u0648\u0628\u0648\u062A \u0628\u0644\u0627 \u0642\u062F\u0631\u0629.",
+    "Cella ferma: riarma e avvia": "\u0627\u0644\u062E\u0644\u064A\u0629 \u0645\u062A\u0648\u0642\u0641\u0629: \u0623\u0639\u062F \u0627\u0644\u062A\u0633\u0644\u064A\u062D \u0648\u0634\u063A\u0651\u0644",
+    "Turno finito": "\u0627\u0646\u062A\u0647\u062A \u0627\u0644\u0645\u0646\u0627\u0648\u0628\u0629",
+    "Il turno non \xE8 finito: tieni la cella in produzione fino alle 6:00.": "\u0644\u0645 \u062A\u0646\u062A\u0647\u0650 \u0627\u0644\u0645\u0646\u0627\u0648\u0628\u0629: \u0623\u0628\u0642\u0650 \u0627\u0644\u062E\u0644\u064A\u0629 \u0645\u0646\u062A\u062C\u0629 \u062D\u062A\u0649 \u0627\u0644\u0633\u0627\u0639\u0629 6:00.",
+    "Il turno non \xE8 cominciato: riarma e premi Marcia.": "\u0644\u0645 \u062A\u0628\u062F\u0623 \u0627\u0644\u0645\u0646\u0627\u0648\u0628\u0629: \u0623\u0639\u062F \u0627\u0644\u062A\u0633\u0644\u064A\u062D \u0648\u0627\u0636\u063A\u0637 \u0627\u0644\u062A\u0634\u063A\u064A\u0644.",
+    "Pannello operatore": "\u0644\u0648\u062D\u0629 \u0627\u0644\u0645\u0634\u063A\u0651\u0644",
+    "Riconosci": "\u0623\u0642\u0631\u0651",
+    "Ricollega il cavo": "\u0623\u0639\u062F \u062A\u0648\u0635\u064A\u0644 \u0627\u0644\u0643\u0627\u0628\u0644",
+    "Nessun allarme": "\u0644\u0627 \u062A\u0648\u062C\u062F \u0625\u0646\u0630\u0627\u0631\u0627\u062A",
+    "Nessun dato: il pannello non comunica": "\u0644\u0627 \u062A\u0648\u062C\u062F \u0628\u064A\u0627\u0646\u0627\u062A: \u0627\u0644\u0644\u0648\u062D\u0629 \u0644\u0627 \u062A\u062A\u0635\u0644",
+    "da riconoscere": "\u0628\u0627\u0646\u062A\u0638\u0627\u0631 \u0627\u0644\u0625\u0642\u0631\u0627\u0631",
+    "riconosciuto": "\u0645\u064F\u0642\u064E\u0631\u0651 \u0628\u0647",
+    "rientrato": "\u0632\u0627\u0644",
+    "Chiusa": "\u0645\u063A\u0644\u0642\u0629",
+    "Aperta": "\u0645\u0641\u062A\u0648\u062D\u0629",
+    "Robot": "\u0627\u0644\u0631\u0648\u0628\u0648\u062A",
+    "alimentato": "\u062A\u062D\u062A \u0627\u0644\u062A\u063A\u0630\u064A\u0629",
+    "Sensori della cella": "\u0645\u0633\u062A\u0634\u0639\u0631\u0627\u062A \u0627\u0644\u062E\u0644\u064A\u0629",
+    "tocca per sostituire": "\u0627\u0644\u0645\u0633 \u0644\u0644\u0627\u0633\u062A\u0628\u062F\u0627\u0644"
   };
 
   // src/i18n/ar.js
@@ -22339,11 +22479,49 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
       flow: snap.flow || null
     };
   }
+  var CELL_SENSORS = ["ZU", "ZD", "XP", "XL", "PR"];
+  function fabbricaState(snap) {
+    const o = snap.obs;
+    if (!o) return null;
+    const cs = snap.controlStates || {};
+    const p = o.process || {}, plc = part(o, "PLC"), sc = snap.level && snap.level.scenario || {};
+    const goal = (sc.expect && sc.expect.trace || []).find((x) => x.v === "out");
+    const sensors = {};
+    CELL_SENSORS.forEach((id) => {
+      const x = part(o, id);
+      sensors[id] = { act: !!x.act, jam: !!x.jam };
+    });
+    return {
+      scene: "fabbrica",
+      supply: !!o.supply,
+      powered: o.loads.L === "on",
+      // il robot ha potenza (contattore KM chiuso)
+      cycle: o.loads.HC === "on",
+      // ciclo in corso
+      ks: !!part(o, "KS").on,
+      contactor: !!part(o, "KM").on,
+      emergency: !!part(o, "E").pressed,
+      door: !!part(o, "P").open,
+      start: !!cs.SB1,
+      stop: !!cs.SB0,
+      reset: !!cs.SBR,
+      robot: { x: p.x || 0, z: p.z || 0, grip: p.grip || 0, holding: !!p.holding, feed: !!p.feed, out: p.out || 0, dropped: p.dropped || 0, crash: !!p.crash },
+      sensors,
+      plc: { on: !!plc.mem, inputs: { ...plc.inputs || {} }, outputs: { ...plc.q || {} } },
+      hmi: o.hmi || null,
+      panelOn: !!part(o, "HMI").on,
+      shift: o.scenario || null,
+      goal: goal ? goal.reaches : 0,
+      wires: snap.wires || [],
+      flow: snap.flow || null
+    };
+  }
   function provaState(snap) {
     const sc = snap && snap.level && snap.level.prova && snap.level.prova.scene;
     if (sc === "appartamento") return appartamentoState(snap);
     if (sc === "officina") return officinaState(snap);
     if (sc === "automatico") return automaticoState(snap);
+    if (sc === "fabbrica") return fabbricaState(snap);
     return null;
   }
 
@@ -22563,6 +22741,84 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
         title: "La linea riparte",
         text: "Il contatore dei pacchi non aveva l\u2019ingresso di azzeramento: dopo il primo lotto restava pieno e il nastro non ripartiva. Ora si azzera con Marcia e i lotti da 4 si susseguono."
       }
+    },
+    fabbrica: {
+      kick: "Modulo 6 \xB7 prova",
+      place: "Fabbrica",
+      title: "Il turno di notte",
+      tagline: "Ore 22:00. Comincia il turno.",
+      clock: [22, 0],
+      shiftHours: 8,
+      // il turno (scenario.duration) va dalle 22:00 alle 6:00
+      goal: "La cella lavora tutta la notte e tu sei il manutentore: avviala, tienila in produzione fino alle 6:00 e, quando si ferma, trova il guasto e riparalo in sicurezza.",
+      dockTitle: "Pulsantiera della cella",
+      tools: ["wires", "sound", "log"],
+      call: { label: "Consegna del turno", where: "Capannone Ferri, linea 2", quote: "\xABIl finecorsa del braccio ogni tanto non risponde, il resto va. Obiettivo della notte: 70 pezzi. Buon turno.\xBB", go: "Inizia il turno" },
+      steps: ["Avvia la cella", "Rispondi: perch\xE9 si \xE8 fermata?", "Ripara in sicurezza", "Gestisci i guasti del turno", "Arriva alle 6:00", "Verifica"],
+      sensorNames: { ZU: "Braccio su", ZD: "Braccio gi\xF9", XP: "Al prelievo", XL: "Al deposito", PR: "Pezzo pronto" },
+      story: {
+        stop: "La cella si \xE8 fermata.",
+        stopWhy: "Il pannello: \u201CCiclo bloccato\u201D. Il robot ha ancora potenza.",
+        safety: "Sicurezze aperte.",
+        safetyWhy: "Il robot ha perso la potenza: fungo o portella.",
+        panel: "Il pannello non comunica.",
+        inside: "Prima apri la portella: dentro la cella si lavora solo con il robot senza potenza.",
+        end: "Ore 6:00. Cambio turno."
+      },
+      report: {
+        title: "Rapporto di fine turno",
+        sub: "Linea 2, turno di notte",
+        pieces: "Pezzi prodotti",
+        goal: "obiettivo",
+        down: "Tempo di fermo",
+        faults: "Guasti",
+        arrived: "arrivato alle",
+        fixed: "riparato alle",
+        open: "non riparato",
+        late: "in ritardo",
+        safety: "Sicurezza",
+        safeOk: "nessuna riparazione con il robot alimentato",
+        safeKo: "una riparazione dentro la cella con il robot alimentato"
+      },
+      log: {
+        start: "Presa in consegna la cella. Turno di notte.",
+        shiftStart: "Riarmo fatto: il turno comincia.",
+        reset: "Premuto il riarmo.",
+        resetKo: "Premuto il riarmo: le sicurezze non sono a posto.",
+        marcia: "Premuto Marcia: la cella lavora.",
+        marciaIdle: "Premuto Marcia.",
+        arresto: "Premuto Arresto: il ciclo si ferma alla fine.",
+        fungo: "Premuto il fungo di emergenza: il robot perde la potenza.",
+        fungoUp: "Sbloccato il fungo di emergenza.",
+        doorOpen: "Aperta la portella: il robot perde la potenza.",
+        doorClose: "Chiusa la portella.",
+        repair: "Sostituito il sensore: ",
+        repairOk: "Controllato il sensore: funziona, non serve sostituirlo.",
+        repairLive: "Riparazione dentro la cella con il robot alimentato.",
+        cable: "Ricollegato il cavo di rete del pannello.",
+        ack: "Riconosciuti gli allarmi.",
+        alarm: "Il pannello segnala: ",
+        panelLost: "Il pannello non comunica pi\xF9 con il PLC.",
+        fixed: "Riparato: ",
+        late: "Riparato in ritardo: ",
+        end: "Ore 6:00: fine del turno.",
+        answerOk: "Risposta giusta: il finecorsa \u201Cbraccio gi\xF9\u201D non risponde.",
+        answerKo: "Risposta sbagliata. Si pu\xF2 riprovare.",
+        checkOk: "Verifica: turno consegnato.",
+        checkKo: "Verifica: qualcosa non va ancora."
+      },
+      hints: [
+        "Riarma le sicurezze (tasto Riarmo) e premi Marcia: il turno comincia quando il robot riceve potenza.",
+        "La cella si \xE8 fermata: guarda il pannello e dove si \xE8 fermato il braccio, poi rispondi.",
+        "Apri la portella, sostituisci il sensore che non risponde, richiudi, riarma e premi Marcia.",
+        "Tieni d\u2019occhio il pannello: ogni guasto ha un tempo massimo.",
+        "Il turno finisce alle 6:00: intanto tieni la cella in produzione.",
+        "Turno finito: premi Verifica."
+      ],
+      win: {
+        title: "Turno consegnato",
+        text: "La cella ha prodotto per tutta la notte. Ogni guasto \xE8 stato trovato dal pannello e riparato in sicurezza, con il robot senza potenza."
+      }
     }
   };
 
@@ -22581,8 +22837,8 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
     if (m.rearmed && line2 && before && before.rcd.on && !before.lines[line2].on && after.lines[line2].on && after.rcd.tripped) m.found = true;
     return m;
   }
-  var isPlant = (name) => name === "officina" || name === "automatico";
-  var plantEvents = (name, action, before, after) => name === "automatico" ? automaticoEvents(action, before, after) : officinaEvents(action, before, after);
+  var isPlant = (name) => name === "officina" || name === "automatico" || name === "fabbrica";
+  var plantEvents = (name, action, before, after) => name === "automatico" ? automaticoEvents(action, before, after) : name === "fabbrica" ? fabbricaEvents(action, before, after) : officinaEvents(action, before, after);
   var lineOf = (name, id) => {
     const c2 = (PROVE[name].controls || []).find((x) => x.id === id);
     return c2 ? c2.line : null;
@@ -22595,6 +22851,11 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
     const diagOk = !!(unit && unit.diag && unit.diag.correct);
     if (name === "appartamento") {
       done = [mem.panel, mem.opened, mem.rearmed, mem.found, diagOk, !ps.heaterPlugged, unit && unit.phase === "done"];
+    } else if (name === "fabbrica") {
+      const sh = ps && ps.shift || { faults: [] }, f0 = sh.faults[0] || {};
+      const allFixed = sh.faults.length > 0 && sh.faults.every((f2) => f2.fixedAt !== null && !f2.late);
+      done = [!!sh.started, diagOk, f0.fixedAt != null && !f0.late, allFixed, !!sh.done, unit && unit.phase === "done"];
+      ko = [false, false, !!f0.late || !!sh.done && f0.fixedAt == null, sh.faults.some((f2) => f2.late || sh.done && f2.fixedAt === null), false, false];
     } else if (isPlant(name)) {
       const t = mem.tests || {};
       done = cfg.tests.map((x) => t[x.id] === "ok").concat([diagOk, !!mem.fixed, unit && unit.phase === "done"]);
@@ -22662,7 +22923,104 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
     const ctu = ((programs || {}).PLC || []).map((r) => (r.do || []).find((i) => i.op === "ctu")).find(Boolean);
     return !!ctu && ctu.r === "I1" && ctu.pv === 4;
   }
-  var plantFixed = (name, snap) => name === "automatico" ? automaticoFixed(snap.programs) : officinaFixed(snap.wires);
+  var plantFixed = (name, snap) => name === "automatico" ? automaticoFixed(snap.programs) : name === "fabbrica" ? false : officinaFixed(snap.wires);
+  var shiftClock = (cfg, sh, t = sh ? sh.t : 0) => clockText(cfg, sh && sh.duration ? Math.round(t / sh.duration * cfg.shiftHours * 60) : 0);
+  function shiftSpan(cfg, sh, sec) {
+    const m = sh && sh.duration ? Math.round(sec / sh.duration * cfg.shiftHours * 60) : 0;
+    return m >= 60 ? Math.floor(m / 60) + " h " + String(m % 60).padStart(2, "0") : m + " min";
+  }
+  var alarmState = (h, text2) => {
+    const a = h && h.alarms && h.alarms.find((x) => x.text === text2);
+    return a ? a.state : "off";
+  };
+  var cellDown = (ps) => !!(ps && ps.shift && ps.shift.started && !ps.shift.done && (!ps.powered || ["attivo", "riconosciuto"].includes(alarmState(ps.hmi, "Ciclo bloccato"))));
+  function fabbricaEvents(action, before, after) {
+    if (!before || !after) return [];
+    const P = PROVE.fabbrica, L = P.log, ev2 = [];
+    const id = action && action.id, kind = action && action.kind;
+    const released = (btn) => kind === "release" || kind === "press" && !after[btn];
+    if (id === "SBR" && released("reset")) ev2.push(after.ks ? { kind: "reset", text: L.reset, good: true } : { kind: "resetKo", text: L.resetKo, trip: true });
+    else if (id === "SB1" && released("start")) ev2.push(after.cycle ? { kind: "marcia", text: L.marcia, good: true } : { kind: "marciaIdle", text: L.marciaIdle });
+    else if (id === "SB0" && kind === "press") ev2.push({ kind: "arresto", text: L.arresto });
+    else if (id === "E" && kind === "toggle") ev2.push(after.emergency ? { kind: "fungo", text: L.fungo } : { kind: "fungoUp", text: L.fungoUp });
+    else if (id === "P" && kind === "toggle") ev2.push(after.door ? { kind: "doorOpen", text: L.doorOpen } : { kind: "doorClose", text: L.doorClose });
+    else if (kind === "repair") {
+      const name = P.sensorNames[id] || id;
+      if (before.powered) ev2.push({ kind: "repairLive", text: L.repairLive, trip: true });
+      ev2.push({ kind: "repair", text: L.repair + name + ".", good: !before.powered });
+    } else if (kind === "cable") ev2.push({ kind: "cable", text: L.cable, good: true });
+    else if (kind === "ack") ev2.push({ kind: "ack", text: L.ack });
+    const b = before.shift || { faults: [] }, a = after.shift || { faults: [] };
+    if (!b.started && a.started) ev2.push({ kind: "shiftStart", text: L.shiftStart, good: true });
+    if (after.hmi && after.hmi.link) (after.hmi.alarms || []).forEach((x) => {
+      if (x.state !== "attivo" || alarmState(before.hmi, x.text) === "attivo") return;
+      const k = x.text === "Ciclo bloccato" ? "stop" : x.text === "Sicurezze aperte" ? "safety" : "alarm";
+      if (k === "safety" && !a.started) return;
+      ev2.push({ kind: k, text: L.alarm + x.text + ".", trip: true });
+    });
+    if (before.hmi && before.hmi.link && after.hmi && !after.hmi.link) ev2.push({ kind: "panelLost", text: L.panelLost, trip: true });
+    a.faults.forEach((f2) => {
+      const was = b.faults.find((x) => x.id === f2.id);
+      if (f2.fixedAt !== null && (!was || was.fixedAt === null)) ev2.push({ kind: "fixed", text: (f2.late ? L.late : L.fixed) + f2.label + ".", good: !f2.late, trip: f2.late });
+    });
+    if (!b.done && a.done) ev2.push({ kind: "end", text: L.end, good: true });
+    return ev2;
+  }
+  function shiftHTML(cfg, ps) {
+    const sh = ps && ps.shift;
+    if (!sh) return "";
+    const fired = sh.faults.filter((f2) => f2.firedAt !== null), fixed = fired.filter((f2) => f2.fixedAt !== null);
+    const left = sh.started ? shiftSpan(cfg, sh, Math.max(0, sh.duration - sh.t)) : "";
+    const state = !sh.started ? "Cella ferma: riarma e avvia" : sh.done ? "Turno finito" : "Fine turno tra " + left;
+    return `<div class="pshift-in" role="status"><span class="pshift-state">${esc5(state)}</span>
+    <span>Pezzi ${ps.robot.out} / ${ps.goal}</span>
+    <span class="pshift-down${cellDown(ps) ? " on" : ""}">Fermo ${esc5(shiftSpan(cfg, sh, sh.down || 0))}</span>
+    <span>Guasti riparati ${fixed.length} di ${fired.length}</span></div>`;
+  }
+  function fabbricaDockHTML(cfg, ps, unit, ui2) {
+    const diagOk = !!(unit && unit.diag && unit.diag.correct);
+    let main = "";
+    if (unit && unit.phase === "fault") main = diagOk ? '<button class="pbtn y" type="button" data-pui="check">Verifica</button>' : '<button class="pbtn y" type="button" data-pui="answer">Rispondi</button>';
+    else if (unit && unit.phase === "done") main = '<button class="pbtn y" type="button" data-pui="finale">Rapporto</button>';
+    const h = ps.hmi || { link: false, values: [], alarms: [] };
+    const STATE = { attivo: "da riconoscere", riconosciuto: "riconosciuto", rientrato: "rientrato" };
+    const alarms = h.link ? (h.alarms || []).filter((a) => a.state !== "off").map((a) => `<li class="phmi-a ${esc5(a.state)}"><b>${esc5(a.text)}</b><span>${esc5(STATE[a.state] || a.state)}</span></li>`).join("") || '<li class="phmi-none">Nessun allarme</li>' : '<li class="phmi-none">Nessun dato: il pannello non comunica</li>';
+    const values = h.link ? (h.values || []).map((v) => `<span><i>${esc5(v.label)}</i><b>${esc5(v.text || "\u2014")}</b></span>`).join("") : "";
+    const sensors = Object.keys(cfg.sensorNames).map((id) => `<button class="psens-b" type="button" data-prepair="${id}" aria-label="Sostituisci il sensore ${esc5(cfg.sensorNames[id])} (${ps.sensors[id] && ps.sensors[id].act ? "azionato" : "a riposo"})"><span class="psens-led${ps.sensors[id] && ps.sensors[id].act ? " on" : ""}" aria-hidden="true"></span>${esc5(cfg.sensorNames[id])}</button>`).join("");
+    return `<div class="pbox pstation pfab"><div class="pboxhead"><h2>${esc5(cfg.dockTitle)}</h2><div class="prow">
+      <button class="pchip" type="button" data-pui="schema" aria-pressed="${!!ui2.schema}">${ui2.schema ? "Chiudi il banco" : "Banco e schema"}</button>${main}</div></div>
+    <div class="pst">
+      <div class="pst-panel">
+        <button class="pst-btn pst-go" type="button" data-phold="SB1" data-pid="SB1" aria-pressed="${!!ps.start}"><span class="pst-cap" aria-hidden="true"></span><span>Marcia</span></button>
+        <button class="pst-btn pst-stop" type="button" data-phold="SB0" data-pid="SB0" aria-pressed="${!!ps.stop}"><span class="pst-cap" aria-hidden="true"></span><span>Arresto</span></button>
+        <button class="pst-mush" type="button" data-pact="toggle" data-pid="E" aria-pressed="${!!ps.emergency}"><span class="pst-cap" aria-hidden="true"></span><span>${ps.emergency ? "Sblocca" : "Emergenza"}</span></button>
+        <button class="pst-btn pst-reset" type="button" data-phold="SBR" data-pid="SBR" aria-pressed="${!!ps.reset}"><span class="pst-cap" aria-hidden="true"></span><span>Riarmo</span></button>
+        <span class="pst-lamp${ps.powered ? " on" : ""}"><span class="pst-cap" aria-hidden="true"></span><span>Robot</span><span class="vh">${ps.powered ? "alimentato" : "senza potenza"}</span></span>
+      </div>
+      <div class="pst-side pfab-side">
+        <div class="phmi${h.link ? "" : " off"}"><div class="phmi-head"><b>Pannello operatore</b>${h.link ? '<button class="pchip" type="button" data-pui="ack">Riconosci</button>' : '<button class="pchip" type="button" data-pui="cable">Ricollega il cavo</button>'}</div>
+          <div class="phmi-v">${values}</div><ul class="phmi-al" aria-live="polite">${alarms}</ul></div>
+        <div class="pst-mod pfab-door${ps.door ? " open" : ""}"><span class="pst-name">Portella</span><button class="pst-sw" type="button" data-pact="toggle" data-pid="P" aria-pressed="${!!ps.door}">${ps.door ? "Aperta" : "Chiusa"}</button></div>
+      </div>
+    </div>
+    <div class="psens"><span class="pst-name">Sensori della cella \xB7 tocca per sostituire</span><div class="psens-row">${sensors}</div></div></div>`;
+  }
+  function turnoReportHTML(cfg, stars2, solved, ps, who, safeOk) {
+    const R = cfg.report, sh = ps.shift;
+    const rows = sh.faults.filter((f2) => f2.firedAt !== null).map((f2) => `<li><span>${esc5(f2.label)}</span><b class="${f2.fixedAt === null ? "ko" : f2.late ? "late" : ""}">${esc5(R.arrived)} ${esc5(shiftClock(cfg, sh, f2.firedAt))}, ${f2.fixedAt === null ? esc5(R.open) : esc5(R.fixed) + " " + esc5(shiftClock(cfg, sh, f2.fixedAt)) + (f2.late ? " (" + esc5(R.late) + ")" : "")}</b></li>`).join("");
+    return `<div class="pcard preport pverbale" role="dialog" aria-modal="true" aria-labelledby="pW">
+      <div class="prep-head"><span class="pk">${solved ? esc5(cfg.kick.split(" \xB7 ")[0] + " completato") : "Turno consegnato"}</span><span class="prep-time">${esc5(shiftClock(cfg, sh, 0))}\u2013${esc5(shiftClock(cfg, sh))}</span></div>
+      <h2 id="pW">${esc5(R.title)}</h2><p class="pverb-sub">${esc5(R.sub)}</p>
+      <dl class="prep">
+        <dt>${esc5(R.pieces)}</dt><dd>${esc5(ps.robot.out + " (" + R.goal + " " + ps.goal + ")")}</dd>
+        <dt>${esc5(R.down)}</dt><dd>${esc5(shiftSpan(cfg, sh, sh.down || 0))}</dd>
+        <dt>${esc5(R.faults)}</dt><dd><ul class="pverb-tests">${rows}</ul></dd>
+        <dt>${esc5(R.safety)}</dt><dd>${esc5(safeOk ? R.safeOk : R.safeKo)}</dd>
+        <dt>Esito</dt><dd><span class="pstars" role="img" aria-label="${stars2} stelle su 3">${[0, 1, 2].map((i) => `<span class="pstar" style="--i:${i}">${STAR2(i < stars2)}</span>`).join("")}</span></dd>
+        <dt>Manutentore</dt><dd class="tsign"${who ? " data-notr" : ""}>${esc5(who || "Giocatore")}</dd>
+      </dl>
+      <div class="prow"><a class="pbtn y" href="#/home">Torna alla mappa</a><button class="pbtn" type="button" data-pui="again">Rifai il turno</button><button class="pbtn" type="button" data-pui="summary">Sintesi</button><button class="pbtn" type="button" data-pui="closeSheet">Guarda la cella</button></div></div>`;
+  }
   function rememberEvents(mem, events) {
     if (!events.length) return mem;
     const m = { ...mem, tests: { ...mem.tests || {} } };
@@ -22753,6 +23111,7 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
   }
   var STATE_WORD = { on: "Chiuso", off: "Aperto", tripped: "Scattato", armed: "Armato" };
   function dockHTML(cfg, ps, unit, ui2) {
+    if (cfg.shiftHours) return fabbricaDockHTML(cfg, ps, unit, ui2);
     if (cfg.tests) return stationHTML(cfg, ps, unit, ui2);
     const mods = cfg.controls.map((c2) => {
       let on, trip2, live;
@@ -22943,7 +23302,7 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
         return;
       }
       host2.innerHTML = `<div class="hstage"><div class="hscene" id="pScene"></div><div class="hmsg" id="pMsg" role="status" hidden></div><div class="pflash" id="pFlash"></div><div class="pvig"></div></div>
-      <header class="phud ptop" id="pTop"></header>
+      <header class="phud ptop" id="pTop"></header>${cfg().shiftHours ? '<div class="phud pshift" id="pShift"></div>' : ""}
       <nav class="phud psteps-box" id="pSteps" aria-label="Il metodo"></nav>
       <section class="phud pdock" id="pDock" aria-label="Comandi"></section>
       <aside class="phud plogbox" id="pLog" aria-label="Registro" hidden></aside>
@@ -22951,7 +23310,7 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
       <button class="ppin" id="pPin" type="button" data-pui="openPanel" hidden><span>Quadro</span></button>
       <div class="psheet" id="pSheet" hidden></div>
       <div class="pintro" id="pIntro" hidden></div>`;
-      ["pScene", "pMsg", "pFlash", "pTop", "pSteps", "pDock", "pLog", "pSub", "pPin", "pSheet", "pIntro"].forEach((id) => el[id] = host2.querySelector("#" + id));
+      ["pScene", "pMsg", "pFlash", "pTop", "pShift", "pSteps", "pDock", "pLog", "pSub", "pPin", "pSheet", "pIntro"].forEach((id) => el[id] = host2.querySelector("#" + id));
       host2.onclick = onClick;
       el.pScene.addEventListener("pointermove", (e) => {
         if (scene && scene.aim && ui2.torch) scene.aim(e.clientX, e.clientY);
@@ -23018,9 +23377,14 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
       }
       renderHud();
     }
+    const shiftNow = () => {
+      const ps = lastSnap && provaState(lastSnap);
+      return ps && ps.shift;
+    };
+    const clockNow = () => cfg().shiftHours ? shiftClock(cfg(), shiftNow()) : clockText(cfg(), minutes);
     function note(text2, ev2 = {}) {
       minutes++;
-      log.push({ clock: clockText(cfg(), minutes), text: text2, trip: !!ev2.trip, good: !!ev2.good });
+      log.push({ clock: clockNow(), text: text2, trip: !!ev2.trip, good: !!ev2.good });
       if (log.length > 40) log.shift();
     }
     function tap(u) {
@@ -23028,6 +23392,14 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
       if (u.kind === "toggle") doAct({ kind: "toggle", id: u.id }, () => s().toggleControl(u.id));
       else if (u.kind === "test") doAct({ kind: "test", id: u.part }, () => s().testPart(u.part));
       else if (u.kind === "reset") doAct({ kind: "reset", id: u.part }, () => s().resetPart(u.part));
+      else if (u.kind === "repair") {
+        const ps = provaState(lastSnap);
+        if (ps && ps.sensors[u.id] && ps.sensors[u.id].jam) doAct({ kind: "repair", id: u.id }, () => s().jamPart(u.id));
+        else {
+          note(cfg().log.repairOk);
+          renderHud();
+        }
+      }
     }
     function press2(u) {
       if (inLesson() || act2 && act2 !== "play") return;
@@ -23043,6 +23415,11 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
       else s().release(u.id);
     }
     function onClick(e) {
+      const rp = e.target.closest("[data-prepair]");
+      if (rp) {
+        tap({ kind: "repair", id: rp.dataset.prepair });
+        return;
+      }
       const a = e.target.closest("[data-pact]");
       if (a) {
         const k2 = a.dataset.pact;
@@ -23097,6 +23474,7 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
         sheet = null;
         backInside();
         s().startFault();
+        if (cfg().shiftHours) s().restartShift();
       } else if (k === "summary") {
         if (env.summary) env.summary();
       } else if (k === "schema") schema();
@@ -23108,6 +23486,10 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
         });
       } else if (k === "rewind") {
         if (act2 === "play" && !inLesson()) doAct({ kind: "rewind" }, () => s().rewind());
+      } else if (k === "ack") {
+        if (act2 === "play" && !inLesson()) doAct({ kind: "ack" }, () => s().ackPanel("HMI"));
+      } else if (k === "cable") {
+        if (act2 === "play" && !inLesson()) doAct({ kind: "cable" }, () => s().toggleControl("HMI"));
       } else if (k === "torch") {
         setTorch(!ui2.torch);
         renderHud();
@@ -23163,6 +23545,11 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
       if (!opening && plant() && scene) scene.look("insieme", 900);
     }
     function check() {
+      const sh = cfg().shiftHours && shiftNow();
+      if (sh && !sh.done) {
+        subtitle("", sh.started ? "Il turno non \xE8 finito: tieni la cella in produzione fino alle 6:00." : "Il turno non \xE8 cominciato: riarma e premi Marcia.", 3200);
+        return;
+      }
       const r = s().check();
       note(r.pass ? cfg().log.checkOk : cfg().log.checkKo, { good: r.pass, trip: !r.pass });
       if (r.pass) {
@@ -23223,6 +23610,10 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
     function hums2(ps) {
       ps = ps || override || lastSnap && provaState(lastSnap);
       if (!ps || act2 === "call") return;
+      if (name === "fabbrica") {
+        sound.motor(act2 !== "finale" && ps.powered && ps.cycle, 0);
+        return;
+      }
       if (plant()) {
         sound.motor(act2 !== "finale" && ps.motor === "fwd", ps.overload ? 1 : ps.thermal.heat * 0.5);
         return;
@@ -23272,6 +23663,24 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
           flash();
           subtitle(c2.story.stuck, c2.story.stuckWhy, 4200);
           if (scene && scene.alert) scene.alert(2600);
+        } else if (e.kind === "stop") {
+          if (!mem.stopSeen) {
+            mem = { ...mem, stopSeen: true };
+            sound.tac();
+            sound.vibrate([30, 40, 80]);
+            flash();
+          }
+          subtitle(c2.story.stop, c2.story.stopWhy, 4200);
+          if (scene && scene.alert) scene.alert(2600);
+        } else if (e.kind === "safety") subtitle(c2.story.safety, c2.story.safetyWhy, 3200);
+        else if (e.kind === "panelLost") subtitle("", c2.story.panel, 3200);
+        else if (e.kind === "repairLive") {
+          sound.tac();
+          subtitle("", c2.story.inside, 4200);
+        } else if (e.kind === "fixed" && e.good) sound.chime(1);
+        else if (e.kind === "end") {
+          sound.siren();
+          subtitle(c2.story.end, "", 3200);
         } else if (e.kind === "lotto") {
           sound.clunk();
           later(250, () => sound.chime(1));
@@ -23285,7 +23694,7 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
           sound.silence();
         } else subtitle("", c2.story.endStop, 3200);
       }
-      if (events.some((e) => ["marcia", "arresto", "fungo", "fine"].includes(e.kind)) && !events.some((e) => e.kind === "tripKo")) sound.click();
+      if (events.some((e) => ["marcia", "arresto", "fungo", "fine", "reset", "doorOpen", "doorClose"].includes(e.kind)) && !events.some((e) => e.kind === "tripKo")) sound.click();
     }
     function playStory(st, after) {
       const c2 = cfg();
@@ -23640,7 +24049,8 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
       host2.classList.toggle("lesson", inLesson() || act2 === "brief");
       if (!ps) return;
       const steps = stepsOf(name, ps, unit, mem);
-      setHTML(el.pTop, topHTML2(c2, clockText(c2, minutes), ui2));
+      setHTML(el.pTop, topHTML2(c2, clockNow(), ui2));
+      if (el.pShift) setHTML(el.pShift, shiftHTML(c2, ps));
       setHTML(el.pSteps, stepsHTML(steps) + (unit.phase === "fault" && act2 === "play" ? `<p class="phint">${hintOf(name, steps)}</p>` : ""));
       setHTML(el.pDock, dockHTML(c2, ps, unit, ui2));
       el.pLog.hidden = !ui2.log;
@@ -23650,7 +24060,7 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
       else if (sheet === "finale") {
         const lv = lastSnap.levels.find((l) => l.id === lastSnap.level.id) || {};
         const stars2 = lastSnap.result && lastSnap.result.stars || lv.stars || 0;
-        sh = c2.tests ? verbaleHTML(c2, stars2, !!unit.faultSolved, clockText(c2, 0), clockText(c2, Math.max(minutes, 20)), env.name ? env.name() : "") : reportHTML(c2, stars2, !!unit.faultSolved, clockText(c2, 0), clockText(c2, minutes));
+        sh = c2.shiftHours ? turnoReportHTML(c2, stars2, !!unit.faultSolved, ps, env.name ? env.name() : "", !(lastSnap.result && lastSnap.result.safe && lastSnap.result.safe.items.some((i) => i.code === "safe.repairLive"))) : c2.tests ? verbaleHTML(c2, stars2, !!unit.faultSolved, clockText(c2, 0), clockText(c2, Math.max(minutes, 20)), env.name ? env.name() : "") : reportHTML(c2, stars2, !!unit.faultSolved, clockText(c2, 0), clockText(c2, minutes));
       } else sheet = null;
       el.pSheet.hidden = !sh;
       setHTML(el.pSheet, sh);

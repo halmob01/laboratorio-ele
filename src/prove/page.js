@@ -71,7 +71,7 @@ export function createProva(host, env) {
       return;
     }
     host.innerHTML = `<div class="hstage"><div class="hscene" id="pScene"></div><div class="hmsg" id="pMsg" role="status" hidden></div><div class="pflash" id="pFlash"></div><div class="pvig"></div></div>
-      <header class="phud ptop" id="pTop"></header>
+      <header class="phud ptop" id="pTop"></header>${cfg().shiftHours ? '<div class="phud pshift" id="pShift"></div>' : ''}
       <nav class="phud psteps-box" id="pSteps" aria-label="Il metodo"></nav>
       <section class="phud pdock" id="pDock" aria-label="Comandi"></section>
       <aside class="phud plogbox" id="pLog" aria-label="Registro" hidden></aside>
@@ -79,7 +79,7 @@ export function createProva(host, env) {
       <button class="ppin" id="pPin" type="button" data-pui="openPanel" hidden><span>Quadro</span></button>
       <div class="psheet" id="pSheet" hidden></div>
       <div class="pintro" id="pIntro" hidden></div>`;
-    ['pScene', 'pMsg', 'pFlash', 'pTop', 'pSteps', 'pDock', 'pLog', 'pSub', 'pPin', 'pSheet', 'pIntro'].forEach(id => (el[id] = host.querySelector('#' + id)));
+    ['pScene', 'pMsg', 'pFlash', 'pTop', 'pShift', 'pSteps', 'pDock', 'pLog', 'pSub', 'pPin', 'pSheet', 'pIntro'].forEach(id => (el[id] = host.querySelector('#' + id)));
     host.onclick = onClick;
     el.pScene.addEventListener('pointermove', e => { if (scene && scene.aim && ui.torch) scene.aim(e.clientX, e.clientY); });
     // passando su una leva si illumina la sua linea nei fili
@@ -121,13 +121,22 @@ export function createProva(host, env) {
     }
     renderHud();
   }
-  function note(text, ev = {}) { minutes++; log.push({ clock: H.clockText(cfg(), minutes), text, trip: !!ev.trip, good: !!ev.good }); if (log.length > 40) log.shift(); }
+  // l'ora della cornice: nella fabbrica e' l'ora del turno (dal motore), altrove avanza di un minuto per ogni cosa che succede
+  const shiftNow = () => { const ps = lastSnap && provaState(lastSnap); return ps && ps.shift; };
+  const clockNow = () => (cfg().shiftHours ? H.shiftClock(cfg(), shiftNow()) : H.clockText(cfg(), minutes));
+  function note(text, ev = {}) { minutes++; log.push({ clock: clockNow(), text, trip: !!ev.trip, good: !!ev.good }); if (log.length > 40) log.shift(); }
 
   function tap(u) {
     if (inLesson() || (act && act !== 'play')) return;
     if (u.kind === 'toggle') doAct({ kind: 'toggle', id: u.id }, () => s().toggleControl(u.id));
     else if (u.kind === 'test') doAct({ kind: 'test', id: u.part }, () => s().testPart(u.part));
     else if (u.kind === 'reset') doAct({ kind: 'reset', id: u.part }, () => s().resetPart(u.part));
+    else if (u.kind === 'repair') {
+      // fabbrica: si sostituisce solo un sensore guasto; uno buono si controlla e basta (nessuna azione nel motore)
+      const ps = provaState(lastSnap);
+      if (ps && ps.sensors[u.id] && ps.sensors[u.id].jam) doAct({ kind: 'repair', id: u.id }, () => s().jamPart(u.id));
+      else { note(cfg().log.repairOk); renderHud(); }
+    }
   }
   function press(u) {
     if (inLesson() || (act && act !== 'play')) return;
@@ -137,6 +146,8 @@ export function createProva(host, env) {
   function release(u) { if (!holding.delete(u.id)) return; if (plant()) doAct({ kind: 'release', id: u.id }, () => s().release(u.id)); else s().release(u.id); }
 
   function onClick(e) {
+    const rp = e.target.closest('[data-prepair]');
+    if (rp) { tap({ kind: 'repair', id: rp.dataset.prepair }); return; }
     const a = e.target.closest('[data-pact]');
     if (a) { const k = a.dataset.pact; tap(k === 'test' || k === 'reset' ? { kind: k, part: a.dataset.pid } : { kind: 'toggle', id: a.dataset.pid }); return; }
     // tasti da tenere premuti azionati da tastiera (Invio, spazio): premi e rilascia
@@ -161,12 +172,14 @@ export function createProva(host, env) {
     else if (k === 'finale') { sheet = 'finale'; renderHud(); focusSheet(); }
     else if (k === 'closeSheet') { const wasFinale = sheet === 'finale'; sheet = null; renderHud(); if (wasFinale) backInside(); }
     else if (k === 'check') check();
-    else if (k === 'again') { sheet = null; backInside(); s().startFault(); }
+    else if (k === 'again') { sheet = null; backInside(); s().startFault(); if (cfg().shiftHours) s().restartShift(); }
     else if (k === 'summary') { if (env.summary) env.summary(); }
     else if (k === 'schema') schema();
     // incastrare un pacco: il pacco riparte dall'inizio, cosi' il termico (3 s) arriva sempre prima del finecorsa (6 s)
     else if (k === 'overload') { if (act === 'play' && !inLesson()) doAct({ kind: 'overload' }, () => { const on = !lastSnap.overload; if (on) s().rewind(); s().setOverload(on); }); }
     else if (k === 'rewind') { if (act === 'play' && !inLesson()) doAct({ kind: 'rewind' }, () => s().rewind()); }
+    else if (k === 'ack') { if (act === 'play' && !inLesson()) doAct({ kind: 'ack' }, () => s().ackPanel('HMI')); }
+    else if (k === 'cable') { if (act === 'play' && !inLesson()) doAct({ kind: 'cable' }, () => s().toggleControl('HMI')); }
     else if (k === 'torch') { setTorch(!ui.torch); renderHud(); }
     else if (k === 'wires') { ui.wires = !ui.wires; const w = wires(); if (w) w.setVisible(ui.wires); renderHud(); }
     else if (k === 'log') { ui.log = !ui.log; renderHud(); }
@@ -192,6 +205,8 @@ export function createProva(host, env) {
   }
 
   function check() {
+    const sh = cfg().shiftHours && shiftNow();
+    if (sh && !sh.done) { subtitle('', sh.started ? 'Il turno non è finito: tieni la cella in produzione fino alle 6:00.' : 'Il turno non è cominciato: riarma e premi Marcia.', 3200); return; }
     const r = s().check();
     note(r.pass ? cfg().log.checkOk : cfg().log.checkKo, { good: r.pass, trip: !r.pass });
     if (r.pass) { if (lastSnap.unit.phase !== 'done') finale(); }      // impianto a posto ma prova non chiusa (diagnosi sbagliata): esito lo stesso
@@ -232,6 +247,7 @@ export function createProva(host, env) {
   function hums(ps) {
     ps = ps || override || (lastSnap && provaState(lastSnap));
     if (!ps || act === 'call') return;
+    if (name === 'fabbrica') { sound.motor(act !== 'finale' && ps.powered && ps.cycle, 0); return; }
     if (plant()) { sound.motor(act !== 'finale' && ps.motor === 'fwd', ps.overload ? 1 : ps.thermal.heat * 0.5); return; }
     if (name !== 'appartamento') return;
     sound.hum('frigo', !!ps.oven);
@@ -273,7 +289,17 @@ export function createProva(host, env) {
         sound.tac(); sound.vibrate([30, 40, 80]); flash();
         subtitle(c.story.stuck, c.story.stuckWhy, 4200);
         if (scene && scene.alert) scene.alert(2600);
-      } else if (e.kind === 'lotto') {
+      } else if (e.kind === 'stop') {
+        // la cella si ferma: il primo fermo e' il momento forte, i successivi solo il sottotitolo
+        if (!mem.stopSeen) { mem = { ...mem, stopSeen: true }; sound.tac(); sound.vibrate([30, 40, 80]); flash(); }
+        subtitle(c.story.stop, c.story.stopWhy, 4200);
+        if (scene && scene.alert) scene.alert(2600);
+      } else if (e.kind === 'safety') subtitle(c.story.safety, c.story.safetyWhy, 3200);
+      else if (e.kind === 'panelLost') subtitle('', c.story.panel, 3200);
+      else if (e.kind === 'repairLive') { sound.tac(); subtitle('', c.story.inside, 4200); }
+      else if (e.kind === 'fixed' && e.good) sound.chime(1);
+      else if (e.kind === 'end') { sound.siren(); subtitle(c.story.end, '', 3200); }
+      else if (e.kind === 'lotto') {
         sound.clunk(); later(250, () => sound.chime(1));
         subtitle(c.story.lot, '', 2600);
       }
@@ -284,7 +310,7 @@ export function createProva(host, env) {
       if (ps.emergency) { el.pSub.classList.remove('go'); sound.silence(); }
       else subtitle('', c.story.endStop, 3200);
     }
-    if (events.some(e => ['marcia', 'arresto', 'fungo', 'fine'].includes(e.kind)) && !events.some(e => e.kind === 'tripKo')) sound.click();
+    if (events.some(e => ['marcia', 'arresto', 'fungo', 'fine', 'reset', 'doorOpen', 'doorClose'].includes(e.kind)) && !events.some(e => e.kind === 'tripKo')) sound.click();
   }
 
   /* ---------- le tre storie dello scatto ---------- */
@@ -526,7 +552,8 @@ export function createProva(host, env) {
     host.classList.toggle('lesson', inLesson() || act === 'brief');
     if (!ps) return;
     const steps = H.stepsOf(name, ps, unit, mem);
-    setHTML(el.pTop, H.topHTML(c, H.clockText(c, minutes), ui));
+    setHTML(el.pTop, H.topHTML(c, clockNow(), ui));
+    if (el.pShift) setHTML(el.pShift, H.shiftHTML(c, ps));
     setHTML(el.pSteps, H.stepsHTML(steps) + (unit.phase === 'fault' && act === 'play' ? `<p class="phint">${H.hintOf(name, steps)}</p>` : ''));
     setHTML(el.pDock, H.dockHTML(c, ps, unit, ui));
     el.pLog.hidden = !ui.log;
@@ -536,7 +563,8 @@ export function createProva(host, env) {
     else if (sheet === 'finale') {
       const lv = lastSnap.levels.find(l => l.id === lastSnap.level.id) || {};
       const stars = (lastSnap.result && lastSnap.result.stars) || lv.stars || 0;
-      sh = c.tests ? H.verbaleHTML(c, stars, !!unit.faultSolved, H.clockText(c, 0), H.clockText(c, Math.max(minutes, 20)), env.name ? env.name() : '')
+      sh = c.shiftHours ? H.turnoReportHTML(c, stars, !!unit.faultSolved, ps, env.name ? env.name() : '', !(lastSnap.result && lastSnap.result.safe && lastSnap.result.safe.items.some(i => i.code === 'safe.repairLive')))
+        : c.tests ? H.verbaleHTML(c, stars, !!unit.faultSolved, H.clockText(c, 0), H.clockText(c, Math.max(minutes, 20)), env.name ? env.name() : '')
         : H.reportHTML(c, stars, !!unit.faultSolved, H.clockText(c, 0), H.clockText(c, minutes));
     } else sheet = null;
     el.pSheet.hidden = !sh;

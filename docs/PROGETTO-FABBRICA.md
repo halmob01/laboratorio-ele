@@ -1,6 +1,11 @@
 # Progetto: "Il turno di notte", la prova della fabbrica (Modulo 6)
 
-**Stato: fase 1 fatta** (motore e livello c51, vedi sezione 8). Prossima: fase 2, la cornice a tempo.
+**Stato: fasi 1 e 2 fatte** (motore e livello c51; cornice a tempo, vedi sezione 8). Prossima: fase 3, i pezzi del kit.
+Fase 2: la prova si gioca dall'inizio alla fine senza scena (consegna del turno, ora del turno dal motore, barra del turno con
+pezzi, fermo e guasti, pulsantiera con Riarmo, pannello operatore con Riconosci e "Ricollega il cavo", portella, i sensori della
+cella con il LED da sostituire con un tocco, momento forte al primo "Ciclo bloccato", rapporto di fine turno). Il registro dice
+i sintomi (gli allarmi del pannello) e nomina il guasto solo quando e' riparato. Un sensore buono "sostituito" non cambia niente
+nel motore: la cornice dice che funziona. Gli schemi arabi delle frasi con numeri sono in `ar-41.js` (non in `ar.js`).
 Differenze dal progetto emerse nella fase 1: il turno comincia al primo riarmo (`scenario.startWhen: { coil: 'KM' }`), non
 all'apertura del livello; la cella e' gia' in tensione (`supply: 'protezioni'`); livello `c51-turno-notte`, arabo in `ar-41.js`
 (numeri prenotati in `docs/PROCEDURA-UNIONE.md`); obiettivo 70 pezzi (riferimento: circa 88 riparando in 15 s, 80 in

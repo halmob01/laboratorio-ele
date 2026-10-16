@@ -83,10 +83,43 @@ export function automaticoState(snap) {
   };
 }
 
+// La fabbrica (c51, il turno di notte): la cella del robot, la sicurezza, i sensori, il pannello operatore e il turno.
+export const CELL_SENSORS = ['ZU', 'ZD', 'XP', 'XL', 'PR'];
+export function fabbricaState(snap) {
+  const o = snap.obs;
+  if (!o) return null;
+  const cs = snap.controlStates || {};
+  const p = o.process || {}, plc = part(o, 'PLC'), sc = (snap.level && snap.level.scenario) || {};
+  const goal = ((sc.expect && sc.expect.trace) || []).find(x => x.v === 'out');
+  const sensors = {};
+  CELL_SENSORS.forEach(id => { const x = part(o, id); sensors[id] = { act: !!x.act, jam: !!x.jam }; });
+  return {
+    scene: 'fabbrica',
+    supply: !!o.supply,
+    powered: o.loads.L === 'on',             // il robot ha potenza (contattore KM chiuso)
+    cycle: o.loads.HC === 'on',              // ciclo in corso
+    ks: !!part(o, 'KS').on,
+    contactor: !!part(o, 'KM').on,
+    emergency: !!part(o, 'E').pressed,
+    door: !!part(o, 'P').open,
+    start: !!cs.SB1, stop: !!cs.SB0, reset: !!cs.SBR,
+    robot: { x: p.x || 0, z: p.z || 0, grip: p.grip || 0, holding: !!p.holding, feed: !!p.feed, out: p.out || 0, dropped: p.dropped || 0, crash: !!p.crash },
+    sensors,
+    plc: { on: !!plc.mem, inputs: { ...(plc.inputs || {}) }, outputs: { ...(plc.q || {}) } },
+    hmi: o.hmi || null,
+    panelOn: !!part(o, 'HMI').on,
+    shift: o.scenario || null,
+    goal: goal ? goal.reaches : 0,
+    wires: snap.wires || [],
+    flow: snap.flow || null,
+  };
+}
+
 export function provaState(snap) {
   const sc = snap && snap.level && snap.level.prova && snap.level.prova.scene;
   if (sc === 'appartamento') return appartamentoState(snap);
   if (sc === 'officina') return officinaState(snap);
   if (sc === 'automatico') return automaticoState(snap);
+  if (sc === 'fabbrica') return fabbricaState(snap);
   return null;
 }

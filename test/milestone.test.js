@@ -445,6 +445,98 @@ test('pagina: il nastro automatico a tutto schermo: ordine di modifica, conteggi
   assert.deepEqual(errors, []);
 });
 
+/* ---------- fabbrica (Modulo 6): il turno di notte ---------- */
+const FAB = 'c51-turno-notte';
+function fabbrica() {
+  const s = createSession({ levels, deriveFull, initialLevel: FAB }); s.start(); s.skipLesson();
+  let mem = H.newMemory();
+  const kinds = [];
+  const ps = () => provaState(s.snapshot());
+  const step = (action, run) => { const b = ps(); run(); const a = ps(); H.fabbricaEvents(action, b, a).forEach(e => kinds.push(e.kind)); mem = H.remember('fabbrica', mem, action, b, a); };
+  const tick = n => { for (let i = 0; i < n; i++) step(null, () => s.tick(0.5)); };
+  const press = id => { step({ kind: 'press', id }, () => s.press(id)); step({ kind: 'release', id }, () => s.release(id)); };
+  const steps = () => H.stepsOf('fabbrica', ps(), s.snapshot().unit, mem);
+  const tickTo = t => { for (let g = 0; g < 4000 && ps().shift.t < t && !ps().shift.done; g++) tick(1); };
+  return { s, ps, step, tick, tickTo, press, steps, kinds };
+}
+
+test('fabbrica: il turno si avvia al riarmo; la cella si ferma, il pannello lo dice, il registro nomina il guasto solo da riparato', () => {
+  const o = fabbrica();
+  const P = PROVE.fabbrica;
+  assert.equal(o.steps().length, 6);
+  assert.equal(cur(o.steps()), 0);
+  assert.equal(H.shiftClock(P, o.ps().shift), '22:00');
+  o.press('SBR'); o.press('SB1');
+  assert.deepEqual(o.kinds.slice(0, 3), ['reset', 'shiftStart', 'marcia']);
+  assert.equal(o.steps()[0].done, true);
+  o.tickTo(260);                                         // il finecorsa e' morto a 200: dopo 40 s "Ciclo bloccato"
+  assert.ok(o.kinds.includes('stop'), o.kinds.join());
+  assert.ok(!o.kinds.some(k => k === 'fixed'));
+  assert.equal(H.cellDown(o.ps()), true, 'la barra del turno segna il fermo');
+  assert.match(H.shiftHTML(P, o.ps()), /pshift-down on/);
+  o.s.answerDiagnosis('b');
+  assert.equal(cur(o.steps()), 2, 'tocca riparare in sicurezza');
+  // riparazione corretta: portella, sostituzione, portella, riarmo, marcia
+  o.step({ kind: 'toggle', id: 'P' }, () => o.s.toggleControl('P'));
+  assert.equal(o.ps().powered, false);
+  o.step({ kind: 'repair', id: 'ZD' }, () => o.s.jamPart('ZD'));
+  o.step({ kind: 'toggle', id: 'P' }, () => o.s.toggleControl('P'));
+  o.press('SBR'); o.press('SB1');
+  assert.ok(o.kinds.includes('fixed'));
+  assert.ok(!o.kinds.includes('repairLive'));
+  assert.equal(o.steps()[2].done, true);
+  assert.equal(H.cellDown(o.ps()), false);
+  const dock = H.dockHTML(P, o.ps(), o.s.snapshot().unit, {});
+  ['data-phold="SB1"', 'data-phold="SBR"', 'data-pid="E"', 'data-pid="P"', 'data-prepair="ZD"', 'Pannello operatore'].forEach(x => assert.ok(dock.includes(x), x));
+});
+
+test('fabbrica: riparare con il robot alimentato si segnala; il rapporto di fine turno ha i numeri del turno', () => {
+  const o = fabbrica();
+  o.press('SBR'); o.press('SB1');
+  o.tickTo(260);
+  o.step({ kind: 'repair', id: 'ZD' }, () => o.s.jamPart('ZD'));
+  assert.ok(o.kinds.includes('repairLive'));
+  const P = PROVE.fabbrica, ps = o.ps();
+  const html = H.turnoReportHTML(P, 2, false, ps, 'Sara', false);
+  assert.match(html, /Rapporto di fine turno/);
+  assert.match(html, /arrivato alle 22:53/, 'il guasto a 200 s su 1800 arriva alle 22:53');
+  assert.match(html, /una riparazione dentro la cella con il robot alimentato/);
+  assert.match(html, /Sara/);
+});
+
+test('pagina: la fabbrica a tutto schermo: consegna del turno, barra del turno, pulsantiera con il pannello e i sensori', async () => {
+  const { w, d, errors } = page('#/livello/' + FAB);
+  const $ = q => d.querySelector(q);
+  assert.ok($('#screen-level').classList.contains('milestone'));
+  assert.match($('#pIntro').textContent, /Consegna del turno/);
+  click(w, $('[data-pui="skipIntro"]'));
+  click(w, $('[data-unit="skip"]'));
+  await wait(400);
+  assert.equal($('#house').dataset.act, 'play');
+  assert.match($('#pTop').textContent, /Il turno di notte/);
+  assert.match($('#pTop').textContent, /22:00/);
+  assert.match($('#pShift').textContent, /riarma e avvia/);
+  assert.equal(d.querySelectorAll('#pSteps .psteps li').length, 6);
+  assert.equal(d.querySelectorAll('#pDock .psens [data-prepair]').length, 5);
+  assert.match($('#pDock .phmi').textContent, /Sicurezze aperte/, 'prima del riarmo le sicurezze sono aperte');
+  click(w, $('#pDock [data-phold="SBR"]'));
+  await wait(20);
+  click(w, $('#pDock [data-phold="SB1"]'));
+  await wait(20);
+  assert.match($('#pShift').textContent, /Fine turno tra 8 h/);
+  assert.ok($('#pDock .pst-lamp.on'), 'il robot ha potenza');
+  click(w, $('#pDock [data-prepair="ZU"]'));               // un sensore buono: si controlla e basta
+  click(w, $('[data-pui="log"]'));
+  assert.match($('#pLog').textContent, /il turno comincia/);
+  assert.match($('#pLog').textContent, /funziona, non serve sostituirlo/);
+  click(w, $('[data-pui="answer"]'));
+  click(w, $('[data-pdiag="b"]'));
+  click(w, $('[data-pui="closeSheet"]'));
+  click(w, $('[data-pui="check"]'));                       // a turno in corso la verifica aspetta
+  assert.match($('#pSub').textContent, /turno non è finito/);
+  assert.deepEqual(errors, []);
+});
+
 /* ---------- schede delle milestone nella mappa ---------- */
 function home(storage) {
   const errors = [];
