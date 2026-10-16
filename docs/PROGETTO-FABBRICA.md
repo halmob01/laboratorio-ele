@@ -1,6 +1,12 @@
 # Progetto: "Il turno di notte", la prova della fabbrica (Modulo 6)
 
-**Stato: progetto, da realizzare.** Panoramica e decisioni in `docs/PROGETTO-PROVE-CASA-FABBRICA.md`; qui le scelte prese
+**Stato: fase 1 fatta** (motore e livello c53, vedi sezione 8). Prossima: fase 2, la cornice a tempo.
+Differenze dal progetto emerse nella fase 1: il turno comincia al primo riarmo (`scenario.startWhen: { coil: 'KM' }`), non
+all'apertura del livello; la cella e' gia' in tensione (`supply: 'protezioni'`); livello `c53-turno-notte`, arabo in `ar-44.js`
+(numeri scelti lasciando spazio ai livelli del Modulo 5); obiettivo 70 pezzi (riferimento: circa 88 riparando in 15 s, 80 in
+60 s, 10 senza riparare).
+
+**Progetto iniziale:** Panoramica e decisioni in `docs/PROGETTO-PROVE-CASA-FABBRICA.md`; qui le scelte prese
 come proposte (livello nuovo, guasti scelti a ogni partita con un turno fisso per la classe, turno di 6-8 minuti veri, pezzi
 costruiti nel codice). Prima di toccare la scena leggere `docs/SPEC-SCENE-3D.md`. Non dipende dai livelli del Modulo 5 ne'
 dal lucchetto di 3.7 (se arriva prima, vedi 4.4).
@@ -128,13 +134,23 @@ La cornice di reparto c'e'. Per una prova a tempo servono (in comune con la casa
   ma rigiocabile; eventi della cornice su una partita vera; pagina simulata senza WebGL; ogni filo con il suo percorso.
 - Misure e schermate a 390 e 1280 come per il nastro automatico; foto per la scheda della mappa.
 
-## 8. Ordine di lavoro (un commit per passo, test verdi a ogni passo)
+## 8. Fasi di lavoro
 
-1. Motore: `pick` con il seme, `downtime`, `repairDead`; livello della prova con lezione e guasto; partita di riferimento.
-2. Cornice a tempo: ora dal motore, barra del turno, pannello nel cruscotto, riparare toccando, rapporto di fine turno.
-3. Kit: portale, recinzione e portella, finecorsa, KS, pannello; notte nel capannone.
-4. Scena della fabbrica; testi; arabo; mappa con la foto.
-5. Misure, schermate, documento aggiornato con le differenze dal progetto.
+Ogni fase si chiude da sola: test verdi (`npm test`), traduzioni complete (`node scripts/check-lang.mjs ar`), pagina ricostruita
+(`npm run build`), commit e push sul ramo di lavoro, una riga in `docs/STATO-AVANZAMENTO.md` con che cosa e' fatto e da dove si
+riparte. Se i token finiscono a meta' fase, la fase si rifa' dall'ultimo commit: niente resta a meta' nel ramo. Si unisce a
+`main` solo alla fine (fase 5), o prima se Gianluca lo chiede: dopo le fasi 1-3 il gioco resta com'era per gli allievi.
+
+| Fase | Contenuto | Fatta quando | Per gli allievi |
+|---|---|---|---|
+| 1 | **Motore e livello**: `scenario.pick` con il seme, `scenario.downtime`, `safety.repairDead`, livello della prova (componenti, cablaggio e programma di c45, scenario, guasto, lezione), testi e arabo | test del motore e partita di riferimento verdi; livello non ancora in mappa | niente di visibile |
+| 2 | **Cornice a tempo** (senza 3D): ora dal motore, barra del turno, pannello operatore nel cruscotto, riparare dal cruscotto, eventi nel registro, rapporto di fine turno; `PROVE.fabbrica` | la prova si gioca dall'inizio alla fine nel browser simulato (jsdom) senza scena | niente (livello ancora fuori mappa) |
+| 3 | **Kit**: portale del robot, recinzione con portella, finecorsa con LED, modulo KS, pannello operatore; ora "notte" in `capannone.js` | pezzi provati da soli in una scena di prova; officina e nastro automatico invariati (schermate) | niente |
+| 4 | **Scena** `fabbrica.js`, riparare toccando nella scena, percorsi dei fili, livello in mappa con la foto | partita intera in Chromium, schermate a 390 e 1280 | la prova c'e' |
+| 5 | **Misure e chiusura**: chiamate a riposo e in marcia, avvio, schermate prima/dopo delle altre scene, revisione indipendente, documento aggiornato con le differenze, unione in `main` | numeri nella tabella di `SPEC-SCENE-3D.md` | |
+
+Per riprendere in un'altra sessione: leggere questo documento, l'ultima riga del registro e `git log` del ramo; la fase
+successiva comincia dall'unione di `main` nel ramo.
 
 ## 9. File che si toccano (per non pestarsi i piedi con la sessione del Modulo 5)
 

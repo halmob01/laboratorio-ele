@@ -469,7 +469,9 @@ test('turno: a turno finito una riparazione non conta piu\'', () => {
 
 test('turno: in ogni livello a guasti le azioni del guasto e della riparazione sono valide, e il guasto rompe davvero qualcosa', () => {
   levels.filter(l => l.scenario).forEach(l => {
-    l.scenario.faults.forEach(f => {
+    // con la libreria (scenario.pick) si prova ogni guasto della libreria, messo nell'orario piu' tardo
+    const list = l.scenario.pick ? l.scenario.pick.from.map(f => ({ ...f, at: Math.max(...l.scenario.pick.slots) })) : l.scenario.faults;
+    list.forEach(f => {
       const sim = createSim(withSolutionPrograms(l), wiresOf(l));
       const ok = () => !!sim.parts[f.fixed.part][f.fixed.prop] === !!f.fixed.is;
       assert.ok(sim.parts[f.fixed.part], l.id + ' ' + f.id);

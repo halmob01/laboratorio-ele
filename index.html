@@ -2370,8 +2370,9 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
       // righe { t, grandezza: valore } ogni passo, per le prove e il grafico (level.process.trace)
       hmi: {},
       // parole dei PLC scritte dal pannello di regolazione: { idPLC: { MW0: 60 } }
-      scenario: level.scenario ? { firedAt: {}, fixedAt: {} } : null,
-      // turno con guasti a tempo (level.scenario): quando sono scattati e quando sono stati riparati
+      // turno con guasti a tempo (level.scenario): i guasti del turno (scelti dal seme, se c'e' `pick`), quando sono scattati e quando
+      // sono stati riparati, il tempo di fermo (`downtime`)
+      scenario: level.scenario ? { firedAt: {}, fixedAt: {}, seed: level.scenario.seed ?? 1, faults: scenarioFaults(level.scenario, level.scenario.seed ?? 1), down: 0, lastMove: 0, sig: null, t0: level.scenario.startWhen ? null : 0 } : null,
       panel: level.hmi ? { values: {}, alarms: {}, seq: 0 } : null
       // pannello operatore (level.hmi): ultime letture e stato degli allarmi
     };
@@ -2936,31 +2937,71 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
     const alarms = (cfg.alarms || []).map((a) => ({ id: a.id, text: a.text, prio: a.prio, ...P.alarms[a.id] || { state: "off", since: null, seq: 0 } })).filter((a) => a.state !== "off").sort((x, y) => PRIO[x.prio] - PRIO[y.prio] || y.seq - x.seq);
     return { link: hmiLink(sim, an), horn: alarms.some((a) => a.state === "attivo" || a.state === "rientrato"), values, alarms };
   }
+  function scenarioFaults(sc, seed = 1) {
+    if (!sc || !sc.pick) return sc && sc.faults || [];
+    const { from, first, n, slots } = sc.pick;
+    let x = Number(seed) >>> 0 || 1;
+    const rnd = () => {
+      x = x + 1831565813 >>> 0;
+      let t = x;
+      t = Math.imul(t ^ t >>> 15, t | 1);
+      t ^= t + Math.imul(t ^ t >>> 7, t | 61);
+      return ((t ^ t >>> 14) >>> 0) / 4294967296;
+    };
+    const rest = from.filter((f2) => f2.id !== first);
+    for (let i = rest.length - 1; i > 0; i--) {
+      const j = Math.floor(rnd() * (i + 1));
+      [rest[i], rest[j]] = [rest[j], rest[i]];
+    }
+    const chosen = [from.find((f2) => f2.id === first)].concat(rest).filter(Boolean).slice(0, Math.min(n, slots.length));
+    return chosen.map((f2, i) => ({ ...f2, at: slots[i] }));
+  }
+  function downtimeTick(sim, dt) {
+    const sc = sim.level.scenario, S2 = sim.scenario, d = sc && sc.downtime;
+    if (!d || !S2 || S2.t0 === null || sim.t - S2.t0 > sc.duration) return;
+    const st = sim.process ? sim.process.state : {};
+    const sig = (d.vars || []).map((v) => Math.round((Number(st[v]) || 0) * 100)).join();
+    if (sig !== S2.sig) {
+      S2.sig = sig;
+      S2.lastMove = sim.t;
+    }
+    const powered = !d.enable || !!(sim.parts[d.enable] && sim.parts[d.enable].on);
+    if (!powered || sim.t - S2.lastMove > (d.stall || 15)) S2.down += dt;
+  }
   function scenarioTick(sim) {
     const sc = sim.level.scenario, S2 = sim.scenario;
     if (!sc || !S2) return;
+    if (S2.t0 === null) {
+      const p = sim.parts[sc.startWhen.coil];
+      if (p && p.on) {
+        S2.t0 = sim.t;
+        S2.lastMove = sim.t;
+      } else return;
+    }
+    const t = sim.t - S2.t0;
     const healthy = (f2) => {
       const part2 = sim.parts[f2.fixed.part];
       return !!part2 && !!part2[f2.fixed.prop] === !!f2.fixed.is;
     };
-    sc.faults.forEach((f2) => {
-      if (S2.firedAt[f2.id] === void 0 && sim.t >= f2.at) {
+    S2.faults.forEach((f2) => {
+      if (S2.firedAt[f2.id] === void 0 && t >= f2.at) {
         const [a, x] = f2.do.split(/\s+/);
-        S2.firedAt[f2.id] = sim.t;
+        S2.firedAt[f2.id] = t;
         if (healthy(f2)) try {
           act(sim, a, x);
         } catch (e) {
         }
       }
-      if (S2.firedAt[f2.id] !== void 0 && S2.fixedAt[f2.id] === void 0 && sim.t < sc.duration && healthy(f2)) S2.fixedAt[f2.id] = sim.t;
+      if (S2.firedAt[f2.id] !== void 0 && S2.fixedAt[f2.id] === void 0 && t < sc.duration && healthy(f2)) S2.fixedAt[f2.id] = t;
     });
   }
   function scenarioReport(sim) {
     const sc = sim.level.scenario, S2 = sim.scenario;
     if (!sc || !S2) return null;
-    const faults = sc.faults.map((f2) => {
+    const t = S2.t0 === null ? 0 : sim.t - S2.t0;
+    const faults = S2.faults.map((f2) => {
       const firedAt = S2.firedAt[f2.id], fixedAt = S2.fixedAt[f2.id];
-      const delay = firedAt === void 0 ? null : (fixedAt === void 0 ? sim.t : fixedAt) - firedAt;
+      const delay = firedAt === void 0 ? null : (fixedAt === void 0 ? t : fixedAt) - firedAt;
       return {
         id: f2.id,
         label: f2.label || f2.id,
@@ -2973,7 +3014,7 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
         open: firedAt !== void 0 && fixedAt === void 0
       };
     });
-    return { duration: sc.duration, t: sim.t, done: sim.t >= sc.duration, faults };
+    return { duration: sc.duration, t, done: t >= sc.duration, started: S2.t0 !== null, faults, seed: S2.seed, down: sc.downtime ? Math.round(S2.down) : null };
   }
   function act(sim, action, id) {
     const c2 = sim.level.comps.find((x) => x.id === id);
@@ -3081,6 +3122,7 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
       sim.plcDt = STEP;
       settle(sim);
       scenarioTick(sim);
+      downtimeTick(sim, STEP);
       recordTrace(sim);
     }
   }
@@ -3538,6 +3580,7 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
       }
       if (S2.deadWork && (ctx2.liveEdits || []).length) fail2("safe.liveWork", { comp: S2.deadWork[0] });
       if (S2.programStopped && ctx2.programLive) fail2("safe.programRunning", { comp: S2.programStopped[0] });
+      if (S2.repairDead && ctx2.repairLive) fail2("safe.repairLive", { comp: S2.repairDead.coil });
       if (S2.never) {
         const both = runs.some((x) => x.r.sim.kmHistory.some((on) => S2.never.some((pair) => pair.every((id) => on.includes(id)))));
         const sim = createSim(level, wires);
@@ -3893,6 +3936,8 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
     const meterBy = {};
     const liveEditsBy = {};
     const progLiveBy = {};
+    const repairLiveBy = {};
+    const seedBy = {};
     const measuredBy = {};
     const operatedByKey = {};
     const programsByKey = {};
@@ -4006,10 +4051,16 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
       });
       setWires(sim, wires());
     };
+    function withSeed(lv, k) {
+      const sc = lv.scenario;
+      if (!sc || !sc.pick) return lv;
+      if (seedBy[k] === void 0) seedBy[k] = sc.seed ?? 1 + Math.floor(Math.random() * 1e9);
+      return { ...lv, scenario: { ...sc, seed: seedBy[k] } };
+    }
     function simFor() {
       const k = keyOf();
       if (!simsByKey[k]) {
-        const sim = createSim(withProg(levelAt(), k), wires());
+        const sim = createSim(withSeed(withProg(levelAt(), k), k), wires());
         const sr = ratingsSaved[k];
         delete ratingsSaved[k];
         const iso2 = isoSaved[k];
@@ -4318,6 +4369,7 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
       delete measuredBy[keyOf()];
       delete liveEditsBy[keyOf()];
       delete progLiveBy[keyOf()];
+      delete repairLiveBy[keyOf()];
       wiresByKey[keyOf()] = faultWires(level);
       statesByKey[keyOf()] = {};
       resultsByKey[keyOf()] = null;
@@ -4737,6 +4789,8 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
       // Turno a guasti (level.scenario): ricomincia da capo con la stessa impostazione.
       restartShift() {
         if (!v2() || !levelAt().scenario) return;
+        delete seedBy[keyOf()];
+        delete repairLiveBy[keyOf()];
         dropSim();
         resultsByKey[keyOf()] = null;
         message = null;
@@ -4757,9 +4811,18 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
         const sim = simFor();
         const c2 = levelAt().comps.find((x) => x.id === id);
         if (!c2) return;
+        const rd = levelAt().safety && levelAt().safety.repairDead;
+        const live = rd && rd.parts.includes(id) && ["jam", "dead", "cut"].includes(action) && sim.parts[rd.coil] && sim.parts[rd.coil].on;
         try {
           act(sim, action, id);
         } catch (e) {
+          return;
+        }
+        if (live) {
+          repairLiveBy[keyOf()] = true;
+          message = { code: "repairLiveNow", comp: id };
+          applyLive2();
+          emit();
           return;
         }
         if (action === "press" && power && !operated().includes(id)) operated().push(id);
@@ -4843,7 +4906,7 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
       check() {
         const level = levelAt();
         const faultOn = v2(level) && level.unit && level.unit.fault && unitState().phase === "fault" ? (level.unit.fault.on || []).filter((id) => simFor().parts[id] && simFor().parts[id].on) : [];
-        const r = v2(level) ? evaluateV2(level, wires(), { measured: measuredBy[keyOf()] || [], ratings: ratingsOf(), programs: programsOf(), tuned: tunedByKey[keyOf()], liveSim: level.scenario ? simFor() : null, faultOn, hmiOff: levelAt().comps.filter((c2) => c2.type === "hmi" && simFor().parts[c2.id] && !simFor().parts[c2.id].on).map((c2) => c2.id), liveEdits: liveEditsBy[keyOf()] || [], programLive: !!progLiveBy[keyOf()] }) : evaluate(level, wires());
+        const r = v2(level) ? evaluateV2(level, wires(), { measured: measuredBy[keyOf()] || [], ratings: ratingsOf(), programs: programsOf(), tuned: tunedByKey[keyOf()], liveSim: level.scenario ? simFor() : null, faultOn, hmiOff: levelAt().comps.filter((c2) => c2.type === "hmi" && simFor().parts[c2.id] && !simFor().parts[c2.id].on).map((c2) => c2.id), liveEdits: liveEditsBy[keyOf()] || [], programLive: !!progLiveBy[keyOf()], repairLive: !!repairLiveBy[keyOf()] }) : evaluate(level, wires());
         resultsByKey[keyOf()] = r;
         const u = usage();
         u.checks++;
@@ -8362,6 +8425,48 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
       "I due sensori sono in parallelo: basta che uno solo chiuda per dare l\u2019allarme. Poi il rel\xE8 KA li tiene.",
       "La memoria \xE8 un\u2019autoritenuta: il contatto 11-14 del rel\xE8 riporta la fase alla sua stessa bobina A1, quindi, una volta scattato, il rel\xE8 resta eccitato.",
       "La tacitazione \xE8 un contatto normalmente chiuso messo in testa a tutto: premendolo si toglie la fase ai sensori e alla memoria. La sirena si alimenta dalla stessa linea di A1."
+    ]
+  });
+  var L45 = LEVELS_V2.find((l) => l.id === "c45-fabbrica");
+  var W53_PLANT = W45_SAFE;
+  var PROG_53 = START_45.concat(TRANS_43, ALARMS_45);
+  var insideFix = (id) => ["toggle P", "jam " + id, "toggle P", "press SBR", "release SBR", "press SB1", "release SB1"];
+  var restart = (d) => [d, "press SBR", "release SBR", "press SB1", "release SB1"];
+  var LIB_53 = [
+    { id: "zd", do: "dead ZD", label: "il finecorsa \u201Cbraccio gi\xF9\u201D", fixed: { part: "ZD", prop: "jam", is: false }, maxDelay: 150, fix: insideFix("ZD") },
+    { id: "zu", do: "dead ZU", label: "il finecorsa \u201Cbraccio su\u201D", fixed: { part: "ZU", prop: "jam", is: false }, maxDelay: 150, fix: insideFix("ZU") },
+    { id: "xl", do: "dead XL", label: "il finecorsa \u201Cal deposito\u201D", fixed: { part: "XL", prop: "jam", is: false }, maxDelay: 150, fix: insideFix("XL") },
+    { id: "fungo", do: "toggle E", label: "il fungo di emergenza premuto", fixed: { part: "KS", prop: "on", is: true }, maxDelay: 90, fix: restart("toggle E") },
+    { id: "portella", do: "toggle P", label: "la portella aperta", fixed: { part: "KS", prop: "on", is: true }, maxDelay: 90, fix: restart("toggle P") },
+    { id: "rete", do: "toggle HMI", label: "il cavo di rete del pannello", fixed: { part: "HMI", prop: "on", is: true }, maxDelay: 100, fix: ["toggle HMI"] }
+  ];
+  LEVELS_V2.push({
+    ...L45,
+    id: "c53-turno-notte",
+    code: "c53",
+    prova: { scene: "fabbrica" },
+    supply: "protezioni",
+    // la cella e' in servizio: il quadro e' gia' in tensione, si comincia dal riarmo
+    name: "Il turno di notte",
+    title: "Il turno di notte",
+    blurb: "La cella lavora tutta la notte: tu sei il manutentore. I guasti arrivano uno alla volta, ogni minuto fermo conta.",
+    goal: "La cella di produzione \xE8 cablata, programmata e in servizio. Sei il manutentore del turno di notte: riarma e avvia la cella, poi tienila in produzione fino alla fine del turno. I guasti arrivano uno alla volta: leggi il pannello, trova il pezzo, riparalo in sicurezza (dentro la cella solo con la portella aperta, cio\xE8 con il robot senza potenza), riarma e riparti.",
+    fixed: W45_PLC,
+    scenario: {
+      duration: 1800,
+      startWhen: { coil: "KM" },
+      pick: { from: LIB_53, first: "zd", n: 4, slots: [200, 600, 1e3, 1400] },
+      downtime: { enable: "KM", vars: ["x", "z", "grip"], stall: 15 },
+      // partita di riferimento (test/fabbrica.test.js): riparando in 15 s escono circa 88 pezzi, in 60 s circa 80, senza riparare 10
+      expect: { process: { crash: false, dropped: [0, 0] }, trace: [{ v: "out", reaches: 70 }] }
+    },
+    safety: { ...L45.safety, repairDead: { parts: ["ZU", "ZD", "XP", "XL", "PR"], coil: "KM" } },
+    solution: W45_SAFE.concat(W45_PLC),
+    solutionPrograms: { PLC: PROG_53 },
+    hints: [
+      "Per cominciare: riarma le sicurezze e premi Marcia. Il turno comincia quando il robot riceve potenza.",
+      "\u201CCiclo bloccato\u201D con il robot alimentato: il programma aspetta un finecorsa che non arriva. Guarda in che posizione si \xE8 fermato il braccio.",
+      "Dentro la cella si ripara solo a robot senza potenza: apri la portella, ripara, richiudi, riarma e premi Marcia."
     ]
   });
 
@@ -13190,6 +13295,92 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
       fixSay: "Collega la tacitazione al contatto 11 del rel\xE8, e il contatto 14 alla bobina A1. Poi premi Verifica."
     }
   };
+  UNITS_V2["c53-turno-notte"] = {
+    support: "obiettivo",
+    lesson: {
+      pages: [
+        {
+          type: "spiegazione",
+          title: "Il manutentore di turno",
+          paras: [
+            "Di notte la cella lavora da sola e c\u2019\xE8 un solo manutentore per tutto il reparto. Il suo lavoro non \xE8 costruire l\u2019impianto ma tenerlo in produzione: quando qualcosa si ferma deve capire in fretta che cosa, ripararlo senza farsi male e far ripartire la cella.",
+            "Ogni minuto di fermo \xE8 produzione persa. Ma la fretta non vale un incidente: un robot che riparte mentre hai le mani nella cella non si ferma per guardarti."
+          ]
+        },
+        {
+          type: "spiegazione",
+          title: "Dall\u2019allarme al pezzo",
+          paras: [
+            "Il pannello dice che cosa \xE8 successo, non dove. \u201CSicurezze aperte\u201D vuol dire che il robot ha perso la potenza: fungo premuto o portella aperta. \u201CCiclo bloccato\u201D con il robot alimentato vuol dire che il programma aspetta un segnale che non arriva: quasi sempre un finecorsa.",
+            "Per trovare quale, guarda dove si \xE8 fermato il braccio: se \xE8 in basso e il programma aspetta \u201Cbraccio gi\xF9\u201D, il finecorsa in basso non ha risposto. Il LED del finecorsa dice se il PLC lo vede."
+          ],
+          table: {
+            head: ["Il pannello dice", "Il robot", "Dove guardare"],
+            rows: [
+              ["Sicurezze aperte", "senza potenza", "fungo e portella"],
+              ["Ciclo bloccato", "alimentato, fermo", "il finecorsa del movimento in corso"],
+              ["Pannello grigio", "lavora", "il cavo di rete del pannello"]
+            ]
+          }
+        },
+        {
+          type: "spiegazione",
+          title: "Dentro la cella solo senza potenza",
+          paras: [
+            "Per cambiare un finecorsa bisogna entrare nella cella. Prima si apre la portella: il rel\xE8 di sicurezza toglie la potenza al robot e il robot resta fermo dov\u2019\xE8. Poi si ripara. Poi si esce, si richiude la portella, si preme il riarmo e infine Marcia.",
+            "L\u2019ordine conta: riparare con il robot alimentato \xE8 l\u2019errore pi\xF9 pericoloso del turno, anche se il robot in quel momento \xE8 fermo. \xC8 fermo perch\xE9 il programma aspetta: appena il finecorsa torna a rispondere, riparte."
+          ],
+          warn: "Un robot fermo non \xE8 un robot sicuro: \xE8 fermo finch\xE9 il programma aspetta. Senza potenza invece non pu\xF2 muoversi."
+        },
+        {
+          type: "previsione",
+          question: "Il pannello dice \u201CCiclo bloccato\u201D, il robot \xE8 alimentato e fermo con il braccio in basso. Che cosa fai per primo?",
+          options: [
+            { id: "a", text: "Tocco il finecorsa in basso per vedere se si sblocca." },
+            { id: "b", text: "Apro la portella, cos\xEC il robot perde la potenza, e poi controllo il finecorsa in basso." },
+            { id: "c", text: "Premo Marcia di nuovo." }
+          ],
+          correct: "b",
+          why: "Il robot \xE8 fermo solo perch\xE9 il programma aspetta il finecorsa. Se lo sblocchi con il robot alimentato, il robot riparte con le tue mani nella cella. Con la portella aperta il robot non ha potenza e non pu\xF2 muoversi."
+        },
+        {
+          type: "previsione",
+          question: "Hai riparato il finecorsa e richiuso la portella. Il robot non riparte. Che cosa manca?",
+          options: [
+            { id: "a", text: "Il riarmo, e poi Marcia." },
+            { id: "b", text: "Niente: riparte da solo dopo qualche secondo." },
+            { id: "c", text: "Bisogna spegnere e riaccendere il PLC." }
+          ],
+          correct: "a",
+          why: "Dopo un arresto di sicurezza la macchina non riparte da sola: serve il riarmo con la portella chiusa. Il PLC intanto ha perso la marcia, perch\xE9 le sicurezze erano aperte: per continuare a produrre serve Marcia."
+        },
+        { type: "sintesi", title: "Da ricordare" }
+      ]
+    },
+    summary: [
+      "Il manutentore tiene la cella in produzione: capire in fretta, riparare in sicurezza, ripartire.",
+      "\u201CSicurezze aperte\u201D: fungo o portella. \u201CCiclo bloccato\u201D con il robot alimentato: un finecorsa che non risponde.",
+      "Dentro la cella si lavora solo con il robot senza potenza: prima la portella aperta, poi la riparazione.",
+      "Dopo un arresto di sicurezza: richiudere, riarmare, poi Marcia."
+    ],
+    fault: {
+      say: "La cella \xE8 in servizio. Riarma le sicurezze e premi Marcia: il turno comincia. Quando la cella si ferma, guarda il pannello e il braccio, e rispondi.",
+      wires: W53_PLANT,
+      programs: { PLC: PROG_53 },
+      diagnosis: {
+        question: "La cella si \xE8 fermata: il pannello dice \u201CCiclo bloccato\u201D, il robot \xE8 alimentato e il braccio \xE8 in basso. Perch\xE9?",
+        options: [
+          { id: "a", text: "Il rel\xE8 di sicurezza ha tolto la potenza al robot." },
+          { id: "b", text: "Il finecorsa \u201Cbraccio gi\xF9\u201D non risponde: il programma aspetta un segnale che non arriva." },
+          { id: "c", text: "Al prelievo manca il pezzo." },
+          { id: "d", text: "Il programma ha perso un passo." }
+        ],
+        correct: "b",
+        why: "Con la potenza tolta il pannello direbbe \u201CSicurezze aperte\u201D e la spia del robot sarebbe spenta. Il braccio \xE8 sceso ma il PLC non vede il finecorsa in basso: il passo \u201CScendi\u201D aspetta il suo \u201Cfatto\u201D e dopo 40 secondi scatta \u201CCiclo bloccato\u201D."
+      },
+      fixSay: "Apri la portella (il robot perde la potenza), ripara il finecorsa \u201Cbraccio gi\xF9\u201D, richiudi la portella, premi il riarmo e poi Marcia. Poi tieni la cella in produzione fino alla fine del turno e premi Verifica."
+    }
+  };
 
   // src/content/it.js
   var COLOR_NAMES = {
@@ -13443,6 +13634,8 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
         return "Hai cambiato i fili mentre il sezionamento (" + nameOf(level, item.comp) + ") era chiuso e i morsetti erano in tensione. Premi Annulla tutto, apri il sezionamento e cabla da capo.";
       case "safe.programRunning":
         return "Hai cambiato il programma con la macchina (" + nameOf(level, item.comp) + ") in moto: il PLC riparte da zero e la macchina pu\xF2 fermarsi o ripartire mentre qualcuno ci lavora. Premi Annulla tutto, ferma la macchina e correggi il programma da capo.";
+      case "safe.repairLive":
+        return "Hai riparato un pezzo dentro la cella con la macchina alimentata (" + nameOf(level, item.comp) + " chiuso): se il robot si muove mentre hai le mani nella cella, ti fa male. Prima apri la portella, poi ripari, poi richiudi e riarmi.";
       case "safe.singleChannel":
         return "I due canali dipendono dallo stesso contatto: se si incolla o viene scavalcato da un cortocircuito, restano chiusi tutti e due. Ogni canale deve avere il suo percorso.";
       case "safe.notRedundant":
@@ -13485,6 +13678,8 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
         return msg.fault === "corto" ? "Il magnetotermico \xE8 scattato: la fase tocca il neutro (cortocircuito)." : "\xC8 scattato il differenziale: la fase \xE8 finita sul filo di terra.";
       case "programLiveNow":
         return "Attenzione: stai cambiando il programma con la macchina in moto. Fermala prima: cos\xEC com\u2019\xE8, perdi la stella di sicurezza.";
+      case "repairLiveNow":
+        return "Attenzione: stai riparando dentro la cella con il robot alimentato. Apri prima la portella: cos\xEC com\u2019\xE8, perdi la stella di sicurezza.";
       case "liveWorkNow":
         return "Attenzione: stai toccando morsetti in tensione. Apri il sezionamento prima di cablare: cos\xEC com\u2019\xE8, perdi la stella di sicurezza.";
       case "editWhileLive":
@@ -20718,6 +20913,88 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
     "L\u2019autoritenuta d\xE0 la memoria: il contatto 11-14 riporta la fase alla bobina, che si tiene da sola.": "\u0627\u0644\u062A\u062B\u0628\u064A\u062A \u0627\u0644\u0630\u0627\u062A\u064A \u064A\u0639\u0637\u064A \u0627\u0644\u0630\u0627\u0643\u0631\u0629: \u0627\u0644\u0645\u0644\u0627\u0645\u0633 11-14 \u064A\u0639\u064A\u062F \u0627\u0644\u0637\u0648\u0631 \u0625\u0644\u0649 \u0627\u0644\u0645\u0644\u0641 \u0641\u064A\u0645\u0633\u0643 \u0646\u0641\u0633\u0647."
   };
 
+  // src/i18n/ar-44.js
+  var ar_44_default = {
+    "Il turno di notte": "\u0627\u0644\u0645\u0646\u0627\u0648\u0628\u0629 \u0627\u0644\u0644\u064A\u0644\u064A\u0629",
+    "La cella lavora tutta la notte: tu sei il manutentore. I guasti arrivano uno alla volta, ogni minuto fermo conta.": "\u0627\u0644\u062E\u0644\u064A\u0629 \u062A\u0639\u0645\u0644 \u0637\u0648\u0627\u0644 \u0627\u0644\u0644\u064A\u0644: \u0623\u0646\u062A \u0641\u0646\u064A \u0627\u0644\u0635\u064A\u0627\u0646\u0629. \u062A\u0635\u0644 \u0627\u0644\u0623\u0639\u0637\u0627\u0644 \u0648\u0627\u062D\u062F\u064B\u0627 \u062A\u0644\u0648 \u0627\u0644\u0622\u062E\u0631\u060C \u0648\u0643\u0644 \u062F\u0642\u064A\u0642\u0629 \u062A\u0648\u0642\u0641 \u0644\u0647\u0627 \u062B\u0645\u0646.",
+    "La cella di produzione \xE8 cablata, programmata e in servizio. Sei il manutentore del turno di notte: riarma e avvia la cella, poi tienila in produzione fino alla fine del turno. I guasti arrivano uno alla volta: leggi il pannello, trova il pezzo, riparalo in sicurezza (dentro la cella solo con la portella aperta, cio\xE8 con il robot senza potenza), riarma e riparti.": "\u062E\u0644\u064A\u0629 \u0627\u0644\u0625\u0646\u062A\u0627\u062C \u0645\u0648\u0635\u0648\u0644\u0629 \u0648\u0645\u0628\u0631\u0645\u062C\u0629 \u0648\u0641\u064A \u0627\u0644\u062E\u062F\u0645\u0629. \u0623\u0646\u062A \u0641\u0646\u064A \u0635\u064A\u0627\u0646\u0629 \u0627\u0644\u0645\u0646\u0627\u0648\u0628\u0629 \u0627\u0644\u0644\u064A\u0644\u064A\u0629: \u0623\u0639\u062F \u062A\u0633\u0644\u064A\u062D \u0627\u0644\u062E\u0644\u064A\u0629 \u0648\u0634\u063A\u0651\u0644\u0647\u0627\u060C \u062B\u0645 \u0623\u0628\u0642\u0647\u0627 \u0645\u0646\u062A\u062C\u0629 \u062D\u062A\u0649 \u0646\u0647\u0627\u064A\u0629 \u0627\u0644\u0645\u0646\u0627\u0648\u0628\u0629. \u062A\u0635\u0644 \u0627\u0644\u0623\u0639\u0637\u0627\u0644 \u0648\u0627\u062D\u062F\u064B\u0627 \u062A\u0644\u0648 \u0627\u0644\u0622\u062E\u0631: \u0627\u0642\u0631\u0623 \u0627\u0644\u0644\u0648\u062D\u0629\u060C \u0627\u0639\u062B\u0631 \u0639\u0644\u0649 \u0627\u0644\u0642\u0637\u0639\u0629\u060C \u0623\u0635\u0644\u062D\u0647\u0627 \u0628\u0623\u0645\u0627\u0646 (\u062F\u0627\u062E\u0644 \u0627\u0644\u062E\u0644\u064A\u0629 \u0641\u0642\u0637 \u0648\u0627\u0644\u0628\u0648\u0627\u0628\u0629 \u0645\u0641\u062A\u0648\u062D\u0629\u060C \u0623\u064A \u0648\u0627\u0644\u0631\u0648\u0628\u0648\u062A \u0628\u0644\u0627 \u0642\u062F\u0631\u0629)\u060C \u0623\u0639\u062F \u0627\u0644\u062A\u0633\u0644\u064A\u062D \u0648\u0623\u0639\u062F \u0627\u0644\u062A\u0634\u063A\u064A\u0644.",
+    "Per cominciare: riarma le sicurezze e premi Marcia. Il turno comincia quando il robot riceve potenza.": "\u0644\u0644\u0628\u062F\u0621: \u0623\u0639\u062F \u062A\u0633\u0644\u064A\u062D \u0627\u0644\u0633\u0644\u0627\u0645\u0629 \u0648\u0627\u0636\u063A\u0637 \u0627\u0644\u062A\u0634\u063A\u064A\u0644. \u062A\u0628\u062F\u0623 \u0627\u0644\u0645\u0646\u0627\u0648\u0628\u0629 \u0639\u0646\u062F\u0645\u0627 \u064A\u062A\u0644\u0642\u0649 \u0627\u0644\u0631\u0648\u0628\u0648\u062A \u0627\u0644\u0642\u062F\u0631\u0629.",
+    "\u201CCiclo bloccato\u201D con il robot alimentato: il programma aspetta un finecorsa che non arriva. Guarda in che posizione si \xE8 fermato il braccio.": "\xAB\u0627\u0644\u062F\u0648\u0631\u0629 \u0645\u062A\u0648\u0642\u0641\u0629\xBB \u0648\u0627\u0644\u0631\u0648\u0628\u0648\u062A \u062A\u062D\u062A \u0627\u0644\u062A\u063A\u0630\u064A\u0629: \u0627\u0644\u0628\u0631\u0646\u0627\u0645\u062C \u064A\u0646\u062A\u0638\u0631 \u0646\u0647\u0627\u064A\u0629 \u0634\u0648\u0637 \u0644\u0627 \u062A\u0635\u0644. \u0627\u0646\u0638\u0631 \u0641\u064A \u0623\u064A \u0648\u0636\u0639 \u062A\u0648\u0642\u0641 \u0627\u0644\u0630\u0631\u0627\u0639.",
+    "Dentro la cella si ripara solo a robot senza potenza: apri la portella, ripara, richiudi, riarma e premi Marcia.": "\u062F\u0627\u062E\u0644 \u0627\u0644\u062E\u0644\u064A\u0629 \u0644\u0627 \u064A\u064F\u0635\u0644\u064E\u062D \u0625\u0644\u0627 \u0648\u0627\u0644\u0631\u0648\u0628\u0648\u062A \u0628\u0644\u0627 \u0642\u062F\u0631\u0629: \u0627\u0641\u062A\u062D \u0627\u0644\u0628\u0648\u0627\u0628\u0629\u060C \u0623\u0635\u0644\u062D\u060C \u0623\u063A\u0644\u0642\u060C \u0623\u0639\u062F \u0627\u0644\u062A\u0633\u0644\u064A\u062D \u0648\u0627\u0636\u063A\u0637 \u0627\u0644\u062A\u0634\u063A\u064A\u0644.",
+    "il finecorsa \u201Cbraccio gi\xF9\u201D": "\u0646\u0647\u0627\u064A\u0629 \u0627\u0644\u0634\u0648\u0637 \xAB\u0627\u0644\u0630\u0631\u0627\u0639 \u0644\u0644\u0623\u0633\u0641\u0644\xBB",
+    "il finecorsa \u201Cbraccio su\u201D": "\u0646\u0647\u0627\u064A\u0629 \u0627\u0644\u0634\u0648\u0637 \xAB\u0627\u0644\u0630\u0631\u0627\u0639 \u0644\u0644\u0623\u0639\u0644\u0649\xBB",
+    "il finecorsa \u201Cal deposito\u201D": "\u0646\u0647\u0627\u064A\u0629 \u0627\u0644\u0634\u0648\u0637 \xAB\u0639\u0646\u062F \u0627\u0644\u0625\u064A\u062F\u0627\u0639\xBB",
+    "Il manutentore di turno": "\u0641\u0646\u064A \u0627\u0644\u0635\u064A\u0627\u0646\u0629 \u0627\u0644\u0645\u0646\u0627\u0648\u0628",
+    "Di notte la cella lavora da sola e c\u2019\xE8 un solo manutentore per tutto il reparto. Il suo lavoro non \xE8 costruire l\u2019impianto ma tenerlo in produzione: quando qualcosa si ferma deve capire in fretta che cosa, ripararlo senza farsi male e far ripartire la cella.": "\u0641\u064A \u0627\u0644\u0644\u064A\u0644 \u062A\u0639\u0645\u0644 \u0627\u0644\u062E\u0644\u064A\u0629 \u0648\u062D\u062F\u0647\u0627 \u0648\u0644\u0627 \u064A\u0648\u062C\u062F \u0625\u0644\u0627 \u0641\u0646\u064A \u0635\u064A\u0627\u0646\u0629 \u0648\u0627\u062D\u062F \u0644\u0644\u0642\u0633\u0645 \u0643\u0644\u0647. \u0639\u0645\u0644\u0647 \u0644\u064A\u0633 \u0628\u0646\u0627\u0621 \u0627\u0644\u062A\u0631\u0643\u064A\u0628 \u0628\u0644 \u0625\u0628\u0642\u0627\u0624\u0647 \u0645\u0646\u062A\u062C\u064B\u0627: \u0639\u0646\u062F\u0645\u0627 \u064A\u062A\u0648\u0642\u0641 \u0634\u064A\u0621 \u0639\u0644\u064A\u0647 \u0623\u0646 \u064A\u0641\u0647\u0645 \u0628\u0633\u0631\u0639\u0629 \u0645\u0627 \u0647\u0648\u060C \u0648\u0623\u0646 \u064A\u0635\u0644\u062D\u0647 \u062F\u0648\u0646 \u0623\u0646 \u064A\u0624\u0630\u064A \u0646\u0641\u0633\u0647\u060C \u0648\u0623\u0646 \u064A\u0639\u064A\u062F \u062A\u0634\u063A\u064A\u0644 \u0627\u0644\u062E\u0644\u064A\u0629.",
+    "Ogni minuto di fermo \xE8 produzione persa. Ma la fretta non vale un incidente: un robot che riparte mentre hai le mani nella cella non si ferma per guardarti.": "\u0643\u0644 \u062F\u0642\u064A\u0642\u0629 \u062A\u0648\u0642\u0641 \u0625\u0646\u062A\u0627\u062C \u0636\u0627\u0626\u0639. \u0644\u0643\u0646 \u0627\u0644\u0639\u062C\u0644\u0629 \u0644\u0627 \u062A\u0633\u062A\u062D\u0642 \u062D\u0627\u062F\u062B\u064B\u0627: \u0627\u0644\u0631\u0648\u0628\u0648\u062A \u0627\u0644\u0630\u064A \u064A\u0639\u0627\u0648\u062F \u0627\u0644\u0639\u0645\u0644 \u0648\u064A\u062F\u0627\u0643 \u062F\u0627\u062E\u0644 \u0627\u0644\u062E\u0644\u064A\u0629 \u0644\u0627 \u064A\u062A\u0648\u0642\u0641 \u0644\u064A\u0646\u0638\u0631 \u0625\u0644\u064A\u0643.",
+    "Dall\u2019allarme al pezzo": "\u0645\u0646 \u0627\u0644\u0625\u0646\u0630\u0627\u0631 \u0625\u0644\u0649 \u0627\u0644\u0642\u0637\u0639\u0629",
+    "Il pannello dice che cosa \xE8 successo, non dove. \u201CSicurezze aperte\u201D vuol dire che il robot ha perso la potenza: fungo premuto o portella aperta. \u201CCiclo bloccato\u201D con il robot alimentato vuol dire che il programma aspetta un segnale che non arriva: quasi sempre un finecorsa.": "\u062A\u0642\u0648\u0644 \u0627\u0644\u0644\u0648\u062D\u0629 \u0645\u0627\u0630\u0627 \u062D\u062F\u062B\u060C \u0644\u0627 \u0623\u064A\u0646. \xAB\u0627\u0644\u0633\u0644\u0627\u0645\u0629 \u0645\u0641\u062A\u0648\u062D\u0629\xBB \u062A\u0639\u0646\u064A \u0623\u0646 \u0627\u0644\u0631\u0648\u0628\u0648\u062A \u0641\u0642\u062F \u0627\u0644\u0642\u062F\u0631\u0629: \u0632\u0631 \u0637\u0648\u0627\u0631\u0626 \u0645\u0636\u063A\u0648\u0637 \u0623\u0648 \u0628\u0648\u0627\u0628\u0629 \u0645\u0641\u062A\u0648\u062D\u0629. \xAB\u0627\u0644\u062F\u0648\u0631\u0629 \u0645\u062A\u0648\u0642\u0641\u0629\xBB \u0648\u0627\u0644\u0631\u0648\u0628\u0648\u062A \u062A\u062D\u062A \u0627\u0644\u062A\u063A\u0630\u064A\u0629 \u062A\u0639\u0646\u064A \u0623\u0646 \u0627\u0644\u0628\u0631\u0646\u0627\u0645\u062C \u064A\u0646\u062A\u0638\u0631 \u0625\u0634\u0627\u0631\u0629 \u0644\u0627 \u062A\u0635\u0644: \u063A\u0627\u0644\u0628\u064B\u0627 \u0646\u0647\u0627\u064A\u0629 \u0634\u0648\u0637.",
+    "Per trovare quale, guarda dove si \xE8 fermato il braccio: se \xE8 in basso e il programma aspetta \u201Cbraccio gi\xF9\u201D, il finecorsa in basso non ha risposto. Il LED del finecorsa dice se il PLC lo vede.": "\u0644\u062A\u0639\u0631\u0641 \u0623\u064A\u0647\u0627\u060C \u0627\u0646\u0638\u0631 \u0623\u064A\u0646 \u062A\u0648\u0642\u0641 \u0627\u0644\u0630\u0631\u0627\u0639: \u0625\u0630\u0627 \u0643\u0627\u0646 \u0641\u064A \u0627\u0644\u0623\u0633\u0641\u0644 \u0648\u0627\u0644\u0628\u0631\u0646\u0627\u0645\u062C \u064A\u0646\u062A\u0638\u0631 \xAB\u0627\u0644\u0630\u0631\u0627\u0639 \u0644\u0644\u0623\u0633\u0641\u0644\xBB \u0641\u0625\u0646 \u0646\u0647\u0627\u064A\u0629 \u0627\u0644\u0634\u0648\u0637 \u0627\u0644\u0633\u0641\u0644\u064A\u0629 \u0644\u0645 \u062A\u0633\u062A\u062C\u0628. \u0636\u0648\u0621 \u0646\u0647\u0627\u064A\u0629 \u0627\u0644\u0634\u0648\u0637 \u064A\u0642\u0648\u0644 \u0625\u0646 \u0643\u0627\u0646 \u0627\u0644\u0640PLC \u064A\u0631\u0627\u0647\u0627.",
+    "Il pannello dice": "\u0627\u0644\u0644\u0648\u062D\u0629 \u062A\u0642\u0648\u0644",
+    "Il robot": "\u0627\u0644\u0631\u0648\u0628\u0648\u062A",
+    "Dove guardare": "\u0623\u064A\u0646 \u062A\u0646\u0638\u0631",
+    "senza potenza": "\u0628\u0644\u0627 \u0642\u062F\u0631\u0629",
+    "fungo e portella": "\u0632\u0631 \u0627\u0644\u0637\u0648\u0627\u0631\u0626 \u0648\u0627\u0644\u0628\u0648\u0627\u0628\u0629",
+    "alimentato, fermo": "\u062A\u062D\u062A \u0627\u0644\u062A\u063A\u0630\u064A\u0629\u060C \u0645\u062A\u0648\u0642\u0641",
+    "il finecorsa del movimento in corso": "\u0646\u0647\u0627\u064A\u0629 \u0634\u0648\u0637 \u0627\u0644\u062D\u0631\u0643\u0629 \u0627\u0644\u062C\u0627\u0631\u064A\u0629",
+    "Pannello grigio": "\u0644\u0648\u062D\u0629 \u0631\u0645\u0627\u062F\u064A\u0629",
+    "lavora": "\u064A\u0639\u0645\u0644",
+    "il cavo di rete del pannello": "\u0643\u0627\u0628\u0644 \u0634\u0628\u0643\u0629 \u0627\u0644\u0644\u0648\u062D\u0629",
+    "Dentro la cella solo senza potenza": "\u062F\u0627\u062E\u0644 \u0627\u0644\u062E\u0644\u064A\u0629 \u0641\u0642\u0637 \u0628\u0644\u0627 \u0642\u062F\u0631\u0629",
+    "Per cambiare un finecorsa bisogna entrare nella cella. Prima si apre la portella: il rel\xE8 di sicurezza toglie la potenza al robot e il robot resta fermo dov\u2019\xE8. Poi si ripara. Poi si esce, si richiude la portella, si preme il riarmo e infine Marcia.": "\u0644\u062A\u063A\u064A\u064A\u0631 \u0646\u0647\u0627\u064A\u0629 \u0634\u0648\u0637 \u064A\u062C\u0628 \u062F\u062E\u0648\u0644 \u0627\u0644\u062E\u0644\u064A\u0629. \u0623\u0648\u0644\u064B\u0627 \u062A\u064F\u0641\u062A\u062D \u0627\u0644\u0628\u0648\u0627\u0628\u0629: \u064A\u0642\u0637\u0639 \u0645\u0631\u062D\u0651\u0644 \u0627\u0644\u0633\u0644\u0627\u0645\u0629 \u0627\u0644\u0642\u062F\u0631\u0629 \u0639\u0646 \u0627\u0644\u0631\u0648\u0628\u0648\u062A \u0641\u064A\u0628\u0642\u0649 \u0645\u062A\u0648\u0642\u0641\u064B\u0627 \u0645\u0643\u0627\u0646\u0647. \u062B\u0645 \u064A\u064F\u0635\u0644\u064E\u062D. \u062B\u0645 \u064A\u064F\u062E\u0631\u064E\u062C \u0648\u062A\u064F\u063A\u0644\u064E\u0642 \u0627\u0644\u0628\u0648\u0627\u0628\u0629 \u0648\u064A\u064F\u0636\u063A\u0637 \u0632\u0631 \u0625\u0639\u0627\u062F\u0629 \u0627\u0644\u062A\u0633\u0644\u064A\u062D \u0648\u0623\u062E\u064A\u0631\u064B\u0627 \u0627\u0644\u062A\u0634\u063A\u064A\u0644.",
+    "L\u2019ordine conta: riparare con il robot alimentato \xE8 l\u2019errore pi\xF9 pericoloso del turno, anche se il robot in quel momento \xE8 fermo. \xC8 fermo perch\xE9 il programma aspetta: appena il finecorsa torna a rispondere, riparte.": "\u0627\u0644\u062A\u0631\u062A\u064A\u0628 \u0645\u0647\u0645: \u0627\u0644\u0625\u0635\u0644\u0627\u062D \u0648\u0627\u0644\u0631\u0648\u0628\u0648\u062A \u062A\u062D\u062A \u0627\u0644\u062A\u063A\u0630\u064A\u0629 \u0647\u0648 \u0623\u062E\u0637\u0631 \u062E\u0637\u0623 \u0641\u064A \u0627\u0644\u0645\u0646\u0627\u0648\u0628\u0629\u060C \u062D\u062A\u0649 \u0644\u0648 \u0643\u0627\u0646 \u0627\u0644\u0631\u0648\u0628\u0648\u062A \u0645\u062A\u0648\u0642\u0641\u064B\u0627 \u0641\u064A \u062A\u0644\u0643 \u0627\u0644\u0644\u062D\u0638\u0629. \u0625\u0646\u0647 \u0645\u062A\u0648\u0642\u0641 \u0644\u0623\u0646 \u0627\u0644\u0628\u0631\u0646\u0627\u0645\u062C \u064A\u0646\u062A\u0638\u0631: \u0645\u0627 \u0625\u0646 \u062A\u0639\u0648\u062F \u0646\u0647\u0627\u064A\u0629 \u0627\u0644\u0634\u0648\u0637 \u0625\u0644\u0649 \u0627\u0644\u0627\u0633\u062A\u062C\u0627\u0628\u0629 \u062D\u062A\u0649 \u064A\u0639\u0627\u0648\u062F \u0627\u0644\u0639\u0645\u0644.",
+    "Un robot fermo non \xE8 un robot sicuro: \xE8 fermo finch\xE9 il programma aspetta. Senza potenza invece non pu\xF2 muoversi.": "\u0627\u0644\u0631\u0648\u0628\u0648\u062A \u0627\u0644\u0645\u062A\u0648\u0642\u0641 \u0644\u064A\u0633 \u0631\u0648\u0628\u0648\u062A\u064B\u0627 \u0622\u0645\u0646\u064B\u0627: \u0625\u0646\u0647 \u0645\u062A\u0648\u0642\u0641 \u0645\u0627 \u062F\u0627\u0645 \u0627\u0644\u0628\u0631\u0646\u0627\u0645\u062C \u064A\u0646\u062A\u0638\u0631. \u0623\u0645\u0627 \u0628\u0644\u0627 \u0642\u062F\u0631\u0629 \u0641\u0644\u0627 \u064A\u0633\u062A\u0637\u064A\u0639 \u0623\u0646 \u064A\u062A\u062D\u0631\u0643.",
+    "Il pannello dice \u201CCiclo bloccato\u201D, il robot \xE8 alimentato e fermo con il braccio in basso. Che cosa fai per primo?": "\u062A\u0642\u0648\u0644 \u0627\u0644\u0644\u0648\u062D\u0629 \xAB\u0627\u0644\u062F\u0648\u0631\u0629 \u0645\u062A\u0648\u0642\u0641\u0629\xBB\u060C \u0648\u0627\u0644\u0631\u0648\u0628\u0648\u062A \u062A\u062D\u062A \u0627\u0644\u062A\u063A\u0630\u064A\u0629 \u0648\u0645\u062A\u0648\u0642\u0641 \u0648\u0627\u0644\u0630\u0631\u0627\u0639 \u0641\u064A \u0627\u0644\u0623\u0633\u0641\u0644. \u0645\u0627\u0630\u0627 \u062A\u0641\u0639\u0644 \u0623\u0648\u0644\u064B\u0627\u061F",
+    "Tocco il finecorsa in basso per vedere se si sblocca.": "\u0623\u0644\u0645\u0633 \u0646\u0647\u0627\u064A\u0629 \u0627\u0644\u0634\u0648\u0637 \u0627\u0644\u0633\u0641\u0644\u064A\u0629 \u0644\u0623\u0631\u0649 \u0625\u0646 \u0643\u0627\u0646\u062A \u062A\u062A\u062D\u0631\u0631.",
+    "Apro la portella, cos\xEC il robot perde la potenza, e poi controllo il finecorsa in basso.": "\u0623\u0641\u062A\u062D \u0627\u0644\u0628\u0648\u0627\u0628\u0629 \u0641\u064A\u0641\u0642\u062F \u0627\u0644\u0631\u0648\u0628\u0648\u062A \u0627\u0644\u0642\u062F\u0631\u0629\u060C \u062B\u0645 \u0623\u0641\u062D\u0635 \u0646\u0647\u0627\u064A\u0629 \u0627\u0644\u0634\u0648\u0637 \u0627\u0644\u0633\u0641\u0644\u064A\u0629.",
+    "Premo Marcia di nuovo.": "\u0623\u0636\u063A\u0637 \u0627\u0644\u062A\u0634\u063A\u064A\u0644 \u0645\u0631\u0629 \u0623\u062E\u0631\u0649.",
+    "Il robot \xE8 fermo solo perch\xE9 il programma aspetta il finecorsa. Se lo sblocchi con il robot alimentato, il robot riparte con le tue mani nella cella. Con la portella aperta il robot non ha potenza e non pu\xF2 muoversi.": "\u0627\u0644\u0631\u0648\u0628\u0648\u062A \u0645\u062A\u0648\u0642\u0641 \u0641\u0642\u0637 \u0644\u0623\u0646 \u0627\u0644\u0628\u0631\u0646\u0627\u0645\u062C \u064A\u0646\u062A\u0638\u0631 \u0646\u0647\u0627\u064A\u0629 \u0627\u0644\u0634\u0648\u0637. \u0625\u0630\u0627 \u062D\u0631\u0631\u062A\u0647\u0627 \u0648\u0627\u0644\u0631\u0648\u0628\u0648\u062A \u062A\u062D\u062A \u0627\u0644\u062A\u063A\u0630\u064A\u0629 \u064A\u0639\u0627\u0648\u062F \u0627\u0644\u0631\u0648\u0628\u0648\u062A \u0627\u0644\u0639\u0645\u0644 \u0648\u064A\u062F\u0627\u0643 \u062F\u0627\u062E\u0644 \u0627\u0644\u062E\u0644\u064A\u0629. \u0648\u0627\u0644\u0628\u0648\u0627\u0628\u0629 \u0645\u0641\u062A\u0648\u062D\u0629 \u0644\u0627 \u0642\u062F\u0631\u0629 \u0644\u0644\u0631\u0648\u0628\u0648\u062A \u0648\u0644\u0627 \u064A\u0633\u062A\u0637\u064A\u0639 \u0623\u0646 \u064A\u062A\u062D\u0631\u0643.",
+    "Hai riparato il finecorsa e richiuso la portella. Il robot non riparte. Che cosa manca?": "\u0623\u0635\u0644\u062D\u062A \u0646\u0647\u0627\u064A\u0629 \u0627\u0644\u0634\u0648\u0637 \u0648\u0623\u063A\u0644\u0642\u062A \u0627\u0644\u0628\u0648\u0627\u0628\u0629. \u0627\u0644\u0631\u0648\u0628\u0648\u062A \u0644\u0627 \u064A\u0639\u0627\u0648\u062F \u0627\u0644\u0639\u0645\u0644. \u0645\u0627\u0630\u0627 \u064A\u0646\u0642\u0635\u061F",
+    "Il riarmo, e poi Marcia.": "\u0625\u0639\u0627\u062F\u0629 \u0627\u0644\u062A\u0633\u0644\u064A\u062D\u060C \u062B\u0645 \u0627\u0644\u062A\u0634\u063A\u064A\u0644.",
+    "Niente: riparte da solo dopo qualche secondo.": "\u0644\u0627 \u0634\u064A\u0621: \u064A\u0639\u0627\u0648\u062F \u0627\u0644\u0639\u0645\u0644 \u0648\u062D\u062F\u0647 \u0628\u0639\u062F \u0628\u0636\u0639 \u062B\u0648\u0627\u0646\u064D.",
+    "Bisogna spegnere e riaccendere il PLC.": "\u064A\u062C\u0628 \u0625\u0637\u0641\u0627\u0621 \u0627\u0644\u0640PLC \u0648\u0625\u0639\u0627\u062F\u0629 \u062A\u0634\u063A\u064A\u0644\u0647.",
+    "Dopo un arresto di sicurezza la macchina non riparte da sola: serve il riarmo con la portella chiusa. Il PLC intanto ha perso la marcia, perch\xE9 le sicurezze erano aperte: per continuare a produrre serve Marcia.": "\u0628\u0639\u062F \u0625\u064A\u0642\u0627\u0641 \u0623\u0645\u0627\u0646 \u0644\u0627 \u062A\u0639\u0627\u0648\u062F \u0627\u0644\u0622\u0644\u0629 \u0627\u0644\u0639\u0645\u0644 \u0648\u062D\u062F\u0647\u0627: \u064A\u0644\u0632\u0645 \u0625\u0639\u0627\u062F\u0629 \u0627\u0644\u062A\u0633\u0644\u064A\u062D \u0648\u0627\u0644\u0628\u0648\u0627\u0628\u0629 \u0645\u063A\u0644\u0642\u0629. \u0648\u0641\u064A \u0627\u0644\u0623\u062B\u0646\u0627\u0621 \u0641\u0642\u062F \u0627\u0644\u0640PLC \u0627\u0644\u062A\u0634\u063A\u064A\u0644 \u0644\u0623\u0646 \u0627\u0644\u0633\u0644\u0627\u0645\u0629 \u0643\u0627\u0646\u062A \u0645\u0641\u062A\u0648\u062D\u0629: \u0644\u0645\u0648\u0627\u0635\u0644\u0629 \u0627\u0644\u0625\u0646\u062A\u0627\u062C \u064A\u0644\u0632\u0645 \u0627\u0644\u062A\u0634\u063A\u064A\u0644.",
+    "Il manutentore tiene la cella in produzione: capire in fretta, riparare in sicurezza, ripartire.": "\u0641\u0646\u064A \u0627\u0644\u0635\u064A\u0627\u0646\u0629 \u064A\u0628\u0642\u064A \u0627\u0644\u062E\u0644\u064A\u0629 \u0645\u0646\u062A\u062C\u0629: \u064A\u0641\u0647\u0645 \u0628\u0633\u0631\u0639\u0629\u060C \u064A\u0635\u0644\u062D \u0628\u0623\u0645\u0627\u0646\u060C \u064A\u0639\u064A\u062F \u0627\u0644\u062A\u0634\u063A\u064A\u0644.",
+    "\u201CSicurezze aperte\u201D: fungo o portella. \u201CCiclo bloccato\u201D con il robot alimentato: un finecorsa che non risponde.": "\xAB\u0627\u0644\u0633\u0644\u0627\u0645\u0629 \u0645\u0641\u062A\u0648\u062D\u0629\xBB: \u0632\u0631 \u0627\u0644\u0637\u0648\u0627\u0631\u0626 \u0623\u0648 \u0627\u0644\u0628\u0648\u0627\u0628\u0629. \xAB\u0627\u0644\u062F\u0648\u0631\u0629 \u0645\u062A\u0648\u0642\u0641\u0629\xBB \u0648\u0627\u0644\u0631\u0648\u0628\u0648\u062A \u062A\u062D\u062A \u0627\u0644\u062A\u063A\u0630\u064A\u0629: \u0646\u0647\u0627\u064A\u0629 \u0634\u0648\u0637 \u0644\u0627 \u062A\u0633\u062A\u062C\u064A\u0628.",
+    "Dentro la cella si lavora solo con il robot senza potenza: prima la portella aperta, poi la riparazione.": "\u062F\u0627\u062E\u0644 \u0627\u0644\u062E\u0644\u064A\u0629 \u0644\u0627 \u064A\u064F\u0639\u0645\u0644 \u0625\u0644\u0627 \u0648\u0627\u0644\u0631\u0648\u0628\u0648\u062A \u0628\u0644\u0627 \u0642\u062F\u0631\u0629: \u0623\u0648\u0644\u064B\u0627 \u0627\u0644\u0628\u0648\u0627\u0628\u0629 \u0645\u0641\u062A\u0648\u062D\u0629\u060C \u062B\u0645 \u0627\u0644\u0625\u0635\u0644\u0627\u062D.",
+    "Dopo un arresto di sicurezza: richiudere, riarmare, poi Marcia.": "\u0628\u0639\u062F \u0625\u064A\u0642\u0627\u0641 \u0623\u0645\u0627\u0646: \u0627\u0644\u0625\u063A\u0644\u0627\u0642\u060C \u0625\u0639\u0627\u062F\u0629 \u0627\u0644\u062A\u0633\u0644\u064A\u062D\u060C \u062B\u0645 \u0627\u0644\u062A\u0634\u063A\u064A\u0644.",
+    "La cella \xE8 in servizio. Riarma le sicurezze e premi Marcia: il turno comincia. Quando la cella si ferma, guarda il pannello e il braccio, e rispondi.": "\u0627\u0644\u062E\u0644\u064A\u0629 \u0641\u064A \u0627\u0644\u062E\u062F\u0645\u0629. \u0623\u0639\u062F \u062A\u0633\u0644\u064A\u062D \u0627\u0644\u0633\u0644\u0627\u0645\u0629 \u0648\u0627\u0636\u063A\u0637 \u0627\u0644\u062A\u0634\u063A\u064A\u0644: \u062A\u0628\u062F\u0623 \u0627\u0644\u0645\u0646\u0627\u0648\u0628\u0629. \u0648\u0639\u0646\u062F\u0645\u0627 \u062A\u062A\u0648\u0642\u0641 \u0627\u0644\u062E\u0644\u064A\u0629 \u0627\u0646\u0638\u0631 \u0625\u0644\u0649 \u0627\u0644\u0644\u0648\u062D\u0629 \u0648\u0627\u0644\u0630\u0631\u0627\u0639 \u0648\u0623\u062C\u0628.",
+    "La cella si \xE8 fermata: il pannello dice \u201CCiclo bloccato\u201D, il robot \xE8 alimentato e il braccio \xE8 in basso. Perch\xE9?": "\u062A\u0648\u0642\u0641\u062A \u0627\u0644\u062E\u0644\u064A\u0629: \u062A\u0642\u0648\u0644 \u0627\u0644\u0644\u0648\u062D\u0629 \xAB\u0627\u0644\u062F\u0648\u0631\u0629 \u0645\u062A\u0648\u0642\u0641\u0629\xBB\u060C \u0648\u0627\u0644\u0631\u0648\u0628\u0648\u062A \u062A\u062D\u062A \u0627\u0644\u062A\u063A\u0630\u064A\u0629 \u0648\u0627\u0644\u0630\u0631\u0627\u0639 \u0641\u064A \u0627\u0644\u0623\u0633\u0641\u0644. \u0644\u0645\u0627\u0630\u0627\u061F",
+    "Il rel\xE8 di sicurezza ha tolto la potenza al robot.": "\u0642\u0637\u0639 \u0645\u0631\u062D\u0651\u0644 \u0627\u0644\u0633\u0644\u0627\u0645\u0629 \u0627\u0644\u0642\u062F\u0631\u0629 \u0639\u0646 \u0627\u0644\u0631\u0648\u0628\u0648\u062A.",
+    "Il finecorsa \u201Cbraccio gi\xF9\u201D non risponde: il programma aspetta un segnale che non arriva.": "\u0646\u0647\u0627\u064A\u0629 \u0627\u0644\u0634\u0648\u0637 \xAB\u0627\u0644\u0630\u0631\u0627\u0639 \u0644\u0644\u0623\u0633\u0641\u0644\xBB \u0644\u0627 \u062A\u0633\u062A\u062C\u064A\u0628: \u0627\u0644\u0628\u0631\u0646\u0627\u0645\u062C \u064A\u0646\u062A\u0638\u0631 \u0625\u0634\u0627\u0631\u0629 \u0644\u0627 \u062A\u0635\u0644.",
+    "Al prelievo manca il pezzo.": "\u0644\u0627 \u062A\u0648\u062C\u062F \u0642\u0637\u0639\u0629 \u0639\u0646\u062F \u0627\u0644\u0627\u0644\u062A\u0642\u0627\u0637.",
+    "Il programma ha perso un passo.": "\u0641\u0642\u062F \u0627\u0644\u0628\u0631\u0646\u0627\u0645\u062C \u062E\u0637\u0648\u0629.",
+    "Con la potenza tolta il pannello direbbe \u201CSicurezze aperte\u201D e la spia del robot sarebbe spenta. Il braccio \xE8 sceso ma il PLC non vede il finecorsa in basso: il passo \u201CScendi\u201D aspetta il suo \u201Cfatto\u201D e dopo 40 secondi scatta \u201CCiclo bloccato\u201D.": "\u0644\u0648 \u0642\u064F\u0637\u0639\u062A \u0627\u0644\u0642\u062F\u0631\u0629 \u0644\u0642\u0627\u0644\u062A \u0627\u0644\u0644\u0648\u062D\u0629 \xAB\u0627\u0644\u0633\u0644\u0627\u0645\u0629 \u0645\u0641\u062A\u0648\u062D\u0629\xBB \u0648\u0644\u0643\u0627\u0646\u062A \u0644\u0645\u0628\u0629 \u0627\u0644\u0631\u0648\u0628\u0648\u062A \u0645\u0637\u0641\u0623\u0629. \u0644\u0642\u062F \u0646\u0632\u0644 \u0627\u0644\u0630\u0631\u0627\u0639 \u0644\u0643\u0646 \u0627\u0644\u0640PLC \u0644\u0627 \u064A\u0631\u0649 \u0646\u0647\u0627\u064A\u0629 \u0627\u0644\u0634\u0648\u0637 \u0627\u0644\u0633\u0641\u0644\u064A\u0629: \u062E\u0637\u0648\u0629 \xAB\u0627\u0646\u0632\u0644\xBB \u062A\u0646\u062A\u0638\u0631 \xAB\u062A\u0645\u0651\xBB \u0627\u0644\u062E\u0627\u0635\u0629 \u0628\u0647\u0627 \u0648\u0628\u0639\u062F 40 \u062B\u0627\u0646\u064A\u0629 \u064A\u0638\u0647\u0631 \xAB\u0627\u0644\u062F\u0648\u0631\u0629 \u0645\u062A\u0648\u0642\u0641\u0629\xBB.",
+    "Apri la portella (il robot perde la potenza), ripara il finecorsa \u201Cbraccio gi\xF9\u201D, richiudi la portella, premi il riarmo e poi Marcia. Poi tieni la cella in produzione fino alla fine del turno e premi Verifica.": "\u0627\u0641\u062A\u062D \u0627\u0644\u0628\u0648\u0627\u0628\u0629 (\u064A\u0641\u0642\u062F \u0627\u0644\u0631\u0648\u0628\u0648\u062A \u0627\u0644\u0642\u062F\u0631\u0629)\u060C \u0623\u0635\u0644\u062D \u0646\u0647\u0627\u064A\u0629 \u0627\u0644\u0634\u0648\u0637 \xAB\u0627\u0644\u0630\u0631\u0627\u0639 \u0644\u0644\u0623\u0633\u0641\u0644\xBB\u060C \u0623\u063A\u0644\u0642 \u0627\u0644\u0628\u0648\u0627\u0628\u0629\u060C \u0627\u0636\u063A\u0637 \u0625\u0639\u0627\u062F\u0629 \u0627\u0644\u062A\u0633\u0644\u064A\u062D \u062B\u0645 \u0627\u0644\u062A\u0634\u063A\u064A\u0644. \u062B\u0645 \u0623\u0628\u0642\u0650 \u0627\u0644\u062E\u0644\u064A\u0629 \u0645\u0646\u062A\u062C\u0629 \u062D\u062A\u0649 \u0646\u0647\u0627\u064A\u0629 \u0627\u0644\u0645\u0646\u0627\u0648\u0628\u0629 \u0648\u0627\u0636\u063A\u0637 \u062A\u062D\u0642\u0642.",
+    "turno in corso": "\u0627\u0644\u0645\u0646\u0627\u0648\u0628\u0629 \u062C\u0627\u0631\u064A\u0629",
+    // nomi del programma (la prova mostra il programma completo)
+    "Contatto Al deposito": "\u0645\u0644\u0627\u0645\u0633 \u0639\u0646\u062F \u0627\u0644\u0625\u064A\u062F\u0627\u0639",
+    "Contatto Al prelievo": "\u0645\u0644\u0627\u0645\u0633 \u0639\u0646\u062F \u0627\u0644\u0627\u0644\u062A\u0642\u0627\u0637",
+    "Contatto Braccio gi\xF9": "\u0645\u0644\u0627\u0645\u0633 \u0627\u0644\u0630\u0631\u0627\u0639 \u0644\u0644\u0623\u0633\u0641\u0644",
+    "Contatto Braccio su": "\u0645\u0644\u0627\u0645\u0633 \u0627\u0644\u0630\u0631\u0627\u0639 \u0644\u0644\u0623\u0639\u0644\u0649",
+    "Contatto Ciclo in corso, normalmente chiuso": "\u0645\u0644\u0627\u0645\u0633 \u062F\u0648\u0631\u0629 \u062C\u0627\u0631\u064A\u0629\u060C \u0645\u063A\u0644\u0642 \u0639\u0627\u062F\u0629\u064B",
+    "Contatto Ciclo lungo": "\u0645\u0644\u0627\u0645\u0633 \u062F\u0648\u0631\u0629 \u0637\u0648\u064A\u0644\u0629",
+    "Contatto Pezzo pronto": "\u0645\u0644\u0627\u0645\u0633 \u0642\u0637\u0639\u0629 \u062C\u0627\u0647\u0632\u0629",
+    "Contatto Pinza aperta": "\u0645\u0644\u0627\u0645\u0633 \u0627\u0644\u0645\u0644\u0642\u0637 \u0645\u0641\u062A\u0648\u062D",
+    "Contatto Pinza chiusa": "\u0645\u0644\u0627\u0645\u0633 \u0627\u0644\u0645\u0644\u0642\u0637 \u0645\u063A\u0644\u0642",
+    "Contatto Sicurezze a posto, normalmente chiuso": "\u0645\u0644\u0627\u0645\u0633 \u0627\u0644\u0633\u0644\u0627\u0645\u0629 \u0633\u0644\u064A\u0645\u0629\u060C \u0645\u063A\u0644\u0642 \u0639\u0627\u062F\u0629\u064B",
+    "Contatto 8 Torna": "\u0645\u0644\u0627\u0645\u0633 8 \u0639\u064F\u062F",
+    "Uscita 1 Scendi": "\u0645\u062E\u0631\u062C 1 \u0627\u0646\u0632\u0644",
+    "Uscita 2 Prendi": "\u0645\u062E\u0631\u062C 2 \u062E\u0630",
+    "Uscita 3 Sali": "\u0645\u062E\u0631\u062C 3 \u0627\u0635\u0639\u062F",
+    "Uscita 4 Vai": "\u0645\u062E\u0631\u062C 4 \u0627\u0630\u0647\u0628",
+    "Uscita 5 Scendi": "\u0645\u062E\u0631\u062C 5 \u0627\u0646\u0632\u0644",
+    "Uscita 6 Lascia": "\u0645\u062E\u0631\u062C 6 \u0627\u062A\u0631\u0643",
+    "Uscita 7 Sali": "\u0645\u062E\u0631\u062C 7 \u0627\u0635\u0639\u062F",
+    "Uscita 8 Torna": "\u0645\u062E\u0631\u062C 8 \u0639\u064F\u062F",
+    "Uscita Ciclo bloccato": "\u0645\u062E\u0631\u062C \u0627\u0644\u062F\u0648\u0631\u0629 \u0645\u062A\u0648\u0642\u0641\u0629",
+    "Uscita Ciclo in corso": "\u0645\u062E\u0631\u062C \u062F\u0648\u0631\u0629 \u062C\u0627\u0631\u064A\u0629",
+    "Uscita Sicurezze aperte": "\u0645\u062E\u0631\u062C \u0627\u0644\u0633\u0644\u0627\u0645\u0629 \u0645\u0641\u062A\u0648\u062D\u0629",
+    // messaggi del motore
+    "Attenzione: stai riparando dentro la cella con il robot alimentato. Apri prima la portella: cos\xEC com\u2019\xE8, perdi la stella di sicurezza.": "\u0627\u0646\u062A\u0628\u0647: \u0623\u0646\u062A \u062A\u0635\u0644\u062D \u062F\u0627\u062E\u0644 \u0627\u0644\u062E\u0644\u064A\u0629 \u0648\u0627\u0644\u0631\u0648\u0628\u0648\u062A \u062A\u062D\u062A \u0627\u0644\u062A\u063A\u0630\u064A\u0629. \u0627\u0641\u062A\u062D \u0627\u0644\u0628\u0648\u0627\u0628\u0629 \u0623\u0648\u0644\u064B\u0627: \u0643\u0645\u0627 \u0647\u0648 \u0627\u0644\u062D\u0627\u0644 \u0633\u062A\u0641\u0642\u062F \u0646\u062C\u0645\u0629 \u0627\u0644\u0633\u0644\u0627\u0645\u0629.",
+    "Hai riparato un pezzo dentro la cella con la macchina alimentata (Contattore chiuso): se il robot si muove mentre hai le mani nella cella, ti fa male. Prima apri la portella, poi ripari, poi richiudi e riarmi.": "\u0623\u0635\u0644\u062D\u062A \u0642\u0637\u0639\u0629 \u062F\u0627\u062E\u0644 \u0627\u0644\u062E\u0644\u064A\u0629 \u0648\u0627\u0644\u0622\u0644\u0629 \u062A\u062D\u062A \u0627\u0644\u062A\u063A\u0630\u064A\u0629 (\u0627\u0644\u0643\u0648\u0646\u062A\u0627\u0643\u062A\u0648\u0631 \u0645\u063A\u0644\u0642): \u0625\u0630\u0627 \u062A\u062D\u0631\u0643 \u0627\u0644\u0631\u0648\u0628\u0648\u062A \u0648\u064A\u062F\u0627\u0643 \u062F\u0627\u062E\u0644 \u0627\u0644\u062E\u0644\u064A\u0629 \u0641\u0633\u064A\u0624\u0630\u064A\u0643. \u0627\u0641\u062A\u062D \u0627\u0644\u0628\u0648\u0627\u0628\u0629 \u0623\u0648\u0644\u064B\u0627\u060C \u062B\u0645 \u0623\u0635\u0644\u062D\u060C \u062B\u0645 \u0623\u063A\u0644\u0642 \u0648\u0623\u0639\u062F \u0627\u0644\u062A\u0633\u0644\u064A\u062D."
+  };
+
   // src/i18n/ar.js
   var ROLE = { "del neutro": "\u0627\u0644\u0645\u062D\u0627\u064A\u062F", "di terra": "\u0627\u0644\u0623\u0631\u0636\u064A", "di fase": "\u0627\u0644\u0637\u0648\u0631", "a bassa tensione": "\u0627\u0644\u062C\u0647\u062F \u0627\u0644\u0645\u0646\u062E\u0641\u0636", "di comando": "\u0627\u0644\u062A\u062D\u0643\u0645", "del positivo": "\u0627\u0644\u0645\u0648\u062C\u0628", "del negativo": "\u0627\u0644\u0633\u0627\u0644\u0628", "in continua": "\u0627\u0644\u062A\u064A\u0627\u0631 \u0627\u0644\u0645\u0633\u062A\u0645\u0631" };
   var COLORI = { "blu": "\u0623\u0632\u0631\u0642", "giallo-verde": "\u0623\u0635\u0641\u0631-\u0623\u062E\u0636\u0631", "marrone, nero o grigio": "\u0628\u0646\u064A\u064B\u0651\u0627 \u0623\u0648 \u0623\u0633\u0648\u062F \u0623\u0648 \u0631\u0645\u0627\u062F\u064A\u064B\u0651\u0627", "rosso, marrone, nero o grigio": "\u0623\u062D\u0645\u0631 \u0623\u0648 \u0628\u0646\u064A\u064B\u0651\u0627 \u0623\u0648 \u0623\u0633\u0648\u062F \u0623\u0648 \u0631\u0645\u0627\u062F\u064A\u064B\u0651\u0627", "di un colore diverso da blu e giallo-verde": "\u0628\u0644\u0648\u0646 \u0645\u062E\u062A\u0644\u0641 \u0639\u0646 \u0627\u0644\u0623\u0632\u0631\u0642 \u0648\u0627\u0644\u0623\u0635\u0641\u0631-\u0627\u0644\u0623\u062E\u0636\u0631", "rosso": "\u0623\u062D\u0645\u0631", "nero": "\u0623\u0633\u0648\u062F", "rosso o nero": "\u0623\u062D\u0645\u0631 \u0623\u0648 \u0623\u0633\u0648\u062F" };
@@ -20835,7 +21112,7 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
     [/^Portata (.+): (\d+) ampere\. Tocca per cambiarla$/, (m, t) => `\u0627\u0644\u0633\u0639\u0629 ${t(m[1])}: ${m[2]} \u0623\u0645\u0628\u064A\u0631. \u0627\u0644\u0645\u0633 \u0644\u062A\u063A\u064A\u064A\u0631\u0647\u0627`],
     [/^Protezioni scattate: (.+)\.$/, (m, t) => `\u062D\u0645\u0627\u064A\u0627\u062A \u0641\u0635\u0644\u062A: ${t(m[1])}.`]
   ];
-  registerLang("ar", { ...ar_1_default, ...ar_2_default, ...ar_3_default, ...ar_4_default, ...ar_5_default, ...ar_6_default, ...ar_7_default, ...ar_8_default, ...ar_9_default, ...ar_10_default, ...ar_11_default, ...ar_12_default, ...ar_13_default, ...ar_14_default, ...ar_15_default, ...ar_16_default, ...ar_17_default, ...ar_18_default, ...ar_19_default, ...ar_20_default, ...ar_21_default, ...ar_22_default, ...ar_23_default, ...ar_24_default, ...ar_25_default, ...ar_26_default, ...ar_27_default, ...ar_28_default, ...ar_29_default, ...ar_30_default, ...ar_31_default, ...ar_32_default, ...ar_33_default, ...ar_34_default, ...ar_35_default, ...ar_36_default, ...ar_37_default, ...ar_38_default, ...ar_39_default }, PAT);
+  registerLang("ar", { ...ar_1_default, ...ar_2_default, ...ar_3_default, ...ar_4_default, ...ar_5_default, ...ar_6_default, ...ar_7_default, ...ar_8_default, ...ar_9_default, ...ar_10_default, ...ar_11_default, ...ar_12_default, ...ar_13_default, ...ar_14_default, ...ar_15_default, ...ar_16_default, ...ar_17_default, ...ar_18_default, ...ar_19_default, ...ar_20_default, ...ar_21_default, ...ar_22_default, ...ar_23_default, ...ar_24_default, ...ar_25_default, ...ar_26_default, ...ar_27_default, ...ar_28_default, ...ar_29_default, ...ar_30_default, ...ar_31_default, ...ar_32_default, ...ar_33_default, ...ar_34_default, ...ar_35_default, ...ar_36_default, ...ar_37_default, ...ar_38_default, ...ar_39_default, ...ar_44_default }, PAT);
 
   // src/trilocale/house.js
   function houseState(session2, on = true) {
@@ -23202,7 +23479,7 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
       setHTML(el.pSheet, sh);
       placePin();
     }
-    function restart(keepPanel) {
+    function restart2(keepPanel) {
       mem = { ...newMemory(), panel: !!keepPanel };
       log = [];
       minutes = 0;
@@ -23236,17 +23513,17 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
         if (cfg()) {
           if (first) {
             if (ph === "lesson" || ph === "fault") {
-              if (ph === "fault") restart(false);
+              if (ph === "fault") restart2(false);
               startCall();
             } else {
               mem.panel = true;
               setAct("play");
             }
           } else if (ph === "fault" && prevPhase === "lesson") {
-            restart(false);
+            restart2(false);
             findPanel();
           } else if (ph === "fault" && prevPhase === "done") {
-            restart(true);
+            restart2(true);
             setAct("play");
             if (plant()) {
               if (scene) scene.shift(false);

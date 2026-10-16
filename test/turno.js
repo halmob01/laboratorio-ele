@@ -17,9 +17,9 @@ export function playShift(level, { start = [], react = () => 15, extra = 2 } = {
     scenarioReport(sim).faults.forEach(f => {
       if (f.firedAt === null || planned.has(f.id)) return;
       planned.add(f.id);
-      const wait = react(level.scenario.faults.find(x => x.id === f.id));
+      const wait = react(sim.scenario.faults.find(x => x.id === f.id));
       if (wait === null) return;
-      level.scenario.faults.find(x => x.id === f.id).fix.forEach((d, k) => todo.push({ at: Math.ceil(f.firedAt) + wait + k, do: d }));
+      sim.scenario.faults.find(x => x.id === f.id).fix.forEach((d, k) => todo.push({ at: Math.ceil(f.firedAt) + wait + k, do: d }));
     });
     todo.sort((a, b) => a.at - b.at);
     while (todo.length && todo[0].at <= sim.t) { const [a, x] = todo.shift().do.split(/\s+/); act(sim, a, x); }

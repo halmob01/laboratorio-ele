@@ -1,6 +1,6 @@
 // Unita' didattiche dei Moduli 2 e 3. Stessa forma di units.js.
 
-import { W46, PROG_46_FAULT } from './levels-v2.js';
+import { W46, PROG_46_FAULT, W53_PLANT, PROG_53 } from './levels-v2.js';
 
 export const UNITS_V2 = {
   'c17-multimetro': {
@@ -4534,5 +4534,93 @@ UNITS_V2['c50-allarme'] = {
       why: 'Senza il contatto 11-14 sulla bobina il relè segue il sensore: appena il fumo si dirada la bobina si spegne e la sirena con lei. L’autoritenuta tiene il relè eccitato finché qualcuno preme la tacitazione.',
     },
     fixSay: 'Collega la tacitazione al contatto 11 del relè, e il contatto 14 alla bobina A1. Poi premi Verifica.',
+  },
+};
+
+// ---- Modulo 6: la prova della fabbrica, il turno di notte (c53) ----
+UNITS_V2['c53-turno-notte'] = {
+  support: 'obiettivo',
+  lesson: {
+    pages: [
+      {
+        type: 'spiegazione',
+        title: 'Il manutentore di turno',
+        paras: [
+          'Di notte la cella lavora da sola e c’è un solo manutentore per tutto il reparto. Il suo lavoro non è costruire l’impianto ma tenerlo in produzione: quando qualcosa si ferma deve capire in fretta che cosa, ripararlo senza farsi male e far ripartire la cella.',
+          'Ogni minuto di fermo è produzione persa. Ma la fretta non vale un incidente: un robot che riparte mentre hai le mani nella cella non si ferma per guardarti.',
+        ],
+      },
+      {
+        type: 'spiegazione',
+        title: 'Dall’allarme al pezzo',
+        paras: [
+          'Il pannello dice che cosa è successo, non dove. “Sicurezze aperte” vuol dire che il robot ha perso la potenza: fungo premuto o portella aperta. “Ciclo bloccato” con il robot alimentato vuol dire che il programma aspetta un segnale che non arriva: quasi sempre un finecorsa.',
+          'Per trovare quale, guarda dove si è fermato il braccio: se è in basso e il programma aspetta “braccio giù”, il finecorsa in basso non ha risposto. Il LED del finecorsa dice se il PLC lo vede.',
+        ],
+        table: {
+          head: ['Il pannello dice', 'Il robot', 'Dove guardare'],
+          rows: [
+            ['Sicurezze aperte', 'senza potenza', 'fungo e portella'],
+            ['Ciclo bloccato', 'alimentato, fermo', 'il finecorsa del movimento in corso'],
+            ['Pannello grigio', 'lavora', 'il cavo di rete del pannello'],
+          ],
+        },
+      },
+      {
+        type: 'spiegazione',
+        title: 'Dentro la cella solo senza potenza',
+        paras: [
+          'Per cambiare un finecorsa bisogna entrare nella cella. Prima si apre la portella: il relè di sicurezza toglie la potenza al robot e il robot resta fermo dov’è. Poi si ripara. Poi si esce, si richiude la portella, si preme il riarmo e infine Marcia.',
+          'L’ordine conta: riparare con il robot alimentato è l’errore più pericoloso del turno, anche se il robot in quel momento è fermo. È fermo perché il programma aspetta: appena il finecorsa torna a rispondere, riparte.',
+        ],
+        warn: 'Un robot fermo non è un robot sicuro: è fermo finché il programma aspetta. Senza potenza invece non può muoversi.',
+      },
+      {
+        type: 'previsione',
+        question: 'Il pannello dice “Ciclo bloccato”, il robot è alimentato e fermo con il braccio in basso. Che cosa fai per primo?',
+        options: [
+          { id: 'a', text: 'Tocco il finecorsa in basso per vedere se si sblocca.' },
+          { id: 'b', text: 'Apro la portella, così il robot perde la potenza, e poi controllo il finecorsa in basso.' },
+          { id: 'c', text: 'Premo Marcia di nuovo.' },
+        ],
+        correct: 'b',
+        why: 'Il robot è fermo solo perché il programma aspetta il finecorsa. Se lo sblocchi con il robot alimentato, il robot riparte con le tue mani nella cella. Con la portella aperta il robot non ha potenza e non può muoversi.',
+      },
+      {
+        type: 'previsione',
+        question: 'Hai riparato il finecorsa e richiuso la portella. Il robot non riparte. Che cosa manca?',
+        options: [
+          { id: 'a', text: 'Il riarmo, e poi Marcia.' },
+          { id: 'b', text: 'Niente: riparte da solo dopo qualche secondo.' },
+          { id: 'c', text: 'Bisogna spegnere e riaccendere il PLC.' },
+        ],
+        correct: 'a',
+        why: 'Dopo un arresto di sicurezza la macchina non riparte da sola: serve il riarmo con la portella chiusa. Il PLC intanto ha perso la marcia, perché le sicurezze erano aperte: per continuare a produrre serve Marcia.',
+      },
+      { type: 'sintesi', title: 'Da ricordare' },
+    ],
+  },
+  summary: [
+    'Il manutentore tiene la cella in produzione: capire in fretta, riparare in sicurezza, ripartire.',
+    '“Sicurezze aperte”: fungo o portella. “Ciclo bloccato” con il robot alimentato: un finecorsa che non risponde.',
+    'Dentro la cella si lavora solo con il robot senza potenza: prima la portella aperta, poi la riparazione.',
+    'Dopo un arresto di sicurezza: richiudere, riarmare, poi Marcia.',
+  ],
+  fault: {
+    say: 'La cella è in servizio. Riarma le sicurezze e premi Marcia: il turno comincia. Quando la cella si ferma, guarda il pannello e il braccio, e rispondi.',
+    wires: W53_PLANT,
+    programs: { PLC: PROG_53 },
+    diagnosis: {
+      question: 'La cella si è fermata: il pannello dice “Ciclo bloccato”, il robot è alimentato e il braccio è in basso. Perché?',
+      options: [
+        { id: 'a', text: 'Il relè di sicurezza ha tolto la potenza al robot.' },
+        { id: 'b', text: 'Il finecorsa “braccio giù” non risponde: il programma aspetta un segnale che non arriva.' },
+        { id: 'c', text: 'Al prelievo manca il pezzo.' },
+        { id: 'd', text: 'Il programma ha perso un passo.' },
+      ],
+      correct: 'b',
+      why: 'Con la potenza tolta il pannello direbbe “Sicurezze aperte” e la spia del robot sarebbe spenta. Il braccio è sceso ma il PLC non vede il finecorsa in basso: il passo “Scendi” aspetta il suo “fatto” e dopo 40 secondi scatta “Ciclo bloccato”.',
+    },
+    fixSay: 'Apri la portella (il robot perde la potenza), ripara il finecorsa “braccio giù”, richiudi la portella, premi il riarmo e poi Marcia. Poi tieni la cella in produzione fino alla fine del turno e premi Verifica.',
   },
 };

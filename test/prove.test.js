@@ -12,9 +12,9 @@ const tripped = s => s.snapshot().obs.tripped.slice().sort().join(',');
 
 test('le prove sono livelli con scena e sfida guasto', () => {
   const ps = levels.filter(l => l.prova);
-  assert.deepEqual(ps.map(l => l.id), ['c23-appartamento-notte', 'c24-officina', 'c46-nastro-automatico']);
+  assert.deepEqual(ps.map(l => l.id), ['c23-appartamento-notte', 'c24-officina', 'c46-nastro-automatico', 'c53-turno-notte']);
   ps.forEach(l => {
-    assert.ok(['appartamento', 'officina', 'automatico'].includes(l.prova.scene));
+    assert.ok(['appartamento', 'officina', 'automatico', 'fabbrica'].includes(l.prova.scene));
     assert.ok(l.unit && l.unit.fault && l.unit.fault.wires.length > 0);
     assert.ok(l.unit.fault.diagnosis.options.some(o => o.id === l.unit.fault.diagnosis.correct));
   });

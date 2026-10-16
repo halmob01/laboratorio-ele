@@ -41,6 +41,8 @@ export function createSession({ levels, deriveFull, storage = memoryStorage(), i
   const meterBy = {};         // multimetro: { on, mode, a, b } per livello e modalita'
   const liveEditsBy = {};      // lavoro fuori tensione: morsetti toccati mentre erano in tensione per colpa del sezionamento chiuso
   const progLiveBy = {};       // programma cambiato con la macchina in moto (safety.programStopped)
+  const repairLiveBy = {};     // pezzo dentro la cella riparato con la macchina alimentata (safety.repairDead)
+  const seedBy = {};           // turno a guasti con `pick`: il seme della partita (un turno nuovo a ogni Ricomincia)
   const measuredBy = {};      // letture fatte (per i passi): { a, b, mode, kind, value, ohm, live }
   const operatedByKey = {};   // comandi azionati con il quadro acceso, per i passi
   const programsByKey = {};   // programmi dei PLC scritti dall'allievo: { idPLC: [gradini] } per livello e modalita'
@@ -148,10 +150,17 @@ export function createSession({ levels, deriveFull, storage = memoryStorage(), i
     lv.comps.forEach(c => { if (keep.includes(c.type) && old.parts[c.id]) { Object.assign(sim.parts[c.id], JSON.parse(JSON.stringify(old.parts[c.id]))); } });
     setWires2(sim, wires());
   };
+  // Turno con i guasti estratti (scenario.pick): il seme e' quello del livello (turno uguale per tutti) o uno nuovo per la partita.
+  function withSeed(lv, k) {
+    const sc = lv.scenario;
+    if (!sc || !sc.pick) return lv;
+    if (seedBy[k] === undefined) seedBy[k] = sc.seed ?? 1 + Math.floor(Math.random() * 1e9);
+    return { ...lv, scenario: { ...sc, seed: seedBy[k] } };
+  }
   function simFor() {
     const k = keyOf();
     if (!simsByKey[k]) {
-      const sim = createSim(withProg(levelAt(), k), wires());
+      const sim = createSim(withSeed(withProg(levelAt(), k), k), wires());
       const sr = ratingsSaved[k];
       delete ratingsSaved[k];
       const iso = isoSaved[k];
@@ -420,6 +429,7 @@ export function createSession({ levels, deriveFull, storage = memoryStorage(), i
     delete measuredBy[keyOf()];
     delete liveEditsBy[keyOf()];
     delete progLiveBy[keyOf()];
+    delete repairLiveBy[keyOf()];
     wiresByKey[keyOf()] = faultWires(level);
     statesByKey[keyOf()] = {};
     resultsByKey[keyOf()] = null;
@@ -804,6 +814,8 @@ export function createSession({ levels, deriveFull, storage = memoryStorage(), i
     // Turno a guasti (level.scenario): ricomincia da capo con la stessa impostazione.
     restartShift() {
       if (!v2() || !levelAt().scenario) return;
+      delete seedBy[keyOf()];        // un turno nuovo: altri guasti, se il livello li estrae
+      delete repairLiveBy[keyOf()];
       dropSim();
       resultsByKey[keyOf()] = null;
       message = null;
@@ -818,7 +830,11 @@ export function createSession({ levels, deriveFull, storage = memoryStorage(), i
       const sim = simFor();
       const c = levelAt().comps.find(x => x.id === id);
       if (!c) return;
+      // riparare un pezzo dentro la cella con la macchina alimentata (safety.repairDead): si perde la stella di sicurezza
+      const rd = levelAt().safety && levelAt().safety.repairDead;
+      const live = rd && rd.parts.includes(id) && ['jam', 'dead', 'cut'].includes(action) && sim.parts[rd.coil] && sim.parts[rd.coil].on;
       try { act(sim, action, id); } catch (e) { return; }   // azione non prevista per quel componente
+      if (live) { repairLiveBy[keyOf()] = true; message = { code: 'repairLiveNow', comp: id }; applyLive2(); emit(); return; }
       if (action === 'press' && power && !operated().includes(id)) operated().push(id);
       message = null;
       applyLive2();
@@ -885,7 +901,7 @@ export function createSession({ levels, deriveFull, storage = memoryStorage(), i
       const level = levelAt();
       // nella sfida guasto i guasti da componente ancora attivi (dispersioni) vanno tolti prima di verificare
       const faultOn = v2(level) && level.unit && level.unit.fault && unitState().phase === 'fault' ? (level.unit.fault.on || []).filter(id => simFor().parts[id] && simFor().parts[id].on) : [];
-      const r = v2(level) ? evaluateV2(level, wires(), { measured: measuredBy[keyOf()] || [], ratings: ratingsOf(), programs: programsOf(), tuned: tunedByKey[keyOf()], liveSim: level.scenario ? simFor() : null, faultOn, hmiOff: levelAt().comps.filter(c => c.type === 'hmi' && simFor().parts[c.id] && !simFor().parts[c.id].on).map(c => c.id), liveEdits: liveEditsBy[keyOf()] || [], programLive: !!progLiveBy[keyOf()] }) : evaluate(level, wires());
+      const r = v2(level) ? evaluateV2(level, wires(), { measured: measuredBy[keyOf()] || [], ratings: ratingsOf(), programs: programsOf(), tuned: tunedByKey[keyOf()], liveSim: level.scenario ? simFor() : null, faultOn, hmiOff: levelAt().comps.filter(c => c.type === 'hmi' && simFor().parts[c.id] && !simFor().parts[c.id].on).map(c => c.id), liveEdits: liveEditsBy[keyOf()] || [], programLive: !!progLiveBy[keyOf()], repairLive: !!repairLiveBy[keyOf()] }) : evaluate(level, wires());
       resultsByKey[keyOf()] = r;
       const u = usage();
       u.checks++;

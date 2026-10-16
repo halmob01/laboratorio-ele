@@ -1956,3 +1956,48 @@ LEVELS_V2.push({
     'La tacitazione è un contatto normalmente chiuso messo in testa a tutto: premendolo si toglie la fase ai sensori e alla memoria. La sirena si alimenta dalla stessa linea di A1.',
   ],
 });
+
+// c53: la prova del Modulo 6 (scena 3D "fabbrica"), "Il turno di notte". La cella di c45 in servizio: cablata e programmata con la
+// soluzione di c45. L'allievo e' il manutentore: avvia la cella e la tiene in produzione per un turno, con i guasti che arrivano
+// uno alla volta (il primo fisso, gli altri estratti dalla libreria con il seme della partita). Si ripara dentro la cella solo a
+// robot senza potenza (safety.repairDead). Specifica: docs/PROGETTO-FABBRICA.md.
+const L45 = LEVELS_V2.find(l => l.id === 'c45-fabbrica');
+export const W53_PLANT = W45_SAFE;
+export const PROG_53 = START_45.concat(TRANS_43, ALARMS_45);
+// riparare un sensore dentro la cella: si apre la portella (il robot perde potenza), si ripara, si richiude, riarmo e Marcia
+const insideFix = id => ['toggle P', 'jam ' + id, 'toggle P', 'press SBR', 'release SBR', 'press SB1', 'release SB1'];
+const restart = d => [d, 'press SBR', 'release SBR', 'press SB1', 'release SB1'];
+export const LIB_53 = [
+  { id: 'zd', do: 'dead ZD', label: 'il finecorsa “braccio giù”', fixed: { part: 'ZD', prop: 'jam', is: false }, maxDelay: 150, fix: insideFix('ZD') },
+  { id: 'zu', do: 'dead ZU', label: 'il finecorsa “braccio su”', fixed: { part: 'ZU', prop: 'jam', is: false }, maxDelay: 150, fix: insideFix('ZU') },
+  { id: 'xl', do: 'dead XL', label: 'il finecorsa “al deposito”', fixed: { part: 'XL', prop: 'jam', is: false }, maxDelay: 150, fix: insideFix('XL') },
+  { id: 'fungo', do: 'toggle E', label: 'il fungo di emergenza premuto', fixed: { part: 'KS', prop: 'on', is: true }, maxDelay: 90, fix: restart('toggle E') },
+  { id: 'portella', do: 'toggle P', label: 'la portella aperta', fixed: { part: 'KS', prop: 'on', is: true }, maxDelay: 90, fix: restart('toggle P') },
+  { id: 'rete', do: 'toggle HMI', label: 'il cavo di rete del pannello', fixed: { part: 'HMI', prop: 'on', is: true }, maxDelay: 100, fix: ['toggle HMI'] },
+];
+LEVELS_V2.push({
+  ...L45,
+  id: 'c53-turno-notte', code: 'c53',
+  prova: { scene: 'fabbrica' },
+  supply: 'protezioni',          // la cella e' in servizio: il quadro e' gia' in tensione, si comincia dal riarmo
+  name: 'Il turno di notte', title: 'Il turno di notte',
+  blurb: 'La cella lavora tutta la notte: tu sei il manutentore. I guasti arrivano uno alla volta, ogni minuto fermo conta.',
+  goal: 'La cella di produzione è cablata, programmata e in servizio. Sei il manutentore del turno di notte: riarma e avvia la cella, poi tienila in produzione fino alla fine del turno. I guasti arrivano uno alla volta: leggi il pannello, trova il pezzo, riparalo in sicurezza (dentro la cella solo con la portella aperta, cioè con il robot senza potenza), riarma e riparti.',
+  fixed: W45_PLC,
+  scenario: {
+    duration: 1800,
+    startWhen: { coil: 'KM' },
+    pick: { from: LIB_53, first: 'zd', n: 4, slots: [200, 600, 1000, 1400] },
+    downtime: { enable: 'KM', vars: ['x', 'z', 'grip'], stall: 15 },
+    // partita di riferimento (test/fabbrica.test.js): riparando in 15 s escono circa 88 pezzi, in 60 s circa 80, senza riparare 10
+    expect: { process: { crash: false, dropped: [0, 0] }, trace: [{ v: 'out', reaches: 70 }] },
+  },
+  safety: { ...L45.safety, repairDead: { parts: ['ZU', 'ZD', 'XP', 'XL', 'PR'], coil: 'KM' } },
+  solution: W45_SAFE.concat(W45_PLC),
+  solutionPrograms: { PLC: PROG_53 },
+  hints: [
+    'Per cominciare: riarma le sicurezze e premi Marcia. Il turno comincia quando il robot riceve potenza.',
+    '“Ciclo bloccato” con il robot alimentato: il programma aspetta un finecorsa che non arriva. Guarda in che posizione si è fermato il braccio.',
+    'Dentro la cella si ripara solo a robot senza potenza: apri la portella, ripara, richiudi, riarma e premi Marcia.',
+  ],
+});

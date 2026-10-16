@@ -45,7 +45,9 @@ export function createSim(level, wires = []) {
     process: level.process ? newProcess(level.process) : null,   // modello di processo (process.js): { state, params }
     trace: [],             // righe { t, grandezza: valore } ogni passo, per le prove e il grafico (level.process.trace)
     hmi: {},               // parole dei PLC scritte dal pannello di regolazione: { idPLC: { MW0: 60 } }
-    scenario: level.scenario ? { firedAt: {}, fixedAt: {} } : null,   // turno con guasti a tempo (level.scenario): quando sono scattati e quando sono stati riparati
+    // turno con guasti a tempo (level.scenario): i guasti del turno (scelti dal seme, se c'e' `pick`), quando sono scattati e quando
+    // sono stati riparati, il tempo di fermo (`downtime`)
+    scenario: level.scenario ? { firedAt: {}, fixedAt: {}, seed: level.scenario.seed ?? 1, faults: scenarioFaults(level.scenario, level.scenario.seed ?? 1), down: 0, lastMove: 0, sig: null, t0: level.scenario.startWhen ? null : 0 } : null,
     panel: level.hmi ? { values: {}, alarms: {}, seq: 0 } : null,   // pannello operatore (level.hmi): ultime letture e stato degli allarmi
   };
   Object.entries(tunedValues(level.process)).forEach(([name, v]) => applyTune(sim, name, v));
@@ -582,6 +584,29 @@ function hmiReport(sim, an) {
 }
 
 /* ---------- turno con guasti a tempo (level.scenario) ---------- */
+// I guasti del turno. Con `pick` = { from: [guasti senza `at`], first: id, n, slots: [secondi] } il primo guasto e' `first` e gli
+// altri si estraggono da `from` con il seme: stesso seme, stesso turno (la verifica e i test lo rigiocano uguale).
+export function scenarioFaults(sc, seed = 1) {
+  if (!sc || !sc.pick) return (sc && sc.faults) || [];
+  const { from, first, n, slots } = sc.pick;
+  let x = (Number(seed) >>> 0) || 1;
+  const rnd = () => { x = (x + 0x6D2B79F5) >>> 0; let t = x; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+  const rest = from.filter(f => f.id !== first);
+  for (let i = rest.length - 1; i > 0; i--) { const j = Math.floor(rnd() * (i + 1)); [rest[i], rest[j]] = [rest[j], rest[i]]; }
+  const chosen = [from.find(f => f.id === first)].concat(rest).filter(Boolean).slice(0, Math.min(n, slots.length));
+  return chosen.map((f, i) => ({ ...f, at: slots[i] }));
+}
+// Tempo di fermo del turno (`downtime` = { enable: bobina della potenza, vars: grandezze del processo, stall: secondi }): il robot e'
+// fermo se la sua bobina di potenza e' aperta o se le grandezze del movimento non cambiano da piu' di `stall` secondi.
+function downtimeTick(sim, dt) {
+  const sc = sim.level.scenario, S = sim.scenario, d = sc && sc.downtime;
+  if (!d || !S || S.t0 === null || sim.t - S.t0 > sc.duration) return;
+  const st = sim.process ? sim.process.state : {};
+  const sig = (d.vars || []).map(v => Math.round((Number(st[v]) || 0) * 100)).join();
+  if (sig !== S.sig) { S.sig = sig; S.lastMove = sim.t; }
+  const powered = !d.enable || !!(sim.parts[d.enable] && sim.parts[d.enable].on);
+  if (!powered || sim.t - S.lastMove > (d.stall || 15)) S.down += dt;
+}
 // level.scenario = { duration, faults: [{ id, at, do: 'cut TT', label, fixed: { part, prop, is }, maxDelay, fix: [azioni] }], expect? }
 // `fix` (le azioni che riparano, nell'ordine) non serve al gioco: lo usano i test per giocare il turno e documenta la riparazione.
 // A `at` secondi simulati dall'accensione scatta il guasto (un'azione del banco: cut, jam, toggle, weld...); l'allievo lo ripara
@@ -589,16 +614,19 @@ function hmiReport(sim, an) {
 function scenarioTick(sim) {
   const sc = sim.level.scenario, S = sim.scenario;
   if (!sc || !S) return;
+  // `startWhen: { coil }`: il turno comincia quando quella bobina si chiude la prima volta (il riarmo della cella)
+  if (S.t0 === null) { const p = sim.parts[sc.startWhen.coil]; if (p && p.on) { S.t0 = sim.t; S.lastMove = sim.t; } else return; }
+  const t = sim.t - S.t0;
   const healthy = f => { const part = sim.parts[f.fixed.part]; return !!part && !!part[f.fixed.prop] === !!f.fixed.is; };
-  sc.faults.forEach(f => {
-    if (S.firedAt[f.id] === undefined && sim.t >= f.at) {
+  S.faults.forEach(f => {
+    if (S.firedAt[f.id] === undefined && t >= f.at) {
       const [a, x] = f.do.split(/\s+/);
-      S.firedAt[f.id] = sim.t;       // prima dell'azione: act() richiama questo controllo
+      S.firedAt[f.id] = t;           // prima dell'azione: act() richiama questo controllo
       // si guasta solo un pezzo a posto: un `toggle` su un pezzo gia' staccato dall'allievo lo riparerebbe da solo
       if (healthy(f)) try { act(sim, a, x); } catch (e) { /* azione non valida per il pezzo: lo segnala il test sui livelli */ }
     }
     // a turno finito non si ripara piu': il guasto resta aperto
-    if (S.firedAt[f.id] !== undefined && S.fixedAt[f.id] === undefined && sim.t < sc.duration && healthy(f)) S.fixedAt[f.id] = sim.t;
+    if (S.firedAt[f.id] !== undefined && S.fixedAt[f.id] === undefined && t < sc.duration && healthy(f)) S.fixedAt[f.id] = t;
   });
 }
 
@@ -606,13 +634,14 @@ function scenarioTick(sim) {
 export function scenarioReport(sim) {
   const sc = sim.level.scenario, S = sim.scenario;
   if (!sc || !S) return null;
-  const faults = sc.faults.map(f => {
+  const t = S.t0 === null ? 0 : sim.t - S.t0;   // tempo del turno (da quando e' cominciato)
+  const faults = S.faults.map(f => {
     const firedAt = S.firedAt[f.id], fixedAt = S.fixedAt[f.id];
-    const delay = firedAt === undefined ? null : (fixedAt === undefined ? sim.t : fixedAt) - firedAt;
+    const delay = firedAt === undefined ? null : (fixedAt === undefined ? t : fixedAt) - firedAt;
     return { id: f.id, label: f.label || f.id, at: f.at, firedAt: firedAt ?? null, fixedAt: fixedAt ?? null, delay, max: f.maxDelay ?? Infinity,
       late: delay !== null && delay > (f.maxDelay ?? Infinity), open: firedAt !== undefined && fixedAt === undefined };
   });
-  return { duration: sc.duration, t: sim.t, done: sim.t >= sc.duration, faults };
+  return { duration: sc.duration, t, done: t >= sc.duration, started: S.t0 !== null, faults, seed: S.seed, down: sc.downtime ? Math.round(S.down) : null };
 }
 
 /* ---------- azioni ---------- */
@@ -714,6 +743,7 @@ export function advance(sim, seconds) {
     sim.plcDt = STEP;
     settle(sim);
     scenarioTick(sim);
+    downtimeTick(sim, STEP);
     recordTrace(sim);
   }
 }
