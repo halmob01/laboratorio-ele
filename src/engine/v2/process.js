@@ -204,6 +204,8 @@ export const MODELS = {
     params: { ...Z.params, ...E.params },
     acts: { ...E.acts, ...Z.acts, hp: 0, pump: 0 },
     step(s, a, p, dt) {
+      // a contatore staccato la casa e' spenta: nessun carico (la batteria non si scarica su una casa al buio), pompa ferma
+      if (s.blackout) a = { ...a, house: 0, boiler: 0, ev: 0, wash: 0, batt: 0 };
       const run = frac(a.pump) > 0 && !s.broken && !s.blackout ? 1 : 0;
       const zp = { ...p, pumpKw: p.hpKw };
       const zs = Object.fromEntries(zoneKeys.map(k => [k, s[k]]));
