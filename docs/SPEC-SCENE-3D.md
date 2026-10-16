@@ -148,6 +148,7 @@ Numeri di riferimento attuali (rendering software):
 | Appartamento | 0 | circa 114 |
 | Officina, nastro in marcia | 0 | 81 su telefono; 185 su computer (con l'occlusione ambientale; senza, circa 110) |
 | Nastro automatico, in marcia | 0 | 100 su telefono (l'inquadratura comprende motore, scivolo e bancale); 162 su computer |
+| Casa intelligente, serata che scorre | 0 | circa 150 su telefono (vista esterna: si vede tutto); circa 320 su computer (165 la scena, 145 l'occlusione) |
 
 ## Scena nuova: cosa fare
 
@@ -181,3 +182,6 @@ Numeri di riferimento attuali (rendering software):
   la scena sparisce per un attimo. Cambiare dimensione in un colpo solo.
 - Confronti tra stati per riconoscere gli eventi (nell'officina): lo stato "di prima" non va azzerato quando la prova riparte,
   o la prima azione si perde.
+- Nel trilocale `ctx.animate` segna le ombre da rifare a ogni passo (serve a chi sposta oggetti con ombra). Per luci che si
+  accendono, acqua che sale, oggetti senza ombra vera usare `ctx.loop` (casa: da 8 ombre del sole per un cambio di luce a 1).
+- `mergeStatic` del trilocale si chiama prima di `extend`: gli oggetti aggiunti vanno accorpati dalla scena che li aggiunge.
