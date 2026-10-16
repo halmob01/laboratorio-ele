@@ -59,8 +59,22 @@ function wire(w, d, a, b, color) {
 // Lavoro fuori tensione: se il livello lo chiede, il sezionamento (che parte chiuso) si apre prima di cablare.
 const solve = (w, d, level) => {
   ((level.safety && level.safety.deadWork) || []).forEach(id => { const c = level.comps.find(x => x.id === id); if (c.init !== 0) click(w, q(d, `[data-ctl="${id}"]`)); });
+  lockoutUI(w, d, level);
   level.solution.forEach(([a, b, c]) => wire(w, d, a, b, c));
 };
+// Procedura del lucchetto (safety.lockout) dall'interfaccia: apri il sezionamento, metti il lucchetto, prova lo strumento e verifica le fasi.
+function lockoutUI(w, d, level) {
+  const lo = level.safety && level.safety.lockout;
+  if (!lo) return;
+  click(w, q(d, `[data-ctl="${lo.iso}"]`));
+  click(w, q(d, `[data-lock="${lo.iso}"]`));
+  const meter = q(d, '#meter');
+  if (!meter || meter.hidden) click(w, q(d, '#bMeter'));
+  click(w, q(d, '[data-meter-mode="V"]'));
+  [lo.known, ...lo.test].filter(Boolean).forEach(([a, b]) => { click(w, q(d, '[data-meter-clear]')); tap(w, term(d, a)); tap(w, term(d, b)); });
+  click(w, q(d, '[data-meter-clear]'));
+  click(w, q(d, '#bMeter'));   // si spegne il multimetro: i tocchi sui morsetti tornano a fare i fili
+}
 // Le letture del multimetro che il livello pretende, fatte dall'interfaccia: puntali sui morsetti, quadro e comandi come richiesto.
 
 // Scrive il programma di soluzione con l'editor del ladder, toccando come farebbe l'allievo.
@@ -75,7 +89,7 @@ function programUI(w, d, level) {
       setSel(q(d, 'input[data-lac="cmpb"]'), String(c.b));
       return;
     }
-    if (c.rise) lac('type', 'rise'); else if (c.not) lac('type', 'not');
+    if (c.rise) lac('type', 'rise'); else if (c.not) lac('type', 'not'); else lac('type', 'no');   // un contatto nuovo parte come confronto se il PLC non ha ingressi digitali
     setSel(q(d, 'select[data-lac="addr"]'), c.a);
   };
   Object.entries(level.solutionPrograms || {}).forEach(([pid, prog]) => {
@@ -83,6 +97,7 @@ function programUI(w, d, level) {
     const skip = (plc && plc.edit && plc.edit.start ? plc.edit.start : []).length;   // gradini gia' scritti dal livello
     prog.forEach((r, i) => {
       if (i < skip) return;
+      try {
       lac('addRung');
       const cells = toCells(r.if) || [];
       cells.forEach(cell => {
@@ -103,6 +118,7 @@ function programUI(w, d, level) {
           if (ins.r) setSel(q(d, 'select[data-lac="ctur"]'), ins.r);
         } else { if (ins.op !== 'coil') lac('optype', ins.op); setSel(q(d, 'select[data-lac="outaddr"]'), ins.a); }
       });
+      } catch (e) { e.message = 'gradino ' + (i + 1) + ': ' + e.message; throw e; }
     });
   });
 }
@@ -336,7 +352,7 @@ test('si superano tutti i livelli cablando la soluzione (quadro e contatore)', (
       assert.equal(qa(d, '#bench [data-wire]').length, lvl.solution.length, base.id + ' ' + mode);
       measureUI(w, d, lvl);
       rateUI(w, d, lvl);
-      programUI(w, d, lvl);
+      try { programUI(w, d, lvl); } catch (e) { e.message = base.id + ': ' + e.message; throw e; }
       tuneUI(w, d, lvl);
       click(w, q(d, '#bCheck'));
       if (base.scenario) {

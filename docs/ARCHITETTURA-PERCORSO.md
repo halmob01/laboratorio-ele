@@ -78,7 +78,7 @@ Differenze dal syllabus: multimetro come livello a sé e primo del modulo; c08 e
 | 3.4 | Marcia e arresto (c13) | autoritenuta, STOP chiuso a riposo | esiste | sì |
 | 3.5 | Il relè termico (c14) | 95-96 nel comando, riarmo | esiste | sì |
 | 3.6 | Il nastro (c16) | finecorsa, quadro su una macchina | esiste | sì |
-| 3.7 | Lavori in sicurezza | sezionare, bloccare con il lucchetto, verificare l'assenza di tensione con il multimetro, poi lavorare | nuovo: serve il passo "lucchetto" in sessione e verifica; prima della prova dell'officina | sì |
+| 3.7 | Lavori in sicurezza | sezionare, bloccare con il lucchetto, verificare l'assenza di tensione con il multimetro, poi lavorare | fatto (c52): passo "lucchetto" in sessione e verifica; prima della prova dell'officina | sì |
 
 Il lavoro fuori tensione (fatto in P2) non ha toccato i livelli esistenti: c12-c16 e c22 dichiarano `safety.deadWork: ['QM']` e la sessione registra i fili toccati mentre erano in tensione per colpa del salvamotore chiuso. In c13-c16 il salvamotore resta chiuso all'inizio, e l'allievo deve aprirlo prima di cablare.
 
@@ -134,8 +134,8 @@ Ordine di gioco: M1, M2, M3, M4, **M5**, M6. Ordine di costruzione diverso (vedi
 | 5.7 | Il contatore e lo scambio (c40) | consumo, produzione, immissione | E7 | esiste |
 | 5.8 | L'accumulo (c41) | batteria: carica di giorno, scarica di sera | E7, E8 | esiste |
 | 5.9 | La colonnina (c42) | un carico staccato prima del limite del contatore | E7, PLC | esiste |
-| 5.10 | La gestione dei carichi | più carichi con priorità, il riattacco con ritardo (il pendolamento), seconda prova con le fasce orarie | E7 ampliato | nuovo, serve l'ampliamento di `energia` |
-| 5.11 | Il clima per zone | termostato con isteresi per zona, consenso alla pompa di calore (almeno una zona chiede), finestra aperta, giorno e notte | E7 con il modello `zone` | nuovo, serve il modello `zone` |
+| 5.10 | La gestione dei carichi (c53) | più carichi con priorità, il riattacco con ritardo (il pendolamento), seconda prova con le fasce orarie | E7 ampliato | fatto (c53); la seconda prova con le fasce orarie non è nel livello: il modello le ha già (`price`, `cost`), si può aggiungere |
+| 5.11 | Il clima per zone (c54) | termostato con isteresi per zona, consenso alla pompa di calore (almeno una zona chiede), finestra aperta, giorno e notte | E7 con il modello `zone` | fatto (c54); giorno e notte: il modello li ha già (`night`), il livello non li usa |
 | Prova | La casa intelligente (3D) | una sera d'inverno con sole, batteria, auto, clima e allarme insieme | tutti i precedenti | da fare |
 
 Perché questo ordine: il comando (5.1-5.4) riprende i pezzi di M2 e il PLC appena imparato; poi l'energia, già costruita, che si ragiona bene solo dopo aver visto i carichi, le protezioni e un processo nel tempo; la gestione dei carichi chiude l'energia; il clima è il livello più ricco e usa PLC, sonde, isteresi e consenso insieme.

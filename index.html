@@ -4741,6 +4741,8 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
         power = selfPowered(levelAt());
         armProva();
         power = selfPowered(levelAt());
+        const sim = simsByKey[keyOf()];
+        if (sim && sim.supply !== power) setSupply(sim, power);
         emit();
       },
       // Stato di un livello qualsiasi (non solo quello aperto), per chi disegna piu' circuiti insieme (la casa).
@@ -8619,6 +8621,227 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
       "I due sensori sono in parallelo: basta che uno solo chiuda per dare l\u2019allarme. Poi il rel\xE8 KA li tiene.",
       "La memoria \xE8 un\u2019autoritenuta: il contatto 11-14 del rel\xE8 riporta la fase alla sua stessa bobina A1, quindi, una volta scattato, il rel\xE8 resta eccitato.",
       "La tacitazione \xE8 un contatto normalmente chiuso messo in testa a tutto: premendolo si toglie la fase ai sensori e alla memoria. La sirena si alimenta dalla stessa linea di A1."
+    ]
+  });
+  var W52_FIXED = [
+    ["Q.L1", "QM.1", "marrone"],
+    ["Q.L2", "QM.3", "nero"],
+    ["Q.L3", "QM.5", "grigio"],
+    ["QM.2", "KM.1", "marrone"],
+    ["QM.4", "KM.3", "nero"],
+    ["QM.6", "KM.5", "grigio"],
+    ["KM.2", "M.U", "marrone"],
+    ["KM.4", "M.V", "nero"],
+    ["KM.6", "M.W", "grigio"],
+    ["M.PE", "Q.PE", "gv"],
+    ["SB0.2", "SB1.3", "rosso"],
+    ["SB1.4", "KM.A1", "rosso"],
+    ["KM.A2", "Q.N", "blu"],
+    ["SB1.3", "KM.13", "rosso"],
+    ["KM.14", "SB1.4", "rosso"],
+    ["H.X1", "KM.A1", "rosso"],
+    ["H.X2", "Q.N", "blu"]
+  ];
+  var W52 = W52_FIXED.concat([["QM.2", "SBE.1", "rosso"], ["SBE.2", "SB0.1", "rosso"]]);
+  LEVELS_V2.push({
+    id: "c52-lavori-sicurezza",
+    code: "c52",
+    n: 0,
+    ...IND,
+    flow: "onDemand",
+    meter: true,
+    name: "Lavori in sicurezza",
+    title: "Lavori in sicurezza",
+    blurb: "Sezionare, bloccare con il lucchetto, verificare che non ci sia tensione: solo dopo si mettono le mani sui fili.",
+    goal: "Un cliente chiede di aggiungere il fungo di emergenza alla macchina di Marcia e Arresto: l\u2019impianto \xE8 cablato, mancano due fili. Prima di toccare qualcosa segui la procedura: apri il salvamotore, metti il lucchetto, prova il multimetro su un punto in tensione e verifica che a valle non ci sia tensione su tutte e tre le fasi. Poi aggiungi il fungo in serie al comando, togli il lucchetto e collauda.",
+    fixed: W52_FIXED,
+    comps: [
+      Q3,
+      C("QM", "mt3", "Salvamotore", "Salvamotore magnetotermico", T(...T6)),
+      C("KM", "km", "Contattore", "Contattore KM", T("A1", "A2", ...T6, "13", "14")),
+      C("SBE", "fungo", "Emergenza", "Pulsante di emergenza a fungo", T("1", "2")),
+      C("SB0", "pbnc", "Arresto", "Pulsante di arresto (NC)", T("1", "2")),
+      C("SB1", "pb", "Marcia", "Pulsante di marcia (NA)", T("3", "4")),
+      C("H", "spia", "Spia", "Spia di marcia", T("X1", "X2")),
+      C("M", "motor3", "Motore", "Motore trifase", T("U", "V", "W", "PE"))
+    ],
+    controls: ["QM", "SBE", "SB0", "SB1"],
+    demoDo: [{ do: press("SB1"), say: "" }],
+    checks: [
+      { id: "marcia", label: "Premi Marcia: il motore parte e resta in marcia, la spia \xE8 accesa", do: press("SB1"), expect: { motors: { M: "fwd" }, loads: { H: "on" } } },
+      { id: "arresto", label: "Premi Arresto: il motore si ferma", steps: [{ do: press("SB1"), expect: { motors: { M: "fwd" } } }, { do: press("SB0"), expect: { motors: { M: "off" } } }] },
+      { id: "emergenza", label: "Premi il fungo: il motore si ferma", steps: [{ do: press("SB1"), expect: { motors: { M: "fwd" } } }, { do: ["toggle SBE"], expect: { motors: { M: "off" } } }] },
+      { id: "riparte", label: "Sbloccato il fungo il motore non riparte da solo", steps: [{ do: press("SB1"), expect: { motors: { M: "fwd" } } }, { do: ["toggle SBE", "toggle SBE"], expect: { motors: { M: "off" } } }] },
+      { id: "fermo", label: "Senza comandi il motore \xE8 fermo", do: [], expect: { motors: { M: "off" } } }
+    ],
+    safety: {
+      lockout: { iso: "QM", test: [["QM.2", "Q.N"], ["QM.4", "Q.N"], ["QM.6", "Q.N"]], known: ["QM.1", "Q.N"] },
+      earth: [["M.PE", "Q.PE"]],
+      stopWins: "SB0",
+      coilReturn: ["KM"],
+      protectedBy: { M: "QM", KM: "QM" }
+    },
+    solution: W52,
+    hints: [
+      "La procedura ha un ordine che non si cambia: prima apri il salvamotore, poi metti il lucchetto (il pulsante accanto alla leva del salvamotore), poi misuri. Solo dopo tocchi i fili.",
+      "Con il multimetro in tensione: prima la prova dello strumento, 230 V tra il morsetto 1 del salvamotore (a monte, sempre in tensione) e il neutro. Poi 0 V tra i morsetti 2, 4 e 6 e il neutro. Se mancasse la prova dello strumento, uno strumento rotto leggerebbe 0 V e ti farebbe credere che sia tutto spento.",
+      "Il fungo va in serie al comando, prima dell\u2019arresto: dal morsetto 2 del salvamotore al morsetto 1 del fungo, e dal morsetto 2 del fungo al morsetto 1 dell\u2019arresto. Premuto, il fungo toglie la fase a tutto il comando.",
+      "Finito il lavoro togli il lucchetto (tocchi di nuovo il pulsante), richiudi il salvamotore e collauda."
+    ]
+  });
+  var W53 = [
+    ["Q.L1", "PLC.A1", "rosso"],
+    ["PLC.A2", "Q.N", "blu"],
+    ["TT.+", "PLC.AI0+", "rosso"],
+    ["TT.-", "PLC.AI0-", "rosso"],
+    ["Q.L1", "PLC.Q0A", "rosso"],
+    ["PLC.Q0B", "HE.X1", "rosso"],
+    ["HE.X2", "Q.N", "blu"],
+    ["Q.L1", "PLC.Q1A", "rosso"],
+    ["PLC.Q1B", "HP.X1", "rosso"],
+    ["HP.X2", "Q.N", "blu"]
+  ];
+  var PROG_53 = START_5.concat([
+    { if: ["and", ["gt", "MW0", 5800], "Q0"], do: [{ op: "reset", a: "Q0" }] },
+    { if: ["and", ["gt", "MW0", 5800], ["not", "Q0"]], do: [{ op: "reset", a: "Q1" }] },
+    { if: ["lt", "MW0", 4200], do: [{ op: "ton", id: "T1", pt: 30 }] },
+    { if: "T1", do: [{ op: "set", a: "Q1" }] },
+    { if: ["and", ["lt", "MW0", 2e3], "Q1"], do: [{ op: "ton", id: "T2", pt: 30 }] },
+    { if: "T2", do: [{ op: "set", a: "Q0" }] }
+  ]);
+  LEVELS_V2.push({
+    id: "c53-carichi",
+    code: "c53",
+    n: 0,
+    ...IND,
+    flow: "onDemand",
+    name: "La gestione dei carichi",
+    title: "La gestione dei carichi",
+    blurb: "Pi\xF9 carichi e un solo contatore: chi si stacca per primo, e quando pu\xF2 ripartire.",
+    goal: "Una sera d\u2019inverno: il contatore da 6 kW stacca tutta la casa se la potenza prelevata resta sopra il limite per pi\xF9 di 20 secondi. Il PLC comanda la colonnina (3,7 kW) e la pompa di calore (1,5 kW). Dalle 19:30 alle 20:30 le persone cucinano con il forno (3,5 kW), che il PLC non pu\xF2 staccare. Scrivi il programma: sopra la soglia si stacca prima la colonnina e, se non basta, la pompa di calore; riattaccano solo quando c\u2019\xE8 margine che dura, prima la pompa di calore e poi la colonnina, senza pendolare.",
+    fixed: W53,
+    comps: [
+      Q3,
+      C("PLC", "plc", "PLC", "PLC (programma da scrivere)", T("A1", "A2", "AI0+", "AI0-", "Q0A", "Q0B", "Q1A", "Q1B"), {
+        symbols: { AI0: "Potenza scambiata (mA)", MW0: "Potenza scambiata (W)", Q0: "Colonnina", Q1: "Pompa di calore", T1: "Margine per la pompa", T2: "Margine per la colonnina" },
+        edit: { start: START_5, markers: 0, timers: 2, counters: 0, words: ["MW0"], ops: ["set", "reset", "ton"] }
+      }),
+      GRID_TX(),
+      C("HE", "spia", "Colonnina", "Auto in ricarica", T("X1", "X2")),
+      C("HP", "spia", "Pompa di calore", "Pompa di calore in funzione", T("X1", "X2"))
+    ],
+    process: {
+      model: "energia",
+      title: "La serata",
+      alt: "La casa di sera con il forno acceso, la colonnina e la pompa di calore",
+      params: { pvKw: 0, ovenKw: 3.5, limit: 6 },
+      init: { hour: 17 },
+      speed: 40,
+      actuators: { ev: { load: "HE" }, hp: { load: "HP" }, house: { value: 1 } },
+      trace: ["load", "grid", "PLC.Q0", "PLC.Q1"],
+      labels: { grid: "La potenza della rete", eEv: "L\u2019energia caricata nell\u2019auto (kWh)" },
+      graph: { vars: [{ v: "load", label: "Consumo kW", lo: 0, hi: 10, color: "#C0262D" }, { v: "grid", label: "Rete kW", lo: 0, hi: 10, color: "#2563B0" }], window: 1500, lines: [{ value: 6, label: "limite del contatore", var: "grid" }] }
+    },
+    demoDo: [{ do: ["wait 300"], say: "" }],
+    checks: [
+      { id: "limite", label: "Il contatore non stacca mai: la casa resta alimentata per tutta la serata", do: ["wait 540"], expect: { process: { blackout: false } } },
+      { id: "ricarica", label: "L\u2019auto si carica comunque: almeno 2 kWh", do: ["wait 540"], expect: { process: { eEv: [2, 100] } } },
+      { id: "commutazioni", label: "La colonnina e la pompa di calore non si accendono e si spengono di continuo", do: ["wait 540"], expect: { trace: [{ v: "PLC.Q0", maxSwitches: 6 }, { v: "PLC.Q1", maxSwitches: 6 }] } }
+    ],
+    safety: { coilReturn: ["PLC"] },
+    solution: W53,
+    solutionPrograms: { PLC: PROG_53 },
+    hints: [
+      "La potenza della rete \xE8 in MW0, in watt. Il limite \xE8 6000 W: stacca prima, per esempio sopra 5800 W, perch\xE9 il contatore aspetta 20 secondi ma il forno non aspetta.",
+      "Priorit\xE0: sopra la soglia Reset su Q0 (la colonnina) se \xE8 accesa; se la colonnina \xE8 gi\xE0 staccata e la potenza \xE8 ancora alta, Reset su Q1 (la pompa di calore). Il secondo gradino ha come condizione \u201CMW0 maggiore di 5800 E Q0 spenta\u201D.",
+      "Per riattaccare serve margine che dura. Un temporizzatore (TON) da 30 secondi con la condizione \u201CMW0 minore di 4200\u201D: quando scatta, Set su Q1 (la pompa riparte per prima, \xE8 pi\xF9 importante).",
+      "Per la colonnina serve pi\xF9 margine, perch\xE9 assorbe 3,7 kW: un secondo TON da 30 secondi con la condizione \u201CMW0 minore di 2000 E Q1 accesa\u201D, e quando scatta Set su Q0. Senza questi ritardi la potenza torna sotto soglia appena stacchi un carico, quindi riattacchi subito e la potenza risale: i carichi pendolano."
+    ]
+  });
+  var W54 = [
+    ["Q.L1", "PLC.A1", "rosso"],
+    ["PLC.A2", "Q.N", "blu"],
+    ["PLC.IC", "Q.N", "blu"],
+    ["TT1.+", "PLC.AI0+", "rosso"],
+    ["TT1.-", "PLC.AI0-", "rosso"],
+    ["TT2.+", "PLC.AI1+", "rosso"],
+    ["TT2.-", "PLC.AI1-", "rosso"],
+    ["Q.L1", "W1.a", "rosso"],
+    ["W1.b", "PLC.I0", "rosso"],
+    ["Q.L1", "PLC.Q0A", "rosso"],
+    ["PLC.Q0B", "HP.X1", "rosso"],
+    ["HP.X2", "Q.N", "blu"],
+    ["Q.L1", "PLC.Q1A", "rosso"],
+    ["PLC.Q1B", "HV1.X1", "rosso"],
+    ["HV1.X2", "Q.N", "blu"],
+    ["Q.L1", "PLC.Q2A", "rosso"],
+    ["PLC.Q2B", "HV2.X1", "rosso"],
+    ["HV2.X2", "Q.N", "blu"]
+  ];
+  var START_54 = [
+    { if: ["ge", "AI0", 3.6], do: [{ op: "scale", in: "AI0", out: "MW0", lo: 0, hi: 40 }] },
+    { if: ["ge", "AI1", 3.6], do: [{ op: "scale", in: "AI1", out: "MW1", lo: 0, hi: 40 }] }
+  ];
+  var PROG_54 = START_54.concat([
+    { if: ["lt", "MW0", 20], do: [{ op: "set", a: "Q1" }] },
+    { if: ["gt", "MW0", 22], do: [{ op: "reset", a: "Q1" }] },
+    { if: "I0", do: [{ op: "reset", a: "Q1" }] },
+    { if: ["lt", "MW1", 20], do: [{ op: "set", a: "Q2" }] },
+    { if: ["gt", "MW1", 22], do: [{ op: "reset", a: "Q2" }] },
+    { if: ["or", "Q1", "Q2"], do: [{ op: "coil", a: "Q0" }] }
+  ]);
+  LEVELS_V2.push({
+    id: "c54-clima-zone",
+    code: "c54",
+    n: 0,
+    ...IND,
+    flow: "onDemand",
+    name: "Il clima per zone",
+    title: "Il clima per zone",
+    blurb: "Un termostato per stanza, una sola pompa di calore: parte solo se almeno una stanza chiede calore.",
+    goal: "Soggiorno e camera hanno ciascuno una sonda di temperatura e una valvola; una pompa di calore scalda le due zone. Il soggiorno ha una finestra con un contatto sul PLC. Scrivi il programma: ogni stanza si scalda tra 20 e 22 \xB0C (isteresi), la finestra aperta chiude la valvola del soggiorno, e la pompa parte solo se almeno una valvola \xE8 aperta: con tutte le valvole chiuse la pompa lavora a vuoto e si guasta.",
+    fixed: W54,
+    comps: [
+      Q3,
+      C("PLC", "plc", "PLC", "PLC (programma da scrivere)", T("A1", "A2", "I0", "IC", "AI0+", "AI0-", "AI1+", "AI1-", "Q0A", "Q0B", "Q1A", "Q1B", "Q2A", "Q2B"), {
+        symbols: { I0: "Finestra soggiorno aperta", AI0: "Soggiorno (mA)", AI1: "Camera (mA)", MW0: "Soggiorno (\xB0C)", MW1: "Camera (\xB0C)", Q0: "Pompa di calore", Q1: "Valvola soggiorno", Q2: "Valvola camera" },
+        edit: { start: START_54, markers: 0, timers: 0, counters: 0, words: ["MW0", "MW1"], ops: ["coil", "set", "reset"] }
+      }),
+      C("TT1", "tx", "Sonda soggiorno", "Sonda di temperatura del soggiorno, 0\u202640 \xB0C, 4-20 mA", T("+", "-"), { sense: { v: "T1", lo: 0, hi: 40 } }),
+      C("TT2", "tx", "Sonda camera", "Sonda di temperatura della camera, 0\u202640 \xB0C, 4-20 mA", T("+", "-"), { sense: { v: "T2", lo: 0, hi: 40 } }),
+      C("W1", "sw", "Finestra", "Contatto della finestra del soggiorno (chiuso se aperta)", { a: { l: "1" }, b: { l: "2" } }),
+      C("HP", "spia", "Pompa di calore", "Pompa di calore in funzione", T("X1", "X2")),
+      C("HV1", "spia", "Valvola soggiorno", "Valvola del soggiorno aperta", T("X1", "X2")),
+      C("HV2", "spia", "Valvola camera", "Valvola della camera aperta", T("X1", "X2"))
+    ],
+    controls: ["W1"],
+    process: {
+      model: "zone",
+      title: "La casa di sera",
+      alt: "Due stanze riscaldate da una pompa di calore, con una valvola per stanza",
+      params: { n: 2 },
+      init: { hour: 17, T1: 16, T2: 16 },
+      speed: 40,
+      actuators: { pump: { load: "HP" }, v1: { load: "HV1" }, v2: { load: "HV2" }, w1: { ctl: "W1" } },
+      trace: ["T1", "T2", "PLC.Q0", "PLC.Q1", "PLC.Q2"],
+      labels: { T1: "La temperatura del soggiorno", T2: "La temperatura della camera", dry: "La pompa a vuoto" },
+      graph: { vars: [{ v: "T1", label: "Soggiorno \xB0C", lo: 10, hi: 30, color: "#C0262D" }, { v: "T2", label: "Camera \xB0C", lo: 10, hi: 30, color: "#2563B0" }], window: 1500, lines: [{ value: 20, label: "minima", var: "T1" }, { value: 22, label: "massima", var: "T1" }] }
+    },
+    demoDo: [{ do: ["wait 300"], say: "" }],
+    checks: [
+      { id: "comfort", label: "Le due stanze restano tra 19,5 e 22,5 \xB0C dopo il riscaldamento iniziale", do: ["wait 1200"], expect: { trace: [{ v: "T1", within: [19.5, 22.5], from: 600 }, { v: "T2", within: [19.5, 22.5], from: 600 }] } },
+      { id: "pompa", label: "La pompa di calore non lavora mai a vuoto e non si guasta", do: ["wait 1200"], expect: { process: { broken: false } } },
+      { id: "finestra", label: "Finestra aperta: la valvola del soggiorno si chiude e la camera resta calda", steps: [{ do: ["wait 500"], expect: {} }, { do: ["toggle W1", "wait 300"], expect: { process: { p1: [0, 0.01], T2: [19.5, 22.5] } } }] },
+      { id: "commutazioni", label: "Le valvole non si aprono e si chiudono di continuo", do: ["wait 1200"], expect: { trace: [{ v: "PLC.Q1", maxSwitches: 12 }, { v: "PLC.Q2", maxSwitches: 12 }] } }
+    ],
+    safety: { coilReturn: ["PLC"] },
+    solution: W54,
+    solutionPrograms: { PLC: PROG_54 },
+    hints: [
+      "Le temperature sono in MW0 (soggiorno) e MW1 (camera), in gradi. Ogni stanza ha la sua isteresi, come il serbatoio di c35: Set sulla valvola sotto 20 \xB0C, Reset sopra 22 \xB0C. Senza i due livelli diversi la valvola si aprirebbe e chiuderebbe di continuo.",
+      "Soggiorno: confronto MW0 minore di 20, Set su Q1; confronto MW0 maggiore di 22, Reset su Q1. Camera: lo stesso con MW1 e Q2.",
+      "La finestra aperta (I0 vale 1) deve chiudere la valvola del soggiorno: un gradino con I0 e Reset su Q1. Mettilo dopo il Set: vale l\u2019ultimo gradino, e deve vincere la finestra.",
+      "La pompa di calore Q0 parte solo se almeno una valvola \xE8 aperta: una bobina su Q0 con la condizione \u201CQ1 oppure Q2\u201D (due contatti in parallelo). Con tutte le valvole chiuse la pompa lavora a vuoto e si guasta dopo un minuto."
     ]
   });
   var L45 = LEVELS_V2.find((l) => l.id === "c45-fabbrica");
@@ -13489,6 +13712,371 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
       fixSay: "Collega la tacitazione al contatto 11 del rel\xE8, e il contatto 14 alla bobina A1. Poi premi Verifica."
     }
   };
+  UNITS_V2["c52-lavori-sicurezza"] = {
+    support: "passi",
+    lesson: {
+      pages: [
+        {
+          type: "spiegazione",
+          title: "Perch\xE9 si lavora fuori tensione",
+          paras: [
+            "La corrente non si vede e non si sente prima di toccarla. Un filo in tensione sembra uguale a uno spento, e bastano pochi decimi di secondo per un danno grave. Per questo il lavoro sugli impianti si fa, quando \xE8 possibile, con l\u2019impianto spento: fuori tensione.",
+            "Spegnere per\xF2 non basta: bisogna essere sicuri che l\u2019impianto resti spento mentre ci lavori, e sicuri che sia davvero spento. Ci vuole una procedura, sempre uguale e sempre nello stesso ordine, come una lista di controllo prima del decollo."
+          ],
+          warn: "Un impianto \u201Cspento\u201D che nessuno ha verificato va considerato in tensione."
+        },
+        {
+          type: "spiegazione",
+          title: "La procedura, nell\u2019ordine",
+          paras: [
+            "In bassa tensione i passi sono questi. L\u2019ordine non si cambia: ogni passo protegge dall\u2019errore del passo prima."
+          ],
+          table: {
+            head: ["Passo", "Che cosa fai", "Perch\xE9"],
+            rows: [
+              ["1 Sezionare", "apri l\u2019interruttore a monte", "togli la tensione ai fili su cui lavori"],
+              ["2 Bloccare", "metti il lucchetto sull\u2019interruttore aperto", "nessuno pu\xF2 richiuderlo mentre lavori"],
+              ["3 Verificare", "misuri che non ci sia tensione", "ti accorgi di un altro circuito o di un errore"],
+              ["4 Lavorare", "metti le mani sui fili", "solo adesso"],
+              ["5 Rimettere in servizio", "togli il lucchetto e richiudi", "solo tu, che l\u2019hai messo"]
+            ]
+          }
+        },
+        {
+          type: "spiegazione",
+          title: "Il lucchetto: perch\xE9 non basta aprire",
+          paras: [
+            "Un interruttore aperto si richiude con un dito. Un collega che non sa che stai lavorando, vede la macchina ferma e riarma il quadro: la tensione torna sui fili che hai in mano.",
+            "Il lucchetto, con il tuo nome o un cartello, impedisce la richiusura e dice a tutti che c\u2019\xE8 qualcuno al lavoro. La chiave la tieni tu: il lucchetto lo toglie solo chi l\u2019ha messo. Nel gioco, a lucchetto messo il salvamotore non si richiude."
+          ]
+        },
+        {
+          type: "spiegazione",
+          title: "Verificare l\u2019assenza di tensione: prima si prova lo strumento",
+          paras: [
+            "Per verificare si misura la tensione con il multimetro tra ogni conduttore su cui lavori e il neutro: deve leggere zero. Ma un multimetro con la batteria scarica o un puntale interrotto legge zero anche su un filo in tensione, e ti dice che \xE8 tutto a posto quando non lo \xE8.",
+            "Per questo prima si prova lo strumento su un punto che sai in tensione, a monte dell\u2019interruttore aperto: deve leggere 230 V. Se li legge, lo strumento funziona, e uno zero a valle vale."
+          ],
+          table: {
+            head: ["Misura", "Tra", "Che cosa ti aspetti", "A che serve"],
+            rows: [
+              ["1", "morsetto 1 del salvamotore e neutro", "230 V", "prova che lo strumento funziona"],
+              ["2", "morsetto 2 del salvamotore e neutro", "0 V", "la prima fase \xE8 spenta"],
+              ["3", "morsetto 4 del salvamotore e neutro", "0 V", "la seconda fase \xE8 spenta"],
+              ["4", "morsetto 6 del salvamotore e neutro", "0 V", "la terza fase \xE8 spenta"]
+            ]
+          },
+          warn: "Si misurano tutte le fasi: una sola fase ancora in tensione basta per prendere la scossa."
+        },
+        {
+          type: "pezzi",
+          title: "Il banco di oggi",
+          focus: ["QM", "SBE", "SB0", "SB1"],
+          paras: [
+            "Accanto alla leva del salvamotore c\u2019\xE8 il pulsante con il lucchetto: si mette solo a salvamotore aperto. Il multimetro si accende dal suo pulsante; il primo morsetto che tocchi \xE8 il puntale rosso, il secondo il nero.",
+            "L\u2019impianto \xE8 gi\xE0 cablato: marcia, arresto, contattore e motore. Manca il fungo di emergenza, che si aggiunge in serie al comando."
+          ]
+        },
+        {
+          type: "spiegazione",
+          title: "Il lavoro: aggiungere il fungo",
+          paras: [
+            "Il fungo di emergenza \xE8 un contatto normalmente chiuso: a riposo lascia passare la fase al comando; premuto, la interrompe e il contattore cade. Come l\u2019arresto, sta in serie sul comando: se un contatto qualunque si apre, la bobina perde la tensione.",
+            "Va messo per primo, prima dell\u2019arresto: dal morsetto 2 del salvamotore (a valle, dove prende la fase il comando) al morsetto 1 del fungo, e dal morsetto 2 del fungo al morsetto 1 dell\u2019arresto. Sono due fili: ma prima la procedura."
+          ]
+        },
+        {
+          type: "previsione",
+          question: "Hai aperto il salvamotore ma non hai messo il lucchetto. Un collega, che non sa che stai lavorando, lo richiude. Che cosa succede?",
+          options: [
+            { id: "a", text: "Niente: i fili sono collegati e basta." },
+            { id: "b", text: "La tensione torna sui fili mentre ci hai le mani: \xE8 il rischio che il lucchetto evita." },
+            { id: "c", text: "Il salvamotore scatta e si riapre da solo." }
+          ],
+          correct: "b",
+          why: "Un interruttore aperto si richiude con un dito, e chi lo fa non sa che stai lavorando. Il lucchetto impedisce la richiusura e dice agli altri che c\u2019\xE8 qualcuno al lavoro."
+        },
+        {
+          type: "previsione",
+          question: "Il multimetro legge 0 V tra il morsetto 2 del salvamotore e il neutro. Basta per dire che a valle non c\u2019\xE8 tensione?",
+          options: [
+            { id: "a", text: "S\xEC: uno zero \xE8 uno zero." },
+            { id: "b", text: "No: prima devi aver provato lo strumento su un punto in tensione, perch\xE9 uno strumento guasto legge zero comunque." },
+            { id: "c", text: "S\xEC, ma solo se lo misuri due volte." }
+          ],
+          correct: "b",
+          why: "Uno zero pu\xF2 venire da un impianto spento o da uno strumento rotto. Solo se lo stesso strumento ha appena letto 230 V su un punto in tensione, lo zero a valle significa che \xE8 davvero spento."
+        },
+        { type: "sintesi", title: "Da ricordare" }
+      ]
+    },
+    steps: [
+      { kind: "control", id: "QM", short: "1 Sezionare", title: "Apri il salvamotore", text: "Tocca la leva del salvamotore per aprirlo. Perch\xE9: senza la tensione a monte, i fili a valle sono spenti." },
+      { kind: "lock", id: "QM", short: "2 Lucchetto", title: "Metti il lucchetto", text: "Tocca il pulsante con il lucchetto, accanto alla leva del salvamotore. Perch\xE9: da ora nessuno pu\xF2 richiuderlo mentre lavori." },
+      { kind: "measure", between: ["QM.1", "Q.N"], mode: "V", value: 230, short: "3 Prova", title: "Prova lo strumento", text: "Accendi il multimetro e misura tra il morsetto 1 del salvamotore (a monte) e il neutro: devi leggere 230 V. Perch\xE9: se lo strumento legge 230 V dove la tensione c\u2019\xE8, uno zero a valle \xE8 affidabile." },
+      { kind: "measure", between: ["QM.2", "Q.N"], mode: "V", value: 0, short: "4 Fase 1", title: "Verifica la prima fase", text: "Misura tra il morsetto 2 del salvamotore e il neutro: devi leggere 0 V. Perch\xE9: a valle non deve esserci tensione." },
+      { kind: "measure", between: ["QM.4", "Q.N"], mode: "V", value: 0, short: "5 Fase 2", title: "Verifica la seconda fase", text: "Misura tra il morsetto 4 e il neutro: 0 V. Perch\xE9: una sola fase in tensione basta per prendere la scossa." },
+      { kind: "measure", between: ["QM.6", "Q.N"], mode: "V", value: 0, short: "6 Fase 3", title: "Verifica la terza fase", text: "Misura tra il morsetto 6 e il neutro: 0 V. Ora l\u2019assenza di tensione \xE8 verificata." },
+      { kind: "wire", from: "QM.2", to: ["SBE.1"], color: "rosso", short: "7 Fungo", title: "Dal salvamotore al fungo", text: "Dal morsetto 2 del salvamotore al morsetto 1 del fungo, in rosso (comando). Perch\xE9: il fungo \xE8 il primo contatto del comando." },
+      { kind: "wire", from: "SBE.2", to: ["SB0.1"], color: "rosso", short: "8 Serie", title: "Dal fungo all\u2019arresto", text: "Dal morsetto 2 del fungo al morsetto 1 dell\u2019arresto. Perch\xE9: fungo e arresto sono in serie, ne basta uno aperto per fermare la macchina." },
+      { kind: "control", id: "SB1", short: "9 Collauda", title: "Togli il lucchetto e collauda", text: "Togli il lucchetto, richiudi il salvamotore e prova: Marcia, poi il fungo." },
+      { kind: "verify", short: "10 Verifica", title: "Controlla l\u2019impianto", text: "Premi Verifica." }
+    ],
+    summary: [
+      "Si lavora fuori tensione: sezionare, bloccare con il lucchetto, verificare l\u2019assenza di tensione, lavorare, rimettere in servizio. In questo ordine.",
+      "L\u2019interruttore aperto non basta: il lucchetto impedisce la richiusura e dice agli altri che qualcuno sta lavorando.",
+      "Prima di verificare si prova lo strumento su un punto in tensione: uno strumento guasto legge zero comunque.",
+      "Si verificano tutte le fasi: una sola fase in tensione \xE8 gi\xE0 pericolosa.",
+      "Il fungo di emergenza \xE8 un contatto normalmente chiuso in serie al comando, come l\u2019arresto."
+    ],
+    fault: {
+      say: "L\u2019impianto \xE8 cablato con il fungo e l\u2019arresto. Premendo il fungo il motore si ferma, ma premendo Arresto il motore non si ferma pi\xF9. Guarda come \xE8 collegato il fungo.",
+      wires: W52_FIXED.concat([["QM.2", "SB0.1", "rosso"], ["SBE.1", "SB0.1", "rosso"], ["SBE.2", "SB0.2", "rosso"]]),
+      diagnosis: {
+        question: "Perch\xE9 Arresto non ferma pi\xF9 il motore?",
+        options: [
+          { id: "a", text: "Il fungo \xE8 in parallelo all\u2019arresto: con due contatti in parallelo ne basta uno chiuso, e il fungo a riposo \xE8 chiuso." },
+          { id: "b", text: "Il pulsante di arresto \xE8 guasto." },
+          { id: "c", text: "Il contattore ha il contatto incollato." }
+        ],
+        correct: "a",
+        why: "Il fungo \xE8 un contatto normalmente chiuso messo in parallelo ai morsetti dell\u2019arresto: la fase passa dal fungo anche quando l\u2019arresto \xE8 aperto. Per fermare la macchina ogni contatto di sicurezza deve essere in serie, cos\xEC basta che uno solo si apra."
+      },
+      fixSay: "Togli i fili del fungo. Collega il morsetto 2 del salvamotore al morsetto 1 del fungo e il morsetto 2 del fungo al morsetto 1 dell\u2019arresto. Ricorda la procedura: salvamotore aperto, lucchetto, verifica. Poi premi Verifica."
+    }
+  };
+  UNITS_V2["c53-carichi"] = {
+    support: "passi",
+    lesson: {
+      pages: [
+        {
+          type: "spiegazione",
+          title: "Un contatore, tanti carichi",
+          paras: [
+            "Il contatore della casa ha un limite di potenza: 6 kW. Se la casa preleva di pi\xF9 per pi\xF9 di 20 secondi, il contatore stacca tutto e al buio ci va l\u2019intera casa. In una sera d\u2019inverno i carichi si sommano: l\u2019auto in carica, la pompa di calore, il forno, le luci.",
+            "Sommati fanno pi\xF9 del limite, e allora qualcuno deve aspettare. Il PLC comanda l\u2019auto e la pompa di calore. Il forno no: lo accendono le persone, e il PLC non pu\xF2 spegnerlo."
+          ],
+          table: {
+            head: ["Carico", "Potenza", "Lo comanda il PLC?"],
+            rows: [
+              ["Colonnina (auto)", "3,7 kW", "s\xEC"],
+              ["Pompa di calore", "1,5 kW", "s\xEC"],
+              ["Forno (19:30-20:30)", "3,5 kW", "no, lo accendono le persone"],
+              ["Resto della casa", "0,4-1,5 kW", "no"]
+            ]
+          },
+          warn: "Il contatore stacca dopo 20 secondi sopra il limite: il PLC deve intervenire prima, con un po\u2019 di scorta sotto i 6 kW."
+        },
+        {
+          type: "spiegazione",
+          title: "La priorit\xE0: chi si stacca per primo",
+          paras: [
+            "Si stacca per primo il carico che d\xE0 meno fastidio. L\u2019auto pu\xF2 caricarsi anche pi\xF9 tardi, nessuno se ne accorge. La pompa di calore ha un\u2019inerzia: la casa \xE8 calda e qualche minuto senza non si sente. Il forno e le luci no: se si spengono se ne accorgono subito.",
+            "Quindi: si stacca la colonnina; se non basta, anche la pompa di calore. Quando torna il margine, si riattaccano al contrario: prima la pompa di calore (pi\xF9 importante), poi la colonnina."
+          ],
+          table: {
+            head: ["Ordine di distacco", "Carico", "Perch\xE9"],
+            rows: [
+              ["1", "colonnina", "pu\xF2 aspettare, nessuno se ne accorge"],
+              ["2", "pompa di calore", "la casa ha inerzia, per qualche minuto non si sente"],
+              ["mai", "forno e luci", "se si spengono se ne accorgono subito"]
+            ]
+          }
+        },
+        {
+          type: "spiegazione",
+          title: "Soglie diverse per staccare e per riattaccare",
+          paras: [
+            "Si stacca sopra una soglia alta, per esempio 5800 W, poco sotto il limite. Si riattacca solo sotto una soglia pi\xF9 bassa, scelta cos\xEC: la soglia di riattacco pi\xF9 la potenza del carico deve restare sotto la soglia di distacco.",
+            "La pompa assorbe 1,5 kW: riattacca sotto 4200 W, perch\xE9 4200 pi\xF9 1500 fa 5700, sotto i 5800. La colonnina assorbe 3,7 kW: riattacca sotto 2000 W, perch\xE9 2000 pi\xF9 3700 fa 5700. Con una soglia pi\xF9 alta, appena riattaccato il carico la potenza supererebbe di nuovo 5800 e lo staccheresti subito."
+          ],
+          table: {
+            head: ["Carico", "Si stacca sopra", "Riattacca sotto", "Controllo"],
+            rows: [
+              ["Colonnina 3,7 kW", "5800 W", "2000 W", "2000 + 3700 = 5700 W"],
+              ["Pompa di calore 1,5 kW", "5800 W", "4200 W", "4200 + 1500 = 5700 W"]
+            ]
+          }
+        },
+        {
+          type: "spiegazione",
+          title: "Il ritardo: il margine deve durare",
+          paras: [
+            "C\u2019\xE8 un secondo trucco. La potenza cala appena stacchi un carico. Se riattacchi non appena la potenza \xE8 sotto soglia, la casa torna sopra e stacchi di nuovo: pendoli. Ogni commutazione consuma il contattore, e il contatore, nel frattempo, conta i secondi.",
+            "Per questo il riattacco chiede un margine che duri: un temporizzatore (TON) da 30 secondi. La condizione \u201Cpotenza sotto la soglia\u201D deve essere vera per 30 secondi di fila, e solo dopo si riattacca. Un calo di un attimo non basta."
+          ],
+          table: {
+            head: ["Senza il ritardo", "Con il ritardo da 30 secondi"],
+            rows: [
+              ["stacchi, la potenza scende subito sotto soglia", "stacchi, la potenza scende sotto soglia"],
+              ["riattacchi al primo istante", "aspetti 30 secondi di margine continuo"],
+              ["la potenza risale e stacchi di nuovo", "riattacchi solo se il margine \xE8 vero e stabile"],
+              ["decine di commutazioni nella serata", "poche commutazioni, una per ciclo"]
+            ]
+          }
+        },
+        {
+          type: "spiegazione",
+          title: "Il programma, gradino per gradino",
+          paras: [
+            "Il primo gradino \xE8 gi\xE0 scritto: legge la potenza del contatore e la porta in watt in MW0. Gli altri sei li scrivi tu."
+          ],
+          table: {
+            head: ["Gradino", "Condizione", "Istruzione", "Perch\xE9"],
+            rows: [
+              ["2", "MW0 maggiore di 5800 E Q0 accesa", "Reset su Q0", "si stacca prima la colonnina"],
+              ["3", "MW0 maggiore di 5800 E Q0 spenta", "Reset su Q1", "se non basta, la pompa di calore"],
+              ["4", "MW0 minore di 4200", "TON T1, 30 s", "margine per la pompa"],
+              ["5", "T1 scaduto", "Set su Q1", "riattacca la pompa"],
+              ["6", "MW0 minore di 2000 E Q1 accesa", "TON T2, 30 s", "margine per la colonnina"],
+              ["7", "T2 scaduto", "Set su Q0", "riattacca la colonnina"]
+            ]
+          }
+        },
+        {
+          type: "previsione",
+          question: "Togli i due temporizzatori: ora riattacchi la colonnina e la pompa appena la potenza \xE8 sotto soglia. Che cosa vedi sul grafico?",
+          options: [
+            { id: "a", text: "Niente di diverso: la potenza resta sotto il limite lo stesso." },
+            { id: "b", text: "I carichi pendolano: si staccano e riattaccano decine di volte nella serata." },
+            { id: "c", text: "La colonnina non riattacca mai." }
+          ],
+          correct: "b",
+          why: "Appena stacchi un carico la potenza scende sotto soglia: senza ritardo riattacchi subito, la potenza risale, stacchi di nuovo. Il contatore potrebbe anche reggere, ma i contattori si usurano e la casa \xE8 un andirivieni di accensioni."
+        },
+        {
+          type: "previsione",
+          question: "Cambi la priorit\xE0: stacchi la pompa di calore per prima e la colonnina per seconda. Che cosa succede?",
+          options: [
+            { id: "a", text: "Il contatore stacca comunque: la priorit\xE0 non conta." },
+            { id: "b", text: "Il contatore regge, ma la casa perde il riscaldamento mentre l\u2019auto continua a caricare: la priorit\xE0 \xE8 sbagliata." },
+            { id: "c", text: "La casa si scalda di pi\xF9." }
+          ],
+          correct: "b",
+          why: "La potenza si abbassa lo stesso, ma si \xE8 tolto il carico che serve (il riscaldamento) e si \xE8 lasciato quello che pu\xF2 aspettare (l\u2019auto). La priorit\xE0 \xE8 una scelta sulla vita delle persone che abitano la casa, non solo un calcolo di watt."
+        },
+        { type: "sintesi", title: "Da ricordare" }
+      ]
+    },
+    steps: [
+      { kind: "program", plc: "PLC", min: 2, short: "1 Colonnina", title: "Stacca prima la colonnina", text: "Nuovo gradino: confronto MW0 maggiore di 5800 E contatto Q0; uscita Reset su Q0. Perch\xE9: la colonnina \xE8 il carico che pu\xF2 aspettare." },
+      { kind: "program", plc: "PLC", min: 3, short: "2 Pompa", title: "Poi la pompa di calore", text: "Gradino: MW0 maggiore di 5800 E Q0 spento (contatto normalmente chiuso); uscita Reset su Q1. Perch\xE9: se la colonnina \xE8 gi\xE0 staccata e non basta, tocca alla pompa." },
+      { kind: "program", plc: "PLC", min: 5, short: "3 Pompa riparte", title: "La pompa riparte con margine", text: "Due gradini: MW0 minore di 4200 con un TON da 30 s (T1); poi T1 con Set su Q1. Perch\xE9: 4200 pi\xF9 1500 resta sotto 5800, e il ritardo evita il pendolamento." },
+      { kind: "program", plc: "PLC", min: 7, short: "4 Auto riparte", title: "La colonnina riparte dopo", text: "Due gradini: MW0 minore di 2000 E Q1 accesa, TON da 30 s (T2); poi T2 con Set su Q0. Perch\xE9: 2000 pi\xF9 3700 resta sotto 5800; riparte solo quando la pompa \xE8 gi\xE0 in marcia." },
+      { kind: "verify", short: "5 Verifica", title: "Guarda la serata", text: "Premi Verifica: il tempo corre dalle 17. Nel grafico la potenza della rete deve passare sopra il limite solo per pochi secondi, quando si accende il forno, e il contatore non deve staccare." }
+    ],
+    summary: [
+      "Pi\xF9 carichi su un contatore: la potenza sommata supera il limite, e qualcuno deve aspettare.",
+      "Priorit\xE0: si stacca prima il carico che pu\xF2 aspettare (l\u2019auto), poi quello con inerzia (la pompa di calore). Il forno e le luci no.",
+      "Soglia di riattacco pi\xF9 potenza del carico deve restare sotto la soglia di distacco, altrimenti riparte e si ferma.",
+      "Il margine deve durare: un temporizzatore evita il pendolamento, cio\xE8 le decine di commutazioni nella serata.",
+      "Il PLC comanda solo i carichi che gli sono collegati: il forno lo accendono le persone."
+    ]
+  };
+  UNITS_V2["c54-clima-zone"] = {
+    support: "passi",
+    lesson: {
+      pages: [
+        {
+          type: "spiegazione",
+          title: "Una pompa, due stanze",
+          paras: [
+            "In una casa con il clima per zone c\u2019\xE8 una sola pompa di calore, e ogni stanza ha il suo termostato. L\u2019acqua calda arriva a tutte le stanze, ma una valvola per zona decide a quale lasciarla passare. Se la camera \xE8 calda la sua valvola si chiude e il calore va dove serve.",
+            "Il PLC legge la temperatura di ogni stanza con una sonda, e comanda le valvole e la pompa. \xC8 lo stesso schema del serbatoio di c35, con i gradi al posto del livello."
+          ],
+          table: {
+            head: ["Pezzo", "Che cosa fa", "Sul PLC"],
+            rows: [
+              ["Sonda di temperatura", "misura i gradi della stanza", "ingresso analogico, in MW0 e MW1"],
+              ["Valvola di zona", "lascia passare il calore alla stanza", "uscita Q1 (soggiorno), Q2 (camera)"],
+              ["Pompa di calore", "produce il calore", "uscita Q0"],
+              ["Finestra del soggiorno", "quando \xE8 aperta, il calore se ne va", "ingresso I0"]
+            ]
+          }
+        },
+        {
+          type: "spiegazione",
+          title: "Il termostato con isteresi",
+          paras: [
+            "Con una sola soglia, per esempio 21 gradi, la valvola si aprirebbe e chiuderebbe di continuo attorno a quel valore: a 20,9 apre, a 21,1 chiude. Per evitarlo si usano due soglie, 20 e 22 gradi: apre sotto 20 e chiude sopra 22. Tra le due non cambia niente. Questa \xE8 l\u2019isteresi.",
+            "Nel PLC si scrive con Set e Reset: Set sulla valvola quando la temperatura \xE8 sotto 20; Reset quando \xE8 sopra 22. Una bobina semplice non basta, perch\xE9 non ricorda."
+          ],
+          table: {
+            head: ["Temperatura", "Che cosa succede alla valvola"],
+            rows: [
+              ["sotto 20 \xB0C", "Set: si apre e riscalda"],
+              ["tra 20 e 22 \xB0C", "resta com\u2019\xE8 (riscalda se era aperta, aspetta se era chiusa)"],
+              ["sopra 22 \xB0C", "Reset: si chiude"]
+            ]
+          }
+        },
+        {
+          type: "spiegazione",
+          title: "La pompa non deve girare a vuoto",
+          paras: [
+            "La pompa fa circolare l\u2019acqua attraverso le valvole aperte. Se tutte le valvole sono chiuse, l\u2019acqua non ha dove andare: la pompa gira a vuoto e si surriscalda. Dopo un minuto si guasta e non riparte.",
+            "Per questo la pompa parte solo se almeno una zona chiede calore: almeno una valvola aperta. Nel circuito \xE8 un O: due contatti in parallelo, Q1 oppure Q2."
+          ],
+          table: {
+            head: ["Valvola soggiorno", "Valvola camera", "Pompa"],
+            rows: [
+              ["chiusa", "chiusa", "ferma"],
+              ["aperta", "chiusa", "in marcia"],
+              ["chiusa", "aperta", "in marcia"],
+              ["aperta", "aperta", "in marcia"]
+            ]
+          },
+          warn: "Con tutte le valvole chiuse la pompa lavora a vuoto: dopo un minuto si guasta."
+        },
+        {
+          type: "spiegazione",
+          title: "La finestra aperta",
+          paras: [
+            "Se il soggiorno ha la finestra aperta il calore esce, e scaldarlo vuol dire scaldare la strada. Il contatto della finestra arriva all\u2019ingresso I0: quando vale 1 la valvola del soggiorno si chiude, con un gradino Reset su Q1.",
+            "Il PLC legge i gradini dall\u2019alto in basso e vince l\u2019ultimo che scrive la stessa uscita. Il gradino della finestra va quindi dopo il Set della valvola: cos\xEC, anche se la stanza \xE8 fredda, a finestra aperta la valvola resta chiusa. Quando richiudi la finestra, il Set riapre la valvola se serve."
+          ]
+        },
+        {
+          type: "previsione",
+          question: "Hai messo come consenso alla pompa solo la valvola del soggiorno. La camera chiede calore e il soggiorno \xE8 gi\xE0 caldo. Che cosa succede?",
+          options: [
+            { id: "a", text: "La camera si scalda comunque." },
+            { id: "b", text: "La valvola della camera \xE8 aperta ma la pompa \xE8 ferma: la camera non si scalda." },
+            { id: "c", text: "La pompa gira a vuoto e si guasta." }
+          ],
+          correct: "b",
+          why: "Il consenso alla pompa deve tenere conto di tutte le zone: almeno una valvola aperta, Q1 oppure Q2. Con la sola valvola del soggiorno, il calore non parte mai per la camera."
+        },
+        {
+          type: "previsione",
+          question: "Lasci il consenso della pompa sempre acceso, qualunque cosa facciano le valvole. Le stanze si scaldano e le valvole si chiudono. Che cosa succede?",
+          options: [
+            { id: "a", text: "Niente: la pompa riposa da sola." },
+            { id: "b", text: "La pompa gira a vuoto con tutte le valvole chiuse e dopo un minuto si guasta." },
+            { id: "c", text: "Le stanze si scaldano di pi\xF9." }
+          ],
+          correct: "b",
+          why: "Con le valvole chiuse l\u2019acqua non circola. Una pompa che gira a vuoto si surriscalda e si blocca: \xE8 il guasto che il consenso a \u201Calmeno una valvola aperta\u201D evita."
+        },
+        { type: "sintesi", title: "Da ricordare" }
+      ]
+    },
+    steps: [
+      { kind: "program", plc: "PLC", min: 4, short: "1 Soggiorno", title: "Il termostato del soggiorno", text: "Due gradini: MW0 minore di 20 con Set su Q1; MW0 maggiore di 22 con Reset su Q1. Perch\xE9: due soglie diverse, l\u2019isteresi, evitano che la valvola apra e chiuda di continuo." },
+      { kind: "program", plc: "PLC", min: 5, short: "2 Finestra", title: "La finestra chiude la valvola", text: "Un gradino con il contatto I0 e Reset su Q1, dopo il Set. Perch\xE9: vince l\u2019ultimo gradino, e a finestra aperta la valvola del soggiorno deve restare chiusa." },
+      { kind: "program", plc: "PLC", min: 7, short: "3 Camera", title: "Il termostato della camera", text: "Come il soggiorno, con MW1 e Q2: Set sotto 20, Reset sopra 22." },
+      { kind: "program", plc: "PLC", min: 8, short: "4 Pompa", title: "La pompa con il consenso", text: "Una bobina Q0 con la condizione \u201CQ1 oppure Q2\u201D (due contatti in parallelo). Perch\xE9: la pompa parte solo se almeno una valvola \xE8 aperta, altrimenti gira a vuoto." },
+      { kind: "power", short: "5 Levetta", title: "Dai corrente", text: "Tocca la levetta del quadro: il tempo corre dalle 17." },
+      { kind: "control", id: "W1", short: "6 Prova", title: "Apri la finestra", text: "Simula la finestra aperta del soggiorno: la valvola si chiude e il soggiorno si raffredda, la camera resta calda." },
+      { kind: "verify", short: "7 Verifica", title: "Guarda la serata", text: "Premi Verifica. Nel grafico le due temperature restano tra le linee minima e massima." }
+    ],
+    summary: [
+      "Un termostato per stanza: la valvola di zona si apre sotto 20 \xB0C e si chiude sopra 22 \xB0C (isteresi, Set e Reset).",
+      "Con una sola soglia la valvola aprirebbe e chiuderebbe di continuo: servono due soglie diverse.",
+      "La pompa di calore parte solo se almeno una valvola \xE8 aperta: con tutte chiuse gira a vuoto e si guasta.",
+      "La finestra aperta chiude la valvola del soggiorno: il gradino va dopo il Set, perch\xE9 vince l\u2019ultimo."
+    ]
+  };
   UNITS_V2["c51-turno-notte"] = {
     support: "obiettivo",
     lesson: {
@@ -14135,6 +14723,7 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
         "c14-termico",
         "c15-inversione",
         "c16-nastro",
+        "c52-lavori-sicurezza",
         "c24-officina"
       ],
       milestone: { level: "c24-officina", kick: "Officina", name: "Il nastro da collaudare", text: "Un nastro trasportatore da collaudare a vista: marcia, arresto, emergenza, finecorsa e termico. Trova perch\xE9 il nastro non si ferma.", src: "assets/milestone/officina.jpg", alt: "L\u2019officina con il nastro trasportatore, la pulsantiera, il quadro e il motore", tools: ["Pulsantiera", "Salvamotore", "Teleruttore", "Termico", "Finecorsa", "Fungo"], cta: "Entra nell\u2019officina", again: "Rifai la prova" }
@@ -14165,8 +14754,8 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
         "c40-contatore",
         "c41-accumulo",
         "c42-colonnina",
-        { soon: true, title: "La gestione dei carichi", blurb: "Pi\xF9 carichi con priorit\xE0, il riattacco con ritardo." },
-        { soon: true, title: "Il clima per zone", blurb: "Un termostato per stanza e il consenso alla pompa di calore." }
+        "c53-carichi",
+        "c54-clima-zone"
       ],
       milestone: { soon: true, art: "casa", kick: "Casa del futuro", name: "Luci, tapparelle, sole e batteria", text: "La casa che si comanda da sola e produce la sua energia." }
     },
@@ -14496,9 +15085,9 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
   var faultBtn = (id, kind, x, y, text2, aria) => `<g class="tbtn" data-${kind}="${id}" role="button" tabindex="0" aria-label="${aria}"><rect x="${x}" y="${y}" width="60" height="26" rx="5" fill="#F6E1C8" stroke="var(--comp-edge)" stroke-width="1.4"/><text x="${x + 30}" y="${y + 17}" text-anchor="middle" style="font:600 10px 'IBM Plex Mono',monospace;fill:#222">${text2}</text></g>`;
   var lockBtn = (c2, s, part2, w) => {
     if (!s.lockout || s.lockout.iso !== c2.id) return "";
-    const on = !!part2.locked, x = w / 2 - 36;
-    const icon = `<rect x="${x + 8}" y="13" width="11" height="9" rx="1.5" fill="${on ? "#B5651D" : "none"}" stroke="var(--comp-edge)" stroke-width="1.4"/><path d="M${x + 10} 13 v-3 a3.5 3.5 0 0 1 7 0 ${on ? "v3" : "v-1"}" fill="none" stroke="var(--comp-edge)" stroke-width="1.4"/>`;
-    return `<g class="tbtn" data-lock="${c2.id}" role="button" tabindex="0" aria-label="${on ? "Togli il lucchetto da" : "Metti il lucchetto su"} ${c2.short}"><rect x="${x}" y="3" width="72" height="24" rx="5" fill="${on ? "#F6E1C8" : "#EDE7D4"}" stroke="var(--comp-edge)" stroke-width="1.4"/>${icon}<text x="${x + 46}" y="19" text-anchor="middle" style="font:600 9px 'IBM Plex Mono',monospace" fill="#1B2230">${on ? "BLOCCATO" : "LUCCHETTO"}</text></g>`;
+    const on = !!part2.locked, x = w / 2 + 24, y = c2.h / 2 - 13;
+    const icon = `<rect x="${x + 11}" y="${y + 12}" width="16" height="10" rx="2" fill="${on ? "#B5651D" : "none"}" stroke="var(--comp-edge)" stroke-width="1.6"/><path d="M${x + 14} ${y + 12} v-3.5 a5 5 0 0 1 10 0 ${on ? "v3.5" : "v-1.5"}" fill="none" stroke="var(--comp-edge)" stroke-width="1.6"/>`;
+    return `<g class="tbtn" data-lock="${c2.id}" role="button" tabindex="0" aria-label="${on ? "Togli il lucchetto da" : "Metti il lucchetto su"} ${c2.short}"><title>${on ? "Lucchetto messo" : "Metti il lucchetto"}</title><rect x="${x}" y="${y}" width="38" height="28" rx="5" fill="${on ? "#F6E1C8" : "#EDE7D4"}" stroke="var(--comp-edge)" stroke-width="1.4"/>${icon}</g>`;
   };
   function schemV2(c2, s, L, ui2) {
     const w = c2.w, h = c2.h, st = s.controlStates[c2.id] ? 1 : 0, part2 = obsOf(s, c2.id), obs2 = s.obs || { loads: {}, motors: {}, coils: {} };
@@ -16176,7 +16765,8 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
   var kw = (v) => String(Math.round(v * 100) / 100).replace(".", ",") + " kW";
   function houseScene(level, s) {
     const p = s.obs.process;
-    const hr = p.hour, sunUp = p.sun > 0 || hr > 6 && hr < 20;
+    const noPv = (level.process && level.process.params || {}).pvKw === 0;
+    const hr = p.hour, sunUp = !noPv && (p.sun > 0 || hr > 6 && hr < 20);
     const t = clamp3((hr - 6) / 14, 0, 1), sx = 40 + 320 * t, sy = 70 - 52 * Math.sin(Math.PI * t);
     const hh = String(Math.floor(hr)).padStart(2, "0") + ":" + String(Math.floor(hr % 1 * 60)).padStart(2, "0");
     let o = `<rect x="0" y="0" width="400" height="160" fill="${sunUp ? "#EAF3FB" : "#26324A"}" opacity=".55"/>`;
@@ -16185,14 +16775,40 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
     o += `<text x="12" y="20" style="font:600 12px 'IBM Plex Mono',monospace;fill:var(--ink)">ore ${hh}</text>`;
     o += `<path d="M110 120 V86 L170 52 L230 86 V120 Z" fill="#F0EBDD" stroke="var(--comp-edge)" stroke-width="2.2"/><path d="M104 88 L170 48 L236 88" fill="none" stroke="${p.pv > 0.05 ? "#2E9E5B" : "var(--comp-edge)"}" stroke-width="${3 + 2 * clamp3(p.pv / 4, 0, 1)}"/>`;
     o += `<text x="170" y="108" text-anchor="middle" style="font:600 11px 'IBM Plex Mono',monospace;fill:var(--ink)">casa ${kw(p.load)}</text>`;
-    o += `<text x="170" y="136" text-anchor="middle" style="font:600 11px 'IBM Plex Mono',monospace;fill:#2E9E5B">pannelli ${kw(p.pv)}</text>`;
+    if (!noPv) o += `<text x="170" y="136" text-anchor="middle" style="font:600 11px 'IBM Plex Mono',monospace;fill:#2E9E5B">pannelli ${kw(p.pv)}</text>`;
     const g = p.grid, ex = g < -0.01;
     o += `<rect x="290" y="92" width="44" height="30" rx="4" fill="#EDE7D4" stroke="var(--comp-edge)" stroke-width="1.8"/><text x="312" y="111" text-anchor="middle" style="font:600 10px 'IBM Plex Mono',monospace;fill:#222">kWh</text>`;
     o += `<path d="M232 106 H290" stroke="${Math.abs(g) > 0.01 ? ex ? "#2E9E5B" : "#C0262D" : "var(--line)"}" stroke-width="4"/>`;
     o += `<path d="M334 106 H372" stroke="var(--ink2)" stroke-width="3"/><text x="312" y="136" text-anchor="middle" style="font:600 10px 'IBM Plex Mono',monospace;fill:${ex ? "#2E9E5B" : "var(--ink)"}">${ex ? "immette " + kw(-g) : g > 0.01 ? "preleva " + kw(g) : "in pareggio"}</text>`;
+    const act2 = s.obs.processAct || {};
+    [[act2.ev > 0, "auto in ricarica"], [act2.hp > 0, "pompa di calore"], [p.oven > 0, "forno acceso"]].filter((x) => x[0]).forEach((x, i) => {
+      o += `<text x="388" y="${20 + 14 * i}" text-anchor="end" style="font:600 10px 'IBM Plex Mono',monospace;fill:${x[1] === "forno acceso" ? "#C0262D" : "#2E9E5B"}">${x[1]}</text>`;
+    });
     if (p.blackout) o += `<text x="200" y="152" text-anchor="middle" style="font:700 12px 'IBM Plex Mono',monospace;fill:#C0262D">CONTATORE SCATTATO</text>`;
     if (level.process.battery) {
       o += `<rect x="24" y="96" width="34" height="48" rx="4" fill="none" stroke="var(--comp-edge)" stroke-width="2"/><rect x="26" y="${142 - 44 * p.soc / 100}" width="30" height="${44 * p.soc / 100}" fill="${p.pb < -0.01 ? "#F59F00" : "#2E9E5B"}" opacity=".85"/><text x="41" y="90" text-anchor="middle" style="font:600 10px 'IBM Plex Mono',monospace;fill:var(--ink)">${Math.round(p.soc)} %</text>`;
+    }
+    return o;
+  }
+  function zoneScene(level, s) {
+    const p = s.obs.process, a = s.obs.processAct || {}, n = clamp3(Math.round((level.process.params || {}).n || 2), 1, 3);
+    const names = ["soggiorno", "camera", "bagno"], w = 96, x0 = 100, gap = 10;
+    const hh = String(Math.floor(p.hour)).padStart(2, "0") + ":" + String(Math.floor(p.hour % 1 * 60)).padStart(2, "0");
+    let o = `<text x="12" y="20" style="font:600 12px 'IBM Plex Mono',monospace;fill:var(--ink)">ore ${hh}${p.night ? " \xB7 notte" : ""}</text>`;
+    o += `<text x="388" y="20" text-anchor="end" style="font:600 10px 'IBM Plex Mono',monospace;fill:var(--ink2)">fuori ${NS((level.process.params || {}).Text ?? 5)} \xB0C</text>`;
+    const run = (a.pump || 0) > 0 && !p.broken;
+    o += `<rect x="14" y="62" width="62" height="52" rx="6" fill="${p.broken ? "#F6D4D4" : run ? "#E9F4EC" : "#F0EBDD"}" stroke="var(--comp-edge)" stroke-width="2"/>`;
+    o += `<text x="45" y="84" text-anchor="middle" style="font:600 10px 'IBM Plex Mono',monospace;fill:var(--ink)">pompa</text><text x="45" y="100" text-anchor="middle" style="font:600 10px 'IBM Plex Mono',monospace;fill:${p.broken ? "#C0262D" : run ? "#2E9E5B" : "var(--ink2)"}">${p.broken ? "GUASTA" : run ? "in marcia" : "ferma"}</text>`;
+    if (p.dryRun && !p.broken) o += `<text x="45" y="130" text-anchor="middle" style="font:700 10px 'IBM Plex Mono',monospace;fill:#C0262D">a vuoto!</text>`;
+    for (let i = 1; i <= n; i++) {
+      const x = x0 + (i - 1) * (w + gap), T2 = p["T" + i], t = clamp3((T2 - 10) / 15, 0, 1), pos = p["p" + i] || 0, win = (a["w" + i] || 0) > 0;
+      const r = Math.round(200 + 55 * t), g = Math.round(215 - 60 * t), b = Math.round(240 - 150 * t);
+      o += `<line x1="76" y1="${70 + 8 * i}" x2="${x}" y2="${70 + 8 * i}" stroke="${pos > 0.05 && run ? "#E5484D" : "var(--line)"}" stroke-width="4"/>`;
+      o += `<rect x="${x}" y="40" width="${w}" height="96" rx="6" fill="rgb(${r},${g},${b})" stroke="var(--comp-edge)" stroke-width="2.2"/>`;
+      o += `<text x="${x + w / 2}" y="82" text-anchor="middle" style="font:600 20px 'IBM Plex Mono',monospace;fill:#222">${NS(T2)} \xB0</text>`;
+      o += `<text x="${x + w / 2}" y="56" text-anchor="middle" style="font:600 10px 'IBM Plex Sans',sans-serif;fill:#222">${names[i - 1]}</text>`;
+      o += `<text x="${x + w / 2}" y="104" text-anchor="middle" style="font:500 10px 'IBM Plex Mono',monospace;fill:#222">valvola ${pos > 0.95 ? "aperta" : pos < 0.05 ? "chiusa" : NS(pos * 100) + " %"}</text>`;
+      if (win) o += `<text x="${x + w / 2}" y="124" text-anchor="middle" style="font:700 10px 'IBM Plex Mono',monospace;fill:#C0262D">finestra aperta</text>`;
     }
     return o;
   }
@@ -16232,7 +16848,7 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
     o += `<text x="200" y="140" text-anchor="middle" style="font:500 11px 'IBM Plex Sans',sans-serif;fill:var(--ink2)">pacchi contati dalla fotocellula: ${p.passed} \xB7 sul bancale: ${out}</text>`;
     return o;
   }
-  var SCENES = { serbatoio: tankScene, forno: ovenScene, nastro: beltScene, energia: houseScene, linea: lineScene, pacchi: parcelScene };
+  var SCENES = { serbatoio: tankScene, forno: ovenScene, nastro: beltScene, energia: houseScene, zone: zoneScene, linea: lineScene, pacchi: parcelScene };
   function graphSVG(level, s) {
     const gr = level.process.graph;
     if (!gr) return "";
@@ -21309,6 +21925,327 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
     "tocca per sostituire": "\u0627\u0644\u0645\u0633 \u0644\u0644\u0627\u0633\u062A\u0628\u062F\u0627\u0644"
   };
 
+  // src/i18n/ar-42.js
+  var ar_42_default = {
+    // sigle nuove
+    "Controllo": "\u0627\u0644\u062A\u062D\u0642\u0642",
+    "La pompa di calore Q0 parte solo se almeno una valvola \xE8 aperta: una bobina su Q0 con la condizione \u201CQ1 oppure Q2\u201D (due contatti in parallelo). Con tutte le valvole chiuse la pompa lavora a vuoto e si guasta dopo un minuto.": "\u062A\u0639\u0645\u0644 \u0627\u0644\u0645\u0636\u062E\u0629 \u0627\u0644\u062D\u0631\u0627\u0631\u064A\u0629 Q0 \u0641\u0642\u0637 \u0625\u0630\u0627 \u0643\u0627\u0646 \u0635\u0645\u0627\u0645 \u0648\u0627\u062D\u062F \u0639\u0644\u0649 \u0627\u0644\u0623\u0642\u0644 \u0645\u0641\u062A\u0648\u062D\u064B\u0627: \u0645\u0644\u0641 \u0639\u0644\u0649 Q0 \u0628\u0634\u0631\u0637 \xABQ1 \u0623\u0648 Q2\xBB (\u0645\u0644\u0627\u0645\u0633\u0627\u0646 \u0639\u0644\u0649 \u0627\u0644\u062A\u0648\u0627\u0632\u064A). \u0645\u0639 \u0625\u063A\u0644\u0627\u0642 \u0643\u0644 \u0627\u0644\u0635\u0645\u0627\u0645\u0627\u062A \u062A\u0639\u0645\u0644 \u0627\u0644\u0645\u0636\u062E\u0629 \u0641\u064A \u0627\u0644\u0641\u0631\u0627\u063A \u0648\u062A\u062A\u0639\u0637\u0644 \u0628\u0639\u062F \u062F\u0642\u064A\u0642\u0629.",
+    // interfaccia: gradini, morsetti, scena del clima
+    "Auto riparte": "\u0627\u0644\u0633\u064A\u0627\u0631\u0629 \u062A\u0639\u0648\u062F",
+    "Pompa riparte": "\u0627\u0644\u0645\u0636\u062E\u0629 \u062A\u0639\u0648\u062F",
+    "Collauda": "\u062C\u0631\u0651\u0628",
+    "Sezionare": "\u0627\u0644\u0641\u0635\u0644",
+    "Lucchetto": "\u0627\u0644\u0642\u0641\u0644",
+    "Fase 1": "\u0627\u0644\u0637\u0648\u0631 1",
+    "Fase 2": "\u0627\u0644\u0637\u0648\u0631 2",
+    "Fase 3": "\u0627\u0644\u0637\u0648\u0631 3",
+    "Confronto AI1 \u2265 3,6": "\u0645\u0642\u0627\u0631\u0646\u0629 AI1 \u2265 3\u066B6",
+    "Finestra soggiorno aperta": "\u0646\u0627\u0641\u0630\u0629 \u0627\u0644\u062C\u0644\u0648\u0633 \u0645\u0641\u062A\u0648\u062D\u0629",
+    "Morsetto PLC AI1+": "\u0627\u0644\u0645\u0631\u0628\u0637 AI1+ \u0641\u064A \u0627\u0644\u0640PLC",
+    "Morsetto PLC AI1-": "\u0627\u0644\u0645\u0631\u0628\u0637 AI1\u2212 \u0641\u064A \u0627\u0644\u0640PLC",
+    "Morsetto Sonda camera +": "\u0627\u0644\u0645\u0631\u0628\u0637 + \u0641\u064A \u0645\u0633\u0628\u0627\u0631 \u0627\u0644\u0646\u0648\u0645",
+    "Morsetto Sonda camera -": "\u0627\u0644\u0645\u0631\u0628\u0637 \u2212 \u0641\u064A \u0645\u0633\u0628\u0627\u0631 \u0627\u0644\u0646\u0648\u0645",
+    "Morsetto Sonda soggiorno +": "\u0627\u0644\u0645\u0631\u0628\u0637 + \u0641\u064A \u0645\u0633\u0628\u0627\u0631 \u0627\u0644\u062C\u0644\u0648\u0633",
+    "Morsetto Sonda soggiorno -": "\u0627\u0644\u0645\u0631\u0628\u0637 \u2212 \u0641\u064A \u0645\u0633\u0628\u0627\u0631 \u0627\u0644\u062C\u0644\u0648\u0633",
+    "TON 30 s": "TON 30 \u062B",
+    "Uscita Camera (\xB0C)": "\u0645\u062E\u0631\u062C \u0627\u0644\u0646\u0648\u0645 (\xB0\u0645)",
+    "Uscita Soggiorno (\xB0C)": "\u0645\u062E\u0631\u062C \u0627\u0644\u062C\u0644\u0648\u0633 (\xB0\u0645)",
+    "aperta": "\u0645\u0641\u062A\u0648\u062D\u0629",
+    "chiusa": "\u0645\u063A\u0644\u0642\u0629",
+    "camera": "\u063A\u0631\u0641\u0629 \u0627\u0644\u0646\u0648\u0645",
+    "soggiorno": "\u063A\u0631\u0641\u0629 \u0627\u0644\u062C\u0644\u0648\u0633",
+    "pompa": "\u0627\u0644\u0645\u0636\u062E\u0629",
+    "fuori 5 \xB0C": "\u0627\u0644\u062E\u0627\u0631\u062C 5 \xB0\u0645",
+    "massima": "\u0627\u0644\u062D\u062F \u0627\u0644\u0623\u0642\u0635\u0649",
+    "minima": "\u0627\u0644\u062D\u062F \u0627\u0644\u0623\u062F\u0646\u0649",
+    "valvola chiusa": "\u0627\u0644\u0635\u0645\u0627\u0645 \u0645\u063A\u0644\u0642",
+    "PLC.AI1+": "PLC.AI1+",
+    "PLC.AI1-": "PLC.AI1-",
+    // ---------- c52 Lavori in sicurezza ----------
+    "Lavori in sicurezza": "\u0627\u0644\u0639\u0645\u0644 \u0628\u0623\u0645\u0627\u0646",
+    "Sezionare, bloccare con il lucchetto, verificare che non ci sia tensione: solo dopo si mettono le mani sui fili.": "\u0641\u0635\u0644 \u0627\u0644\u062A\u064A\u0627\u0631\u060C \u0648\u0627\u0644\u0642\u0641\u0644\u060C \u0648\u0627\u0644\u062A\u062D\u0642\u0642 \u0645\u0646 \u0627\u0646\u0639\u062F\u0627\u0645 \u0627\u0644\u062C\u0647\u062F: \u0648\u0628\u0639\u062F \u0630\u0644\u0643 \u0641\u0642\u0637 \u062A\u0648\u0636\u0639 \u0627\u0644\u064A\u062F \u0639\u0644\u0649 \u0627\u0644\u0623\u0633\u0644\u0627\u0643.",
+    "Un cliente chiede di aggiungere il fungo di emergenza alla macchina di Marcia e Arresto: l\u2019impianto \xE8 cablato, mancano due fili. Prima di toccare qualcosa segui la procedura: apri il salvamotore, metti il lucchetto, prova il multimetro su un punto in tensione e verifica che a valle non ci sia tensione su tutte e tre le fasi. Poi aggiungi il fungo in serie al comando, togli il lucchetto e collauda.": "\u064A\u0637\u0644\u0628 \u0632\u0628\u0648\u0646 \u0625\u0636\u0627\u0641\u0629 \u0632\u0631 \u0627\u0644\u0637\u0648\u0627\u0631\u0626 \u0627\u0644\u0641\u0637\u0631\u064A \u0625\u0644\u0649 \u0622\u0644\u0629 \u0627\u0644\u062A\u0634\u063A\u064A\u0644 \u0648\u0627\u0644\u0625\u064A\u0642\u0627\u0641: \u0627\u0644\u062A\u0645\u062F\u064A\u062F \u0645\u0646\u0641\u064E\u0651\u0630 \u0648\u064A\u0646\u0642\u0635 \u0633\u0644\u0643\u0627\u0646. \u0642\u0628\u0644 \u0623\u0646 \u062A\u0644\u0645\u0633 \u0623\u064A \u0634\u064A\u0621 \u0627\u062A\u0651\u0628\u0639 \u0627\u0644\u0625\u062C\u0631\u0627\u0621: \u0627\u0641\u062A\u062D \u0642\u0627\u0637\u0639 \u062D\u0645\u0627\u064A\u0629 \u0627\u0644\u0645\u062D\u0631\u0643\u060C \u0648\u0636\u0639 \u0627\u0644\u0642\u0641\u0644\u060C \u0648\u062C\u0631\u0651\u0628 \u062C\u0647\u0627\u0632 \u0627\u0644\u0642\u064A\u0627\u0633 \u0627\u0644\u0645\u062A\u0639\u062F\u062F \u0639\u0644\u0649 \u0646\u0642\u0637\u0629 \u062A\u062D\u062A \u0627\u0644\u062C\u0647\u062F\u060C \u0648\u062A\u062D\u0642\u0642 \u0645\u0646 \u0627\u0646\u0639\u062F\u0627\u0645 \u0627\u0644\u062C\u0647\u062F \u0641\u064A \u0627\u0644\u0623\u0633\u0641\u0644 \u0639\u0644\u0649 \u0627\u0644\u0623\u0637\u0648\u0627\u0631 \u0627\u0644\u062B\u0644\u0627\u062B\u0629. \u062B\u0645 \u0623\u0636\u0641 \u0627\u0644\u0632\u0631 \u0627\u0644\u0641\u0637\u0631\u064A \u0639\u0644\u0649 \u0627\u0644\u062A\u0648\u0627\u0644\u064A \u0645\u0639 \u062F\u0627\u0626\u0631\u0629 \u0627\u0644\u062A\u062D\u0643\u0645\u060C \u0648\u0623\u0632\u0644 \u0627\u0644\u0642\u0641\u0644 \u0648\u062C\u0631\u0651\u0628 \u0627\u0644\u062A\u0634\u063A\u064A\u0644.",
+    "Premi Marcia: il motore parte e resta in marcia, la spia \xE8 accesa": "\u0627\u0636\u063A\u0637 \u0627\u0644\u062A\u0634\u063A\u064A\u0644: \u064A\u0628\u062F\u0623 \u0627\u0644\u0645\u062D\u0631\u0643 \u0648\u064A\u0628\u0642\u0649 \u064A\u0639\u0645\u0644 \u0648\u0644\u0645\u0628\u0629 \u0627\u0644\u0625\u0634\u0627\u0631\u0629 \u0645\u0636\u0627\u0621\u0629",
+    "Premi il fungo: il motore si ferma": "\u0627\u0636\u063A\u0637 \u0627\u0644\u0632\u0631 \u0627\u0644\u0641\u0637\u0631\u064A: \u064A\u062A\u0648\u0642\u0641 \u0627\u0644\u0645\u062D\u0631\u0643",
+    "Sbloccato il fungo il motore non riparte da solo": "\u0628\u0639\u062F \u062A\u062D\u0631\u064A\u0631 \u0627\u0644\u0632\u0631 \u0627\u0644\u0641\u0637\u0631\u064A \u0644\u0627 \u064A\u0639\u0648\u062F \u0627\u0644\u0645\u062D\u0631\u0643 \u0625\u0644\u0649 \u0627\u0644\u0639\u0645\u0644 \u0648\u062D\u062F\u0647",
+    "La procedura ha un ordine che non si cambia: prima apri il salvamotore, poi metti il lucchetto (il pulsante accanto alla leva del salvamotore), poi misuri. Solo dopo tocchi i fili.": "\u0644\u0644\u0625\u062C\u0631\u0627\u0621 \u062A\u0631\u062A\u064A\u0628 \u0644\u0627 \u064A\u062A\u063A\u064A\u0651\u0631: \u0623\u0648\u0644\u064B\u0627 \u062A\u0641\u062A\u062D \u0642\u0627\u0637\u0639 \u062D\u0645\u0627\u064A\u0629 \u0627\u0644\u0645\u062D\u0631\u0643\u060C \u062B\u0645 \u062A\u0636\u0639 \u0627\u0644\u0642\u0641\u0644 (\u0627\u0644\u0632\u0631 \u0628\u062C\u0627\u0646\u0628 \u0630\u0631\u0627\u0639 \u0627\u0644\u0642\u0627\u0637\u0639)\u060C \u062B\u0645 \u062A\u0642\u064A\u0633. \u0648\u0628\u0639\u062F \u0630\u0644\u0643 \u0641\u0642\u0637 \u062A\u0644\u0645\u0633 \u0627\u0644\u0623\u0633\u0644\u0627\u0643.",
+    "Con il multimetro in tensione: prima la prova dello strumento, 230 V tra il morsetto 1 del salvamotore (a monte, sempre in tensione) e il neutro. Poi 0 V tra i morsetti 2, 4 e 6 e il neutro. Se mancasse la prova dello strumento, uno strumento rotto leggerebbe 0 V e ti farebbe credere che sia tutto spento.": "\u0628\u062C\u0647\u0627\u0632 \u0627\u0644\u0642\u064A\u0627\u0633 \u0627\u0644\u0645\u062A\u0639\u062F\u062F: \u0623\u0648\u0644\u064B\u0627 \u0627\u062E\u062A\u0628\u0627\u0631 \u0627\u0644\u062C\u0647\u0627\u0632\u060C 230 \u0641\u0648\u0644\u062A \u0628\u064A\u0646 \u0627\u0644\u0645\u0631\u0628\u0637 1 \u0641\u064A \u0642\u0627\u0637\u0639 \u062D\u0645\u0627\u064A\u0629 \u0627\u0644\u0645\u062D\u0631\u0643 (\u0641\u064A \u0627\u0644\u0645\u0646\u0628\u0639\u060C \u062A\u062D\u062A \u0627\u0644\u062C\u0647\u062F \u062F\u0627\u0626\u0645\u064B\u0627) \u0648\u0627\u0644\u0645\u062D\u0627\u064A\u062F. \u062B\u0645 0 \u0641\u0648\u0644\u062A \u0628\u064A\u0646 \u0627\u0644\u0645\u0631\u0628\u0637\u0627\u062A 2 \u06484 \u06486 \u0648\u0627\u0644\u0645\u062D\u0627\u064A\u062F. \u0644\u0648 \u063A\u0627\u0628 \u0627\u062E\u062A\u0628\u0627\u0631 \u0627\u0644\u062C\u0647\u0627\u0632 \u0644\u0642\u0631\u0623 \u062C\u0647\u0627\u0632 \u0645\u0639\u0637\u0651\u0644 0 \u0641\u0648\u0644\u062A \u0648\u062C\u0639\u0644\u0643 \u062A\u0638\u0646 \u0623\u0646 \u0643\u0644 \u0634\u064A\u0621 \u0645\u0641\u0635\u0648\u0644.",
+    "Il fungo va in serie al comando, prima dell\u2019arresto: dal morsetto 2 del salvamotore al morsetto 1 del fungo, e dal morsetto 2 del fungo al morsetto 1 dell\u2019arresto. Premuto, il fungo toglie la fase a tutto il comando.": "\u064A\u0648\u0636\u0639 \u0627\u0644\u0632\u0631 \u0627\u0644\u0641\u0637\u0631\u064A \u0639\u0644\u0649 \u0627\u0644\u062A\u0648\u0627\u0644\u064A \u0645\u0639 \u0627\u0644\u062A\u062D\u0643\u0645\u060C \u0642\u0628\u0644 \u0632\u0631 \u0627\u0644\u0625\u064A\u0642\u0627\u0641: \u0645\u0646 \u0627\u0644\u0645\u0631\u0628\u0637 2 \u0641\u064A \u0642\u0627\u0637\u0639 \u062D\u0645\u0627\u064A\u0629 \u0627\u0644\u0645\u062D\u0631\u0643 \u0625\u0644\u0649 \u0627\u0644\u0645\u0631\u0628\u0637 1 \u0641\u064A \u0627\u0644\u0632\u0631 \u0627\u0644\u0641\u0637\u0631\u064A\u060C \u0648\u0645\u0646 \u0627\u0644\u0645\u0631\u0628\u0637 2 \u0641\u064A \u0627\u0644\u0632\u0631 \u0627\u0644\u0641\u0637\u0631\u064A \u0625\u0644\u0649 \u0627\u0644\u0645\u0631\u0628\u0637 1 \u0641\u064A \u0632\u0631 \u0627\u0644\u0625\u064A\u0642\u0627\u0641. \u0639\u0646\u062F \u0636\u063A\u0637\u0647 \u064A\u0642\u0637\u0639 \u0627\u0644\u0632\u0631 \u0627\u0644\u0641\u0637\u0631\u064A \u0627\u0644\u0637\u0648\u0631 \u0639\u0646 \u062F\u0627\u0626\u0631\u0629 \u0627\u0644\u062A\u062D\u0643\u0645 \u0643\u0644\u0647\u0627.",
+    "Finito il lavoro togli il lucchetto (tocchi di nuovo il pulsante), richiudi il salvamotore e collauda.": "\u0639\u0646\u062F \u0627\u0646\u062A\u0647\u0627\u0621 \u0627\u0644\u0639\u0645\u0644 \u0623\u0632\u0644 \u0627\u0644\u0642\u0641\u0644 (\u0627\u0644\u0645\u0633 \u0627\u0644\u0632\u0631 \u0645\u0631\u0629 \u0623\u062E\u0631\u0649)\u060C \u0648\u0623\u0639\u062F \u0625\u063A\u0644\u0627\u0642 \u0642\u0627\u0637\u0639 \u062D\u0645\u0627\u064A\u0629 \u0627\u0644\u0645\u062D\u0631\u0643 \u0648\u062C\u0631\u0651\u0628 \u0627\u0644\u062A\u0634\u063A\u064A\u0644.",
+    "Perch\xE9 si lavora fuori tensione": "\u0644\u0645\u0627\u0630\u0627 \u0646\u0639\u0645\u0644 \u0648\u0627\u0644\u062A\u064A\u0627\u0631 \u0645\u0641\u0635\u0648\u0644",
+    "La corrente non si vede e non si sente prima di toccarla. Un filo in tensione sembra uguale a uno spento, e bastano pochi decimi di secondo per un danno grave. Per questo il lavoro sugli impianti si fa, quando \xE8 possibile, con l\u2019impianto spento: fuori tensione.": "\u0627\u0644\u062A\u064A\u0627\u0631 \u0644\u0627 \u064A\u064F\u0631\u0649 \u0648\u0644\u0627 \u064A\u064F\u062D\u064E\u0633\u0651 \u0642\u0628\u0644 \u0644\u0645\u0633\u0647. \u0627\u0644\u0633\u0644\u0643 \u062A\u062D\u062A \u0627\u0644\u062C\u0647\u062F \u064A\u0634\u0628\u0647 \u0627\u0644\u0633\u0644\u0643 \u0627\u0644\u0645\u0641\u0635\u0648\u0644\u060C \u0648\u062A\u0643\u0641\u064A \u0623\u062C\u0632\u0627\u0621 \u0645\u0646 \u0627\u0644\u062B\u0627\u0646\u064A\u0629 \u0644\u062D\u062F\u0648\u062B \u0636\u0631\u0631 \u062C\u0633\u064A\u0645. \u0644\u0630\u0644\u0643 \u064A\u064F\u0646\u0641\u064E\u0651\u0630 \u0627\u0644\u0639\u0645\u0644 \u0639\u0644\u0649 \u0627\u0644\u062A\u0645\u062F\u064A\u062F\u0627\u062A\u060C \u0645\u062A\u0649 \u0623\u0645\u0643\u0646\u060C \u0648\u0627\u0644\u062A\u0645\u062F\u064A\u062F \u0645\u0641\u0635\u0648\u0644: \u0628\u0644\u0627 \u062C\u0647\u062F.",
+    "Spegnere per\xF2 non basta: bisogna essere sicuri che l\u2019impianto resti spento mentre ci lavori, e sicuri che sia davvero spento. Ci vuole una procedura, sempre uguale e sempre nello stesso ordine, come una lista di controllo prima del decollo.": "\u0644\u0643\u0646 \u0627\u0644\u0641\u0635\u0644 \u0644\u0627 \u064A\u0643\u0641\u064A: \u064A\u062C\u0628 \u0627\u0644\u062A\u0623\u0643\u062F \u0645\u0646 \u0628\u0642\u0627\u0621 \u0627\u0644\u062A\u0645\u062F\u064A\u062F \u0645\u0641\u0635\u0648\u0644\u064B\u0627 \u0623\u062B\u0646\u0627\u0621 \u0639\u0645\u0644\u0643\u060C \u0648\u0627\u0644\u062A\u0623\u0643\u062F \u0645\u0646 \u0623\u0646\u0647 \u0645\u0641\u0635\u0648\u0644 \u0641\u0639\u0644\u064B\u0627. \u0646\u062D\u062A\u0627\u062C \u0625\u0644\u0649 \u0625\u062C\u0631\u0627\u0621 \u062B\u0627\u0628\u062A \u062F\u0627\u0626\u0645\u064B\u0627 \u0648\u0628\u0627\u0644\u062A\u0631\u062A\u064A\u0628 \u0646\u0641\u0633\u0647\u060C \u0645\u062B\u0644 \u0642\u0627\u0626\u0645\u0629 \u0627\u0644\u0641\u062D\u0635 \u0642\u0628\u0644 \u0627\u0644\u0625\u0642\u0644\u0627\u0639.",
+    "Un impianto \u201Cspento\u201D che nessuno ha verificato va considerato in tensione.": "\u0627\u0644\u062A\u0645\u062F\u064A\u062F \xAB\u0627\u0644\u0645\u0641\u0635\u0648\u0644\xBB \u0627\u0644\u0630\u064A \u0644\u0645 \u064A\u062A\u062D\u0642\u0642 \u0645\u0646\u0647 \u0623\u062D\u062F \u064A\u064F\u0639\u062A\u0628\u0631 \u062A\u062D\u062A \u0627\u0644\u062C\u0647\u062F.",
+    "La procedura, nell\u2019ordine": "\u0627\u0644\u0625\u062C\u0631\u0627\u0621 \u0628\u0627\u0644\u062A\u0631\u062A\u064A\u0628",
+    "In bassa tensione i passi sono questi. L\u2019ordine non si cambia: ogni passo protegge dall\u2019errore del passo prima.": "\u0641\u064A \u0627\u0644\u062C\u0647\u062F \u0627\u0644\u0645\u0646\u062E\u0641\u0636 \u0647\u0630\u0647 \u0647\u064A \u0627\u0644\u062E\u0637\u0648\u0627\u062A. \u0627\u0644\u062A\u0631\u062A\u064A\u0628 \u0644\u0627 \u064A\u062A\u063A\u064A\u0651\u0631: \u0643\u0644 \u062E\u0637\u0648\u0629 \u062A\u062D\u0645\u064A \u0645\u0646 \u062E\u0637\u0623 \u0627\u0644\u062E\u0637\u0648\u0629 \u0627\u0644\u0633\u0627\u0628\u0642\u0629.",
+    "Che cosa fai": "\u0645\u0627\u0630\u0627 \u062A\u0641\u0639\u0644",
+    "1 Sezionare": "1 \u0627\u0644\u0641\u0635\u0644",
+    "2 Bloccare": "2 \u0627\u0644\u0642\u0641\u0644",
+    "3 Verificare": "3 \u0627\u0644\u062A\u062D\u0642\u0642",
+    "4 Lavorare": "4 \u0627\u0644\u0639\u0645\u0644",
+    "5 Rimettere in servizio": "5 \u0625\u0639\u0627\u062F\u0629 \u0627\u0644\u062A\u0634\u063A\u064A\u0644",
+    "apri l\u2019interruttore a monte": "\u0627\u0641\u062A\u062D \u0627\u0644\u0642\u0627\u0637\u0639 \u0641\u064A \u0627\u0644\u0645\u0646\u0628\u0639",
+    "metti il lucchetto sull\u2019interruttore aperto": "\u0636\u0639 \u0627\u0644\u0642\u0641\u0644 \u0639\u0644\u0649 \u0627\u0644\u0642\u0627\u0637\u0639 \u0627\u0644\u0645\u0641\u062A\u0648\u062D",
+    "misuri che non ci sia tensione": "\u062A\u0642\u064A\u0633 \u0623\u0646\u0647 \u0644\u0627 \u064A\u0648\u062C\u062F \u062C\u0647\u062F",
+    "metti le mani sui fili": "\u062A\u0636\u0639 \u064A\u062F\u064A\u0643 \u0639\u0644\u0649 \u0627\u0644\u0623\u0633\u0644\u0627\u0643",
+    "togli il lucchetto e richiudi": "\u062A\u0632\u064A\u0644 \u0627\u0644\u0642\u0641\u0644 \u0648\u062A\u0639\u064A\u062F \u0627\u0644\u0625\u063A\u0644\u0627\u0642",
+    "togli la tensione ai fili su cui lavori": "\u062A\u0632\u064A\u0644 \u0627\u0644\u062C\u0647\u062F \u0639\u0646 \u0627\u0644\u0623\u0633\u0644\u0627\u0643 \u0627\u0644\u062A\u064A \u062A\u0639\u0645\u0644 \u0639\u0644\u064A\u0647\u0627",
+    "nessuno pu\xF2 richiuderlo mentre lavori": "\u0644\u0627 \u064A\u0633\u062A\u0637\u064A\u0639 \u0623\u062D\u062F \u0625\u0639\u0627\u062F\u0629 \u0625\u063A\u0644\u0627\u0642\u0647 \u0623\u062B\u0646\u0627\u0621 \u0639\u0645\u0644\u0643",
+    "ti accorgi di un altro circuito o di un errore": "\u062A\u0646\u062A\u0628\u0647 \u0625\u0644\u0649 \u062F\u0627\u0626\u0631\u0629 \u0623\u062E\u0631\u0649 \u0623\u0648 \u0625\u0644\u0649 \u062E\u0637\u0623",
+    "solo adesso": "\u0627\u0644\u0622\u0646 \u0641\u0642\u0637",
+    "solo tu, che l\u2019hai messo": "\u0623\u0646\u062A \u0648\u062D\u062F\u0643\u060C \u0645\u0646 \u0648\u0636\u0639\u0647",
+    "Il lucchetto: perch\xE9 non basta aprire": "\u0627\u0644\u0642\u0641\u0644: \u0644\u0645\u0627\u0630\u0627 \u0644\u0627 \u064A\u0643\u0641\u064A \u0627\u0644\u0641\u062A\u062D",
+    "Un interruttore aperto si richiude con un dito. Un collega che non sa che stai lavorando, vede la macchina ferma e riarma il quadro: la tensione torna sui fili che hai in mano.": "\u0627\u0644\u0642\u0627\u0637\u0639 \u0627\u0644\u0645\u0641\u062A\u0648\u062D \u064A\u064F\u0639\u0627\u062F \u0625\u063A\u0644\u0627\u0642\u0647 \u0628\u0625\u0635\u0628\u0639. \u0632\u0645\u064A\u0644 \u0644\u0627 \u064A\u0639\u0631\u0641 \u0623\u0646\u0643 \u062A\u0639\u0645\u0644 \u064A\u0631\u0649 \u0627\u0644\u0622\u0644\u0629 \u0645\u062A\u0648\u0642\u0641\u0629 \u0648\u064A\u064F\u0639\u064A\u062F \u062A\u0633\u0644\u064A\u062D \u0627\u0644\u0644\u0648\u062D\u0629: \u0641\u064A\u0639\u0648\u062F \u0627\u0644\u062C\u0647\u062F \u0625\u0644\u0649 \u0627\u0644\u0623\u0633\u0644\u0627\u0643 \u0627\u0644\u062A\u064A \u0641\u064A \u064A\u062F\u0643.",
+    "Il lucchetto, con il tuo nome o un cartello, impedisce la richiusura e dice a tutti che c\u2019\xE8 qualcuno al lavoro. La chiave la tieni tu: il lucchetto lo toglie solo chi l\u2019ha messo. Nel gioco, a lucchetto messo il salvamotore non si richiude.": "\u0627\u0644\u0642\u0641\u0644\u060C \u0645\u0639 \u0627\u0633\u0645\u0643 \u0623\u0648 \u0644\u0627\u0641\u062A\u0629\u060C \u064A\u0645\u0646\u0639 \u0625\u0639\u0627\u062F\u0629 \u0627\u0644\u0625\u063A\u0644\u0627\u0642 \u0648\u064A\u062E\u0628\u0631 \u0627\u0644\u062C\u0645\u064A\u0639 \u0628\u0648\u062C\u0648\u062F \u0645\u0646 \u064A\u0639\u0645\u0644. \u0627\u0644\u0645\u0641\u062A\u0627\u062D \u0645\u0639\u0643: \u0648\u0644\u0627 \u064A\u0632\u064A\u0644 \u0627\u0644\u0642\u0641\u0644 \u0625\u0644\u0627 \u0645\u0646 \u0648\u0636\u0639\u0647. \u0641\u064A \u0627\u0644\u0644\u0639\u0628\u0629\u060C \u0645\u0639 \u0648\u0636\u0639 \u0627\u0644\u0642\u0641\u0644 \u0644\u0627 \u064A\u0645\u0643\u0646 \u0625\u0639\u0627\u062F\u0629 \u0625\u063A\u0644\u0627\u0642 \u0642\u0627\u0637\u0639 \u062D\u0645\u0627\u064A\u0629 \u0627\u0644\u0645\u062D\u0631\u0643.",
+    "Verificare l\u2019assenza di tensione: prima si prova lo strumento": "\u0627\u0644\u062A\u062D\u0642\u0642 \u0645\u0646 \u0627\u0646\u0639\u062F\u0627\u0645 \u0627\u0644\u062C\u0647\u062F: \u064A\u064F\u062E\u062A\u0628\u0631 \u0627\u0644\u062C\u0647\u0627\u0632 \u0623\u0648\u0644\u064B\u0627",
+    "Per verificare si misura la tensione con il multimetro tra ogni conduttore su cui lavori e il neutro: deve leggere zero. Ma un multimetro con la batteria scarica o un puntale interrotto legge zero anche su un filo in tensione, e ti dice che \xE8 tutto a posto quando non lo \xE8.": "\u0644\u0644\u062A\u062D\u0642\u0642 \u064A\u064F\u0642\u0627\u0633 \u0627\u0644\u062C\u0647\u062F \u0628\u062C\u0647\u0627\u0632 \u0627\u0644\u0642\u064A\u0627\u0633 \u0627\u0644\u0645\u062A\u0639\u062F\u062F \u0628\u064A\u0646 \u0643\u0644 \u0645\u0648\u0635\u0651\u0644 \u062A\u0639\u0645\u0644 \u0639\u0644\u064A\u0647 \u0648\u0627\u0644\u0645\u062D\u0627\u064A\u062F: \u064A\u062C\u0628 \u0623\u0646 \u064A\u0642\u0631\u0623 \u0635\u0641\u0631\u064B\u0627. \u0644\u0643\u0646 \u062C\u0647\u0627\u0632\u064B\u0627 \u0628\u0637\u0627\u0631\u064A\u062A\u0647 \u0641\u0627\u0631\u063A\u0629 \u0623\u0648 \u0645\u062C\u0633\u064B\u0651\u0627 \u0645\u0642\u0637\u0648\u0639\u064B\u0627 \u064A\u0642\u0631\u0623 \u0635\u0641\u0631\u064B\u0627 \u062D\u062A\u0649 \u0639\u0644\u0649 \u0633\u0644\u0643 \u062A\u062D\u062A \u0627\u0644\u062C\u0647\u062F\u060C \u0648\u064A\u062E\u0628\u0631\u0643 \u0623\u0646 \u0643\u0644 \u0634\u064A\u0621 \u0628\u062E\u064A\u0631 \u0648\u0647\u0648 \u0644\u064A\u0633 \u0643\u0630\u0644\u0643.",
+    "Per questo prima si prova lo strumento su un punto che sai in tensione, a monte dell\u2019interruttore aperto: deve leggere 230 V. Se li legge, lo strumento funziona, e uno zero a valle vale.": "\u0644\u0630\u0644\u0643 \u064A\u064F\u062E\u062A\u0628\u0631 \u0627\u0644\u062C\u0647\u0627\u0632 \u0623\u0648\u0644\u064B\u0627 \u0639\u0644\u0649 \u0646\u0642\u0637\u0629 \u062A\u0639\u0631\u0641 \u0623\u0646\u0647\u0627 \u062A\u062D\u062A \u0627\u0644\u062C\u0647\u062F\u060C \u0641\u064A \u0645\u0646\u0628\u0639 \u0627\u0644\u0642\u0627\u0637\u0639 \u0627\u0644\u0645\u0641\u062A\u0648\u062D: \u064A\u062C\u0628 \u0623\u0646 \u064A\u0642\u0631\u0623 230 \u0641\u0648\u0644\u062A. \u0641\u0625\u0646 \u0642\u0631\u0623\u0647\u0627 \u0641\u0627\u0644\u062C\u0647\u0627\u0632 \u064A\u0639\u0645\u0644\u060C \u0648\u064A\u064F\u0639\u062A\u062F\u0651 \u0628\u0627\u0644\u0635\u0641\u0631 \u0641\u064A \u0627\u0644\u0623\u0633\u0641\u0644.",
+    "Misura": "\u0627\u0644\u0642\u064A\u0627\u0633",
+    "Tra": "\u0628\u064A\u0646",
+    "Che cosa ti aspetti": "\u0645\u0627\u0630\u0627 \u062A\u062A\u0648\u0642\u0639",
+    "morsetto 1 del salvamotore e neutro": "\u0627\u0644\u0645\u0631\u0628\u0637 1 \u0641\u064A \u0642\u0627\u0637\u0639 \u062D\u0645\u0627\u064A\u0629 \u0627\u0644\u0645\u062D\u0631\u0643 \u0648\u0627\u0644\u0645\u062D\u0627\u064A\u062F",
+    "morsetto 2 del salvamotore e neutro": "\u0627\u0644\u0645\u0631\u0628\u0637 2 \u0641\u064A \u0642\u0627\u0637\u0639 \u062D\u0645\u0627\u064A\u0629 \u0627\u0644\u0645\u062D\u0631\u0643 \u0648\u0627\u0644\u0645\u062D\u0627\u064A\u062F",
+    "morsetto 4 del salvamotore e neutro": "\u0627\u0644\u0645\u0631\u0628\u0637 4 \u0641\u064A \u0642\u0627\u0637\u0639 \u062D\u0645\u0627\u064A\u0629 \u0627\u0644\u0645\u062D\u0631\u0643 \u0648\u0627\u0644\u0645\u062D\u0627\u064A\u062F",
+    "morsetto 6 del salvamotore e neutro": "\u0627\u0644\u0645\u0631\u0628\u0637 6 \u0641\u064A \u0642\u0627\u0637\u0639 \u062D\u0645\u0627\u064A\u0629 \u0627\u0644\u0645\u062D\u0631\u0643 \u0648\u0627\u0644\u0645\u062D\u0627\u064A\u062F",
+    "prova che lo strumento funziona": "\u064A\u062B\u0628\u062A \u0623\u0646 \u0627\u0644\u062C\u0647\u0627\u0632 \u064A\u0639\u0645\u0644",
+    "la prima fase \xE8 spenta": "\u0627\u0644\u0637\u0648\u0631 \u0627\u0644\u0623\u0648\u0644 \u0645\u0641\u0635\u0648\u0644",
+    "la seconda fase \xE8 spenta": "\u0627\u0644\u0637\u0648\u0631 \u0627\u0644\u062B\u0627\u0646\u064A \u0645\u0641\u0635\u0648\u0644",
+    "la terza fase \xE8 spenta": "\u0627\u0644\u0637\u0648\u0631 \u0627\u0644\u062B\u0627\u0644\u062B \u0645\u0641\u0635\u0648\u0644",
+    "Si misurano tutte le fasi: una sola fase ancora in tensione basta per prendere la scossa.": "\u062A\u064F\u0642\u0627\u0633 \u0643\u0644 \u0627\u0644\u0623\u0637\u0648\u0627\u0631: \u064A\u0643\u0641\u064A \u0637\u0648\u0631 \u0648\u0627\u062D\u062F \u0645\u0627 \u0632\u0627\u0644 \u062A\u062D\u062A \u0627\u0644\u062C\u0647\u062F \u0644\u062A\u062A\u0639\u0631\u0636 \u0644\u0644\u0635\u0639\u0642.",
+    "Il banco di oggi": "\u0637\u0627\u0648\u0644\u0629 \u0627\u0644\u064A\u0648\u0645",
+    "Accanto alla leva del salvamotore c\u2019\xE8 il pulsante con il lucchetto: si mette solo a salvamotore aperto. Il multimetro si accende dal suo pulsante; il primo morsetto che tocchi \xE8 il puntale rosso, il secondo il nero.": "\u0628\u062C\u0627\u0646\u0628 \u0630\u0631\u0627\u0639 \u0642\u0627\u0637\u0639 \u062D\u0645\u0627\u064A\u0629 \u0627\u0644\u0645\u062D\u0631\u0643 \u0632\u0631 \u0627\u0644\u0642\u0641\u0644: \u0644\u0627 \u064A\u0648\u0636\u0639 \u0625\u0644\u0627 \u0648\u0627\u0644\u0642\u0627\u0637\u0639 \u0645\u0641\u062A\u0648\u062D. \u064A\u064F\u0634\u063A\u064E\u0651\u0644 \u062C\u0647\u0627\u0632 \u0627\u0644\u0642\u064A\u0627\u0633 \u0627\u0644\u0645\u062A\u0639\u062F\u062F \u0645\u0646 \u0632\u0631\u0647\u061B \u0648\u0627\u0644\u0645\u0631\u0628\u0637 \u0627\u0644\u0623\u0648\u0644 \u0627\u0644\u0630\u064A \u062A\u0644\u0645\u0633\u0647 \u0647\u0648 \u0627\u0644\u0645\u062C\u0633 \u0627\u0644\u0623\u062D\u0645\u0631\u060C \u0648\u0627\u0644\u062B\u0627\u0646\u064A \u0627\u0644\u0623\u0633\u0648\u062F.",
+    "L\u2019impianto \xE8 gi\xE0 cablato: marcia, arresto, contattore e motore. Manca il fungo di emergenza, che si aggiunge in serie al comando.": "\u0627\u0644\u062A\u0645\u062F\u064A\u062F \u0645\u0646\u0641\u064E\u0651\u0630 \u0628\u0627\u0644\u0641\u0639\u0644: \u0627\u0644\u062A\u0634\u063A\u064A\u0644 \u0648\u0627\u0644\u0625\u064A\u0642\u0627\u0641 \u0648\u0627\u0644\u0643\u0648\u0646\u062A\u0627\u0643\u062A\u0648\u0631 \u0648\u0627\u0644\u0645\u062D\u0631\u0643. \u064A\u0646\u0642\u0635 \u0627\u0644\u0632\u0631 \u0627\u0644\u0641\u0637\u0631\u064A \u0644\u0644\u0637\u0648\u0627\u0631\u0626\u060C \u0648\u064A\u064F\u0636\u0627\u0641 \u0639\u0644\u0649 \u0627\u0644\u062A\u0648\u0627\u0644\u064A \u0645\u0639 \u0627\u0644\u062A\u062D\u0643\u0645.",
+    "Il lavoro: aggiungere il fungo": "\u0627\u0644\u0639\u0645\u0644: \u0625\u0636\u0627\u0641\u0629 \u0627\u0644\u0632\u0631 \u0627\u0644\u0641\u0637\u0631\u064A",
+    "Il fungo di emergenza \xE8 un contatto normalmente chiuso: a riposo lascia passare la fase al comando; premuto, la interrompe e il contattore cade. Come l\u2019arresto, sta in serie sul comando: se un contatto qualunque si apre, la bobina perde la tensione.": "\u0627\u0644\u0632\u0631 \u0627\u0644\u0641\u0637\u0631\u064A \u0644\u0644\u0637\u0648\u0627\u0631\u0626 \u0645\u0644\u0627\u0645\u0633 \u0645\u063A\u0644\u0642 \u0639\u0627\u062F\u0629\u064B: \u0641\u064A \u0627\u0644\u0631\u0627\u062D\u0629 \u064A\u062A\u0631\u0643 \u0627\u0644\u0637\u0648\u0631 \u064A\u0645\u0631\u0651 \u0625\u0644\u0649 \u062F\u0627\u0626\u0631\u0629 \u0627\u0644\u062A\u062D\u0643\u0645\u061B \u0648\u0639\u0646\u062F \u0636\u063A\u0637\u0647 \u064A\u0642\u0637\u0639\u0647 \u0641\u064A\u0633\u0642\u0637 \u0627\u0644\u0643\u0648\u0646\u062A\u0627\u0643\u062A\u0648\u0631. \u0648\u0643\u0645\u0627 \u0632\u0631 \u0627\u0644\u0625\u064A\u0642\u0627\u0641\u060C \u064A\u0643\u0648\u0646 \u0639\u0644\u0649 \u0627\u0644\u062A\u0648\u0627\u0644\u064A \u0645\u0639 \u0627\u0644\u062A\u062D\u0643\u0645: \u0625\u0630\u0627 \u0627\u0646\u0641\u062A\u062D \u0623\u064A \u0645\u0644\u0627\u0645\u0633 \u064A\u0641\u0642\u062F \u0627\u0644\u0645\u0644\u0641 \u062C\u0647\u062F\u0647.",
+    "Va messo per primo, prima dell\u2019arresto: dal morsetto 2 del salvamotore (a valle, dove prende la fase il comando) al morsetto 1 del fungo, e dal morsetto 2 del fungo al morsetto 1 dell\u2019arresto. Sono due fili: ma prima la procedura.": "\u064A\u0648\u0636\u0639 \u0623\u0648\u0644\u064B\u0627\u060C \u0642\u0628\u0644 \u0632\u0631 \u0627\u0644\u0625\u064A\u0642\u0627\u0641: \u0645\u0646 \u0627\u0644\u0645\u0631\u0628\u0637 2 \u0641\u064A \u0642\u0627\u0637\u0639 \u062D\u0645\u0627\u064A\u0629 \u0627\u0644\u0645\u062D\u0631\u0643 (\u0641\u064A \u0627\u0644\u0645\u0635\u0628\u060C \u062D\u064A\u062B \u062A\u0623\u062E\u0630 \u062F\u0627\u0626\u0631\u0629 \u0627\u0644\u062A\u062D\u0643\u0645 \u0627\u0644\u0637\u0648\u0631) \u0625\u0644\u0649 \u0627\u0644\u0645\u0631\u0628\u0637 1 \u0641\u064A \u0627\u0644\u0632\u0631 \u0627\u0644\u0641\u0637\u0631\u064A\u060C \u0648\u0645\u0646 \u0627\u0644\u0645\u0631\u0628\u0637 2 \u0641\u064A \u0627\u0644\u0632\u0631 \u0627\u0644\u0641\u0637\u0631\u064A \u0625\u0644\u0649 \u0627\u0644\u0645\u0631\u0628\u0637 1 \u0641\u064A \u0632\u0631 \u0627\u0644\u0625\u064A\u0642\u0627\u0641. \u0647\u0645\u0627 \u0633\u0644\u0643\u0627\u0646: \u0644\u0643\u0646 \u0627\u0644\u0625\u062C\u0631\u0627\u0621 \u0623\u0648\u0644\u064B\u0627.",
+    "Hai aperto il salvamotore ma non hai messo il lucchetto. Un collega, che non sa che stai lavorando, lo richiude. Che cosa succede?": "\u0641\u062A\u062D\u062A \u0642\u0627\u0637\u0639 \u062D\u0645\u0627\u064A\u0629 \u0627\u0644\u0645\u062D\u0631\u0643 \u0644\u0643\u0646\u0643 \u0644\u0645 \u062A\u0636\u0639 \u0627\u0644\u0642\u0641\u0644. \u0632\u0645\u064A\u0644 \u0644\u0627 \u064A\u0639\u0631\u0641 \u0623\u0646\u0643 \u062A\u0639\u0645\u0644 \u064A\u064F\u0639\u064A\u062F \u0625\u063A\u0644\u0627\u0642\u0647. \u0645\u0627\u0630\u0627 \u064A\u062D\u062F\u062B\u061F",
+    "Niente: i fili sono collegati e basta.": "\u0644\u0627 \u0634\u064A\u0621: \u0627\u0644\u0623\u0633\u0644\u0627\u0643 \u0645\u0648\u0635\u0648\u0644\u0629 \u0641\u0642\u0637.",
+    "La tensione torna sui fili mentre ci hai le mani: \xE8 il rischio che il lucchetto evita.": "\u064A\u0639\u0648\u062F \u0627\u0644\u062C\u0647\u062F \u0625\u0644\u0649 \u0627\u0644\u0623\u0633\u0644\u0627\u0643 \u0648\u0623\u0646\u062A \u062A\u0645\u0633\u0643\u0647\u0627: \u0647\u0630\u0627 \u0647\u0648 \u0627\u0644\u062E\u0637\u0631 \u0627\u0644\u0630\u064A \u064A\u062A\u0641\u0627\u062F\u0627\u0647 \u0627\u0644\u0642\u0641\u0644.",
+    "Il salvamotore scatta e si riapre da solo.": "\u064A\u0641\u0635\u0644 \u0642\u0627\u0637\u0639 \u062D\u0645\u0627\u064A\u0629 \u0627\u0644\u0645\u062D\u0631\u0643 \u0648\u064A\u064F\u0641\u062A\u062D \u0645\u0646 \u062C\u062F\u064A\u062F \u0648\u062D\u062F\u0647.",
+    "Un interruttore aperto si richiude con un dito, e chi lo fa non sa che stai lavorando. Il lucchetto impedisce la richiusura e dice agli altri che c\u2019\xE8 qualcuno al lavoro.": "\u0627\u0644\u0642\u0627\u0637\u0639 \u0627\u0644\u0645\u0641\u062A\u0648\u062D \u064A\u064F\u0639\u0627\u062F \u0625\u063A\u0644\u0627\u0642\u0647 \u0628\u0625\u0635\u0628\u0639\u060C \u0648\u0645\u0646 \u064A\u0641\u0639\u0644 \u0630\u0644\u0643 \u0644\u0627 \u064A\u0639\u0644\u0645 \u0623\u0646\u0643 \u062A\u0639\u0645\u0644. \u0627\u0644\u0642\u0641\u0644 \u064A\u0645\u0646\u0639 \u0625\u0639\u0627\u062F\u0629 \u0627\u0644\u0625\u063A\u0644\u0627\u0642 \u0648\u064A\u062E\u0628\u0631 \u0627\u0644\u0622\u062E\u0631\u064A\u0646 \u0628\u0648\u062C\u0648\u062F \u0645\u0646 \u064A\u0639\u0645\u0644.",
+    "Il multimetro legge 0 V tra il morsetto 2 del salvamotore e il neutro. Basta per dire che a valle non c\u2019\xE8 tensione?": "\u064A\u0642\u0631\u0623 \u062C\u0647\u0627\u0632 \u0627\u0644\u0642\u064A\u0627\u0633 \u0627\u0644\u0645\u062A\u0639\u062F\u062F 0 \u0641\u0648\u0644\u062A \u0628\u064A\u0646 \u0627\u0644\u0645\u0631\u0628\u0637 2 \u0641\u064A \u0642\u0627\u0637\u0639 \u062D\u0645\u0627\u064A\u0629 \u0627\u0644\u0645\u062D\u0631\u0643 \u0648\u0627\u0644\u0645\u062D\u0627\u064A\u062F. \u0647\u0644 \u064A\u0643\u0641\u064A \u0630\u0644\u0643 \u0644\u0644\u0642\u0648\u0644 \u0625\u0646\u0647 \u0644\u0627 \u064A\u0648\u062C\u062F \u062C\u0647\u062F \u0641\u064A \u0627\u0644\u0623\u0633\u0641\u0644\u061F",
+    "S\xEC: uno zero \xE8 uno zero.": "\u0646\u0639\u0645: \u0627\u0644\u0635\u0641\u0631 \u0635\u0641\u0631.",
+    "No: prima devi aver provato lo strumento su un punto in tensione, perch\xE9 uno strumento guasto legge zero comunque.": "\u0644\u0627: \u064A\u062C\u0628 \u0623\u0646 \u062A\u0643\u0648\u0646 \u0642\u062F \u062C\u0631\u0651\u0628\u062A \u0627\u0644\u062C\u0647\u0627\u0632 \u0623\u0648\u0644\u064B\u0627 \u0639\u0644\u0649 \u0646\u0642\u0637\u0629 \u062A\u062D\u062A \u0627\u0644\u062C\u0647\u062F\u060C \u0644\u0623\u0646 \u0627\u0644\u062C\u0647\u0627\u0632 \u0627\u0644\u0645\u0639\u0637\u0651\u0644 \u064A\u0642\u0631\u0623 \u0635\u0641\u0631\u064B\u0627 \u0641\u064A \u0643\u0644 \u0627\u0644\u0623\u062D\u0648\u0627\u0644.",
+    "S\xEC, ma solo se lo misuri due volte.": "\u0646\u0639\u0645\u060C \u0644\u0643\u0646 \u0641\u0642\u0637 \u0625\u0630\u0627 \u0642\u0633\u062A\u0647 \u0645\u0631\u062A\u064A\u0646.",
+    "Uno zero pu\xF2 venire da un impianto spento o da uno strumento rotto. Solo se lo stesso strumento ha appena letto 230 V su un punto in tensione, lo zero a valle significa che \xE8 davvero spento.": "\u0642\u062F \u064A\u0623\u062A\u064A \u0627\u0644\u0635\u0641\u0631 \u0645\u0646 \u062A\u0645\u062F\u064A\u062F \u0645\u0641\u0635\u0648\u0644 \u0623\u0648 \u0645\u0646 \u062C\u0647\u0627\u0632 \u0645\u0639\u0637\u0651\u0644. \u0641\u0642\u0637 \u0625\u0630\u0627 \u0643\u0627\u0646 \u0627\u0644\u062C\u0647\u0627\u0632 \u0646\u0641\u0633\u0647 \u0642\u062F \u0642\u0631\u0623 \u0644\u0644\u062A\u0648 230 \u0641\u0648\u0644\u062A \u0639\u0644\u0649 \u0646\u0642\u0637\u0629 \u062A\u062D\u062A \u0627\u0644\u062C\u0647\u062F\u060C \u064A\u0639\u0646\u064A \u0627\u0644\u0635\u0641\u0631 \u0641\u064A \u0627\u0644\u0623\u0633\u0641\u0644 \u0623\u0646\u0647 \u0645\u0641\u0635\u0648\u0644 \u0641\u0639\u0644\u064B\u0627.",
+    "Tocca la leva del salvamotore per aprirlo. Perch\xE9: senza la tensione a monte, i fili a valle sono spenti.": "\u0627\u0644\u0645\u0633 \u0630\u0631\u0627\u0639 \u0642\u0627\u0637\u0639 \u062D\u0645\u0627\u064A\u0629 \u0627\u0644\u0645\u062D\u0631\u0643 \u0644\u0641\u062A\u062D\u0647. \u0627\u0644\u0633\u0628\u0628: \u062F\u0648\u0646 \u0627\u0644\u062C\u0647\u062F \u0641\u064A \u0627\u0644\u0645\u0646\u0628\u0639 \u062A\u0643\u0648\u0646 \u0627\u0644\u0623\u0633\u0644\u0627\u0643 \u0641\u064A \u0627\u0644\u0645\u0635\u0628 \u0645\u0641\u0635\u0648\u0644\u0629.",
+    "Metti il lucchetto": "\u0636\u0639 \u0627\u0644\u0642\u0641\u0644",
+    "Tocca il pulsante con il lucchetto, accanto alla leva del salvamotore. Perch\xE9: da ora nessuno pu\xF2 richiuderlo mentre lavori.": "\u0627\u0644\u0645\u0633 \u0632\u0631 \u0627\u0644\u0642\u0641\u0644 \u0628\u062C\u0627\u0646\u0628 \u0630\u0631\u0627\u0639 \u0642\u0627\u0637\u0639 \u062D\u0645\u0627\u064A\u0629 \u0627\u0644\u0645\u062D\u0631\u0643. \u0627\u0644\u0633\u0628\u0628: \u0645\u0646 \u0627\u0644\u0622\u0646 \u0644\u0627 \u064A\u0633\u062A\u0637\u064A\u0639 \u0623\u062D\u062F \u0625\u0639\u0627\u062F\u0629 \u0625\u063A\u0644\u0627\u0642\u0647 \u0623\u062B\u0646\u0627\u0621 \u0639\u0645\u0644\u0643.",
+    "Prova lo strumento": "\u0627\u062E\u062A\u0628\u0631 \u0627\u0644\u062C\u0647\u0627\u0632",
+    "Accendi il multimetro e misura tra il morsetto 1 del salvamotore (a monte) e il neutro: devi leggere 230 V. Perch\xE9: se lo strumento legge 230 V dove la tensione c\u2019\xE8, uno zero a valle \xE8 affidabile.": "\u0634\u063A\u0651\u0644 \u062C\u0647\u0627\u0632 \u0627\u0644\u0642\u064A\u0627\u0633 \u0627\u0644\u0645\u062A\u0639\u062F\u062F \u0648\u0642\u0650\u0633 \u0628\u064A\u0646 \u0627\u0644\u0645\u0631\u0628\u0637 1 \u0641\u064A \u0642\u0627\u0637\u0639 \u062D\u0645\u0627\u064A\u0629 \u0627\u0644\u0645\u062D\u0631\u0643 (\u0641\u064A \u0627\u0644\u0645\u0646\u0628\u0639) \u0648\u0627\u0644\u0645\u062D\u0627\u064A\u062F: \u064A\u062C\u0628 \u0623\u0646 \u062A\u0642\u0631\u0623 230 \u0641\u0648\u0644\u062A. \u0627\u0644\u0633\u0628\u0628: \u0625\u0630\u0627 \u0642\u0631\u0623 \u0627\u0644\u062C\u0647\u0627\u0632 230 \u0641\u0648\u0644\u062A \u062D\u064A\u062B \u064A\u0648\u062C\u062F \u0627\u0644\u062C\u0647\u062F\u060C \u0641\u0627\u0644\u0635\u0641\u0631 \u0641\u064A \u0627\u0644\u0623\u0633\u0641\u0644 \u0645\u0648\u062B\u0648\u0642.",
+    "Verifica la prima fase": "\u062A\u062D\u0642\u0642 \u0645\u0646 \u0627\u0644\u0637\u0648\u0631 \u0627\u0644\u0623\u0648\u0644",
+    "Misura tra il morsetto 2 del salvamotore e il neutro: devi leggere 0 V. Perch\xE9: a valle non deve esserci tensione.": "\u0642\u0650\u0633 \u0628\u064A\u0646 \u0627\u0644\u0645\u0631\u0628\u0637 2 \u0641\u064A \u0642\u0627\u0637\u0639 \u062D\u0645\u0627\u064A\u0629 \u0627\u0644\u0645\u062D\u0631\u0643 \u0648\u0627\u0644\u0645\u062D\u0627\u064A\u062F: \u064A\u062C\u0628 \u0623\u0646 \u062A\u0642\u0631\u0623 0 \u0641\u0648\u0644\u062A. \u0627\u0644\u0633\u0628\u0628: \u064A\u062C\u0628 \u0623\u0644\u0627 \u064A\u0643\u0648\u0646 \u0647\u0646\u0627\u0643 \u062C\u0647\u062F \u0641\u064A \u0627\u0644\u0645\u0635\u0628.",
+    "Verifica la seconda fase": "\u062A\u062D\u0642\u0642 \u0645\u0646 \u0627\u0644\u0637\u0648\u0631 \u0627\u0644\u062B\u0627\u0646\u064A",
+    "Misura tra il morsetto 4 e il neutro: 0 V. Perch\xE9: una sola fase in tensione basta per prendere la scossa.": "\u0642\u0650\u0633 \u0628\u064A\u0646 \u0627\u0644\u0645\u0631\u0628\u0637 4 \u0648\u0627\u0644\u0645\u062D\u0627\u064A\u062F: 0 \u0641\u0648\u0644\u062A. \u0627\u0644\u0633\u0628\u0628: \u064A\u0643\u0641\u064A \u0637\u0648\u0631 \u0648\u0627\u062D\u062F \u062A\u062D\u062A \u0627\u0644\u062C\u0647\u062F \u0644\u062A\u062A\u0639\u0631\u0636 \u0644\u0644\u0635\u0639\u0642.",
+    "Verifica la terza fase": "\u062A\u062D\u0642\u0642 \u0645\u0646 \u0627\u0644\u0637\u0648\u0631 \u0627\u0644\u062B\u0627\u0644\u062B",
+    "Misura tra il morsetto 6 e il neutro: 0 V. Ora l\u2019assenza di tensione \xE8 verificata.": "\u0642\u0650\u0633 \u0628\u064A\u0646 \u0627\u0644\u0645\u0631\u0628\u0637 6 \u0648\u0627\u0644\u0645\u062D\u0627\u064A\u062F: 0 \u0641\u0648\u0644\u062A. \u0627\u0644\u0622\u0646 \u062A\u0645 \u0627\u0644\u062A\u062D\u0642\u0642 \u0645\u0646 \u0627\u0646\u0639\u062F\u0627\u0645 \u0627\u0644\u062C\u0647\u062F.",
+    "Dal salvamotore al fungo": "\u0645\u0646 \u0642\u0627\u0637\u0639 \u062D\u0645\u0627\u064A\u0629 \u0627\u0644\u0645\u062D\u0631\u0643 \u0625\u0644\u0649 \u0627\u0644\u0632\u0631 \u0627\u0644\u0641\u0637\u0631\u064A",
+    "Dal morsetto 2 del salvamotore al morsetto 1 del fungo, in rosso (comando). Perch\xE9: il fungo \xE8 il primo contatto del comando.": "\u0645\u0646 \u0627\u0644\u0645\u0631\u0628\u0637 2 \u0641\u064A \u0642\u0627\u0637\u0639 \u062D\u0645\u0627\u064A\u0629 \u0627\u0644\u0645\u062D\u0631\u0643 \u0625\u0644\u0649 \u0627\u0644\u0645\u0631\u0628\u0637 1 \u0641\u064A \u0627\u0644\u0632\u0631 \u0627\u0644\u0641\u0637\u0631\u064A\u060C \u0628\u0627\u0644\u0623\u062D\u0645\u0631 (\u0627\u0644\u062A\u062D\u0643\u0645). \u0627\u0644\u0633\u0628\u0628: \u0627\u0644\u0632\u0631 \u0627\u0644\u0641\u0637\u0631\u064A \u0647\u0648 \u0623\u0648\u0644 \u0645\u0644\u0627\u0645\u0633 \u0641\u064A \u062F\u0627\u0626\u0631\u0629 \u0627\u0644\u062A\u062D\u0643\u0645.",
+    "Dal fungo all\u2019arresto": "\u0645\u0646 \u0627\u0644\u0632\u0631 \u0627\u0644\u0641\u0637\u0631\u064A \u0625\u0644\u0649 \u0632\u0631 \u0627\u0644\u0625\u064A\u0642\u0627\u0641",
+    "Dal morsetto 2 del fungo al morsetto 1 dell\u2019arresto. Perch\xE9: fungo e arresto sono in serie, ne basta uno aperto per fermare la macchina.": "\u0645\u0646 \u0627\u0644\u0645\u0631\u0628\u0637 2 \u0641\u064A \u0627\u0644\u0632\u0631 \u0627\u0644\u0641\u0637\u0631\u064A \u0625\u0644\u0649 \u0627\u0644\u0645\u0631\u0628\u0637 1 \u0641\u064A \u0632\u0631 \u0627\u0644\u0625\u064A\u0642\u0627\u0641. \u0627\u0644\u0633\u0628\u0628: \u0627\u0644\u0632\u0631 \u0627\u0644\u0641\u0637\u0631\u064A \u0648\u0632\u0631 \u0627\u0644\u0625\u064A\u0642\u0627\u0641 \u0639\u0644\u0649 \u0627\u0644\u062A\u0648\u0627\u0644\u064A\u060C \u0648\u064A\u0643\u0641\u064A \u0623\u0646 \u064A\u064F\u0641\u062A\u062D \u0623\u062D\u062F\u0647\u0645\u0627 \u0644\u0625\u064A\u0642\u0627\u0641 \u0627\u0644\u0622\u0644\u0629.",
+    "Togli il lucchetto e collauda": "\u0623\u0632\u0644 \u0627\u0644\u0642\u0641\u0644 \u0648\u062C\u0631\u0651\u0628 \u0627\u0644\u062A\u0634\u063A\u064A\u0644",
+    "Togli il lucchetto, richiudi il salvamotore e prova: Marcia, poi il fungo.": "\u0623\u0632\u0644 \u0627\u0644\u0642\u0641\u0644\u060C \u0648\u0623\u0639\u062F \u0625\u063A\u0644\u0627\u0642 \u0642\u0627\u0637\u0639 \u062D\u0645\u0627\u064A\u0629 \u0627\u0644\u0645\u062D\u0631\u0643 \u0648\u062C\u0631\u0651\u0628: \u0627\u0644\u062A\u0634\u063A\u064A\u0644 \u062B\u0645 \u0627\u0644\u0632\u0631 \u0627\u0644\u0641\u0637\u0631\u064A.",
+    "Si lavora fuori tensione: sezionare, bloccare con il lucchetto, verificare l\u2019assenza di tensione, lavorare, rimettere in servizio. In questo ordine.": "\u0646\u0639\u0645\u0644 \u0648\u0627\u0644\u062A\u064A\u0627\u0631 \u0645\u0641\u0635\u0648\u0644: \u0627\u0644\u0641\u0635\u0644\u060C \u0648\u0627\u0644\u0642\u0641\u0644\u060C \u0648\u0627\u0644\u062A\u062D\u0642\u0642 \u0645\u0646 \u0627\u0646\u0639\u062F\u0627\u0645 \u0627\u0644\u062C\u0647\u062F\u060C \u062B\u0645 \u0627\u0644\u0639\u0645\u0644\u060C \u062B\u0645 \u0625\u0639\u0627\u062F\u0629 \u0627\u0644\u062A\u0634\u063A\u064A\u0644. \u0628\u0647\u0630\u0627 \u0627\u0644\u062A\u0631\u062A\u064A\u0628.",
+    "L\u2019interruttore aperto non basta: il lucchetto impedisce la richiusura e dice agli altri che qualcuno sta lavorando.": "\u0627\u0644\u0642\u0627\u0637\u0639 \u0627\u0644\u0645\u0641\u062A\u0648\u062D \u0644\u0627 \u064A\u0643\u0641\u064A: \u0627\u0644\u0642\u0641\u0644 \u064A\u0645\u0646\u0639 \u0625\u0639\u0627\u062F\u0629 \u0627\u0644\u0625\u063A\u0644\u0627\u0642 \u0648\u064A\u062E\u0628\u0631 \u0627\u0644\u0622\u062E\u0631\u064A\u0646 \u0628\u0648\u062C\u0648\u062F \u0645\u0646 \u064A\u0639\u0645\u0644.",
+    "Prima di verificare si prova lo strumento su un punto in tensione: uno strumento guasto legge zero comunque.": "\u0642\u0628\u0644 \u0627\u0644\u062A\u062D\u0642\u0642 \u064A\u064F\u062E\u062A\u0628\u0631 \u0627\u0644\u062C\u0647\u0627\u0632 \u0639\u0644\u0649 \u0646\u0642\u0637\u0629 \u062A\u062D\u062A \u0627\u0644\u062C\u0647\u062F: \u0627\u0644\u062C\u0647\u0627\u0632 \u0627\u0644\u0645\u0639\u0637\u0651\u0644 \u064A\u0642\u0631\u0623 \u0635\u0641\u0631\u064B\u0627 \u0641\u064A \u0643\u0644 \u0627\u0644\u0623\u062D\u0648\u0627\u0644.",
+    "Si verificano tutte le fasi: una sola fase in tensione \xE8 gi\xE0 pericolosa.": "\u062A\u064F\u0641\u062D\u0635 \u0643\u0644 \u0627\u0644\u0623\u0637\u0648\u0627\u0631: \u0637\u0648\u0631 \u0648\u0627\u062D\u062F \u062A\u062D\u062A \u0627\u0644\u062C\u0647\u062F \u062E\u0637\u0631 \u0628\u062D\u062F \u0630\u0627\u062A\u0647.",
+    "Il fungo di emergenza \xE8 un contatto normalmente chiuso in serie al comando, come l\u2019arresto.": "\u0627\u0644\u0632\u0631 \u0627\u0644\u0641\u0637\u0631\u064A \u0644\u0644\u0637\u0648\u0627\u0631\u0626 \u0645\u0644\u0627\u0645\u0633 \u0645\u063A\u0644\u0642 \u0639\u0627\u062F\u0629\u064B \u0639\u0644\u0649 \u0627\u0644\u062A\u0648\u0627\u0644\u064A \u0645\u0639 \u0627\u0644\u062A\u062D\u0643\u0645\u060C \u0645\u062B\u0644 \u0632\u0631 \u0627\u0644\u0625\u064A\u0642\u0627\u0641.",
+    "L\u2019impianto \xE8 cablato con il fungo e l\u2019arresto. Premendo il fungo il motore si ferma, ma premendo Arresto il motore non si ferma pi\xF9. Guarda come \xE8 collegato il fungo.": "\u0627\u0644\u062A\u0645\u062F\u064A\u062F \u0645\u0646\u0641\u064E\u0651\u0630 \u0645\u0639 \u0627\u0644\u0632\u0631 \u0627\u0644\u0641\u0637\u0631\u064A \u0648\u0632\u0631 \u0627\u0644\u0625\u064A\u0642\u0627\u0641. \u0639\u0646\u062F \u0636\u063A\u0637 \u0627\u0644\u0632\u0631 \u0627\u0644\u0641\u0637\u0631\u064A \u064A\u062A\u0648\u0642\u0641 \u0627\u0644\u0645\u062D\u0631\u0643\u060C \u0644\u0643\u0646 \u0639\u0646\u062F \u0636\u063A\u0637 \u0627\u0644\u0625\u064A\u0642\u0627\u0641 \u0644\u0627 \u064A\u062A\u0648\u0642\u0641 \u0627\u0644\u0645\u062D\u0631\u0643. \u0627\u0646\u0638\u0631 \u0643\u064A\u0641 \u0648\u064F\u0635\u0644 \u0627\u0644\u0632\u0631 \u0627\u0644\u0641\u0637\u0631\u064A.",
+    "Perch\xE9 Arresto non ferma pi\xF9 il motore?": "\u0644\u0645\u0627\u0630\u0627 \u0644\u0645 \u064A\u0639\u062F \u0632\u0631 \u0627\u0644\u0625\u064A\u0642\u0627\u0641 \u064A\u0648\u0642\u0641 \u0627\u0644\u0645\u062D\u0631\u0643\u061F",
+    "Il fungo \xE8 in parallelo all\u2019arresto: con due contatti in parallelo ne basta uno chiuso, e il fungo a riposo \xE8 chiuso.": "\u0627\u0644\u0632\u0631 \u0627\u0644\u0641\u0637\u0631\u064A \u0639\u0644\u0649 \u0627\u0644\u062A\u0648\u0627\u0632\u064A \u0645\u0639 \u0632\u0631 \u0627\u0644\u0625\u064A\u0642\u0627\u0641: \u0645\u0639 \u0645\u0644\u0627\u0645\u0633\u064A\u0646 \u0639\u0644\u0649 \u0627\u0644\u062A\u0648\u0627\u0632\u064A \u064A\u0643\u0641\u064A \u0623\u0646 \u064A\u0643\u0648\u0646 \u0623\u062D\u062F\u0647\u0645\u0627 \u0645\u063A\u0644\u0642\u064B\u0627\u060C \u0648\u0627\u0644\u0632\u0631 \u0627\u0644\u0641\u0637\u0631\u064A \u0641\u064A \u0627\u0644\u0631\u0627\u062D\u0629 \u0645\u063A\u0644\u0642.",
+    "Il pulsante di arresto \xE8 guasto.": "\u0632\u0631 \u0627\u0644\u0625\u064A\u0642\u0627\u0641 \u0645\u0639\u0637\u0651\u0644.",
+    "Il contattore ha il contatto incollato.": "\u0645\u0644\u0627\u0645\u0633 \u0627\u0644\u0643\u0648\u0646\u062A\u0627\u0643\u062A\u0648\u0631 \u0645\u0644\u062A\u0635\u0642.",
+    "Il fungo \xE8 un contatto normalmente chiuso messo in parallelo ai morsetti dell\u2019arresto: la fase passa dal fungo anche quando l\u2019arresto \xE8 aperto. Per fermare la macchina ogni contatto di sicurezza deve essere in serie, cos\xEC basta che uno solo si apra.": "\u0627\u0644\u0632\u0631 \u0627\u0644\u0641\u0637\u0631\u064A \u0645\u0644\u0627\u0645\u0633 \u0645\u063A\u0644\u0642 \u0639\u0627\u062F\u0629\u064B \u0645\u0648\u0636\u0648\u0639 \u0639\u0644\u0649 \u0627\u0644\u062A\u0648\u0627\u0632\u064A \u0645\u0639 \u0645\u0631\u0628\u0637\u064A \u0632\u0631 \u0627\u0644\u0625\u064A\u0642\u0627\u0641: \u064A\u0645\u0631\u0651 \u0627\u0644\u0637\u0648\u0631 \u0639\u0628\u0631 \u0627\u0644\u0632\u0631 \u0627\u0644\u0641\u0637\u0631\u064A \u062D\u062A\u0649 \u0639\u0646\u062F\u0645\u0627 \u064A\u0643\u0648\u0646 \u0632\u0631 \u0627\u0644\u0625\u064A\u0642\u0627\u0641 \u0645\u0641\u062A\u0648\u062D\u064B\u0627. \u0644\u0625\u064A\u0642\u0627\u0641 \u0627\u0644\u0622\u0644\u0629 \u064A\u062C\u0628 \u0623\u0646 \u064A\u0643\u0648\u0646 \u0643\u0644 \u0645\u0644\u0627\u0645\u0633 \u0623\u0645\u0627\u0646 \u0639\u0644\u0649 \u0627\u0644\u062A\u0648\u0627\u0644\u064A\u060C \u0641\u064A\u0643\u0641\u064A \u0623\u0646 \u064A\u0646\u0641\u062A\u062D \u0648\u0627\u062D\u062F.",
+    "Togli i fili del fungo. Collega il morsetto 2 del salvamotore al morsetto 1 del fungo e il morsetto 2 del fungo al morsetto 1 dell\u2019arresto. Ricorda la procedura: salvamotore aperto, lucchetto, verifica. Poi premi Verifica.": "\u0623\u0632\u0644 \u0623\u0633\u0644\u0627\u0643 \u0627\u0644\u0632\u0631 \u0627\u0644\u0641\u0637\u0631\u064A. \u0635\u0650\u0644 \u0627\u0644\u0645\u0631\u0628\u0637 2 \u0641\u064A \u0642\u0627\u0637\u0639 \u062D\u0645\u0627\u064A\u0629 \u0627\u0644\u0645\u062D\u0631\u0643 \u0628\u0627\u0644\u0645\u0631\u0628\u0637 1 \u0641\u064A \u0627\u0644\u0632\u0631 \u0627\u0644\u0641\u0637\u0631\u064A\u060C \u0648\u0627\u0644\u0645\u0631\u0628\u0637 2 \u0641\u064A \u0627\u0644\u0632\u0631 \u0627\u0644\u0641\u0637\u0631\u064A \u0628\u0627\u0644\u0645\u0631\u0628\u0637 1 \u0641\u064A \u0632\u0631 \u0627\u0644\u0625\u064A\u0642\u0627\u0641. \u062A\u0630\u0643\u0651\u0631 \u0627\u0644\u0625\u062C\u0631\u0627\u0621: \u0642\u0627\u0637\u0639 \u062D\u0645\u0627\u064A\u0629 \u0627\u0644\u0645\u062D\u0631\u0643 \u0645\u0641\u062A\u0648\u062D\u060C \u062B\u0645 \u0627\u0644\u0642\u0641\u0644\u060C \u062B\u0645 \u0627\u0644\u062A\u062D\u0642\u0642. \u062B\u0645 \u0627\u0636\u063A\u0637 \xAB\u062A\u062D\u0642\u0642\xBB.",
+    // ---------- c53 La gestione dei carichi ----------
+    "Pi\xF9 carichi e un solo contatore: chi si stacca per primo, e quando pu\xF2 ripartire.": "\u0639\u062F\u0629 \u0623\u062D\u0645\u0627\u0644 \u0648\u0639\u062F\u0651\u0627\u062F \u0648\u0627\u062D\u062F: \u0645\u0646 \u064A\u064F\u0641\u0635\u0644 \u0623\u0648\u0644\u064B\u0627\u060C \u0648\u0645\u062A\u0649 \u064A\u0645\u0643\u0646\u0647 \u0627\u0644\u0639\u0648\u062F\u0629.",
+    "Una sera d\u2019inverno: il contatore da 6 kW stacca tutta la casa se la potenza prelevata resta sopra il limite per pi\xF9 di 20 secondi. Il PLC comanda la colonnina (3,7 kW) e la pompa di calore (1,5 kW). Dalle 19:30 alle 20:30 le persone cucinano con il forno (3,5 kW), che il PLC non pu\xF2 staccare. Scrivi il programma: sopra la soglia si stacca prima la colonnina e, se non basta, la pompa di calore; riattaccano solo quando c\u2019\xE8 margine che dura, prima la pompa di calore e poi la colonnina, senza pendolare.": "\u0645\u0633\u0627\u0621 \u0634\u062A\u0648\u064A: \u0627\u0644\u0639\u062F\u0651\u0627\u062F \u0628\u0642\u062F\u0631\u0629 6 \u0643\u064A\u0644\u0648\u0648\u0627\u0637 \u064A\u0641\u0635\u0644 \u0627\u0644\u0645\u0646\u0632\u0644 \u0643\u0644\u0647 \u0625\u0630\u0627 \u0628\u0642\u064A\u062A \u0627\u0644\u0642\u062F\u0631\u0629 \u0627\u0644\u0645\u0633\u062D\u0648\u0628\u0629 \u0641\u0648\u0642 \u0627\u0644\u062D\u062F \u0623\u0643\u062B\u0631 \u0645\u0646 20 \u062B\u0627\u0646\u064A\u0629. \u064A\u062A\u062D\u0643\u0645 \u0627\u0644\u0640 PLC \u0641\u064A \u0645\u062D\u0637\u0629 \u0627\u0644\u0634\u062D\u0646 (3,7 \u0643\u064A\u0644\u0648\u0648\u0627\u0637) \u0648\u0627\u0644\u0645\u0636\u062E\u0629 \u0627\u0644\u062D\u0631\u0627\u0631\u064A\u0629 (1,5 \u0643\u064A\u0644\u0648\u0648\u0627\u0637). \u0645\u0646 19:30 \u0625\u0644\u0649 20:30 \u064A\u0637\u0647\u0648 \u0627\u0644\u0646\u0627\u0633 \u0628\u0627\u0644\u0641\u0631\u0646 (3,5 \u0643\u064A\u0644\u0648\u0648\u0627\u0637) \u0627\u0644\u0630\u064A \u0644\u0627 \u064A\u0633\u062A\u0637\u064A\u0639 \u0627\u0644\u0640 PLC \u0641\u0635\u0644\u0647. \u0627\u0643\u062A\u0628 \u0627\u0644\u0628\u0631\u0646\u0627\u0645\u062C: \u0641\u0648\u0642 \u0627\u0644\u0639\u062A\u0628\u0629 \u062A\u064F\u0641\u0635\u0644 \u0645\u062D\u0637\u0629 \u0627\u0644\u0634\u062D\u0646 \u0623\u0648\u0644\u064B\u0627 \u0648\u0625\u0646 \u0644\u0645 \u064A\u0643\u0641 \u0641\u0627\u0644\u0645\u0636\u062E\u0629 \u0627\u0644\u062D\u0631\u0627\u0631\u064A\u0629\u061B \u0648\u0644\u0627 \u064A\u064F\u0639\u0627\u062F \u0627\u0644\u0648\u0635\u0644 \u0625\u0644\u0627 \u0639\u0646\u062F \u0648\u062C\u0648\u062F \u0647\u0627\u0645\u0634 \u064A\u062F\u0648\u0645\u060C \u0627\u0644\u0645\u0636\u062E\u0629 \u0627\u0644\u062D\u0631\u0627\u0631\u064A\u0629 \u0623\u0648\u0644\u064B\u0627 \u062B\u0645 \u0645\u062D\u0637\u0629 \u0627\u0644\u0634\u062D\u0646\u060C \u062F\u0648\u0646 \u062A\u0630\u0628\u0630\u0628.",
+    "Pompa di calore": "\u0627\u0644\u0645\u0636\u062E\u0629 \u0627\u0644\u062D\u0631\u0627\u0631\u064A\u0629",
+    "Margine per la pompa": "\u0647\u0627\u0645\u0634 \u0644\u0644\u0645\u0636\u062E\u0629",
+    "Margine per la colonnina": "\u0647\u0627\u0645\u0634 \u0644\u0645\u062D\u0637\u0629 \u0627\u0644\u0634\u062D\u0646",
+    "Pompa di calore in funzione": "\u0627\u0644\u0645\u0636\u062E\u0629 \u0627\u0644\u062D\u0631\u0627\u0631\u064A\u0629 \u062A\u0639\u0645\u0644",
+    "La casa di sera con il forno acceso, la colonnina e la pompa di calore": "\u0627\u0644\u0645\u0646\u0632\u0644 \u0645\u0633\u0627\u0621\u064B \u0645\u0639 \u0627\u0644\u0641\u0631\u0646 \u0627\u0644\u0645\u0634\u063A\u064E\u0651\u0644 \u0648\u0645\u062D\u0637\u0629 \u0627\u0644\u0634\u062D\u0646 \u0648\u0627\u0644\u0645\u0636\u062E\u0629 \u0627\u0644\u062D\u0631\u0627\u0631\u064A\u0629",
+    "Il contatore non stacca mai: la casa resta alimentata per tutta la serata": "\u0627\u0644\u0639\u062F\u0651\u0627\u062F \u0644\u0627 \u064A\u0641\u0635\u0644 \u0623\u0628\u062F\u064B\u0627: \u064A\u0628\u0642\u0649 \u0627\u0644\u0645\u0646\u0632\u0644 \u0645\u063A\u0630\u0651\u0649 \u0637\u0648\u0627\u0644 \u0627\u0644\u0633\u0647\u0631\u0629",
+    "L\u2019auto si carica comunque: almeno 2 kWh": "\u0627\u0644\u0633\u064A\u0627\u0631\u0629 \u062A\u064F\u0634\u062D\u0646 \u0645\u0639 \u0630\u0644\u0643: 2 \u0643\u064A\u0644\u0648\u0648\u0627\u0637 \u0633\u0627\u0639\u0629 \u0639\u0644\u0649 \u0627\u0644\u0623\u0642\u0644",
+    "La colonnina e la pompa di calore non si accendono e si spengono di continuo": "\u0645\u062D\u0637\u0629 \u0627\u0644\u0634\u062D\u0646 \u0648\u0627\u0644\u0645\u0636\u062E\u0629 \u0627\u0644\u062D\u0631\u0627\u0631\u064A\u0629 \u0644\u0627 \u062A\u064F\u0634\u063A\u064E\u0651\u0644\u0627\u0646 \u0648\u062A\u064F\u0637\u0641\u0622\u0646 \u0628\u0627\u0633\u062A\u0645\u0631\u0627\u0631",
+    "La potenza della rete \xE8 in MW0, in watt. Il limite \xE8 6000 W: stacca prima, per esempio sopra 5800 W, perch\xE9 il contatore aspetta 20 secondi ma il forno non aspetta.": "\u0642\u062F\u0631\u0629 \u0627\u0644\u0634\u0628\u0643\u0629 \u0641\u064A MW0\u060C \u0628\u0627\u0644\u0648\u0627\u0637. \u0627\u0644\u062D\u062F 6000 \u0648\u0627\u0637: \u0627\u0641\u0635\u0644 \u0642\u0628\u0644 \u0630\u0644\u0643\u060C \u0645\u062B\u0644\u064B\u0627 \u0641\u0648\u0642 5800 \u0648\u0627\u0637\u060C \u0644\u0623\u0646 \u0627\u0644\u0639\u062F\u0651\u0627\u062F \u064A\u0646\u062A\u0638\u0631 20 \u062B\u0627\u0646\u064A\u0629 \u0644\u0643\u0646 \u0627\u0644\u0641\u0631\u0646 \u0644\u0627 \u064A\u0646\u062A\u0638\u0631.",
+    "Priorit\xE0: sopra la soglia Reset su Q0 (la colonnina) se \xE8 accesa; se la colonnina \xE8 gi\xE0 staccata e la potenza \xE8 ancora alta, Reset su Q1 (la pompa di calore). Il secondo gradino ha come condizione \u201CMW0 maggiore di 5800 E Q0 spenta\u201D.": "\u0627\u0644\u0623\u0648\u0644\u0648\u064A\u0629: \u0641\u0648\u0642 \u0627\u0644\u0639\u062A\u0628\u0629 Reset \u0639\u0644\u0649 Q0 (\u0645\u062D\u0637\u0629 \u0627\u0644\u0634\u062D\u0646) \u0625\u0646 \u0643\u0627\u0646\u062A \u062A\u0639\u0645\u0644\u061B \u0648\u0625\u0630\u0627 \u0643\u0627\u0646\u062A \u0645\u062D\u0637\u0629 \u0627\u0644\u0634\u062D\u0646 \u0645\u0641\u0635\u0648\u0644\u0629 \u0648\u0627\u0644\u0642\u062F\u0631\u0629 \u0645\u0627 \u0632\u0627\u0644\u062A \u0639\u0627\u0644\u064A\u0629\u060C Reset \u0639\u0644\u0649 Q1 (\u0627\u0644\u0645\u0636\u062E\u0629 \u0627\u0644\u062D\u0631\u0627\u0631\u064A\u0629). \u0634\u0631\u0637 \u0627\u0644\u062F\u0631\u062C\u0629 \u0627\u0644\u062B\u0627\u0646\u064A\u0629 \u0647\u0648 \xABMW0 \u0623\u0643\u0628\u0631 \u0645\u0646 5800 \u0648 Q0 \u0645\u0637\u0641\u0623\u0629\xBB.",
+    "Per riattaccare serve margine che dura. Un temporizzatore (TON) da 30 secondi con la condizione \u201CMW0 minore di 4200\u201D: quando scatta, Set su Q1 (la pompa riparte per prima, \xE8 pi\xF9 importante).": "\u0644\u0625\u0639\u0627\u062F\u0629 \u0627\u0644\u0648\u0635\u0644 \u064A\u0644\u0632\u0645 \u0647\u0627\u0645\u0634 \u064A\u062F\u0648\u0645. \u0645\u0624\u0642\u0651\u062A (TON) \u0628\u0645\u062F\u0629 30 \u062B\u0627\u0646\u064A\u0629 \u0628\u0634\u0631\u0637 \xABMW0 \u0623\u0635\u063A\u0631 \u0645\u0646 4200\xBB: \u0648\u0639\u0646\u062F\u0645\u0627 \u064A\u0646\u062A\u0647\u064A\u060C Set \u0639\u0644\u0649 Q1 (\u062A\u0639\u0648\u062F \u0627\u0644\u0645\u0636\u062E\u0629 \u0623\u0648\u0644\u064B\u0627 \u0641\u0647\u064A \u0627\u0644\u0623\u0647\u0645).",
+    "Per la colonnina serve pi\xF9 margine, perch\xE9 assorbe 3,7 kW: un secondo TON da 30 secondi con la condizione \u201CMW0 minore di 2000 E Q1 accesa\u201D, e quando scatta Set su Q0. Senza questi ritardi la potenza torna sotto soglia appena stacchi un carico, quindi riattacchi subito e la potenza risale: i carichi pendolano.": "\u0644\u0645\u062D\u0637\u0629 \u0627\u0644\u0634\u062D\u0646 \u064A\u0644\u0632\u0645 \u0647\u0627\u0645\u0634 \u0623\u0643\u0628\u0631 \u0644\u0623\u0646\u0647\u0627 \u062A\u0633\u062D\u0628 3,7 \u0643\u064A\u0644\u0648\u0648\u0627\u0637: \u0645\u0624\u0642\u0651\u062A TON \u062B\u0627\u0646\u064D \u0628\u0645\u062F\u0629 30 \u062B\u0627\u0646\u064A\u0629 \u0628\u0634\u0631\u0637 \xABMW0 \u0623\u0635\u063A\u0631 \u0645\u0646 2000 \u0648 Q1 \u062A\u0639\u0645\u0644\xBB\u060C \u0648\u0639\u0646\u062F \u0627\u0646\u062A\u0647\u0627\u0626\u0647 Set \u0639\u0644\u0649 Q0. \u062F\u0648\u0646 \u0647\u0630\u0647 \u0627\u0644\u062A\u0623\u062E\u064A\u0631\u0627\u062A \u062A\u0639\u0648\u062F \u0627\u0644\u0642\u062F\u0631\u0629 \u062A\u062D\u062A \u0627\u0644\u0639\u062A\u0628\u0629 \u0641\u0648\u0631 \u0641\u0635\u0644 \u062D\u0650\u0645\u0644\u060C \u0641\u062A\u0639\u064A\u062F \u0627\u0644\u0648\u0635\u0644 \u0641\u0648\u0631\u064B\u0627 \u0648\u062A\u0631\u062A\u0641\u0639 \u0627\u0644\u0642\u062F\u0631\u0629: \u0641\u062A\u062A\u0630\u0628\u0630\u0628 \u0627\u0644\u0623\u062D\u0645\u0627\u0644.",
+    "Un contatore, tanti carichi": "\u0639\u062F\u0651\u0627\u062F \u0648\u0627\u062D\u062F\u060C \u0623\u062D\u0645\u0627\u0644 \u0643\u062B\u064A\u0631\u0629",
+    "Il contatore della casa ha un limite di potenza: 6 kW. Se la casa preleva di pi\xF9 per pi\xF9 di 20 secondi, il contatore stacca tutto e al buio ci va l\u2019intera casa. In una sera d\u2019inverno i carichi si sommano: l\u2019auto in carica, la pompa di calore, il forno, le luci.": "\u0644\u0639\u062F\u0651\u0627\u062F \u0627\u0644\u0645\u0646\u0632\u0644 \u062D\u062F \u0644\u0644\u0642\u062F\u0631\u0629: 6 \u0643\u064A\u0644\u0648\u0648\u0627\u0637. \u0625\u0630\u0627 \u0633\u062D\u0628 \u0627\u0644\u0645\u0646\u0632\u0644 \u0623\u0643\u062B\u0631 \u0645\u0646 \u0630\u0644\u0643 \u0644\u0623\u0643\u062B\u0631 \u0645\u0646 20 \u062B\u0627\u0646\u064A\u0629 \u064A\u0641\u0635\u0644 \u0627\u0644\u0639\u062F\u0651\u0627\u062F \u0643\u0644 \u0634\u064A\u0621 \u0648\u064A\u063A\u0631\u0642 \u0627\u0644\u0645\u0646\u0632\u0644 \u0643\u0644\u0647 \u0641\u064A \u0627\u0644\u0638\u0644\u0627\u0645. \u0648\u0641\u064A \u0645\u0633\u0627\u0621 \u0634\u062A\u0648\u064A \u062A\u062A\u0631\u0627\u0643\u0645 \u0627\u0644\u0623\u062D\u0645\u0627\u0644: \u0627\u0644\u0633\u064A\u0627\u0631\u0629 \u0642\u064A\u062F \u0627\u0644\u0634\u062D\u0646\u060C \u0648\u0627\u0644\u0645\u0636\u062E\u0629 \u0627\u0644\u062D\u0631\u0627\u0631\u064A\u0629\u060C \u0648\u0627\u0644\u0641\u0631\u0646\u060C \u0648\u0627\u0644\u0625\u0636\u0627\u0621\u0629.",
+    "Sommati fanno pi\xF9 del limite, e allora qualcuno deve aspettare. Il PLC comanda l\u2019auto e la pompa di calore. Il forno no: lo accendono le persone, e il PLC non pu\xF2 spegnerlo.": "\u0645\u062C\u062A\u0645\u0639\u0629\u064B \u062A\u062A\u062C\u0627\u0648\u0632 \u0627\u0644\u062D\u062F\u060C \u0648\u0644\u0630\u0644\u0643 \u064A\u062C\u0628 \u0623\u0646 \u064A\u0646\u062A\u0638\u0631 \u0623\u062D\u062F\u0647\u0627. \u064A\u062A\u062D\u0643\u0645 \u0627\u0644\u0640 PLC \u0641\u064A \u0627\u0644\u0633\u064A\u0627\u0631\u0629 \u0648\u0627\u0644\u0645\u0636\u062E\u0629 \u0627\u0644\u062D\u0631\u0627\u0631\u064A\u0629. \u0623\u0645\u0627 \u0627\u0644\u0641\u0631\u0646 \u0641\u0644\u0627: \u064A\u0634\u063A\u0651\u0644\u0647 \u0627\u0644\u0646\u0627\u0633 \u0648\u0644\u0627 \u064A\u0633\u062A\u0637\u064A\u0639 \u0627\u0644\u0640 PLC \u0625\u0637\u0641\u0627\u0621\u0647.",
+    "Lo comanda il PLC?": "\u0647\u0644 \u064A\u062A\u062D\u0643\u0645 \u0628\u0647 \u0627\u0644\u0640 PLC\u061F",
+    "Colonnina (auto)": "\u0645\u062D\u0637\u0629 \u0627\u0644\u0634\u062D\u0646 (\u0627\u0644\u0633\u064A\u0627\u0631\u0629)",
+    "Forno (19:30-20:30)": "\u0627\u0644\u0641\u0631\u0646 (19:30-20:30)",
+    "Resto della casa": "\u0628\u0642\u064A\u0629 \u0627\u0644\u0645\u0646\u0632\u0644",
+    "no, lo accendono le persone": "\u0644\u0627\u060C \u064A\u0634\u063A\u0651\u0644\u0647 \u0627\u0644\u0646\u0627\u0633",
+    "Il contatore stacca dopo 20 secondi sopra il limite: il PLC deve intervenire prima, con un po\u2019 di scorta sotto i 6 kW.": "\u064A\u0641\u0635\u0644 \u0627\u0644\u0639\u062F\u0651\u0627\u062F \u0628\u0639\u062F 20 \u062B\u0627\u0646\u064A\u0629 \u0641\u0648\u0642 \u0627\u0644\u062D\u062F: \u064A\u062C\u0628 \u0623\u0646 \u064A\u062A\u062F\u062E\u0644 \u0627\u0644\u0640 PLC \u0642\u0628\u0644 \u0630\u0644\u0643\u060C \u0645\u0639 \u0647\u0627\u0645\u0634 \u0628\u0633\u064A\u0637 \u062A\u062D\u062A 6 \u0643\u064A\u0644\u0648\u0648\u0627\u0637.",
+    "La priorit\xE0: chi si stacca per primo": "\u0627\u0644\u0623\u0648\u0644\u0648\u064A\u0629: \u0645\u0646 \u064A\u064F\u0641\u0635\u0644 \u0623\u0648\u0644\u064B\u0627",
+    "Si stacca per primo il carico che d\xE0 meno fastidio. L\u2019auto pu\xF2 caricarsi anche pi\xF9 tardi, nessuno se ne accorge. La pompa di calore ha un\u2019inerzia: la casa \xE8 calda e qualche minuto senza non si sente. Il forno e le luci no: se si spengono se ne accorgono subito.": "\u064A\u064F\u0641\u0635\u0644 \u0623\u0648\u0644\u064B\u0627 \u0627\u0644\u062D\u0650\u0645\u0644 \u0627\u0644\u0630\u064A \u064A\u0633\u0628\u0628 \u0623\u0642\u0644 \u0625\u0632\u0639\u0627\u062C. \u064A\u0645\u0643\u0646 \u0634\u062D\u0646 \u0627\u0644\u0633\u064A\u0627\u0631\u0629 \u0644\u0627\u062D\u0642\u064B\u0627 \u0648\u0644\u0627 \u064A\u0644\u0627\u062D\u0638 \u0623\u062D\u062F. \u0648\u0644\u0644\u0645\u0636\u062E\u0629 \u0627\u0644\u062D\u0631\u0627\u0631\u064A\u0629 \u0642\u0635\u0648\u0631 \u062D\u0631\u0627\u0631\u064A: \u0627\u0644\u0645\u0646\u0632\u0644 \u062F\u0627\u0641\u0626 \u0648\u062F\u0642\u0627\u0626\u0642 \u062F\u0648\u0646\u0647\u0627 \u0644\u0627 \u062A\u064F\u062D\u064E\u0633\u0651. \u0623\u0645\u0627 \u0627\u0644\u0641\u0631\u0646 \u0648\u0627\u0644\u0625\u0636\u0627\u0621\u0629 \u0641\u0644\u0627: \u0625\u0630\u0627 \u0627\u0646\u0637\u0641\u0622 \u064A\u0644\u0627\u062D\u0638 \u0627\u0644\u062C\u0645\u064A\u0639 \u0641\u0648\u0631\u064B\u0627.",
+    "Quindi: si stacca la colonnina; se non basta, anche la pompa di calore. Quando torna il margine, si riattaccano al contrario: prima la pompa di calore (pi\xF9 importante), poi la colonnina.": "\u0625\u0630\u0646: \u062A\u064F\u0641\u0635\u0644 \u0645\u062D\u0637\u0629 \u0627\u0644\u0634\u062D\u0646\u061B \u0648\u0625\u0646 \u0644\u0645 \u064A\u0643\u0641 \u0641\u0627\u0644\u0645\u0636\u062E\u0629 \u0627\u0644\u062D\u0631\u0627\u0631\u064A\u0629 \u0623\u064A\u0636\u064B\u0627. \u0648\u0639\u0646\u062F\u0645\u0627 \u064A\u0639\u0648\u062F \u0627\u0644\u0647\u0627\u0645\u0634 \u064A\u064F\u0639\u0627\u062F \u0627\u0644\u0648\u0635\u0644 \u0628\u0627\u0644\u0639\u0643\u0633: \u0627\u0644\u0645\u0636\u062E\u0629 \u0627\u0644\u062D\u0631\u0627\u0631\u064A\u0629 \u0623\u0648\u0644\u064B\u0627 (\u0627\u0644\u0623\u0647\u0645) \u062B\u0645 \u0645\u062D\u0637\u0629 \u0627\u0644\u0634\u062D\u0646.",
+    "Ordine di distacco": "\u062A\u0631\u062A\u064A\u0628 \u0627\u0644\u0641\u0635\u0644",
+    "mai": "\u0623\u0628\u062F\u064B\u0627",
+    "colonnina": "\u0645\u062D\u0637\u0629 \u0627\u0644\u0634\u062D\u0646",
+    "pompa di calore": "\u0627\u0644\u0645\u0636\u062E\u0629 \u0627\u0644\u062D\u0631\u0627\u0631\u064A\u0629",
+    "forno e luci": "\u0627\u0644\u0641\u0631\u0646 \u0648\u0627\u0644\u0625\u0636\u0627\u0621\u0629",
+    "pu\xF2 aspettare, nessuno se ne accorge": "\u064A\u0645\u0643\u0646\u0647\u0627 \u0627\u0644\u0627\u0646\u062A\u0638\u0627\u0631 \u0648\u0644\u0627 \u064A\u0644\u0627\u062D\u0638 \u0623\u062D\u062F",
+    "la casa ha inerzia, per qualche minuto non si sente": "\u0644\u0644\u0645\u0646\u0632\u0644 \u0642\u0635\u0648\u0631 \u062D\u0631\u0627\u0631\u064A\u060C \u0648\u0644\u062F\u0642\u0627\u0626\u0642 \u0644\u0627 \u064A\u064F\u062D\u064E\u0633\u0651",
+    "se si spengono se ne accorgono subito": "\u0625\u0630\u0627 \u0627\u0646\u0637\u0641\u0622 \u064A\u0644\u0627\u062D\u0638 \u0627\u0644\u062C\u0645\u064A\u0639 \u0641\u0648\u0631\u064B\u0627",
+    "Soglie diverse per staccare e per riattaccare": "\u0639\u062A\u0628\u0627\u062A \u0645\u062E\u062A\u0644\u0641\u0629 \u0644\u0644\u0641\u0635\u0644 \u0648\u0644\u0625\u0639\u0627\u062F\u0629 \u0627\u0644\u0648\u0635\u0644",
+    "Si stacca sopra una soglia alta, per esempio 5800 W, poco sotto il limite. Si riattacca solo sotto una soglia pi\xF9 bassa, scelta cos\xEC: la soglia di riattacco pi\xF9 la potenza del carico deve restare sotto la soglia di distacco.": "\u064A\u064F\u0641\u0635\u0644 \u0641\u0648\u0642 \u0639\u062A\u0628\u0629 \u0639\u0627\u0644\u064A\u0629\u060C \u0645\u062B\u0644\u064B\u0627 5800 \u0648\u0627\u0637\u060C \u0623\u0642\u0644 \u0628\u0642\u0644\u064A\u0644 \u0645\u0646 \u0627\u0644\u062D\u062F. \u0648\u0644\u0627 \u064A\u064F\u0639\u0627\u062F \u0627\u0644\u0648\u0635\u0644 \u0625\u0644\u0627 \u062A\u062D\u062A \u0639\u062A\u0628\u0629 \u0623\u062F\u0646\u0649 \u062A\u064F\u062E\u062A\u0627\u0631 \u0647\u0643\u0630\u0627: \u0639\u062A\u0628\u0629 \u0625\u0639\u0627\u062F\u0629 \u0627\u0644\u0648\u0635\u0644 \u0645\u0636\u0627\u0641\u064B\u0627 \u0625\u0644\u064A\u0647\u0627 \u0642\u062F\u0631\u0629 \u0627\u0644\u062D\u0650\u0645\u0644 \u064A\u062C\u0628 \u0623\u0646 \u062A\u0628\u0642\u0649 \u062A\u062D\u062A \u0639\u062A\u0628\u0629 \u0627\u0644\u0641\u0635\u0644.",
+    "La pompa assorbe 1,5 kW: riattacca sotto 4200 W, perch\xE9 4200 pi\xF9 1500 fa 5700, sotto i 5800. La colonnina assorbe 3,7 kW: riattacca sotto 2000 W, perch\xE9 2000 pi\xF9 3700 fa 5700. Con una soglia pi\xF9 alta, appena riattaccato il carico la potenza supererebbe di nuovo 5800 e lo staccheresti subito.": "\u062A\u0633\u062D\u0628 \u0627\u0644\u0645\u0636\u062E\u0629 1,5 \u0643\u064A\u0644\u0648\u0648\u0627\u0637: \u062A\u064F\u0639\u0627\u062F \u062A\u062D\u062A 4200 \u0648\u0627\u0637 \u0644\u0623\u0646 4200 \u0632\u0627\u0626\u062F 1500 \u064A\u0633\u0627\u0648\u064A 5700\u060C \u0623\u064A \u0623\u0642\u0644 \u0645\u0646 5800. \u0648\u062A\u0633\u062D\u0628 \u0645\u062D\u0637\u0629 \u0627\u0644\u0634\u062D\u0646 3,7 \u0643\u064A\u0644\u0648\u0648\u0627\u0637: \u062A\u064F\u0639\u0627\u062F \u062A\u062D\u062A 2000 \u0648\u0627\u0637 \u0644\u0623\u0646 2000 \u0632\u0627\u0626\u062F 3700 \u064A\u0633\u0627\u0648\u064A 5700. \u0645\u0639 \u0639\u062A\u0628\u0629 \u0623\u0639\u0644\u0649\u060C \u0641\u0648\u0631 \u0625\u0639\u0627\u062F\u0629 \u0627\u0644\u062D\u0650\u0645\u0644 \u0633\u062A\u062A\u062C\u0627\u0648\u0632 \u0627\u0644\u0642\u062F\u0631\u0629 5800 \u0645\u0646 \u062C\u062F\u064A\u062F \u0648\u062A\u0641\u0635\u0644\u0647 \u0641\u0648\u0631\u064B\u0627.",
+    "Si stacca sopra": "\u064A\u064F\u0641\u0635\u0644 \u0641\u0648\u0642",
+    "Riattacca sotto": "\u064A\u064F\u0639\u0627\u062F \u062A\u062D\u062A",
+    "Colonnina 3,7 kW": "\u0645\u062D\u0637\u0629 \u0627\u0644\u0634\u062D\u0646 3,7 \u0643\u064A\u0644\u0648\u0648\u0627\u0637",
+    "Pompa di calore 1,5 kW": "\u0627\u0644\u0645\u0636\u062E\u0629 \u0627\u0644\u062D\u0631\u0627\u0631\u064A\u0629 1,5 \u0643\u064A\u0644\u0648\u0648\u0627\u0637",
+    "Il ritardo: il margine deve durare": "\u0627\u0644\u062A\u0623\u062E\u064A\u0631: \u064A\u062C\u0628 \u0623\u0646 \u064A\u062F\u0648\u0645 \u0627\u0644\u0647\u0627\u0645\u0634",
+    "C\u2019\xE8 un secondo trucco. La potenza cala appena stacchi un carico. Se riattacchi non appena la potenza \xE8 sotto soglia, la casa torna sopra e stacchi di nuovo: pendoli. Ogni commutazione consuma il contattore, e il contatore, nel frattempo, conta i secondi.": "\u0647\u0646\u0627\u0643 \u062D\u064A\u0644\u0629 \u062B\u0627\u0646\u064A\u0629. \u062A\u0646\u062E\u0641\u0636 \u0627\u0644\u0642\u062F\u0631\u0629 \u0641\u0648\u0631 \u0641\u0635\u0644 \u062D\u0650\u0645\u0644. \u0625\u0630\u0627 \u0623\u0639\u062F\u062A \u0627\u0644\u0648\u0635\u0644 \u0628\u0645\u062C\u0631\u062F \u0623\u0646 \u062A\u0643\u0648\u0646 \u0627\u0644\u0642\u062F\u0631\u0629 \u062A\u062D\u062A \u0627\u0644\u0639\u062A\u0628\u0629\u060C \u064A\u0639\u0648\u062F \u0627\u0644\u0645\u0646\u0632\u0644 \u0641\u0648\u0642\u0647\u0627 \u0648\u062A\u0641\u0635\u0644 \u0645\u0646 \u062C\u062F\u064A\u062F: \u062A\u062A\u0630\u0628\u0630\u0628. \u0643\u0644 \u062A\u0628\u062F\u064A\u0644 \u064A\u064F\u0647\u0644\u0643 \u0627\u0644\u0643\u0648\u0646\u062A\u0627\u0643\u062A\u0648\u0631\u060C \u0648\u0627\u0644\u0639\u062F\u0651\u0627\u062F \u0641\u064A \u0627\u0644\u0623\u062B\u0646\u0627\u0621 \u064A\u0639\u062F\u0651 \u0627\u0644\u062B\u0648\u0627\u0646\u064A.",
+    "Per questo il riattacco chiede un margine che duri: un temporizzatore (TON) da 30 secondi. La condizione \u201Cpotenza sotto la soglia\u201D deve essere vera per 30 secondi di fila, e solo dopo si riattacca. Un calo di un attimo non basta.": "\u0644\u0630\u0644\u0643 \u062A\u062A\u0637\u0644\u0628 \u0625\u0639\u0627\u062F\u0629 \u0627\u0644\u0648\u0635\u0644 \u0647\u0627\u0645\u0634\u064B\u0627 \u064A\u062F\u0648\u0645: \u0645\u0624\u0642\u0651\u062A (TON) \u0628\u0645\u062F\u0629 30 \u062B\u0627\u0646\u064A\u0629. \u064A\u062C\u0628 \u0623\u0646 \u064A\u062A\u062D\u0642\u0642 \u0634\u0631\u0637 \xAB\u0627\u0644\u0642\u062F\u0631\u0629 \u062A\u062D\u062A \u0627\u0644\u0639\u062A\u0628\u0629\xBB 30 \u062B\u0627\u0646\u064A\u0629 \u0645\u062A\u0648\u0627\u0635\u0644\u0629\u060C \u0648\u0628\u0639\u062F\u0647\u0627 \u0641\u0642\u0637 \u064A\u064F\u0639\u0627\u062F \u0627\u0644\u0648\u0635\u0644. \u0627\u0646\u062E\u0641\u0627\u0636 \u0644\u0644\u062D\u0638\u0629 \u0644\u0627 \u064A\u0643\u0641\u064A.",
+    "Senza il ritardo": "\u062F\u0648\u0646 \u0627\u0644\u062A\u0623\u062E\u064A\u0631",
+    "Con il ritardo da 30 secondi": "\u0645\u0639 \u062A\u0623\u062E\u064A\u0631 30 \u062B\u0627\u0646\u064A\u0629",
+    "stacchi, la potenza scende subito sotto soglia": "\u062A\u0641\u0635\u0644 \u0641\u062A\u0646\u062E\u0641\u0636 \u0627\u0644\u0642\u062F\u0631\u0629 \u0641\u0648\u0631\u064B\u0627 \u062A\u062D\u062A \u0627\u0644\u0639\u062A\u0628\u0629",
+    "stacchi, la potenza scende sotto soglia": "\u062A\u0641\u0635\u0644 \u0641\u062A\u0646\u062E\u0641\u0636 \u0627\u0644\u0642\u062F\u0631\u0629 \u062A\u062D\u062A \u0627\u0644\u0639\u062A\u0628\u0629",
+    "riattacchi al primo istante": "\u062A\u0639\u064A\u062F \u0627\u0644\u0648\u0635\u0644 \u0641\u064A \u0623\u0648\u0644 \u0644\u062D\u0638\u0629",
+    "aspetti 30 secondi di margine continuo": "\u062A\u0646\u062A\u0638\u0631 30 \u062B\u0627\u0646\u064A\u0629 \u0645\u0646 \u0627\u0644\u0647\u0627\u0645\u0634 \u0627\u0644\u0645\u062A\u0648\u0627\u0635\u0644",
+    "la potenza risale e stacchi di nuovo": "\u062A\u0631\u062A\u0641\u0639 \u0627\u0644\u0642\u062F\u0631\u0629 \u0648\u062A\u0641\u0635\u0644 \u0645\u0646 \u062C\u062F\u064A\u062F",
+    "riattacchi solo se il margine \xE8 vero e stabile": "\u062A\u0639\u064A\u062F \u0627\u0644\u0648\u0635\u0644 \u0641\u0642\u0637 \u0625\u0630\u0627 \u0643\u0627\u0646 \u0627\u0644\u0647\u0627\u0645\u0634 \u062D\u0642\u064A\u0642\u064A\u064B\u0651\u0627 \u0648\u0645\u0633\u062A\u0642\u0631\u064B\u0651\u0627",
+    "decine di commutazioni nella serata": "\u0639\u0634\u0631\u0627\u062A \u0627\u0644\u062A\u0628\u062F\u064A\u0644\u0627\u062A \u0641\u064A \u0627\u0644\u0633\u0647\u0631\u0629",
+    "poche commutazioni, una per ciclo": "\u062A\u0628\u062F\u064A\u0644\u0627\u062A \u0642\u0644\u064A\u0644\u0629\u060C \u0648\u0627\u062D\u062F \u0644\u0643\u0644 \u062F\u0648\u0631\u0629",
+    "Il primo gradino \xE8 gi\xE0 scritto: legge la potenza del contatore e la porta in watt in MW0. Gli altri sei li scrivi tu.": "\u0627\u0644\u062F\u0631\u062C\u0629 \u0627\u0644\u0623\u0648\u0644\u0649 \u0645\u0643\u062A\u0648\u0628\u0629 \u0628\u0627\u0644\u0641\u0639\u0644: \u062A\u0642\u0631\u0623 \u0642\u062F\u0631\u0629 \u0627\u0644\u0639\u062F\u0651\u0627\u062F \u0648\u062A\u0636\u0639\u0647\u0627 \u0628\u0627\u0644\u0648\u0627\u0637 \u0641\u064A MW0. \u0627\u0644\u062F\u0631\u062C\u0627\u062A \u0627\u0644\u0633\u062A \u0627\u0644\u0623\u062E\u0631\u0649 \u062A\u0643\u062A\u0628\u0647\u0627 \u0623\u0646\u062A.",
+    "MW0 maggiore di 5800 E Q0 accesa": "MW0 \u0623\u0643\u0628\u0631 \u0645\u0646 5800 \u0648 Q0 \u062A\u0639\u0645\u0644",
+    "MW0 maggiore di 5800 E Q0 spenta": "MW0 \u0623\u0643\u0628\u0631 \u0645\u0646 5800 \u0648 Q0 \u0645\u0637\u0641\u0623\u0629",
+    "MW0 minore di 4200": "MW0 \u0623\u0635\u063A\u0631 \u0645\u0646 4200",
+    "MW0 minore di 2000 E Q1 accesa": "MW0 \u0623\u0635\u063A\u0631 \u0645\u0646 2000 \u0648 Q1 \u062A\u0639\u0645\u0644",
+    "Reset su Q0": "Reset \u0639\u0644\u0649 Q0",
+    "Reset su Q1": "Reset \u0639\u0644\u0649 Q1",
+    "Set su Q0": "Set \u0639\u0644\u0649 Q0",
+    "Set su Q1": "Set \u0639\u0644\u0649 Q1",
+    "TON T1, 30 s": "TON T1\u060C 30 \u062B",
+    "TON T2, 30 s": "TON T2\u060C 30 \u062B",
+    "T1 scaduto": "\u0627\u0646\u062A\u0647\u0649 T1",
+    "T2 scaduto": "\u0627\u0646\u062A\u0647\u0649 T2",
+    "si stacca prima la colonnina": "\u062A\u064F\u0641\u0635\u0644 \u0645\u062D\u0637\u0629 \u0627\u0644\u0634\u062D\u0646 \u0623\u0648\u0644\u064B\u0627",
+    "se non basta, la pompa di calore": "\u0625\u0646 \u0644\u0645 \u064A\u0643\u0641\u060C \u0641\u0627\u0644\u0645\u0636\u062E\u0629 \u0627\u0644\u062D\u0631\u0627\u0631\u064A\u0629",
+    "margine per la pompa": "\u0647\u0627\u0645\u0634 \u0644\u0644\u0645\u0636\u062E\u0629",
+    "riattacca la pompa": "\u062A\u064F\u0639\u0627\u062F \u0627\u0644\u0645\u0636\u062E\u0629",
+    "margine per la colonnina": "\u0647\u0627\u0645\u0634 \u0644\u0645\u062D\u0637\u0629 \u0627\u0644\u0634\u062D\u0646",
+    "riattacca la colonnina": "\u062A\u064F\u0639\u0627\u062F \u0645\u062D\u0637\u0629 \u0627\u0644\u0634\u062D\u0646",
+    "Togli i due temporizzatori: ora riattacchi la colonnina e la pompa appena la potenza \xE8 sotto soglia. Che cosa vedi sul grafico?": "\u0623\u0632\u0644 \u0627\u0644\u0645\u0624\u0642\u0651\u062A\u064A\u0646: \u0627\u0644\u0622\u0646 \u062A\u0639\u064A\u062F \u0648\u0635\u0644 \u0645\u062D\u0637\u0629 \u0627\u0644\u0634\u062D\u0646 \u0648\u0627\u0644\u0645\u0636\u062E\u0629 \u0641\u0648\u0631 \u0623\u0646 \u062A\u0643\u0648\u0646 \u0627\u0644\u0642\u062F\u0631\u0629 \u062A\u062D\u062A \u0627\u0644\u0639\u062A\u0628\u0629. \u0645\u0627\u0630\u0627 \u062A\u0631\u0649 \u0639\u0644\u0649 \u0627\u0644\u0631\u0633\u0645 \u0627\u0644\u0628\u064A\u0627\u0646\u064A\u061F",
+    "Niente di diverso: la potenza resta sotto il limite lo stesso.": "\u0644\u0627 \u0641\u0631\u0642: \u062A\u0628\u0642\u0649 \u0627\u0644\u0642\u062F\u0631\u0629 \u062A\u062D\u062A \u0627\u0644\u062D\u062F \u0645\u0639 \u0630\u0644\u0643.",
+    "I carichi pendolano: si staccano e riattaccano decine di volte nella serata.": "\u0627\u0644\u0623\u062D\u0645\u0627\u0644 \u062A\u062A\u0630\u0628\u0630\u0628: \u062A\u064F\u0641\u0635\u0644 \u0648\u062A\u064F\u0639\u0627\u062F \u0639\u0634\u0631\u0627\u062A \u0627\u0644\u0645\u0631\u0627\u062A \u0641\u064A \u0627\u0644\u0633\u0647\u0631\u0629.",
+    "La colonnina non riattacca mai.": "\u0645\u062D\u0637\u0629 \u0627\u0644\u0634\u062D\u0646 \u0644\u0627 \u062A\u0639\u0648\u062F \u0625\u0644\u0649 \u0627\u0644\u0639\u0645\u0644 \u0623\u0628\u062F\u064B\u0627.",
+    "Appena stacchi un carico la potenza scende sotto soglia: senza ritardo riattacchi subito, la potenza risale, stacchi di nuovo. Il contatore potrebbe anche reggere, ma i contattori si usurano e la casa \xE8 un andirivieni di accensioni.": "\u0641\u0648\u0631 \u0641\u0635\u0644 \u062D\u0650\u0645\u0644 \u062A\u0646\u062E\u0641\u0636 \u0627\u0644\u0642\u062F\u0631\u0629 \u062A\u062D\u062A \u0627\u0644\u0639\u062A\u0628\u0629: \u062F\u0648\u0646 \u062A\u0623\u062E\u064A\u0631 \u062A\u0639\u064A\u062F \u0627\u0644\u0648\u0635\u0644 \u0641\u0648\u0631\u064B\u0627\u060C \u0641\u062A\u0631\u062A\u0641\u0639 \u0627\u0644\u0642\u062F\u0631\u0629 \u0648\u062A\u0641\u0635\u0644 \u0645\u0646 \u062C\u062F\u064A\u062F. \u0642\u062F \u064A\u0635\u0645\u062F \u0627\u0644\u0639\u062F\u0651\u0627\u062F\u060C \u0644\u0643\u0646 \u0627\u0644\u0643\u0648\u0646\u062A\u0627\u0643\u062A\u0648\u0631\u0627\u062A \u062A\u062A\u0647\u0627\u0644\u0643 \u0648\u064A\u0635\u0628\u062D \u0627\u0644\u0645\u0646\u0632\u0644 \u0630\u0647\u0627\u0628\u064B\u0627 \u0648\u0625\u064A\u0627\u0628\u064B\u0627 \u0645\u0646 \u0627\u0644\u062A\u0634\u063A\u064A\u0644.",
+    "Cambi la priorit\xE0: stacchi la pompa di calore per prima e la colonnina per seconda. Che cosa succede?": "\u062A\u063A\u064A\u0651\u0631 \u0627\u0644\u0623\u0648\u0644\u0648\u064A\u0629: \u062A\u0641\u0635\u0644 \u0627\u0644\u0645\u0636\u062E\u0629 \u0627\u0644\u062D\u0631\u0627\u0631\u064A\u0629 \u0623\u0648\u0644\u064B\u0627 \u0648\u0645\u062D\u0637\u0629 \u0627\u0644\u0634\u062D\u0646 \u062B\u0627\u0646\u064A\u064B\u0627. \u0645\u0627\u0630\u0627 \u064A\u062D\u062F\u062B\u061F",
+    "Il contatore stacca comunque: la priorit\xE0 non conta.": "\u0627\u0644\u0639\u062F\u0651\u0627\u062F \u064A\u0641\u0635\u0644 \u0645\u0639 \u0630\u0644\u0643: \u0627\u0644\u0623\u0648\u0644\u0648\u064A\u0629 \u0644\u0627 \u062A\u0647\u0645.",
+    "Il contatore regge, ma la casa perde il riscaldamento mentre l\u2019auto continua a caricare: la priorit\xE0 \xE8 sbagliata.": "\u064A\u0635\u0645\u062F \u0627\u0644\u0639\u062F\u0651\u0627\u062F\u060C \u0644\u0643\u0646 \u0627\u0644\u0645\u0646\u0632\u0644 \u064A\u0641\u0642\u062F \u0627\u0644\u062A\u062F\u0641\u0626\u0629 \u0628\u064A\u0646\u0645\u0627 \u062A\u0648\u0627\u0635\u0644 \u0627\u0644\u0633\u064A\u0627\u0631\u0629 \u0627\u0644\u0634\u062D\u0646: \u0627\u0644\u0623\u0648\u0644\u0648\u064A\u0629 \u062E\u0627\u0637\u0626\u0629.",
+    "La casa si scalda di pi\xF9.": "\u064A\u0632\u062F\u0627\u062F \u0627\u0644\u0645\u0646\u0632\u0644 \u062F\u0641\u0626\u064B\u0627.",
+    "La potenza si abbassa lo stesso, ma si \xE8 tolto il carico che serve (il riscaldamento) e si \xE8 lasciato quello che pu\xF2 aspettare (l\u2019auto). La priorit\xE0 \xE8 una scelta sulla vita delle persone che abitano la casa, non solo un calcolo di watt.": "\u062A\u0646\u062E\u0641\u0636 \u0627\u0644\u0642\u062F\u0631\u0629 \u0645\u0639 \u0630\u0644\u0643\u060C \u0644\u0643\u0646 \u0623\u064F\u0632\u064A\u0644 \u0627\u0644\u062D\u0650\u0645\u0644 \u0627\u0644\u0636\u0631\u0648\u0631\u064A (\u0627\u0644\u062A\u062F\u0641\u0626\u0629) \u0648\u062A\u064F\u0631\u0643 \u0627\u0644\u0630\u064A \u064A\u0645\u0643\u0646\u0647 \u0627\u0644\u0627\u0646\u062A\u0638\u0627\u0631 (\u0627\u0644\u0633\u064A\u0627\u0631\u0629). \u0627\u0644\u0623\u0648\u0644\u0648\u064A\u0629 \u0627\u062E\u062A\u064A\u0627\u0631 \u064A\u062E\u0635 \u062D\u064A\u0627\u0629 \u0645\u0646 \u064A\u0633\u0643\u0646\u0648\u0646 \u0627\u0644\u0645\u0646\u0632\u0644\u060C \u0644\u0627 \u0645\u062C\u0631\u062F \u062D\u0633\u0627\u0628 \u0644\u0644\u0648\u0627\u0637\u0627\u062A.",
+    "Stacca prima la colonnina": "\u0627\u0641\u0635\u0644 \u0645\u062D\u0637\u0629 \u0627\u0644\u0634\u062D\u0646 \u0623\u0648\u0644\u064B\u0627",
+    "Nuovo gradino: confronto MW0 maggiore di 5800 E contatto Q0; uscita Reset su Q0. Perch\xE9: la colonnina \xE8 il carico che pu\xF2 aspettare.": "\u062F\u0631\u062C\u0629 \u062C\u062F\u064A\u062F\u0629: \u0645\u0642\u0627\u0631\u0646\u0629 MW0 \u0623\u0643\u0628\u0631 \u0645\u0646 5800 \u0648 \u0627\u0644\u0645\u0644\u0627\u0645\u0633 Q0\u061B \u0627\u0644\u0645\u062E\u0631\u062C Reset \u0639\u0644\u0649 Q0. \u0627\u0644\u0633\u0628\u0628: \u0645\u062D\u0637\u0629 \u0627\u0644\u0634\u062D\u0646 \u0647\u064A \u0627\u0644\u062D\u0650\u0645\u0644 \u0627\u0644\u0630\u064A \u064A\u0645\u0643\u0646\u0647 \u0627\u0644\u0627\u0646\u062A\u0638\u0627\u0631.",
+    "Poi la pompa di calore": "\u062B\u0645 \u0627\u0644\u0645\u0636\u062E\u0629 \u0627\u0644\u062D\u0631\u0627\u0631\u064A\u0629",
+    "Gradino: MW0 maggiore di 5800 E Q0 spento (contatto normalmente chiuso); uscita Reset su Q1. Perch\xE9: se la colonnina \xE8 gi\xE0 staccata e non basta, tocca alla pompa.": "\u062F\u0631\u062C\u0629: MW0 \u0623\u0643\u0628\u0631 \u0645\u0646 5800 \u0648 Q0 \u0645\u0637\u0641\u0623\u0629 (\u0645\u0644\u0627\u0645\u0633 \u0645\u063A\u0644\u0642 \u0639\u0627\u062F\u0629\u064B)\u061B \u0627\u0644\u0645\u062E\u0631\u062C Reset \u0639\u0644\u0649 Q1. \u0627\u0644\u0633\u0628\u0628: \u0625\u0630\u0627 \u0643\u0627\u0646\u062A \u0645\u062D\u0637\u0629 \u0627\u0644\u0634\u062D\u0646 \u0645\u0641\u0635\u0648\u0644\u0629 \u0628\u0627\u0644\u0641\u0639\u0644 \u0648\u0644\u0645 \u064A\u0643\u0641 \u0630\u0644\u0643\u060C \u064A\u0623\u062A\u064A \u062F\u0648\u0631 \u0627\u0644\u0645\u0636\u062E\u0629.",
+    "La pompa riparte con margine": "\u0627\u0644\u0645\u0636\u062E\u0629 \u062A\u0639\u0648\u062F \u0645\u0639 \u0647\u0627\u0645\u0634",
+    "Due gradini: MW0 minore di 4200 con un TON da 30 s (T1); poi T1 con Set su Q1. Perch\xE9: 4200 pi\xF9 1500 resta sotto 5800, e il ritardo evita il pendolamento.": "\u062F\u0631\u062C\u062A\u0627\u0646: MW0 \u0623\u0635\u063A\u0631 \u0645\u0646 4200 \u0645\u0639 TON \u0628\u0645\u062F\u0629 30 \u062B (T1)\u061B \u062B\u0645 T1 \u0645\u0639 Set \u0639\u0644\u0649 Q1. \u0627\u0644\u0633\u0628\u0628: 4200 \u0632\u0627\u0626\u062F 1500 \u064A\u0628\u0642\u0649 \u062A\u062D\u062A 5800\u060C \u0648\u0627\u0644\u062A\u0623\u062E\u064A\u0631 \u064A\u062A\u0641\u0627\u062F\u0649 \u0627\u0644\u062A\u0630\u0628\u0630\u0628.",
+    "La colonnina riparte dopo": "\u0645\u062D\u0637\u0629 \u0627\u0644\u0634\u062D\u0646 \u062A\u0639\u0648\u062F \u0628\u0639\u062F \u0630\u0644\u0643",
+    "Due gradini: MW0 minore di 2000 E Q1 accesa, TON da 30 s (T2); poi T2 con Set su Q0. Perch\xE9: 2000 pi\xF9 3700 resta sotto 5800; riparte solo quando la pompa \xE8 gi\xE0 in marcia.": "\u062F\u0631\u062C\u062A\u0627\u0646: MW0 \u0623\u0635\u063A\u0631 \u0645\u0646 2000 \u0648 Q1 \u062A\u0639\u0645\u0644\u060C TON \u0628\u0645\u062F\u0629 30 \u062B (T2)\u061B \u062B\u0645 T2 \u0645\u0639 Set \u0639\u0644\u0649 Q0. \u0627\u0644\u0633\u0628\u0628: 2000 \u0632\u0627\u0626\u062F 3700 \u064A\u0628\u0642\u0649 \u062A\u062D\u062A 5800\u061B \u0648\u062A\u0639\u0648\u062F \u0641\u0642\u0637 \u0639\u0646\u062F\u0645\u0627 \u062A\u0643\u0648\u0646 \u0627\u0644\u0645\u0636\u062E\u0629 \u062A\u0639\u0645\u0644 \u0628\u0627\u0644\u0641\u0639\u0644.",
+    "Premi Verifica: il tempo corre dalle 17. Nel grafico la potenza della rete deve passare sopra il limite solo per pochi secondi, quando si accende il forno, e il contatore non deve staccare.": "\u0627\u0636\u063A\u0637 \xAB\u062A\u062D\u0642\u0642\xBB: \u064A\u062C\u0631\u064A \u0627\u0644\u0632\u0645\u0646 \u0645\u0646 \u0627\u0644\u0633\u0627\u0639\u0629 17. \u0641\u064A \u0627\u0644\u0631\u0633\u0645 \u0627\u0644\u0628\u064A\u0627\u0646\u064A \u064A\u062C\u0628 \u0623\u0646 \u062A\u062A\u062C\u0627\u0648\u0632 \u0642\u062F\u0631\u0629 \u0627\u0644\u0634\u0628\u0643\u0629 \u0627\u0644\u062D\u062F \u0644\u062B\u0648\u0627\u0646\u064D \u0642\u0644\u064A\u0644\u0629 \u0641\u0642\u0637\u060C \u0639\u0646\u062F \u062A\u0634\u063A\u064A\u0644 \u0627\u0644\u0641\u0631\u0646\u060C \u0648\u064A\u062C\u0628 \u0623\u0644\u0627 \u064A\u0641\u0635\u0644 \u0627\u0644\u0639\u062F\u0651\u0627\u062F.",
+    "Pi\xF9 carichi su un contatore: la potenza sommata supera il limite, e qualcuno deve aspettare.": "\u0639\u062F\u0629 \u0623\u062D\u0645\u0627\u0644 \u0639\u0644\u0649 \u0639\u062F\u0651\u0627\u062F \u0648\u0627\u062D\u062F: \u0627\u0644\u0642\u062F\u0631\u0629 \u0627\u0644\u0645\u062C\u062A\u0645\u0639\u0629 \u062A\u062A\u062C\u0627\u0648\u0632 \u0627\u0644\u062D\u062F\u060C \u0648\u064A\u062C\u0628 \u0623\u0646 \u064A\u0646\u062A\u0638\u0631 \u0623\u062D\u062F\u0647\u0627.",
+    "Priorit\xE0: si stacca prima il carico che pu\xF2 aspettare (l\u2019auto), poi quello con inerzia (la pompa di calore). Il forno e le luci no.": "\u0627\u0644\u0623\u0648\u0644\u0648\u064A\u0629: \u064A\u064F\u0641\u0635\u0644 \u0623\u0648\u0644\u064B\u0627 \u0627\u0644\u062D\u0650\u0645\u0644 \u0627\u0644\u0630\u064A \u064A\u0645\u0643\u0646\u0647 \u0627\u0644\u0627\u0646\u062A\u0638\u0627\u0631 (\u0627\u0644\u0633\u064A\u0627\u0631\u0629)\u060C \u062B\u0645 \u0627\u0644\u0630\u064A \u0644\u0647 \u0642\u0635\u0648\u0631 \u062D\u0631\u0627\u0631\u064A (\u0627\u0644\u0645\u0636\u062E\u0629 \u0627\u0644\u062D\u0631\u0627\u0631\u064A\u0629). \u0623\u0645\u0627 \u0627\u0644\u0641\u0631\u0646 \u0648\u0627\u0644\u0625\u0636\u0627\u0621\u0629 \u0641\u0644\u0627.",
+    "Soglia di riattacco pi\xF9 potenza del carico deve restare sotto la soglia di distacco, altrimenti riparte e si ferma.": "\u0639\u062A\u0628\u0629 \u0625\u0639\u0627\u062F\u0629 \u0627\u0644\u0648\u0635\u0644 \u0645\u0636\u0627\u0641\u064B\u0627 \u0625\u0644\u064A\u0647\u0627 \u0642\u062F\u0631\u0629 \u0627\u0644\u062D\u0650\u0645\u0644 \u064A\u062C\u0628 \u0623\u0646 \u062A\u0628\u0642\u0649 \u062A\u062D\u062A \u0639\u062A\u0628\u0629 \u0627\u0644\u0641\u0635\u0644\u060C \u0648\u0625\u0644\u0627 \u064A\u0639\u0645\u0644 \u062B\u0645 \u064A\u062A\u0648\u0642\u0641.",
+    "Il margine deve durare: un temporizzatore evita il pendolamento, cio\xE8 le decine di commutazioni nella serata.": "\u064A\u062C\u0628 \u0623\u0646 \u064A\u062F\u0648\u0645 \u0627\u0644\u0647\u0627\u0645\u0634: \u0627\u0644\u0645\u0624\u0642\u0651\u062A \u064A\u062A\u0641\u0627\u062F\u0649 \u0627\u0644\u062A\u0630\u0628\u0630\u0628\u060C \u0623\u064A \u0639\u0634\u0631\u0627\u062A \u0627\u0644\u062A\u0628\u062F\u064A\u0644\u0627\u062A \u0641\u064A \u0627\u0644\u0633\u0647\u0631\u0629.",
+    "Il PLC comanda solo i carichi che gli sono collegati: il forno lo accendono le persone.": "\u064A\u062A\u062D\u0643\u0645 \u0627\u0644\u0640 PLC \u0641\u0642\u0637 \u0641\u064A \u0627\u0644\u0623\u062D\u0645\u0627\u0644 \u0627\u0644\u0645\u0648\u0635\u0648\u0644\u0629 \u0628\u0647: \u0627\u0644\u0641\u0631\u0646 \u064A\u0634\u063A\u0651\u0644\u0647 \u0627\u0644\u0646\u0627\u0633.",
+    // ---------- c54 Il clima per zone ----------
+    "Un termostato per stanza, una sola pompa di calore: parte solo se almeno una stanza chiede calore.": "\u062B\u0631\u0645\u0648\u0633\u062A\u0627\u062A \u0644\u0643\u0644 \u063A\u0631\u0641\u0629 \u0648\u0645\u0636\u062E\u0629 \u062D\u0631\u0627\u0631\u064A\u0629 \u0648\u0627\u062D\u062F\u0629: \u0644\u0627 \u062A\u0639\u0645\u0644 \u0625\u0644\u0627 \u0625\u0630\u0627 \u0637\u0644\u0628\u062A \u063A\u0631\u0641\u0629 \u0648\u0627\u062D\u062F\u0629 \u0639\u0644\u0649 \u0627\u0644\u0623\u0642\u0644 \u0627\u0644\u062D\u0631\u0627\u0631\u0629.",
+    "Soggiorno e camera hanno ciascuno una sonda di temperatura e una valvola; una pompa di calore scalda le due zone. Il soggiorno ha una finestra con un contatto sul PLC. Scrivi il programma: ogni stanza si scalda tra 20 e 22 \xB0C (isteresi), la finestra aperta chiude la valvola del soggiorno, e la pompa parte solo se almeno una valvola \xE8 aperta: con tutte le valvole chiuse la pompa lavora a vuoto e si guasta.": "\u0644\u0643\u0644 \u0645\u0646 \u063A\u0631\u0641\u0629 \u0627\u0644\u062C\u0644\u0648\u0633 \u0648\u063A\u0631\u0641\u0629 \u0627\u0644\u0646\u0648\u0645 \u0645\u0633\u0628\u0627\u0631 \u062D\u0631\u0627\u0631\u0629 \u0648\u0635\u0645\u0627\u0645\u061B \u0648\u0645\u0636\u062E\u0629 \u062D\u0631\u0627\u0631\u064A\u0629 \u062A\u062F\u0641\u0651\u0626 \u0627\u0644\u0645\u0646\u0637\u0642\u062A\u064A\u0646. \u0641\u064A \u063A\u0631\u0641\u0629 \u0627\u0644\u062C\u0644\u0648\u0633 \u0646\u0627\u0641\u0630\u0629 \u0628\u0645\u0644\u0627\u0645\u0633 \u0639\u0644\u0649 \u0627\u0644\u0640 PLC. \u0627\u0643\u062A\u0628 \u0627\u0644\u0628\u0631\u0646\u0627\u0645\u062C: \u0643\u0644 \u063A\u0631\u0641\u0629 \u062A\u064F\u062F\u0641\u064E\u0651\u0623 \u0628\u064A\u0646 20 \u064822 \xB0\u0645 (\u062A\u0628\u0627\u0637\u0624)\u060C \u0648\u0627\u0644\u0646\u0627\u0641\u0630\u0629 \u0627\u0644\u0645\u0641\u062A\u0648\u062D\u0629 \u062A\u063A\u0644\u0642 \u0635\u0645\u0627\u0645 \u063A\u0631\u0641\u0629 \u0627\u0644\u062C\u0644\u0648\u0633\u060C \u0648\u0644\u0627 \u062A\u0639\u0645\u0644 \u0627\u0644\u0645\u0636\u062E\u0629 \u0625\u0644\u0627 \u0625\u0630\u0627 \u0643\u0627\u0646 \u0635\u0645\u0627\u0645 \u0648\u0627\u062D\u062F \u0639\u0644\u0649 \u0627\u0644\u0623\u0642\u0644 \u0645\u0641\u062A\u0648\u062D\u064B\u0627: \u0645\u0639 \u0625\u063A\u0644\u0627\u0642 \u0643\u0644 \u0627\u0644\u0635\u0645\u0627\u0645\u0627\u062A \u062A\u0639\u0645\u0644 \u0627\u0644\u0645\u0636\u062E\u0629 \u0641\u064A \u0627\u0644\u0641\u0631\u0627\u063A \u0648\u062A\u062A\u0639\u0637\u0644.",
+    "Sonda soggiorno": "\u0645\u0633\u0628\u0627\u0631 \u0627\u0644\u062C\u0644\u0648\u0633",
+    "Sonda camera": "\u0645\u0633\u0628\u0627\u0631 \u0627\u0644\u0646\u0648\u0645",
+    "Sonda di temperatura del soggiorno, 0\u202640 \xB0C, 4-20 mA": "\u0645\u0633\u0628\u0627\u0631 \u062D\u0631\u0627\u0631\u0629 \u063A\u0631\u0641\u0629 \u0627\u0644\u062C\u0644\u0648\u0633\u060C 0\u202640 \xB0\u0645\u060C 4-20 \u0645\u0644\u0644\u064A \u0623\u0645\u0628\u064A\u0631",
+    "Sonda di temperatura della camera, 0\u202640 \xB0C, 4-20 mA": "\u0645\u0633\u0628\u0627\u0631 \u062D\u0631\u0627\u0631\u0629 \u063A\u0631\u0641\u0629 \u0627\u0644\u0646\u0648\u0645\u060C 0\u202640 \xB0\u0645\u060C 4-20 \u0645\u0644\u0644\u064A \u0623\u0645\u0628\u064A\u0631",
+    "Finestra": "\u0627\u0644\u0646\u0627\u0641\u0630\u0629",
+    "Contatto della finestra del soggiorno (chiuso se aperta)": "\u0645\u0644\u0627\u0645\u0633 \u0646\u0627\u0641\u0630\u0629 \u063A\u0631\u0641\u0629 \u0627\u0644\u062C\u0644\u0648\u0633 (\u0645\u063A\u0644\u0642 \u0625\u0630\u0627 \u0643\u0627\u0646\u062A \u0645\u0641\u062A\u0648\u062D\u0629)",
+    "Valvola soggiorno": "\u0635\u0645\u0627\u0645 \u0627\u0644\u062C\u0644\u0648\u0633",
+    "Valvola camera": "\u0635\u0645\u0627\u0645 \u0627\u0644\u0646\u0648\u0645",
+    "Valvola del soggiorno aperta": "\u0635\u0645\u0627\u0645 \u063A\u0631\u0641\u0629 \u0627\u0644\u062C\u0644\u0648\u0633 \u0645\u0641\u062A\u0648\u062D",
+    "Valvola della camera aperta": "\u0635\u0645\u0627\u0645 \u063A\u0631\u0641\u0629 \u0627\u0644\u0646\u0648\u0645 \u0645\u0641\u062A\u0648\u062D",
+    "La casa di sera": "\u0627\u0644\u0645\u0646\u0632\u0644 \u0645\u0633\u0627\u0621\u064B",
+    "Due stanze riscaldate da una pompa di calore, con una valvola per stanza": "\u063A\u0631\u0641\u062A\u0627\u0646 \u062A\u064F\u062F\u0641\u064E\u0651\u0622\u0646 \u0628\u0645\u0636\u062E\u0629 \u062D\u0631\u0627\u0631\u064A\u0629\u060C \u0645\u0639 \u0635\u0645\u0627\u0645 \u0644\u0643\u0644 \u063A\u0631\u0641\u0629",
+    "Soggiorno \xB0C": "\u0627\u0644\u062C\u0644\u0648\u0633 \xB0\u0645",
+    "Camera \xB0C": "\u0627\u0644\u0646\u0648\u0645 \xB0\u0645",
+    "La temperatura del soggiorno": "\u062F\u0631\u062C\u0629 \u062D\u0631\u0627\u0631\u0629 \u063A\u0631\u0641\u0629 \u0627\u0644\u062C\u0644\u0648\u0633",
+    "La temperatura della camera": "\u062F\u0631\u062C\u0629 \u062D\u0631\u0627\u0631\u0629 \u063A\u0631\u0641\u0629 \u0627\u0644\u0646\u0648\u0645",
+    "La pompa a vuoto": "\u0627\u0644\u0645\u0636\u062E\u0629 \u0641\u064A \u0627\u0644\u0641\u0631\u0627\u063A",
+    "Le due stanze restano tra 19,5 e 22,5 \xB0C dopo il riscaldamento iniziale": "\u062A\u0628\u0642\u0649 \u0627\u0644\u063A\u0631\u0641\u062A\u0627\u0646 \u0628\u064A\u0646 19,5 \u064822,5 \xB0\u0645 \u0628\u0639\u062F \u0627\u0644\u062A\u062F\u0641\u0626\u0629 \u0627\u0644\u0623\u0648\u0644\u0649",
+    "La pompa di calore non lavora mai a vuoto e non si guasta": "\u0627\u0644\u0645\u0636\u062E\u0629 \u0627\u0644\u062D\u0631\u0627\u0631\u064A\u0629 \u0644\u0627 \u062A\u0639\u0645\u0644 \u0641\u064A \u0627\u0644\u0641\u0631\u0627\u063A \u0648\u0644\u0627 \u062A\u062A\u0639\u0637\u0644",
+    "Finestra aperta: la valvola del soggiorno si chiude e la camera resta calda": "\u0627\u0644\u0646\u0627\u0641\u0630\u0629 \u0645\u0641\u062A\u0648\u062D\u0629: \u064A\u064F\u063A\u0644\u0642 \u0635\u0645\u0627\u0645 \u0627\u0644\u062C\u0644\u0648\u0633 \u0648\u062A\u0628\u0642\u0649 \u063A\u0631\u0641\u0629 \u0627\u0644\u0646\u0648\u0645 \u062F\u0627\u0641\u0626\u0629",
+    "Le valvole non si aprono e si chiudono di continuo": "\u0627\u0644\u0635\u0645\u0627\u0645\u0627\u062A \u0644\u0627 \u062A\u064F\u0641\u062A\u062D \u0648\u062A\u064F\u063A\u0644\u0642 \u0628\u0627\u0633\u062A\u0645\u0631\u0627\u0631",
+    "Le temperature sono in MW0 (soggiorno) e MW1 (camera), in gradi. Ogni stanza ha la sua isteresi, come il serbatoio di c35: Set sulla valvola sotto 20 \xB0C, Reset sopra 22 \xB0C. Senza i due livelli diversi la valvola si aprirebbe e chiuderebbe di continuo.": "\u062F\u0631\u062C\u0627\u062A \u0627\u0644\u062D\u0631\u0627\u0631\u0629 \u0641\u064A MW0 (\u0627\u0644\u062C\u0644\u0648\u0633) \u0648 MW1 (\u0627\u0644\u0646\u0648\u0645)\u060C \u0628\u0627\u0644\u062F\u0631\u062C\u0627\u062A. \u0644\u0643\u0644 \u063A\u0631\u0641\u0629 \u062A\u0628\u0627\u0637\u0624\u0647\u0627\u060C \u0645\u062B\u0644 \u062E\u0632\u0627\u0646 c35: Set \u0639\u0644\u0649 \u0627\u0644\u0635\u0645\u0627\u0645 \u062A\u062D\u062A 20 \xB0\u0645\u060C Reset \u0641\u0648\u0642 22 \xB0\u0645. \u062F\u0648\u0646 \u0627\u0644\u0645\u0633\u062A\u0648\u064A\u064A\u0646 \u0627\u0644\u0645\u062E\u062A\u0644\u0641\u064A\u0646 \u0633\u064A\u0641\u062A\u062D \u0627\u0644\u0635\u0645\u0627\u0645 \u0648\u064A\u064F\u063A\u0644\u0642 \u0628\u0627\u0633\u062A\u0645\u0631\u0627\u0631.",
+    "Soggiorno: confronto MW0 minore di 20, Set su Q1; confronto MW0 maggiore di 22, Reset su Q1. Camera: lo stesso con MW1 e Q2.": "\u0627\u0644\u062C\u0644\u0648\u0633: \u0645\u0642\u0627\u0631\u0646\u0629 MW0 \u0623\u0635\u063A\u0631 \u0645\u0646 20\u060C Set \u0639\u0644\u0649 Q1\u061B \u0645\u0642\u0627\u0631\u0646\u0629 MW0 \u0623\u0643\u0628\u0631 \u0645\u0646 22\u060C Reset \u0639\u0644\u0649 Q1. \u0627\u0644\u0646\u0648\u0645: \u0627\u0644\u0623\u0645\u0631 \u0646\u0641\u0633\u0647 \u0645\u0639 MW1 \u0648 Q2.",
+    "La finestra aperta (I0 vale 1) deve chiudere la valvola del soggiorno: un gradino con I0 e Reset su Q1. Mettilo dopo il Set: vale l\u2019ultimo gradino, e deve vincere la finestra.": "\u0627\u0644\u0646\u0627\u0641\u0630\u0629 \u0627\u0644\u0645\u0641\u062A\u0648\u062D\u0629 (I0 \u062A\u0633\u0627\u0648\u064A 1) \u064A\u062C\u0628 \u0623\u0646 \u062A\u063A\u0644\u0642 \u0635\u0645\u0627\u0645 \u0627\u0644\u062C\u0644\u0648\u0633: \u062F\u0631\u062C\u0629 \u0641\u064A\u0647\u0627 I0 \u0648 Reset \u0639\u0644\u0649 Q1. \u0636\u0639\u0647\u0627 \u0628\u0639\u062F Set: \u062A\u0633\u0631\u064A \u0627\u0644\u062F\u0631\u062C\u0629 \u0627\u0644\u0623\u062E\u064A\u0631\u0629 \u0648\u064A\u062C\u0628 \u0623\u0646 \u062A\u063A\u0644\u0628 \u0627\u0644\u0646\u0627\u0641\u0630\u0629.",
+    "Una pompa, due stanze": "\u0645\u0636\u062E\u0629 \u0648\u0627\u062D\u062F\u0629 \u0648\u063A\u0631\u0641\u062A\u0627\u0646",
+    "In una casa con il clima per zone c\u2019\xE8 una sola pompa di calore, e ogni stanza ha il suo termostato. L\u2019acqua calda arriva a tutte le stanze, ma una valvola per zona decide a quale lasciarla passare. Se la camera \xE8 calda la sua valvola si chiude e il calore va dove serve.": "\u0641\u064A \u0645\u0646\u0632\u0644 \u0628\u062A\u0643\u064A\u064A\u0641 \u062D\u0633\u0628 \u0627\u0644\u0645\u0646\u0627\u0637\u0642 \u062A\u0648\u062C\u062F \u0645\u0636\u062E\u0629 \u062D\u0631\u0627\u0631\u064A\u0629 \u0648\u0627\u062D\u062F\u0629 \u0648\u0644\u0643\u0644 \u063A\u0631\u0641\u0629 \u062B\u0631\u0645\u0648\u0633\u062A\u0627\u062A\u0647\u0627. \u064A\u0635\u0644 \u0627\u0644\u0645\u0627\u0621 \u0627\u0644\u0633\u0627\u062E\u0646 \u0625\u0644\u0649 \u0643\u0644 \u0627\u0644\u063A\u0631\u0641\u060C \u0644\u0643\u0646 \u0635\u0645\u0627\u0645\u064B\u0627 \u0644\u0643\u0644 \u0645\u0646\u0637\u0642\u0629 \u064A\u0642\u0631\u0631 \u0623\u064A\u0647\u0627 \u064A\u064F\u0633\u0645\u062D \u0644\u0647 \u0628\u0627\u0644\u0645\u0631\u0648\u0631. \u0625\u0630\u0627 \u0643\u0627\u0646\u062A \u063A\u0631\u0641\u0629 \u0627\u0644\u0646\u0648\u0645 \u062F\u0627\u0641\u0626\u0629 \u064A\u064F\u063A\u0644\u0642 \u0635\u0645\u0627\u0645\u0647\u0627 \u0648\u064A\u0630\u0647\u0628 \u0627\u0644\u062F\u0641\u0621 \u0625\u0644\u0649 \u062D\u064A\u062B \u064A\u0644\u0632\u0645.",
+    "Il PLC legge la temperatura di ogni stanza con una sonda, e comanda le valvole e la pompa. \xC8 lo stesso schema del serbatoio di c35, con i gradi al posto del livello.": "\u064A\u0642\u0631\u0623 \u0627\u0644\u0640 PLC \u062D\u0631\u0627\u0631\u0629 \u0643\u0644 \u063A\u0631\u0641\u0629 \u0628\u0645\u0633\u0628\u0627\u0631\u060C \u0648\u064A\u062A\u062D\u0643\u0645 \u0641\u064A \u0627\u0644\u0635\u0645\u0627\u0645\u0627\u062A \u0648\u0627\u0644\u0645\u0636\u062E\u0629. \u0625\u0646\u0647 \u0627\u0644\u0645\u062E\u0637\u0637 \u0646\u0641\u0633\u0647 \u0644\u062E\u0632\u0627\u0646 c35 \u0645\u0639 \u0627\u0644\u062F\u0631\u062C\u0627\u062A \u0628\u062F\u0644 \u0627\u0644\u0645\u0633\u062A\u0648\u0649.",
+    "Pezzo": "\u0627\u0644\u0642\u0637\u0639\u0629",
+    "Sul PLC": "\u0639\u0644\u0649 \u0627\u0644\u0640 PLC",
+    "Sonda di temperatura": "\u0645\u0633\u0628\u0627\u0631 \u0627\u0644\u062D\u0631\u0627\u0631\u0629",
+    "Valvola di zona": "\u0635\u0645\u0627\u0645 \u0627\u0644\u0645\u0646\u0637\u0642\u0629",
+    "Finestra del soggiorno": "\u0646\u0627\u0641\u0630\u0629 \u0627\u0644\u062C\u0644\u0648\u0633",
+    "misura i gradi della stanza": "\u064A\u0642\u064A\u0633 \u062F\u0631\u062C\u0627\u062A \u062D\u0631\u0627\u0631\u0629 \u0627\u0644\u063A\u0631\u0641\u0629",
+    "lascia passare il calore alla stanza": "\u064A\u0633\u0645\u062D \u0628\u0645\u0631\u0648\u0631 \u0627\u0644\u062F\u0641\u0621 \u0625\u0644\u0649 \u0627\u0644\u063A\u0631\u0641\u0629",
+    "produce il calore": "\u062A\u0646\u062A\u062C \u0627\u0644\u062F\u0641\u0621",
+    "quando \xE8 aperta, il calore se ne va": "\u0639\u0646\u062F\u0645\u0627 \u062A\u0643\u0648\u0646 \u0645\u0641\u062A\u0648\u062D\u0629 \u064A\u0630\u0647\u0628 \u0627\u0644\u062F\u0641\u0621",
+    "ingresso analogico, in MW0 e MW1": "\u0645\u062F\u062E\u0644 \u062A\u0645\u0627\u062B\u0644\u064A\u060C \u0641\u064A MW0 \u0648 MW1",
+    "uscita Q1 (soggiorno), Q2 (camera)": "\u0627\u0644\u0645\u062E\u0631\u062C Q1 (\u0627\u0644\u062C\u0644\u0648\u0633)\u060C Q2 (\u0627\u0644\u0646\u0648\u0645)",
+    "uscita Q0": "\u0627\u0644\u0645\u062E\u0631\u062C Q0",
+    "ingresso I0": "\u0627\u0644\u0645\u062F\u062E\u0644 I0",
+    "Il termostato con isteresi": "\u0627\u0644\u062B\u0631\u0645\u0648\u0633\u062A\u0627\u062A \u0645\u0639 \u0627\u0644\u062A\u0628\u0627\u0637\u0624",
+    "Con una sola soglia, per esempio 21 gradi, la valvola si aprirebbe e chiuderebbe di continuo attorno a quel valore: a 20,9 apre, a 21,1 chiude. Per evitarlo si usano due soglie, 20 e 22 gradi: apre sotto 20 e chiude sopra 22. Tra le due non cambia niente. Questa \xE8 l\u2019isteresi.": "\u0645\u0639 \u0639\u062A\u0628\u0629 \u0648\u0627\u062D\u062F\u0629\u060C \u0645\u062B\u0644\u064B\u0627 21 \u062F\u0631\u062C\u0629\u060C \u0633\u064A\u0641\u062A\u062D \u0627\u0644\u0635\u0645\u0627\u0645 \u0648\u064A\u064F\u063A\u0644\u0642 \u0628\u0627\u0633\u062A\u0645\u0631\u0627\u0631 \u062D\u0648\u0644 \u0647\u0630\u0647 \u0627\u0644\u0642\u064A\u0645\u0629: \u0639\u0646\u062F 20,9 \u064A\u0641\u062A\u062D \u0648\u0639\u0646\u062F 21,1 \u064A\u064F\u063A\u0644\u0642. \u0648\u0644\u062A\u0641\u0627\u062F\u064A \u0630\u0644\u0643 \u0646\u0633\u062A\u0639\u0645\u0644 \u0639\u062A\u0628\u062A\u064A\u0646\u060C 20 \u064822 \u062F\u0631\u062C\u0629: \u064A\u0641\u062A\u062D \u062A\u062D\u062A 20 \u0648\u064A\u064F\u063A\u0644\u0642 \u0641\u0648\u0642 22. \u0648\u0628\u064A\u0646\u0647\u0645\u0627 \u0644\u0627 \u064A\u062A\u063A\u064A\u0651\u0631 \u0634\u064A\u0621. \u0647\u0630\u0627 \u0647\u0648 \u0627\u0644\u062A\u0628\u0627\u0637\u0624 (\u0627\u0644\u0647\u064A\u0633\u062A\u0631\u0633\u064A\u0633).",
+    "Nel PLC si scrive con Set e Reset: Set sulla valvola quando la temperatura \xE8 sotto 20; Reset quando \xE8 sopra 22. Una bobina semplice non basta, perch\xE9 non ricorda.": "\u064A\u064F\u0643\u062A\u0628 \u0641\u064A \u0627\u0644\u0640 PLC \u0628\u0640 Set \u0648 Reset: Set \u0639\u0644\u0649 \u0627\u0644\u0635\u0645\u0627\u0645 \u0639\u0646\u062F\u0645\u0627 \u062A\u0643\u0648\u0646 \u0627\u0644\u062D\u0631\u0627\u0631\u0629 \u062A\u062D\u062A 20\u061B \u0648 Reset \u0639\u0646\u062F\u0645\u0627 \u062A\u0643\u0648\u0646 \u0641\u0648\u0642 22. \u0627\u0644\u0645\u0644\u0641 \u0627\u0644\u0628\u0633\u064A\u0637 \u0644\u0627 \u064A\u0643\u0641\u064A \u0644\u0623\u0646\u0647 \u0644\u0627 \u064A\u062A\u0630\u0643\u0651\u0631.",
+    "Temperatura": "\u062F\u0631\u062C\u0629 \u0627\u0644\u062D\u0631\u0627\u0631\u0629",
+    "Che cosa succede alla valvola": "\u0645\u0627\u0630\u0627 \u064A\u062D\u062F\u062B \u0644\u0644\u0635\u0645\u0627\u0645",
+    "sotto 20 \xB0C": "\u062A\u062D\u062A 20 \xB0\u0645",
+    "tra 20 e 22 \xB0C": "\u0628\u064A\u0646 20 \u064822 \xB0\u0645",
+    "sopra 22 \xB0C": "\u0641\u0648\u0642 22 \xB0\u0645",
+    "Set: si apre e riscalda": "Set: \u064A\u0641\u062A\u062D \u0648\u064A\u062F\u0641\u0651\u0626",
+    "Reset: si chiude": "Reset: \u064A\u064F\u063A\u0644\u0642",
+    "resta com\u2019\xE8 (riscalda se era aperta, aspetta se era chiusa)": "\u064A\u0628\u0642\u0649 \u0643\u0645\u0627 \u0647\u0648 (\u064A\u062F\u0641\u0651\u0626 \u0625\u0630\u0627 \u0643\u0627\u0646 \u0645\u0641\u062A\u0648\u062D\u064B\u0627\u060C \u0648\u064A\u0646\u062A\u0638\u0631 \u0625\u0630\u0627 \u0643\u0627\u0646 \u0645\u063A\u0644\u0642\u064B\u0627)",
+    "La pompa non deve girare a vuoto": "\u064A\u062C\u0628 \u0623\u0644\u0627 \u062A\u062F\u0648\u0631 \u0627\u0644\u0645\u0636\u062E\u0629 \u0641\u064A \u0627\u0644\u0641\u0631\u0627\u063A",
+    "La pompa fa circolare l\u2019acqua attraverso le valvole aperte. Se tutte le valvole sono chiuse, l\u2019acqua non ha dove andare: la pompa gira a vuoto e si surriscalda. Dopo un minuto si guasta e non riparte.": "\u062A\u064F\u062F\u0648\u0651\u0631 \u0627\u0644\u0645\u0636\u062E\u0629 \u0627\u0644\u0645\u0627\u0621 \u0639\u0628\u0631 \u0627\u0644\u0635\u0645\u0627\u0645\u0627\u062A \u0627\u0644\u0645\u0641\u062A\u0648\u062D\u0629. \u0625\u0630\u0627 \u0643\u0627\u0646\u062A \u0643\u0644 \u0627\u0644\u0635\u0645\u0627\u0645\u0627\u062A \u0645\u063A\u0644\u0642\u0629 \u0641\u0644\u0627 \u0645\u0643\u0627\u0646 \u064A\u0630\u0647\u0628 \u0625\u0644\u064A\u0647 \u0627\u0644\u0645\u0627\u0621: \u062A\u062F\u0648\u0631 \u0627\u0644\u0645\u0636\u062E\u0629 \u0641\u064A \u0627\u0644\u0641\u0631\u0627\u063A \u0648\u062A\u0633\u062E\u0646 \u0628\u0634\u062F\u0629. \u0628\u0639\u062F \u062F\u0642\u064A\u0642\u0629 \u062A\u062A\u0639\u0637\u0644 \u0648\u0644\u0627 \u062A\u0639\u0648\u062F.",
+    "Per questo la pompa parte solo se almeno una zona chiede calore: almeno una valvola aperta. Nel circuito \xE8 un O: due contatti in parallelo, Q1 oppure Q2.": "\u0644\u0630\u0644\u0643 \u0644\u0627 \u062A\u0639\u0645\u0644 \u0627\u0644\u0645\u0636\u062E\u0629 \u0625\u0644\u0627 \u0625\u0630\u0627 \u0637\u0644\u0628\u062A \u0645\u0646\u0637\u0642\u0629 \u0648\u0627\u062D\u062F\u0629 \u0639\u0644\u0649 \u0627\u0644\u0623\u0642\u0644 \u0627\u0644\u062D\u0631\u0627\u0631\u0629: \u0635\u0645\u0627\u0645 \u0648\u0627\u062D\u062F \u0639\u0644\u0649 \u0627\u0644\u0623\u0642\u0644 \u0645\u0641\u062A\u0648\u062D. \u0641\u064A \u0627\u0644\u062F\u0627\u0626\u0631\u0629 \u0647\u0630\u0627 \xAB\u0623\u0648\xBB: \u0645\u0644\u0627\u0645\u0633\u0627\u0646 \u0639\u0644\u0649 \u0627\u0644\u062A\u0648\u0627\u0632\u064A\u060C Q1 \u0623\u0648 Q2.",
+    "Valvola soggiorno aperta": "\u0635\u0645\u0627\u0645 \u0627\u0644\u062C\u0644\u0648\u0633 \u0645\u0641\u062A\u0648\u062D",
+    "Con tutte le valvole chiuse la pompa lavora a vuoto: dopo un minuto si guasta.": "\u0645\u0639 \u0625\u063A\u0644\u0627\u0642 \u0643\u0644 \u0627\u0644\u0635\u0645\u0627\u0645\u0627\u062A \u062A\u0639\u0645\u0644 \u0627\u0644\u0645\u0636\u062E\u0629 \u0641\u064A \u0627\u0644\u0641\u0631\u0627\u063A: \u0648\u0628\u0639\u062F \u062F\u0642\u064A\u0642\u0629 \u062A\u062A\u0639\u0637\u0644.",
+    "La finestra aperta": "\u0627\u0644\u0646\u0627\u0641\u0630\u0629 \u0627\u0644\u0645\u0641\u062A\u0648\u062D\u0629",
+    "Se il soggiorno ha la finestra aperta il calore esce, e scaldarlo vuol dire scaldare la strada. Il contatto della finestra arriva all\u2019ingresso I0: quando vale 1 la valvola del soggiorno si chiude, con un gradino Reset su Q1.": "\u0625\u0630\u0627 \u0643\u0627\u0646\u062A \u0646\u0627\u0641\u0630\u0629 \u0627\u0644\u062C\u0644\u0648\u0633 \u0645\u0641\u062A\u0648\u062D\u0629 \u064A\u062E\u0631\u062C \u0627\u0644\u062F\u0641\u0621\u060C \u0648\u062A\u062F\u0641\u0626\u062A\u0647 \u062A\u0639\u0646\u064A \u062A\u062F\u0641\u0626\u0629 \u0627\u0644\u0634\u0627\u0631\u0639. \u064A\u0635\u0644 \u0645\u0644\u0627\u0645\u0633 \u0627\u0644\u0646\u0627\u0641\u0630\u0629 \u0625\u0644\u0649 \u0627\u0644\u0645\u062F\u062E\u0644 I0: \u0639\u0646\u062F\u0645\u0627 \u064A\u0633\u0627\u0648\u064A 1 \u064A\u064F\u063A\u0644\u0642 \u0635\u0645\u0627\u0645 \u0627\u0644\u062C\u0644\u0648\u0633\u060C \u0628\u062F\u0631\u062C\u0629 Reset \u0639\u0644\u0649 Q1.",
+    "Il PLC legge i gradini dall\u2019alto in basso e vince l\u2019ultimo che scrive la stessa uscita. Il gradino della finestra va quindi dopo il Set della valvola: cos\xEC, anche se la stanza \xE8 fredda, a finestra aperta la valvola resta chiusa. Quando richiudi la finestra, il Set riapre la valvola se serve.": "\u064A\u0642\u0631\u0623 \u0627\u0644\u0640 PLC \u0627\u0644\u062F\u0631\u062C\u0627\u062A \u0645\u0646 \u0627\u0644\u0623\u0639\u0644\u0649 \u0625\u0644\u0649 \u0627\u0644\u0623\u0633\u0641\u0644 \u0648\u064A\u063A\u0644\u0628 \u0622\u062E\u0631 \u0645\u0627 \u064A\u0643\u062A\u0628 \u0627\u0644\u0645\u062E\u0631\u062C \u0646\u0641\u0633\u0647. \u0644\u0630\u0644\u0643 \u062A\u0648\u0636\u0639 \u062F\u0631\u062C\u0629 \u0627\u0644\u0646\u0627\u0641\u0630\u0629 \u0628\u0639\u062F Set \u0627\u0644\u0635\u0645\u0627\u0645: \u0648\u0647\u0643\u0630\u0627\u060C \u062D\u062A\u0649 \u0644\u0648 \u0643\u0627\u0646\u062A \u0627\u0644\u063A\u0631\u0641\u0629 \u0628\u0627\u0631\u062F\u0629\u060C \u064A\u0628\u0642\u0649 \u0627\u0644\u0635\u0645\u0627\u0645 \u0645\u063A\u0644\u0642\u064B\u0627 \u0648\u0627\u0644\u0646\u0627\u0641\u0630\u0629 \u0645\u0641\u062A\u0648\u062D\u0629. \u0648\u0639\u0646\u062F\u0645\u0627 \u062A\u064F\u063A\u0644\u0642 \u0627\u0644\u0646\u0627\u0641\u0630\u0629 \u064A\u0639\u064A\u062F Set \u0641\u062A\u062D \u0627\u0644\u0635\u0645\u0627\u0645 \u0625\u0630\u0627 \u0644\u0632\u0645.",
+    "Hai messo come consenso alla pompa solo la valvola del soggiorno. La camera chiede calore e il soggiorno \xE8 gi\xE0 caldo. Che cosa succede?": "\u062C\u0639\u0644\u062A \u0625\u0630\u0646 \u062A\u0634\u063A\u064A\u0644 \u0627\u0644\u0645\u0636\u062E\u0629 \u0635\u0645\u0627\u0645 \u0627\u0644\u062C\u0644\u0648\u0633 \u0648\u062D\u062F\u0647. \u063A\u0631\u0641\u0629 \u0627\u0644\u0646\u0648\u0645 \u062A\u0637\u0644\u0628 \u0627\u0644\u062F\u0641\u0621 \u0648\u063A\u0631\u0641\u0629 \u0627\u0644\u062C\u0644\u0648\u0633 \u062F\u0627\u0641\u0626\u0629 \u0628\u0627\u0644\u0641\u0639\u0644. \u0645\u0627\u0630\u0627 \u064A\u062D\u062F\u062B\u061F",
+    "La camera si scalda comunque.": "\u062A\u064F\u062F\u0641\u064E\u0651\u0623 \u063A\u0631\u0641\u0629 \u0627\u0644\u0646\u0648\u0645 \u0645\u0639 \u0630\u0644\u0643.",
+    "La valvola della camera \xE8 aperta ma la pompa \xE8 ferma: la camera non si scalda.": "\u0635\u0645\u0627\u0645 \u063A\u0631\u0641\u0629 \u0627\u0644\u0646\u0648\u0645 \u0645\u0641\u062A\u0648\u062D \u0644\u0643\u0646 \u0627\u0644\u0645\u0636\u062E\u0629 \u0645\u062A\u0648\u0642\u0641\u0629: \u0644\u0627 \u062A\u064F\u062F\u0641\u064E\u0651\u0623 \u063A\u0631\u0641\u0629 \u0627\u0644\u0646\u0648\u0645.",
+    "La pompa gira a vuoto e si guasta.": "\u062A\u062F\u0648\u0631 \u0627\u0644\u0645\u0636\u062E\u0629 \u0641\u064A \u0627\u0644\u0641\u0631\u0627\u063A \u0648\u062A\u062A\u0639\u0637\u0644.",
+    "Il consenso alla pompa deve tenere conto di tutte le zone: almeno una valvola aperta, Q1 oppure Q2. Con la sola valvola del soggiorno, il calore non parte mai per la camera.": "\u064A\u062C\u0628 \u0623\u0646 \u064A\u0631\u0627\u0639\u064A \u0625\u0630\u0646 \u062A\u0634\u063A\u064A\u0644 \u0627\u0644\u0645\u0636\u062E\u0629 \u0643\u0644 \u0627\u0644\u0645\u0646\u0627\u0637\u0642: \u0635\u0645\u0627\u0645 \u0648\u0627\u062D\u062F \u0639\u0644\u0649 \u0627\u0644\u0623\u0642\u0644 \u0645\u0641\u062A\u0648\u062D\u060C Q1 \u0623\u0648 Q2. \u0645\u0639 \u0635\u0645\u0627\u0645 \u0627\u0644\u062C\u0644\u0648\u0633 \u0648\u062D\u062F\u0647 \u0644\u0627 \u064A\u0630\u0647\u0628 \u0627\u0644\u062F\u0641\u0621 \u0623\u0628\u062F\u064B\u0627 \u0625\u0644\u0649 \u063A\u0631\u0641\u0629 \u0627\u0644\u0646\u0648\u0645.",
+    "Lasci il consenso della pompa sempre acceso, qualunque cosa facciano le valvole. Le stanze si scaldano e le valvole si chiudono. Che cosa succede?": "\u062A\u062A\u0631\u0643 \u0625\u0630\u0646 \u062A\u0634\u063A\u064A\u0644 \u0627\u0644\u0645\u0636\u062E\u0629 \u062F\u0627\u0626\u0645\u064B\u0627 \u0645\u0641\u0639\u0651\u0644\u064B\u0627 \u0645\u0647\u0645\u0627 \u0641\u0639\u0644\u062A \u0627\u0644\u0635\u0645\u0627\u0645\u0627\u062A. \u062A\u062F\u0641\u0623 \u0627\u0644\u063A\u0631\u0641 \u0648\u062A\u064F\u063A\u0644\u0642 \u0627\u0644\u0635\u0645\u0627\u0645\u0627\u062A. \u0645\u0627\u0630\u0627 \u064A\u062D\u062F\u062B\u061F",
+    "Niente: la pompa riposa da sola.": "\u0644\u0627 \u0634\u064A\u0621: \u0627\u0644\u0645\u0636\u062E\u0629 \u062A\u0631\u062A\u0627\u062D \u0648\u062D\u062F\u0647\u0627.",
+    "La pompa gira a vuoto con tutte le valvole chiuse e dopo un minuto si guasta.": "\u062A\u062F\u0648\u0631 \u0627\u0644\u0645\u0636\u062E\u0629 \u0641\u064A \u0627\u0644\u0641\u0631\u0627\u063A \u0645\u0639 \u0625\u063A\u0644\u0627\u0642 \u0643\u0644 \u0627\u0644\u0635\u0645\u0627\u0645\u0627\u062A \u0648\u0628\u0639\u062F \u062F\u0642\u064A\u0642\u0629 \u062A\u062A\u0639\u0637\u0644.",
+    "Le stanze si scaldano di pi\xF9.": "\u062A\u0632\u062F\u0627\u062F \u0627\u0644\u063A\u0631\u0641 \u062F\u0641\u0626\u064B\u0627.",
+    "Con le valvole chiuse l\u2019acqua non circola. Una pompa che gira a vuoto si surriscalda e si blocca: \xE8 il guasto che il consenso a \u201Calmeno una valvola aperta\u201D evita.": "\u0645\u0639 \u0625\u063A\u0644\u0627\u0642 \u0627\u0644\u0635\u0645\u0627\u0645\u0627\u062A \u0644\u0627 \u064A\u062F\u0648\u0631 \u0627\u0644\u0645\u0627\u0621. \u0627\u0644\u0645\u0636\u062E\u0629 \u0627\u0644\u062A\u064A \u062A\u062F\u0648\u0631 \u0641\u064A \u0627\u0644\u0641\u0631\u0627\u063A \u062A\u0633\u062E\u0646 \u0648\u062A\u062A\u0648\u0642\u0641: \u0648\u0647\u0630\u0627 \u0647\u0648 \u0627\u0644\u0639\u0637\u0644 \u0627\u0644\u0630\u064A \u064A\u062A\u0641\u0627\u062F\u0627\u0647 \u0625\u0630\u0646 \u0627\u0644\u062A\u0634\u063A\u064A\u0644 \xAB\u0635\u0645\u0627\u0645 \u0648\u0627\u062D\u062F \u0639\u0644\u0649 \u0627\u0644\u0623\u0642\u0644 \u0645\u0641\u062A\u0648\u062D\xBB.",
+    "Il termostato del soggiorno": "\u062B\u0631\u0645\u0648\u0633\u062A\u0627\u062A \u063A\u0631\u0641\u0629 \u0627\u0644\u062C\u0644\u0648\u0633",
+    "Due gradini: MW0 minore di 20 con Set su Q1; MW0 maggiore di 22 con Reset su Q1. Perch\xE9: due soglie diverse, l\u2019isteresi, evitano che la valvola apra e chiuda di continuo.": "\u062F\u0631\u062C\u062A\u0627\u0646: MW0 \u0623\u0635\u063A\u0631 \u0645\u0646 20 \u0645\u0639 Set \u0639\u0644\u0649 Q1\u061B MW0 \u0623\u0643\u0628\u0631 \u0645\u0646 22 \u0645\u0639 Reset \u0639\u0644\u0649 Q1. \u0627\u0644\u0633\u0628\u0628: \u0639\u062A\u0628\u062A\u0627\u0646 \u0645\u062E\u062A\u0644\u0641\u062A\u0627\u0646\u060C \u0623\u064A \u0627\u0644\u062A\u0628\u0627\u0637\u0624\u060C \u062A\u0645\u0646\u0639\u0627\u0646 \u0627\u0644\u0635\u0645\u0627\u0645 \u0645\u0646 \u0627\u0644\u0641\u062A\u062D \u0648\u0627\u0644\u0625\u063A\u0644\u0627\u0642 \u0627\u0644\u0645\u0633\u062A\u0645\u0631.",
+    "La finestra chiude la valvola": "\u0627\u0644\u0646\u0627\u0641\u0630\u0629 \u062A\u063A\u0644\u0642 \u0627\u0644\u0635\u0645\u0627\u0645",
+    "Un gradino con il contatto I0 e Reset su Q1, dopo il Set. Perch\xE9: vince l\u2019ultimo gradino, e a finestra aperta la valvola del soggiorno deve restare chiusa.": "\u062F\u0631\u062C\u0629 \u0641\u064A\u0647\u0627 \u0627\u0644\u0645\u0644\u0627\u0645\u0633 I0 \u0648 Reset \u0639\u0644\u0649 Q1\u060C \u0628\u0639\u062F Set. \u0627\u0644\u0633\u0628\u0628: \u062A\u063A\u0644\u0628 \u0627\u0644\u062F\u0631\u062C\u0629 \u0627\u0644\u0623\u062E\u064A\u0631\u0629\u060C \u0648\u0645\u0639 \u0627\u0644\u0646\u0627\u0641\u0630\u0629 \u0627\u0644\u0645\u0641\u062A\u0648\u062D\u0629 \u064A\u062C\u0628 \u0623\u0646 \u064A\u0628\u0642\u0649 \u0635\u0645\u0627\u0645 \u0627\u0644\u062C\u0644\u0648\u0633 \u0645\u063A\u0644\u0642\u064B\u0627.",
+    "Il termostato della camera": "\u062B\u0631\u0645\u0648\u0633\u062A\u0627\u062A \u063A\u0631\u0641\u0629 \u0627\u0644\u0646\u0648\u0645",
+    "Come il soggiorno, con MW1 e Q2: Set sotto 20, Reset sopra 22.": "\u0645\u062B\u0644 \u0627\u0644\u062C\u0644\u0648\u0633\u060C \u0645\u0639 MW1 \u0648 Q2: Set \u062A\u062D\u062A 20\u060C Reset \u0641\u0648\u0642 22.",
+    "La pompa con il consenso": "\u0627\u0644\u0645\u0636\u062E\u0629 \u0645\u0639 \u0625\u0630\u0646 \u0627\u0644\u062A\u0634\u063A\u064A\u0644",
+    "Una bobina Q0 con la condizione \u201CQ1 oppure Q2\u201D (due contatti in parallelo). Perch\xE9: la pompa parte solo se almeno una valvola \xE8 aperta, altrimenti gira a vuoto.": "\u0645\u0644\u0641 Q0 \u0628\u0634\u0631\u0637 \xABQ1 \u0623\u0648 Q2\xBB (\u0645\u0644\u0627\u0645\u0633\u0627\u0646 \u0639\u0644\u0649 \u0627\u0644\u062A\u0648\u0627\u0632\u064A). \u0627\u0644\u0633\u0628\u0628: \u0644\u0627 \u062A\u0639\u0645\u0644 \u0627\u0644\u0645\u0636\u062E\u0629 \u0625\u0644\u0627 \u0625\u0630\u0627 \u0643\u0627\u0646 \u0635\u0645\u0627\u0645 \u0648\u0627\u062D\u062F \u0639\u0644\u0649 \u0627\u0644\u0623\u0642\u0644 \u0645\u0641\u062A\u0648\u062D\u064B\u0627\u060C \u0648\u0625\u0644\u0627 \u062A\u062F\u0648\u0631 \u0641\u064A \u0627\u0644\u0641\u0631\u0627\u063A.",
+    "Tocca la levetta del quadro: il tempo corre dalle 17.": "\u0627\u0644\u0645\u0633 \u0630\u0631\u0627\u0639 \u0627\u0644\u0644\u0648\u062D\u0629: \u064A\u062C\u0631\u064A \u0627\u0644\u0632\u0645\u0646 \u0645\u0646 \u0627\u0644\u0633\u0627\u0639\u0629 17.",
+    "Apri la finestra": "\u0627\u0641\u062A\u062D \u0627\u0644\u0646\u0627\u0641\u0630\u0629",
+    "Simula la finestra aperta del soggiorno: la valvola si chiude e il soggiorno si raffredda, la camera resta calda.": "\u062D\u0627\u0643\u0650 \u0627\u0644\u0646\u0627\u0641\u0630\u0629 \u0627\u0644\u0645\u0641\u062A\u0648\u062D\u0629 \u0641\u064A \u063A\u0631\u0641\u0629 \u0627\u0644\u062C\u0644\u0648\u0633: \u064A\u064F\u063A\u0644\u0642 \u0627\u0644\u0635\u0645\u0627\u0645 \u0648\u062A\u0628\u0631\u062F \u063A\u0631\u0641\u0629 \u0627\u0644\u062C\u0644\u0648\u0633 \u0648\u062A\u0628\u0642\u0649 \u063A\u0631\u0641\u0629 \u0627\u0644\u0646\u0648\u0645 \u062F\u0627\u0641\u0626\u0629.",
+    "Premi Verifica. Nel grafico le due temperature restano tra le linee minima e massima.": "\u0627\u0636\u063A\u0637 \xAB\u062A\u062D\u0642\u0642\xBB. \u0641\u064A \u0627\u0644\u0631\u0633\u0645 \u0627\u0644\u0628\u064A\u0627\u0646\u064A \u062A\u0628\u0642\u0649 \u0627\u0644\u062D\u0631\u0627\u0631\u062A\u0627\u0646 \u0628\u064A\u0646 \u062E\u0637\u064A \u0627\u0644\u062D\u062F \u0627\u0644\u0623\u062F\u0646\u0649 \u0648\u0627\u0644\u0623\u0642\u0635\u0649.",
+    "Un termostato per stanza: la valvola di zona si apre sotto 20 \xB0C e si chiude sopra 22 \xB0C (isteresi, Set e Reset).": "\u062B\u0631\u0645\u0648\u0633\u062A\u0627\u062A \u0644\u0643\u0644 \u063A\u0631\u0641\u0629: \u064A\u0641\u062A\u062D \u0635\u0645\u0627\u0645 \u0627\u0644\u0645\u0646\u0637\u0642\u0629 \u062A\u062D\u062A 20 \xB0\u0645 \u0648\u064A\u064F\u063A\u0644\u0642 \u0641\u0648\u0642 22 \xB0\u0645 (\u062A\u0628\u0627\u0637\u0624\u060C Set \u0648 Reset).",
+    "Con una sola soglia la valvola aprirebbe e chiuderebbe di continuo: servono due soglie diverse.": "\u0645\u0639 \u0639\u062A\u0628\u0629 \u0648\u0627\u062D\u062F\u0629 \u0633\u064A\u0641\u062A\u062D \u0627\u0644\u0635\u0645\u0627\u0645 \u0648\u064A\u064F\u063A\u0644\u0642 \u0628\u0627\u0633\u062A\u0645\u0631\u0627\u0631: \u0646\u062D\u062A\u0627\u062C \u0625\u0644\u0649 \u0639\u062A\u0628\u062A\u064A\u0646 \u0645\u062E\u062A\u0644\u0641\u062A\u064A\u0646.",
+    "La pompa di calore parte solo se almeno una valvola \xE8 aperta: con tutte chiuse gira a vuoto e si guasta.": "\u0644\u0627 \u062A\u0639\u0645\u0644 \u0627\u0644\u0645\u0636\u062E\u0629 \u0627\u0644\u062D\u0631\u0627\u0631\u064A\u0629 \u0625\u0644\u0627 \u0625\u0630\u0627 \u0643\u0627\u0646 \u0635\u0645\u0627\u0645 \u0648\u0627\u062D\u062F \u0639\u0644\u0649 \u0627\u0644\u0623\u0642\u0644 \u0645\u0641\u062A\u0648\u062D\u064B\u0627: \u0645\u0639 \u0625\u063A\u0644\u0627\u0642\u0647\u0627 \u0643\u0644\u0647\u0627 \u062A\u062F\u0648\u0631 \u0641\u064A \u0627\u0644\u0641\u0631\u0627\u063A \u0648\u062A\u062A\u0639\u0637\u0644.",
+    "La finestra aperta chiude la valvola del soggiorno: il gradino va dopo il Set, perch\xE9 vince l\u2019ultimo.": "\u0627\u0644\u0646\u0627\u0641\u0630\u0629 \u0627\u0644\u0645\u0641\u062A\u0648\u062D\u0629 \u062A\u063A\u0644\u0642 \u0635\u0645\u0627\u0645 \u0627\u0644\u062C\u0644\u0648\u0633: \u062A\u0648\u0636\u0639 \u0627\u0644\u062F\u0631\u062C\u0629 \u0628\u0639\u062F Set \u0644\u0623\u0646 \u0627\u0644\u0623\u062E\u064A\u0631\u0629 \u0647\u064A \u0627\u0644\u062A\u064A \u062A\u063A\u0644\u0628.",
+    "Sonda di temperatura": "\u0645\u0633\u0628\u0627\u0631 \u0627\u0644\u062D\u0631\u0627\u0631\u0629"
+  };
+
   // src/i18n/ar.js
   var ROLE = { "del neutro": "\u0627\u0644\u0645\u062D\u0627\u064A\u062F", "di terra": "\u0627\u0644\u0623\u0631\u0636\u064A", "di fase": "\u0627\u0644\u0637\u0648\u0631", "a bassa tensione": "\u0627\u0644\u062C\u0647\u062F \u0627\u0644\u0645\u0646\u062E\u0641\u0636", "di comando": "\u0627\u0644\u062A\u062D\u0643\u0645", "del positivo": "\u0627\u0644\u0645\u0648\u062C\u0628", "del negativo": "\u0627\u0644\u0633\u0627\u0644\u0628", "in continua": "\u0627\u0644\u062A\u064A\u0627\u0631 \u0627\u0644\u0645\u0633\u062A\u0645\u0631" };
   var COLORI = { "blu": "\u0623\u0632\u0631\u0642", "giallo-verde": "\u0623\u0635\u0641\u0631-\u0623\u062E\u0636\u0631", "marrone, nero o grigio": "\u0628\u0646\u064A\u064B\u0651\u0627 \u0623\u0648 \u0623\u0633\u0648\u062F \u0623\u0648 \u0631\u0645\u0627\u062F\u064A\u064B\u0651\u0627", "rosso, marrone, nero o grigio": "\u0623\u062D\u0645\u0631 \u0623\u0648 \u0628\u0646\u064A\u064B\u0651\u0627 \u0623\u0648 \u0623\u0633\u0648\u062F \u0623\u0648 \u0631\u0645\u0627\u062F\u064A\u064B\u0651\u0627", "di un colore diverso da blu e giallo-verde": "\u0628\u0644\u0648\u0646 \u0645\u062E\u062A\u0644\u0641 \u0639\u0646 \u0627\u0644\u0623\u0632\u0631\u0642 \u0648\u0627\u0644\u0623\u0635\u0641\u0631-\u0627\u0644\u0623\u062E\u0636\u0631", "rosso": "\u0623\u062D\u0645\u0631", "nero": "\u0623\u0633\u0648\u062F", "rosso o nero": "\u0623\u062D\u0645\u0631 \u0623\u0648 \u0623\u0633\u0648\u062F" };
@@ -21429,7 +22366,7 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
     [/^Togli il lucchetto da (.+)$/, (m, t) => `\u0623\u0632\u0644 \u0627\u0644\u0642\u0641\u0644 \u0639\u0646 ${t(m[1])}`],
     [/^Protezioni scattate: (.+)\.$/, (m, t) => `\u062D\u0645\u0627\u064A\u0627\u062A \u0641\u0635\u0644\u062A: ${t(m[1])}.`]
   ];
-  registerLang("ar", { ...ar_1_default, ...ar_2_default, ...ar_3_default, ...ar_4_default, ...ar_5_default, ...ar_6_default, ...ar_7_default, ...ar_8_default, ...ar_9_default, ...ar_10_default, ...ar_11_default, ...ar_12_default, ...ar_13_default, ...ar_14_default, ...ar_15_default, ...ar_16_default, ...ar_17_default, ...ar_18_default, ...ar_19_default, ...ar_20_default, ...ar_21_default, ...ar_22_default, ...ar_23_default, ...ar_24_default, ...ar_25_default, ...ar_26_default, ...ar_27_default, ...ar_28_default, ...ar_29_default, ...ar_30_default, ...ar_31_default, ...ar_32_default, ...ar_33_default, ...ar_34_default, ...ar_35_default, ...ar_36_default, ...ar_37_default, ...ar_38_default, ...ar_39_default, ...ar_40_default, ...ar_41_default }, PAT);
+  registerLang("ar", { ...ar_1_default, ...ar_2_default, ...ar_3_default, ...ar_4_default, ...ar_5_default, ...ar_6_default, ...ar_7_default, ...ar_8_default, ...ar_9_default, ...ar_10_default, ...ar_11_default, ...ar_12_default, ...ar_13_default, ...ar_14_default, ...ar_15_default, ...ar_16_default, ...ar_17_default, ...ar_18_default, ...ar_19_default, ...ar_20_default, ...ar_21_default, ...ar_22_default, ...ar_23_default, ...ar_24_default, ...ar_25_default, ...ar_26_default, ...ar_27_default, ...ar_28_default, ...ar_29_default, ...ar_30_default, ...ar_31_default, ...ar_32_default, ...ar_33_default, ...ar_34_default, ...ar_35_default, ...ar_36_default, ...ar_37_default, ...ar_38_default, ...ar_39_default, ...ar_40_default, ...ar_41_default, ...ar_42_default }, PAT);
 
   // src/trilocale/house.js
   function houseState(session2, on = true) {
@@ -24538,7 +25475,7 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
       next = removeRung(prog, sel.r);
       nsel = null;
     } else if (cur && act2 === "type" && data.v === "cmp") next = setContact(prog, sel.r, sel.cell, sel.alt, cur.cmp ? cur : { cmp: "gt", a: addrs.words[0], b: 0 });
-    else if (cur && act2 === "type") next = setContact(prog, sel.r, sel.cell, sel.alt, { a: cur.cmp ? addrs.inputs[0] : cur.a, ...data.v === "not" ? { not: true } : data.v === "rise" ? { rise: true } : {} });
+    else if (cur && act2 === "type") next = setContact(prog, sel.r, sel.cell, sel.alt, { a: cur.cmp ? addrs.inputs[0] || addrs.outputs[0] : cur.a, ...data.v === "not" ? { not: true } : data.v === "rise" ? { rise: true } : {} });
     else if (cur && cur.cmp && act2 === "cmpop") next = setContact(prog, sel.r, sel.cell, sel.alt, { ...cur, cmp: data.v });
     else if (cur && cur.cmp && act2 === "cmpb") {
       const b = Number(String(data.v).replace(",", "."));

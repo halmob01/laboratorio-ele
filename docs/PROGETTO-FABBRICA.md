@@ -154,6 +154,35 @@ riparte. Se i token finiscono a meta' fase, la fase si rifa' dall'ultimo commit:
 | 4 | **Scena** `fabbrica.js`, riparare toccando nella scena, percorsi dei fili, livello in mappa con la foto | partita intera in Chromium, schermate a 390 e 1280 | la prova c'e' |
 | 5 | **Misure e chiusura**: chiamate a riposo e in marcia, avvio, schermate prima/dopo delle altre scene, revisione indipendente, documento aggiornato con le differenze, unione in `main` | numeri nella tabella di `SPEC-SCENE-3D.md` | |
 
+### Fase 3 divisa in due (lavorano due sessioni insieme)
+
+Le due meta' non toccano gli stessi file; la scena che le mette insieme e' la fase 4. Nessuna delle due modifica
+`entry.js`, `officina.js`, `automatico.js`, `parts3d.js` ne' i file di contenuto.
+
+| Meta' | Chi | File | Pezzi |
+|---|---|---|---|
+| 3a | questa sessione, ramo `claude/stoic-hawking-u5cka0` | `src/scene3d/parts-cella.js` (nuovo) | `gantry(M)` portale del robot con carrello, asta e pinza; `cellSensor(M, o)` finecorsa con il LED |
+| 3b | un altro agente, ramo `fabbrica-fase3b` | `src/scene3d/parts-reparto.js` (nuovo), `src/scene3d/capannone.js` (solo aggiunte) | `fence(M, o)` recinzione con la portella; `ksModule(M)` relè di sicurezza KS; `hmiStand(M)` pannello operatore su supporto; `NOTTE` preset dell'ora di notte per `buildHall` |
+
+Contratto comune (come i pezzi di `parts3d.js`):
+- ogni pezzo e' una funzione che riceve i materiali del kit (`kitMaterials()` da `parts3d.js`) e ritorna
+  `{ group, picks, set(stato) }`, piu' `skip` (array degli oggetti che si muovono, da passare a `stage.finish`) quando serve;
+- costruito con `box`, `cylinder`, `textPlane`, `led` di `parts3d.js`; materiali propri solo per cio' che si accende o cambia
+  (luci con l'intensita', mai `visible`); niente texture da file;
+- i pezzi toccabili hanno `userData = { id, kind: 'toggle' | 'hold' | 'repair' }` (gli id del livello: `P`, `E`, `SBR`, `ZD`...);
+- `set` legge i campi di `fabbricaState` (`src/prove/state.js`): `robot.{x,z,grip,holding}`, `sensors.{ZU,ZD,XP,XL,PR}.act`,
+  `door`, `emergency`, `ks`, `contactor`, `powered`, `panelOn`, `hmi.link`; ritorna `true` se ha cambiato qualcosa da
+  ridisegnare (`false` se lo stato e' uguale: a riposo 0 chiamate);
+- coordinate in metri, il pezzo con l'origine a terra al centro della sua base, il fronte verso +z (come `pushStation`).
+
+Misure della cella (per far combaciare le due meta'): area dentro la recinzione 3,2 m (x) per 2,4 m (z), altezza della
+recinzione 2,0 m, portella larga 0,9 m sul lato +z, a 0,6 m dall'angolo -x; portale alto 2,2 m con la trave lungo x tra
+prelievo (x = -1,1) e deposito (x = +1,1), corsa dell'asta 0,8 m (z = 0 in alto, 1 in basso del modello `linea`).
+
+Fatta quando: anteprima di ogni pezzo da solo (schermata in uno script di prova fuori dal gioco) e le scene esistenti invariate
+(officina e nastro automatico: schermate uguali). Ognuna delle due meta' si chiude con commit e push sul suo ramo; poi
+questa sessione unisce `fabbrica-fase3b` nel suo ramo prima della fase 4.
+
 Per riprendere in un'altra sessione: leggere questo documento, l'ultima riga del registro e `git log` del ramo; la fase
 successiva comincia dall'unione di `main` nel ramo.
 

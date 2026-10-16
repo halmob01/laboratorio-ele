@@ -660,7 +660,12 @@ export function createSession({ levels, deriveFull, storage = memoryStorage(), i
       listeners.add(fn);
       return () => listeners.delete(fn);
     },
-    start() { restoreWork(); power = selfPowered(levelAt()); armProva(); power = selfPowered(levelAt()); emit(); },
+    start() {
+      restoreWork(); power = selfPowered(levelAt()); armProva(); power = selfPowered(levelAt());
+      const sim = simsByKey[keyOf()];
+      if (sim && sim.supply !== power) setSupply(sim, power);   // una simulazione creata prima di start() non resta senza corrente
+      emit();
+    },
 
     // Stato di un livello qualsiasi (non solo quello aperto), per chi disegna piu' circuiti insieme (la casa).
     // `lit`: la lampada si accende con i fili e i comandi attuali, ignorando il quadro; `power` vale solo per il livello aperto.
