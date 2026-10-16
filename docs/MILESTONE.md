@@ -75,6 +75,8 @@ termico che scatta ma non ferma il nastro, il banco a salvamotore aperto, il tur
 
 ## Fluidita'
 
+Tutte le regole, i numeri e il modo di misurare sono in `docs/SPEC-SCENE-3D.md`: da leggere prima di una scena nuova.
+
 All'avvio: i programmi grafici si preparano in parallelo nella variante giusta (buffer degli effetti, non lo schermo), dopo
 la luce ambiente; le texture che arrivano dopo partono da segnaposti dello stesso aspetto; le texture disegnate nel codice
 stanno su canvas in memoria; i pacchetti 3D e i loro file si scaricano in sottofondo a pagina ferma (`src/ui2d/prefetch.js`).
