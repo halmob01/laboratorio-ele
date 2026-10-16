@@ -148,6 +148,31 @@ obiettivo piu' basso del trilocale in movimento (86) piu' i pezzi nuovi, circa 1
   sonda bagnata): serve una voce `events` accanto a `faults`, senza tempo massimo e senza "riparato".
 - Il guasto della prova come sempre in `unit.fault` (programma di partenza con l'ordine di distacco sbagliato).
 
+### Perche' questo guasto in una casa intelligente
+Con un contatore da 3-4,5 kW, forno, auto e pompa di calore insieme fanno saltare la corrente: e' il primo motivo per cui una
+casa si fa "intelligente". La gestione dei carichi stacca prima il carico meno importante (di solito la ricarica dell'auto) e
+lo riattacca quando c'e' margine. Il guasto della prova e' una casa impostata male (priorita' al contrario: stacca il
+riscaldamento e lascia l'auto), cioe' il lavoro dell'elettricista che consegna: la lezione e' che in una casa intelligente
+contano le regole, non solo i fili.
+
+## 3b. Riuso dalle scene gia' fatte
+
+| Serve | Si prende da |
+|---|---|
+| Capannone, plafoniere, saracinesca, passerella dei cavi | `capannone.js` (officina, nastro automatico) |
+| Quadro con salvamotore, contattore, termico; PLC con i LED | `cabinetPanel`, `plcModule` (kit) |
+| Pulsantiera, torretta, nastro, motore, fotocellula | kit (`parts3d.js`) |
+| Pezzi in movimento con ombre finte, bancale | nastro automatico (InstancedMesh e macchie d'ombra) |
+| Fili vivi del banco nella scena | `createLiveWires`, percorsi di `officina-wires.js` (da estendere ai nuovi morsetti) |
+| Casa, stanze, luci, tetto, sera, finestre | trilocale (`src/trilocale/scene.js`), come l'appartamento |
+| Quadro di casa, buio dello scatto, "tac", torcia | appartamento (`centralino`, sequenze dello scatto) |
+| Cornice: ingresso, metodo, registro, verbale, momento forte, finale | `src/prove/page.js` e `hud.js` (cornice di reparto per la fabbrica) |
+| Pannello del processo in 2D come ripiego senza WebGL | `src/ui2d/process.js` |
+| Misure (chiamate, avvio, schermate) | metodo di `docs/SPEC-SCENE-3D.md` |
+
+Pezzi davvero nuovi: braccio robot, recinzione con portella (fabbrica); pannelli, batteria, colonnina con auto, pompa di
+calore, sensori di casa (casa). Tutti costruiti nel codice con i materiali del kit.
+
 ## 4. Ordine di lavoro proposto
 
 | Passo | Cosa | Dipende da | Dove |
