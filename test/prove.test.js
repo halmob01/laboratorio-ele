@@ -156,3 +156,35 @@ test('c23: rivedere la lezione dopo aver superato la prova riporta alla fine e n
   assert.equal(s.snapshot().unit.phase, 'done');
   assert.equal(s.snapshot().unit.faultSolved, true);
 });
+
+test('nella prova Annulla non smonta l’impianto e Annulla tutto riporta all’impianto di partenza', () => {
+  const s = open('c24-officina');
+  s.skipLesson();
+  const plant = s.snapshot().wires.map(w => w.a + '~' + w.b).sort();
+  s.undo();                                                       // nessun filo dell'allievo: non succede niente
+  assert.deepEqual(s.snapshot().wires.map(w => w.a + '~' + w.b).sort(), plant);
+  s.addWire('QM.2', 'SBE.1', 'rosso');                           // toglie un filo dell'impianto
+  s.addWire('QM.2', 'FR.95', 'rosso');
+  s.undo();                                                       // toglie solo l'ultimo filo posato
+  assert.ok(!s.snapshot().wires.some(w => w.a === 'QM.2' && w.b === 'FR.95'));
+  assert.equal(s.snapshot().wires.length, plant.length - 1);
+  s.answerDiagnosis('a');
+  s.clear();
+  assert.deepEqual(s.snapshot().wires.map(w => w.a + '~' + w.b).sort(), plant);
+  assert.equal(s.snapshot().unit.phase, 'fault');
+  assert.equal(s.snapshot().unit.diag.correct, true);             // la risposta data resta
+});
+
+test('una prova lasciata a meta’ riparte dall’impianto guasto, non dalla lezione', () => {
+  const store = {};
+  const mk = () => { const s = createSession({ levels, deriveFull, initialLevel: 'c23-appartamento-notte', storage: { load: () => store.p || {}, save: o => { store.p = JSON.parse(JSON.stringify(o)); }, loadWork: () => store.w || {}, saveWork: o => { store.w = JSON.parse(JSON.stringify(o)); } } }); s.start(); return s; };
+  const a = mk();
+  a.skipLesson();
+  a.toggleControl('M1');
+  a.toggleControl('M1');                                          // un'azione qualsiasi: il lavoro si salva
+  const b = mk();
+  const sn = b.snapshot();
+  assert.equal(sn.unit.phase, 'fault');
+  assert.equal(sn.wires.length, sn.level.unit.fault.wires.length);
+  assert.equal(tripped(b), 'D');
+});

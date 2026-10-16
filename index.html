@@ -4107,7 +4107,13 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
       if (!storage2.saveWork || playMode === "verifica") return;
       const l = levels2[levelIndex];
       const u = unitByKey[levelIndex];
-      if (u && u.phase === "fault") return;
+      if (u && u.phase === "fault") {
+        if (l.prova && !u.before) {
+          work.u[l.id] = { phase: "fault", page: u.page || 0, pred: u.pred ? { option: u.pred.option, correct: !!u.pred.correct } : null };
+          writeWork();
+        }
+        return;
+      }
       const ws = (wiresByKey[keyOf()] || []).filter((x) => !x.fixed).map((x) => ({ id: x.id, a: x.a, b: x.b, c: x.c }));
       const st = { ...statesByKey[keyOf()] || {} };
       const rt = {};
@@ -4134,6 +4140,9 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
         if (u.phase === "lesson" && !u.page) delete work.u[l.id];
         else work.u[l.id] = { phase: u.phase, page: u.page || 0, pred: u.pred ? { option: u.pred.option, correct: !!u.pred.correct } : null };
       }
+      writeWork();
+    }
+    function writeWork() {
       let str;
       try {
         str = JSON.stringify(work);
@@ -4238,7 +4247,7 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
           if (ws.length || Object.keys(st).length || entry.ratings || entry.measured || entry.live || entry.iso || entry.tuned) work.w[workKeyOf(i, m)] = entry;
         });
         const e = isObj(data.u) ? data.u[l.id] : null;
-        if (!isObj(e) || !l.unit || !["lesson", "build", "done"].includes(e.phase)) return;
+        if (!isObj(e) || !l.unit || !["lesson", "build", "done", "fault"].includes(e.phase) || e.phase === "fault" && !l.prova) return;
         const pages = l.unit.lesson.pages;
         let page = Math.max(0, Math.min(pages.length - 1, Math.floor(Number(e.page) || 0)));
         const pi = pages.findIndex((pg) => pg.type === "previsione");
@@ -4268,12 +4277,16 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
         lastWorkStr = "";
       }
     }
+    function faultWires(level) {
+      const fx = fixedOf(level), fxKeys = new Set(fx.map((x) => [x.a, x.b].sort().join("~")));
+      const plant = !!level.prova;
+      return fx.concat(level.unit.fault.wires.filter(([a, b]) => !fxKeys.has([a, b].sort().join("~"))).map(([a, b, c2]) => plant ? { id: nextWireId++, a, b, c: c2, plant } : { id: nextWireId++, a, b, c: c2 }));
+    }
     function loadFaultPlant(level, us) {
       resetLevelState();
       delete measuredBy[keyOf()];
       delete liveEditsBy[keyOf()];
-      const fx = fixedOf(level), fxKeys = new Set(fx.map((x) => [x.a, x.b].sort().join("~")));
-      wiresByKey[keyOf()] = fx.concat(level.unit.fault.wires.filter(([a, b]) => !fxKeys.has([a, b].sort().join("~"))).map(([a, b, c2]) => ({ id: nextWireId++, a, b, c: c2 })));
+      wiresByKey[keyOf()] = faultWires(level);
       statesByKey[keyOf()] = {};
       resultsByKey[keyOf()] = null;
       if (level.unit.fault.programs) programsByKey[keyOf()] = JSON.parse(JSON.stringify(level.unit.fault.programs));
@@ -4576,7 +4589,7 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
       undo() {
         if (!inBuildOrFault()) return;
         const lw = wires()[wires().length - 1];
-        if (!lw || lw.fixed) return;
+        if (!lw || lw.fixed || lw.plant) return;
         const fresh = noteLive([lw.a, lw.b]);
         wiresChanged();
         wires().pop();
@@ -4586,6 +4599,18 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
       },
       clear() {
         if (!inBuildOrFault()) return;
+        const lv = levelAt();
+        if (lv.prova && unitState().phase === "fault") {
+          wiresChanged();
+          delete liveEditsBy[keyOf()];
+          wiresByKey[keyOf()] = faultWires(lv);
+          if (lv.unit.fault.programs) programsByKey[keyOf()] = JSON.parse(JSON.stringify(lv.unit.fault.programs));
+          else delete programsByKey[keyOf()];
+          delete tunedByKey[keyOf()];
+          afterEdit();
+          emit();
+          return;
+        }
         if (!wires().some((w) => !w.fixed) && !Object.keys(programsOf()).length && !tunedByKey[keyOf()]) {
           delete liveEditsBy[keyOf()];
           return;
@@ -19141,11 +19166,42 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
     "\xC8 la regola che hai imparato con il rel\xE8 di sicurezza: dopo un arresto di sicurezza la macchina non riparte da sola. Il riarmo si d\xE0 con la portella chiusa e i canali a posto. Dopo il riarmo il robot finisce il ciclo interrotto; per i pezzi successivi serve anche Marcia, perch\xE9 il PLC ha perso la marcia quando le sicurezze si sono aperte.": "\u0625\u0646\u0647\u0627 \u0627\u0644\u0642\u0627\u0639\u062F\u0629 \u0627\u0644\u062A\u064A \u062A\u0639\u0644\u0645\u062A\u0647\u0627 \u0645\u0639 \u0645\u0631\u062D\u0651\u0644 \u0627\u0644\u0633\u0644\u0627\u0645\u0629: \u0628\u0639\u062F \u0625\u064A\u0642\u0627\u0641 \u0623\u0645\u0627\u0646 \u0644\u0627 \u062A\u0639\u0627\u0648\u062F \u0627\u0644\u0622\u0644\u0629 \u0627\u0644\u0639\u0645\u0644 \u0648\u062D\u062F\u0647\u0627. \u062A\u064F\u0639\u0637\u0649 \u0625\u0639\u0627\u062F\u0629 \u0627\u0644\u062A\u0633\u0644\u064A\u062D \u0648\u0627\u0644\u0628\u0648\u0627\u0628\u0629 \u0645\u063A\u0644\u0642\u0629 \u0648\u0627\u0644\u0642\u0646\u0627\u062A\u0627\u0646 \u0633\u0644\u064A\u0645\u062A\u0627\u0646. \u0628\u0639\u062F \u0625\u0639\u0627\u062F\u0629 \u0627\u0644\u062A\u0633\u0644\u064A\u062D \u064A\u064F\u0646\u0647\u064A \u0627\u0644\u0631\u0648\u0628\u0648\u062A \u0627\u0644\u062F\u0648\u0631\u0629 \u0627\u0644\u0645\u0642\u0637\u0648\u0639\u0629\u061B \u0648\u0644\u0644\u0642\u0637\u0639 \u0627\u0644\u062A\u0627\u0644\u064A\u0629 \u064A\u0644\u0632\u0645 \xAB\u062A\u0634\u063A\u064A\u0644\xBB \u0623\u064A\u0636\u064B\u0627\u060C \u0644\u0623\u0646 \u0627\u0644\u0640PLC \u0641\u0642\u062F \u0627\u0644\u062A\u0634\u063A\u064A\u0644 \u062D\u064A\u0646 \u0641\u064F\u062A\u062D\u062A \u0627\u0644\u0633\u0644\u0627\u0645\u0629."
   };
 
+  // src/i18n/ar-36.js
+  var ar_36_default = {
+    "Appartamento di notte.": "\u0634\u0642\u0629 \u0641\u064A \u0627\u0644\u0644\u064A\u0644.",
+    "Il differenziale \xE8 scattato.": "\u0641\u0635\u0644 \u0627\u0644\u0642\u0627\u0637\u0639 \u0627\u0644\u062A\u0641\u0627\u0636\u0644\u064A.",
+    "Il differenziale \xE8 armato.": "\u0627\u0644\u0642\u0627\u0637\u0639 \u0627\u0644\u062A\u0641\u0627\u0636\u0644\u064A \u0645\u064F\u0639\u0627\u062F \u0627\u0644\u062A\u0634\u063A\u064A\u0644.",
+    "Il differenziale \xE8 aperto.": "\u0627\u0644\u0642\u0627\u0637\u0639 \u0627\u0644\u062A\u0641\u0627\u0636\u0644\u064A \u0645\u0641\u062A\u0648\u062D.",
+    "Linea luce chiusa.": "\u062E\u0637 \u0627\u0644\u0625\u0646\u0627\u0631\u0629 \u0645\u063A\u0644\u0642.",
+    "Linea luce aperta.": "\u062E\u0637 \u0627\u0644\u0625\u0646\u0627\u0631\u0629 \u0645\u0641\u062A\u0648\u062D.",
+    "Linea luce scattata.": "\u062E\u0637 \u0627\u0644\u0625\u0646\u0627\u0631\u0629 \u0641\u0635\u0644.",
+    "Linea prese chiusa.": "\u062E\u0637 \u0627\u0644\u0645\u0642\u0627\u0628\u0633 \u0645\u063A\u0644\u0642.",
+    "Linea prese aperta.": "\u062E\u0637 \u0627\u0644\u0645\u0642\u0627\u0628\u0633 \u0645\u0641\u062A\u0648\u062D.",
+    "Linea prese scattata.": "\u062E\u0637 \u0627\u0644\u0645\u0642\u0627\u0628\u0633 \u0641\u0635\u0644.",
+    "Linea cucina chiusa.": "\u062E\u0637 \u0627\u0644\u0645\u0637\u0628\u062E \u0645\u063A\u0644\u0642.",
+    "Linea cucina aperta.": "\u062E\u0637 \u0627\u0644\u0645\u0637\u0628\u062E \u0645\u0641\u062A\u0648\u062D.",
+    "Linea cucina scattata.": "\u062E\u0637 \u0627\u0644\u0645\u0637\u0628\u062E \u0641\u0635\u0644.",
+    "La stufetta \xE8 collegata.": "\u0627\u0644\u0645\u062F\u0641\u0623\u0629 \u0645\u0648\u0635\u0648\u0644\u0629.",
+    "La stufetta \xE8 scollegata.": "\u0627\u0644\u0645\u062F\u0641\u0623\u0629 \u0645\u0641\u0635\u0648\u0644\u0629.",
+    "La casa \xE8 al buio.": "\u0627\u0644\u0645\u0646\u0632\u0644 \u0645\u0638\u0644\u0645.",
+    "La luce del corridoio \xE8 accesa.": "\u0636\u0648\u0621 \u0627\u0644\u0645\u0645\u0631 \u0645\u0636\u0627\u0621.",
+    "La luce del corridoio \xE8 spenta.": "\u0636\u0648\u0621 \u0627\u0644\u0645\u0645\u0631 \u0645\u0637\u0641\u0623.",
+    "Officina con il nastro trasportatore.": "\u0648\u0631\u0634\u0629 \u0641\u064A\u0647\u0627 \u0627\u0644\u062D\u0632\u0627\u0645 \u0627\u0644\u0646\u0627\u0642\u0644.",
+    "Il nastro \xE8 in marcia.": "\u0627\u0644\u062D\u0632\u0627\u0645 \u064A\u0639\u0645\u0644.",
+    "Il motore ronza e non parte.": "\u0627\u0644\u0645\u062D\u0631\u0643 \u064A\u0637\u0646\u0651 \u0648\u0644\u0627 \u064A\u062F\u0648\u0631.",
+    "Il termico \xE8 scattato.": "\u0641\u0635\u0644 \u0627\u0644\u0645\u0631\u062D\u0650\u0651\u0644 \u0627\u0644\u062D\u0631\u0627\u0631\u064A.",
+    "L\u2019emergenza \xE8 premuta.": "\u0632\u0631 \u0627\u0644\u0637\u0648\u0627\u0631\u0626 \u0645\u0636\u063A\u0648\u0637.",
+    "Il pacco \xE8 a fine corsa.": "\u0627\u0644\u0637\u0631\u062F \u0639\u0646\u062F \u0646\u0647\u0627\u064A\u0629 \u0627\u0644\u0645\u0634\u0648\u0627\u0631.",
+    "Il salvamotore \xE8 aperto: lavori in corso.": "\u0627\u0644\u0642\u0627\u0637\u0639 \u0627\u0644\u062D\u0627\u0645\u064A \u0644\u0644\u0645\u062D\u0631\u0643 \u0645\u0641\u062A\u0648\u062D: \u0623\u0639\u0645\u0627\u0644 \u062C\u0627\u0631\u064A\u0629."
+  };
+
   // src/i18n/ar.js
   var ROLE = { "del neutro": "\u0627\u0644\u0645\u062D\u0627\u064A\u062F", "di terra": "\u0627\u0644\u0623\u0631\u0636\u064A", "di fase": "\u0627\u0644\u0637\u0648\u0631", "a bassa tensione": "\u0627\u0644\u062C\u0647\u062F \u0627\u0644\u0645\u0646\u062E\u0641\u0636", "di comando": "\u0627\u0644\u062A\u062D\u0643\u0645", "del positivo": "\u0627\u0644\u0645\u0648\u062C\u0628", "del negativo": "\u0627\u0644\u0633\u0627\u0644\u0628", "in continua": "\u0627\u0644\u062A\u064A\u0627\u0631 \u0627\u0644\u0645\u0633\u062A\u0645\u0631" };
   var COLORI = { "blu": "\u0623\u0632\u0631\u0642", "giallo-verde": "\u0623\u0635\u0641\u0631-\u0623\u062E\u0636\u0631", "marrone, nero o grigio": "\u0628\u0646\u064A\u064B\u0651\u0627 \u0623\u0648 \u0623\u0633\u0648\u062F \u0623\u0648 \u0631\u0645\u0627\u062F\u064A\u064B\u0651\u0627", "rosso, marrone, nero o grigio": "\u0623\u062D\u0645\u0631 \u0623\u0648 \u0628\u0646\u064A\u064B\u0651\u0627 \u0623\u0648 \u0623\u0633\u0648\u062F \u0623\u0648 \u0631\u0645\u0627\u062F\u064A\u064B\u0651\u0627", "di un colore diverso da blu e giallo-verde": "\u0628\u0644\u0648\u0646 \u0645\u062E\u062A\u0644\u0641 \u0639\u0646 \u0627\u0644\u0623\u0632\u0631\u0642 \u0648\u0627\u0644\u0623\u0635\u0641\u0631-\u0627\u0644\u0623\u062E\u0636\u0631", "rosso": "\u0623\u062D\u0645\u0631", "nero": "\u0623\u0633\u0648\u062F", "rosso o nero": "\u0623\u062D\u0645\u0631 \u0623\u0648 \u0623\u0633\u0648\u062F" };
   var cap = (s) => s[0].toUpperCase() + s.slice(1);
+  var SCENE_LABEL = /^(Appartamento di notte|Officina con il nastro trasportatore|Linea di confezionamento)\. /;
   var PAT = [
+    [SCENE_LABEL, (m, t) => m.input.split(/(?<=\.) /).map((x) => t(x)).join(" ")],
     [/^Casa vista dall’alto\. Stanze con la luce accesa: (.+)$/, (m, t) => `\u0645\u0646\u0632\u0644 \u0645\u0646 \u0627\u0644\u0623\u0639\u0644\u0649. \u0627\u0644\u063A\u0631\u0641 \u0627\u0644\u0645\u0636\u0627\u0621\u0629: ${m[1].split(", ").map((x) => t(x)).join("\u060C ")}`],
     [/^[\d,.]+ kWh$/, (m) => iso(m[0])],
     // motivi di una prova sul tracciato (processText in it.js): il nome della grandezza si traduce a parte
@@ -19253,7 +19309,7 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
     [/^Portata (.+): (\d+) ampere\. Tocca per cambiarla$/, (m, t) => `\u0627\u0644\u0633\u0639\u0629 ${t(m[1])}: ${m[2]} \u0623\u0645\u0628\u064A\u0631. \u0627\u0644\u0645\u0633 \u0644\u062A\u063A\u064A\u064A\u0631\u0647\u0627`],
     [/^Protezioni scattate: (.+)\.$/, (m, t) => `\u062D\u0645\u0627\u064A\u0627\u062A \u0641\u0635\u0644\u062A: ${t(m[1])}.`]
   ];
-  registerLang("ar", { ...ar_1_default, ...ar_2_default, ...ar_3_default, ...ar_4_default, ...ar_5_default, ...ar_6_default, ...ar_7_default, ...ar_8_default, ...ar_9_default, ...ar_10_default, ...ar_11_default, ...ar_12_default, ...ar_13_default, ...ar_14_default, ...ar_15_default, ...ar_16_default, ...ar_17_default, ...ar_18_default, ...ar_19_default, ...ar_20_default, ...ar_21_default, ...ar_22_default, ...ar_23_default, ...ar_24_default, ...ar_25_default, ...ar_26_default, ...ar_27_default, ...ar_28_default, ...ar_29_default, ...ar_30_default, ...ar_31_default, ...ar_32_default, ...ar_33_default, ...ar_34_default, ...ar_35_default }, PAT);
+  registerLang("ar", { ...ar_1_default, ...ar_2_default, ...ar_3_default, ...ar_4_default, ...ar_5_default, ...ar_6_default, ...ar_7_default, ...ar_8_default, ...ar_9_default, ...ar_10_default, ...ar_11_default, ...ar_12_default, ...ar_13_default, ...ar_14_default, ...ar_15_default, ...ar_16_default, ...ar_17_default, ...ar_18_default, ...ar_19_default, ...ar_20_default, ...ar_21_default, ...ar_22_default, ...ar_23_default, ...ar_24_default, ...ar_25_default, ...ar_26_default, ...ar_27_default, ...ar_28_default, ...ar_29_default, ...ar_30_default, ...ar_31_default, ...ar_32_default, ...ar_33_default, ...ar_34_default, ...ar_35_default, ...ar_36_default }, PAT);
 
   // src/trilocale/house.js
   function houseState(session2, on = true) {

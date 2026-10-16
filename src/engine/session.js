@@ -281,7 +281,11 @@ export function createSession({ levels, deriveFull, storage = memoryStorage(), i
     if (!storage.saveWork || playMode === 'verifica') return;
     const l = levels[levelIndex];
     const u = unitByKey[levelIndex];
-    if (u && u.phase === 'fault') return;
+    if (u && u.phase === 'fault') {
+      // una prova lasciata a meta' riparte dall'impianto guasto, senza rifare la lezione (i fili della prova non si salvano)
+      if (l.prova && !u.before) { work.u[l.id] = { phase: 'fault', page: u.page || 0, pred: u.pred ? { option: u.pred.option, correct: !!u.pred.correct } : null }; writeWork(); }
+      return;
+    }
     const ws = (wiresByKey[keyOf()] || []).filter(x => !x.fixed).map(x => ({ id: x.id, a: x.a, b: x.b, c: x.c }));
     const st = { ...(statesByKey[keyOf()] || {}) };
     const rt = {};
@@ -306,6 +310,9 @@ export function createSession({ levels, deriveFull, storage = memoryStorage(), i
       if (u.phase === 'lesson' && !u.page) delete work.u[l.id];
       else work.u[l.id] = { phase: u.phase, page: u.page || 0, pred: u.pred ? { option: u.pred.option, correct: !!u.pred.correct } : null };
     }
+    writeWork();
+  }
+  function writeWork() {
     let str;
     try { str = JSON.stringify(work); } catch (e) { return; }
     if (str === lastWorkStr) return;   // niente scritture inutili
@@ -373,7 +380,7 @@ export function createSession({ levels, deriveFull, storage = memoryStorage(), i
         if (ws.length || Object.keys(st).length || entry.ratings || entry.measured || entry.live || entry.iso || entry.tuned) work.w[workKeyOf(i, m)] = entry;
       });
       const e = isObj(data.u) ? data.u[l.id] : null;
-      if (!isObj(e) || !l.unit || !['lesson', 'build', 'done'].includes(e.phase)) return;
+      if (!isObj(e) || !l.unit || !['lesson', 'build', 'done', 'fault'].includes(e.phase) || (e.phase === 'fault' && !l.prova)) return;
       const pages = l.unit.lesson.pages;
       let page = Math.max(0, Math.min(pages.length - 1, Math.floor(Number(e.page) || 0)));
       // la previsione si riconvalida sul contenuto: senza una risposta valida non si va oltre la sua pagina
@@ -399,13 +406,19 @@ export function createSession({ levels, deriveFull, storage = memoryStorage(), i
   }
 
 
+  // I fili dell'impianto guasto: quelli posati dal livello piu' quelli della sfida. In una prova restano segnati (`plant`):
+  // Annulla non li toglie e Annulla tutto riporta a loro, non al banco vuoto.
+  function faultWires(level) {
+    const fx = fixedOf(level), fxKeys = new Set(fx.map(x => [x.a, x.b].sort().join('~')));
+    const plant = !!level.prova;
+    return fx.concat(level.unit.fault.wires.filter(([a, b]) => !fxKeys.has([a, b].sort().join('~'))).map(([a, b, c]) => (plant ? { id: nextWireId++, a, b, c, plant } : { id: nextWireId++, a, b, c })));
+  }
   // Carica l'impianto guasto della sfida: fili, guasti da componente accesi, sezionamenti aperti.
   function loadFaultPlant(level, us) {
     resetLevelState();
     delete measuredBy[keyOf()];
     delete liveEditsBy[keyOf()];
-    const fx = fixedOf(level), fxKeys = new Set(fx.map(x => [x.a, x.b].sort().join('~')));
-    wiresByKey[keyOf()] = fx.concat(level.unit.fault.wires.filter(([a, b]) => !fxKeys.has([a, b].sort().join('~'))).map(([a, b, c]) => ({ id: nextWireId++, a, b, c })));
+    wiresByKey[keyOf()] = faultWires(level);
     statesByKey[keyOf()] = {};
     resultsByKey[keyOf()] = null;
     if (level.unit.fault.programs) programsByKey[keyOf()] = JSON.parse(JSON.stringify(level.unit.fault.programs)); else delete programsByKey[keyOf()];
@@ -687,7 +700,7 @@ export function createSession({ levels, deriveFull, storage = memoryStorage(), i
     undo() {
       if (!inBuildOrFault()) return;
       const lw = wires()[wires().length - 1];
-      if (!lw || lw.fixed) return;
+      if (!lw || lw.fixed || lw.plant) return;
       const fresh = noteLive([lw.a, lw.b]);
       wiresChanged();
       wires().pop();
@@ -697,6 +710,18 @@ export function createSession({ levels, deriveFull, storage = memoryStorage(), i
     },
     clear() {
       if (!inBuildOrFault()) return;
+      const lv = levelAt();
+      if (lv.prova && unitState().phase === 'fault') {
+        // nella prova si torna all'impianto di partenza (con il suo guasto), non al banco vuoto
+        wiresChanged();
+        delete liveEditsBy[keyOf()];   // si ricomincia da capo, come al banco
+        wiresByKey[keyOf()] = faultWires(lv);
+        if (lv.unit.fault.programs) programsByKey[keyOf()] = JSON.parse(JSON.stringify(lv.unit.fault.programs)); else delete programsByKey[keyOf()];
+        delete tunedByKey[keyOf()];
+        afterEdit();
+        emit();
+        return;
+      }
       if (!wires().some(w => !w.fixed) && !Object.keys(programsOf()).length && !tunedByKey[keyOf()]) { delete liveEditsBy[keyOf()]; return; }
       delete programsByKey[keyOf()];
       delete tunedByKey[keyOf()];   // anche i cursori del pannello tornano ai valori di partenza

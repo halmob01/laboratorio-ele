@@ -189,7 +189,18 @@ export function createAppartamento(container, cb) {
   });
   if (!api) return null;
   return {
-    update(state) { api.update(state); },
+    // la descrizione per chi non vede la scena: il quadro, le linee, la stufetta e le luci (frasi tradotte una per una)
+    update(state) {
+      api.update(state);
+      const s = state && state.prova, cv = container.querySelector('canvas');
+      if (!s || !cv) return;
+      const line = (k, n) => `Linea ${n} ${s.lines[k].tripped ? 'scattata' : s.lines[k].on ? 'chiusa' : 'aperta'}.`;
+      cv.setAttribute('aria-label', ['Appartamento di notte.',
+        s.rcd.tripped ? 'Il differenziale è scattato.' : s.rcd.on ? 'Il differenziale è armato.' : 'Il differenziale è aperto.',
+        line('luce', 'luce'), line('prese', 'prese'), line('cucina', 'cucina'),
+        s.heaterPlugged ? 'La stufetta è collegata.' : 'La stufetta è scollegata.',
+        s.dark ? 'La casa è al buio.' : s.lamp ? 'La luce del corridoio è accesa.' : 'La luce del corridoio è spenta.'].join(' '));
+    },
     torch(on) { if (ext) ext.torch(on); },
     wires: () => ext && ext.wires,
     door(k) { if (ext) ext.door(k); },
