@@ -15,7 +15,7 @@ export const ASSETS = 'assets/trilocale/';
 function canvas(size, draw) {
   const c = document.createElement('canvas');
   c.width = c.height = size;
-  draw(c.getContext('2d'), size);
+  draw(c.getContext('2d', { willReadFrequently: true }), size);      // canvas in memoria: caricarlo come texture non rilegge dalla scheda video
   return c;
 }
 function tex(c, repeat = 1, srgb = true) {
@@ -103,22 +103,26 @@ export function makeMaterials(onTexture) {
   M.wallCut = new THREE.MeshStandardMaterial({ color: 0x40464e, roughness: 0.8 });
   M.outside = new THREE.MeshStandardMaterial({ color: 0xe2d2b8, roughness: 0.95, bumpMap: plaster, bumpScale: 1 });
 
-  // parquet: prima un legno uniforme, poi la foto quando arriva
-  M.parquet = new THREE.MeshStandardMaterial({ color: 0xb48a5f, roughness: 0.55 });
+  // parquet: prima un legno uniforme, poi la foto quando arriva. Le mappe partono come texture di un punto con lo stesso
+  // aspetto: quando arriva la foto si scambia la texture e il programma grafico resta lo stesso (niente ricompilazione).
+  const px = (hex, srgb) => { const t = new THREE.DataTexture(new Uint8Array([(hex >> 16) & 255, (hex >> 8) & 255, hex & 255, 255]), 1, 1); if (srgb) t.colorSpace = THREE.SRGBColorSpace; t.needsUpdate = true; return t; };
+  const grey = v => { const b = Math.round(v * 255); return px((b << 16) | (b << 8) | b, false); };
+  M.parquet = new THREE.MeshStandardMaterial({ color: 0xffffff, map: px(0xb48a5f, true), roughness: 1, roughnessMap: grey(0.55), bumpMap: grey(0.5), bumpScale: 0.4 });
   const tl = new THREE.TextureLoader();
   const load = (file, srgb, done) => tl.load(ASSETS + file, t => {
     t.wrapS = t.wrapT = THREE.RepeatWrapping; t.anisotropy = 8;
     if (srgb) t.colorSpace = THREE.SRGBColorSpace;
     done(t); onTexture();
   }, undefined, () => {});
-  load('parquet.webp', true, t => { t.repeat.set(1, 1); M.parquet.map = t; M.parquet.color.set(0xffffff); M.parquet.needsUpdate = true; });
-  load('parquet-ruvido.webp', false, t => { M.parquet.roughnessMap = t; M.parquet.roughness = 1; M.parquet.needsUpdate = true; });
-  load('parquet-rilievo.webp', false, t => { M.parquet.bumpMap = t; M.parquet.bumpScale = 0.4; M.parquet.needsUpdate = true; });
+  const swap = (m, k, t) => { const old = m[k]; m[k] = t; if (old) old.dispose(); };
+  load('parquet.webp', true, t => { t.repeat.set(1, 1); swap(M.parquet, 'map', t); });
+  load('parquet-ruvido.webp', false, t => swap(M.parquet, 'roughnessMap', t));
+  load('parquet-rilievo.webp', false, t => swap(M.parquet, 'bumpMap', t));
 
   M.tiles = new THREE.MeshStandardMaterial({ map: tex(tilesC(512, 6, '#d9d6cf', '#9c978d', 3), 1), bumpMap: tex(tilesC(512, 6, 0, 0, 3, true), 1, false), bumpScale: 0.8, roughness: 0.35 });
   M.kitchenFloor = new THREE.MeshStandardMaterial({ map: tex(tilesC(512, 4, '#8f8a82', '#5d5953', 5), 1), bumpMap: tex(tilesC(512, 4, 0, 0, 5, true), 1, false), bumpScale: 0.8, roughness: 0.6 });
-  M.grass = new THREE.MeshStandardMaterial({ color: 0x5f7a45, roughness: 1 });
-  load('prato.webp', true, t => { t.repeat.set(10, 10); M.grass.map = t; M.grass.color.set(0xb8c4a8); M.grass.needsUpdate = true; });
+  M.grass = new THREE.MeshStandardMaterial({ color: 0xffffff, map: px(0x5f7a45, true), roughness: 1 });
+  load('prato.webp', true, t => { t.repeat.set(10, 10); swap(M.grass, 'map', t); M.grass.color.set(0xb8c4a8); });
   M.paving = new THREE.MeshStandardMaterial({ map: tex(tilesC(256, 4, '#b7b1a6', '#8a857c', 9), 1), roughness: 0.9 });
 
   M.roof = new THREE.MeshStandardMaterial({ map: tex(roofC(false), 1), bumpMap: tex(roofC(true), 1, false), bumpScale: 2, roughness: 0.75, transparent: true, opacity: 1 });

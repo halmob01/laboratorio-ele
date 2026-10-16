@@ -20,6 +20,7 @@ import { setLang, detect, onLang } from '../i18n/index.js';
 import '../i18n/ar.js';
 import { createHouse, isHouseLevel, firstCircuit } from '../trilocale/page.js';
 import { createProva } from '../prove/page.js';
+import { prefetchScenes } from './prefetch.js';
 import { isProvaLevel } from '../prove/state.js';
 
 const $ = s => document.querySelector(s);
@@ -689,5 +690,7 @@ $('#footer').innerHTML = V.footerHTML();
 renderPalette();
 session.start();
 applyRoute();
+// le scene 3D si scaricano in sottofondo a pagina ferma: aprendo una prova arrivano dalla cache
+if (document.readyState === 'complete') prefetchScenes(); else window.addEventListener('load', () => prefetchScenes(), { once: true });
 
 document.addEventListener('click', e => { if (e.target.closest('[data-act="print"]')) window.print(); });

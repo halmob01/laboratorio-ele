@@ -19081,6 +19081,35 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
     };
   }
 
+  // src/ui2d/prefetch.js
+  var FILES = [
+    "trilocale.js",
+    "prove3d.js",
+    "assets/trilocale/ambiente.exr",
+    "assets/trilocale/parquet.webp",
+    "assets/trilocale/parquet-ruvido.webp",
+    "assets/trilocale/parquet-rilievo.webp",
+    "assets/trilocale/prato.webp",
+    "assets/trilocale/divano.glb",
+    "assets/trilocale/poltrona.glb",
+    "assets/trilocale/pianta.glb"
+  ];
+  function prefetchScenes(doc = document, win = window) {
+    if (!doc || !doc.head || win.location && win.location.protocol === "file:") return false;
+    const c2 = win.navigator && win.navigator.connection;
+    if (c2 && (c2.saveData || /(^|-)2g$/.test(c2.effectiveType || ""))) return false;
+    const go = () => FILES.forEach((href) => {
+      if (doc.head.querySelector(`link[rel="prefetch"][href="${href}"]`)) return;
+      const l = doc.createElement("link");
+      l.rel = "prefetch";
+      l.href = href;
+      doc.head.appendChild(l);
+    });
+    if (win.requestIdleCallback) win.requestIdleCallback(go, { timeout: 4e3 });
+    else win.setTimeout(go, 2500);
+    return true;
+  }
+
   // src/ui2d/app.js
   var colsFor = (lv) => !MQ.matches && lv.engine === 2 && lv.comps.length >= 5 ? 2 : 1;
   var $ = (s) => document.querySelector(s);
@@ -20058,6 +20087,8 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
   renderPalette();
   session.start();
   applyRoute();
+  if (document.readyState === "complete") prefetchScenes();
+  else window.addEventListener("load", () => prefetchScenes(), { once: true });
   document.addEventListener("click", (e) => {
     if (e.target.closest('[data-act="print"]')) window.print();
   });

@@ -64,14 +64,18 @@ export function createStage(container, o) {
   scene.add(hemi);
   const pmrem = new THREE.PMREMGenerator(renderer);
   let envIntensity = 0.16;
+  // La luce ambiente cambia la variante di tutti i materiali: i programmi si preparano dopo che e' arrivata (al massimo 4 s).
+  let envDone;
+  const envGate = new Promise(r => { envDone = r; setTimeout(r, 4000); });
   new EXRLoader().load(ASSETS + 'ambiente.exr', t => {
     if (disposed) { t.dispose(); pmrem.dispose(); return; }
     scene.environment = pmrem.fromEquirectangular(t).texture;
     scene.environmentIntensity = envIntensity;
     hemi.intensity = 0.12;
     t.dispose(); pmrem.dispose();
+    envDone();
     redraw();
-  }, undefined, () => {});
+  }, undefined, () => envDone());
 
   // ---- post-elaborazione ----
   const pipe = createPipeline(renderer, scene, camera, { lite, bloom: o.bloom === undefined ? 0.45 : o.bloom });
@@ -143,7 +147,7 @@ export function createStage(container, o) {
     if (!ready) {
       if (!compiling) {
         compiling = true;
-        (renderer.compileAsync ? renderer.compileAsync(scene, camera) : Promise.resolve()).catch(() => {}).then(() => { ready = true; needs = true; schedule(); });
+        envGate.then(() => (disposed ? null : pipe.warm())).then(() => { ready = true; needs = true; schedule(); });
       }
       return;
     }

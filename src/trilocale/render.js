@@ -61,8 +61,37 @@ export function createPipeline(renderer, scene, camera, { lite, bloom = 0.45 }) 
     if (slow >= 10) { steps[level++](); setSize(size[0], size[1]); }
     seen = 0; slow = 0;
   }
+  // Prepara in parallelo i programmi grafici prima del primo disegno, ognuno nella variante che servira' davvero.
+  // three.js sceglie la variante in base al bersaglio di disegno attivo: la scena e gli effetti si disegnano in un buffer
+  // intermedio (niente tono finale), solo l'ultimo passo va sullo schermo. Preparati verso lo schermo sarebbero varianti
+  // mai usate e quelle vere si compilerebbero tutte insieme al primo fotogramma, bloccando la pagina per secondi.
+  const ortho = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+  function compileAt(target, sc, cam) {
+    if (!renderer.compileAsync) return Promise.resolve();
+    const prev = renderer.getRenderTarget();
+    renderer.setRenderTarget(target);
+    const p = renderer.compileAsync(sc, cam, scene).catch(() => {});      // la variante si decide qui, in modo sincrono
+    renderer.setRenderTarget(prev);
+    return p;
+  }
+  // Un oggetto che arriva dopo (un modello): i suoi programmi nella variante della scena.
+  const prepare = obj => compileAt(composer.renderTarget1, obj, camera);
+  function warm() {
+    const inner = new THREE.Scene(), screen = new THREE.Scene(), quad = new THREE.PlaneGeometry(2, 2);
+    const seen = new Set();
+    const add = (sc, m) => { if (m && m.isMaterial && !seen.has(m)) { seen.add(m); sc.add(new THREE.Mesh(quad, m)); } };
+    composer.passes.forEach(pass => {
+      const sc = pass === composer.passes[composer.passes.length - 1] ? screen : inner;     // l'uscita disegna sullo schermo
+      Object.values(pass).forEach(v => (Array.isArray(v) ? v.forEach(m => add(sc, m)) : add(sc, v)));
+    });
+    // ombre: profondita' per il sole, distanza per le lampade
+    add(inner, new THREE.MeshDepthMaterial({ depthPacking: THREE.RGBADepthPacking }));
+    add(inner, new THREE.MeshDistanceMaterial());
+    const done = () => quad.dispose();
+    return Promise.all([compileAt(composer.renderTarget1, scene, camera), compileAt(composer.renderTarget1, inner, ortho), compileAt(null, screen, ortho)]).then(done, done);
+  }
   return {
-    composer, setSize, watch,
+    composer, setSize, watch, warm, prepare,
     render() { composer.render(); },
     level: () => level,
     dispose() { if (gtao) gtao.dispose(); bloomPass.dispose(); composer.dispose(); rt.dispose(); },
