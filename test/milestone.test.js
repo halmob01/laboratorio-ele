@@ -504,6 +504,20 @@ test('fabbrica: riparare con il robot alimentato si segnala; il rapporto di fine
   assert.match(html, /Sara/);
 });
 
+test('fabbrica: ogni filo del banco ha il suo percorso nella scena; in marcia la corrente passa', async () => {
+  const { fabbricaWires, anchorOf } = await import('../src/scene3d/fabbrica-wires.js');
+  const lv = levels.find(l => l.id === FAB);
+  lv.solution.forEach(([a, b]) => { assert.ok(anchorOf(a), a); assert.ok(anchorOf(b), b); });
+  const o = fabbrica();
+  o.press('SBR'); o.press('SB1'); o.tick(2);
+  const snap = o.s.snapshot();
+  const list = fabbricaWires(snap.wires, snap.flow);
+  assert.equal(list.length, snap.wires.length);
+  assert.equal(new Set(list.map(w => w.id)).size, list.length, 'ogni filo ha un id suo');
+  list.forEach(w => w.pts.forEach(p => assert.ok(p.every(Number.isFinite), w.id)));
+  assert.ok(list.some(w => w.live && w.current), 'in marcia: fili in tensione e percorsi da corrente');
+});
+
 test('pagina: la fabbrica a tutto schermo: consegna del turno, barra del turno, pulsantiera con il pannello e i sensori', async () => {
   const { w, d, errors } = page('#/livello/' + FAB);
   const $ = q => d.querySelector(q);
@@ -557,7 +571,7 @@ function home(storage) {
 test('mappa: ogni modulo chiude con la scheda della sua milestone, preceduta dal capolinea del binario', () => {
   const { d, errors } = home();
   const cards = [...d.querySelectorAll('.msc')];
-  assert.deepEqual(cards.map(c => c.id), ['ms-trilocale', 'ms-c23-appartamento-notte', 'ms-c24-officina', 'ms-c46-nastro-automatico', 'ms-casa', 'ms-fabbrica']);
+  assert.deepEqual(cards.map(c => c.id), ['ms-trilocale', 'ms-c23-appartamento-notte', 'ms-c24-officina', 'ms-c46-nastro-automatico', 'ms-casa', 'ms-c51-turno-notte']);
   cards.forEach(c => assert.doesNotMatch(c.textContent, /Milestone/));
   assert.equal(d.querySelectorAll('.terminus').length, 6);
   // il binario delle Fondamenta finisce al capolinea del trilocale
@@ -565,10 +579,10 @@ test('mappa: ogni modulo chiude con la scheda della sua milestone, preceduta dal
   assert.ok(fond.querySelector('.rail + .terminus + #ms-trilocale'), 'Fondamenta: binario, capolinea, trilocale');
   assert.ok(fond.querySelector('.msteaser[data-goto="ms-trilocale"]'));
   assert.ok(!d.querySelector('.tricard'), 'le vecchie schede non ci sono piu');
-  // le quattro con una scena vera mostrano la foto, le altre il disegno tecnico
+  // le cinque con una scena vera mostrano la foto, le altre il disegno tecnico
   assert.deepEqual([...d.querySelectorAll('.msc:not(.soon) img')].map(i => i.getAttribute('src')),
-    ['assets/milestone/trilocale.jpg', 'assets/milestone/appartamento.jpg', 'assets/milestone/officina.jpg', 'assets/milestone/automatico.jpg']);
-  assert.equal(d.querySelectorAll('.msc.soon svg').length, 2);
+    ['assets/milestone/trilocale.jpg', 'assets/milestone/appartamento.jpg', 'assets/milestone/officina.jpg', 'assets/milestone/automatico.jpg', 'assets/milestone/fabbrica.jpg']);
+  assert.equal(d.querySelectorAll('.msc.soon svg').length, 1);
   assert.equal(d.querySelectorAll('.msc.soon a').length, 0, 'in arrivo: niente pulsante');
   assert.deepEqual(errors, []);
 });

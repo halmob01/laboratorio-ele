@@ -351,7 +351,8 @@ export function pushStation(M) {
 
 // Armadio elettrico dell'officina con salvamotore, contattore e relè termico. Guarda verso +z.
 // set({ qm, contactor, thermal:{tripped,heat} }). I pezzi toccabili: QM (leva), FR.reset (tasto di riarmo del termico).
-export function cabinetPanel(M) {
+// o.qm: scritta sotto il primo modulo (di serie 'Salvamotore'); o.thermal === false: senza relè termico (cella della fabbrica)
+export function cabinetPanel(M, o = {}) {
   const g = new THREE.Group();
   const W = 1.0, H = 1.2;
   box(g, M.cabinet, 0, 0, -0.04, W + 0.05, H + 0.05, 0.1, 0.012);
@@ -372,7 +373,7 @@ export function cabinetPanel(M) {
   qm.add(knob);
   g.add(qm);
   picks.push(handle, ring);
-  textPlane(g, 'Salvamotore', -0.30, 0.15, 0.075, 0.3, 0.05, { size: 0.5 });
+  textPlane(g, o.qm || 'Salvamotore', -0.30, 0.15, 0.075, 0.3, 0.05, { size: 0.5 });
   // contattore: corpo grigio con finestrella
   const km = new THREE.Group();
   km.position.set(0.0, 0.34, 0.03); km.scale.setScalar(S);
@@ -393,9 +394,11 @@ export function cabinetPanel(M) {
   fr.add(flag.mesh);
   const reset = cylinder(fr, M.modWhite, 0.0, -0.045, 0.045, 0.02, 0.014, 'z', 18);
   reset.userData = { id: 'FR.reset', kind: 'reset', part: 'FR' };
-  g.add(fr);
-  picks.push(reset);
-  textPlane(g, 'Termico', 0.30, 0.15, 0.075, 0.3, 0.05, { size: 0.5 });
+  if (o.thermal !== false) {
+    g.add(fr);
+    picks.push(reset);
+    textPlane(g, 'Termico', 0.30, 0.15, 0.075, 0.3, 0.05, { size: 0.5 });
+  }
   // morsettiere (solo scena)
   for (let i = 0; i < 8; i++) box(g, i % 2 ? M.modGrey : M.modWhite, -0.35 + i * 0.1, -0.35, 0.03, 0.05, 0.09, 0.05, 0.004);
   return {
@@ -403,7 +406,7 @@ export function cabinetPanel(M) {
     set(s) {
       knob.rotation.z = s.qm ? 0 : 0.7;
       win.set(!!s.contactor, 2.5);
-      flag.set(!!s.thermal.tripped, 3.2);
+      flag.set(!!(s.thermal && s.thermal.tripped), 3.2);
     },
   };
 }
@@ -413,16 +416,20 @@ export function cabinetPanel(M) {
 // PLC compatto da guida DIN: alimentazione, ingressi I0-I3, uscite Q0-Q1 e il LED RUN. Guarda verso +z.
 // I LED sono una sola InstancedMesh (una chiamata di disegno) con il colore per istanza: acceso pieno, spento scuro.
 // set({ on, inputs: { I0.. }, outputs: { Q0.. } })
-export function plcModule(M) {
+// o.wide: 8 ingressi e 4 uscite (I0-I7, Q0-Q3, la cella della fabbrica), modulo piu' largo
+export function plcModule(M, o = {}) {
   const g = new THREE.Group();
-  const W = 0.36, H = 0.16;
+  const W = o.wide ? 0.5 : 0.36, H = 0.16;
   box(g, M.modGrey, 0, 0, 0, W, H, 0.08, 0.01);
   box(g, M.modDark, 0, 0, 0.042, W - 0.02, H - 0.05, 0.006, 0.004);
   // morsettiere in alto e in basso
   box(g, M.modDark, 0, H / 2 - 0.012, 0.03, W - 0.02, 0.022, 0.03, 0.003);
   box(g, M.modDark, 0, -H / 2 + 0.012, 0.03, W - 0.02, 0.022, 0.03, 0.003);
-  textPlane(g, 'PLC     I0  I1  I2  I3     Q0  Q1', 0.0, -0.024, 0.047, 0.33, 0.022, { fg: '#c9ccd0', size: 0.6 });   // una scritta sola: una chiamata
-  const SLOTS = [['RUN', -W / 2 + 0.045, 0x2ee66a], ['I0', -0.042, 0x2ee66a], ['I1', -0.012, 0x2ee66a], ['I2', 0.018, 0x2ee66a], ['I3', 0.048, 0x2ee66a], ['Q0', 0.104, 0xffb11a], ['Q1', 0.134, 0xffb11a]];
+  const SLOTS = o.wide
+    ? [['RUN', -W / 2 + 0.035, 0x2ee66a], ...[0, 1, 2, 3, 4, 5, 6, 7].map(i => ['I' + i, -0.15 + i * 0.026, 0x2ee66a]), ...[0, 1, 2, 3].map(i => ['Q' + i, 0.105 + i * 0.03, 0xffb11a])]
+    : [['RUN', -W / 2 + 0.045, 0x2ee66a], ['I0', -0.042, 0x2ee66a], ['I1', -0.012, 0x2ee66a], ['I2', 0.018, 0x2ee66a], ['I3', 0.048, 0x2ee66a], ['Q0', 0.104, 0xffb11a], ['Q1', 0.134, 0xffb11a]];
+  if (o.wide) textPlane(g, 'PLC   I0 I1 I2 I3 I4 I5 I6 I7   Q0 Q1 Q2 Q3', 0.0, -0.024, 0.047, 0.47, 0.022, { fg: '#c9ccd0', size: 0.6 });
+  else textPlane(g, 'PLC     I0  I1  I2  I3     Q0  Q1', 0.0, -0.024, 0.047, 0.33, 0.022, { fg: '#c9ccd0', size: 0.6 });   // una scritta sola: una chiamata
   const leds = new THREE.InstancedMesh(new THREE.BoxGeometry(0.014, 0.01, 0.006), new THREE.MeshBasicMaterial({ color: 0xffffff }), SLOTS.length);
   const m4 = new THREE.Matrix4(), col = new THREE.Color();
   SLOTS.forEach(([, x], i) => { m4.makeTranslation(x, i === 0 ? -0.004 : 0.004, 0.048); leds.setMatrixAt(i, m4); leds.setColorAt(i, col.setHex(0x1a1c1f)); });

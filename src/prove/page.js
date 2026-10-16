@@ -382,7 +382,8 @@ export function createProva(host, env) {
     hideCall();
     if (!scene || sceneState !== 'ready') { afterArrive(); return; }
     setAct('arrive');
-    if (scene.arrival) { later(300, () => later(scene.arrival(), afterArrive)); return; }   // nastro automatico: di giorno si entra dal piazzale
+    // nastro automatico: di giorno si entra dal piazzale; fabbrica: di notte, con la saracinesca che sale
+    if (scene.arrival) { later(300, () => { if (name === 'fabbrica') sound.shutter(1600); later(scene.arrival(), afterArrive); }); return; }
     if (name === 'officina') {
       // la saracinesca sale, le plafoniere si accendono una fila alla volta, si entra
       later(300, () => { scene.shutter(true, 1600); sound.shutter(1600); });

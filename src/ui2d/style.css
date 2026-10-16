@@ -1110,9 +1110,21 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
   .pshift-in{font-size:11px;gap:2px 12px;padding:5px 10px;border-radius:12px}
   .house.ofc .pshift ~ .psteps-box{top:calc(112px + env(safe-area-inset-top,0px))}
   .pfab .pst{grid-template-columns:minmax(0,1fr)}
-  .pfab .pst-panel{flex-wrap:wrap;gap:6px 10px}
-  .pfab-side{grid-template-columns:minmax(0,1fr)}
-  .psens-b{min-height:30px;padding:3px 9px;font-size:12px}
+  /* telefono: la pulsantiera della cella sta in un terzo dello schermo, la scena resta visibile sopra */
+  .pfab .pst-panel{flex-wrap:nowrap;gap:4px;justify-content:space-between;padding:6px 8px}
+  .pfab .pst-cap{width:32px;height:32px}
+  .pfab .pst-mush .pst-cap{width:38px;height:38px}
+  .pfab .pst-lamp .pst-cap{width:20px;height:20px}
+  .pfab .pst-btn,.pfab .pst-mush,.pfab .pst-lamp{font-size:9px;gap:5px}
+  .pfab-side{grid-template-columns:minmax(0,1fr) auto;gap:6px}
+  .pfab .phmi{grid-column:1;padding:6px 8px}
+  .pfab .phmi-v{display:none}
+  .pfab .phmi-al{margin-top:4px;font-size:12px}
+  .pfab-door{grid-column:2;flex-direction:column;align-items:stretch;justify-content:center}
+  .pfab-door .pst-name{width:auto}
+  .psens{margin-top:6px;padding:5px 8px}
+  .psens-row{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;margin-top:4px}
+  .psens-b{min-height:30px;padding:3px 9px;font-size:12px;flex:none}
   .pshift-in{display:grid;grid-template-columns:auto auto;justify-content:center}
 }
 @media (prefers-reduced-motion:reduce){.phmi-a.attivo b{animation:none}}

@@ -37,7 +37,7 @@ Scritta il 16 ottobre 2026 da Gianluca, dopo la collisione evitata tra la casa i
 | Livelli casa intelligente c47-c50 | c47-c50 | casa-intelligente | in `main` |
 | File arabi di c47-c50, lucchetto | ar-38, ar-39, ar-40 | casa-intelligente, motore-lucchetto-zone-energia | in `main` |
 | Prova 3D della fabbrica "Il turno di notte" | c51 | claude/stoic-hawking-u5cka0 | in lavorazione (fase 1 fatta) |
-| File arabi della fabbrica 3D | ar-41 (usato), ar-45 se ne serve un altro | claude/stoic-hawking-u5cka0 | ar-41 in lavorazione |
+| File arabi della fabbrica 3D | ar-41 (usato), ar-45 (usato: scheda della mappa) | claude/stoic-hawking-u5cka0, fabbrica-fase3b | ar-41 e ar-45 usati |
 | Lavori in sicurezza, Gestione dei carichi, Clima per zone | c52, c53, c54 | livelli-casa-sicurezza | in lavorazione |
 | File arabi dei tre livelli | ar-42 (usato); ar-43 e ar-44 liberi | livelli-casa-sicurezza | ar-42 usato |
 | Fabbrica fase 3b (pezzi del reparto, nessun numero) | - | fabbrica-fase3b, da `claude/stoic-hawking-u5cka0` | istruzioni in `docs/FABBRICA-FASE-3B.md` |

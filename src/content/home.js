@@ -95,8 +95,9 @@ export const MODULES = [
       'c43-linea',
       'c44-guasti',
       'c45-fabbrica',
+      'c51-turno-notte',
     ],
-    milestone: { soon: true, art: 'fabbrica', kick: 'Fabbrica', name: 'Una linea da cablare, programmare e mettere in sicurezza', text: 'Un turno di lavoro con guasti da gestire.' },
+    milestone: { level: 'c51-turno-notte', kick: 'Fabbrica', name: 'Il turno di notte', text: 'Sei il manutentore della cella del robot dalle 22:00 alle 6:00: tienila in produzione e, quando si ferma, trova il guasto dal pannello e riparalo con il robot senza potenza.', src: 'assets/milestone/fabbrica.jpg', alt: 'Il capannone di notte: la cella del robot nella recinzione gialla, la pulsantiera, il pannello operatore e l’armadio con il PLC', tools: ['Pulsantiera', 'Pannello operatore', 'Relè di sicurezza', 'Portella', 'Finecorsa', 'Riarmo'], cta: 'Inizia il turno', again: 'Rifai il turno' },
   },
 ];
 

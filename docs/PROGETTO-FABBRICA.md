@@ -1,6 +1,6 @@
 # Progetto: "Il turno di notte", la prova della fabbrica (Modulo 6)
 
-**Stato: fasi 1, 2 e 3a fatte** (motore e livello c51; cornice a tempo; portale e finecorsa in `parts-cella.js`, vedi sezione 8). In corso: fase 3b in un'altra sessione (ramo `fabbrica-fase3b`). Poi: fase 4, la scena.
+**Stato: fasi 1-4 fatte** (motore e livello c51; cornice a tempo; pezzi della cella e del reparto; scena `fabbrica.js` con la riparazione toccando, i fili e la scheda in mappa: vedi "Fase 4: com'e' fatta" in fondo alla sezione 8). Ramo `fabbrica-fase3b`, non ancora in `main`. Poi: fase 5, misure e unione.
 Fase 2: la prova si gioca dall'inizio alla fine senza scena (consegna del turno, ora del turno dal motore, barra del turno con
 pezzi, fermo e guasti, pulsantiera con Riarmo, pannello operatore con Riconosci e "Ricollega il cavo", portella, i sensori della
 cella con il LED da sostituire con un tocco, momento forte al primo "Ciclo bloccato", rapporto di fine turno). Il registro dice
@@ -185,6 +185,29 @@ questa sessione unisce `fabbrica-fase3b` nel suo ramo prima della fase 4.
 
 Per riprendere in un'altra sessione: leggere questo documento, l'ultima riga del registro e `git log` del ramo; la fase
 successiva comincia dall'unione di `main` nel ramo.
+
+### Fase 4: com'e' fatta (ramo `fabbrica-fase3b`)
+
+- **Scena** `src/scene3d/fabbrica.js` (`createFabbrica`, registrata in `entry.js` come `fabbrica`): capannone con `NOTTE`, cella in
+  `CELL_C` (6,0; 3,4) sotto la fila di plafoniere accesa, due nastri corti lungo z (arrivo al prelievo, uscita dal deposito),
+  pulsantiera davanti alla portella con il Riarmo blu (`SBR`, tenuto) e il fungo `E`, torretta, pannello operatore su colonna,
+  armadio con interruttore, KM, PLC largo (I0-I7, Q0-Q3) e KS, spia "robot alimentato" in cima.
+- **Movimento**: il motore manda uno stato ogni 0,5 s; la scena interpola x, z e pinza nello stesso mezzo secondo. Pezzi in una
+  `InstancedMesh` (in arrivo, in pinza, tre in viaggio sull'uscita) con le ombre finte; l'attesa del pezzo si stima dal tempo
+  a robot alimentato (non e' nello stato esposto). La portella gira in 0,7 s e solo allora si ricalcola l'ombra (`moved`).
+- **Torretta**: verde a ciclo con potenza, gialla senza KS, rossa con un allarme da riconoscere; lampeggia rossa al momento forte
+  (`alert`). A turno finito (`shift(true)`) si accendono tutte le plafoniere.
+- **Riparare toccando**: i finecorsa e il sensore "pezzo pronto" sono `kind: 'repair'`; la pagina sostituisce solo quello guasto.
+  Il tocco sul pannello operatore collegato non si manda (lo staccherebbe): serve solo a ricollegare il cavo.
+- **Fili**: `src/scene3d/fabbrica-wires.js` (funzioni pure): ogni morsetto di c51 ha il suo punto, ogni filo un percorso ad angoli
+  retti su una corsia sua (armadio -> passerella -> discesa sul dispositivo). Test: ogni filo della soluzione ha il percorso.
+  La corrente si anima solo a ciclo in corso: a cella ferma il PLC alimentato non toglie il riposo.
+- **Viste**: i bersagli stanno sotto le cose da guardare, perche' la pulsantiera copre la parte bassa dello schermo.
+- **Mappa**: la scheda del Modulo 6 porta a c51 con la foto `assets/milestone/fabbrica.jpg` (presa dalla scena); arabo in `ar-45.js`.
+- **Pagina**: al telefono la pulsantiera della cella e' compatta (pulsanti su una riga, pannello senza i valori, sensori in una riga
+  che scorre), cosi' la scena resta visibile; all'arrivo suona la saracinesca.
+- **Kit**: `cabinetPanel(M, { qm, thermal: false })` e `plcModule(M, { wide: true })`; senza opzioni officina e nastro automatico
+  restano come prima.
 
 ## 9. File che si toccano (per non pestarsi i piedi con la sessione del Modulo 5)
 
