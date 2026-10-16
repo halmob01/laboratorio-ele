@@ -250,7 +250,7 @@ Le scene condividono un kit di pezzi 3D (quadro, nastro, motore, torretta lumino
 
 ## 9. Rischi tecnici
 
-- **Scala della corrente visibile.** `flowV2` enumera i percorsi con un tetto di 200.000 passi: sulla fabbrica si troncherebbe. Prima di P7 va riscritta per reti grandi, o limitata alla sezione dell'impianto che si sta guardando.
+- **Scala della corrente visibile.** `flowV2` enumera i percorsi con un tetto di 200.000 passi. Misurata su tutti i livelli v2 con la soluzione cablata e alimentata, compresa la fabbrica (c45, una quarantina di fili): il caso peggiore e' c14 con 2 ms, c28 (36 fili) 1 ms; il tetto non scatta. I rami in parallelo sulla stessa fase (i sensori del PLC) non fanno esplodere i percorsi perche' non attraversano carichi. Il rischio resta teorico (molte maglie in serie e parallelo con carichi): se una cella futura lo tocca, va riscritta con un calcolo per componenti connesse.
 - **Costo delle prove automatiche.** La regola `never` crea una simulazione per ogni coppia di pulsanti; con il PLC e i processi lenti il tempo della Verifica cresce. Va misurato nei prototipi, con un tetto per livello.
 - **Telefono.** Editor ladder e multimetro sono le due interazioni nuove più difficili su schermo piccolo: prototipo da provare in classe prima di scrivere tutti i livelli.
 - **Valori tecnici.** Portate dei cavi, curve, tempi accorciati, mA: ogni fase passa dal collega prima della pubblicazione.

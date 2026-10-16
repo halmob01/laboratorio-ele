@@ -40,7 +40,9 @@ export function needsClock(level, obs) {
     if (c.type === 'mt') return s.heat > 0 || (obs.cable && !obs.cable.burnt && (obs.cable.heat > 0 || obs.cable.amps > obs.cable.iz)) || (!!s.in && !!s.on && !s.tripped && !!(obs.lines && obs.lines[c.id] && obs.lines[c.id].ratio > 1.45));
     if (c.type === 'ft') return !s.tripped && (s.heat > 0 || Object.values(obs.motors).some(m => m === 'hum' || (obs.overload && running(m))));
     return false;
-  }) || ((!!level.process || !!level.hmi) && !!obs.supply) || (!!level.machine && !!obs.machine && Object.values(obs.motors).some(m => (m === 'fwd' && !obs.machine.atEnd) || (m === 'rev' && !obs.machine.atStart)));
+  }) || ((!!level.process || !!level.hmi) && !!obs.supply && !(obs.scenario && obs.scenario.done)) ||
+    // turno a guasti: cominciato il turno il tempo corre anche togliendo la corrente (si puo' sezionare per riparare, ma il turno non si ferma)
+    (!!obs.scenario && obs.scenario.t > 0 && !obs.scenario.done) || (!!level.machine && !!obs.machine && Object.values(obs.motors).some(m => (m === 'fwd' && !obs.machine.atEnd) || (m === 'rev' && !obs.machine.atStart)));
 }
 
 // Campi dell'istantanea della sessione per un livello v2.
@@ -57,7 +59,7 @@ export function viewOf(level, sim, power) {
     potential: tid => obs.potential(tid),
     controlStates: controlStates(level, sim),
     flow: flowV2(sim),
-    needsClock: needsClock(level, obs),
+    needsClock: needsClock(level, obs) && !(obs.scenario && obs.scenario.done),   // a turno finito l'orologio si ferma
   };
 }
 

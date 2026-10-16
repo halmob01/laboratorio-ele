@@ -77,6 +77,39 @@ export const MODELS = {
     expose: (s, p) => ({ ...s, sun: sunShape(s.hour, p) * (1 - clamp(p.cloud, 0, 1)), blackout: !!s.blackout, over: s.over, battKwh: s.soc / 100 * p.batCap }),
   },
 
+  // Linea di prelievo e deposito (Modulo 6): un robot a tre movimenti prende il pezzo dal punto di prelievo e lo porta al deposito.
+  //   down  (1 = braccio giu', 0 = su)   shift (1 = verso il deposito, 0 = verso il prelievo)   grip (1 = pinza chiusa)
+  // Posizioni da 0 a 1; i sensori scattano agli estremi. Ogni `feedEvery` secondi arriva un pezzo se il punto di prelievo e' libero.
+  // crash: il braccio si muove in orizzontale mentre e' giu'. dropped: la pinza si apre con il pezzo lontano dal deposito.
+  linea: {
+    init: { z: 0, x: 0, grip: 0, feed: 1, wait: 0, holding: 0, out: 0, dropped: 0, crash: 0 },
+    params: { vz: 0.5, vx: 0.4, vg: 1, feedEvery: 5 },
+    acts: { down: 0, shift: 0, grip: 0, enable: 1 },
+    step(s, a, p, dt) {
+      // `enable` (la potenza del robot, dal contattore di sicurezza): a zero il robot resta fermo dov'e' e tiene il pezzo
+      if (!frac(a.enable)) return { ...s, wait: s.wait };
+      const mv = (v, on, sp) => clamp(v + (on ? 1 : -1) * sp * dt, 0, 1);
+      let { z, x, grip, feed, wait, holding, out, dropped, crash } = s;
+      z = mv(z, frac(a.down) > 0, p.vz);
+      x = mv(x, frac(a.shift) > 0, p.vx);
+      const g0 = grip;
+      grip = mv(grip, frac(a.grip) > 0, p.vg);
+      if (z > 0.25 && x > 0.02 && x < 0.98) crash = 1;
+      if (!feed && !holding) { wait += dt; if (wait >= p.feedEvery) { feed = 1; wait = 0; } }
+      if (!holding && grip >= 0.95 && feed && z >= 0.98 && x <= 0.02) { holding = 1; feed = 0; wait = 0; }
+      if (holding && g0 > 0.05 && grip <= 0.05) {
+        if (z >= 0.98 && x >= 0.98) out += 1; else dropped += 1;
+        holding = 0;
+      }
+      return { z, x, grip, feed, wait, holding, out, dropped, crash };
+    },
+    expose: s => ({
+      ...s, crash: !!s.crash, holding: !!s.holding,
+      zUp: s.z <= 0.02, zDown: s.z >= 0.98, atPick: s.x <= 0.02, atPlace: s.x >= 0.98,
+      gripClosed: s.grip >= 0.95, gripOpen: s.grip <= 0.05, partReady: !!s.feed && !s.holding,
+    }),
+  },
+
   // Nastro con variatore di frequenza: f va verso ref·fmax con la rampa (Hz/s) se `run`, altrimenti scende a 0.
   // v (velocita' in % della nominale, a fNom) segue f con una costante di tempo breve. `load` frena (parametro).
   nastro: {

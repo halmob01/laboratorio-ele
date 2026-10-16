@@ -514,6 +514,7 @@ bench.addEventListener('keydown', e => {
   const q = e.target.closest('[data-q]'); if (q) { e.preventDefault(); session.toggleBreaker(); return; }
   const h = e.target.closest('[data-help]'); if (h) { e.preventDefault(); setInfo(h.dataset.help); }
 });
+$('#process').addEventListener('click', e => { if (e.target.closest('[data-shift]')) session.restartShift(); });
 $('#process').addEventListener('click', e => { const b = e.target.closest('[data-hmiack]'); if (b && !b.disabled) session.ackPanel(b.dataset.hmiack); });
 $('#process').addEventListener('input', e => { const t = e.target.closest('[data-tune]'); if (t) session.tune(t.dataset.tune, Number(t.value)); });
 document.addEventListener('click', e => { if (e.target.closest('[data-overload]')) session.setOverload(!S.overload); });

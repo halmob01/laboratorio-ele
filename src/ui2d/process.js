@@ -79,7 +79,25 @@ function houseScene(level, s) {
   return o;
 }
 
-const SCENES = { serbatoio: tankScene, forno: ovenScene, nastro: beltScene, energia: houseScene };
+// Linea di prelievo e deposito: punto di prelievo a sinistra, deposito a destra, braccio con pinza che scende e si sposta.
+function lineScene(level, s) {
+  const p = s.obs.process;
+  const x0 = 80, x1 = 300, bx = x0 + (x1 - x0) * p.x, top = 34, zy = top + 62 * p.z;
+  let o = `<rect x="20" y="118" width="360" height="10" rx="3" fill="#4A4F57"/>`;
+  o += `<rect x="${x0 - 28}" y="100" width="56" height="18" rx="3" fill="#EDE7D4" stroke="var(--comp-edge)" stroke-width="1.6"/><text x="${x0}" y="140" text-anchor="middle" style="font:600 10px 'IBM Plex Mono',monospace;fill:var(--ink2)">prelievo</text>`;
+  o += `<rect x="${x1 - 28}" y="100" width="56" height="18" rx="3" fill="#EDE7D4" stroke="var(--comp-edge)" stroke-width="1.6"/><text x="${x1}" y="140" text-anchor="middle" style="font:600 10px 'IBM Plex Mono',monospace;fill:var(--ink2)">deposito: ${p.out}</text>`;
+  if (p.feed && !p.holding) o += `<rect x="${x0 - 11}" y="86" width="22" height="14" rx="2" fill="#C98A3E" stroke="#7E5420" stroke-width="1.6"/>`;
+  o += `<line x1="30" y1="${top - 12}" x2="370" y2="${top - 12}" stroke="var(--ink2)" stroke-width="5"/>`;
+  o += `<line x1="${bx}" y1="${top - 12}" x2="${bx}" y2="${zy}" stroke="var(--ink2)" stroke-width="4"/>`;
+  const open = 8 + 6 * (1 - p.grip);
+  o += `<path d="M${bx - open} ${zy + 14} V${zy} H${bx + open} V${zy + 14}" fill="none" stroke="${p.crash ? '#C0262D' : 'var(--comp-edge)'}" stroke-width="4" stroke-linecap="round"/>`;
+  if (p.holding) o += `<rect x="${bx - 11}" y="${zy + 2}" width="22" height="14" rx="2" fill="#C98A3E" stroke="#7E5420" stroke-width="1.6"/>`;
+  if (p.crash) o += `<text x="200" y="22" text-anchor="middle" style="font:700 12px 'IBM Plex Mono',monospace;fill:#C0262D">URTO: il braccio si è mosso da basso</text>`;
+  else if (p.dropped) o += `<text x="200" y="22" text-anchor="middle" style="font:700 11px 'IBM Plex Mono',monospace;fill:#C0262D">pezzi caduti: ${p.dropped}</text>`;
+  return o;
+}
+
+export const SCENES = { serbatoio: tankScene, forno: ovenScene, nastro: beltScene, energia: houseScene, linea: lineScene };
 
 // ---------- grafico ----------
 // level.process.graph = { vars: [{ v, label, lo, hi }], window: secondi, lines: [{ tuned: 'sp', var: 'T' }] }
@@ -152,12 +170,25 @@ const hmiShellHTML = lv => {
   return `<div class="hmi" role="region" aria-label="Pannello operatore"><div class="hmitop"><b>PANNELLO OPERATORE</b><span class="hmilink"></span><span class="hmihorn" hidden>SIRENA</span></div><div class="hmivals"></div><div class="hmialms" aria-live="polite"></div><button class="btn hmiack" data-hmiack="${id}">Riconosci gli allarmi</button></div>`;
 };
 
+// ---------- turno a guasti (level.scenario) ----------
+function scenarioHTML(s) {
+  const sc = s.obs.scenario;
+  if (!sc) return '';
+  const fired = sc.faults.filter(f => f.firedAt !== null), fixed = fired.filter(f => !f.open);
+  const left = Math.max(0, Math.ceil(sc.duration - sc.t));
+  const mm = String(Math.floor(left / 60)).padStart(2, '0') + ':' + String(left % 60).padStart(2, '0');
+  const late = fired.filter(f => f.late);
+  const state = sc.done ? 'turno finito' : s.power ? 'turno in corso' : 'dai corrente per cominciare';
+  return `<div class="shiftbar" role="status"><span><b>${state}</b></span><span>tempo rimasto ${mm}</span><span>guasti riparati ${fixed.length} di ${sc.faults.length}</span>${late.length ? `<span class="late">in ritardo: ${late.length}</span>` : ''}<button class="btn" data-shift="restart">Ricomincia il turno</button></div>`;
+}
+
 export function processMount(el, s) {
   const lv = s.level;
   if (!lv.process || !s.obs) { el.hidden = true; el.innerHTML = ''; el.dataset.key = ''; return; }
   el.hidden = false;
   el.dataset.key = s.levelKey;
   el.innerHTML = `<div class="ladhead"><b>${lv.process.title || 'Il processo'}</b><span data-speed>${s.speed > 1 ? 'tempo × ' + s.speed : ''}</span></div>` +
+    (lv.scenario ? '<div class="shiftslot"></div>' : '') +
     `<svg class="procscene" viewBox="0 0 400 160" role="img" aria-label="${lv.process.alt || 'Il processo che si regola'}"></svg>` +
     (lv.hmi ? hmiShellHTML(lv) : '') + (lv.process.graph ? `<div class="procgraphbox"></div>` : '') + slidersHTML(lv, s);
   processUpdate(el, s);
@@ -177,6 +208,8 @@ function processUpdate(el, s) {
   const gb = el.querySelector('.procgraphbox');
   if (gb) gb.innerHTML = graphSVG(lv, s);
   if (lv.hmi) hmiSync(el, s);
+  const sh = el.querySelector('.shiftslot');
+  if (sh) { const html = scenarioHTML(s); if (sh.innerHTML !== html) sh.innerHTML = html; }
   el.querySelectorAll('[data-out]').forEach(o => {
     const name = o.dataset.out, d = lv.process.tunable[name], v = (s.tuned || {})[name];
     if (v !== undefined) o.textContent = NS(v) + (d.unit ? ' ' + d.unit : '');

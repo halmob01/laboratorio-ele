@@ -1055,3 +1055,9 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
 .hmiack{align-self:flex-start;min-height:44px}
 @keyframes hmiblink{50%{filter:brightness(1.5)}}
 @media (prefers-reduced-motion:reduce){.hmihorn,.hmialm{animation:none}}
+
+/* turno a guasti: barra con il tempo e i guasti riparati */
+.shiftbar{display:flex;flex-wrap:wrap;align-items:center;gap:6px 14px;padding:8px 10px;border:1px solid var(--line);border-radius:10px;background:var(--chip);font:500 13px 'IBM Plex Sans',sans-serif}
+.shiftbar b{font:600 13px 'IBM Plex Mono',monospace;text-transform:uppercase}
+.shiftbar .late{color:var(--bad);font-weight:600}
+.shiftbar .btn{margin-left:auto;min-height:44px}

@@ -45,6 +45,7 @@ export function createSim(level, wires = []) {
     process: level.process ? newProcess(level.process) : null,   // modello di processo (process.js): { state, params }
     trace: [],             // righe { t, grandezza: valore } ogni passo, per le prove e il grafico (level.process.trace)
     hmi: {},               // parole dei PLC scritte dal pannello di regolazione: { idPLC: { MW0: 60 } }
+    scenario: level.scenario ? { firedAt: {}, fixedAt: {} } : null,   // turno con guasti a tempo (level.scenario): quando sono scattati e quando sono stati riparati
     panel: level.hmi ? { values: {}, alarms: {}, seq: 0 } : null,   // pannello operatore (level.hmi): ultime letture e stato degli allarmi
   };
   Object.entries(tunedValues(level.process)).forEach(([name, v]) => applyTune(sim, name, v));
@@ -580,6 +581,40 @@ function hmiReport(sim, an) {
   return { link: hmiLink(sim, an), horn: alarms.some(a => a.state === 'attivo' || a.state === 'rientrato'), values, alarms };
 }
 
+/* ---------- turno con guasti a tempo (level.scenario) ---------- */
+// level.scenario = { duration, faults: [{ id, at, do: 'cut TT', label, fixed: { part, prop, is }, maxDelay, fix: [azioni] }], expect? }
+// `fix` (le azioni che riparano, nell'ordine) non serve al gioco: lo usano i test per giocare il turno e documenta la riparazione.
+// A `at` secondi simulati dall'accensione scatta il guasto (un'azione del banco: cut, jam, toggle, weld...); l'allievo lo ripara
+// con gli stessi comandi. Il guasto e' riparato quando la proprieta' di quel pezzo torna al valore giusto.
+function scenarioTick(sim) {
+  const sc = sim.level.scenario, S = sim.scenario;
+  if (!sc || !S) return;
+  const healthy = f => { const part = sim.parts[f.fixed.part]; return !!part && !!part[f.fixed.prop] === !!f.fixed.is; };
+  sc.faults.forEach(f => {
+    if (S.firedAt[f.id] === undefined && sim.t >= f.at) {
+      const [a, x] = f.do.split(/\s+/);
+      S.firedAt[f.id] = sim.t;       // prima dell'azione: act() richiama questo controllo
+      // si guasta solo un pezzo a posto: un `toggle` su un pezzo gia' staccato dall'allievo lo riparerebbe da solo
+      if (healthy(f)) try { act(sim, a, x); } catch (e) { /* azione non valida per il pezzo: lo segnala il test sui livelli */ }
+    }
+    // a turno finito non si ripara piu': il guasto resta aperto
+    if (S.firedAt[f.id] !== undefined && S.fixedAt[f.id] === undefined && sim.t < sc.duration && healthy(f)) S.fixedAt[f.id] = sim.t;
+  });
+}
+
+// Stato del turno per la vista e per la verifica.
+export function scenarioReport(sim) {
+  const sc = sim.level.scenario, S = sim.scenario;
+  if (!sc || !S) return null;
+  const faults = sc.faults.map(f => {
+    const firedAt = S.firedAt[f.id], fixedAt = S.fixedAt[f.id];
+    const delay = firedAt === undefined ? null : (fixedAt === undefined ? sim.t : fixedAt) - firedAt;
+    return { id: f.id, label: f.label || f.id, at: f.at, firedAt: firedAt ?? null, fixedAt: fixedAt ?? null, delay, max: f.maxDelay ?? Infinity,
+      late: delay !== null && delay > (f.maxDelay ?? Infinity), open: firedAt !== undefined && fixedAt === undefined };
+  });
+  return { duration: sc.duration, t: sim.t, done: sim.t >= sc.duration, faults };
+}
+
 /* ---------- azioni ---------- */
 
 export function act(sim, action, id) {
@@ -604,6 +639,7 @@ export function act(sim, action, id) {
   } else if (action === 'weld' && (c.type === 'km' || c.type === 'rel')) { if (s.on || s.welded) s.welded = !s.welded; }
   else if (action === 'reset' && c.type === 'ft') { s.tripped = false; s.heat = 0; }
   else if (action === 'jam' && c.type === 'sens') s.jam = !s.jam;
+  else if (action === 'dead' && c.type === 'sens') { s.jam = true; s.act = false; }   // sensore morto: resta a riposo qualunque cosa succeda
   else if (action === 'cut' && c.type === 'tx') s.cut = !s.cut;
   else if (action === 'ack' && c.type === 'hmi') hmiAck(sim);
   else if (action === 'test' && c.type === 'rcd') {
@@ -614,6 +650,7 @@ export function act(sim, action, id) {
     }
   } else throw new Error('azione non valida: ' + action);
   settle(sim);
+  scenarioTick(sim);   // una riparazione fatta tra due passi vale subito, con l'ora in cui e' stata fatta
 }
 
 export function setSupply(sim, on) {
@@ -676,6 +713,7 @@ export function advance(sim, seconds) {
     if (sim.process) sim.process = stepProcess(sim.level.process, sim.process, actuatorsOf(sim, an), STEP);
     sim.plcDt = STEP;
     settle(sim);
+    scenarioTick(sim);
     recordTrace(sim);
   }
 }
@@ -721,6 +759,7 @@ export function observe(sim) {
     process: sim.process ? { ...processVars(sim) } : null,
     processAct: sim.process ? actuatorsOf(sim, an) : null,   // comandi che il processo sta ricevendo (0-1), per il disegno
     hmi: hmiReport(sim, an),   // pannello operatore (level.hmi): collegamento, valori con l'eta', allarmi
+    scenario: scenarioReport(sim),   // turno a guasti (level.scenario): tempo, guasti scattati e riparati
     coils: Object.fromEntries(Object.entries(an.coils).filter(([id]) => !sim.level.comps.some(c => c.id === id && c.type === 'plc'))),
     parts,
     machine: sim.level.machine ? { pos: sim.pos, atStart: sim.pos <= 0, atEnd: sim.pos >= sim.level.machine.length } : null,

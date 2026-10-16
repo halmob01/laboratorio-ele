@@ -762,6 +762,14 @@ export function createSession({ levels, deriveFull, storage = memoryStorage(), i
     release(id) { this._act('release', id); },
     resetPart(id) { this._act('reset', id); },
     testPart(id) { this._act('test', id); },
+    // Turno a guasti (level.scenario): ricomincia da capo con la stessa impostazione.
+    restartShift() {
+      if (!v2() || !levelAt().scenario) return;
+      dropSim();
+      resultsByKey[keyOf()] = null;
+      message = null;
+      emit();
+    },
     // Pannello operatore: riconoscimento degli allarmi; guasti simulati sui sensori (galleggiante bloccato, filo del trasmettitore interrotto).
     ackPanel(id) { this._act('ack', id); },
     jamPart(id) { this._act('jam', id); },
@@ -838,7 +846,7 @@ export function createSession({ levels, deriveFull, storage = memoryStorage(), i
       const level = levelAt();
       // nella sfida guasto i guasti da componente ancora attivi (dispersioni) vanno tolti prima di verificare
       const faultOn = v2(level) && level.unit && level.unit.fault && unitState().phase === 'fault' ? (level.unit.fault.on || []).filter(id => simFor().parts[id] && simFor().parts[id].on) : [];
-      const r = v2(level) ? evaluateV2(level, wires(), { measured: measuredBy[keyOf()] || [], ratings: ratingsOf(), programs: programsOf(), tuned: tunedByKey[keyOf()], faultOn, hmiOff: levelAt().comps.filter(c => c.type === 'hmi' && simFor().parts[c.id] && !simFor().parts[c.id].on).map(c => c.id), liveEdits: liveEditsBy[keyOf()] || [] }) : evaluate(level, wires());
+      const r = v2(level) ? evaluateV2(level, wires(), { measured: measuredBy[keyOf()] || [], ratings: ratingsOf(), programs: programsOf(), tuned: tunedByKey[keyOf()], liveSim: level.scenario ? simFor() : null, faultOn, hmiOff: levelAt().comps.filter(c => c.type === 'hmi' && simFor().parts[c.id] && !simFor().parts[c.id].on).map(c => c.id), liveEdits: liveEditsBy[keyOf()] || [] }) : evaluate(level, wires());
       resultsByKey[keyOf()] = r;
       const u = usage();
       u.checks++;
