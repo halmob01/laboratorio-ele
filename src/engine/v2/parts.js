@@ -82,6 +82,10 @@ export const PARTS = {
   // corrente continua (level.dc, docs/SPEC-PROCESSI.md sezione 7): ogni pezzo da' i suoi elementi al risolutore (dc.js)
   // batteria: + e -, tensione `v` (V), resistenza interna `r` (ohm), corrente oltre la quale il fusibile brucia `imax` (A)
   batt: { contacts: () => [], dc: c => [{ id: c.id, type: 'V', a: c.id + '.+', b: c.id + '.-', v: c.v || 6, r: c.r ?? 0.1 }] },
+  // pannello fotovoltaico: generatore in continua la cui tensione segue il sole (process `sun`, 0-1); `v` e' la tensione a pieno sole
+  pann: { contacts: () => [], dc: (c, s, vars) => [{ id: c.id, type: 'V', a: c.id + '.+', b: c.id + '.-', v: (c.v || 22) * Math.max(0, Math.min(1, Number(vars && vars.sun) || 0)), r: c.r ?? 1.5 }] },
+  // inverter fotovoltaico: finestra di tensione in ingresso [vmin, vmax]; sotto non parte, sopra si brucia
+  invfv: { contacts: () => [], dcLoad: ['+', '-'], dc: c => [{ id: c.id, type: 'R', a: c.id + '.+', b: c.id + '.-', r: c.rin || 45 }] },
   // lampada a incandescenza in continua: non ha verso; resistenza dalla targa (volt^2 / watt)
   dcl: { contacts: () => [], dcLoad: ['A', 'B'], dc: c => [{ id: c.id, type: 'R', a: c.id + '.A', b: c.id + '.B', r: (c.volt || 12) ** 2 / (c.w || 6) }] },
   // LED con la sua resistenza: conduce solo dall'anodo A al catodo K

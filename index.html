@@ -1691,6 +1691,10 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
     // corrente continua (level.dc, docs/SPEC-PROCESSI.md sezione 7): ogni pezzo da' i suoi elementi al risolutore (dc.js)
     // batteria: + e -, tensione `v` (V), resistenza interna `r` (ohm), corrente oltre la quale il fusibile brucia `imax` (A)
     batt: { contacts: () => [], dc: (c2) => [{ id: c2.id, type: "V", a: c2.id + ".+", b: c2.id + ".-", v: c2.v || 6, r: c2.r ?? 0.1 }] },
+    // pannello fotovoltaico: generatore in continua la cui tensione segue il sole (process `sun`, 0-1); `v` e' la tensione a pieno sole
+    pann: { contacts: () => [], dc: (c2, s, vars) => [{ id: c2.id, type: "V", a: c2.id + ".+", b: c2.id + ".-", v: (c2.v || 22) * Math.max(0, Math.min(1, Number(vars && vars.sun) || 0)), r: c2.r ?? 1.5 }] },
+    // inverter fotovoltaico: finestra di tensione in ingresso [vmin, vmax]; sotto non parte, sopra si brucia
+    invfv: { contacts: () => [], dcLoad: ["+", "-"], dc: (c2) => [{ id: c2.id, type: "R", a: c2.id + ".+", b: c2.id + ".-", r: c2.rin || 45 }] },
     // lampada a incandescenza in continua: non ha verso; resistenza dalla targa (volt^2 / watt)
     dcl: { contacts: () => [], dcLoad: ["A", "B"], dc: (c2) => [{ id: c2.id, type: "R", a: c2.id + ".A", b: c2.id + ".B", r: (c2.volt || 12) ** 2 / (c2.w || 6) }] },
     // LED con la sua resistenza: conduce solo dall'anodo A al catodo K
@@ -2097,6 +2101,7 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
   // src/engine/v2/process.js
   var clamp2 = (x, lo, hi) => Math.max(lo, Math.min(hi, x));
   var frac = (x) => clamp2(Number(x) || 0, 0, 1);
+  var sunShape = (hour, p) => hour <= p.sunrise || hour >= p.sunset ? 0 : Math.sin(Math.PI * (hour - p.sunrise) / (p.sunset - p.sunrise));
   var MODELS = {
     // Serbatoio: livello h in % del volume. Portate in % al minuto.
     serbatoio: {
@@ -2122,6 +2127,49 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
         return { T: T2, Tw };
       },
       expose: (s) => ({ T: s.T, Tw: s.Tw })
+    },
+    // Casa con fotovoltaico, batteria, contatore e carichi (Modulo 5A). Potenze in kW, energie in kWh, tempo in ore del giorno.
+    // Una giornata dura `dayLen` secondi simulati. La produzione segue il sole (curva a campana tra alba e tramonto) e la nuvolosita';
+    // il consumo ha una base con il picco della sera piu' i carichi accesi (scaldabagno, auto). La batteria, se collegata, assorbe l'eccedenza
+    // e copre il mancante. grid > 0 e' prelievo dalla rete, grid < 0 immissione. Oltre `limit` kW per `tripAfter` secondi il contatore stacca.
+    energia: {
+      init: { hour: 8, soc: 20, eImp: 0, eExp: 0, eProd: 0, eEv: 0, over: 0, blackout: 0, pv: 0, load: 0, grid: 0, pb: 0 },
+      params: { dayLen: 1440, sunrise: 6, sunset: 20, pvKw: 4, cloud: 0, baseKw: 0.4, eveningKw: 1.1, boilerKw: 2, evKw: 3.7, batCap: 10, batKw: 3, limit: 4.5, tripAfter: 20 },
+      acts: { pv: 1, house: 1, batt: 0, boiler: 0, ev: 0 },
+      step(s, a, p, dt) {
+        const hour = (s.hour + dt * 24 / p.dayLen) % 24;
+        const sun = sunShape(hour, p) * (1 - clamp2(p.cloud, 0, 1));
+        const pv = p.pvKw * sun * frac(a.pv);
+        const evening = Math.exp(-(((hour - 20.5 + 12) % 24 - 12) ** 2) / 4.5);
+        const load = frac(a.house) * (p.baseKw + p.eveningKw * evening) + p.boilerKw * frac(a.boiler) + p.evKw * frac(a.ev);
+        const dh = dt * 24 / p.dayLen;
+        let pb = 0;
+        if (frac(a.batt)) {
+          const surplus = pv - load;
+          if (surplus > 0) pb = Math.min(surplus, p.batKw, (100 - s.soc) / 100 * p.batCap / dh);
+          else pb = -Math.min(-surplus, p.batKw, s.soc / 100 * p.batCap / dh);
+        }
+        const soc = clamp2(s.soc + pb * dh / p.batCap * 100, 0, 100);
+        let grid = load - pv + pb;
+        const blackout = s.blackout || (s.over + (grid > p.limit ? dt : 0) >= p.tripAfter ? 1 : 0);
+        if (blackout) grid = 0;
+        const over = grid > p.limit ? s.over + dt : Math.max(0, s.over - dt);
+        return {
+          hour,
+          soc,
+          over,
+          blackout,
+          pv,
+          load: blackout ? 0 : load,
+          grid,
+          pb,
+          eImp: s.eImp + Math.max(0, grid) * dh,
+          eExp: s.eExp + Math.max(0, -grid) * dh,
+          eProd: s.eProd + pv * dh,
+          eEv: s.eEv + (blackout ? 0 : p.evKw * frac(a.ev) * dh)
+        };
+      },
+      expose: (s, p) => ({ ...s, sun: sunShape(s.hour, p) * (1 - clamp2(p.cloud, 0, 1)), blackout: !!s.blackout, over: s.over, battKwh: s.soc / 100 * p.batCap })
     },
     // Nastro con variatore di frequenza: f va verso ref·fmax con la rampa (Hz/s) se `run`, altrimenti scende a 0.
     // v (velocita' in % della nominale, a fNom) segue f con una costante di tempo breve. `load` frena (parametro).
@@ -2349,11 +2397,12 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
     const { level } = sim;
     const uf = connect2(sim, open);
     const els = [];
+    const vars = processVars(sim);
     sim.wires.forEach((w) => els.push({ id: "w" + w.id, type: "W", a: w.a, b: w.b }));
     level.comps.forEach((c2) => {
       const p = partOf(c2);
       p.contacts(c2, sim.parts[c2.id] || {}).forEach(([x, y]) => els.push({ id: c2.id + ":" + x, type: "W", a: c2.id + "." + x, b: c2.id + "." + y }));
-      if (p.dc) p.dc(c2, sim.parts[c2.id] || {}).forEach((e) => {
+      if (p.dc) p.dc(c2, sim.parts[c2.id] || {}, vars).forEach((e) => {
         if (e.type !== "V" || sim.supply && !sim.mainTrip) els.push(e);
       });
     });
@@ -2371,7 +2420,10 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
       if (!p.dcLoad) return;
       let st = "off";
       if (c2.type === "led") st = r.ok && (r.i[c2.id] || 0) > 2e-3 ? "on" : "off";
-      else {
+      else if (c2.type === "invfv") {
+        const V = Math.abs(vOf(c2.id + ".+") - vOf(c2.id + ".-"));
+        st = V > (c2.vmax || 60) ? "burnt" : V >= (c2.vmin || 30) ? "on" : V > 5 ? "weak" : "off";
+      } else {
         const V = Math.abs(vOf(c2.id + "." + p.dcLoad[0]) - vOf(c2.id + "." + p.dcLoad[1])), vn = c2.volt || 12;
         st = V > vn * 1.3 ? "burnt" : V >= vn * 0.85 ? "on" : V > vn * 0.2 ? "weak" : "off";
       }
@@ -7345,6 +7397,194 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
       "Il LED conduce solo dall\u2019anodo (A) al catodo (K): A verso il positivo, K verso il negativo. Se \xE8 al contrario resta spento."
     ]
   });
+  var W39 = [["P1.+", "I.+", "rosso"], ["P1.-", "P2.+", "rosso"], ["P2.-", "I.-", "nero"]];
+  LEVELS_V2.push({
+    id: "c39-fotovoltaico",
+    code: "c39",
+    n: 0,
+    engine: 2,
+    dc: true,
+    quadroOnly: true,
+    supply: "protezioni",
+    meter: true,
+    palette: ["rosso", "nero"],
+    name: "Il pannello fotovoltaico",
+    title: "Il pannello fotovoltaico",
+    blurb: "Pannelli in serie per entrare nella finestra dell\u2019inverter: la produzione segue il sole.",
+    goal: "Un impianto fotovoltaico ha tre pannelli da 22 V a pieno sole e un inverter che lavora solo se la tensione in ingresso sta tra 30 e 60 V (sotto non parte, sopra si brucia). Scegli quanti pannelli collegare e come, in modo che l\u2019inverter lavori a mezzogiorno senza bruciarsi. Poi guarda la giornata: la produzione segue il sole.",
+    comps: [
+      C("P1", "pann", "Pannello 1", "Pannello fotovoltaico, 22 V a pieno sole", T("+", "-"), { v: 22 }),
+      C("P2", "pann", "Pannello 2", "Pannello fotovoltaico, 22 V a pieno sole", T("+", "-"), { v: 22 }),
+      C("P3", "pann", "Pannello 3", "Pannello fotovoltaico, 22 V a pieno sole", T("+", "-"), { v: 22 }),
+      C("I", "invfv", "Inverter", "Inverter fotovoltaico: ingresso 30-60 V", T("+", "-"), { vmin: 30, vmax: 60, rin: 90 })
+    ],
+    process: {
+      model: "energia",
+      title: "La giornata",
+      alt: "La casa con i pannelli e il sole durante la giornata",
+      params: { pvKw: 4, cloud: 0 },
+      init: { hour: 9 },
+      speed: 40,
+      actuators: { pv: { load: "I" }, house: { value: 1 } },
+      trace: ["pv", "load", "grid"],
+      labels: { pv: "La produzione" },
+      tunable: { cloud: { param: "cloud", min: 0, max: 0.9, step: 0.1, init: 0 } },
+      tunableLabels: { cloud: "Nuvole (0 = sereno)" },
+      graph: { vars: [{ v: "pv", label: "Produzione kW", lo: 0, hi: 5, color: "#2E9E5B" }, { v: "load", label: "Consumo kW", lo: 0, hi: 5, color: "#C0262D" }], window: 1500 }
+    },
+    demoDo: [{ do: ["wait 180"], say: "" }],
+    checks: [
+      { id: "mezzogiorno", label: "A mezzogiorno l\u2019inverter lavora e i pannelli producono", do: ["wait 180"], expect: { loads: { I: "on" }, process: { pv: [3.5, 4.1] } } },
+      { id: "sera", label: "Di sera, senza sole, l\u2019inverter si spegne e la produzione \xE8 zero", do: ["wait 720"], expect: { loads: { I: "off" }, process: { pv: [0, 0.01] } } },
+      { id: "giornata", label: "Nella giornata l\u2019inverter non si brucia e produce per qualche ora", do: ["wait 1000"], expect: { trace: [{ v: "pv", max: 4.1 }, { v: "pv", reaches: 3.5 }] } }
+    ],
+    solution: W39,
+    hints: [
+      "Un pannello da solo d\xE0 al massimo 22 V: l\u2019inverter vuole almeno 30 V per partire. Bisogna sommare le tensioni.",
+      "In serie le tensioni si sommano: due pannelli danno 44 V a pieno sole, dentro la finestra 30-60 V. Tre darebbero 66 V e brucerebbero l\u2019inverter.",
+      "In serie il + di un pannello va al \u2212 del successivo; il + libero va al + dell\u2019inverter e il \u2212 libero al \u2212 dell\u2019inverter. In parallelo la tensione resterebbe 22 V."
+    ]
+  });
+  var W5_FIXED = [
+    ["Q.L1", "PLC.A1", "rosso"],
+    ["PLC.A2", "Q.N", "blu"],
+    ["TT.+", "PLC.AI0+", "rosso"],
+    ["TT.-", "PLC.AI0-", "rosso"],
+    ["Q.L1", "PLC.Q0A", "rosso"]
+  ];
+  var START_5 = [{ if: ["ge", "AI0", 3.6], do: [{ op: "scale", in: "AI0", out: "MW0", lo: -6e3, hi: 6e3 }] }];
+  var GRID_TX = () => C("TT", "tx", "Contatore", "Misuratore di potenza del contatore: -6 kW (immissione) \u2026 +6 kW (prelievo), 4-20 mA", T("+", "-"), { sense: { v: "grid", lo: -6, hi: 6 } });
+  var PLC_5 = (title, symbols) => C("PLC", "plc", "PLC", title, T("A1", "A2", "AI0+", "AI0-", "Q0A", "Q0B"), {
+    symbols: { AI0: "Potenza scambiata (mA)", MW0: "Potenza scambiata (W)", ...symbols },
+    edit: { start: START_5, markers: 0, timers: 0, counters: 0, words: ["MW0"], ops: ["coil", "set", "reset"] }
+  });
+  var GRAPH_5 = (extra = []) => ({ vars: [{ v: "pv", label: "Produzione kW", lo: -5, hi: 5, color: "#2E9E5B" }, { v: "load", label: "Consumo kW", lo: -5, hi: 5, color: "#C0262D" }, { v: "grid", label: "Rete kW", lo: -5, hi: 5, color: "#2563B0" }], window: 1500, lines: [{ value: 0, label: "zero", var: "grid" }].concat(extra) });
+  var W40 = W5_FIXED.concat([["PLC.Q0B", "HS.X1", "rosso"], ["HS.X2", "Q.N", "blu"]]);
+  var PROG_40 = START_5.concat([
+    { if: ["lt", "MW0", -2200], do: [{ op: "set", a: "Q0" }] },
+    { if: ["gt", "MW0", 300], do: [{ op: "reset", a: "Q0" }] }
+  ]);
+  LEVELS_V2.push({
+    id: "c40-contatore",
+    code: "c40",
+    n: 0,
+    ...IND,
+    flow: "onDemand",
+    name: "Il contatore e lo scambio",
+    title: "Il contatore e lo scambio",
+    blurb: "Di giorno la casa produce pi\xF9 di quanto consuma: meglio usare l\u2019eccedenza che regalarla alla rete.",
+    goal: "Una casa con pannelli fotovoltaici e un contatore che misura la potenza scambiata con la rete: positiva se preleva, negativa se immette. Il PLC la legge in watt (MW0). Scrivi il programma perch\xE9 lo scaldabagno (2 kW) si accenda quando la casa immette pi\xF9 di 2,2 kW e si spenga quando comincia a prelevare pi\xF9 di 300 W: l\u2019eccedenza si usa invece di regalarla.",
+    fixed: W40,
+    comps: [Q3, PLC_5("PLC (programma da scrivere)", { Q0: "Scaldabagno" }), GRID_TX(), C("HS", "spia", "Scaldabagno", "Scaldabagno in funzione", T("X1", "X2"))],
+    process: {
+      model: "energia",
+      title: "La giornata",
+      alt: "La casa con i pannelli, il contatore e il sole durante la giornata",
+      params: { pvKw: 4, cloud: 0 },
+      init: { hour: 8 },
+      speed: 40,
+      actuators: { boiler: { load: "HS" }, house: { value: 1 } },
+      trace: ["pv", "load", "grid", "PLC.Q0"],
+      labels: { grid: "La potenza della rete", pv: "La produzione" },
+      graph: GRAPH_5()
+    },
+    demoDo: [{ do: ["wait 300"], say: "" }],
+    checks: [
+      { id: "eccedenza", label: "Con il sole alto lo scaldabagno usa l\u2019eccedenza: la casa non immette pi\xF9 di 2,2 kW", do: ["wait 480"], expect: { trace: [{ v: "PLC.Q0", reaches: 1 }, { v: "grid", within: [-2.3, 0.6], from: 200, to: 400 }] } },
+      { id: "sera", label: "Di sera, senza eccedenza, lo scaldabagno \xE8 spento e la casa preleva dalla rete", do: ["wait 780"], expect: { loads: { HS: "off" }, process: { grid: [0.1, 5] } } },
+      { id: "commutazioni", label: "Lo scaldabagno non si accende e si spegne di continuo", do: ["wait 900"], expect: { trace: [{ v: "PLC.Q0", maxSwitches: 4 }] } }
+    ],
+    safety: { coilReturn: ["PLC"] },
+    solution: W40,
+    solutionPrograms: { PLC: PROG_40 },
+    hints: [
+      "La potenza scambiata \xE8 in MW0, in watt: negativa quando la casa immette. Il gradino ha un contatto di confronto (MW0 minore di \u22122200) e, come uscita, Set su Q0.",
+      "Se usassi una bobina semplice lo scaldabagno si accenderebbe e, consumando 2 kW, farebbe salire subito la potenza: si spegnerebbe e cos\xEC via. Serve l\u2019isteresi: Set con una soglia, Reset con un\u2019altra.",
+      "Secondo gradino: confronto MW0 maggiore di 300, uscita Reset su Q0. Quando la casa preleva, lo scaldabagno si ferma."
+    ]
+  });
+  var W41 = [["Q.L1", "SA.a", "rosso"], ["SA.b", "HB.X1", "rosso"], ["HB.X2", "Q.N", "blu"]];
+  LEVELS_V2.push({
+    id: "c41-accumulo",
+    code: "c41",
+    n: 0,
+    ...IND,
+    flow: "onDemand",
+    name: "L\u2019accumulo",
+    title: "L\u2019accumulo",
+    blurb: "La batteria si carica di giorno con il sole e si scarica la sera: meno corrente dalla rete.",
+    goal: "La casa ha una batteria da 10 kWh. Collegala con l\u2019interruttore: la spia \u201CBatteria collegata\u201D si accende quando la batteria \xE8 in servizio. Di giorno la batteria assorbe l\u2019eccedenza dei pannelli; la sera, quando i pannelli non producono, copre i consumi. Guarda la carica nella scena e il prelievo dalla rete.",
+    comps: [Q3, C("SA", "sw", "Batteria", "Interruttore della batteria", T("a", "b")), C("HB", "spia", "Batteria collegata", "Spia di batteria collegata", T("X1", "X2"))],
+    controls: ["SA"],
+    process: {
+      model: "energia",
+      title: "La giornata",
+      alt: "La casa con i pannelli, la batteria e il sole durante la giornata",
+      battery: true,
+      params: { pvKw: 4, cloud: 0 },
+      init: { hour: 8, soc: 20 },
+      speed: 40,
+      actuators: { batt: { load: "HB" }, house: { value: 1 } },
+      trace: ["pv", "load", "grid", "soc"],
+      labels: { soc: "La carica della batteria", grid: "La potenza della rete" },
+      graph: { vars: [{ v: "pv", label: "Produzione kW", lo: -5, hi: 5, color: "#2E9E5B" }, { v: "load", label: "Consumo kW", lo: -5, hi: 5, color: "#C0262D" }, { v: "grid", label: "Rete kW", lo: -5, hi: 5, color: "#2563B0" }], window: 1500, lines: [{ value: 0, label: "zero", var: "grid" }] }
+    },
+    demoDo: [{ do: ["toggle SA", "wait 240"], say: "" }],
+    checks: [
+      { id: "spenta", label: "Con la batteria scollegata la carica non cambia", do: ["wait 240"], expect: { process: { soc: [19, 21] } } },
+      { id: "carica", label: "Collegata, la batteria si carica con il sole fino quasi al massimo", do: ["toggle SA", "wait 600"], expect: { loads: { HB: "on" }, trace: [{ v: "soc", reaches: 95, by: 400 }] } },
+      { id: "sera", label: "La sera la batteria copre i consumi: dalle 20 alle 23 la casa non preleva dalla rete", do: ["toggle SA", "wait 900"], expect: { trace: [{ v: "grid", within: [-4.5, 0.1], from: 720 }, { v: "soc", min: 20, from: 720 }] } }
+    ],
+    solution: W41,
+    hints: [
+      "La batteria \xE8 collegata quando il suo interruttore \xE8 chiuso. Il circuito \xE8 semplice: la fase passa dall\u2019interruttore e arriva alla spia, il ritorno va al neutro.",
+      "Quando la spia \xE8 accesa la batteria \xE8 in servizio: di giorno assorbe l\u2019eccedenza (la scena la mostra riempirsi), la sera la restituisce."
+    ]
+  });
+  var W42 = W5_FIXED.concat([["PLC.Q0B", "HE.X1", "rosso"], ["HE.X2", "Q.N", "blu"]]);
+  var PROG_42 = START_5.concat([
+    { if: ["lt", "MW0", 500], do: [{ op: "set", a: "Q0" }] },
+    { if: ["gt", "MW0", 4300], do: [{ op: "reset", a: "Q0" }] }
+  ]);
+  LEVELS_V2.push({
+    id: "c42-colonnina",
+    code: "c42",
+    n: 0,
+    ...IND,
+    flow: "onDemand",
+    name: "La colonnina",
+    title: "La colonnina",
+    blurb: "Ricaricare l\u2019auto senza far saltare il contatore: il PLC stacca la colonnina prima del limite.",
+    goal: "La colonnina di ricarica assorbe 3,7 kW e il contatore stacca tutta la casa se la potenza prelevata supera 4,5 kW per pi\xF9 di 20 secondi. Dal tardo pomeriggio la sera i consumi della casa salgono. Scrivi il programma perch\xE9 la colonnina parta quando c\u2019\xE8 margine e si stacchi prima del limite, senza accendersi e spegnersi di continuo: l\u2019auto deve comunque caricarsi.",
+    fixed: W42,
+    comps: [Q3, PLC_5("PLC (programma da scrivere)", { Q0: "Colonnina" }), GRID_TX(), C("HE", "spia", "Colonnina", "Auto in ricarica", T("X1", "X2"))],
+    process: {
+      model: "energia",
+      title: "La serata",
+      alt: "La casa con i pannelli, il contatore e l\u2019auto in ricarica nel tardo pomeriggio",
+      params: { pvKw: 4, cloud: 0, limit: 4.5 },
+      init: { hour: 17 },
+      speed: 40,
+      actuators: { ev: { load: "HE" }, house: { value: 1 } },
+      trace: ["pv", "load", "grid", "PLC.Q0"],
+      labels: { grid: "La potenza della rete", eEv: "L\u2019energia caricata nell\u2019auto (kWh)" },
+      graph: GRAPH_5([{ value: 4.5, label: "limite del contatore", var: "grid" }])
+    },
+    demoDo: [{ do: ["wait 240"], say: "" }],
+    checks: [
+      { id: "limite", label: "La potenza prelevata non supera mai il limite e il contatore non stacca", do: ["wait 420"], expect: { process: { blackout: false }, trace: [{ v: "grid", max: 4.5 }] } },
+      { id: "ricarica", label: "L\u2019auto si carica: almeno 3 kWh", do: ["wait 420"], expect: { process: { eEv: [3, 100] } } },
+      { id: "commutazioni", label: "La colonnina non si accende e si spegne di continuo", do: ["wait 420"], expect: { trace: [{ v: "PLC.Q0", maxSwitches: 6 }] } }
+    ],
+    safety: { coilReturn: ["PLC"] },
+    solution: W42,
+    solutionPrograms: { PLC: PROG_42 },
+    hints: [
+      "La potenza della rete \xE8 in MW0, in watt. La colonnina pu\xF2 partire quando la casa preleva poco: se la potenza \xE8 sotto una soglia bassa (per esempio 500 W) c\u2019\xE8 margine per 3,7 kW.",
+      "Primo gradino: confronto MW0 minore di 500 (con la colonnina accesa la potenza sale a pi\xF9 di 3,7 kW, quindi non si riaccende da sola), uscita Set su Q0.",
+      "Secondo gradino: se la potenza supera una soglia alta, poco sotto il limite (per esempio 4300 W) bisogna staccarla: confronto MW0 maggiore di 4300, uscita Reset su Q0. Le due soglie devono stare distanti almeno quanto assorbe la colonnina (3,7 kW): altrimenti, appena staccata, la casa sembra avere margine e la colonnina riparte subito."
+    ]
+  });
 
   // src/content/units-v2.js
   var UNITS_V2 = {
@@ -11065,6 +11305,239 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
         "Un cortocircuito su una batteria d\xE0 una corrente enorme: per questo c\u2019\xE8 il fusibile.",
         "Il multimetro in continua legge la tensione con il segno: dice da che parte sta il positivo."
       ]
+    },
+    "c39-fotovoltaico": {
+      support: "passi",
+      lesson: {
+        pages: [
+          {
+            type: "spiegazione",
+            title: "Come funziona un pannello fotovoltaico",
+            paras: [
+              "Un pannello fotovoltaico trasforma la luce del sole in corrente continua. Come una batteria ha un positivo e un negativo, ma la sua tensione non \xE8 fissa: dipende da quanta luce arriva. A pieno sole un pannello d\xE0 la sua tensione massima; con il cielo coperto o al tramonto ne d\xE0 molto meno; di notte niente.",
+              "Il sole nella giornata sale e scende: la produzione ha la forma di una campana, con il massimo verso mezzogiorno. Nel grafico vedi la produzione in kilowatt (kW) e il consumo della casa."
+            ]
+          },
+          {
+            type: "spiegazione",
+            title: "Perch\xE9 serve l\u2019inverter",
+            paras: [
+              "La casa funziona in corrente alternata a 230 V. L\u2019inverter trasforma la continua dei pannelli in alternata, e l\u2019energia pu\xF2 cos\xEC alimentare la casa o andare in rete.",
+              "L\u2019inverter ha una finestra di tensione in ingresso: sotto una tensione minima (qui 30 V) non parte, perch\xE9 non ha abbastanza tensione per lavorare; sopra la massima (qui 60 V) si danneggia. Il compito dell\u2019impianto \xE8 tenere la tensione dei pannelli dentro la finestra."
+            ]
+          },
+          {
+            type: "spiegazione",
+            title: "Serie e parallelo: quanti pannelli e come",
+            paras: [
+              "Come per le batterie, due pannelli in serie sommano le tensioni; in parallelo la tensione resta quella di uno e si sommano le correnti. Un pannello da 22 V da solo non arriva a 30 V: l\u2019inverter non parte. Due in serie danno 44 V: dentro la finestra. Tre in serie darebbero 66 V: oltre il limite, e l\u2019inverter si brucia.",
+              "Una stringa fotovoltaica \xE8 proprio questo: pi\xF9 pannelli in serie, in numero scelto in modo che la tensione, con il sole pi\xF9 forte, resti sotto il limite dell\u2019inverter e, con il sole pi\xF9 debole, non scenda troppo sotto il minimo."
+            ],
+            table: {
+              head: ["Collegamento", "Tensione a pieno sole", "Inverter"],
+              rows: [
+                ["1 pannello", "22 V", "non parte (sotto 30 V)"],
+                ["2 in parallelo", "22 V", "non parte (sotto 30 V)"],
+                ["2 in serie", "44 V", "lavora"],
+                ["3 in serie", "66 V", "si brucia (sopra 60 V)"]
+              ]
+            }
+          },
+          {
+            type: "previsione",
+            question: "Il sole \xE8 pi\xF9 debole al mattino. Con due pannelli in serie, quando parte l\u2019inverter?",
+            options: [
+              { id: "a", text: "Appena sorge il sole." },
+              { id: "b", text: "Quando la tensione dei due pannelli arriva a 30 V, cio\xE8 con un sole abbastanza alto." },
+              { id: "c", text: "Mai: serve il sole pieno." }
+            ],
+            correct: "b",
+            why: "La tensione sale con il sole. L\u2019inverter parte appena la somma dei due pannelli raggiunge i 30 V, un po\u2019 dopo l\u2019alba. La stessa soglia lo spegne la sera."
+          },
+          { type: "sintesi", title: "Da ricordare" }
+        ]
+      },
+      steps: [
+        { kind: "wire", from: "P1.+", to: ["I.+"], color: "rosso", short: "1 Il positivo", title: "Il + del primo pannello all\u2019inverter", text: "Un filo rosso dal + del pannello 1 al + dell\u2019inverter. Perch\xE9: in una serie il + libero della catena va all\u2019ingresso positivo." },
+        { kind: "wire", from: "P1.-", to: ["P2.+"], color: "rosso", short: "2 La serie", title: "I due pannelli in serie", text: "Un filo dal \u2212 del pannello 1 al + del pannello 2 (rosso o nero). Perch\xE9: cos\xEC le tensioni si sommano, 22 V pi\xF9 22 V fanno 44 V." },
+        { kind: "wire", from: "P2.-", to: ["I.-"], color: "nero", short: "3 Il negativo", title: "Il \u2212 del secondo pannello all\u2019inverter", text: "Un filo nero dal \u2212 del pannello 2 al \u2212 dell\u2019inverter. Perch\xE9: la corrente deve tornare al negativo per chiudere il giro." },
+        { kind: "verify", short: "4 Verifica", title: "Guarda la giornata", text: "Premi Verifica: il tempo corre e vedi l\u2019inverter partire con il sole alto e fermarsi la sera. Prova anche i cursori: con pi\xF9 nuvole la produzione cala." }
+      ],
+      summary: [
+        "Un pannello fotovoltaico \xE8 un generatore in continua la cui tensione dipende dal sole: la produzione ha la forma di una campana nella giornata.",
+        "L\u2019inverter trasforma la continua in alternata e ha una finestra di tensione in ingresso: sotto il minimo non parte, sopra il massimo si brucia.",
+        "Pannelli in serie sommano le tensioni; in parallelo la tensione resta quella di uno e si sommano le correnti.",
+        "La stringa si dimensiona perch\xE9 la tensione, col sole pi\xF9 forte, stia sotto il massimo dell\u2019inverter."
+      ]
+    },
+    "c40-contatore": {
+      support: "passi",
+      lesson: {
+        pages: [
+          {
+            type: "spiegazione",
+            title: "Il contatore che va in due versi",
+            paras: [
+              "Con i pannelli la casa non solo consuma ma produce. Il contatore allora misura in due versi: quando la casa consuma pi\xF9 di quanto produce preleva dalla rete (potenza positiva); quando produce pi\xF9 di quanto consuma immette in rete (potenza negativa). Si chiama scambio sul posto: l\u2019energia immessa va in rete.",
+              "Nella scena vedi la potenza scambiata: verde se la casa immette, rosso se preleva. Il contatore ha anche due totali: i kilowattora prelevati e quelli immessi."
+            ],
+            table: {
+              head: ["Situazione", "Potenza scambiata", "Il contatore"],
+              rows: [
+                ["Notte: consumo e niente produzione", "positiva", "preleva"],
+                ["Mezzogiorno: produzione maggiore del consumo", "negativa", "immette"],
+                ["Produzione uguale al consumo", "zero", "in pareggio"]
+              ]
+            }
+          },
+          {
+            type: "spiegazione",
+            title: "Meglio usare l\u2019eccedenza che regalarla",
+            paras: [
+              "L\u2019energia che si immette in rete si paga poco: conviene consumare noi, in casa, quando il sole produce. Questo si chiama autoconsumo. Un carico che si pu\xF2 spostare, come uno scaldabagno che accumula acqua calda, si accende proprio quando c\u2019\xE8 eccedenza.",
+              "Il PLC legge la potenza scambiata (in watt, nella parola MW0). Il programma deve accendere lo scaldabagno quando la casa immette abbastanza da alimentarlo, cio\xE8 pi\xF9 di 2,2 kW, e spegnerlo quando la casa comincia a prelevare."
+            ]
+          },
+          {
+            type: "spiegazione",
+            title: "Due soglie anche qui",
+            paras: [
+              "Come per la pompa del serbatoio servono due soglie diverse, una per accendere e una per spegnere. Appena lo scaldabagno si accende consuma 2 kW e la potenza scambiata sale di colpo: se la soglia di spegnimento fosse la stessa dell\u2019accensione si spegnerebbe subito e riparirebbe di continuo.",
+              "Qui si accende con una potenza sotto \u22122200 W (immissione di pi\xF9 di 2,2 kW) e si spegne con una potenza sopra 300 W (la casa preleva). In mezzo mantiene il suo stato: Set e Reset."
+            ]
+          },
+          {
+            type: "previsione",
+            question: "\xC8 mezzogiorno, la casa immette 3 kW e lo scaldabagno si accende. Quanto immette adesso?",
+            options: [
+              { id: "a", text: "Ancora 3 kW." },
+              { id: "b", text: "Circa 1 kW: lo scaldabagno consuma 2 kW dell\u2019eccedenza." },
+              { id: "c", text: "Niente: smette di immettere." }
+            ],
+            correct: "b",
+            why: "L\u2019eccedenza era 3 kW; 2 kW li assorbe lo scaldabagno e ne restano 1 da immettere. Per questo la potenza scambiata cambia appena il carico parte, e per questo servono due soglie."
+          },
+          { type: "sintesi", title: "Da ricordare" }
+        ]
+      },
+      steps: [
+        { kind: "program", plc: "PLC", min: 2, short: "1 Accendi", title: "Accendi con l\u2019eccedenza", text: "Nuovo gradino: contatto di confronto (tocca il contatto e scegli \u201CConfronto\u201D) MW0 minore di \u22122200; uscita Set su Q0. Perch\xE9: lo scaldabagno parte quando la casa immette pi\xF9 di 2,2 kW." },
+        { kind: "program", plc: "PLC", min: 3, short: "2 Spegni", title: "Spegni quando preleva", text: "Secondo gradino: confronto MW0 maggiore di 300; uscita Reset su Q0. Perch\xE9: quando la casa preleva dalla rete non c\u2019\xE8 pi\xF9 eccedenza da usare." },
+        { kind: "verify", short: "3 Verifica", title: "Guarda la giornata", text: "Premi Verifica. Nel grafico la linea blu \xE8 la potenza della rete: con lo scaldabagno acceso non scende sotto i \u22122,2 kW." }
+      ],
+      summary: [
+        "Il contatore bidirezionale misura la potenza scambiata con la rete: positiva se la casa preleva, negativa se immette.",
+        "L\u2019autoconsumo consiste nell\u2019usare in casa l\u2019energia prodotta, spostando i carichi nelle ore di sole.",
+        "Un carico che parte cambia subito la potenza scambiata: servono due soglie diverse (accendi e spegni), cio\xE8 Set e Reset.",
+        "Il PLC legge la potenza del contatore da un segnale 4-20 mA, che SCALE converte in watt."
+      ]
+    },
+    "c41-accumulo": {
+      support: "passi",
+      lesson: {
+        pages: [
+          {
+            type: "spiegazione",
+            title: "Il sole c\u2019\xE8 quando serve meno",
+            paras: [
+              "Una casa consuma di pi\xF9 la sera, quando i pannelli non producono. Di giorno invece produce pi\xF9 di quanto consuma. Senza accumulo l\u2019eccedenza va in rete e la sera si preleva dalla rete.",
+              "Una batteria sposta l\u2019energia nel tempo: di giorno assorbe l\u2019eccedenza e si carica, la sera la restituisce e copre i consumi. Cos\xEC la casa preleva meno."
+            ]
+          },
+          {
+            type: "spiegazione",
+            title: "Che cosa fa la batteria",
+            paras: [
+              "La batteria da 10 kWh ha una carica, in percentuale. Se la produzione supera il consumo, l\u2019eccedenza (fino a 3 kW, la potenza massima della batteria) la carica; se il consumo supera la produzione, la batteria scarica e copre la differenza, fino a esaurirsi. Quando \xE8 piena, l\u2019eccedenza va in rete; quando \xE8 vuota, si preleva di nuovo.",
+              "La scena mostra la carica a sinistra: verde mentre si carica, arancione mentre si scarica."
+            ],
+            table: {
+              head: ["Situazione", "La batteria", "La rete"],
+              rows: [
+                ["Giorno, produzione > consumo", "si carica", "immette solo il resto, a batteria piena"],
+                ["Sera, niente produzione", "si scarica", "non preleva finch\xE9 c\u2019\xE8 carica"],
+                ["Notte, batteria vuota", "ferma", "preleva di nuovo"]
+              ]
+            }
+          },
+          {
+            type: "previsione",
+            question: "Con la batteria collegata, alle 14 i pannelli producono 3,5 kW e la casa consuma 0,5 kW. Che cosa succede?",
+            options: [
+              { id: "a", text: "Tutti i 3 kW di eccedenza vanno in rete." },
+              { id: "b", text: "La batteria assorbe fino a 3 kW, che \xE8 il suo massimo: la rete immette il resto, o niente." },
+              { id: "c", text: "La batteria si scarica." }
+            ],
+            correct: "b",
+            why: "L\u2019eccedenza \xE8 3 kW e la batteria, se non \xE8 piena, pu\xF2 assorbirla tutta (3 kW \xE8 il suo massimo): la rete non immette niente. Se l\u2019eccedenza fosse pi\xF9 grande, solo il resto andrebbe in rete."
+          },
+          { type: "sintesi", title: "Da ricordare" }
+        ]
+      },
+      steps: [
+        { kind: "wire", from: "SA.b", to: ["HB.X1"], color: "rosso", short: "1 Collega", title: "La batteria in servizio", text: "La fase entra nell\u2019interruttore, esce dall\u2019altro morsetto e va alla spia \u201CBatteria collegata\u201D; l\u2019altro capo della spia va al neutro. Perch\xE9: la spia accesa \xE8 il segnale che la batteria \xE8 in servizio." },
+        { kind: "control", id: "SA", short: "2 Prova", title: "Collega la batteria", text: "Tocca l\u2019interruttore e guarda la scena: la batteria si carica mentre c\u2019\xE8 sole e si scarica la sera." },
+        { kind: "verify", short: "3 Verifica", title: "Controlla la giornata", text: "Premi Verifica." }
+      ],
+      summary: [
+        "Una batteria sposta l\u2019energia nel tempo: si carica con l\u2019eccedenza di giorno e copre i consumi la sera.",
+        "Si carica e scarica con una potenza massima (qui 3 kW); piena non assorbe pi\xF9, vuota non pu\xF2 pi\xF9 dare.",
+        "Con l\u2019accumulo la casa preleva meno dalla rete la sera e immette meno di giorno.",
+        "La batteria non produce energia: la sposta dal giorno alla sera, e per farlo ha bisogno dell\u2019eccedenza dei pannelli."
+      ]
+    },
+    "c42-colonnina": {
+      support: "passi",
+      lesson: {
+        pages: [
+          {
+            type: "spiegazione",
+            title: "La colonnina e il limite del contatore",
+            paras: [
+              "Una colonnina di ricarica per auto assorbe molta potenza: qui 3,7 kW, quanto tutti gli elettrodomestici di casa messi insieme. Il contratto con il fornitore fissa una potenza massima; se la casa la supera per un po\u2019, il contatore stacca tutto. Qui il limite \xE8 4,5 kW e il contatore scatta se resta sopra per pi\xF9 di 20 secondi.",
+              "Quindi la colonnina non pu\xF2 partire sempre: deve partire quando la casa ha margine e fermarsi prima che la somma dei consumi raggiunga il limite. Si chiama gestione del carico."
+            ]
+          },
+          {
+            type: "spiegazione",
+            title: "Distanza tra le due soglie",
+            paras: [
+              "Il PLC legge la potenza scambiata (MW0, in watt). Per partire serve margine: la potenza deve essere sotto una soglia bassa. Per fermarsi, deve superare una soglia alta, un poco sotto il limite del contatore.",
+              "Le due soglie devono stare lontane almeno quanto assorbe la colonnina, 3,7 kW. Con la soglia bassa a 500 W e quella alta a 4300 W vanno bene: appena la colonnina parte la potenza sale di 3,7 kW e non pu\xF2 riaccenderla da sola; appena la si stacca la potenza scende di 3,7 kW. Con le soglie troppo vicine succede un pasticcio: staccata la colonnina, la casa sembra subito avere margine e la colonnina riparte, e cos\xEC via."
+            ],
+            table: {
+              head: ["Soglia", "Valore", "Perch\xE9"],
+              rows: [
+                ["Parti (Set)", "sotto 500 W", "se la casa preleva poco c\u2019\xE8 margine per 3,7 kW"],
+                ["Fermati (Reset)", "sopra 4300 W", "poco sotto il limite di 4500 W: lo stacca prima del contatore"]
+              ]
+            }
+          },
+          {
+            type: "previsione",
+            question: "La colonnina \xE8 accesa e la casa preleva 4,1 kW. Alle 20 i consumi salgono di 1,2 kW. Che cosa serve?",
+            options: [
+              { id: "a", text: "Niente: il limite \xE8 4,5 kW e sono a 4,1." },
+              { id: "b", text: "Staccare la colonnina: 4,1 + 1,2 = 5,3 kW supera il limite, e il contatore scatta dopo 20 secondi." },
+              { id: "c", text: "Accendere un altro carico." }
+            ],
+            correct: "b",
+            why: "La somma supera il limite. Il programma deve staccare la colonnina quando la potenza supera 4300 W, prima che il contatore scatti e la casa resti al buio."
+          },
+          { type: "sintesi", title: "Da ricordare" }
+        ]
+      },
+      steps: [
+        { kind: "program", plc: "PLC", min: 2, short: "1 Parti", title: "Parti con margine", text: "Nuovo gradino: confronto MW0 minore di 500; uscita Set su Q0. Perch\xE9: se la casa preleva poco c\u2019\xE8 margine per la colonnina." },
+        { kind: "program", plc: "PLC", min: 3, short: "2 Fermati", title: "Fermati prima del limite", text: "Secondo gradino: confronto MW0 maggiore di 4300; uscita Reset su Q0. Perch\xE9: stacca la colonnina prima che il contatore scatti a 4500 W." },
+        { kind: "verify", short: "3 Verifica", title: "Guarda la serata", text: "Premi Verifica: il tempo corre dalle 17. Nel grafico la linea blu, la potenza della rete, deve restare sotto la linea del limite." }
+      ],
+      summary: [
+        "Il contatore ha un limite di potenza: oltre, dopo qualche secondo, stacca tutta la casa.",
+        "La colonnina parte quando la casa ha margine e si ferma prima del limite: gestione del carico.",
+        "Le due soglie (parti e fermati) devono stare distanti almeno quanto assorbe il carico, altrimenti riparte subito.",
+        "Se il PLC sbaglia e il contatore scatta, tutta la casa resta senza corrente: il limite si rispetta con il programma, prima che scatti."
+      ]
     }
   };
 
@@ -11621,10 +12094,10 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
       title: "Impianti del futuro",
       levels: [
         "c38-continua",
-        { soon: true, title: "Il pannello fotovoltaico", blurb: "Stringa, inverter e produzione nella giornata." },
-        { soon: true, title: "Il contatore e lo scambio", blurb: "Consumo, produzione e immissione in rete." },
-        { soon: true, title: "L\u2019accumulo", blurb: "La batteria si carica di giorno e si scarica la sera." },
-        { soon: true, title: "La colonnina", blurb: "Ricarica dell\u2019auto e limite del contatore." },
+        "c39-fotovoltaico",
+        "c40-contatore",
+        "c41-accumulo",
+        "c42-colonnina",
         { soon: true, title: "Il sensore e l\u2019attuatore", blurb: "Sensore di presenza, tapparella, comando a bassa tensione." },
         { soon: true, title: "La casa col PLC", blurb: "Luci e tapparelle da programma, le scene." }
       ],
@@ -13466,9 +13939,9 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
       const sizes = kids.map(size);
       const extra = (w - sizes.reduce((s, k) => s + k.w, 0)) / kids.length;
       kids.forEach((k, i) => {
-        const kw = sizes[i].w + extra;
-        o2 += draw(k, px2, y, kw, bits, names, on, cx, path.length ? path : [i], words);
-        px2 += kw;
+        const kw2 = sizes[i].w + extra;
+        o2 += draw(k, px2, y, kw2, bits, names, on, cx, path.length ? path : [i], words);
+        px2 += kw2;
       });
       return o2;
     }
@@ -13624,7 +14097,30 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
     o += `<text x="200" y="136" text-anchor="middle" style="font:500 11px 'IBM Plex Sans',sans-serif;fill:var(--ink2)">velocit\xE0 ${NS(speed)} % della nominale</text>`;
     return o;
   }
-  var SCENES = { serbatoio: tankScene, forno: ovenScene, nastro: beltScene };
+  var kw = (v) => String(Math.round(v * 100) / 100).replace(".", ",") + " kW";
+  function houseScene(level, s) {
+    const p = s.obs.process;
+    const hr = p.hour, sunUp = p.sun > 0 || hr > 6 && hr < 20;
+    const t = clamp3((hr - 6) / 14, 0, 1), sx = 40 + 320 * t, sy = 70 - 52 * Math.sin(Math.PI * t);
+    const hh = String(Math.floor(hr)).padStart(2, "0") + ":" + String(Math.floor(hr % 1 * 60)).padStart(2, "0");
+    let o = `<rect x="0" y="0" width="400" height="160" fill="${sunUp ? "#EAF3FB" : "#26324A"}" opacity=".55"/>`;
+    o += `<path d="M40 70 Q200 -34 360 70" fill="none" stroke="var(--line)" stroke-dasharray="3 5"/>`;
+    o += sunUp ? `<circle cx="${sx}" cy="${sy}" r="${10 + 4 * p.sun}" fill="#F5B921" opacity="${0.35 + 0.65 * p.sun}"/>` : `<circle cx="${sx}" cy="${clamp3(sy, 14, 70)}" r="9" fill="#C9D3E3"/>`;
+    o += `<text x="12" y="20" style="font:600 12px 'IBM Plex Mono',monospace;fill:var(--ink)">ore ${hh}</text>`;
+    o += `<path d="M110 120 V86 L170 52 L230 86 V120 Z" fill="#F0EBDD" stroke="var(--comp-edge)" stroke-width="2.2"/><path d="M104 88 L170 48 L236 88" fill="none" stroke="${p.pv > 0.05 ? "#2E9E5B" : "var(--comp-edge)"}" stroke-width="${3 + 2 * clamp3(p.pv / 4, 0, 1)}"/>`;
+    o += `<text x="170" y="108" text-anchor="middle" style="font:600 11px 'IBM Plex Mono',monospace;fill:var(--ink)">casa ${kw(p.load)}</text>`;
+    o += `<text x="170" y="136" text-anchor="middle" style="font:600 11px 'IBM Plex Mono',monospace;fill:#2E9E5B">pannelli ${kw(p.pv)}</text>`;
+    const g = p.grid, ex = g < -0.01;
+    o += `<rect x="290" y="92" width="44" height="30" rx="4" fill="#EDE7D4" stroke="var(--comp-edge)" stroke-width="1.8"/><text x="312" y="111" text-anchor="middle" style="font:600 10px 'IBM Plex Mono',monospace;fill:#222">kWh</text>`;
+    o += `<path d="M232 106 H290" stroke="${Math.abs(g) > 0.01 ? ex ? "#2E9E5B" : "#C0262D" : "var(--line)"}" stroke-width="4"/>`;
+    o += `<path d="M334 106 H372" stroke="var(--ink2)" stroke-width="3"/><text x="312" y="136" text-anchor="middle" style="font:600 10px 'IBM Plex Mono',monospace;fill:${ex ? "#2E9E5B" : "var(--ink)"}">${ex ? "immette " + kw(-g) : g > 0.01 ? "preleva " + kw(g) : "in pareggio"}</text>`;
+    if (p.blackout) o += `<text x="200" y="152" text-anchor="middle" style="font:700 12px 'IBM Plex Mono',monospace;fill:#C0262D">CONTATORE SCATTATO</text>`;
+    if (level.process.battery) {
+      o += `<rect x="24" y="96" width="34" height="48" rx="4" fill="none" stroke="var(--comp-edge)" stroke-width="2"/><rect x="26" y="${142 - 44 * p.soc / 100}" width="30" height="${44 * p.soc / 100}" fill="${p.pb < -0.01 ? "#F59F00" : "#2E9E5B"}" opacity=".85"/><text x="41" y="90" text-anchor="middle" style="font:600 10px 'IBM Plex Mono',monospace;fill:var(--ink)">${Math.round(p.soc)} %</text>`;
+    }
+    return o;
+  }
+  var SCENES = { serbatoio: tankScene, forno: ovenScene, nastro: beltScene, energia: houseScene };
   function graphSVG(level, s) {
     const gr = level.process.graph;
     if (!gr) return "";
@@ -17425,6 +17921,219 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
     "\xC8 una spia che conduce in un verso solo: dall\u2019anodo A al catodo K. Collegato al contrario resta spento. Ha gi\xE0 la sua resistenza, che limita la corrente.": "\u0647\u0648 \u0645\u0635\u0628\u0627\u062D \u062F\u0644\u064A\u0644\u064A \u064A\u0645\u0631\u0651\u0631 \u0627\u0644\u062A\u064A\u0627\u0631 \u0641\u064A \u0627\u062A\u062C\u0627\u0647 \u0648\u0627\u062D\u062F \u0641\u0642\u0637: \u0645\u0646 \u0627\u0644\u0645\u0635\u0639\u062F A \u0625\u0644\u0649 \u0627\u0644\u0645\u0647\u0628\u0637 K. \u0625\u0630\u0627 \u0648\u064F\u0635\u0644 \u0628\u0627\u0644\u0639\u0643\u0633 \u064A\u0628\u0642\u0649 \u0645\u0637\u0641\u0623. \u0641\u064A\u0647 \u0645\u0642\u0627\u0648\u0645\u062A\u0647 \u0627\u0644\u062A\u064A \u062A\u062D\u062F\u0651 \u0645\u0646 \u0627\u0644\u062A\u064A\u0627\u0631."
   };
 
+  // src/i18n/ar-31.js
+  var ar_31_default = {
+    "1 pannello": "\u0644\u0648\u062D \u0648\u0627\u062D\u062F",
+    "2 in parallelo": "2 \u0639\u0644\u0649 \u0627\u0644\u062A\u0648\u0627\u0632\u064A",
+    "2 in serie": "2 \u0639\u0644\u0649 \u0627\u0644\u062A\u0648\u0627\u0644\u064A",
+    "3 in serie": "3 \u0639\u0644\u0649 \u0627\u0644\u062A\u0648\u0627\u0644\u064A",
+    "A mezzogiorno l\u2019inverter lavora e i pannelli producono": "\u0639\u0646\u062F \u0627\u0644\u0638\u0647\u064A\u0631\u0629 \u064A\u0639\u0645\u0644 \u0627\u0644\u0639\u0627\u0643\u0633 \u0648\u062A\u0646\u062A\u062C \u0627\u0644\u0623\u0644\u0648\u0627\u062D",
+    "Accendere un altro carico.": "\u062A\u0634\u063A\u064A\u0644 \u062D\u0645\u0644 \u0622\u062E\u0631.",
+    "Accendi con l\u2019eccedenza": "\u0634\u063A\u0651\u0644 \u0628\u0627\u0644\u0641\u0627\u0626\u0636",
+    "Ancora 3 kW.": "\u0645\u0627 \u0632\u0627\u0644 3 \u0643\u064A\u0644\u0648\u0648\u0627\u0637.",
+    "Appena sorge il sole.": "\u0628\u0645\u062C\u0631\u062F \u0634\u0631\u0648\u0642 \u0627\u0644\u0634\u0645\u0633.",
+    "Auto in ricarica": "\u0627\u0644\u0633\u064A\u0627\u0631\u0629 \u0642\u064A\u062F \u0627\u0644\u0634\u062D\u0646",
+    "Batteria": "\u0627\u0644\u0628\u0637\u0627\u0631\u064A\u0629",
+    "Batteria collegata": "\u0627\u0644\u0628\u0637\u0627\u0631\u064A\u0629 \u0645\u0648\u0635\u0648\u0644\u0629",
+    "Che cosa fa la batteria": "\u0645\u0627\u0630\u0627 \u062A\u0641\u0639\u0644 \u0627\u0644\u0628\u0637\u0627\u0631\u064A\u0629",
+    "Circa 1 kW: lo scaldabagno consuma 2 kW dell\u2019eccedenza.": "\u0646\u062D\u0648 1 \u0643\u064A\u0644\u0648\u0648\u0627\u0637: \u064A\u0633\u062A\u0647\u0644\u0643 \u0633\u062E\u0651\u0627\u0646 \u0627\u0644\u0645\u064A\u0627\u0647 2 \u0643\u064A\u0644\u0648\u0648\u0627\u0637 \u0645\u0646 \u0627\u0644\u0641\u0627\u0626\u0636.",
+    "Collega": "\u0635\u0650\u0644",
+    "Collega la batteria": "\u0635\u0650\u0644 \u0627\u0644\u0628\u0637\u0627\u0631\u064A\u0629",
+    "Collegamento": "\u0627\u0644\u062A\u0648\u0635\u064A\u0644",
+    "Collegamento ": "\u0627\u0644\u062A\u0648\u0635\u064A\u0644 ",
+    "Collegata, la batteria si carica con il sole fino quasi al massimo": "\u0639\u0646\u062F \u0648\u0635\u0644\u0647\u0627 \u062A\u064F\u0634\u062D\u0646 \u0627\u0644\u0628\u0637\u0627\u0631\u064A\u0629 \u0628\u0627\u0644\u0634\u0645\u0633 \u062D\u062A\u0649 \u0645\u0627 \u064A\u0642\u0627\u0631\u0628 \u0627\u0644\u062D\u062F \u0627\u0644\u0623\u0642\u0635\u0649",
+    "Colonnina": "\u0645\u062D\u0637\u0629 \u0627\u0644\u0634\u062D\u0646",
+    "Come funziona un pannello fotovoltaico": "\u0643\u064A\u0641 \u062A\u0639\u0645\u0644 \u0644\u0648\u062D\u0629 \u0643\u0647\u0631\u0648\u0636\u0648\u0626\u064A\u0629",
+    "Come per la pompa del serbatoio servono due soglie diverse, una per accendere e una per spegnere. Appena lo scaldabagno si accende consuma 2 kW e la potenza scambiata sale di colpo: se la soglia di spegnimento fosse la stessa dell\u2019accensione si spegnerebbe subito e riparirebbe di continuo.": "\u0643\u0645\u0627 \u0641\u064A \u0645\u0636\u062E\u0629 \u0627\u0644\u062E\u0632\u0627\u0646 \u0646\u062D\u062A\u0627\u062C \u0625\u0644\u0649 \u0639\u062A\u0628\u062A\u064A\u0646 \u0645\u062E\u062A\u0644\u0641\u062A\u064A\u0646\u060C \u0648\u0627\u062D\u062F\u0629 \u0644\u0644\u062A\u0634\u063A\u064A\u0644 \u0648\u0623\u062E\u0631\u0649 \u0644\u0644\u0625\u064A\u0642\u0627\u0641. \u0645\u0627 \u0625\u0646 \u064A\u0639\u0645\u0644 \u0633\u062E\u0651\u0627\u0646 \u0627\u0644\u0645\u064A\u0627\u0647 \u062D\u062A\u0649 \u064A\u0633\u062A\u0647\u0644\u0643 2 \u0643\u064A\u0644\u0648\u0648\u0627\u0637 \u0648\u062A\u0631\u062A\u0641\u0639 \u0627\u0644\u0642\u062F\u0631\u0629 \u0627\u0644\u0645\u062A\u0628\u0627\u062F\u0644\u0629 \u0641\u062C\u0623\u0629: \u0644\u0648 \u0643\u0627\u0646\u062A \u0639\u062A\u0628\u0629 \u0627\u0644\u0625\u064A\u0642\u0627\u0641 \u0646\u0641\u0633\u0647\u0627 \u0639\u062A\u0628\u0629 \u0627\u0644\u062A\u0634\u063A\u064A\u0644 \u0644\u062A\u0648\u0642\u0641 \u0641\u0648\u0631\u064B\u0627 \u062B\u0645 \u0639\u0627\u062F \u0628\u0627\u0633\u062A\u0645\u0631\u0627\u0631.",
+    "Come per le batterie, due pannelli in serie sommano le tensioni; in parallelo la tensione resta quella di uno e si sommano le correnti. Un pannello da 22 V da solo non arriva a 30 V: l\u2019inverter non parte. Due in serie danno 44 V: dentro la finestra. Tre in serie darebbero 66 V: oltre il limite, e l\u2019inverter si brucia.": "\u0643\u0645\u0627 \u0641\u064A \u0627\u0644\u0628\u0637\u0627\u0631\u064A\u0627\u062A\u060C \u0644\u0648\u062D\u0627\u0646 \u0639\u0644\u0649 \u0627\u0644\u062A\u0648\u0627\u0644\u064A \u062A\u062C\u0645\u0639 \u062C\u0647\u062F\u064A\u0647\u0645\u0627\u061B \u0648\u0639\u0644\u0649 \u0627\u0644\u062A\u0648\u0627\u0632\u064A \u064A\u0628\u0642\u0649 \u0627\u0644\u062C\u0647\u062F \u062C\u0647\u062F \u0644\u0648\u062D \u0648\u0627\u062D\u062F \u0648\u062A\u064F\u062C\u0645\u0639 \u0627\u0644\u062A\u064A\u0627\u0631\u0627\u062A. \u0644\u0648\u062D \u0648\u0627\u062D\u062F 22 \u0641\u0648\u0644\u062A \u0644\u0627 \u064A\u0628\u0644\u063A 30 \u0641\u0648\u0644\u062A: \u0644\u0627 \u064A\u0628\u062F\u0623 \u0627\u0644\u0639\u0627\u0643\u0633. \u0644\u0648\u062D\u0627\u0646 \u0639\u0644\u0649 \u0627\u0644\u062A\u0648\u0627\u0644\u064A \u064A\u0639\u0637\u064A\u0627\u0646 44 \u0641\u0648\u0644\u062A: \u062F\u0627\u062E\u0644 \u0627\u0644\u0646\u0627\u0641\u0630\u0629. \u062B\u0644\u0627\u062B\u0629 \u0639\u0644\u0649 \u0627\u0644\u062A\u0648\u0627\u0644\u064A \u062A\u0639\u0637\u064A 66 \u0641\u0648\u0644\u062A: \u0641\u0648\u0642 \u0627\u0644\u062D\u062F \u0641\u064A\u062D\u062A\u0631\u0642 \u0627\u0644\u0639\u0627\u0643\u0633.",
+    "Con i pannelli la casa non solo consuma ma produce. Il contatore allora misura in due versi: quando la casa consuma pi\xF9 di quanto produce preleva dalla rete (potenza positiva); quando produce pi\xF9 di quanto consuma immette in rete (potenza negativa). Si chiama scambio sul posto: l\u2019energia immessa va in rete.": "\u0645\u0639 \u0627\u0644\u0623\u0644\u0648\u0627\u062D \u0644\u0627 \u064A\u0633\u062A\u0647\u0644\u0643 \u0627\u0644\u0628\u064A\u062A \u0641\u0642\u0637 \u0628\u0644 \u064A\u0646\u062A\u062C \u0623\u064A\u0636\u064B\u0627. \u0641\u064A\u0642\u064A\u0633 \u0627\u0644\u0639\u062F\u0651\u0627\u062F \u0628\u0627\u062A\u062C\u0627\u0647\u064A\u0646: \u0639\u0646\u062F\u0645\u0627 \u064A\u0633\u062A\u0647\u0644\u0643 \u0627\u0644\u0628\u064A\u062A \u0623\u0643\u062B\u0631 \u0645\u0645\u0627 \u064A\u0646\u062A\u062C \u064A\u0633\u062D\u0628 \u0645\u0646 \u0627\u0644\u0634\u0628\u0643\u0629 (\u0642\u062F\u0631\u0629 \u0645\u0648\u062C\u0628\u0629)\u061B \u0648\u0639\u0646\u062F\u0645\u0627 \u064A\u0646\u062A\u062C \u0623\u0643\u062B\u0631 \u0645\u0645\u0627 \u064A\u0633\u062A\u0647\u0644\u0643 \u064A\u0636\u062E \u0641\u064A \u0627\u0644\u0634\u0628\u0643\u0629 (\u0642\u062F\u0631\u0629 \u0633\u0627\u0644\u0628\u0629). \u064A\u0633\u0645\u0649 \u0647\u0630\u0627 \u0627\u0644\u062A\u0628\u0627\u062F\u0644 \u0641\u064A \u0627\u0644\u0645\u0648\u0642\u0639: \u0627\u0644\u0637\u0627\u0642\u0629 \u0627\u0644\u0645\u0636\u062E\u0648\u062E\u0629 \u062A\u0630\u0647\u0628 \u0625\u0644\u0649 \u0627\u0644\u0634\u0628\u0643\u0629.",
+    "Con il sole alto lo scaldabagno usa l\u2019eccedenza: la casa non immette pi\xF9 di 2,2 kW": "\u0648\u0627\u0644\u0634\u0645\u0633 \u0639\u0627\u0644\u064A\u0629 \u064A\u0633\u062A\u062E\u062F\u0645 \u0633\u062E\u0651\u0627\u0646 \u0627\u0644\u0645\u064A\u0627\u0647 \u0627\u0644\u0641\u0627\u0626\u0636: \u0644\u0627 \u064A\u0636\u062E \u0627\u0644\u0628\u064A\u062A \u0623\u0643\u062B\u0631 \u0645\u0646 2\u066B2 \u0643\u064A\u0644\u0648\u0648\u0627\u0637",
+    "Con la batteria collegata, alle 14 i pannelli producono 3,5 kW e la casa consuma 0,5 kW. Che cosa succede?": "\u0648\u0627\u0644\u0628\u0637\u0627\u0631\u064A\u0629 \u0645\u0648\u0635\u0648\u0644\u0629\u060C \u0639\u0646\u062F \u0627\u0644\u0633\u0627\u0639\u0629 14 \u062A\u0646\u062A\u062C \u0627\u0644\u0623\u0644\u0648\u0627\u062D 3\u066B5 \u0643\u064A\u0644\u0648\u0648\u0627\u0637 \u0648\u064A\u0633\u062A\u0647\u0644\u0643 \u0627\u0644\u0628\u064A\u062A 0\u066B5 \u0643\u064A\u0644\u0648\u0648\u0627\u0637. \u0645\u0627\u0630\u0627 \u064A\u062D\u062F\u062B\u061F",
+    "Con la batteria scollegata la carica non cambia": "\u0648\u0627\u0644\u0628\u0637\u0627\u0631\u064A\u0629 \u0645\u0641\u0635\u0648\u0644\u0629 \u0644\u0627 \u062A\u062A\u063A\u064A\u0631 \u0627\u0644\u0634\u062D\u0646\u0629",
+    "Con l\u2019accumulo la casa preleva meno dalla rete la sera e immette meno di giorno.": "\u0645\u0639 \u0627\u0644\u062A\u062E\u0632\u064A\u0646 \u064A\u0633\u062D\u0628 \u0627\u0644\u0628\u064A\u062A \u0645\u0646 \u0627\u0644\u0634\u0628\u0643\u0629 \u0623\u0642\u0644 \u0645\u0633\u0627\u0621\u064B \u0648\u064A\u0636\u062E \u0623\u0642\u0644 \u0646\u0647\u0627\u0631\u064B\u0627.",
+    "Consumo kW": "\u0627\u0644\u0627\u0633\u062A\u0647\u0644\u0627\u0643 \u0643\u064A\u0644\u0648\u0648\u0627\u0637",
+    "Controlla la giornata": "\u062A\u062D\u0642\u0642 \u0645\u0646 \u0627\u0644\u064A\u0648\u0645",
+    "Di giorno la casa produce pi\xF9 di quanto consuma: meglio usare l\u2019eccedenza che regalarla alla rete.": "\u0646\u0647\u0627\u0631\u064B\u0627 \u064A\u0646\u062A\u062C \u0627\u0644\u0628\u064A\u062A \u0623\u0643\u062B\u0631 \u0645\u0645\u0627 \u064A\u0633\u062A\u0647\u0644\u0643: \u0627\u0644\u0623\u0641\u0636\u0644 \u0627\u0633\u062A\u062E\u062F\u0627\u0645 \u0627\u0644\u0641\u0627\u0626\u0636 \u0628\u062F\u0644 \u0625\u0647\u062F\u0627\u0626\u0647 \u0644\u0644\u0634\u0628\u0643\u0629.",
+    "Di sera, senza eccedenza, lo scaldabagno \xE8 spento e la casa preleva dalla rete": "\u0645\u0633\u0627\u0621\u064B\u060C \u0628\u0644\u0627 \u0641\u0627\u0626\u0636\u060C \u064A\u0643\u0648\u0646 \u0633\u062E\u0651\u0627\u0646 \u0627\u0644\u0645\u064A\u0627\u0647 \u0645\u0637\u0641\u0623\u064B \u0648\u064A\u0633\u062D\u0628 \u0627\u0644\u0628\u064A\u062A \u0645\u0646 \u0627\u0644\u0634\u0628\u0643\u0629",
+    "Di sera, senza sole, l\u2019inverter si spegne e la produzione \xE8 zero": "\u0645\u0633\u0627\u0621\u064B\u060C \u0628\u0644\u0627 \u0634\u0645\u0633\u060C \u064A\u0646\u0637\u0641\u0626 \u0627\u0644\u0639\u0627\u0643\u0633 \u0648\u064A\u0643\u0648\u0646 \u0627\u0644\u0625\u0646\u062A\u0627\u062C \u0635\u0641\u0631\u064B\u0627",
+    "Distanza tra le due soglie": "\u0627\u0644\u0645\u0633\u0627\u0641\u0629 \u0628\u064A\u0646 \u0627\u0644\u0639\u062A\u0628\u062A\u064A\u0646",
+    "Due soglie anche qui": "\u0639\u062A\u0628\u062A\u0627\u0646 \u0647\u0646\u0627 \u0623\u064A\u0636\u064B\u0627",
+    "Fermati": "\u062A\u0648\u0642\u0651\u0641",
+    "Fermati (Reset)": "\u062A\u0648\u0642\u0651\u0641 (Reset)",
+    "Fermati prima del limite": "\u062A\u0648\u0642\u0651\u0641 \u0642\u0628\u0644 \u0627\u0644\u062D\u062F",
+    "Giorno, produzione > consumo": "\u0646\u0647\u0627\u0631\u064B\u0627\u060C \u0627\u0644\u0625\u0646\u062A\u0627\u062C > \u0627\u0644\u0627\u0633\u062A\u0647\u0644\u0627\u0643",
+    "Guarda la giornata": "\u0631\u0627\u0642\u0628 \u0627\u0644\u064A\u0648\u0645",
+    "Guarda la serata": "\u0631\u0627\u0642\u0628 \u0627\u0644\u0645\u0633\u0627\u0621",
+    "I due pannelli in serie": "\u0627\u0644\u0644\u0648\u062D\u0627\u0646 \u0639\u0644\u0649 \u0627\u0644\u062A\u0648\u0627\u0644\u064A",
+    "Il + del primo pannello all\u2019inverter": "\u0645\u0648\u062C\u0628 \u0627\u0644\u0644\u0648\u062D \u0627\u0644\u0623\u0648\u0644 \u0625\u0644\u0649 \u0627\u0644\u0639\u0627\u0643\u0633",
+    "Il PLC legge la potenza del contatore da un segnale 4-20 mA, che SCALE converte in watt.": "\u064A\u0642\u0631\u0623 \u0627\u0644\u0640PLC \u0642\u062F\u0631\u0629 \u0627\u0644\u0639\u062F\u0651\u0627\u062F \u0645\u0646 \u0625\u0634\u0627\u0631\u0629 4-20 \u0645\u064A\u0644\u064A \u0623\u0645\u0628\u064A\u0631 \u062A\u062D\u0648\u0651\u0644\u0647\u0627 SCALE \u0625\u0644\u0649 \u0648\u0627\u0637.",
+    "Il PLC legge la potenza scambiata (MW0, in watt). Per partire serve margine: la potenza deve essere sotto una soglia bassa. Per fermarsi, deve superare una soglia alta, un poco sotto il limite del contatore.": "\u064A\u0642\u0631\u0623 \u0627\u0644\u0640PLC \u0627\u0644\u0642\u062F\u0631\u0629 \u0627\u0644\u0645\u062A\u0628\u0627\u062F\u0644\u0629 (MW0\u060C \u0628\u0627\u0644\u0648\u0627\u0637). \u0644\u0644\u0628\u062F\u0621 \u064A\u0644\u0632\u0645 \u0647\u0627\u0645\u0634: \u064A\u062C\u0628 \u0623\u0646 \u062A\u0643\u0648\u0646 \u0627\u0644\u0642\u062F\u0631\u0629 \u062A\u062D\u062A \u0639\u062A\u0628\u0629 \u0645\u0646\u062E\u0641\u0636\u0629. \u0648\u0644\u0644\u062A\u0648\u0642\u0641 \u064A\u062C\u0628 \u0623\u0646 \u062A\u062A\u062C\u0627\u0648\u0632 \u0639\u062A\u0628\u0629 \u0645\u0631\u062A\u0641\u0639\u0629\u060C \u0623\u0642\u0644 \u0642\u0644\u064A\u0644\u064B\u0627 \u0645\u0646 \u062D\u062F \u0627\u0644\u0639\u062F\u0651\u0627\u062F.",
+    "Il PLC legge la potenza scambiata (in watt, nella parola MW0). Il programma deve accendere lo scaldabagno quando la casa immette abbastanza da alimentarlo, cio\xE8 pi\xF9 di 2,2 kW, e spegnerlo quando la casa comincia a prelevare.": "\u064A\u0642\u0631\u0623 \u0627\u0644\u0640PLC \u0627\u0644\u0642\u062F\u0631\u0629 \u0627\u0644\u0645\u062A\u0628\u0627\u062F\u0644\u0629 (\u0628\u0627\u0644\u0648\u0627\u0637\u060C \u0641\u064A \u0627\u0644\u0643\u0644\u0645\u0629 MW0). \u064A\u062C\u0628 \u0623\u0646 \u064A\u0634\u063A\u0651\u0644 \u0627\u0644\u0628\u0631\u0646\u0627\u0645\u062C \u0633\u062E\u0651\u0627\u0646 \u0627\u0644\u0645\u064A\u0627\u0647 \u0639\u0646\u062F\u0645\u0627 \u064A\u0636\u062E \u0627\u0644\u0628\u064A\u062A \u0645\u0627 \u064A\u0643\u0641\u064A \u0644\u062A\u063A\u0630\u064A\u062A\u0647\u060C \u0623\u064A \u0623\u0643\u062B\u0631 \u0645\u0646 2\u066B2 \u0643\u064A\u0644\u0648\u0648\u0627\u0637\u060C \u0648\u064A\u0637\u0641\u0626\u0647 \u0639\u0646\u062F\u0645\u0627 \u064A\u0628\u062F\u0623 \u0627\u0644\u0628\u064A\u062A \u0628\u0627\u0644\u0633\u062D\u0628.",
+    "Il contatore bidirezionale misura la potenza scambiata con la rete: positiva se la casa preleva, negativa se immette.": "\u064A\u0642\u064A\u0633 \u0627\u0644\u0639\u062F\u0651\u0627\u062F \u062B\u0646\u0627\u0626\u064A \u0627\u0644\u0627\u062A\u062C\u0627\u0647 \u0627\u0644\u0642\u062F\u0631\u0629 \u0627\u0644\u0645\u062A\u0628\u0627\u062F\u0644\u0629 \u0645\u0639 \u0627\u0644\u0634\u0628\u0643\u0629: \u0645\u0648\u062C\u0628\u0629 \u0625\u0630\u0627 \u0633\u062D\u0628 \u0627\u0644\u0628\u064A\u062A \u0648\u0633\u0627\u0644\u0628\u0629 \u0625\u0630\u0627 \u0636\u062E\u0651.",
+    "Il contatore che va in due versi": "\u0627\u0644\u0639\u062F\u0651\u0627\u062F \u0627\u0644\u0630\u064A \u064A\u0639\u0645\u0644 \u0628\u0627\u062A\u062C\u0627\u0647\u064A\u0646",
+    "Il contatore ha un limite di potenza: oltre, dopo qualche secondo, stacca tutta la casa.": "\u0644\u0644\u0639\u062F\u0651\u0627\u062F \u062D\u062F\u0651 \u0642\u062F\u0631\u0629: \u0648\u0628\u0639\u062F \u062A\u062C\u0627\u0648\u0632\u0647 \u0628\u062B\u0648\u0627\u0646\u064D \u064A\u0641\u0635\u0644 \u0627\u0644\u0628\u064A\u062A \u0643\u0644\u0647.",
+    "Il negativo": "\u0627\u0644\u0633\u0627\u0644\u0628",
+    "Il positivo": "\u0627\u0644\u0645\u0648\u062C\u0628",
+    "Il sole c\u2019\xE8 quando serve meno": "\u0627\u0644\u0634\u0645\u0633 \u0645\u0648\u062C\u0648\u062F\u0629 \u062D\u064A\u0646 \u0646\u062D\u062A\u0627\u062C \u0625\u0644\u064A\u0647\u0627 \u0623\u0642\u0644",
+    "Il sole nella giornata sale e scende: la produzione ha la forma di una campana, con il massimo verso mezzogiorno. Nel grafico vedi la produzione in kilowatt (kW) e il consumo della casa.": "\u062A\u0635\u0639\u062F \u0627\u0644\u0634\u0645\u0633 \u0648\u062A\u0646\u0632\u0644 \u062E\u0644\u0627\u0644 \u0627\u0644\u064A\u0648\u0645: \u0644\u0644\u0625\u0646\u062A\u0627\u062C \u0634\u0643\u0644 \u062C\u0631\u0633 \u0648\u0623\u0642\u0635\u0627\u0647 \u0646\u062D\u0648 \u0627\u0644\u0638\u0647\u064A\u0631\u0629. \u0641\u064A \u0627\u0644\u0631\u0633\u0645 \u0627\u0644\u0628\u064A\u0627\u0646\u064A \u062A\u0631\u0649 \u0627\u0644\u0625\u0646\u062A\u0627\u062C \u0628\u0627\u0644\u0643\u064A\u0644\u0648\u0648\u0627\u0637 (kW) \u0648\u0627\u0633\u062A\u0647\u0644\u0627\u0643 \u0627\u0644\u0628\u064A\u062A.",
+    "Il sole \xE8 pi\xF9 debole al mattino. Con due pannelli in serie, quando parte l\u2019inverter?": "\u0627\u0644\u0634\u0645\u0633 \u0623\u0636\u0639\u0641 \u0641\u064A \u0627\u0644\u0635\u0628\u0627\u062D. \u0645\u0639 \u0644\u0648\u062D\u064A\u0646 \u0639\u0644\u0649 \u0627\u0644\u062A\u0648\u0627\u0644\u064A\u060C \u0645\u062A\u0649 \u064A\u0628\u062F\u0623 \u0627\u0644\u0639\u0627\u0643\u0633\u061F",
+    "Il \u2212 del secondo pannello all\u2019inverter": "\u0633\u0627\u0644\u0628 \u0627\u0644\u0644\u0648\u062D \u0627\u0644\u062B\u0627\u0646\u064A \u0625\u0644\u0649 \u0627\u0644\u0639\u0627\u0643\u0633",
+    "In serie il + di un pannello va al \u2212 del successivo; il + libero va al + dell\u2019inverter e il \u2212 libero al \u2212 dell\u2019inverter. In parallelo la tensione resterebbe 22 V.": "\u0639\u0644\u0649 \u0627\u0644\u062A\u0648\u0627\u0644\u064A \u064A\u0630\u0647\u0628 + \u0644\u0648\u062D \u0625\u0644\u0649 \u2212 \u0627\u0644\u0644\u0648\u062D \u0627\u0644\u062A\u0627\u0644\u064A\u061B \u0648+ \u0627\u0644\u062D\u0631 \u0625\u0644\u0649 + \u0627\u0644\u0639\u0627\u0643\u0633 \u0648\u2212 \u0627\u0644\u062D\u0631 \u0625\u0644\u0649 \u2212 \u0627\u0644\u0639\u0627\u0643\u0633. \u0648\u0639\u0644\u0649 \u0627\u0644\u062A\u0648\u0627\u0632\u064A \u064A\u0628\u0642\u0649 \u0627\u0644\u062C\u0647\u062F 22 \u0641\u0648\u0644\u062A.",
+    "In serie le tensioni si sommano: due pannelli danno 44 V a pieno sole, dentro la finestra 30-60 V. Tre darebbero 66 V e brucerebbero l\u2019inverter.": "\u0639\u0644\u0649 \u0627\u0644\u062A\u0648\u0627\u0644\u064A \u062A\u064F\u062C\u0645\u0639 \u0627\u0644\u062C\u0647\u0648\u062F: \u0644\u0648\u062D\u0627\u0646 \u064A\u0639\u0637\u064A\u0627\u0646 44 \u0641\u0648\u0644\u062A \u062A\u062D\u062A \u0627\u0644\u0634\u0645\u0633 \u0627\u0644\u0643\u0627\u0645\u0644\u0629\u060C \u062F\u0627\u062E\u0644 \u0646\u0627\u0641\u0630\u0629 30-60 \u0641\u0648\u0644\u062A. \u0648\u062B\u0644\u0627\u062B\u0629 \u062A\u0639\u0637\u064A 66 \u0641\u0648\u0644\u062A \u0648\u062A\u062D\u0631\u0642 \u0627\u0644\u0639\u0627\u0643\u0633.",
+    "Interruttore della batteria": "\u0645\u0641\u062A\u0627\u062D \u0627\u0644\u0628\u0637\u0627\u0631\u064A\u0629",
+    "Inverter": "\u0627\u0644\u0639\u0627\u0643\u0633",
+    "Inverter ": "\u0627\u0644\u0639\u0627\u0643\u0633 ",
+    "Inverter fotovoltaico: ingresso 30-60 V": "\u0639\u0627\u0643\u0633 \u0643\u0647\u0631\u0648\u0636\u0648\u0626\u064A: \u062F\u062E\u0644 30-60 \u0641\u0648\u0644\u062A",
+    "La batteria assorbe fino a 3 kW, che \xE8 il suo massimo: la rete immette il resto, o niente.": "\u062A\u0645\u062A\u0635 \u0627\u0644\u0628\u0637\u0627\u0631\u064A\u0629 \u062D\u062A\u0649 3 \u0643\u064A\u0644\u0648\u0648\u0627\u0637 \u0648\u0647\u0648 \u062D\u062F\u0651\u0647\u0627 \u0627\u0644\u0623\u0642\u0635\u0649: \u0648\u062A\u0636\u062E \u0627\u0644\u0634\u0628\u0643\u0629 \u0627\u0644\u0628\u0627\u0642\u064A \u0623\u0648 \u0644\u0627 \u0634\u064A\u0621.",
+    "La batteria da 10 kWh ha una carica, in percentuale. Se la produzione supera il consumo, l\u2019eccedenza (fino a 3 kW, la potenza massima della batteria) la carica; se il consumo supera la produzione, la batteria scarica e copre la differenza, fino a esaurirsi. Quando \xE8 piena, l\u2019eccedenza va in rete; quando \xE8 vuota, si preleva di nuovo.": "\u0644\u0628\u0637\u0627\u0631\u064A\u0629 10 \u0643\u064A\u0644\u0648\u0648\u0627\u0637 \u0633\u0627\u0639\u0629 \u0634\u062D\u0646\u0629 \u0628\u0627\u0644\u0646\u0633\u0628\u0629 \u0627\u0644\u0645\u0626\u0648\u064A\u0629. \u0625\u0630\u0627 \u062A\u062C\u0627\u0648\u0632 \u0627\u0644\u0625\u0646\u062A\u0627\u062C \u0627\u0644\u0627\u0633\u062A\u0647\u0644\u0627\u0643 \u064A\u0634\u062D\u0646\u0647\u0627 \u0627\u0644\u0641\u0627\u0626\u0636 (\u062D\u062A\u0649 3 \u0643\u064A\u0644\u0648\u0648\u0627\u0637\u060C \u0627\u0644\u0642\u062F\u0631\u0629 \u0627\u0644\u0642\u0635\u0648\u0649 \u0644\u0644\u0628\u0637\u0627\u0631\u064A\u0629)\u061B \u0648\u0625\u0630\u0627 \u062A\u062C\u0627\u0648\u0632 \u0627\u0644\u0627\u0633\u062A\u0647\u0644\u0627\u0643 \u0627\u0644\u0625\u0646\u062A\u0627\u062C \u062A\u0641\u0631\u063A \u0627\u0644\u0628\u0637\u0627\u0631\u064A\u0629 \u0648\u062A\u063A\u0637\u064A \u0627\u0644\u0641\u0631\u0642 \u062D\u062A\u0649 \u062A\u0646\u0641\u062F. \u0639\u0646\u062F\u0645\u0627 \u062A\u0645\u062A\u0644\u0626 \u064A\u0630\u0647\u0628 \u0627\u0644\u0641\u0627\u0626\u0636 \u0625\u0644\u0649 \u0627\u0644\u0634\u0628\u0643\u0629\u061B \u0648\u0639\u0646\u062F\u0645\u0627 \u062A\u0641\u0631\u063A \u064A\u064F\u0633\u062D\u0628 \u0645\u0646 \u0627\u0644\u0634\u0628\u0643\u0629 \u0645\u0646 \u062C\u062F\u064A\u062F.",
+    "La batteria in servizio": "\u0627\u0644\u0628\u0637\u0627\u0631\u064A\u0629 \u0641\u064A \u0627\u0644\u062E\u062F\u0645\u0629",
+    "La batteria non produce energia: la sposta dal giorno alla sera, e per farlo ha bisogno dell\u2019eccedenza dei pannelli.": "\u0627\u0644\u0628\u0637\u0627\u0631\u064A\u0629 \u0644\u0627 \u062A\u0646\u062A\u062C \u0637\u0627\u0642\u0629: \u0625\u0646\u0647\u0627 \u062A\u0646\u0642\u0644\u0647\u0627 \u0645\u0646 \u0627\u0644\u0646\u0647\u0627\u0631 \u0625\u0644\u0649 \u0627\u0644\u0645\u0633\u0627\u0621\u060C \u0648\u0644\u062A\u0641\u0639\u0644 \u0630\u0644\u0643 \u062A\u062D\u062A\u0627\u062C \u0625\u0644\u0649 \u0641\u0627\u0626\u0636 \u0627\u0644\u0623\u0644\u0648\u0627\u062D.",
+    "La batteria si carica di giorno con il sole e si scarica la sera: meno corrente dalla rete.": "\u062A\u064F\u0634\u062D\u0646 \u0627\u0644\u0628\u0637\u0627\u0631\u064A\u0629 \u0646\u0647\u0627\u0631\u064B\u0627 \u0628\u0627\u0644\u0634\u0645\u0633 \u0648\u062A\u064F\u0641\u0631\u063A \u0645\u0633\u0627\u0621\u064B: \u062A\u064A\u0627\u0631 \u0623\u0642\u0644 \u0645\u0646 \u0627\u0644\u0634\u0628\u0643\u0629.",
+    "La batteria si scarica.": "\u062A\u0641\u0631\u063A \u0627\u0644\u0628\u0637\u0627\u0631\u064A\u0629.",
+    "La batteria \xE8 collegata quando il suo interruttore \xE8 chiuso. Il circuito \xE8 semplice: la fase passa dall\u2019interruttore e arriva alla spia, il ritorno va al neutro.": "\u062A\u0643\u0648\u0646 \u0627\u0644\u0628\u0637\u0627\u0631\u064A\u0629 \u0645\u0648\u0635\u0648\u0644\u0629 \u0639\u0646\u062F\u0645\u0627 \u064A\u0643\u0648\u0646 \u0645\u0641\u062A\u0627\u062D\u0647\u0627 \u0645\u063A\u0644\u0642\u064B\u0627. \u0627\u0644\u062F\u0627\u0631\u0629 \u0628\u0633\u064A\u0637\u0629: \u064A\u0645\u0631 \u0627\u0644\u0637\u0648\u0631 \u0645\u0646 \u0627\u0644\u0645\u0641\u062A\u0627\u062D \u0648\u064A\u0635\u0644 \u0625\u0644\u0649 \u0627\u0644\u0645\u0635\u0628\u0627\u062D \u0627\u0644\u0628\u064A\u0627\u0646\u060C \u0648\u0627\u0644\u0639\u0648\u062F\u0629 \u0625\u0644\u0649 \u0627\u0644\u0645\u062D\u0627\u064A\u062F.",
+    "La carica della batteria": "\u0634\u062D\u0646\u0629 \u0627\u0644\u0628\u0637\u0627\u0631\u064A\u0629",
+    "La casa con i pannelli e il sole durante la giornata": "\u0627\u0644\u0628\u064A\u062A \u0645\u0639 \u0627\u0644\u0623\u0644\u0648\u0627\u062D \u0648\u0627\u0644\u0634\u0645\u0633 \u062E\u0644\u0627\u0644 \u0627\u0644\u064A\u0648\u0645",
+    "La casa con i pannelli, il contatore e il sole durante la giornata": "\u0627\u0644\u0628\u064A\u062A \u0645\u0639 \u0627\u0644\u0623\u0644\u0648\u0627\u062D \u0648\u0627\u0644\u0639\u062F\u0651\u0627\u062F \u0648\u0627\u0644\u0634\u0645\u0633 \u062E\u0644\u0627\u0644 \u0627\u0644\u064A\u0648\u0645",
+    "La casa con i pannelli, il contatore e l\u2019auto in ricarica nel tardo pomeriggio": "\u0627\u0644\u0628\u064A\u062A \u0645\u0639 \u0627\u0644\u0623\u0644\u0648\u0627\u062D \u0648\u0627\u0644\u0639\u062F\u0651\u0627\u062F \u0648\u0627\u0644\u0633\u064A\u0627\u0631\u0629 \u0642\u064A\u062F \u0627\u0644\u0634\u062D\u0646 \u0641\u064A \u0648\u0642\u062A \u0645\u062A\u0623\u062E\u0631 \u0628\u0639\u062F \u0627\u0644\u0638\u0647\u0631",
+    "La casa con i pannelli, la batteria e il sole durante la giornata": "\u0627\u0644\u0628\u064A\u062A \u0645\u0639 \u0627\u0644\u0623\u0644\u0648\u0627\u062D \u0648\u0627\u0644\u0628\u0637\u0627\u0631\u064A\u0629 \u0648\u0627\u0644\u0634\u0645\u0633 \u062E\u0644\u0627\u0644 \u0627\u0644\u064A\u0648\u0645",
+    "La casa funziona in corrente alternata a 230 V. L\u2019inverter trasforma la continua dei pannelli in alternata, e l\u2019energia pu\xF2 cos\xEC alimentare la casa o andare in rete.": "\u064A\u0639\u0645\u0644 \u0627\u0644\u0628\u064A\u062A \u0628\u062A\u064A\u0627\u0631 \u0645\u062A\u0646\u0627\u0648\u0628 230 \u0641\u0648\u0644\u062A. \u064A\u062D\u0648\u0651\u0644 \u0627\u0644\u0639\u0627\u0643\u0633 \u0627\u0644\u062A\u064A\u0627\u0631 \u0627\u0644\u0645\u0633\u062A\u0645\u0631 \u0644\u0644\u0623\u0644\u0648\u0627\u062D \u0625\u0644\u0649 \u0645\u062A\u0646\u0627\u0648\u0628\u060C \u0641\u062A\u0633\u062A\u0637\u064A\u0639 \u0627\u0644\u0637\u0627\u0642\u0629 \u062A\u063A\u0630\u064A\u0629 \u0627\u0644\u0628\u064A\u062A \u0623\u0648 \u0627\u0644\u0630\u0647\u0627\u0628 \u0625\u0644\u0649 \u0627\u0644\u0634\u0628\u0643\u0629.",
+    "La casa ha una batteria da 10 kWh. Collegala con l\u2019interruttore: la spia \u201CBatteria collegata\u201D si accende quando la batteria \xE8 in servizio. Di giorno la batteria assorbe l\u2019eccedenza dei pannelli; la sera, quando i pannelli non producono, copre i consumi. Guarda la carica nella scena e il prelievo dalla rete.": "\u0641\u064A \u0627\u0644\u0628\u064A\u062A \u0628\u0637\u0627\u0631\u064A\u0629 10 \u0643\u064A\u0644\u0648\u0648\u0627\u0637 \u0633\u0627\u0639\u0629. \u0635\u0650\u0644\u0647\u0627 \u0628\u0627\u0644\u0645\u0641\u062A\u0627\u062D: \u064A\u0636\u064A\u0621 \u0627\u0644\u0645\u0635\u0628\u0627\u062D \u0627\u0644\u0628\u064A\u0627\u0646 \xAB\u0627\u0644\u0628\u0637\u0627\u0631\u064A\u0629 \u0645\u0648\u0635\u0648\u0644\u0629\xBB \u0639\u0646\u062F\u0645\u0627 \u062A\u0643\u0648\u0646 \u0627\u0644\u0628\u0637\u0627\u0631\u064A\u0629 \u0641\u064A \u0627\u0644\u062E\u062F\u0645\u0629. \u0646\u0647\u0627\u0631\u064B\u0627 \u062A\u0645\u062A\u0635 \u0627\u0644\u0628\u0637\u0627\u0631\u064A\u0629 \u0641\u0627\u0626\u0636 \u0627\u0644\u0623\u0644\u0648\u0627\u062D\u061B \u0648\u0645\u0633\u0627\u0621\u064B\u060C \u0639\u0646\u062F\u0645\u0627 \u0644\u0627 \u062A\u0646\u062A\u062C \u0627\u0644\u0623\u0644\u0648\u0627\u062D\u060C \u062A\u063A\u0637\u064A \u0627\u0644\u0627\u0633\u062A\u0647\u0644\u0627\u0643. \u0631\u0627\u0642\u0628 \u0627\u0644\u0634\u062D\u0646\u0629 \u0641\u064A \u0627\u0644\u0645\u0634\u0647\u062F \u0648\u0627\u0644\u0633\u062D\u0628 \u0645\u0646 \u0627\u0644\u0634\u0628\u0643\u0629.",
+    "La colonnina di ricarica assorbe 3,7 kW e il contatore stacca tutta la casa se la potenza prelevata supera 4,5 kW per pi\xF9 di 20 secondi. Dal tardo pomeriggio la sera i consumi della casa salgono. Scrivi il programma perch\xE9 la colonnina parta quando c\u2019\xE8 margine e si stacchi prima del limite, senza accendersi e spegnersi di continuo: l\u2019auto deve comunque caricarsi.": "\u062A\u0633\u062D\u0628 \u0645\u062D\u0637\u0629 \u0627\u0644\u0634\u062D\u0646 3\u066B7 \u0643\u064A\u0644\u0648\u0648\u0627\u0637 \u0648\u064A\u0641\u0635\u0644 \u0627\u0644\u0639\u062F\u0651\u0627\u062F \u0627\u0644\u0628\u064A\u062A \u0643\u0644\u0647 \u0625\u0630\u0627 \u062A\u062C\u0627\u0648\u0632\u062A \u0627\u0644\u0642\u062F\u0631\u0629 \u0627\u0644\u0645\u0633\u062D\u0648\u0628\u0629 4\u066B5 \u0643\u064A\u0644\u0648\u0648\u0627\u0637 \u0644\u0623\u0643\u062B\u0631 \u0645\u0646 20 \u062B\u0627\u0646\u064A\u0629. \u0645\u0646 \u0648\u0642\u062A \u0645\u062A\u0623\u062E\u0631 \u0628\u0639\u062F \u0627\u0644\u0638\u0647\u0631 \u062D\u062A\u0649 \u0627\u0644\u0645\u0633\u0627\u0621 \u064A\u0631\u062A\u0641\u0639 \u0627\u0633\u062A\u0647\u0644\u0627\u0643 \u0627\u0644\u0628\u064A\u062A. \u0627\u0643\u062A\u0628 \u0627\u0644\u0628\u0631\u0646\u0627\u0645\u062C \u0628\u062D\u064A\u062B \u062A\u0628\u062F\u0623 \u0627\u0644\u0645\u062D\u0637\u0629 \u0639\u0646\u062F \u0648\u062C\u0648\u062F \u0647\u0627\u0645\u0634 \u0648\u062A\u0646\u0641\u0635\u0644 \u0642\u0628\u0644 \u0627\u0644\u062D\u062F\u060C \u062F\u0648\u0646 \u0623\u0646 \u062A\u0639\u0645\u0644 \u0648\u062A\u062A\u0648\u0642\u0641 \u0628\u0627\u0633\u062A\u0645\u0631\u0627\u0631: \u064A\u062C\u0628 \u0623\u0646 \u062A\u064F\u0634\u062D\u0646 \u0627\u0644\u0633\u064A\u0627\u0631\u0629 \u0645\u0639 \u0630\u0644\u0643.",
+    "La colonnina e il limite del contatore": "\u0645\u062D\u0637\u0629 \u0627\u0644\u0634\u062D\u0646 \u0648\u062D\u062F\u0651 \u0627\u0644\u0639\u062F\u0651\u0627\u062F",
+    "La colonnina non si accende e si spegne di continuo": "\u0645\u062D\u0637\u0629 \u0627\u0644\u0634\u062D\u0646 \u0644\u0627 \u062A\u0639\u0645\u0644 \u0648\u062A\u062A\u0648\u0642\u0641 \u0628\u0627\u0633\u062A\u0645\u0631\u0627\u0631",
+    "La colonnina parte quando la casa ha margine e si ferma prima del limite: gestione del carico.": "\u062A\u0628\u062F\u0623 \u0627\u0644\u0645\u062D\u0637\u0629 \u0639\u0646\u062F\u0645\u0627 \u064A\u0643\u0648\u0646 \u0644\u0644\u0628\u064A\u062A \u0647\u0627\u0645\u0634 \u0648\u062A\u062A\u0648\u0642\u0641 \u0642\u0628\u0644 \u0627\u0644\u062D\u062F: \u0625\u062F\u0627\u0631\u0629 \u0627\u0644\u062D\u0645\u0644.",
+    "La colonnina \xE8 accesa e la casa preleva 4,1 kW. Alle 20 i consumi salgono di 1,2 kW. Che cosa serve?": "\u0645\u062D\u0637\u0629 \u0627\u0644\u0634\u062D\u0646 \u062A\u0639\u0645\u0644 \u0648\u0627\u0644\u0628\u064A\u062A \u064A\u0633\u062D\u0628 4\u066B1 \u0643\u064A\u0644\u0648\u0648\u0627\u0637. \u0639\u0646\u062F \u0627\u0644\u0633\u0627\u0639\u0629 20 \u064A\u0631\u062A\u0641\u0639 \u0627\u0644\u0627\u0633\u062A\u0647\u0644\u0627\u0643 1\u066B2 \u0643\u064A\u0644\u0648\u0648\u0627\u0637. \u0645\u0627\u0630\u0627 \u064A\u0644\u0632\u0645\u061F",
+    "La fase entra nell\u2019interruttore, esce dall\u2019altro morsetto e va alla spia \u201CBatteria collegata\u201D; l\u2019altro capo della spia va al neutro. Perch\xE9: la spia accesa \xE8 il segnale che la batteria \xE8 in servizio.": "\u064A\u062F\u062E\u0644 \u0627\u0644\u0637\u0648\u0631 \u0641\u064A \u0627\u0644\u0645\u0641\u062A\u0627\u062D \u0648\u064A\u062E\u0631\u062C \u0645\u0646 \u0627\u0644\u0645\u0631\u0628\u0637 \u0627\u0644\u0622\u062E\u0631 \u0648\u064A\u0630\u0647\u0628 \u0625\u0644\u0649 \u0627\u0644\u0645\u0635\u0628\u0627\u062D \u0627\u0644\u0628\u064A\u0627\u0646 \xAB\u0627\u0644\u0628\u0637\u0627\u0631\u064A\u0629 \u0645\u0648\u0635\u0648\u0644\u0629\xBB\u061B \u0648\u0627\u0644\u0637\u0631\u0641 \u0627\u0644\u0622\u062E\u0631 \u0644\u0644\u0645\u0635\u0628\u0627\u062D \u0625\u0644\u0649 \u0627\u0644\u0645\u062D\u0627\u064A\u062F. \u0627\u0644\u0633\u0628\u0628: \u0627\u0644\u0645\u0635\u0628\u0627\u062D \u0627\u0644\u0645\u0636\u0627\u0621 \u0625\u0634\u0627\u0631\u0629 \u0625\u0644\u0649 \u0623\u0646 \u0627\u0644\u0628\u0637\u0627\u0631\u064A\u0629 \u0641\u064A \u0627\u0644\u062E\u062F\u0645\u0629.",
+    "La giornata": "\u0627\u0644\u064A\u0648\u0645",
+    "La potenza della rete": "\u0642\u062F\u0631\u0629 \u0627\u0644\u0634\u0628\u0643\u0629",
+    "La potenza della rete \xE8 in MW0, in watt. La colonnina pu\xF2 partire quando la casa preleva poco: se la potenza \xE8 sotto una soglia bassa (per esempio 500 W) c\u2019\xE8 margine per 3,7 kW.": "\u0642\u062F\u0631\u0629 \u0627\u0644\u0634\u0628\u0643\u0629 \u0641\u064A MW0\u060C \u0628\u0627\u0644\u0648\u0627\u0637. \u062A\u0633\u062A\u0637\u064A\u0639 \u0627\u0644\u0645\u062D\u0637\u0629 \u0623\u0646 \u062A\u0628\u062F\u0623 \u0639\u0646\u062F\u0645\u0627 \u064A\u0633\u062D\u0628 \u0627\u0644\u0628\u064A\u062A \u0642\u0644\u064A\u0644\u064B\u0627: \u0625\u0630\u0627 \u0643\u0627\u0646\u062A \u0627\u0644\u0642\u062F\u0631\u0629 \u062A\u062D\u062A \u0639\u062A\u0628\u0629 \u0645\u0646\u062E\u0641\u0636\u0629 (\u0645\u062B\u0644\u064B\u0627 500 \u0648\u0627\u0637) \u0641\u0647\u0646\u0627\u0643 \u0647\u0627\u0645\u0634 \u0644\u06403\u066B7 \u0643\u064A\u0644\u0648\u0648\u0627\u0637.",
+    "La potenza prelevata non supera mai il limite e il contatore non stacca": "\u0627\u0644\u0642\u062F\u0631\u0629 \u0627\u0644\u0645\u0633\u062D\u0648\u0628\u0629 \u0644\u0627 \u062A\u062A\u062C\u0627\u0648\u0632 \u0627\u0644\u062D\u062F \u0623\u0628\u062F\u064B\u0627 \u0648\u0644\u0627 \u064A\u0641\u0635\u0644 \u0627\u0644\u0639\u062F\u0651\u0627\u062F",
+    "La potenza scambiata \xE8 in MW0, in watt: negativa quando la casa immette. Il gradino ha un contatto di confronto (MW0 minore di \u22122200) e, come uscita, Set su Q0.": "\u0627\u0644\u0642\u062F\u0631\u0629 \u0627\u0644\u0645\u062A\u0628\u0627\u062F\u0644\u0629 \u0641\u064A MW0\u060C \u0628\u0627\u0644\u0648\u0627\u0637: \u0633\u0627\u0644\u0628\u0629 \u0639\u0646\u062F\u0645\u0627 \u064A\u0636\u062E \u0627\u0644\u0628\u064A\u062A. \u0644\u0644\u062F\u0631\u062C\u0629 \u062A\u0644\u0627\u0645\u0633 \u0645\u0642\u0627\u0631\u0646\u0629 (MW0 \u0623\u0635\u063A\u0631 \u0645\u0646 \u22122200) \u0648\u0643\u0645\u062E\u0631\u062C Set \u0639\u0644\u0649 Q0.",
+    "La produzione": "\u0627\u0644\u0625\u0646\u062A\u0627\u062C",
+    "La rete": "\u0627\u0644\u0634\u0628\u0643\u0629",
+    "La scena mostra la carica a sinistra: verde mentre si carica, arancione mentre si scarica.": "\u064A\u0639\u0631\u0636 \u0627\u0644\u0645\u0634\u0647\u062F \u0627\u0644\u0634\u062D\u0646\u0629 \u0639\u0644\u0649 \u0627\u0644\u064A\u0633\u0627\u0631: \u0623\u062E\u0636\u0631 \u0623\u062B\u0646\u0627\u0621 \u0627\u0644\u0634\u062D\u0646 \u0648\u0628\u0631\u062A\u0642\u0627\u0644\u064A \u0623\u062B\u0646\u0627\u0621 \u0627\u0644\u062A\u0641\u0631\u064A\u063A.",
+    "La sera la batteria copre i consumi: dalle 20 alle 23 la casa non preleva dalla rete": "\u0645\u0633\u0627\u0621\u064B \u062A\u063A\u0637\u064A \u0627\u0644\u0628\u0637\u0627\u0631\u064A\u0629 \u0627\u0644\u0627\u0633\u062A\u0647\u0644\u0627\u0643: \u0645\u0646 \u0627\u0644\u0633\u0627\u0639\u0629 20 \u062D\u062A\u0649 23 \u0644\u0627 \u064A\u0633\u062D\u0628 \u0627\u0644\u0628\u064A\u062A \u0645\u0646 \u0627\u0644\u0634\u0628\u0643\u0629",
+    "La serata": "\u0627\u0644\u0645\u0633\u0627\u0621",
+    "La serie": "\u0627\u0644\u062A\u0648\u0627\u0644\u064A",
+    "La somma supera il limite. Il programma deve staccare la colonnina quando la potenza supera 4300 W, prima che il contatore scatti e la casa resti al buio.": "\u0627\u0644\u0645\u062C\u0645\u0648\u0639 \u064A\u062A\u062C\u0627\u0648\u0632 \u0627\u0644\u062D\u062F. \u064A\u062C\u0628 \u0623\u0646 \u064A\u0641\u0635\u0644 \u0627\u0644\u0628\u0631\u0646\u0627\u0645\u062C \u0645\u062D\u0637\u0629 \u0627\u0644\u0634\u062D\u0646 \u0639\u0646\u062F\u0645\u0627 \u062A\u062A\u062C\u0627\u0648\u0632 \u0627\u0644\u0642\u062F\u0631\u0629 4300 \u0648\u0627\u0637\u060C \u0642\u0628\u0644 \u0623\u0646 \u064A\u0641\u0635\u0644 \u0627\u0644\u0639\u062F\u0651\u0627\u062F \u0648\u064A\u0628\u0642\u0649 \u0627\u0644\u0628\u064A\u062A \u0641\u064A \u0627\u0644\u0638\u0644\u0627\u0645.",
+    "La stringa si dimensiona perch\xE9 la tensione, col sole pi\xF9 forte, stia sotto il massimo dell\u2019inverter.": "\u062A\u064F\u062D\u062F\u064E\u0651\u062F \u0623\u0628\u0639\u0627\u062F \u0627\u0644\u0633\u0644\u0633\u0644\u0629 \u0628\u062D\u064A\u062B \u064A\u0628\u0642\u0649 \u0627\u0644\u062C\u0647\u062F\u060C \u0639\u0646\u062F \u0623\u0642\u0648\u0649 \u0634\u0645\u0633\u060C \u062A\u062D\u062A \u0627\u0644\u062D\u062F \u0627\u0644\u0623\u0642\u0635\u0649 \u0644\u0644\u0639\u0627\u0643\u0633.",
+    "La tensione sale con il sole. L\u2019inverter parte appena la somma dei due pannelli raggiunge i 30 V, un po\u2019 dopo l\u2019alba. La stessa soglia lo spegne la sera.": "\u064A\u0631\u062A\u0641\u0639 \u0627\u0644\u062C\u0647\u062F \u0645\u0639 \u0627\u0644\u0634\u0645\u0633. \u064A\u0628\u062F\u0623 \u0627\u0644\u0639\u0627\u0643\u0633 \u0628\u0645\u062C\u0631\u062F \u0623\u0646 \u064A\u0628\u0644\u063A \u0645\u062C\u0645\u0648\u0639 \u0627\u0644\u0644\u0648\u062D\u064A\u0646 30 \u0641\u0648\u0644\u062A\u060C \u0628\u0639\u062F \u0627\u0644\u0641\u062C\u0631 \u0628\u0642\u0644\u064A\u0644. \u0648\u0627\u0644\u0639\u062A\u0628\u0629 \u0646\u0641\u0633\u0647\u0627 \u062A\u0637\u0641\u0626\u0647 \u0645\u0633\u0627\u0621\u064B.",
+    "Le due soglie (parti e fermati) devono stare distanti almeno quanto assorbe il carico, altrimenti riparte subito.": "\u064A\u062C\u0628 \u0623\u0646 \u062A\u0628\u062A\u0639\u062F \u0627\u0644\u0639\u062A\u0628\u062A\u0627\u0646 (\u0627\u0628\u062F\u0623 \u0648\u062A\u0648\u0642\u0651\u0641) \u0639\u0644\u0649 \u0627\u0644\u0623\u0642\u0644 \u0628\u0642\u062F\u0631 \u0645\u0627 \u064A\u0633\u062D\u0628\u0647 \u0627\u0644\u062D\u0645\u0644\u060C \u0648\u0625\u0644\u0627 \u0639\u0627\u062F \u064A\u0639\u0645\u0644 \u0641\u0648\u0631\u064B\u0627.",
+    "Le due soglie devono stare lontane almeno quanto assorbe la colonnina, 3,7 kW. Con la soglia bassa a 500 W e quella alta a 4300 W vanno bene: appena la colonnina parte la potenza sale di 3,7 kW e non pu\xF2 riaccenderla da sola; appena la si stacca la potenza scende di 3,7 kW. Con le soglie troppo vicine succede un pasticcio: staccata la colonnina, la casa sembra subito avere margine e la colonnina riparte, e cos\xEC via.": "\u064A\u062C\u0628 \u0623\u0646 \u062A\u0628\u062A\u0639\u062F \u0627\u0644\u0639\u062A\u0628\u062A\u0627\u0646 \u0639\u0644\u0649 \u0627\u0644\u0623\u0642\u0644 \u0628\u0642\u062F\u0631 \u0645\u0627 \u062A\u0633\u062D\u0628\u0647 \u0627\u0644\u0645\u062D\u0637\u0629\u060C 3\u066B7 \u0643\u064A\u0644\u0648\u0648\u0627\u0637. \u0645\u0639 \u0639\u062A\u0628\u0629 \u0645\u0646\u062E\u0641\u0636\u0629 500 \u0648\u0627\u0637 \u0648\u0623\u062E\u0631\u0649 \u0645\u0631\u062A\u0641\u0639\u0629 4300 \u0648\u0627\u0637 \u064A\u0643\u0648\u0646 \u0627\u0644\u0623\u0645\u0631 \u062C\u064A\u062F\u064B\u0627: \u0645\u0627 \u0625\u0646 \u062A\u0628\u062F\u0623 \u0627\u0644\u0645\u062D\u0637\u0629 \u062D\u062A\u0649 \u062A\u0631\u062A\u0641\u0639 \u0627\u0644\u0642\u062F\u0631\u0629 3\u066B7 \u0643\u064A\u0644\u0648\u0648\u0627\u0637 \u0648\u0644\u0627 \u062A\u0633\u062A\u0637\u064A\u0639 \u0625\u0639\u0627\u062F\u0629 \u062A\u0634\u063A\u064A\u0644\u0647\u0627 \u0648\u062D\u062F\u0647\u0627\u061B \u0648\u0645\u0627 \u0625\u0646 \u062A\u064F\u0641\u0635\u0644 \u062D\u062A\u0649 \u062A\u0646\u062E\u0641\u0636 \u0627\u0644\u0642\u062F\u0631\u0629 3\u066B7 \u0643\u064A\u0644\u0648\u0648\u0627\u0637. \u0623\u0645\u0627 \u0645\u0639 \u0639\u062A\u0628\u062A\u064A\u0646 \u0642\u0631\u064A\u0628\u062A\u064A\u0646 \u062C\u062F\u064B\u0627 \u0641\u062A\u062D\u062F\u062B \u0641\u0648\u0636\u0649: \u0628\u0639\u062F \u0641\u0635\u0644 \u0627\u0644\u0645\u062D\u0637\u0629 \u064A\u0628\u062F\u0648 \u0644\u0644\u0628\u064A\u062A \u0641\u0648\u0631\u064B\u0627 \u0623\u0646 \u0644\u062F\u064A\u0647 \u0647\u0627\u0645\u0634\u064B\u0627 \u0641\u062A\u0639\u0648\u062F \u0627\u0644\u0645\u062D\u0637\u0629 \u0625\u0644\u0649 \u0627\u0644\u0639\u0645\u0644\u060C \u0648\u0647\u0643\u0630\u0627.",
+    "Lo scaldabagno non si accende e si spegne di continuo": "\u0644\u0627 \u064A\u0639\u0645\u0644 \u0633\u062E\u0651\u0627\u0646 \u0627\u0644\u0645\u064A\u0627\u0647 \u0648\u064A\u062A\u0648\u0642\u0641 \u0628\u0627\u0633\u062A\u0645\u0631\u0627\u0631",
+    "L\u2019auto si carica: almeno 3 kWh": "\u062A\u064F\u0634\u062D\u0646 \u0627\u0644\u0633\u064A\u0627\u0631\u0629: 3 \u0643\u064A\u0644\u0648\u0648\u0627\u0637 \u0633\u0627\u0639\u0629 \u0639\u0644\u0649 \u0627\u0644\u0623\u0642\u0644",
+    "L\u2019autoconsumo consiste nell\u2019usare in casa l\u2019energia prodotta, spostando i carichi nelle ore di sole.": "\u0627\u0644\u0627\u0633\u062A\u0647\u0644\u0627\u0643 \u0627\u0644\u0630\u0627\u062A\u064A \u0647\u0648 \u0627\u0633\u062A\u062E\u062F\u0627\u0645 \u0627\u0644\u0637\u0627\u0642\u0629 \u0627\u0644\u0645\u0646\u062A\u062C\u0629 \u0641\u064A \u0627\u0644\u0628\u064A\u062A\u060C \u0628\u0646\u0642\u0644 \u0627\u0644\u0623\u062D\u0645\u0627\u0644 \u0625\u0644\u0649 \u0633\u0627\u0639\u0627\u062A \u0627\u0644\u0634\u0645\u0633.",
+    "L\u2019eccedenza era 3 kW; 2 kW li assorbe lo scaldabagno e ne restano 1 da immettere. Per questo la potenza scambiata cambia appena il carico parte, e per questo servono due soglie.": "\u0643\u0627\u0646 \u0627\u0644\u0641\u0627\u0626\u0636 3 \u0643\u064A\u0644\u0648\u0648\u0627\u0637\u061B \u064A\u0645\u062A\u0635 \u0627\u0644\u0633\u062E\u0651\u0627\u0646 \u0645\u0646\u0647\u0627 2 \u0648\u064A\u0628\u0642\u0649 1 \u0644\u0644\u0636\u062E. \u0644\u0630\u0644\u0643 \u062A\u062A\u063A\u064A\u0631 \u0627\u0644\u0642\u062F\u0631\u0629 \u0627\u0644\u0645\u062A\u0628\u0627\u062F\u0644\u0629 \u0628\u0645\u062C\u0631\u062F \u0628\u062F\u0621 \u0627\u0644\u062D\u0645\u0644\u060C \u0648\u0644\u0630\u0644\u0643 \u0646\u062D\u062A\u0627\u062C \u0625\u0644\u0649 \u0639\u062A\u0628\u062A\u064A\u0646.",
+    "L\u2019eccedenza \xE8 3 kW e la batteria, se non \xE8 piena, pu\xF2 assorbirla tutta (3 kW \xE8 il suo massimo): la rete non immette niente. Se l\u2019eccedenza fosse pi\xF9 grande, solo il resto andrebbe in rete.": "\u0627\u0644\u0641\u0627\u0626\u0636 3 \u0643\u064A\u0644\u0648\u0648\u0627\u0637 \u0648\u0627\u0644\u0628\u0637\u0627\u0631\u064A\u0629\u060C \u0625\u0646 \u0644\u0645 \u062A\u0643\u0646 \u0645\u0645\u062A\u0644\u0626\u0629\u060C \u062A\u0633\u062A\u0637\u064A\u0639 \u0627\u0645\u062A\u0635\u0627\u0635\u0647 \u0643\u0644\u0647 (3 \u0643\u064A\u0644\u0648\u0648\u0627\u0637 \u062D\u062F\u0651\u0647\u0627 \u0627\u0644\u0623\u0642\u0635\u0649): \u0641\u0644\u0627 \u062A\u0636\u062E \u0627\u0644\u0634\u0628\u0643\u0629 \u0634\u064A\u0626\u064B\u0627. \u0648\u0644\u0648 \u0643\u0627\u0646 \u0627\u0644\u0641\u0627\u0626\u0636 \u0623\u0643\u0628\u0631 \u0644\u0630\u0647\u0628 \u0627\u0644\u0628\u0627\u0642\u064A \u0641\u0642\u0637 \u0625\u0644\u0649 \u0627\u0644\u0634\u0628\u0643\u0629.",
+    "L\u2019energia che si immette in rete si paga poco: conviene consumare noi, in casa, quando il sole produce. Questo si chiama autoconsumo. Un carico che si pu\xF2 spostare, come uno scaldabagno che accumula acqua calda, si accende proprio quando c\u2019\xE8 eccedenza.": "\u0627\u0644\u0637\u0627\u0642\u0629 \u0627\u0644\u0645\u0636\u062E\u0648\u062E\u0629 \u0641\u064A \u0627\u0644\u0634\u0628\u0643\u0629 \u062A\u064F\u062F\u0641\u0639 \u0628\u0633\u0639\u0631 \u0632\u0647\u064A\u062F: \u0627\u0644\u0623\u0641\u0636\u0644 \u0623\u0646 \u0646\u0633\u062A\u0647\u0644\u0643\u0647\u0627 \u0646\u062D\u0646 \u0641\u064A \u0627\u0644\u0628\u064A\u062A \u0639\u0646\u062F\u0645\u0627 \u062A\u0646\u062A\u062C \u0627\u0644\u0634\u0645\u0633. \u064A\u0633\u0645\u0649 \u0647\u0630\u0627 \u0627\u0644\u0627\u0633\u062A\u0647\u0644\u0627\u0643 \u0627\u0644\u0630\u0627\u062A\u064A. \u0627\u0644\u062D\u0645\u0644 \u0627\u0644\u0630\u064A \u064A\u0645\u0643\u0646 \u0646\u0642\u0644\u0647\u060C \u0645\u062B\u0644 \u0633\u062E\u0651\u0627\u0646 \u0645\u064A\u0627\u0647 \u064A\u062E\u0632\u0651\u0646 \u0627\u0644\u0645\u0627\u0621 \u0627\u0644\u0633\u0627\u062E\u0646\u060C \u064A\u0639\u0645\u0644 \u0628\u0627\u0644\u0636\u0628\u0637 \u0639\u0646\u062F\u0645\u0627 \u064A\u0648\u062C\u062F \u0641\u0627\u0626\u0636.",
+    "L\u2019inverter ha una finestra di tensione in ingresso: sotto una tensione minima (qui 30 V) non parte, perch\xE9 non ha abbastanza tensione per lavorare; sopra la massima (qui 60 V) si danneggia. Il compito dell\u2019impianto \xE8 tenere la tensione dei pannelli dentro la finestra.": "\u0644\u0644\u0639\u0627\u0643\u0633 \u0646\u0627\u0641\u0630\u0629 \u062C\u0647\u062F \u062F\u062E\u0644: \u062A\u062D\u062A \u062C\u0647\u062F \u0623\u062F\u0646\u0649 (\u0647\u0646\u0627 30 \u0641\u0648\u0644\u062A) \u0644\u0627 \u064A\u0628\u062F\u0623 \u0644\u0623\u0646\u0647 \u0644\u0627 \u064A\u0645\u0644\u0643 \u062C\u0647\u062F\u064B\u0627 \u0643\u0627\u0641\u064A\u064B\u0627 \u0644\u0644\u0639\u0645\u0644\u061B \u0648\u0641\u0648\u0642 \u0627\u0644\u0623\u0642\u0635\u0649 (\u0647\u0646\u0627 60 \u0641\u0648\u0644\u062A) \u064A\u062A\u0636\u0631\u0631. \u0645\u0647\u0645\u0629 \u0627\u0644\u0645\u0646\u0638\u0648\u0645\u0629 \u0625\u0628\u0642\u0627\u0621 \u062C\u0647\u062F \u0627\u0644\u0623\u0644\u0648\u0627\u062D \u062F\u0627\u062E\u0644 \u0627\u0644\u0646\u0627\u0641\u0630\u0629.",
+    "L\u2019inverter trasforma la continua in alternata e ha una finestra di tensione in ingresso: sotto il minimo non parte, sopra il massimo si brucia.": "\u064A\u062D\u0648\u0651\u0644 \u0627\u0644\u0639\u0627\u0643\u0633 \u0627\u0644\u0645\u0633\u062A\u0645\u0631 \u0625\u0644\u0649 \u0645\u062A\u0646\u0627\u0648\u0628 \u0648\u0644\u0647 \u0646\u0627\u0641\u0630\u0629 \u062C\u0647\u062F \u062F\u062E\u0644: \u062A\u062D\u062A \u0627\u0644\u0623\u062F\u0646\u0649 \u0644\u0627 \u064A\u0628\u062F\u0623 \u0648\u0641\u0648\u0642 \u0627\u0644\u0623\u0642\u0635\u0649 \u064A\u062D\u062A\u0631\u0642.",
+    "Mai: serve il sole pieno.": "\u0623\u0628\u062F\u064B\u0627: \u064A\u0644\u0632\u0645 \u0627\u0644\u0634\u0645\u0633 \u0627\u0644\u0643\u0627\u0645\u0644\u0629.",
+    "Meglio usare l\u2019eccedenza che regalarla": "\u0627\u0644\u0623\u0641\u0636\u0644 \u0627\u0633\u062A\u062E\u062F\u0627\u0645 \u0627\u0644\u0641\u0627\u0626\u0636 \u0628\u062F\u0644 \u0625\u0647\u062F\u0627\u0626\u0647",
+    "Mezzogiorno: produzione maggiore del consumo": "\u0627\u0644\u0638\u0647\u064A\u0631\u0629: \u0627\u0644\u0625\u0646\u062A\u0627\u062C \u0623\u0643\u0628\u0631 \u0645\u0646 \u0627\u0644\u0627\u0633\u062A\u0647\u0644\u0627\u0643",
+    "Misuratore di potenza del contatore: -6 kW (immissione) \u2026 +6 kW (prelievo), 4-20 mA": "\u0645\u0642\u064A\u0627\u0633 \u0642\u062F\u0631\u0629 \u0627\u0644\u0639\u062F\u0651\u0627\u062F: \u22126 \u0643\u064A\u0644\u0648\u0648\u0627\u0637 (\u0636\u062E) \u2026 +6 \u0643\u064A\u0644\u0648\u0648\u0627\u0637 (\u0633\u062D\u0628)\u060C 4-20 \u0645\u064A\u0644\u064A \u0623\u0645\u0628\u064A\u0631",
+    "Morsetto Batteria a": "\u0627\u0644\u0645\u0631\u0628\u0637 a \u0641\u064A \u0627\u0644\u0628\u0637\u0627\u0631\u064A\u0629",
+    "Morsetto Batteria b": "\u0627\u0644\u0645\u0631\u0628\u0637 b \u0641\u064A \u0627\u0644\u0628\u0637\u0627\u0631\u064A\u0629",
+    "Morsetto Contatore +": "\u0627\u0644\u0645\u0631\u0628\u0637 + \u0641\u064A \u0627\u0644\u0639\u062F\u0651\u0627\u062F",
+    "Morsetto Contatore -": "\u0627\u0644\u0645\u0631\u0628\u0637 \u2212 \u0641\u064A \u0627\u0644\u0639\u062F\u0651\u0627\u062F",
+    "Morsetto Inverter +": "\u0627\u0644\u0645\u0631\u0628\u0637 + \u0641\u064A \u0627\u0644\u0639\u0627\u0643\u0633",
+    "Morsetto Inverter -": "\u0627\u0644\u0645\u0631\u0628\u0637 \u2212 \u0641\u064A \u0627\u0644\u0639\u0627\u0643\u0633",
+    "Morsetto Pannello 1 +": "\u0627\u0644\u0645\u0631\u0628\u0637 + \u0641\u064A \u0627\u0644\u0644\u0648\u062D 1",
+    "Morsetto Pannello 1 -": "\u0627\u0644\u0645\u0631\u0628\u0637 \u2212 \u0641\u064A \u0627\u0644\u0644\u0648\u062D 1",
+    "Morsetto Pannello 2 +": "\u0627\u0644\u0645\u0631\u0628\u0637 + \u0641\u064A \u0627\u0644\u0644\u0648\u062D 2",
+    "Morsetto Pannello 2 -": "\u0627\u0644\u0645\u0631\u0628\u0637 \u2212 \u0641\u064A \u0627\u0644\u0644\u0648\u062D 2",
+    "Morsetto Pannello 3 +": "\u0627\u0644\u0645\u0631\u0628\u0637 + \u0641\u064A \u0627\u0644\u0644\u0648\u062D 3",
+    "Morsetto Pannello 3 -": "\u0627\u0644\u0645\u0631\u0628\u0637 \u2212 \u0641\u064A \u0627\u0644\u0644\u0648\u062D 3",
+    "Nella giornata l\u2019inverter non si brucia e produce per qualche ora": "\u062E\u0644\u0627\u0644 \u0627\u0644\u064A\u0648\u0645 \u0644\u0627 \u064A\u062D\u062A\u0631\u0642 \u0627\u0644\u0639\u0627\u0643\u0633 \u0648\u064A\u0646\u062A\u062C \u0644\u0628\u0636\u0639 \u0633\u0627\u0639\u0627\u062A",
+    "Nella scena vedi la potenza scambiata: verde se la casa immette, rosso se preleva. Il contatore ha anche due totali: i kilowattora prelevati e quelli immessi.": "\u0641\u064A \u0627\u0644\u0645\u0634\u0647\u062F \u062A\u0631\u0649 \u0627\u0644\u0642\u062F\u0631\u0629 \u0627\u0644\u0645\u062A\u0628\u0627\u062F\u0644\u0629: \u062E\u0636\u0631\u0627\u0621 \u0625\u0630\u0627 \u0636\u062E\u0651 \u0627\u0644\u0628\u064A\u062A \u0648\u062D\u0645\u0631\u0627\u0621 \u0625\u0630\u0627 \u0633\u062D\u0628. \u0648\u0644\u0644\u0639\u062F\u0651\u0627\u062F \u0623\u064A\u0636\u064B\u0627 \u0645\u062C\u0645\u0648\u0639\u0627\u0646: \u0627\u0644\u0643\u064A\u0644\u0648\u0648\u0627\u0637 \u0633\u0627\u0639\u0629 \u0627\u0644\u0645\u0633\u062D\u0648\u0628\u0629 \u0648\u0627\u0644\u0645\u0636\u062E\u0648\u062E\u0629.",
+    "Niente: il limite \xE8 4,5 kW e sono a 4,1.": "\u0644\u0627 \u0634\u064A\u0621: \u0627\u0644\u062D\u062F 4\u066B5 \u0643\u064A\u0644\u0648\u0648\u0627\u0637 \u0648\u0623\u0646\u0627 \u0639\u0646\u062F 4\u066B1.",
+    "Niente: smette di immettere.": "\u0644\u0627 \u0634\u064A\u0621: \u064A\u062A\u0648\u0642\u0641 \u0639\u0646 \u0627\u0644\u0636\u062E.",
+    "Notte, batteria vuota": "\u0644\u064A\u0644\u064B\u0627\u060C \u0628\u0637\u0627\u0631\u064A\u0629 \u0641\u0627\u0631\u063A\u0629",
+    "Notte: consumo e niente produzione": "\u0627\u0644\u0644\u064A\u0644: \u0627\u0633\u062A\u0647\u0644\u0627\u0643 \u062F\u0648\u0646 \u0625\u0646\u062A\u0627\u062C",
+    "Nuovo gradino: confronto MW0 minore di 500; uscita Set su Q0. Perch\xE9: se la casa preleva poco c\u2019\xE8 margine per la colonnina.": "\u062F\u0631\u062C\u0629 \u062C\u062F\u064A\u062F\u0629: \u0645\u0642\u0627\u0631\u0646\u0629 MW0 \u0623\u0635\u063A\u0631 \u0645\u0646 500\u061B \u0627\u0644\u0645\u062E\u0631\u062C Set \u0639\u0644\u0649 Q0. \u0627\u0644\u0633\u0628\u0628: \u0625\u0630\u0627 \u0633\u062D\u0628 \u0627\u0644\u0628\u064A\u062A \u0642\u0644\u064A\u0644\u064B\u0627 \u064A\u0648\u062C\u062F \u0647\u0627\u0645\u0634 \u0644\u0645\u062D\u0637\u0629 \u0627\u0644\u0634\u062D\u0646.",
+    "Nuovo gradino: contatto di confronto (tocca il contatto e scegli \u201CConfronto\u201D) MW0 minore di \u22122200; uscita Set su Q0. Perch\xE9: lo scaldabagno parte quando la casa immette pi\xF9 di 2,2 kW.": "\u062F\u0631\u062C\u0629 \u062C\u062F\u064A\u062F\u0629: \u062A\u0644\u0627\u0645\u0633 \u0645\u0642\u0627\u0631\u0646\u0629 (\u0627\u0644\u0645\u0633 \u0627\u0644\u062A\u0644\u0627\u0645\u0633 \u0648\u0627\u062E\u062A\u0631 \xAB\u0645\u0642\u0627\u0631\u0646\u0629\xBB) MW0 \u0623\u0635\u063A\u0631 \u0645\u0646 \u22122200\u061B \u0627\u0644\u0645\u062E\u0631\u062C Set \u0639\u0644\u0649 Q0. \u0627\u0644\u0633\u0628\u0628: \u064A\u0628\u062F\u0623 \u0633\u062E\u0651\u0627\u0646 \u0627\u0644\u0645\u064A\u0627\u0647 \u0639\u0646\u062F\u0645\u0627 \u064A\u0636\u062E \u0627\u0644\u0628\u064A\u062A \u0623\u0643\u062B\u0631 \u0645\u0646 2\u066B2 \u0643\u064A\u0644\u0648\u0648\u0627\u0637.",
+    "Nuvole (0 = sereno)": "\u0627\u0644\u063A\u064A\u0648\u0645 (0 = \u0635\u062D\u0648)",
+    "Pannelli in serie per entrare nella finestra dell\u2019inverter: la produzione segue il sole.": "\u0623\u0644\u0648\u0627\u062D \u0639\u0644\u0649 \u0627\u0644\u062A\u0648\u0627\u0644\u064A \u0644\u0644\u062F\u062E\u0648\u0644 \u0641\u064A \u0646\u0627\u0641\u0630\u0629 \u0627\u0644\u0639\u0627\u0643\u0633: \u064A\u062A\u0628\u0639 \u0627\u0644\u0625\u0646\u062A\u0627\u062C \u0627\u0644\u0634\u0645\u0633.",
+    "Pannelli in serie sommano le tensioni; in parallelo la tensione resta quella di uno e si sommano le correnti.": "\u0627\u0644\u0623\u0644\u0648\u0627\u062D \u0639\u0644\u0649 \u0627\u0644\u062A\u0648\u0627\u0644\u064A \u062A\u062C\u0645\u0639 \u0627\u0644\u062C\u0647\u0648\u062F\u061B \u0648\u0639\u0644\u0649 \u0627\u0644\u062A\u0648\u0627\u0632\u064A \u064A\u0628\u0642\u0649 \u0627\u0644\u062C\u0647\u062F \u062C\u0647\u062F \u0644\u0648\u062D \u0648\u0627\u062D\u062F \u0648\u062A\u064F\u062C\u0645\u0639 \u0627\u0644\u062A\u064A\u0627\u0631\u0627\u062A.",
+    "Pannello 1": "\u0627\u0644\u0644\u0648\u062D 1",
+    "Pannello 2": "\u0627\u0644\u0644\u0648\u062D 2",
+    "Pannello 3": "\u0627\u0644\u0644\u0648\u062D 3",
+    "Pannello fotovoltaico, 22 V a pieno sole": "\u0644\u0648\u062D \u0643\u0647\u0631\u0648\u0636\u0648\u0626\u064A\u060C 22 \u0641\u0648\u0644\u062A \u062A\u062D\u062A \u0627\u0644\u0634\u0645\u0633 \u0627\u0644\u0643\u0627\u0645\u0644\u0629",
+    "Parti": "\u0627\u0628\u062F\u0623",
+    "Parti (Set)": "\u0627\u0628\u062F\u0623 (Set)",
+    "Parti con margine": "\u0627\u0628\u062F\u0623 \u0639\u0646\u062F \u0648\u062C\u0648\u062F \u0647\u0627\u0645\u0634",
+    "Perch\xE9": "\u0627\u0644\u0633\u0628\u0628",
+    "Perch\xE9 serve l\u2019inverter": "\u0644\u0645\u0627\u0630\u0627 \u0646\u062D\u062A\u0627\u062C \u0625\u0644\u0649 \u0627\u0644\u0639\u0627\u0643\u0633",
+    "Potenza scambiata": "\u0627\u0644\u0642\u062F\u0631\u0629 \u0627\u0644\u0645\u062A\u0628\u0627\u062F\u0644\u0629",
+    "Premi Verifica. Nel grafico la linea blu \xE8 la potenza della rete: con lo scaldabagno acceso non scende sotto i \u22122,2 kW.": "\u0627\u0636\u063A\u0637 \xAB\u062A\u062D\u0642\u0642\xBB. \u0641\u064A \u0627\u0644\u0631\u0633\u0645 \u0627\u0644\u0628\u064A\u0627\u0646\u064A \u0627\u0644\u062E\u0637 \u0627\u0644\u0623\u0632\u0631\u0642 \u0647\u0648 \u0642\u062F\u0631\u0629 \u0627\u0644\u0634\u0628\u0643\u0629: \u0648\u0645\u0639 \u062A\u0634\u063A\u064A\u0644 \u0627\u0644\u0633\u062E\u0651\u0627\u0646 \u0644\u0627 \u064A\u0646\u0632\u0644 \u0639\u0646 \u22122\u066B2 \u0643\u064A\u0644\u0648\u0648\u0627\u0637.",
+    "Premi Verifica: il tempo corre dalle 17. Nel grafico la linea blu, la potenza della rete, deve restare sotto la linea del limite.": "\u0627\u0636\u063A\u0637 \xAB\u062A\u062D\u0642\u0642\xBB: \u064A\u062C\u0631\u064A \u0627\u0644\u0632\u0645\u0646 \u0645\u0646 \u0627\u0644\u0633\u0627\u0639\u0629 17. \u0641\u064A \u0627\u0644\u0631\u0633\u0645 \u0627\u0644\u0628\u064A\u0627\u0646\u064A \u064A\u062C\u0628 \u0623\u0646 \u064A\u0628\u0642\u0649 \u0627\u0644\u062E\u0637 \u0627\u0644\u0623\u0632\u0631\u0642\u060C \u0642\u062F\u0631\u0629 \u0627\u0644\u0634\u0628\u0643\u0629\u060C \u062A\u062D\u062A \u062E\u0637 \u0627\u0644\u062D\u062F.",
+    "Premi Verifica: il tempo corre e vedi l\u2019inverter partire con il sole alto e fermarsi la sera. Prova anche i cursori: con pi\xF9 nuvole la produzione cala.": "\u0627\u0636\u063A\u0637 \xAB\u062A\u062D\u0642\u0642\xBB: \u064A\u062C\u0631\u064A \u0627\u0644\u0632\u0645\u0646 \u0648\u062A\u0631\u0649 \u0627\u0644\u0639\u0627\u0643\u0633 \u064A\u0628\u062F\u0623 \u0645\u0639 \u0627\u0644\u0634\u0645\u0633 \u0627\u0644\u0639\u0627\u0644\u064A\u0629 \u0648\u064A\u062A\u0648\u0642\u0641 \u0645\u0633\u0627\u0621\u064B. \u062C\u0631\u0651\u0628 \u0627\u0644\u0645\u0646\u0632\u0644\u0642\u0627\u062A \u0623\u064A\u0636\u064B\u0627: \u0645\u0639 \u063A\u064A\u0648\u0645 \u0623\u0643\u062B\u0631 \u064A\u0646\u062E\u0641\u0636 \u0627\u0644\u0625\u0646\u062A\u0627\u062C.",
+    "Primo gradino: confronto MW0 minore di 500 (con la colonnina accesa la potenza sale a pi\xF9 di 3,7 kW, quindi non si riaccende da sola), uscita Set su Q0.": "\u0627\u0644\u062F\u0631\u062C\u0629 \u0627\u0644\u0623\u0648\u0644\u0649: \u0645\u0642\u0627\u0631\u0646\u0629 MW0 \u0623\u0635\u063A\u0631 \u0645\u0646 500 (\u0645\u0639 \u062A\u0634\u063A\u064A\u0644 \u0627\u0644\u0645\u062D\u0637\u0629 \u062A\u0631\u062A\u0641\u0639 \u0627\u0644\u0642\u062F\u0631\u0629 \u0625\u0644\u0649 \u0623\u0643\u062B\u0631 \u0645\u0646 3\u066B7 \u0643\u064A\u0644\u0648\u0648\u0627\u0637 \u0641\u0644\u0627 \u062A\u0639\u064A\u062F \u0627\u0644\u062A\u0634\u063A\u064A\u0644 \u0648\u062D\u062F\u0647\u0627)\u060C \u0627\u0644\u0645\u062E\u0631\u062C Set \u0639\u0644\u0649 Q0.",
+    "Produzione kW": "\u0627\u0644\u0625\u0646\u062A\u0627\u062C \u0643\u064A\u0644\u0648\u0648\u0627\u0637",
+    "Produzione uguale al consumo": "\u0627\u0644\u0625\u0646\u062A\u0627\u062C \u064A\u0633\u0627\u0648\u064A \u0627\u0644\u0627\u0633\u062A\u0647\u0644\u0627\u0643",
+    "Quando la spia \xE8 accesa la batteria \xE8 in servizio: di giorno assorbe l\u2019eccedenza (la scena la mostra riempirsi), la sera la restituisce.": "\u0639\u0646\u062F\u0645\u0627 \u064A\u0643\u0648\u0646 \u0627\u0644\u0645\u0635\u0628\u0627\u062D \u0645\u0636\u0627\u0621\u064B \u062A\u0643\u0648\u0646 \u0627\u0644\u0628\u0637\u0627\u0631\u064A\u0629 \u0641\u064A \u0627\u0644\u062E\u062F\u0645\u0629: \u0646\u0647\u0627\u0631\u064B\u0627 \u062A\u0645\u062A\u0635 \u0627\u0644\u0641\u0627\u0626\u0636 (\u064A\u0639\u0631\u0636 \u0627\u0644\u0645\u0634\u0647\u062F \u0627\u0645\u062A\u0644\u0627\u0621\u0647\u0627) \u0648\u0645\u0633\u0627\u0621\u064B \u062A\u0639\u064A\u062F\u0647.",
+    "Quando la tensione dei due pannelli arriva a 30 V, cio\xE8 con un sole abbastanza alto.": "\u0639\u0646\u062F\u0645\u0627 \u064A\u0628\u0644\u063A \u062C\u0647\u062F \u0627\u0644\u0644\u0648\u062D\u064A\u0646 30 \u0641\u0648\u0644\u062A\u060C \u0623\u064A \u0645\u0639 \u0634\u0645\u0633 \u0645\u0631\u062A\u0641\u0639\u0629 \u0628\u0645\u0627 \u064A\u0643\u0641\u064A.",
+    "Qui si accende con una potenza sotto \u22122200 W (immissione di pi\xF9 di 2,2 kW) e si spegne con una potenza sopra 300 W (la casa preleva). In mezzo mantiene il suo stato: Set e Reset.": "\u0647\u0646\u0627 \u064A\u0639\u0645\u0644 \u0639\u0646\u062F \u0642\u062F\u0631\u0629 \u0623\u0642\u0644 \u0645\u0646 \u22122200 \u0648\u0627\u0637 (\u0636\u062E \u0623\u0643\u062B\u0631 \u0645\u0646 2\u066B2 \u0643\u064A\u0644\u0648\u0648\u0627\u0637) \u0648\u064A\u062A\u0648\u0642\u0641 \u0639\u0646\u062F \u0642\u062F\u0631\u0629 \u0623\u0639\u0644\u0649 \u0645\u0646 300 \u0648\u0627\u0637 (\u0627\u0644\u0628\u064A\u062A \u064A\u0633\u062D\u0628). \u0648\u0641\u064A \u0627\u0644\u0648\u0633\u0637 \u064A\u062D\u062A\u0641\u0638 \u0628\u062D\u0627\u0644\u062A\u0647: Set \u0648Reset.",
+    "Quindi la colonnina non pu\xF2 partire sempre: deve partire quando la casa ha margine e fermarsi prima che la somma dei consumi raggiunga il limite. Si chiama gestione del carico.": "\u0644\u0630\u0644\u0643 \u0644\u0627 \u062A\u0633\u062A\u0637\u064A\u0639 \u0627\u0644\u0645\u062D\u0637\u0629 \u0623\u0646 \u062A\u0639\u0645\u0644 \u062F\u0627\u0626\u0645\u064B\u0627: \u064A\u062C\u0628 \u0623\u0646 \u062A\u0628\u062F\u0623 \u0639\u0646\u062F\u0645\u0627 \u064A\u0643\u0648\u0646 \u0644\u0644\u0628\u064A\u062A \u0647\u0627\u0645\u0634 \u0648\u062A\u062A\u0648\u0642\u0641 \u0642\u0628\u0644 \u0623\u0646 \u064A\u0628\u0644\u063A \u0645\u062C\u0645\u0648\u0639 \u0627\u0644\u0627\u0633\u062A\u0647\u0644\u0627\u0643 \u0627\u0644\u062D\u062F. \u064A\u0633\u0645\u0649 \u0647\u0630\u0627 \u0625\u062F\u0627\u0631\u0629 \u0627\u0644\u062D\u0645\u0644.",
+    "Rete kW": "\u0627\u0644\u0634\u0628\u0643\u0629 \u0643\u064A\u0644\u0648\u0648\u0627\u0637",
+    "Ricaricare l\u2019auto senza far saltare il contatore: il PLC stacca la colonnina prima del limite.": "\u0634\u062D\u0646 \u0627\u0644\u0633\u064A\u0627\u0631\u0629 \u062F\u0648\u0646 \u0641\u0635\u0644 \u0627\u0644\u0639\u062F\u0651\u0627\u062F: \u064A\u0641\u0635\u0644 \u0627\u0644\u0640PLC \u0627\u0644\u0645\u062D\u0637\u0629 \u0642\u0628\u0644 \u0627\u0644\u062D\u062F.",
+    "Scaldabagno": "\u0633\u062E\u0651\u0627\u0646 \u0627\u0644\u0645\u064A\u0627\u0647",
+    "Scaldabagno in funzione": "\u0633\u062E\u0651\u0627\u0646 \u0627\u0644\u0645\u064A\u0627\u0647 \u064A\u0639\u0645\u0644",
+    "Scaldabagno in funzione ": "\u0633\u062E\u0651\u0627\u0646 \u0627\u0644\u0645\u064A\u0627\u0647 \u064A\u0639\u0645\u0644 ",
+    "Se il PLC sbaglia e il contatore scatta, tutta la casa resta senza corrente: il limite si rispetta con il programma, prima che scatti.": "\u0625\u0630\u0627 \u0623\u062E\u0637\u0623 \u0627\u0644\u0640PLC \u0648\u0641\u0635\u0644 \u0627\u0644\u0639\u062F\u0651\u0627\u062F \u064A\u0628\u0642\u0649 \u0627\u0644\u0628\u064A\u062A \u0643\u0644\u0647 \u0628\u0644\u0627 \u0643\u0647\u0631\u0628\u0627\u0621: \u064A\u064F\u062D\u062A\u0631\u0645 \u0627\u0644\u062D\u062F \u0628\u0627\u0644\u0628\u0631\u0646\u0627\u0645\u062C \u0642\u0628\u0644 \u0623\u0646 \u064A\u0641\u0635\u0644 \u0627\u0644\u0639\u062F\u0651\u0627\u062F.",
+    "Se usassi una bobina semplice lo scaldabagno si accenderebbe e, consumando 2 kW, farebbe salire subito la potenza: si spegnerebbe e cos\xEC via. Serve l\u2019isteresi: Set con una soglia, Reset con un\u2019altra.": "\u0644\u0648 \u0627\u0633\u062A\u062E\u062F\u0645\u062A \u0645\u0644\u0641\u064B\u0627 \u0628\u0633\u064A\u0637\u064B\u0627 \u0644\u0639\u0645\u0644 \u0627\u0644\u0633\u062E\u0651\u0627\u0646 \u0648\u0628\u0645\u0627 \u0623\u0646\u0647 \u064A\u0633\u062A\u0647\u0644\u0643 2 \u0643\u064A\u0644\u0648\u0648\u0627\u0637 \u0644\u0631\u0641\u0639 \u0627\u0644\u0642\u062F\u0631\u0629 \u0641\u0648\u0631\u064B\u0627: \u0641\u064A\u062A\u0648\u0642\u0641 \u0648\u0647\u0643\u0630\u0627. \u0646\u062D\u062A\u0627\u062C \u0625\u0644\u0649 \u0627\u0644\u062A\u0628\u0627\u0637\u0624: Set \u0628\u0639\u062A\u0628\u0629 \u0648Reset \u0628\u0623\u062E\u0631\u0649.",
+    "Secondo gradino: confronto MW0 maggiore di 300, uscita Reset su Q0. Quando la casa preleva, lo scaldabagno si ferma.": "\u0627\u0644\u062F\u0631\u062C\u0629 \u0627\u0644\u062B\u0627\u0646\u064A\u0629: \u0645\u0642\u0627\u0631\u0646\u0629 MW0 \u0623\u0643\u0628\u0631 \u0645\u0646 300\u060C \u0627\u0644\u0645\u062E\u0631\u062C Reset \u0639\u0644\u0649 Q0. \u0639\u0646\u062F\u0645\u0627 \u064A\u0633\u062D\u0628 \u0627\u0644\u0628\u064A\u062A \u064A\u062A\u0648\u0642\u0641 \u0627\u0644\u0633\u062E\u0651\u0627\u0646.",
+    "Secondo gradino: confronto MW0 maggiore di 300; uscita Reset su Q0. Perch\xE9: quando la casa preleva dalla rete non c\u2019\xE8 pi\xF9 eccedenza da usare.": "\u0627\u0644\u062F\u0631\u062C\u0629 \u0627\u0644\u062B\u0627\u0646\u064A\u0629: \u0645\u0642\u0627\u0631\u0646\u0629 MW0 \u0623\u0643\u0628\u0631 \u0645\u0646 300\u061B \u0627\u0644\u0645\u062E\u0631\u062C Reset \u0639\u0644\u0649 Q0. \u0627\u0644\u0633\u0628\u0628: \u0639\u0646\u062F\u0645\u0627 \u064A\u0633\u062D\u0628 \u0627\u0644\u0628\u064A\u062A \u0645\u0646 \u0627\u0644\u0634\u0628\u0643\u0629 \u0644\u0627 \u064A\u0628\u0642\u0649 \u0641\u0627\u0626\u0636 \u064A\u064F\u0633\u062A\u062E\u062F\u0645.",
+    "Secondo gradino: confronto MW0 maggiore di 4300; uscita Reset su Q0. Perch\xE9: stacca la colonnina prima che il contatore scatti a 4500 W.": "\u0627\u0644\u062F\u0631\u062C\u0629 \u0627\u0644\u062B\u0627\u0646\u064A\u0629: \u0645\u0642\u0627\u0631\u0646\u0629 MW0 \u0623\u0643\u0628\u0631 \u0645\u0646 4300\u061B \u0627\u0644\u0645\u062E\u0631\u062C Reset \u0639\u0644\u0649 Q0. \u0627\u0644\u0633\u0628\u0628: \u064A\u0641\u0635\u0644 \u0627\u0644\u0645\u062D\u0637\u0629 \u0642\u0628\u0644 \u0623\u0646 \u064A\u0641\u0635\u0644 \u0627\u0644\u0639\u062F\u0651\u0627\u062F \u0639\u0646\u062F 4500 \u0648\u0627\u0637.",
+    "Secondo gradino: se la potenza supera una soglia alta, poco sotto il limite (per esempio 4300 W) bisogna staccarla: confronto MW0 maggiore di 4300, uscita Reset su Q0. Le due soglie devono stare distanti almeno quanto assorbe la colonnina (3,7 kW): altrimenti, appena staccata, la casa sembra avere margine e la colonnina riparte subito.": "\u0627\u0644\u062F\u0631\u062C\u0629 \u0627\u0644\u062B\u0627\u0646\u064A\u0629: \u0625\u0630\u0627 \u062A\u062C\u0627\u0648\u0632\u062A \u0627\u0644\u0642\u062F\u0631\u0629 \u0639\u062A\u0628\u0629 \u0645\u0631\u062A\u0641\u0639\u0629\u060C \u0623\u0642\u0644 \u0642\u0644\u064A\u0644\u064B\u0627 \u0645\u0646 \u0627\u0644\u062D\u062F (\u0645\u062B\u0644\u064B\u0627 4300 \u0648\u0627\u0637) \u064A\u062C\u0628 \u0641\u0635\u0644\u0647\u0627: \u0645\u0642\u0627\u0631\u0646\u0629 MW0 \u0623\u0643\u0628\u0631 \u0645\u0646 4300\u060C \u0627\u0644\u0645\u062E\u0631\u062C Reset \u0639\u0644\u0649 Q0. \u064A\u062C\u0628 \u0623\u0646 \u062A\u0628\u062A\u0639\u062F \u0627\u0644\u0639\u062A\u0628\u062A\u0627\u0646 \u0639\u0644\u0649 \u0627\u0644\u0623\u0642\u0644 \u0628\u0642\u062F\u0631 \u0645\u0627 \u062A\u0633\u062D\u0628\u0647 \u0627\u0644\u0645\u062D\u0637\u0629 (3\u066B7 \u0643\u064A\u0644\u0648\u0648\u0627\u0637): \u0648\u0625\u0644\u0627 \u0628\u062F\u0627 \u0644\u0644\u0628\u064A\u062A \u0628\u0639\u062F \u0627\u0644\u0641\u0635\u0644 \u0623\u0646 \u0644\u062F\u064A\u0647 \u0647\u0627\u0645\u0634\u064B\u0627 \u0641\u062A\u0639\u0648\u062F \u0627\u0644\u0645\u062D\u0637\u0629 \u0641\u0648\u0631\u064B\u0627.",
+    "Sera, niente produzione": "\u0627\u0644\u0645\u0633\u0627\u0621\u060C \u0628\u0644\u0627 \u0625\u0646\u062A\u0627\u062C",
+    "Serie e parallelo: quanti pannelli e come": "\u0627\u0644\u062A\u0648\u0627\u0644\u064A \u0648\u0627\u0644\u062A\u0648\u0627\u0632\u064A: \u0643\u0645 \u0644\u0648\u062D\u064B\u0627 \u0648\u0643\u064A\u0641",
+    "Si carica e scarica con una potenza massima (qui 3 kW); piena non assorbe pi\xF9, vuota non pu\xF2 pi\xF9 dare.": "\u062A\u064F\u0634\u062D\u0646 \u0648\u062A\u064F\u0641\u0631\u063A \u0628\u0642\u062F\u0631\u0629 \u0642\u0635\u0648\u0649 (\u0647\u0646\u0627 3 \u0643\u064A\u0644\u0648\u0648\u0627\u0637)\u061B \u0648\u0625\u0630\u0627 \u0627\u0645\u062A\u0644\u0623\u062A \u0644\u0627 \u062A\u0645\u062A\u0635 \u0628\u0639\u062F \u0630\u0644\u0643 \u0648\u0625\u0630\u0627 \u0641\u0631\u063A\u062A \u0644\u0627 \u062A\u0633\u062A\u0637\u064A\u0639 \u0623\u0646 \u062A\u0639\u0637\u064A.",
+    "Soglia": "\u0627\u0644\u0639\u062A\u0628\u0629",
+    "Spegni quando preleva": "\u0623\u0637\u0641\u0626 \u0639\u0646\u062F\u0645\u0627 \u064A\u0633\u062D\u0628",
+    "Spia di batteria collegata": "\u0645\u0635\u0628\u0627\u062D \u0627\u0644\u0628\u0637\u0627\u0631\u064A\u0629 \u0627\u0644\u0645\u0648\u0635\u0648\u0644\u0629",
+    "Staccare la colonnina: 4,1 + 1,2 = 5,3 kW supera il limite, e il contatore scatta dopo 20 secondi.": "\u0641\u0635\u0644 \u0645\u062D\u0637\u0629 \u0627\u0644\u0634\u062D\u0646: 4\u066B1 + 1\u066B2 = 5\u066B3 \u0643\u064A\u0644\u0648\u0648\u0627\u0637 \u064A\u062A\u062C\u0627\u0648\u0632 \u0627\u0644\u062D\u062F\u060C \u0648\u064A\u0641\u0635\u0644 \u0627\u0644\u0639\u062F\u0651\u0627\u062F \u0628\u0639\u062F 20 \u062B\u0627\u0646\u064A\u0629.",
+    "Tensione a pieno sole": "\u0627\u0644\u062C\u0647\u062F \u062A\u062D\u062A \u0627\u0644\u0634\u0645\u0633 \u0627\u0644\u0643\u0627\u0645\u0644\u0629",
+    "Tocca l\u2019interruttore e guarda la scena: la batteria si carica mentre c\u2019\xE8 sole e si scarica la sera.": "\u0627\u0644\u0645\u0633 \u0627\u0644\u0645\u0641\u062A\u0627\u062D \u0648\u0627\u0646\u0638\u0631 \u0625\u0644\u0649 \u0627\u0644\u0645\u0634\u0647\u062F: \u062A\u064F\u0634\u062D\u0646 \u0627\u0644\u0628\u0637\u0627\u0631\u064A\u0629 \u0628\u064A\u0646\u0645\u0627 \u0627\u0644\u0634\u0645\u0633 \u0645\u0648\u062C\u0648\u062F\u0629 \u0648\u062A\u064F\u0641\u0631\u063A \u0645\u0633\u0627\u0621\u064B.",
+    "Tutti i 3 kW di eccedenza vanno in rete.": "\u0643\u0644 \u0627\u0644\u06403 \u0643\u064A\u0644\u0648\u0648\u0627\u0637 \u0645\u0646 \u0627\u0644\u0641\u0627\u0626\u0636 \u062A\u0630\u0647\u0628 \u0625\u0644\u0649 \u0627\u0644\u0634\u0628\u0643\u0629.",
+    "Un carico che parte cambia subito la potenza scambiata: servono due soglie diverse (accendi e spegni), cio\xE8 Set e Reset.": "\u0627\u0644\u062D\u0645\u0644 \u0627\u0644\u0630\u064A \u064A\u0628\u062F\u0623 \u064A\u063A\u064A\u0651\u0631 \u0627\u0644\u0642\u062F\u0631\u0629 \u0627\u0644\u0645\u062A\u0628\u0627\u062F\u0644\u0629 \u0641\u0648\u0631\u064B\u0627: \u0646\u062D\u062A\u0627\u062C \u0625\u0644\u0649 \u0639\u062A\u0628\u062A\u064A\u0646 \u0645\u062E\u062A\u0644\u0641\u062A\u064A\u0646 (\u0634\u063A\u0651\u0644 \u0648\u0623\u0637\u0641\u0626)\u060C \u0623\u064A Set \u0648Reset.",
+    "Un filo dal \u2212 del pannello 1 al + del pannello 2 (rosso o nero). Perch\xE9: cos\xEC le tensioni si sommano, 22 V pi\xF9 22 V fanno 44 V.": "\u0633\u0644\u0643 \u0645\u0646 \u2212 \u0627\u0644\u0644\u0648\u062D 1 \u0625\u0644\u0649 + \u0627\u0644\u0644\u0648\u062D 2 (\u0623\u062D\u0645\u0631 \u0623\u0648 \u0623\u0633\u0648\u062F). \u0627\u0644\u0633\u0628\u0628: \u0647\u0643\u0630\u0627 \u062A\u064F\u062C\u0645\u0639 \u0627\u0644\u062C\u0647\u0648\u062F\u060C 22 \u0641\u0648\u0644\u062A \u0632\u0627\u0626\u062F 22 \u0641\u0648\u0644\u062A \u062A\u0633\u0627\u0648\u064A 44 \u0641\u0648\u0644\u062A.",
+    "Un filo nero dal morsetto \u2212 del pannello 2 al \u2212 dell\u2019inverter. Perch\xE9: la corrente deve tornare al negativo per chiudere il giro.": "\u0633\u0644\u0643 \u0623\u0633\u0648\u062F \u0645\u0646 \u2212 \u0627\u0644\u0644\u0648\u062D 2 \u0625\u0644\u0649 \u2212 \u0627\u0644\u0639\u0627\u0643\u0633. \u0627\u0644\u0633\u0628\u0628: \u064A\u062C\u0628 \u0623\u0646 \u064A\u0639\u0648\u062F \u0627\u0644\u062A\u064A\u0627\u0631 \u0625\u0644\u0649 \u0627\u0644\u0633\u0627\u0644\u0628 \u0644\u0625\u063A\u0644\u0627\u0642 \u0627\u0644\u062F\u0627\u0631\u0629.",
+    "Un filo nero dal \u2212 del pannello 2 al \u2212 dell\u2019inverter. Perch\xE9: la corrente deve tornare al negativo per chiudere il giro.": "\u0633\u0644\u0643 \u0623\u0633\u0648\u062F \u0645\u0646 \u2212 \u0627\u0644\u0644\u0648\u062D 2 \u0625\u0644\u0649 \u2212 \u0627\u0644\u0639\u0627\u0643\u0633. \u0627\u0644\u0633\u0628\u0628: \u064A\u062C\u0628 \u0623\u0646 \u064A\u0639\u0648\u062F \u0627\u0644\u062A\u064A\u0627\u0631 \u0625\u0644\u0649 \u0627\u0644\u0633\u0627\u0644\u0628 \u0644\u0625\u063A\u0644\u0627\u0642 \u0627\u0644\u062F\u0627\u0631\u0629.",
+    "Un filo rosso dal + del pannello 1 al + dell\u2019inverter. Perch\xE9: in una serie il + libero della catena va all\u2019ingresso positivo.": "\u0633\u0644\u0643 \u0623\u062D\u0645\u0631 \u0645\u0646 + \u0627\u0644\u0644\u0648\u062D 1 \u0625\u0644\u0649 + \u0627\u0644\u0639\u0627\u0643\u0633. \u0627\u0644\u0633\u0628\u0628: \u0641\u064A \u0627\u0644\u0633\u0644\u0633\u0644\u0629 \u064A\u0630\u0647\u0628 + \u0627\u0644\u062D\u0631 \u0625\u0644\u0649 \u0627\u0644\u062F\u062E\u0644 \u0627\u0644\u0645\u0648\u062C\u0628.",
+    "Un impianto fotovoltaico ha tre pannelli da 22 V a pieno sole e un inverter che lavora solo se la tensione in ingresso sta tra 30 e 60 V (sotto non parte, sopra si brucia). Scegli quanti pannelli collegare e come, in modo che l\u2019inverter lavori a mezzogiorno senza bruciarsi. Poi guarda la giornata: la produzione segue il sole.": "\u0641\u064A \u0645\u0646\u0638\u0648\u0645\u0629 \u0643\u0647\u0631\u0648\u0636\u0648\u0626\u064A\u0629 \u062B\u0644\u0627\u062B\u0629 \u0623\u0644\u0648\u0627\u062D 22 \u0641\u0648\u0644\u062A \u062A\u062D\u062A \u0627\u0644\u0634\u0645\u0633 \u0627\u0644\u0643\u0627\u0645\u0644\u0629 \u0648\u0639\u0627\u0643\u0633 \u0644\u0627 \u064A\u0639\u0645\u0644 \u0625\u0644\u0627 \u0625\u0630\u0627 \u0643\u0627\u0646 \u062C\u0647\u062F \u0627\u0644\u062F\u062E\u0644 \u0628\u064A\u0646 30 \u064860 \u0641\u0648\u0644\u062A (\u062A\u062D\u062A\u0647 \u0644\u0627 \u064A\u0628\u062F\u0623 \u0648\u0641\u0648\u0642\u0647 \u064A\u062D\u062A\u0631\u0642). \u0627\u062E\u062A\u0631 \u0643\u0645 \u0644\u0648\u062D\u064B\u0627 \u062A\u0648\u0635\u0644 \u0648\u0643\u064A\u0641\u060C \u0628\u062D\u064A\u062B \u064A\u0639\u0645\u0644 \u0627\u0644\u0639\u0627\u0643\u0633 \u0639\u0646\u062F \u0627\u0644\u0638\u0647\u064A\u0631\u0629 \u062F\u0648\u0646 \u0623\u0646 \u064A\u062D\u062A\u0631\u0642. \u062B\u0645 \u0631\u0627\u0642\u0628 \u0627\u0644\u064A\u0648\u0645: \u064A\u062A\u0628\u0639 \u0627\u0644\u0625\u0646\u062A\u0627\u062C \u0627\u0644\u0634\u0645\u0633.",
+    "Un pannello da solo d\xE0 al massimo 22 V: l\u2019inverter vuole almeno 30 V per partire. Bisogna sommare le tensioni.": "\u0644\u0648\u062D \u0648\u0627\u062D\u062F \u064A\u0639\u0637\u064A 22 \u0641\u0648\u0644\u062A \u0639\u0644\u0649 \u0627\u0644\u0623\u0643\u062B\u0631: \u064A\u0631\u064A\u062F \u0627\u0644\u0639\u0627\u0643\u0633 30 \u0641\u0648\u0644\u062A \u0639\u0644\u0649 \u0627\u0644\u0623\u0642\u0644 \u0644\u064A\u0628\u062F\u0623. \u064A\u062C\u0628 \u062C\u0645\u0639 \u0627\u0644\u062C\u0647\u0648\u062F.",
+    "Un pannello fotovoltaico trasforma la luce del sole in corrente continua. Come una batteria ha un positivo e un negativo, ma la sua tensione non \xE8 fissa: dipende da quanta luce arriva. A pieno sole un pannello d\xE0 la sua tensione massima; con il cielo coperto o al tramonto ne d\xE0 molto meno; di notte niente.": "\u064A\u062D\u0648\u0651\u0644 \u0627\u0644\u0644\u0648\u062D \u0627\u0644\u0643\u0647\u0631\u0648\u0636\u0648\u0626\u064A \u0636\u0648\u0621 \u0627\u0644\u0634\u0645\u0633 \u0625\u0644\u0649 \u062A\u064A\u0627\u0631 \u0645\u0633\u062A\u0645\u0631. \u0644\u0647 \u0645\u0648\u062C\u0628 \u0648\u0633\u0627\u0644\u0628 \u0643\u0627\u0644\u0628\u0637\u0627\u0631\u064A\u0629\u060C \u0644\u0643\u0646 \u062C\u0647\u062F\u0647 \u063A\u064A\u0631 \u062B\u0627\u0628\u062A: \u064A\u0639\u062A\u0645\u062F \u0639\u0644\u0649 \u0643\u0645\u064A\u0629 \u0627\u0644\u0636\u0648\u0621 \u0627\u0644\u0648\u0627\u0635\u0644\u0629. \u062A\u062D\u062A \u0627\u0644\u0634\u0645\u0633 \u0627\u0644\u0643\u0627\u0645\u0644\u0629 \u064A\u0639\u0637\u064A \u0627\u0644\u0644\u0648\u062D \u062C\u0647\u062F\u0647 \u0627\u0644\u0623\u0642\u0635\u0649\u061B \u0648\u0645\u0639 \u0633\u0645\u0627\u0621 \u063A\u0627\u0626\u0645\u0629 \u0623\u0648 \u0639\u0646\u062F \u0627\u0644\u063A\u0631\u0648\u0628 \u064A\u0639\u0637\u064A \u0623\u0642\u0644 \u0628\u0643\u062B\u064A\u0631\u061B \u0648\u0644\u064A\u0644\u064B\u0627 \u0644\u0627 \u0634\u064A\u0621.",
+    "Un pannello fotovoltaico \xE8 un generatore in continua la cui tensione dipende dal sole: la produzione ha la forma di una campana nella giornata.": "\u0627\u0644\u0644\u0648\u062D \u0627\u0644\u0643\u0647\u0631\u0648\u0636\u0648\u0626\u064A \u0645\u0648\u0644\u0651\u062F \u062A\u064A\u0627\u0631 \u0645\u0633\u062A\u0645\u0631 \u064A\u0639\u062A\u0645\u062F \u062C\u0647\u062F\u0647 \u0639\u0644\u0649 \u0627\u0644\u0634\u0645\u0633: \u0644\u0625\u0646\u062A\u0627\u062C\u0647 \u0634\u0643\u0644 \u062C\u0631\u0633 \u062E\u0644\u0627\u0644 \u0627\u0644\u064A\u0648\u0645.",
+    "Una batteria sposta l\u2019energia nel tempo: di giorno assorbe l\u2019eccedenza e si carica, la sera la restituisce e copre i consumi. Cos\xEC la casa preleva meno.": "\u062A\u0646\u0642\u0644 \u0627\u0644\u0628\u0637\u0627\u0631\u064A\u0629 \u0627\u0644\u0637\u0627\u0642\u0629 \u0639\u0628\u0631 \u0627\u0644\u0632\u0645\u0646: \u0646\u0647\u0627\u0631\u064B\u0627 \u062A\u0645\u062A\u0635 \u0627\u0644\u0641\u0627\u0626\u0636 \u0648\u062A\u064F\u0634\u062D\u0646 \u0648\u0645\u0633\u0627\u0621\u064B \u062A\u0639\u064A\u062F\u0647 \u0648\u062A\u063A\u0637\u064A \u0627\u0644\u0627\u0633\u062A\u0647\u0644\u0627\u0643. \u0641\u064A\u0633\u062D\u0628 \u0627\u0644\u0628\u064A\u062A \u0623\u0642\u0644.",
+    "Una batteria sposta l\u2019energia nel tempo: si carica con l\u2019eccedenza di giorno e copre i consumi la sera.": "\u062A\u0646\u0642\u0644 \u0627\u0644\u0628\u0637\u0627\u0631\u064A\u0629 \u0627\u0644\u0637\u0627\u0642\u0629 \u0639\u0628\u0631 \u0627\u0644\u0632\u0645\u0646: \u062A\u064F\u0634\u062D\u0646 \u0628\u0641\u0627\u0626\u0636 \u0627\u0644\u0646\u0647\u0627\u0631 \u0648\u062A\u063A\u0637\u064A \u0627\u0644\u0627\u0633\u062A\u0647\u0644\u0627\u0643 \u0645\u0633\u0627\u0621\u064B.",
+    "Una casa con pannelli fotovoltaici e un contatore che misura la potenza scambiata con la rete: positiva se preleva, negativa se immette. Il PLC la legge in watt (MW0). Scrivi il programma perch\xE9 lo scaldabagno (2 kW) si accenda quando la casa immette pi\xF9 di 2,2 kW e si spenga quando comincia a prelevare pi\xF9 di 300 W: l\u2019eccedenza si usa invece di regalarla.": "\u0628\u064A\u062A \u0641\u064A\u0647 \u0623\u0644\u0648\u0627\u062D \u0643\u0647\u0631\u0648\u0636\u0648\u0626\u064A\u0629 \u0648\u0639\u062F\u0651\u0627\u062F \u064A\u0642\u064A\u0633 \u0627\u0644\u0642\u062F\u0631\u0629 \u0627\u0644\u0645\u062A\u0628\u0627\u062F\u0644\u0629 \u0645\u0639 \u0627\u0644\u0634\u0628\u0643\u0629: \u0645\u0648\u062C\u0628\u0629 \u0625\u0630\u0627 \u0633\u062D\u0628 \u0648\u0633\u0627\u0644\u0628\u0629 \u0625\u0630\u0627 \u0636\u062E\u0651. \u064A\u0642\u0631\u0624\u0647\u0627 \u0627\u0644\u0640PLC \u0628\u0627\u0644\u0648\u0627\u0637 (MW0). \u0627\u0643\u062A\u0628 \u0627\u0644\u0628\u0631\u0646\u0627\u0645\u062C \u0628\u062D\u064A\u062B \u064A\u0639\u0645\u0644 \u0633\u062E\u0651\u0627\u0646 \u0627\u0644\u0645\u064A\u0627\u0647 (2 \u0643\u064A\u0644\u0648\u0648\u0627\u0637) \u0639\u0646\u062F\u0645\u0627 \u064A\u0636\u062E \u0627\u0644\u0628\u064A\u062A \u0623\u0643\u062B\u0631 \u0645\u0646 2\u066B2 \u0643\u064A\u0644\u0648\u0648\u0627\u0637 \u0648\u064A\u062A\u0648\u0642\u0641 \u0639\u0646\u062F\u0645\u0627 \u064A\u0628\u062F\u0623 \u0628\u0633\u062D\u0628 \u0623\u0643\u062B\u0631 \u0645\u0646 300 \u0648\u0627\u0637: \u064A\u064F\u0633\u062A\u062E\u062F\u0645 \u0627\u0644\u0641\u0627\u0626\u0636 \u0628\u062F\u0644 \u0625\u0647\u062F\u0627\u0626\u0647.",
+    "Una casa consuma di pi\xF9 la sera, quando i pannelli non producono. Di giorno invece produce pi\xF9 di quanto consuma. Senza accumulo l\u2019eccedenza va in rete e la sera si preleva dalla rete.": "\u064A\u0633\u062A\u0647\u0644\u0643 \u0627\u0644\u0628\u064A\u062A \u0623\u0643\u062B\u0631 \u0645\u0633\u0627\u0621\u064B \u062D\u064A\u0646 \u0644\u0627 \u062A\u0646\u062A\u062C \u0627\u0644\u0623\u0644\u0648\u0627\u062D. \u0623\u0645\u0627 \u0646\u0647\u0627\u0631\u064B\u0627 \u0641\u064A\u0646\u062A\u062C \u0623\u0643\u062B\u0631 \u0645\u0645\u0627 \u064A\u0633\u062A\u0647\u0644\u0643. \u0628\u0644\u0627 \u062A\u062E\u0632\u064A\u0646 \u064A\u0630\u0647\u0628 \u0627\u0644\u0641\u0627\u0626\u0636 \u0625\u0644\u0649 \u0627\u0644\u0634\u0628\u0643\u0629 \u0648\u064A\u064F\u0633\u062D\u0628 \u0645\u0633\u0627\u0621\u064B \u0645\u0646 \u0627\u0644\u0634\u0628\u0643\u0629.",
+    "Una colonnina di ricarica per auto assorbe molta potenza: qui 3,7 kW, quanto tutti gli elettrodomestici di casa messi insieme. Il contratto con il fornitore fissa una potenza massima; se la casa la supera per un po\u2019, il contatore stacca tutto. Qui il limite \xE8 4,5 kW e il contatore scatta se resta sopra per pi\xF9 di 20 secondi.": "\u062A\u0633\u062D\u0628 \u0645\u062D\u0637\u0629 \u0634\u062D\u0646 \u0627\u0644\u0633\u064A\u0627\u0631\u0627\u062A \u0642\u062F\u0631\u0629 \u0643\u0628\u064A\u0631\u0629: \u0647\u0646\u0627 3\u066B7 \u0643\u064A\u0644\u0648\u0648\u0627\u0637\u060C \u0628\u0642\u062F\u0631 \u0643\u0644 \u0623\u062C\u0647\u0632\u0629 \u0627\u0644\u0628\u064A\u062A \u0645\u0639\u064B\u0627. \u064A\u062D\u062F\u062F \u0627\u0644\u0639\u0642\u062F \u0645\u0639 \u0627\u0644\u0645\u0632\u0648\u0651\u062F \u0642\u062F\u0631\u0629 \u0642\u0635\u0648\u0649\u061B \u0648\u0625\u0630\u0627 \u062A\u062C\u0627\u0648\u0632\u0647\u0627 \u0627\u0644\u0628\u064A\u062A \u0644\u0628\u0639\u0636 \u0627\u0644\u0648\u0642\u062A \u064A\u0641\u0635\u0644 \u0627\u0644\u0639\u062F\u0651\u0627\u062F \u0643\u0644 \u0634\u064A\u0621. \u0647\u0646\u0627 \u0627\u0644\u062D\u062F 4\u066B5 \u0643\u064A\u0644\u0648\u0648\u0627\u0637 \u0648\u064A\u0641\u0635\u0644 \u0627\u0644\u0639\u062F\u0651\u0627\u062F \u0625\u0630\u0627 \u0628\u0642\u064A \u0641\u0648\u0642\u0647 \u0623\u0643\u062B\u0631 \u0645\u0646 20 \u062B\u0627\u0646\u064A\u0629.",
+    "Una stringa fotovoltaica \xE8 proprio questo: pi\xF9 pannelli in serie, in numero scelto in modo che la tensione, con il sole pi\xF9 forte, resti sotto il limite dell\u2019inverter e, con il sole pi\xF9 debole, non scenda troppo sotto il minimo.": "\u0627\u0644\u0633\u0644\u0633\u0644\u0629 \u0627\u0644\u0643\u0647\u0631\u0648\u0636\u0648\u0626\u064A\u0629 \u0647\u064A \u0647\u0630\u0627 \u0628\u0627\u0644\u0636\u0628\u0637: \u0639\u062F\u0629 \u0623\u0644\u0648\u0627\u062D \u0639\u0644\u0649 \u0627\u0644\u062A\u0648\u0627\u0644\u064A\u060C \u0628\u0639\u062F\u062F \u064A\u064F\u062E\u062A\u0627\u0631 \u0628\u062D\u064A\u062B \u064A\u0628\u0642\u0649 \u0627\u0644\u062C\u0647\u062F\u060C \u0639\u0646\u062F \u0623\u0642\u0648\u0649 \u0634\u0645\u0633\u060C \u062A\u062D\u062A \u062D\u062F\u0651 \u0627\u0644\u0639\u0627\u0643\u0633 \u0648\u0644\u0627 \u064A\u0646\u0632\u0644 \u0643\u062B\u064A\u0631\u064B\u0627 \u062A\u062D\u062A \u0627\u0644\u0623\u062F\u0646\u0649 \u0639\u0646\u062F \u0623\u0636\u0639\u0641 \u0634\u0645\u0633.",
+    "Uscita Potenza scambiata (W)": "\u0645\u062E\u0631\u062C \u0627\u0644\u0642\u062F\u0631\u0629 \u0627\u0644\u0645\u062A\u0628\u0627\u062F\u0644\u0629 (\u0648\u0627\u0637)",
+    "immette solo il resto, a batteria piena": "\u064A\u0636\u062E \u0627\u0644\u0628\u0627\u0642\u064A \u0641\u0642\u0637\u060C \u0648\u0627\u0644\u0628\u0637\u0627\u0631\u064A\u0629 \u0645\u0645\u062A\u0644\u0626\u0629",
+    "in pareggio": "\u0645\u062A\u0639\u0627\u062F\u0644",
+    "kWh": "kWh",
+    "L\u2019energia caricata nell\u2019auto (kWh)": "\u0627\u0644\u0637\u0627\u0642\u0629 \u0627\u0644\u0645\u0634\u062D\u0648\u0646\u0629 \u0641\u064A \u0627\u0644\u0633\u064A\u0627\u0631\u0629 (\u0643\u064A\u0644\u0648\u0648\u0627\u0637 \u0633\u0627\u0639\u0629)",
+    "lavora": "\u064A\u0639\u0645\u0644",
+    "limite del contatore": "\u062D\u062F \u0627\u0644\u0639\u062F\u0651\u0627\u062F",
+    "negativa": "\u0633\u0627\u0644\u0628\u0629",
+    "non parte (sotto 30 V)": "\u0644\u0627 \u064A\u0628\u062F\u0623 (\u062A\u062D\u062A 30 \u0641\u0648\u0644\u062A)",
+    "non preleva finch\xE9 c\u2019\xE8 carica": "\u0644\u0627 \u064A\u0633\u062D\u0628 \u0645\u0627 \u062F\u0627\u0645\u062A \u0647\u0646\u0627\u0643 \u0634\u062D\u0646\u0629",
+    "poco sotto il limite di 4500 W: lo stacca prima del contatore": "\u0623\u0642\u0644 \u0642\u0644\u064A\u0644\u064B\u0627 \u0645\u0646 \u062D\u062F 4500 \u0648\u0627\u0637: \u064A\u0641\u0635\u0644\u0647\u0627 \u0642\u0628\u0644 \u0627\u0644\u0639\u062F\u0651\u0627\u062F",
+    "positiva": "\u0645\u0648\u062C\u0628\u0629",
+    "preleva di nuovo": "\u064A\u0633\u062D\u0628 \u0645\u0646 \u062C\u062F\u064A\u062F",
+    "se la casa preleva poco c\u2019\xE8 margine per 3,7 kW": "\u0625\u0630\u0627 \u0633\u062D\u0628 \u0627\u0644\u0628\u064A\u062A \u0642\u0644\u064A\u0644\u064B\u0627 \u064A\u0648\u062C\u062F \u0647\u0627\u0645\u0634 \u0644\u06403\u066B7 \u0643\u064A\u0644\u0648\u0648\u0627\u0637",
+    "si brucia (sopra 60 V)": "\u064A\u062D\u062A\u0631\u0642 (\u0641\u0648\u0642 60 \u0641\u0648\u0644\u062A)",
+    "si carica": "\u062A\u064F\u0634\u062D\u0646",
+    "si scarica": "\u062A\u064F\u0641\u0631\u063A",
+    "sopra 4300 W": "\u0641\u0648\u0642 4300 \u0648\u0627\u0637",
+    "sotto 500 W": "\u062A\u062D\u062A 500 \u0648\u0627\u0637",
+    "zero": "\u0635\u0641\u0631",
+    "\xC8 mezzogiorno, la casa immette 3 kW e lo scaldabagno si accende. Quanto immette adesso?": "\u0625\u0646\u0647\u0627 \u0627\u0644\u0638\u0647\u064A\u0631\u0629\u060C \u064A\u0636\u062E \u0627\u0644\u0628\u064A\u062A 3 \u0643\u064A\u0644\u0648\u0648\u0627\u0637 \u0648\u064A\u0639\u0645\u0644 \u0633\u062E\u0651\u0627\u0646 \u0627\u0644\u0645\u064A\u0627\u0647. \u0643\u0645 \u064A\u0636\u062E \u0627\u0644\u0622\u0646\u061F"
+  };
+
   // src/i18n/ar.js
   var ROLE = { "del neutro": "\u0627\u0644\u0645\u062D\u0627\u064A\u062F", "di terra": "\u0627\u0644\u0623\u0631\u0636\u064A", "di fase": "\u0627\u0644\u0637\u0648\u0631", "a bassa tensione": "\u0627\u0644\u062C\u0647\u062F \u0627\u0644\u0645\u0646\u062E\u0641\u0636", "di comando": "\u0627\u0644\u062A\u062D\u0643\u0645", "del positivo": "\u0627\u0644\u0645\u0648\u062C\u0628", "del negativo": "\u0627\u0644\u0633\u0627\u0644\u0628", "in continua": "\u0627\u0644\u062A\u064A\u0627\u0631 \u0627\u0644\u0645\u0633\u062A\u0645\u0631" };
   var COLORI = { "blu": "\u0623\u0632\u0631\u0642", "giallo-verde": "\u0623\u0635\u0641\u0631-\u0623\u062E\u0636\u0631", "marrone, nero o grigio": "\u0628\u0646\u064A\u064B\u0651\u0627 \u0623\u0648 \u0623\u0633\u0648\u062F \u0623\u0648 \u0631\u0645\u0627\u062F\u064A\u064B\u0651\u0627", "rosso, marrone, nero o grigio": "\u0623\u062D\u0645\u0631 \u0623\u0648 \u0628\u0646\u064A\u064B\u0651\u0627 \u0623\u0648 \u0623\u0633\u0648\u062F \u0623\u0648 \u0631\u0645\u0627\u062F\u064A\u064B\u0651\u0627", "di un colore diverso da blu e giallo-verde": "\u0628\u0644\u0648\u0646 \u0645\u062E\u062A\u0644\u0641 \u0639\u0646 \u0627\u0644\u0623\u0632\u0631\u0642 \u0648\u0627\u0644\u0623\u0635\u0641\u0631-\u0627\u0644\u0623\u062E\u0636\u0631", "rosso": "\u0623\u062D\u0645\u0631", "nero": "\u0623\u0633\u0648\u062F", "rosso o nero": "\u0623\u062D\u0645\u0631 \u0623\u0648 \u0623\u0633\u0648\u062F" };
@@ -17446,6 +18155,14 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
     [/^Allarme “(.+)”: (.+); atteso: (.+)\.$/, (m, t) => `\u0627\u0644\u0625\u0646\u0630\u0627\u0631 \xAB${t(m[1])}\xBB: ${t(m[2])}\u061B \u0627\u0644\u0645\u062A\u0648\u0642\u0639: ${t(m[3])}.`],
     [/^Allarme “(.+)”$/, (m, t) => `\u0627\u0644\u0625\u0646\u0630\u0627\u0631 \xAB${t(m[1])}\xBB`],
     [/^(.+): il pannello lo mostra come (dato vecchio|dato aggiornato); atteso: (dato vecchio|dato aggiornato)\.$/, (m, t) => `${t(m[1])}: \u062A\u0639\u0631\u0636\u0647 \u0627\u0644\u0644\u0648\u062D\u0629 ${m[2] === "dato vecchio" ? "\u0643\u0628\u064A\u0627\u0646 \u0642\u062F\u064A\u0645" : "\u0643\u0628\u064A\u0627\u0646 \u0645\u062D\u062F\u064E\u0651\u062B"}\u061B \u0627\u0644\u0645\u062A\u0648\u0642\u0639: ${m[3] === "dato vecchio" ? "\u0628\u064A\u0627\u0646 \u0642\u062F\u064A\u0645" : "\u0628\u064A\u0627\u0646 \u0645\u062D\u062F\u064E\u0651\u062B"}.`],
+    // scena della casa con il fotovoltaico (modello energia)
+    [/^ore (\d\d):(\d\d)$/, (m) => `\u0627\u0644\u0633\u0627\u0639\u0629 ${iso(m[1])}:${iso(m[2])}`],
+    [/^casa ([\d,.]+) kW$/, (m) => `\u0627\u0644\u0628\u064A\u062A ${iso(m[1])} \u0643\u064A\u0644\u0648\u0648\u0627\u0637`],
+    [/^pannelli ([\d,.]+) kW$/, (m) => `\u0627\u0644\u0623\u0644\u0648\u0627\u062D ${iso(m[1])} \u0643\u064A\u0644\u0648\u0648\u0627\u0637`],
+    [/^immette ([\d,.]+) kW$/, (m) => `\u064A\u0636\u062E ${iso(m[1])} \u0643\u064A\u0644\u0648\u0648\u0627\u0637`],
+    [/^preleva ([\d,.]+) kW$/, (m) => `\u064A\u0633\u062D\u0628 ${iso(m[1])} \u0643\u064A\u0644\u0648\u0648\u0627\u0637`],
+    [/^([\d,.]+) kW$/, (m) => `${iso(m[1])} \u0643\u064A\u0644\u0648\u0648\u0627\u0637`],
+    [/^(.+) vale ([\d,.-]+); atteso: tra ([\d,.-]+) e ([\d,.-]+)\.$/, (m, t) => `${t(m[1])} \u0642\u064A\u0645\u062A\u0647\u0627 ${iso(m[2])}\u061B \u0627\u0644\u0645\u062A\u0648\u0642\u0639: \u0628\u064A\u0646 ${iso(m[3])} \u0648${iso(m[4])}.`],
     // pannello del processo (serbatoio, forno, nastro): valori che cambiano a ogni istante
     [/^livello ([\d,.]+) %$/, (m) => `\u0627\u0644\u0645\u0633\u062A\u0648\u0649 ${iso(m[1])}\u066A`],
     [/^([\d,.]+) %$/, (m) => `${iso(m[1])}\u066A`],
@@ -17521,7 +18238,7 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
     [/^Portata (.+): (\d+) ampere\. Tocca per cambiarla$/, (m, t) => `\u0627\u0644\u0633\u0639\u0629 ${t(m[1])}: ${m[2]} \u0623\u0645\u0628\u064A\u0631. \u0627\u0644\u0645\u0633 \u0644\u062A\u063A\u064A\u064A\u0631\u0647\u0627`],
     [/^Protezioni scattate: (.+)\.$/, (m, t) => `\u062D\u0645\u0627\u064A\u0627\u062A \u0641\u0635\u0644\u062A: ${t(m[1])}.`]
   ];
-  registerLang("ar", { ...ar_1_default, ...ar_2_default, ...ar_3_default, ...ar_4_default, ...ar_5_default, ...ar_6_default, ...ar_7_default, ...ar_8_default, ...ar_9_default, ...ar_10_default, ...ar_11_default, ...ar_12_default, ...ar_13_default, ...ar_14_default, ...ar_15_default, ...ar_16_default, ...ar_17_default, ...ar_18_default, ...ar_19_default, ...ar_20_default, ...ar_21_default, ...ar_22_default, ...ar_23_default, ...ar_24_default, ...ar_25_default, ...ar_26_default, ...ar_27_default, ...ar_28_default, ...ar_29_default, ...ar_30_default }, PAT);
+  registerLang("ar", { ...ar_1_default, ...ar_2_default, ...ar_3_default, ...ar_4_default, ...ar_5_default, ...ar_6_default, ...ar_7_default, ...ar_8_default, ...ar_9_default, ...ar_10_default, ...ar_11_default, ...ar_12_default, ...ar_13_default, ...ar_14_default, ...ar_15_default, ...ar_16_default, ...ar_17_default, ...ar_18_default, ...ar_19_default, ...ar_20_default, ...ar_21_default, ...ar_22_default, ...ar_23_default, ...ar_24_default, ...ar_25_default, ...ar_26_default, ...ar_27_default, ...ar_28_default, ...ar_29_default, ...ar_30_default, ...ar_31_default }, PAT);
 
   // src/trilocale/house.js
   function houseState(session2, on = true) {
@@ -20172,7 +20889,7 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
       nsel = { kind: "r", r: next.length - 1 };
     } else if (!sel) return;
     else if (act2 === "addContact") {
-      next = addContact(prog, sel.r, { a: addrs.inputs[0] });
+      next = addContact(prog, sel.r, addrs.inputs.length ? { a: addrs.inputs[0] } : addrs.words.length ? { cmp: "gt", a: addrs.words[0], b: 0 } : { a: addrs.outputs[0] });
       nsel = { kind: "c", r: sel.r, cell: cells.length, alt: 0 };
     } else if (act2 === "addOut") {
       const used = new Set(prog.flatMap((r) => r.do.map((x) => x.a)));
