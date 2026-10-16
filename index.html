@@ -1516,6 +1516,12 @@ html[dir="rtl"] .phud,html[dir="rtl"] .psheet,html[dir="rtl"] .pintro,html[dir="
       actions: ["reset"]
     },
     fc: { contacts: (c2, s) => s.act ? [["3", "4"]] : [["1", "2"]], init: () => ({ act: false }) },
+    // sensore digitale di processo (galleggiante, termostato, sensore di velocita'): come il finecorsa, 1-2 NC e 3-4 NA.
+    // `sense: { v: 'h', above: 80 }` o `{ v: 'h', below: 20 }`: azionato quando la condizione sulla grandezza del processo e' vera.
+    sens: { contacts: (c2, s) => s.act ? [["3", "4"]] : [["1", "2"]], init: () => ({ act: false }) },
+    // trasmettitore 4-20 mA, morsetti + e -: anello verso un ingresso analogico del PLC (AIk+ / AIk-). `sense: { v, lo, hi }`.
+    // Non e' un circuito risolto: vedi sim.js, analogIn, e docs/SPEC-PROCESSI.md, sezione 3.
+    tx: { contacts: () => [], init: () => ({ mA: 0 }) },
     // PLC con ingressi a 230 V e uscite a relè (come un LOGO! 230RC). A1-A2: alimentazione (e' una bobina: 230 V, si brucia con 400 V).
     // Un ingresso In vale 1 se tra In e IC ci sono 230 V. Ogni uscita Qk e' un contatto Qk A - Qk B (chiuso quando il bit di uscita e' 1).
     // `q` = bit delle uscite, `mem` = memoria della scansione (plc.js). Il programma sta nel livello (`program`) o nella sessione.
@@ -1524,7 +1530,7 @@ html[dir="rtl"] .phud,html[dir="rtl"] .psheet,html[dir="rtl"] .pintro,html[dir="
       inputs: (n) => Array.from({ length: n }, (_, i) => "I" + i),
       common: "IC",
       contacts: (c2, s) => Object.keys(s.q || {}).filter((k) => s.q[k] && c2.terms && c2.terms[k + "A"] && c2.terms[k + "B"]).map((k) => [k + "A", k + "B"]),
-      init: () => ({ q: {}, mem: null, coil: false, rungs: [], inputs: {} })
+      init: () => ({ q: {}, aq: {}, mem: null, coil: false, rungs: [], inputs: {}, ai: {} })
     },
     // sorgente derivata
     trafo: { contacts: () => [], primary: ["1", "2"], secondary: ["3", "4"] },
@@ -1542,16 +1548,54 @@ html[dir="rtl"] .phud,html[dir="rtl"] .psheet,html[dir="rtl"] .pintro,html[dir="
   var partOf = (c2) => PARTS[c2.type] || PARTS.quadro;
   var loadVolt = (c2) => c2.volt || partOf(c2).volt || 230;
 
+  // src/engine/v2/pid.js
+  var newPid = () => ({ i: 0, d: 0, lastPv: null, u: 0 });
+  var clamp = (x, lo, hi) => Math.max(lo, Math.min(hi, x));
+  function pidStep(st, p) {
+    const s = { ...st || newPid() };
+    const lo = p.lo ?? 0, hi = p.hi ?? 100;
+    const kp = p.kp > 0 ? p.kp : 0;
+    const e = p.sp - p.pv;
+    if (p.track !== void 0) {
+      s.u = clamp(p.track, lo, hi);
+      s.i = kp > 0 ? s.u / kp - e : 0;
+      s.d = 0;
+      s.lastPv = p.pv;
+      return { state: s, u: s.u };
+    }
+    const dt = p.dt > 0 ? p.dt : 0;
+    if (p.td > 0 && dt > 0 && s.lastPv !== null) {
+      const raw = -p.td * (p.pv - s.lastPv) / dt;
+      const tf = p.td / 8;
+      s.d += (raw - s.d) * (dt / (tf + dt));
+    } else if (!(p.td > 0)) s.d = 0;
+    if (dt > 0 || s.lastPv === null) s.lastPv = p.pv;
+    let iNext = s.i;
+    if (p.ti > 0 && dt > 0) iNext = s.i + e * dt / p.ti;
+    if (!(p.ti > 0)) iNext = 0;
+    const uFree = kp * (e + iNext + s.d);
+    const saturatedSameWay = uFree > hi && e > 0 || uFree < lo && e < 0;
+    if (!(saturatedSameWay && !p.windup)) s.i = iNext;
+    s.u = clamp(kp * (e + s.i + s.d), lo, hi);
+    return { state: s, u: s.u };
+  }
+
   // src/engine/v2/plc.js
   var MAX_RUNGS = 24;
   var ADDR = /^[IQMTC]\d{1,2}$/;
-  var newMem = () => ({ bits: {}, timers: {}, counters: {}, prev: {} });
+  var WORD = /^(AI|AQ|MW)\d{1,2}$/;
+  var CMP = ["gt", "lt", "ge", "le"];
+  var newMem = () => ({ bits: {}, words: {}, timers: {}, counters: {}, pids: {}, prev: {} });
   var cloneMem = (m) => JSON.parse(JSON.stringify(m));
   function addrsOf(e, out = []) {
     if (typeof e === "string") out.push(e);
+    else if (Array.isArray(e) && CMP.includes(e[0])) e.slice(1).forEach((x) => {
+      if (typeof x === "string") out.push(x);
+    });
     else if (Array.isArray(e)) e.slice(1).forEach((x) => addrsOf(x, out));
     return out;
   }
+  var isNum = (x) => typeof x === "number" && Number.isFinite(x);
   function validateProgram(program, known = { I: 8, Q: 8 }) {
     const errs = [];
     if (!Array.isArray(program)) return [{ code: "prog.notList" }];
@@ -1563,12 +1607,29 @@ html[dir="rtl"] .phud,html[dir="rtl"] .psheet,html[dir="rtl"] .pintro,html[dir="
         return;
       }
       const chk = (a) => {
+        if (typeof a === "string" && WORD.test(a)) {
+          const k2 = a.slice(0, 2), n2 = Number(a.slice(2));
+          if (k2 === "AI" && n2 >= (known.AI ?? 8) || k2 === "AQ" && n2 >= (known.AQ ?? 8)) errs.push({ code: "prog.noSuchIo", rung: i + 1, addr: a });
+          return;
+        }
         if (typeof a !== "string" || !ADDR.test(a)) {
           errs.push({ code: "prog.badAddr", rung: i + 1, addr: String(a) });
           return;
         }
         const k = a[0], n = Number(a.slice(1));
         if (k === "I" && n >= known.I || k === "Q" && n >= known.Q) errs.push({ code: "prog.noSuchIo", rung: i + 1, addr: a });
+      };
+      const val = (v) => {
+        if (!isNum(v)) chk(v);
+      };
+      const wout = (a, kind) => {
+        if (typeof a !== "string" || !/^(AQ|MW)\d{1,2}$/.test(a)) {
+          errs.push({ code: "prog.badAddr", rung: i + 1, addr: String(a) });
+          return;
+        }
+        chk(a);
+        if (writers.has(a)) errs.push({ code: "prog.doubleCoil", rung: i + 1, addr: a });
+        writers.add(a);
       };
       try {
         addrsOf(r.if).forEach(chk);
@@ -1577,8 +1638,28 @@ html[dir="rtl"] .phud,html[dir="rtl"] .psheet,html[dir="rtl"] .pintro,html[dir="
       }
       if (r.if === void 0 || r.if === null) errs.push({ code: "prog.noCondition", rung: i + 1 });
       r.do.forEach((ins) => {
-        if (!ins || !["coil", "set", "reset", "ton", "ctu"].includes(ins.op)) {
+        if (!ins || !["coil", "set", "reset", "ton", "ctu", "move", "scale", "pid"].includes(ins.op)) {
           errs.push({ code: "prog.badOp", rung: i + 1 });
+          return;
+        }
+        if (ins.op === "move") {
+          val(ins.v);
+          wout(ins.out);
+          return;
+        }
+        if (ins.op === "scale") {
+          if (typeof ins.in !== "string" || !/^AI\d{1,2}$/.test(ins.in)) errs.push({ code: "prog.badAddr", rung: i + 1, addr: String(ins.in) });
+          else chk(ins.in);
+          wout(ins.out);
+          if (!isNum(ins.lo) || !isNum(ins.hi) || ins.hi === ins.lo) errs.push({ code: "prog.badPreset", rung: i + 1 });
+          return;
+        }
+        if (ins.op === "pid") {
+          val(ins.pv);
+          val(ins.sp);
+          wout(ins.out);
+          const gain = (v, pos) => isNum(v) ? pos ? v > 0 : v >= 0 : (chk(v), true);
+          if (!gain(ins.kp, true) || !gain(ins.ti ?? 0) || !gain(ins.td ?? 0)) errs.push({ code: "prog.badPreset", rung: i + 1 });
           return;
         }
         if (ins.op === "ton" || ins.op === "ctu") {
@@ -1599,26 +1680,37 @@ html[dir="rtl"] .phud,html[dir="rtl"] .psheet,html[dir="rtl"] .pintro,html[dir="
     });
     return errs;
   }
-  function ev(e, bits, prev) {
+  function ev(e, bits, prev, words = {}) {
     if (typeof e === "string") return !!bits[e];
     if (!Array.isArray(e)) return false;
     const [op, ...a] = e;
-    if (op === "not") return !ev(a[0], bits, prev);
-    if (op === "and") return a.every((x) => ev(x, bits, prev));
-    if (op === "or") return a.some((x) => ev(x, bits, prev));
+    if (CMP.includes(op)) {
+      const x = wordVal(a[0], words), y = wordVal(a[1], words);
+      return op === "gt" ? x > y : op === "lt" ? x < y : op === "ge" ? x >= y : x <= y;
+    }
+    if (op === "not") return !ev(a[0], bits, prev, words);
+    if (op === "and") return a.every((x) => ev(x, bits, prev, words));
+    if (op === "or") return a.some((x) => ev(x, bits, prev, words));
     if (op === "rise") return !!bits[a[0]] && !prev[a[0]];
     return false;
   }
-  function scan(program, inputs, mem, dt = 0) {
+  var wordVal = (v, words) => isNum(v) ? v : Number(words[v]) || 0;
+  function scan(program, inputs, mem, dt = 0, analog = {}) {
     const m = cloneMem(mem || newMem());
-    const bits = m.bits;
+    m.words = m.words || {};
+    m.pids = m.pids || {};
+    const bits = m.bits, words = m.words;
+    Object.keys(words).forEach((k) => {
+      if (k.startsWith("AI")) delete words[k];
+    });
+    Object.entries(analog || {}).forEach(([k, v]) => words[k] = Number(v) || 0);
     Object.keys(bits).forEach((k) => {
       if (k[0] === "I") delete bits[k];
     });
     Object.entries(inputs || {}).forEach(([k, v]) => bits[k] = !!v);
     const rungs = [];
     (program || []).forEach((r) => {
-      const on = ev(r.if, bits, m.prev);
+      const on = ev(r.if, bits, m.prev, words);
       rungs.push(on);
       (r.do || []).forEach((ins) => {
         if (ins.op === "coil") bits[ins.a] = on;
@@ -1633,10 +1725,21 @@ html[dir="rtl"] .phud,html[dir="rtl"] .psheet,html[dir="rtl"] .pintro,html[dir="
           bits[ins.id] = t.acc >= ins.pt;
         } else if (ins.op === "ctu") {
           const c2 = m.counters[ins.id] || (m.counters[ins.id] = { cv: 0 });
-          if (ins.r && ev(ins.r, bits, m.prev)) c2.cv = 0;
+          if (ins.r && ev(ins.r, bits, m.prev, words)) c2.cv = 0;
           else if (on && !m.prev["@" + ins.id]) c2.cv = Math.min(ins.pv, c2.cv + 1);
           m.prev["@" + ins.id] = on;
           bits[ins.id] = c2.cv >= ins.pv;
+        } else if (ins.op === "move") {
+          if (on) words[ins.out] = wordVal(ins.v, words);
+        } else if (ins.op === "scale") {
+          if (on) words[ins.out] = ins.lo + (wordVal(ins.in, words) - 4) * (ins.hi - ins.lo) / 16;
+        } else if (ins.op === "pid") {
+          const key = ins.id || ins.out;
+          const cur = Number(words[ins.out]) || 0;
+          const pr = { pv: wordVal(ins.pv, words), sp: wordVal(ins.sp, words), kp: wordVal(ins.kp, words), ti: wordVal(ins.ti ?? 0, words), td: wordVal(ins.td ?? 0, words), lo: ins.lo ?? 0, hi: ins.hi ?? 100, dt, windup: !!ins.windup };
+          const res = pidStep(m.pids[key] || newPid(), on ? pr : { ...pr, track: cur });
+          m.pids[key] = res.state;
+          if (on) words[ins.out] = res.u;
         }
       });
     });
@@ -1645,13 +1748,24 @@ html[dir="rtl"] .phud,html[dir="rtl"] .psheet,html[dir="rtl"] .pintro,html[dir="
     Object.keys(bits).forEach((k) => {
       if (k[0] === "Q") outputs[k] = !!bits[k];
     });
-    return { mem: m, outputs, rungs };
+    const analogOut = {};
+    Object.keys(words).forEach((k) => {
+      if (k.startsWith("AQ")) analogOut[k] = Math.max(0, Math.min(100, words[k]));
+    });
+    return { mem: m, outputs, analogOut, rungs };
   }
   function sanitizeProgram(program) {
     const addr = (a) => typeof a === "string" && ADDR.test(a) ? a : null;
+    const word = (a) => typeof a === "string" && WORD.test(a) ? a : null;
+    const num = (v) => isNum(v) && Math.abs(v) <= 1e6 ? v : null;
+    const operand = (v) => isNum(v) ? num(v) : word(v);
     const expr = (e, depth = 0) => {
       if (depth > 4) return null;
       if (typeof e === "string") return addr(e);
+      if (Array.isArray(e) && CMP.includes(e[0])) {
+        const x = operand(e[1]), y = operand(e[2]);
+        return x === null || y === null ? null : [e[0], x, y];
+      }
       if (!Array.isArray(e) || !["not", "and", "or", "rise"].includes(e[0])) return null;
       const kids = e.slice(1, 9).map((x) => expr(x, depth + 1));
       if (!kids.length || kids.some((k) => k === null)) return null;
@@ -1662,6 +1776,14 @@ html[dir="rtl"] .phud,html[dir="rtl"] .psheet,html[dir="rtl"] .pintro,html[dir="
       if (["coil", "set", "reset"].includes(i.op)) return addr(i.a) ? { op: i.op, a: i.a } : null;
       if (i.op === "ton") return /^T\d{1,2}$/.test(i.id) && i.pt > 0 && i.pt <= 600 ? { op: "ton", id: i.id, pt: Number(i.pt) } : null;
       if (i.op === "ctu") return /^C\d{1,2}$/.test(i.id) && i.pv > 0 && i.pv <= 999 ? { op: "ctu", id: i.id, pv: Math.floor(Number(i.pv)), ...addr(i.r) ? { r: i.r } : {} } : null;
+      const wout = (a) => typeof a === "string" && /^(AQ|MW)\d{1,2}$/.test(a) ? a : null;
+      if (i.op === "move") return operand(i.v) !== null && wout(i.out) ? { op: "move", v: i.v, out: i.out } : null;
+      if (i.op === "scale") return /^AI\d{1,2}$/.test(i.in) && wout(i.out) && num(i.lo) !== null && num(i.hi) !== null ? { op: "scale", in: i.in, out: i.out, lo: i.lo, hi: i.hi } : null;
+      if (i.op === "pid") {
+        const gain = (v, pos) => isNum(v) ? pos ? num(v) > 0 : num(v) >= 0 : word(v) !== null;
+        if (operand(i.pv) === null || operand(i.sp) === null || !wout(i.out) || !gain(i.kp, true) || !gain(i.ti ?? 0) || !gain(i.td ?? 0)) return null;
+        return { op: "pid", id: typeof i.id === "string" && /^PID\d$/.test(i.id) ? i.id : i.out, pv: i.pv, sp: i.sp, out: i.out, kp: i.kp, ti: i.ti ?? 0, td: i.td ?? 0, ...num(i.lo) !== null ? { lo: i.lo } : {}, ...num(i.hi) !== null ? { hi: i.hi } : {}, ...i.windup === true ? { windup: true } : {} };
+      }
       return null;
     };
     if (!Array.isArray(program)) return [];
@@ -1671,6 +1793,103 @@ html[dir="rtl"] .phud,html[dir="rtl"] .psheet,html[dir="rtl"] .pintro,html[dir="
       if (c2 !== null) out.if = c2;
       return out;
     });
+  }
+
+  // src/engine/v2/process.js
+  var clamp2 = (x, lo, hi) => Math.max(lo, Math.min(hi, x));
+  var frac = (x) => clamp2(Number(x) || 0, 0, 1);
+  var MODELS = {
+    // Serbatoio: livello h in % del volume. Portate in % al minuto.
+    serbatoio: {
+      init: { h: 20 },
+      params: { qIn: 30, qOut: 20, demand: 0, full: 95 },
+      acts: { pump: 0, valve: 0 },
+      step(s, a, p, dt) {
+        const dh = (p.qIn * frac(a.pump) - p.qOut * frac(a.valve) * (s.h > 0 ? 1 : 0) - p.demand * (s.h > 0 ? 1 : 0)) / 60;
+        return { h: clamp2(s.h + dh * dt, 0, 100) };
+      },
+      expose: (s, p) => ({ h: s.h, full: s.h >= p.full, empty: s.h <= 0 })
+    },
+    // Forno: la resistenza scalda la parete (Tw), la parete scalda la camera (T). Due costanti di tempo in serie.
+    // A piena potenza la parete tende a Ta + dTmax; la camera la segue piu' piano.
+    forno: {
+      init: { T: 20, Tw: 20 },
+      params: { Ta: 20, dTmax: 180, tauW: 60, tauC: 40 },
+      acts: { heater: 0 },
+      step(s, a, p, dt) {
+        const target = p.Ta + p.dTmax * frac(a.heater);
+        const Tw = s.Tw + (target - s.Tw) * dt / p.tauW;
+        const T2 = s.T + (s.Tw - s.T) * dt / p.tauC;
+        return { T: T2, Tw };
+      },
+      expose: (s) => ({ T: s.T, Tw: s.Tw })
+    },
+    // Nastro con variatore di frequenza: f va verso ref·fmax con la rampa (Hz/s) se `run`, altrimenti scende a 0.
+    // v (velocita' in % della nominale, a fNom) segue f con una costante di tempo breve. `load` frena (parametro).
+    nastro: {
+      init: { f: 0, v: 0 },
+      params: { fmax: 50, fNom: 50, ramp: 10, tau: 0.5, load: 0 },
+      acts: { run: 0, ref: 1 },
+      step(s, a, p, dt) {
+        const goal = a.run ? frac(a.ref) * p.fmax : 0;
+        const df = clamp2(goal - s.f, -p.ramp * dt, p.ramp * dt);
+        const f = s.f + df;
+        const vGoal = Math.max(0, f / p.fNom * 100 - p.load);
+        const v = s.v + (vGoal - s.v) * Math.min(1, dt / p.tau);
+        return { f, v };
+      },
+      expose: (s) => ({ f: s.f, v: s.v, moving: s.v > 1 })
+    }
+  };
+  var PROCESS_DT = 0.1;
+  function modelOf(proc) {
+    const m = proc && MODELS[proc.model];
+    if (!m) throw new Error("modello di processo sconosciuto: " + (proc && proc.model));
+    return m;
+  }
+  function newProcess(proc) {
+    const m = modelOf(proc);
+    const params = { ...m.params, ...proc.params || {} };
+    return { state: { ...m.init, ...proc.init || {} }, params };
+  }
+  function stepProcess(proc, ps, act2, seconds) {
+    const m = modelOf(proc);
+    const dt = proc.dt || PROCESS_DT;
+    const a = { ...m.acts, ...act2 };
+    let s = ps.state;
+    const n = Math.max(1, Math.round(seconds / dt));
+    const h = seconds / n;
+    for (let k = 0; k < n; k++) s = m.step(s, a, ps.params, h);
+    return { ...ps, state: s };
+  }
+  function tunedValues(proc) {
+    const out = {};
+    Object.entries(proc && proc.tunable || {}).forEach(([name, d]) => {
+      const v = proc.tuned && proc.tuned[name] !== void 0 ? proc.tuned[name] : d.init;
+      if (Number.isFinite(v)) out[name] = clampTune(d, v);
+    });
+    return out;
+  }
+  function clampTune(d, v) {
+    let x = Math.max(d.min ?? -Infinity, Math.min(d.max ?? Infinity, Number(v)));
+    if (d.step) x = Math.round(x / d.step) * d.step;
+    return Math.round(x * 1e6) / 1e6;
+  }
+  var withTuned = (level, tuned) => level.process && tuned && Object.keys(tuned).length ? { ...level, process: { ...level.process, tuned: { ...level.process.tuned || {}, ...tuned } } } : level;
+  var exposeProcess = (proc, ps) => modelOf(proc).expose(ps.state, ps.params);
+  function senseDigital(vars, sense) {
+    const x = Number(vars[sense.v]);
+    if (!Number.isFinite(x)) return !!vars[sense.v];
+    if (sense.above !== void 0) return x >= sense.above;
+    if (sense.below !== void 0) return x <= sense.below;
+    return !!x;
+  }
+  var MA_LO = 3.8;
+  var MA_HI = 20.5;
+  function senseAnalog(vars, sense) {
+    const x = Number(vars[sense.v]) || 0;
+    const mA = 4 + 16 * (x - sense.lo) / (sense.hi - sense.lo);
+    return clamp2(mA, MA_LO, MA_HI);
   }
 
   // src/engine/v2/sim.js
@@ -1712,11 +1931,81 @@ html[dir="rtl"] .phud,html[dir="rtl"] .psheet,html[dir="rtl"] .pintro,html[dir="
       // secondi da consegnare alla prossima scansione
       forcePlc: null,
       // 'allOn': prova di sicurezza, tutte le uscite dei PLC forzate a 1
-      qHistory: []
+      qHistory: [],
       // uscite accese dopo ogni scansione (regola outputsNeverTogether)
+      process: level.process ? newProcess(level.process) : null,
+      // modello di processo (process.js): { state, params }
+      trace: [],
+      // righe { t, grandezza: valore } ogni passo, per le prove e il grafico (level.process.trace)
+      hmi: {}
+      // parole dei PLC scritte dal pannello di regolazione: { idPLC: { MW0: 60 } }
     };
+    Object.entries(tunedValues(level.process)).forEach(([name, v]) => applyTune(sim, name, v));
     settle(sim);
+    recordTrace(sim);
     return sim;
+  }
+  var TRACE_MAX = 4e3;
+  function applyTune(sim, name, v) {
+    const d = sim.level.process.tunable[name];
+    if (d.param && sim.process) sim.process.params = { ...sim.process.params, [d.param]: v };
+    if (d.word) {
+      const [id, w] = d.word.split(".");
+      (sim.hmi[id] = sim.hmi[id] || {})[w] = v;
+    }
+  }
+  function tune(sim, name, value) {
+    const d = sim.level.process && sim.level.process.tunable && sim.level.process.tunable[name];
+    if (!d || !Number.isFinite(Number(value))) return null;
+    const v = clampTune(d, value);
+    applyTune(sim, name, v);
+    settle(sim);
+    return v;
+  }
+  var processVars = (sim) => sim.process ? exposeProcess(sim.level.process, sim.process) : {};
+  function traceValue(sim, name, vars = processVars(sim)) {
+    const num = (x) => typeof x === "boolean" ? x ? 1 : 0 : Number(x) || 0;
+    if (name in vars) return num(vars[name]);
+    const [id, k] = name.split(".");
+    const c2 = sim.level.comps.find((x) => x.id === id);
+    const s = sim.parts[id];
+    if (!c2 || !s) return 0;
+    if (c2.type === "plc" && k) {
+      if (/^Q\d+$/.test(k)) return num(!!s.q[k]);
+      if (/^AQ\d+$/.test(k)) return num(s.aq[k]);
+      if (/^AI\d+$/.test(k)) return num(s.ai[k]);
+      return num(s.mem && s.mem.words ? s.mem.words[k] : s.mem && s.mem.bits ? s.mem.bits[k] : 0);
+    }
+    if (c2.type === "tx") return num(s.mA);
+    return num(s.run !== void 0 ? s.run : s.on !== void 0 ? s.on : s.act);
+  }
+  function recordTrace(sim) {
+    const names = sim.traceNames || sim.level.process && sim.level.process.trace;
+    if (!names || !names.length) return;
+    const vars = processVars(sim);
+    const row = { t: sim.t };
+    names.forEach((n) => row[n] = traceValue(sim, n, vars));
+    sim.trace.push(row);
+    if (sim.trace.length > TRACE_MAX) sim.trace.splice(0, TRACE_MAX / 2);
+  }
+  function actuatorsOf(sim, an) {
+    const out = {};
+    const acts = sim.level.process && sim.level.process.actuators || {};
+    Object.entries(acts).forEach(([name, src]) => {
+      let v = 0;
+      if (src.motor) v = an.motors[src.motor] === "fwd" || an.motors[src.motor] === "rev" ? 1 : 0;
+      else if (src.load) v = an.loads[src.load] === "on" ? 1 : 0;
+      else if (src.coil) v = sim.parts[src.coil] && sim.parts[src.coil].on ? 1 : 0;
+      else if (src.plc) {
+        const [id, q] = src.plc.split(".");
+        v = sim.parts[id] && sim.parts[id].q[q] ? 1 : 0;
+      } else if (src.analog) {
+        const [id, q] = src.analog.split(".");
+        v = sim.parts[id] ? (Number(sim.parts[id].aq[q]) || 0) / 100 : 0;
+      } else if (src.value !== void 0) v = src.value;
+      out[name] = v;
+    });
+    return out;
   }
   function setWires(sim, wires) {
     sim.wires = wires.slice();
@@ -1868,7 +2157,23 @@ html[dir="rtl"] .phud,html[dir="rtl"] .psheet,html[dir="rtl"] .pintro,html[dir="
       });
       plcIn[c2.id] = bits;
     });
-    return { uf, pots, potAt, volt, faults, loads, coils, motors, modes, plcIn, trafoOn, burntNow, leaks };
+    const plcAi = {};
+    const txs = level.comps.filter((c2) => c2.type === "tx");
+    level.comps.filter((c2) => c2.type === "plc").forEach((c2) => {
+      const on = !!coils[c2.id];
+      const ai = {};
+      Object.keys(c2.terms).filter((t) => /^AI\d+\+$/.test(t)).forEach((t) => {
+        const k = t.slice(0, -1), plus = c2.id + "." + t, minus = c2.id + "." + k + "-";
+        let mA = 0;
+        if (on && !potAt(plus) && !potAt(minus)) {
+          const tx = txs.find((x) => uf.f(x.id + ".+") === uf.f(plus) && uf.f(x.id + ".-") === uf.f(minus) && uf.f(plus) !== uf.f(minus));
+          if (tx) mA = sim.parts[tx.id] && sim.parts[tx.id].mA || 0;
+        }
+        ai[k] = mA;
+      });
+      plcAi[c2.id] = ai;
+    });
+    return { uf, pots, potAt, volt, faults, loads, coils, motors, modes, plcIn, plcAi, trafoOn, burntNow, leaks };
   }
   var RCD_TRIP_MA = 30;
   var OVERLOAD_TRIP = 1.45;
@@ -1941,6 +2246,13 @@ html[dir="rtl"] .phud,html[dir="rtl"] .psheet,html[dir="rtl"] .pintro,html[dir="
     return false;
   }
   function machineSwitches(sim) {
+    if (sim.process) {
+      const vars = processVars(sim);
+      sim.level.comps.forEach((c2) => {
+        if (c2.type === "sens" && c2.sense) sim.parts[c2.id].act = senseDigital(vars, c2.sense);
+        if (c2.type === "tx" && c2.sense) sim.parts[c2.id].mA = senseAnalog(vars, c2.sense);
+      });
+    }
     const m = sim.level.machine;
     if (!m) return;
     if (m.endFwd && sim.parts[m.endFwd]) sim.parts[m.endFwd].act = sim.pos >= m.length;
@@ -1957,14 +2269,18 @@ html[dir="rtl"] .phud,html[dir="rtl"] .psheet,html[dir="rtl"] .pintro,html[dir="
       if (!an.coils[c2.id]) {
         if (Object.keys(s.q).length || s.mem) {
           s.q = {};
+          s.aq = {};
           s.mem = null;
           s.rungs = [];
           s.inputs = {};
+          s.ai = {};
           changed = true;
         }
         return;
       }
-      const r = scan(programOf(sim, c2), an.plcIn[c2.id], s.mem || newMem(), dt);
+      const r = scan(programOf(sim, c2), an.plcIn[c2.id], s.mem || newMem(), dt, { ...an.plcAi[c2.id], ...sim.hmi[c2.id] || {} });
+      s.aq = r.analogOut;
+      s.ai = an.plcAi[c2.id];
       let q = r.outputs;
       if (sim.forcePlc === "allOn") q = Object.fromEntries(Object.keys(c2.terms).filter((t) => /^Q\d+A$/.test(t)).map((t) => [t.slice(0, -1), true]));
       const same2 = Object.keys({ ...q, ...s.q }).every((k) => !!q[k] === !!s.q[k]);
@@ -1982,6 +2298,7 @@ html[dir="rtl"] .phud,html[dir="rtl"] .psheet,html[dir="rtl"] .pintro,html[dir="
   }
   function settle(sim) {
     const comps2 = sim.level.comps;
+    let plcFlips = 0;
     for (let it = 0; it < MAX_ITER; it++) {
       machineSwitches(sim);
       const an = analyse2(sim);
@@ -2066,13 +2383,18 @@ html[dir="rtl"] .phud,html[dir="rtl"] .psheet,html[dir="rtl"] .pintro,html[dir="
         }
         if (changed) break;
       }
-      if (!changed && plcScan(sim, an)) changed = true;
+      if (!changed && plcScan(sim, an)) {
+        changed = true;
+        plcFlips++;
+      }
       if (!changed) {
         sim.unstable = false;
+        sim.unstableCause = null;
         return;
       }
     }
     sim.unstable = true;
+    sim.unstableCause = plcFlips > MAX_ITER / 4 ? "plc" : null;
   }
   function act(sim, action, id) {
     const c2 = sim.level.comps.find((x) => x.id === id);
@@ -2169,8 +2491,10 @@ html[dir="rtl"] .phud,html[dir="rtl"] .psheet,html[dir="rtl"] .pintro,html[dir="
         if (dir === "fwd") sim.pos = Math.min(m.length, sim.pos + v);
         if (dir === "rev") sim.pos = Math.max(0, sim.pos - v);
       }
+      if (sim.process) sim.process = stepProcess(sim.level.process, sim.process, actuatorsOf(sim, an), STEP);
       sim.plcDt = STEP;
       settle(sim);
+      recordTrace(sim);
     }
   }
   function lineReport(sim, an) {
@@ -2187,7 +2511,7 @@ html[dir="rtl"] .phud,html[dir="rtl"] .psheet,html[dir="rtl"] .pintro,html[dir="
   function observe(sim) {
     const an = analyse2(sim);
     const faults = an.faults.slice();
-    if (sim.unstable) faults.push({ code: "instabile" });
+    if (sim.unstable) faults.push(sim.unstableCause === "plc" ? { code: "instabile", cause: "plc" } : { code: "instabile" });
     if (sim.mainTrip) faults.push({ code: "quadro", cause: sim.mainTripCause || "corto" });
     const parts = {};
     Object.entries(sim.parts).forEach(([k, v]) => parts[k] = { ...v });
@@ -2198,7 +2522,8 @@ html[dir="rtl"] .phud,html[dir="rtl"] .psheet,html[dir="rtl"] .pintro,html[dir="
       loads: { ...an.loads, ...Object.fromEntries(Object.keys(sim.burnt).filter((id) => !(id in an.loads)).map((id) => [id, "burnt"])) },
       motors: an.motors,
       modes: an.modes,
-      plc: Object.fromEntries(sim.level.comps.filter((c2) => c2.type === "plc").map((c2) => [c2.id, { powered: !!an.coils[c2.id], inputs: an.plcIn[c2.id], q: { ...sim.parts[c2.id].q }, rungs: sim.parts[c2.id].rungs.slice(), bits: { ...sim.parts[c2.id].mem && sim.parts[c2.id].mem.bits || {} }, timers: { ...sim.parts[c2.id].mem && sim.parts[c2.id].mem.timers || {} }, counters: { ...sim.parts[c2.id].mem && sim.parts[c2.id].mem.counters || {} } }])),
+      plc: Object.fromEntries(sim.level.comps.filter((c2) => c2.type === "plc").map((c2) => [c2.id, { powered: !!an.coils[c2.id], inputs: an.plcIn[c2.id], ai: { ...an.plcAi[c2.id] }, q: { ...sim.parts[c2.id].q }, aq: { ...sim.parts[c2.id].aq }, rungs: sim.parts[c2.id].rungs.slice(), bits: { ...sim.parts[c2.id].mem && sim.parts[c2.id].mem.bits || {} }, words: { ...sim.parts[c2.id].mem && sim.parts[c2.id].mem.words || {} }, timers: { ...sim.parts[c2.id].mem && sim.parts[c2.id].mem.timers || {} }, counters: { ...sim.parts[c2.id].mem && sim.parts[c2.id].mem.counters || {} } }])),
+      process: sim.process ? { ...processVars(sim) } : null,
       coils: Object.fromEntries(Object.entries(an.coils).filter(([id]) => !sim.level.comps.some((c2) => c2.id === id && c2.type === "plc"))),
       parts,
       machine: sim.level.machine ? { pos: sim.pos, atStart: sim.pos <= 0, atEnd: sim.pos >= sim.level.machine.length } : null,
@@ -2333,6 +2658,55 @@ html[dir="rtl"] .phud,html[dir="rtl"] .psheet,html[dir="rtl"] .pintro,html[dir="
         if (obs2.machine[k] !== v) return { comp: "machine." + k, want: v, got: obs2.machine[k] };
       }
     }
+    if (expect.process) {
+      for (const [k, v] of Object.entries(expect.process)) {
+        const got = obs2.process ? obs2.process[k] : void 0;
+        const ok = Array.isArray(v) ? typeof got === "number" && got >= v[0] && got <= v[1] : got === v;
+        if (!ok) return { comp: "process." + k, want: Array.isArray(v) ? v.join("-") : v, got: typeof got === "number" ? round1(got) : got ?? null };
+      }
+    }
+    return null;
+  }
+  var round1 = (x) => Math.round(x * 10) / 10;
+  function traceNamesOf(level, check) {
+    const names = new Set(level.process && level.process.trace || []);
+    const stages = check.steps || [{ expect: check.expect || {} }];
+    stages.forEach((st) => (st.expect && st.expect.trace || []).forEach((r) => names.add(r.v)));
+    return [...names];
+  }
+  function traceMismatch(rows, rules) {
+    for (const r of rules || []) {
+      const from = r.from ?? 0, to = r.to ?? Infinity;
+      const win = rows.filter((x) => x.t >= from - 1e-9 && x.t <= to + 1e-9 && r.v in x);
+      const fail = (rule, want, got, at) => ({ comp: "trace." + r.v, rule, want, got: typeof got === "number" ? round1(got) : got, at });
+      if (!win.length) return fail("noData", null, null, from);
+      if (r.within) {
+        const bad = win.find((x) => x[r.v] < r.within[0] || x[r.v] > r.within[1]);
+        if (bad) return fail("within", r.within.join("-"), bad[r.v], bad.t);
+      }
+      if (r.min !== void 0) {
+        const bad = win.find((x) => x[r.v] < r.min);
+        if (bad) return fail("min", r.min, bad[r.v], bad.t);
+      }
+      if (r.max !== void 0) {
+        const bad = win.reduce((a, x) => x[r.v] > r.max && (!a || x[r.v] > a[r.v]) ? x : a, null);
+        if (bad) return fail("max", r.max, bad[r.v], bad.t);
+      }
+      if (r.maxSwitches !== void 0) {
+        let n = 0;
+        for (let k = 1; k < win.length; k++) if (!!win[k][r.v] !== !!win[k - 1][r.v]) n++;
+        if (n > r.maxSwitches) return fail("maxSwitches", r.maxSwitches, n);
+      }
+      if (r.reaches !== void 0 || r.drops !== void 0) {
+        const by = r.by ?? Infinity;
+        const part2 = win.filter((x) => x.t <= by + 1e-9);
+        const hit = r.reaches !== void 0 ? part2.some((x) => x[r.v] >= r.reaches) : part2.some((x) => x[r.v] <= r.drops);
+        if (!hit) {
+          const vals = part2.map((x) => x[r.v]);
+          return r.reaches !== void 0 ? fail("reaches", r.reaches, Math.max(...vals), by) : fail("drops", r.drops, Math.min(...vals), by);
+        }
+      }
+    }
     return null;
   }
   var BLOCKING = { corto: "work.short", faseterra: "work.phaseToEarth", secondarioMisto: "work.secondaryMixed", instabile: "work.unstable", caricoTerra: "work.loadOnEarth" };
@@ -2342,6 +2716,7 @@ html[dir="rtl"] .phud,html[dir="rtl"] .psheet,html[dir="rtl"] .pintro,html[dir="
     const q = o.faults.find((x) => x.code === "quadro");
     if (q) return { code: QUADRO[q.cause] || "work.short" };
     const f = o.faults.find((x) => BLOCKING[x.code]);
+    if (f && f.code === "instabile" && f.cause === "plc") return { code: "work.unstablePlc" };
     if (f) return f.comp ? { code: BLOCKING[f.code], comp: f.comp } : { code: BLOCKING[f.code] };
     const tr2 = o.tripped.find((x) => !allowTrip.has(x));
     if (tr2) return { code: "work.tripped", comp: tr2 };
@@ -2351,6 +2726,11 @@ html[dir="rtl"] .phud,html[dir="rtl"] .psheet,html[dir="rtl"] .pintro,html[dir="
   }
   function runCheck(level, wires, check) {
     const sim = createSim(level, wires);
+    if (level.process) {
+      sim.traceNames = traceNamesOf(level, check);
+      const vars = processVars(sim);
+      sim.trace = [Object.fromEntries([["t", sim.t], ...sim.traceNames.map((n) => [n, traceValue(sim, n, vars)])])];
+    }
     const states = [observe(sim)];
     const stages = check.steps || [{ do: check.do || [], expect: check.expect || {} }];
     const allowTrip = /* @__PURE__ */ new Set();
@@ -2368,12 +2748,12 @@ html[dir="rtl"] .phud,html[dir="rtl"] .psheet,html[dir="rtl"] .pintro,html[dir="
       const o = observe(sim);
       const f = blockingOf(o, allowTrip);
       if (f) return { ok: false, sim, states, fail: f };
-      const mm = mismatch(o, st.expect || {});
+      const mm = mismatch(o, st.expect || {}) || (st.expect && st.expect.trace ? traceMismatch(sim.trace, st.expect.trace) : null);
       if (mm) return { ok: false, sim, states, fail: { code: "work.checkFail", ...mm } };
     }
     return { ok: true, sim, states };
   }
-  var CTL_TYPES = /* @__PURE__ */ new Set(["pb", "pbnc", "fungo", "port", "spia", "fc", "ri", "tmr", "kt", "rs", "plc"]);
+  var CTL_TYPES = /* @__PURE__ */ new Set(["pb", "pbnc", "fungo", "port", "spia", "fc", "ri", "tmr", "kt", "rs", "plc", "sens", "tx"]);
   function isCtlTerm(level, term2) {
     const [id, t] = term2.split(".");
     const c2 = level.comps.find((x) => x.id === id);
@@ -2427,7 +2807,7 @@ html[dir="rtl"] .phud,html[dir="rtl"] .psheet,html[dir="rtl"] .pintro,html[dir="
   var withRatings = (level, ratings) => ratings && Object.keys(ratings).length ? { ...level, comps: level.comps.map((c2) => ratings[c2.id] ? { ...c2, in: ratings[c2.id] } : c2) } : level;
   var withPrograms = (level, programs) => programs && Object.keys(programs).length ? { ...level, comps: level.comps.map((c2) => c2.type === "plc" && programs[c2.id] ? { ...c2, program: programs[c2.id] } : c2) } : level;
   function evaluateV2(level, wires, ctx2 = {}) {
-    level = withPrograms(withRatings(level, ctx2.ratings), ctx2.programs);
+    level = withTuned(withPrograms(withRatings(level, ctx2.ratings), ctx2.programs), ctx2.tuned);
     const out = { work: section2(), color: section2(), safe: section2() };
     const add = (sec, code, params) => out[sec].items.push(params ? { code, ...params } : { code });
     if (!wires.length) {
@@ -2459,7 +2839,7 @@ html[dir="rtl"] .phud,html[dir="rtl"] .psheet,html[dir="rtl"] .pintro,html[dir="
       const first = failed[0].r.fail;
       if (first.code !== "work.checkFail" && failed.every((x) => x.r.fail.code === first.code)) add("work", first.code, first.comp ? { comp: first.comp } : void 0);
       else {
-        failed.slice(0, 3).forEach(({ ch, r }) => add("work", "work.checkFail", { check: ch.id, label: ch.label, cause: r.fail.code, want: r.fail.want, got: r.fail.got, comp: r.fail.comp }));
+        failed.slice(0, 3).forEach(({ ch, r }) => add("work", "work.checkFail", { check: ch.id, label: ch.label, cause: r.fail.code, want: r.fail.want, got: r.fail.got, comp: r.fail.comp, ...r.fail.rule ? { rule: r.fail.rule, at: r.fail.at } : {} }));
         if (failed.length > 3) add("work", "work.checkMore", { n: failed.length - 3 });
       }
     }
@@ -2826,7 +3206,7 @@ html[dir="rtl"] .phud,html[dir="rtl"] .psheet,html[dir="rtl"] .pintro,html[dir="
       if (c2.type === "mt") return s.heat > 0 || obs2.cable && !obs2.cable.burnt && (obs2.cable.heat > 0 || obs2.cable.amps > obs2.cable.iz) || !!s.in && !!s.on && !s.tripped && !!(obs2.lines && obs2.lines[c2.id] && obs2.lines[c2.id].ratio > 1.45);
       if (c2.type === "ft") return !s.tripped && (s.heat > 0 || Object.values(obs2.motors).some((m) => m === "hum" || obs2.overload && running(m)));
       return false;
-    }) || !!level.machine && !!obs2.machine && Object.values(obs2.motors).some((m) => m === "fwd" && !obs2.machine.atEnd || m === "rev" && !obs2.machine.atStart);
+    }) || !!level.process && !!obs2.supply || !!level.machine && !!obs2.machine && Object.values(obs2.motors).some((m) => m === "fwd" && !obs2.machine.atEnd || m === "rev" && !obs2.machine.atStart);
   }
   function viewOf(level, sim, power) {
     const obs2 = observe(sim);
@@ -2897,8 +3277,10 @@ html[dir="rtl"] .phud,html[dir="rtl"] .psheet,html[dir="rtl"] .pintro,html[dir="
     const programsOf = (i = levelIndex, m = mode) => programsByKey[keyOf(i, m)] || initialPrograms(levelAt(i, m));
     const withProg = (lv, k = keyOf()) => {
       const pr = programsByKey[k] || initialPrograms(lv);
-      return pr && lv.comps.some((c2) => c2.type === "plc" && pr[c2.id]) ? { ...lv, comps: lv.comps.map((c2) => c2.type === "plc" && pr[c2.id] ? { ...c2, program: pr[c2.id] } : c2) } : lv;
+      const out = pr && lv.comps.some((c2) => c2.type === "plc" && pr[c2.id]) ? { ...lv, comps: lv.comps.map((c2) => c2.type === "plc" && pr[c2.id] ? { ...c2, program: pr[c2.id] } : c2) } : lv;
+      return withTuned(out, tunedByKey[k]);
     };
+    const tunedByKey = {};
     const states = () => statesByKey[keyOf()] || (statesByKey[keyOf()] = {});
     const usage = () => usageByKey[keyOf()] || (usageByKey[keyOf()] = { hints: 0, solution: false, checks: 0 });
     const startPhase = (i = levelIndex) => {
@@ -3059,6 +3441,10 @@ html[dir="rtl"] .phud,html[dir="rtl"] .psheet,html[dir="rtl"] .pintro,html[dir="
         // solo livelli v2: osservazione (carichi, motori, bobine, protezioni scattate, macchina), orologio, alimentazione propria
         obs: is2 ? view2.obs : null,
         needsClock: is2 ? view2.needsClock : false,
+        // solo livelli con un processo (docs/SPEC-PROCESSI.md): tracciato per il grafico, fattore di accelerazione, parametri regolabili
+        trace: is2 && level.process ? simFor().trace.slice(-600) : null,
+        speed: is2 && level.process ? level.process.speed || 1 : 1,
+        tuned: is2 && level.process && level.process.tunable ? tunedValues(withTuned(level, tunedByKey[keyOf()]).process) : null,
         selfPowered: is2 ? selfPowered(level) : false,
         overload: is2 ? !!simFor().overload : false,
         // multimetro: solo nei livelli che lo dichiarano (`meter: true`)
@@ -3233,7 +3619,7 @@ html[dir="rtl"] .phud,html[dir="rtl"] .psheet,html[dir="rtl"] .pintro,html[dir="
         if (phase === "done") {
           const ws = wiresByKey[keyOf(i, "quadro")] || [];
           if (!(progress.stars[progressKey(l.id, "quadro")] > 0) || !ws.length) phase = "build";
-          else result = isV2(levelAt(i, "quadro")) ? evaluateV2(levelAt(i, "quadro"), ws, { measured: measuredBy[keyOf(i, "quadro")] || [], ratings: ratingsOf(i), programs: programsOf(i, "quadro"), liveEdits: liveEditsBy[keyOf(i, "quadro")] || [] }) : evaluate(levelAt(i, "quadro"), ws);
+          else result = isV2(levelAt(i, "quadro")) ? evaluateV2(levelAt(i, "quadro"), ws, { measured: measuredBy[keyOf(i, "quadro")] || [], ratings: ratingsOf(i), programs: programsOf(i, "quadro"), tuned: tunedByKey[keyOf(i, "quadro")], liveEdits: liveEditsBy[keyOf(i, "quadro")] || [] }) : evaluate(levelAt(i, "quadro"), ws);
           if (result && !result.pass) {
             phase = "build";
             result = null;
@@ -3656,10 +4042,23 @@ html[dir="rtl"] .phud,html[dir="rtl"] .psheet,html[dir="rtl"] .pintro,html[dir="
         emit();
       },
       // L'orologio della vista: fa passare il tempo (mezzi secondi) solo quando serve (snapshot().needsClock).
+      // Con un processo il tempo corre piu' in fretta (level.process.speed): mezzo secondo reale = speed mezzi secondi simulati.
       tick(seconds = 0.5) {
         if (!v2()) return;
-        advance(simFor(), seconds);
+        const lv = levelAt();
+        advance(simFor(), seconds * (lv.process && lv.process.speed || 1));
         applyLive2();
+        emit();
+      },
+      // Pannello di regolazione: cambia un parametro dichiarato in process.tunable (setpoint, Kp, Ti, ...). Il processo continua.
+      tune(name, value) {
+        if (!v2()) return;
+        const lv = levelAt();
+        if (!lv.process || !lv.process.tunable || !lv.process.tunable[name]) return;
+        const v = tune(simFor(), name, value);
+        if (v === null) return;
+        tunedByKey[keyOf()] = { ...tunedByKey[keyOf()] || {}, [name]: v };
+        resultsByKey[keyOf()] = null;
         emit();
       },
       // Livelli con relè termico: simula un sovraccarico (il motore assorbe troppo) per provare la protezione.
@@ -3718,7 +4117,7 @@ html[dir="rtl"] .phud,html[dir="rtl"] .psheet,html[dir="rtl"] .pintro,html[dir="
       check() {
         const level = levelAt();
         const faultOn = v2(level) && level.unit && level.unit.fault && unitState().phase === "fault" ? (level.unit.fault.on || []).filter((id) => simFor().parts[id] && simFor().parts[id].on) : [];
-        const r = v2(level) ? evaluateV2(level, wires(), { measured: measuredBy[keyOf()] || [], ratings: ratingsOf(), programs: programsOf(), faultOn, liveEdits: liveEditsBy[keyOf()] || [] }) : evaluate(level, wires());
+        const r = v2(level) ? evaluateV2(level, wires(), { measured: measuredBy[keyOf()] || [], ratings: ratingsOf(), programs: programsOf(), tuned: tunedByKey[keyOf()], faultOn, liveEdits: liveEditsBy[keyOf()] || [] }) : evaluate(level, wires());
         resultsByKey[keyOf()] = r;
         const u = usage();
         u.checks++;
@@ -9325,6 +9724,31 @@ html[dir="rtl"] .phud,html[dir="rtl"] .psheet,html[dir="rtl"] .pintro,html[dir="
   };
   var stateText = (v) => STATE_TEXT[String(v)] || String(v);
   var MODE_TEXT = { star: "a stella", delta: "a triangolo", null: "n\xE9 a stella n\xE9 a triangolo" };
+  var numIt = (x) => typeof x === "number" ? String(x).replace(".", ",") : String(x);
+  function processText(level, item) {
+    const v = String(item.comp).split(".").slice(1).join(".");
+    const name = level.process && level.process.labels && level.process.labels[v] || v;
+    const at = item.at === void 0 || item.at === null || item.at === Infinity ? "" : " (a " + numIt(item.at) + " s)";
+    const range = String(item.want).replace("-", " e ");
+    switch (item.rule) {
+      case "within":
+        return name + " vale " + numIt(item.got) + at + ": deve restare tra " + range + ".";
+      case "min":
+        return name + " scende a " + numIt(item.got) + at + ": non deve andare sotto " + numIt(item.want) + ".";
+      case "max":
+        return name + " arriva a " + numIt(item.got) + at + ": non deve superare " + numIt(item.want) + ".";
+      case "maxSwitches":
+        return name + " cambia stato " + item.got + " volte: al massimo " + item.want + ".";
+      case "reaches":
+        return name + " arriva al massimo a " + numIt(item.got) + (at ? " entro " + numIt(item.at) + " s" : "") + ": doveva raggiungere " + numIt(item.want) + ".";
+      case "drops":
+        return name + " scende al minimo a " + numIt(item.got) + (at ? " entro " + numIt(item.at) + " s" : "") + ": doveva arrivare a " + numIt(item.want) + ".";
+      case "noData":
+        return name + ": nessun valore registrato.";
+      default:
+        return name + " vale " + numIt(item.got) + "; atteso: " + (String(item.want).includes("-") ? "tra " + range : numIt(item.want)) + ".";
+    }
+  }
   var MACHINE_TEXT = { "machine.atEnd": "Fine corsa", "machine.atStart": "Inizio del nastro" };
   function itemText(item, level) {
     switch (item.code) {
@@ -9361,7 +9785,7 @@ html[dir="rtl"] .phud,html[dir="rtl"] .psheet,html[dir="rtl"] .pintro,html[dir="
       case "work.allChecksOk":
         return "Tutte le prove di funzionamento sono superate (" + item.n + ").";
       case "work.checkFail": {
-        const why = item.cause && item.cause !== "work.checkFail" ? itemText({ code: item.cause, comp: item.comp }, level) : item.comp === "tripped" ? "Protezioni scattate: " + (item.got || "nessuna") + "." : MACHINE_TEXT[item.comp] ? MACHINE_TEXT[item.comp] + ": " + (item.got ? "raggiunto" : "non raggiunto") + "; atteso: " + (item.want ? "raggiunto" : "non raggiunto") + "." : String(item.comp).endsWith(".mode") ? nameOf(level, item.comp.slice(0, -5)) + ": collegato " + MODE_TEXT[String(item.got)] + "; atteso: " + MODE_TEXT[String(item.want)] + "." : nameOf(level, item.comp) + ": " + stateText(item.got) + "; atteso: " + stateText(item.want) + ".";
+        const why = item.cause && item.cause !== "work.checkFail" ? itemText({ code: item.cause, comp: item.comp }, level) : /^(trace|process)\./.test(String(item.comp)) ? processText(level, item) : item.comp === "tripped" ? "Protezioni scattate: " + (item.got || "nessuna") + "." : MACHINE_TEXT[item.comp] ? MACHINE_TEXT[item.comp] + ": " + (item.got ? "raggiunto" : "non raggiunto") + "; atteso: " + (item.want ? "raggiunto" : "non raggiunto") + "." : String(item.comp).endsWith(".mode") ? nameOf(level, item.comp.slice(0, -5)) + ": collegato " + MODE_TEXT[String(item.got)] + "; atteso: " + MODE_TEXT[String(item.want)] + "." : nameOf(level, item.comp) + ": " + stateText(item.got) + "; atteso: " + stateText(item.want) + ".";
         return "Prova non superata: " + item.label + ". " + why;
       }
       case "work.faultActive":
@@ -9372,6 +9796,8 @@ html[dir="rtl"] .phud,html[dir="rtl"] .psheet,html[dir="rtl"] .pintro,html[dir="
         return "E altre " + item.n + " prove non superate.";
       case "work.secondaryMixed":
         return "Il secondario del trasformatore \xE8 collegato alla rete: la bassa tensione non \xE8 pi\xF9 separata dai 230 V.";
+      case "work.unstablePlc":
+        return "Un\u2019uscita del PLC si accende e si spegne a ogni ciclo: il programma si contraddice (per esempio un\u2019uscita comandata dal suo stesso contatto negato).";
       case "work.unstable":
         return "Un rel\xE8 si apre e si chiude da solo: la sua bobina \xE8 alimentata attraverso il suo stesso contatto NC.";
       case "work.cableBurnt":

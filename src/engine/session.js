@@ -14,7 +14,7 @@ import { evaluate } from './evaluate.js';
 import { flowOf } from './flow.js';
 import { stepsState, ghostFor } from './steps.js';
 import { attemptBase, migrateProgress, rankOf, totalXp, xpOf } from './progress.js';
-import { createSim, observe, settle as settleSim, measure as measureSim, setWires as setWires2, setSupply, act, advance, rewind as rewindSim, evaluateV2, isV2, selfPowered, viewOf, HOLD, sanitizeProgram } from './v2/index.js';
+import { createSim, observe, settle as settleSim, measure as measureSim, setWires as setWires2, setSupply, act, advance, rewind as rewindSim, evaluateV2, isV2, selfPowered, viewOf, HOLD, sanitizeProgram, tune as tuneSim, withTuned, tunedValues } from './v2/index.js';
 
 function memoryStorage() {
   let data = {};
@@ -76,8 +76,11 @@ export function createSession({ levels, deriveFull, storage = memoryStorage(), i
   const programsOf = (i = levelIndex, m = mode) => programsByKey[keyOf(i, m)] || initialPrograms(levelAt(i, m));
   const withProg = (lv, k = keyOf()) => {
     const pr = programsByKey[k] || initialPrograms(lv);
-    return pr && lv.comps.some(c => c.type === 'plc' && pr[c.id]) ? { ...lv, comps: lv.comps.map(c => (c.type === 'plc' && pr[c.id] ? { ...c, program: pr[c.id] } : c)) } : lv;
+    const out = pr && lv.comps.some(c => c.type === 'plc' && pr[c.id]) ? { ...lv, comps: lv.comps.map(c => (c.type === 'plc' && pr[c.id] ? { ...c, program: pr[c.id] } : c)) } : lv;
+    return withTuned(out, tunedByKey[k]);
   };
+  // Parametri del processo regolati dall'allievo dal pannello (process.tunable): { nome: valore } per livello e modalita'.
+  const tunedByKey = {};
   const states = () => statesByKey[keyOf()] || (statesByKey[keyOf()] = {});
   const usage = () => usageByKey[keyOf()] || (usageByKey[keyOf()] = { hints: 0, solution: false, checks: 0 });
   const startPhase = (i = levelIndex) => {
@@ -226,6 +229,10 @@ export function createSession({ levels, deriveFull, storage = memoryStorage(), i
       // solo livelli v2: osservazione (carichi, motori, bobine, protezioni scattate, macchina), orologio, alimentazione propria
       obs: is2 ? view2.obs : null,
       needsClock: is2 ? view2.needsClock : false,
+      // solo livelli con un processo (docs/SPEC-PROCESSI.md): tracciato per il grafico, fattore di accelerazione, parametri regolabili
+      trace: is2 && level.process ? simFor().trace.slice(-600) : null,
+      speed: is2 && level.process ? level.process.speed || 1 : 1,
+      tuned: is2 && level.process && level.process.tunable ? tunedValues(withTuned(level, tunedByKey[keyOf()]).process) : null,
       selfPowered: is2 ? selfPowered(level) : false,
       overload: is2 ? !!simFor().overload : false,
       // multimetro: solo nei livelli che lo dichiarano (`meter: true`)
@@ -371,7 +378,7 @@ export function createSession({ levels, deriveFull, storage = memoryStorage(), i
       if (phase === 'done') {
         const ws = wiresByKey[keyOf(i, 'quadro')] || [];
         if (!(progress.stars[progressKey(l.id, 'quadro')] > 0) || !ws.length) phase = 'build';
-        else result = isV2(levelAt(i, 'quadro')) ? evaluateV2(levelAt(i, 'quadro'), ws, { measured: measuredBy[keyOf(i, 'quadro')] || [], ratings: ratingsOf(i), programs: programsOf(i, 'quadro'), liveEdits: liveEditsBy[keyOf(i, 'quadro')] || [] }) : evaluate(levelAt(i, 'quadro'), ws);
+        else result = isV2(levelAt(i, 'quadro')) ? evaluateV2(levelAt(i, 'quadro'), ws, { measured: measuredBy[keyOf(i, 'quadro')] || [], ratings: ratingsOf(i), programs: programsOf(i, 'quadro'), tuned: tunedByKey[keyOf(i, 'quadro')], liveEdits: liveEditsBy[keyOf(i, 'quadro')] || [] }) : evaluate(levelAt(i, 'quadro'), ws);
         if (result && !result.pass) { phase = 'build'; result = null; }
       }
       unitByKey[i] = { phase, page, pred, diag: null, faultSolved: false };
@@ -755,10 +762,23 @@ export function createSession({ levels, deriveFull, storage = memoryStorage(), i
       emit();
     },
     // L'orologio della vista: fa passare il tempo (mezzi secondi) solo quando serve (snapshot().needsClock).
+    // Con un processo il tempo corre piu' in fretta (level.process.speed): mezzo secondo reale = speed mezzi secondi simulati.
     tick(seconds = 0.5) {
       if (!v2()) return;
-      advance(simFor(), seconds);
+      const lv = levelAt();
+      advance(simFor(), seconds * ((lv.process && lv.process.speed) || 1));
       applyLive2();
+      emit();
+    },
+    // Pannello di regolazione: cambia un parametro dichiarato in process.tunable (setpoint, Kp, Ti, ...). Il processo continua.
+    tune(name, value) {
+      if (!v2()) return;
+      const lv = levelAt();
+      if (!lv.process || !lv.process.tunable || !lv.process.tunable[name]) return;
+      const v = tuneSim(simFor(), name, value);
+      if (v === null) return;
+      tunedByKey[keyOf()] = { ...(tunedByKey[keyOf()] || {}), [name]: v };
+      resultsByKey[keyOf()] = null;
       emit();
     },
     // Livelli con relè termico: simula un sovraccarico (il motore assorbe troppo) per provare la protezione.
@@ -802,7 +822,7 @@ export function createSession({ levels, deriveFull, storage = memoryStorage(), i
       const level = levelAt();
       // nella sfida guasto i guasti da componente ancora attivi (dispersioni) vanno tolti prima di verificare
       const faultOn = v2(level) && level.unit && level.unit.fault && unitState().phase === 'fault' ? (level.unit.fault.on || []).filter(id => simFor().parts[id] && simFor().parts[id].on) : [];
-      const r = v2(level) ? evaluateV2(level, wires(), { measured: measuredBy[keyOf()] || [], ratings: ratingsOf(), programs: programsOf(), faultOn, liveEdits: liveEditsBy[keyOf()] || [] }) : evaluate(level, wires());
+      const r = v2(level) ? evaluateV2(level, wires(), { measured: measuredBy[keyOf()] || [], ratings: ratingsOf(), programs: programsOf(), tuned: tunedByKey[keyOf()], faultOn, liveEdits: liveEditsBy[keyOf()] || [] }) : evaluate(level, wires());
       resultsByKey[keyOf()] = r;
       const u = usage();
       u.checks++;

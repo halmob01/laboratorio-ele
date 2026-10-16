@@ -8,6 +8,7 @@
 import { makeUF } from '../circuit.js';
 import { PARTS, partOf, loadVolt } from './parts.js';
 import { scan, newMem } from './plc.js';
+import { newProcess, stepProcess, exposeProcess, senseDigital, senseAnalog, tunedValues, clampTune } from './process.js';
 
 const PHASES = ['F', 'L1', 'L2', 'L3'];
 const isPhase = p => PHASES.includes(p);
@@ -40,9 +41,81 @@ export function createSim(level, wires = []) {
     plcDt: 0,              // secondi da consegnare alla prossima scansione
     forcePlc: null,        // 'allOn': prova di sicurezza, tutte le uscite dei PLC forzate a 1
     qHistory: [],          // uscite accese dopo ogni scansione (regola outputsNeverTogether)
+    process: level.process ? newProcess(level.process) : null,   // modello di processo (process.js): { state, params }
+    trace: [],             // righe { t, grandezza: valore } ogni passo, per le prove e il grafico (level.process.trace)
+    hmi: {},               // parole dei PLC scritte dal pannello di regolazione: { idPLC: { MW0: 60 } }
   };
+  Object.entries(tunedValues(level.process)).forEach(([name, v]) => applyTune(sim, name, v));
   settle(sim);
+  recordTrace(sim);
   return sim;
+}
+
+export const TRACE_MAX = 4000;
+
+function applyTune(sim, name, v) {
+  const d = sim.level.process.tunable[name];
+  if (d.param && sim.process) sim.process.params = { ...sim.process.params, [d.param]: v };
+  if (d.word) { const [id, w] = d.word.split('.'); (sim.hmi[id] = sim.hmi[id] || {})[w] = v; }
+}
+
+// Il pannello di regolazione cambia un parametro dichiarato regolabile (process.tunable). Ritorna il valore applicato.
+export function tune(sim, name, value) {
+  const d = sim.level.process && sim.level.process.tunable && sim.level.process.tunable[name];
+  if (!d || !Number.isFinite(Number(value))) return null;
+  const v = clampTune(d, value);
+  applyTune(sim, name, v);
+  settle(sim);
+  return v;
+}
+
+// Grandezze del processo (stato e derivate) per sensori, prove e grafico.
+export const processVars = sim => (sim.process ? exposeProcess(sim.level.process, sim.process) : {});
+
+// Valore di una grandezza per il tracciato: del processo ('h'), di un PLC ('PLC.Q0', 'PLC.AQ0', 'PLC.MW1', 'PLC.AI0'),
+// di un componente ('M' motore che gira, 'H1' carico acceso, 'KM1' contattore chiuso). Booleani come 0/1.
+export function traceValue(sim, name, vars = processVars(sim)) {
+  const num = x => (typeof x === 'boolean' ? (x ? 1 : 0) : Number(x) || 0);
+  if (name in vars) return num(vars[name]);
+  const [id, k] = name.split('.');
+  const c = sim.level.comps.find(x => x.id === id);
+  const s = sim.parts[id];
+  if (!c || !s) return 0;
+  if (c.type === 'plc' && k) {
+    if (/^Q\d+$/.test(k)) return num(!!s.q[k]);
+    if (/^AQ\d+$/.test(k)) return num(s.aq[k]);
+    if (/^AI\d+$/.test(k)) return num(s.ai[k]);
+    return num(s.mem && s.mem.words ? s.mem.words[k] : s.mem && s.mem.bits ? s.mem.bits[k] : 0);
+  }
+  if (c.type === 'tx') return num(s.mA);
+  return num(s.run !== undefined ? s.run : s.on !== undefined ? s.on : s.act);
+}
+
+function recordTrace(sim) {
+  const names = sim.traceNames || (sim.level.process && sim.level.process.trace);
+  if (!names || !names.length) return;
+  const vars = processVars(sim);
+  const row = { t: sim.t };
+  names.forEach(n => (row[n] = traceValue(sim, n, vars)));
+  sim.trace.push(row);
+  if (sim.trace.length > TRACE_MAX) sim.trace.splice(0, TRACE_MAX / 2);
+}
+
+// Comandi del processo dal circuito, come frazioni 0-1 (process.js).
+function actuatorsOf(sim, an) {
+  const out = {};
+  const acts = (sim.level.process && sim.level.process.actuators) || {};
+  Object.entries(acts).forEach(([name, src]) => {
+    let v = 0;
+    if (src.motor) v = an.motors[src.motor] === 'fwd' || an.motors[src.motor] === 'rev' ? 1 : 0;
+    else if (src.load) v = an.loads[src.load] === 'on' ? 1 : 0;
+    else if (src.coil) v = sim.parts[src.coil] && sim.parts[src.coil].on ? 1 : 0;
+    else if (src.plc) { const [id, q] = src.plc.split('.'); v = sim.parts[id] && sim.parts[id].q[q] ? 1 : 0; }
+    else if (src.analog) { const [id, q] = src.analog.split('.'); v = sim.parts[id] ? (Number(sim.parts[id].aq[q]) || 0) / 100 : 0; }
+    else if (src.value !== undefined) v = src.value;
+    out[name] = v;
+  });
+  return out;
 }
 
 export function setWires(sim, wires) {
@@ -205,7 +278,25 @@ function analyse(sim, open) {
     Object.keys(c.terms).filter(t => /^I\d+$/.test(t)).forEach(t => { bits[t] = on && volt(c.id + '.' + t, c.id + '.IC') === 230; });
     plcIn[c.id] = bits;
   });
-  return { uf, pots, potAt, volt, faults, loads, coils, motors, modes, plcIn, trafoOn, burntNow, leaks };
+  // ingressi analogici (4-20 mA, simbolici): la corrente del trasmettitore se tx.+ e' sulla rete di AIk+, tx.- su quella di AIk-,
+  // il PLC e' alimentato e su quelle reti non c'e' tensione di rete. Altrimenti 0 mA (anello aperto o invertito).
+  const plcAi = {};
+  const txs = level.comps.filter(c => c.type === 'tx');
+  level.comps.filter(c => c.type === 'plc').forEach(c => {
+    const on = !!coils[c.id];
+    const ai = {};
+    Object.keys(c.terms).filter(t => /^AI\d+\+$/.test(t)).forEach(t => {
+      const k = t.slice(0, -1), plus = c.id + '.' + t, minus = c.id + '.' + k + '-';
+      let mA = 0;
+      if (on && !potAt(plus) && !potAt(minus)) {
+        const tx = txs.find(x => uf.f(x.id + '.+') === uf.f(plus) && uf.f(x.id + '.-') === uf.f(minus) && uf.f(plus) !== uf.f(minus));
+        if (tx) mA = (sim.parts[tx.id] && sim.parts[tx.id].mA) || 0;
+      }
+      ai[k] = mA;
+    });
+    plcAi[c.id] = ai;
+  });
+  return { uf, pots, potAt, volt, faults, loads, coils, motors, modes, plcIn, plcAi, trafoOn, burntNow, leaks };
 }
 
 
@@ -283,6 +374,13 @@ function protect(sim, an) {
 /* ---------- assestamento ---------- */
 
 function machineSwitches(sim) {
+  if (sim.process) {
+    const vars = processVars(sim);
+    sim.level.comps.forEach(c => {
+      if (c.type === 'sens' && c.sense) sim.parts[c.id].act = senseDigital(vars, c.sense);
+      if (c.type === 'tx' && c.sense) sim.parts[c.id].mA = senseAnalog(vars, c.sense);
+    });
+  }
   const m = sim.level.machine;
   if (!m) return;
   if (m.endFwd && sim.parts[m.endFwd]) sim.parts[m.endFwd].act = sim.pos >= m.length;
@@ -301,10 +399,11 @@ function plcScan(sim, an) {
     const s = sim.parts[c.id];
     if (!an.coils[c.id]) {
       // senza alimentazione il PLC perde memoria e uscite
-      if (Object.keys(s.q).length || s.mem) { s.q = {}; s.mem = null; s.rungs = []; s.inputs = {}; changed = true; }
+      if (Object.keys(s.q).length || s.mem) { s.q = {}; s.aq = {}; s.mem = null; s.rungs = []; s.inputs = {}; s.ai = {}; changed = true; }
       return;
     }
-    const r = scan(programOf(sim, c), an.plcIn[c.id], s.mem || newMem(), dt);
+    const r = scan(programOf(sim, c), an.plcIn[c.id], s.mem || newMem(), dt, { ...an.plcAi[c.id], ...(sim.hmi[c.id] || {}) });
+    s.aq = r.analogOut; s.ai = an.plcAi[c.id];
     let q = r.outputs;
     if (sim.forcePlc === 'allOn') q = Object.fromEntries(Object.keys(c.terms).filter(t => /^Q\d+A$/.test(t)).map(t => [t.slice(0, -1), true]));
     const same = Object.keys({ ...q, ...s.q }).every(k => !!q[k] === !!s.q[k]);
@@ -320,6 +419,7 @@ function plcScan(sim, an) {
 
 export function settle(sim) {
   const comps = sim.level.comps;
+  let plcFlips = 0;
   for (let it = 0; it < MAX_ITER; it++) {
     machineSwitches(sim);
     const an = analyse(sim);
@@ -374,10 +474,12 @@ export function settle(sim) {
     }
     if (changed) break;
     }
-    if (!changed && plcScan(sim, an)) changed = true;
-    if (!changed) { sim.unstable = false; return; }
+    if (!changed && plcScan(sim, an)) { changed = true; plcFlips++; }
+    if (!changed) { sim.unstable = false; sim.unstableCause = null; return; }
   }
+  // le uscite del PLC cambiavano di continuo: il programma si contraddice (es. Q0 comandata da "non Q0")
   sim.unstable = true;
+  sim.unstableCause = plcFlips > MAX_ITER / 4 ? 'plc' : null;
 }
 
 /* ---------- azioni ---------- */
@@ -470,8 +572,10 @@ export function advance(sim, seconds) {
       if (dir === 'fwd') sim.pos = Math.min(m.length, sim.pos + v);
       if (dir === 'rev') sim.pos = Math.max(0, sim.pos - v);
     }
+    if (sim.process) sim.process = stepProcess(sim.level.process, sim.process, actuatorsOf(sim, an), STEP);
     sim.plcDt = STEP;
     settle(sim);
+    recordTrace(sim);
   }
 }
 
@@ -479,7 +583,7 @@ export function advance(sim, seconds) {
 export function setProgram(sim, id, program) {
   sim.programs[id] = program;
   const s = sim.parts[id];
-  if (s) { s.mem = null; s.q = {}; s.rungs = []; }
+  if (s) { s.mem = null; s.q = {}; s.aq = {}; s.rungs = []; }
   settle(sim);
 }
 
@@ -501,7 +605,7 @@ function lineReport(sim, an) {
 export function observe(sim) {
   const an = analyse(sim);
   const faults = an.faults.slice();
-  if (sim.unstable) faults.push({ code: 'instabile' });
+  if (sim.unstable) faults.push(sim.unstableCause === 'plc' ? { code: 'instabile', cause: 'plc' } : { code: 'instabile' });
   if (sim.mainTrip) faults.push({ code: 'quadro', cause: sim.mainTripCause || 'corto' });
   const parts = {};
   Object.entries(sim.parts).forEach(([k, v]) => (parts[k] = { ...v }));
@@ -512,7 +616,8 @@ export function observe(sim) {
     loads: { ...an.loads, ...Object.fromEntries(Object.keys(sim.burnt).filter(id => !(id in an.loads)).map(id => [id, 'burnt'])) },
     motors: an.motors,
     modes: an.modes,
-    plc: Object.fromEntries(sim.level.comps.filter(c => c.type === 'plc').map(c => [c.id, { powered: !!an.coils[c.id], inputs: an.plcIn[c.id], q: { ...sim.parts[c.id].q }, rungs: sim.parts[c.id].rungs.slice(), bits: { ...((sim.parts[c.id].mem && sim.parts[c.id].mem.bits) || {}) }, timers: { ...((sim.parts[c.id].mem && sim.parts[c.id].mem.timers) || {}) }, counters: { ...((sim.parts[c.id].mem && sim.parts[c.id].mem.counters) || {}) } }])),
+    plc: Object.fromEntries(sim.level.comps.filter(c => c.type === 'plc').map(c => [c.id, { powered: !!an.coils[c.id], inputs: an.plcIn[c.id], ai: { ...an.plcAi[c.id] }, q: { ...sim.parts[c.id].q }, aq: { ...sim.parts[c.id].aq }, rungs: sim.parts[c.id].rungs.slice(), bits: { ...((sim.parts[c.id].mem && sim.parts[c.id].mem.bits) || {}) }, words: { ...((sim.parts[c.id].mem && sim.parts[c.id].mem.words) || {}) }, timers: { ...((sim.parts[c.id].mem && sim.parts[c.id].mem.timers) || {}) }, counters: { ...((sim.parts[c.id].mem && sim.parts[c.id].mem.counters) || {}) } }])),
+    process: sim.process ? { ...processVars(sim) } : null,
     coils: Object.fromEntries(Object.entries(an.coils).filter(([id]) => !sim.level.comps.some(c => c.id === id && c.type === 'plc'))),
     parts,
     machine: sim.level.machine ? { pos: sim.pos, atStart: sim.pos <= 0, atEnd: sim.pos >= sim.level.machine.length } : null,
