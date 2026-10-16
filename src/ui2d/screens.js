@@ -5,6 +5,7 @@ import { MODULES, UPCOMING, TRILOCALE, INTRO, GLOSSARY, LEGEND, INFO_PRIVACY, FO
 import { RANK_NAMES, STATUS_NAMES } from '../content/it.js';
 import { CONTACT_EMAIL, GAME_VERSION } from '../config.js';
 import { artHTML } from './art.js';
+import { towerSVG } from './tower.js';
 import { LANGS, hasLang, getLang } from '../i18n/index.js';
 
 export const esc = t => String(t).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -210,7 +211,7 @@ export function footerHTML() {
       }).join('');
     return items ? `<nav class="fcol" aria-label="${col.title}"><div class="ftitle">${col.title}</div>${items}</nav>` : '';
   }).join('');
-  return `<div class="fwrap"><div class="fabout"><div class="wordmark" data-notr>Fase <i>e</i> Neutro</div><p>Laboratorio di impianti elettrici per chi parte da zero.</p>${trNoteHTML()}</div><div class="fcols">${cols}</div></div>`;
+  return `<div class="fwrap"><div class="fabout"><div class="ftower">${towerSVG('profilo', { size: 110 })}<div class="wordmark" data-notr>Fase <i>e</i> Neutro</div></div><p>Laboratorio di impianti elettrici per chi parte da zero.</p>${trNoteHTML()}</div><div class="fcols">${cols}</div></div>`;
 }
 
 /* ---------- schede informative (finestre) ---------- */
