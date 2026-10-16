@@ -2,6 +2,12 @@
 // seconde previsioni. Stesso glossario di ar-38.js.
 export default {
 // intestazioni e celle di tabella
+"Rilevatore di fumo": "كاشف الدخان",
+"Sonda di allagamento": "مسبار الفيضان",
+"Tasto apriporta": "زر فتح الباب",
+"Tasto di chiamata": "زر النداء",
+"Tasto apriporta, tieni premuto": "زر فتح الباب، استمر في الضغط",
+"Tasto di chiamata, tieni premuto": "زر النداء، استمر في الضغط",
 "A che serve": "الغرض منه",
 "aperto": "مفتوح",
 "Allora": "إذن",

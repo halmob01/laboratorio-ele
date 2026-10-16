@@ -1795,9 +1795,9 @@ LEVELS_V2.push({
   comps: [
     QM,
     C('TR', 'trafo', 'Trasformatore', 'Trasformatore 230/12 V', T('1', '2', '3', '4'), { vout: 12 }),
-    C('SBC', 'pb', 'Chiamata', 'Tasto di chiamata al portone', T('3', '4')),
+    C('SBC', 'pb', 'Chiamata', 'Tasto di chiamata', T('3', '4')),
     C('B', 'bell', 'Suoneria', 'Suoneria 12 V', T('1', '2')),
-    C('SBA', 'pb', 'Apriporta', 'Tasto apriporta in casa', T('3', '4')),
+    C('SBA', 'pb', 'Apriporta', 'Tasto apriporta', T('3', '4')),
     C('SE', 'lamp', 'Serratura', 'Serratura elettrica 12 V', { B: { l: 'B' }, A: { l: 'A' } }, { volt: 12 }),
   ],
   controls: ['SBC', 'SBA'],
@@ -1831,8 +1831,8 @@ LEVELS_V2.push({
   goal: 'Il corridoio ha un sensore di luce (chiude il contatto quando è buio) e un sensore di presenza (lo chiude quando passa qualcuno). La luce deve accendersi solo se è buio e c’è qualcuno, e restare accesa 10 secondi dopo l’ultimo passaggio. I sensori non portano carico: comandano un relè temporizzato, che è l’attuatore.',
   comps: [
     QM,
-    C('CR', 'sw', 'Sensore di luce', 'Sensore di luce (chiuso al buio)', { a: { l: '1' }, b: { l: '2' } }),
-    C('PR', 'sw', 'Sensore di presenza', 'Sensore di presenza (chiuso se passa qualcuno)', { a: { l: '1' }, b: { l: '2' } }),
+    C('CR', 'sw', 'Sensore di luce', 'Sensore di luce', { a: { l: '1' }, b: { l: '2' } }),
+    C('PR', 'sw', 'Sensore di presenza', 'Sensore di presenza', { a: { l: '1' }, b: { l: '2' } }),
     C('T', 'tmr', 'Temporizzatore', 'Relè temporizzato', { A1: { l: 'A1' }, A2: { l: 'A2' }, '1': { l: '1' }, '2': { l: '2' } }, { time: 10 }),
     C('L', 'lamp', 'Corridoio', 'Lampada del corridoio', { B: { l: 'B' }, A: { l: 'A' } }),
   ],
@@ -1924,8 +1924,8 @@ LEVELS_V2.push({
   goal: 'Un rilevatore di fumo e una sonda di allagamento chiudono ciascuno un contatto. Se uno dei due scatta suona la sirena, e deve continuare a suonare anche quando il fumo o l’acqua spariscono: un allarme che si spegne da solo nasconde l’evento. Il tasto di tacitazione la ferma, ma solo se i sensori sono tornati a riposo.',
   comps: [
     QM,
-    C('S1', 'sw', 'Rilevatore fumo', 'Rilevatore di fumo (chiude se vede fumo)', { a: { l: '1' }, b: { l: '2' } }),
-    C('S2', 'sw', 'Sonda allagamento', 'Sonda di allagamento (chiude se vede acqua)', { a: { l: '1' }, b: { l: '2' } }),
+    C('S1', 'sw', 'Rilevatore fumo', 'Rilevatore di fumo', { a: { l: '1' }, b: { l: '2' } }),
+    C('S2', 'sw', 'Sonda allagamento', 'Sonda di allagamento', { a: { l: '1' }, b: { l: '2' } }),
     C('TA', 'pbnc', 'Tacitazione', 'Tasto di tacitazione (NC)', { '1': { l: '1' }, '2': { l: '2' } }),
     C('KA', 'rel', 'Relè allarme', 'Relè dell’allarme', T('A1', 'A2', '11', '12', '14')),
     C('B', 'bell', 'Sirena', 'Sirena 230 V', T('1', '2'), { volt: 230 }),
