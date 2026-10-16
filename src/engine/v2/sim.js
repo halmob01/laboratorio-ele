@@ -618,6 +618,7 @@ export function observe(sim) {
     modes: an.modes,
     plc: Object.fromEntries(sim.level.comps.filter(c => c.type === 'plc').map(c => [c.id, { powered: !!an.coils[c.id], inputs: an.plcIn[c.id], ai: { ...an.plcAi[c.id] }, q: { ...sim.parts[c.id].q }, aq: { ...sim.parts[c.id].aq }, rungs: sim.parts[c.id].rungs.slice(), bits: { ...((sim.parts[c.id].mem && sim.parts[c.id].mem.bits) || {}) }, words: { ...((sim.parts[c.id].mem && sim.parts[c.id].mem.words) || {}) }, timers: { ...((sim.parts[c.id].mem && sim.parts[c.id].mem.timers) || {}) }, counters: { ...((sim.parts[c.id].mem && sim.parts[c.id].mem.counters) || {}) } }])),
     process: sim.process ? { ...processVars(sim) } : null,
+    processAct: sim.process ? actuatorsOf(sim, an) : null,   // comandi che il processo sta ricevendo (0-1), per il disegno
     coils: Object.fromEntries(Object.entries(an.coils).filter(([id]) => !sim.level.comps.some(c => c.id === id && c.type === 'plc'))),
     parts,
     machine: sim.level.machine ? { pos: sim.pos, atStart: sim.pos <= 0, atEnd: sim.pos >= sim.level.machine.length } : null,

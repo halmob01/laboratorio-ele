@@ -904,3 +904,14 @@ html[dir="rtl"] .phud,html[dir="rtl"] .psheet,html[dir="rtl"] .pintro,html[dir="
   .msc-rooms{max-width:none}
 }
 @media (prefers-reduced-motion:reduce){.msc-scene img{transition:none}.msc:hover .msc-scene img{transform:scale(1.02)}}
+
+/* pannello del processo (serbatoio, forno, nastro): scena, grafico, cursori */
+.proccard{display:flex;flex-direction:column;gap:8px}
+.proccard[hidden]{display:none}
+svg.procscene{display:block;width:100%;max-width:520px;height:auto;margin:0 auto}
+svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto}
+.procsliders{display:flex;flex-direction:column;gap:10px;margin-top:4px}
+.procsl{display:grid;grid-template-columns:minmax(90px,1fr) 3fr minmax(56px,auto);align-items:center;gap:10px;font:500 14px 'IBM Plex Sans',sans-serif}
+.procsl input[type=range]{width:100%;min-height:44px}
+.procsl output{font:600 14px 'IBM Plex Mono',monospace;text-align:right}
+.work .proccard{order:2}

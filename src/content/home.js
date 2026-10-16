@@ -67,7 +67,7 @@ export const MODULES = [
       'c25-fungo',
       'c26-rele-sicurezza',
       'c27-portella',
-      { soon: true, title: 'Il sensore 4-20 mA', blurb: 'Perché 4 e non 0: il filo interrotto si riconosce.' },
+      'c33-sensore',
       { soon: true, title: 'Il variatore', blurb: 'Frequenza e velocità, con le rampe.' },
       { soon: true, title: 'Il serbatoio', blurb: 'Due soglie e l’isteresi.' },
       { soon: true, title: 'Il PID', blurb: 'P, I e D con i cursori e il grafico.' },

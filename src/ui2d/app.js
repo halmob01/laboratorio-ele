@@ -11,6 +11,7 @@ const colsFor = lv => (!MQ.matches && lv.engine === 2 && lv.comps.length >= 5 ? 
 import * as R from './render.js';
 import * as V from './screens.js';
 import { ladderHTML, editorPanelHTML } from './ladder.js';
+import { processSync } from './process.js';
 import { addRung, removeRung, moveRung, addContact, setContact, removeContact, addParallel, addOut, setOut, removeOut, toCells, addressesFor } from '../engine/ladder-edit.js';
 import { validateProgram } from '../engine/v2/plc.js';
 import { INTRO } from '../content/home.js';
@@ -229,6 +230,7 @@ function renderLevelScreen() {
   mp.innerHTML = S.meter && S.meter.on ? R.meterHTML(S.meter, t => termName(S.level, t)) : '';
   renderBench();
   renderLadder();
+  processSync($('#process'), S);
   renderStatus();
   renderResult();
 }
@@ -500,6 +502,7 @@ bench.addEventListener('keydown', e => {
   const q = e.target.closest('[data-q]'); if (q) { e.preventDefault(); session.toggleBreaker(); return; }
   const h = e.target.closest('[data-help]'); if (h) { e.preventDefault(); setInfo(h.dataset.help); }
 });
+$('#process').addEventListener('input', e => { const t = e.target.closest('[data-tune]'); if (t) session.tune(t.dataset.tune, Number(t.value)); });
 document.addEventListener('click', e => { if (e.target.closest('[data-overload]')) session.setOverload(!S.overload); });
 document.addEventListener('click', e => { if (e.target.closest('[data-rewind]')) session.rewind(); });
 $('#room').addEventListener('click', e => { const c = e.target.closest('[data-ctl]'); if (c) session.toggleControl(c.dataset.ctl); });

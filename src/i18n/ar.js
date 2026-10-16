@@ -25,6 +25,7 @@ import p21 from './ar-21.js';
 import p22 from './ar-22.js';
 import p23 from './ar-23.js';
 import p24 from './ar-24.js';
+import p25 from './ar-25.js';
 
 const ROLE = { 'del neutro': 'المحايد', 'di terra': 'الأرضي', 'di fase': 'الطور', 'a bassa tensione': 'الجهد المنخفض', 'di comando': 'التحكم' };
 const COLORI = { 'blu': 'أزرق', 'giallo-verde': 'أصفر-أخضر', 'marrone, nero o grigio': 'بنيًّا أو أسود أو رماديًّا', 'rosso, marrone, nero o grigio': 'أحمر أو بنيًّا أو أسود أو رماديًّا', 'di un colore diverso da blu e giallo-verde': 'بلون مختلف عن الأزرق والأصفر-الأخضر' };
@@ -33,6 +34,17 @@ const cap = s => s[0].toUpperCase() + s.slice(1);
 const PAT = [
   [/^Casa vista dall’alto\. Stanze con la luce accesa: (.+)$/, (m, t) => `منزل من الأعلى. الغرف المضاءة: ${m[1].split(', ').map(x => t(x)).join('، ')}`],
   [/^[\d,.]+ kWh$/, m => iso(m[0])],
+  // pannello del processo (serbatoio, forno, nastro): valori che cambiano a ogni istante
+  [/^livello ([\d,.]+) %$/, m => `المستوى ${iso(m[1])}٪`],
+  [/^([\d,.]+) %$/, m => `${iso(m[1])}٪`],
+  [/^trasmette ([\d,.]+) mA$/, m => `يرسل ${iso(m[1])} ميلي أمبير`],
+  [/^([\d,.]+) mA$/, m => `${iso(m[1])} ميلي أمبير`],
+  [/^tempo × (\d+)$/, m => `الزمن × ${iso(m[1])}`],
+  [/^([\d,.-]+) °C$/, m => `${iso(m[1])} °م`],
+  [/^([\d,.]+) Hz$/, m => `${iso(m[1])} هرتز`],
+  [/^velocità ([\d,.]+) % della nominale$/, m => `السرعة ${iso(m[1])}٪ من الاسمية`],
+  [/^resistenza ([\d,.]+) %$/, m => `المقاومة ${iso(m[1])}٪`],
+  [/^resistenza (accesa|spenta)$/, m => (m[1] === 'accesa' ? 'المقاومة تعمل' : 'المقاومة متوقفة')],
   [/^(\d+) di (\d+) completati$/, m => `اكتمل ${iso(m[1])} من ${iso(m[2])}`],
   [/^(\d+) di (\d+)$/, m => `${iso(m[1])} من ${iso(m[2])}`],
   [/^(\d+) \/ (\d+)$/, m => `${iso(m[1])} / ${iso(m[2])}`],
@@ -96,4 +108,4 @@ const PAT = [
   [/^Protezioni scattate: (.+)\.$/, (m, t) => `حمايات فصلت: ${t(m[1])}.`],
 ];
 
-registerLang('ar', { ...p1, ...p2, ...p3, ...p4, ...p5, ...p6, ...p7, ...p8, ...p9, ...p10, ...p11, ...p12, ...p13, ...p14, ...p15, ...p16, ...p17, ...p18, ...p19, ...p20, ...p21, ...p22, ...p23, ...p24 }, PAT);
+registerLang('ar', { ...p1, ...p2, ...p3, ...p4, ...p5, ...p6, ...p7, ...p8, ...p9, ...p10, ...p11, ...p12, ...p13, ...p14, ...p15, ...p16, ...p17, ...p18, ...p19, ...p20, ...p21, ...p22, ...p23, ...p24, ...p25 }, PAT);

@@ -914,6 +914,17 @@ html[dir="rtl"] .phud,html[dir="rtl"] .psheet,html[dir="rtl"] .pintro,html[dir="
   .msc-rooms{max-width:none}
 }
 @media (prefers-reduced-motion:reduce){.msc-scene img{transition:none}.msc:hover .msc-scene img{transform:scale(1.02)}}
+
+/* pannello del processo (serbatoio, forno, nastro): scena, grafico, cursori */
+.proccard{display:flex;flex-direction:column;gap:8px}
+.proccard[hidden]{display:none}
+svg.procscene{display:block;width:100%;max-width:520px;height:auto;margin:0 auto}
+svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto}
+.procsliders{display:flex;flex-direction:column;gap:10px;margin-top:4px}
+.procsl{display:grid;grid-template-columns:minmax(90px,1fr) 3fr minmax(56px,auto);align-items:center;gap:10px;font:500 14px 'IBM Plex Sans',sans-serif}
+.procsl input[type=range]{width:100%;min-height:44px}
+.procsl output{font:600 14px 'IBM Plex Mono',monospace;text-align:right}
+.work .proccard{order:2}
 </style>
 </head>
 <body>
@@ -959,6 +970,7 @@ html[dir="rtl"] .phud,html[dir="rtl"] .psheet,html[dir="rtl"] .pintro,html[dir="
           </div>
         </div>
         <div class="card ladcard" id="ladder" hidden></div>
+        <div class="card ladcard proccard" id="process" hidden></div>
         <div class="card res" id="result" aria-live="polite"></div>
         <div class="card roomcard">
           <div class="roomhead"><span>La stanza</span></div>
@@ -1405,18 +1417,18 @@ html[dir="rtl"] .phud,html[dir="rtl"] .psheet,html[dir="rtl"] .pintro,html[dir="
     if (data.v >= PROGRESS_VERSION) {
       const out2 = emptyProgress();
       const isObj = (o) => o && typeof o === "object" && !Array.isArray(o);
-      const num = (x, max) => {
+      const num2 = (x, max) => {
         const n = Math.floor(Number(x));
         return n >= 0 ? Math.min(n, max) : 0;
       };
       if (isObj(data.stars)) Object.keys(data.stars).forEach((k) => {
-        out2.stars[k] = num(data.stars[k], 3);
+        out2.stars[k] = num2(data.stars[k], 3);
       });
       if (isObj(data.best)) {
         Object.keys(data.best).forEach((k) => {
           const r = data.best[k];
           if (!isObj(r)) return;
-          out2.best[k] = { base: num(r.base, 110), pred: r.pred === true, fault: r.fault === true, skipped: r.skipped === true };
+          out2.best[k] = { base: num2(r.base, 110), pred: r.pred === true, fault: r.fault === true, skipped: r.skipped === true };
         });
       }
       out2.last = typeof data.last === "string" ? data.last : null;
@@ -1757,8 +1769,8 @@ html[dir="rtl"] .phud,html[dir="rtl"] .psheet,html[dir="rtl"] .pintro,html[dir="
   function sanitizeProgram(program) {
     const addr = (a) => typeof a === "string" && ADDR.test(a) ? a : null;
     const word = (a) => typeof a === "string" && WORD.test(a) ? a : null;
-    const num = (v) => isNum(v) && Math.abs(v) <= 1e6 ? v : null;
-    const operand = (v) => isNum(v) ? num(v) : word(v);
+    const num2 = (v) => isNum(v) && Math.abs(v) <= 1e6 ? v : null;
+    const operand = (v) => isNum(v) ? num2(v) : word(v);
     const expr = (e, depth = 0) => {
       if (depth > 4) return null;
       if (typeof e === "string") return addr(e);
@@ -1778,11 +1790,11 @@ html[dir="rtl"] .phud,html[dir="rtl"] .psheet,html[dir="rtl"] .pintro,html[dir="
       if (i.op === "ctu") return /^C\d{1,2}$/.test(i.id) && i.pv > 0 && i.pv <= 999 ? { op: "ctu", id: i.id, pv: Math.floor(Number(i.pv)), ...addr(i.r) ? { r: i.r } : {} } : null;
       const wout = (a) => typeof a === "string" && /^(AQ|MW)\d{1,2}$/.test(a) ? a : null;
       if (i.op === "move") return operand(i.v) !== null && wout(i.out) ? { op: "move", v: i.v, out: i.out } : null;
-      if (i.op === "scale") return /^AI\d{1,2}$/.test(i.in) && wout(i.out) && num(i.lo) !== null && num(i.hi) !== null ? { op: "scale", in: i.in, out: i.out, lo: i.lo, hi: i.hi } : null;
+      if (i.op === "scale") return /^AI\d{1,2}$/.test(i.in) && wout(i.out) && num2(i.lo) !== null && num2(i.hi) !== null ? { op: "scale", in: i.in, out: i.out, lo: i.lo, hi: i.hi } : null;
       if (i.op === "pid") {
-        const gain = (v, pos) => isNum(v) ? pos ? num(v) > 0 : num(v) >= 0 : word(v) !== null;
+        const gain = (v, pos) => isNum(v) ? pos ? num2(v) > 0 : num2(v) >= 0 : word(v) !== null;
         if (operand(i.pv) === null || operand(i.sp) === null || !wout(i.out) || !gain(i.kp, true) || !gain(i.ti ?? 0) || !gain(i.td ?? 0)) return null;
-        return { op: "pid", id: typeof i.id === "string" && /^PID\d$/.test(i.id) ? i.id : i.out, pv: i.pv, sp: i.sp, out: i.out, kp: i.kp, ti: i.ti ?? 0, td: i.td ?? 0, ...num(i.lo) !== null ? { lo: i.lo } : {}, ...num(i.hi) !== null ? { hi: i.hi } : {}, ...i.windup === true ? { windup: true } : {} };
+        return { op: "pid", id: typeof i.id === "string" && /^PID\d$/.test(i.id) ? i.id : i.out, pv: i.pv, sp: i.sp, out: i.out, kp: i.kp, ti: i.ti ?? 0, td: i.td ?? 0, ...num2(i.lo) !== null ? { lo: i.lo } : {}, ...num2(i.hi) !== null ? { hi: i.hi } : {}, ...i.windup === true ? { windup: true } : {} };
       }
       return null;
     };
@@ -1964,20 +1976,20 @@ html[dir="rtl"] .phud,html[dir="rtl"] .psheet,html[dir="rtl"] .pintro,html[dir="
   }
   var processVars = (sim) => sim.process ? exposeProcess(sim.level.process, sim.process) : {};
   function traceValue(sim, name, vars = processVars(sim)) {
-    const num = (x) => typeof x === "boolean" ? x ? 1 : 0 : Number(x) || 0;
-    if (name in vars) return num(vars[name]);
+    const num2 = (x) => typeof x === "boolean" ? x ? 1 : 0 : Number(x) || 0;
+    if (name in vars) return num2(vars[name]);
     const [id, k] = name.split(".");
     const c2 = sim.level.comps.find((x) => x.id === id);
     const s = sim.parts[id];
     if (!c2 || !s) return 0;
     if (c2.type === "plc" && k) {
-      if (/^Q\d+$/.test(k)) return num(!!s.q[k]);
-      if (/^AQ\d+$/.test(k)) return num(s.aq[k]);
-      if (/^AI\d+$/.test(k)) return num(s.ai[k]);
-      return num(s.mem && s.mem.words ? s.mem.words[k] : s.mem && s.mem.bits ? s.mem.bits[k] : 0);
+      if (/^Q\d+$/.test(k)) return num2(!!s.q[k]);
+      if (/^AQ\d+$/.test(k)) return num2(s.aq[k]);
+      if (/^AI\d+$/.test(k)) return num2(s.ai[k]);
+      return num2(s.mem && s.mem.words ? s.mem.words[k] : s.mem && s.mem.bits ? s.mem.bits[k] : 0);
     }
-    if (c2.type === "tx") return num(s.mA);
-    return num(s.run !== void 0 ? s.run : s.on !== void 0 ? s.on : s.act);
+    if (c2.type === "tx") return num2(s.mA);
+    return num2(s.run !== void 0 ? s.run : s.on !== void 0 ? s.on : s.act);
   }
   function recordTrace(sim) {
     const names = sim.traceNames || sim.level.process && sim.level.process.trace;
@@ -2524,6 +2536,8 @@ html[dir="rtl"] .phud,html[dir="rtl"] .psheet,html[dir="rtl"] .pintro,html[dir="
       modes: an.modes,
       plc: Object.fromEntries(sim.level.comps.filter((c2) => c2.type === "plc").map((c2) => [c2.id, { powered: !!an.coils[c2.id], inputs: an.plcIn[c2.id], ai: { ...an.plcAi[c2.id] }, q: { ...sim.parts[c2.id].q }, aq: { ...sim.parts[c2.id].aq }, rungs: sim.parts[c2.id].rungs.slice(), bits: { ...sim.parts[c2.id].mem && sim.parts[c2.id].mem.bits || {} }, words: { ...sim.parts[c2.id].mem && sim.parts[c2.id].mem.words || {} }, timers: { ...sim.parts[c2.id].mem && sim.parts[c2.id].mem.timers || {} }, counters: { ...sim.parts[c2.id].mem && sim.parts[c2.id].mem.counters || {} } }])),
       process: sim.process ? { ...processVars(sim) } : null,
+      processAct: sim.process ? actuatorsOf(sim, an) : null,
+      // comandi che il processo sta ricevendo (0-1), per il disegno
       coils: Object.fromEntries(Object.entries(an.coils).filter(([id]) => !sim.level.comps.some((c2) => c2.id === id && c2.type === "plc"))),
       parts,
       machine: sim.level.machine ? { pos: sim.pos, atStart: sim.pos <= 0, atEnd: sim.pos >= sim.level.machine.length } : null,
@@ -2753,7 +2767,7 @@ html[dir="rtl"] .phud,html[dir="rtl"] .psheet,html[dir="rtl"] .pintro,html[dir="
     }
     return { ok: true, sim, states };
   }
-  var CTL_TYPES = /* @__PURE__ */ new Set(["pb", "pbnc", "fungo", "port", "spia", "fc", "ri", "tmr", "kt", "rs", "plc", "sens", "tx"]);
+  var CTL_TYPES = /* @__PURE__ */ new Set(["pb", "pbnc", "fungo", "port", "spia", "fc", "ri", "tmr", "kt", "rs", "plc", "sens", "tx", "sw"]);
   function isCtlTerm(level, term2) {
     const [id, t] = term2.split(".");
     const c2 = level.comps.find((x) => x.id === id);
@@ -6468,6 +6482,80 @@ html[dir="rtl"] .phud,html[dir="rtl"] .psheet,html[dir="rtl"] .pintro,html[dir="
       "La spia Q1 segue il contatore: contatto C1 e bobina Q1."
     ]
   });
+  var W33_FIXED = [
+    ["Q.L1", "PLC.A1", "rosso"],
+    ["PLC.A2", "Q.N", "blu"],
+    ["PLC.IC", "Q.N", "blu"],
+    ["Q.L1", "SA.a", "rosso"],
+    ["SA.b", "PLC.I0", "rosso"],
+    ["Q.L1", "PLC.Q0A", "rosso"],
+    ["PLC.Q0B", "HP.X1", "rosso"],
+    ["HP.X2", "Q.N", "blu"]
+  ];
+  var W33_LOOP = [["TT.+", "PLC.AI0+", "rosso"], ["TT.-", "PLC.AI0-", "rosso"]];
+  var W33_LAMPS = [
+    ["Q.L1", "PLC.Q1A", "rosso"],
+    ["PLC.Q1B", "HH.X1", "rosso"],
+    ["HH.X2", "Q.N", "blu"],
+    ["Q.L1", "PLC.Q2A", "rosso"],
+    ["PLC.Q2B", "HF.X1", "rosso"],
+    ["HF.X2", "Q.N", "blu"]
+  ];
+  LEVELS_V2.push({
+    id: "c33-sensore",
+    code: "c33",
+    n: 0,
+    ...IND,
+    flow: "onDemand",
+    name: "Il sensore 4-20 mA",
+    title: "Il sensore 4-20 mA",
+    blurb: "Il livello del serbatoio arriva al PLC come una corrente: 4 mA vuoto, 20 mA pieno. Sotto 4 mA il filo \xE8 interrotto.",
+    goal: "Un serbatoio ha un trasmettitore di livello 4-20 mA. Il PLC \xE8 gi\xE0 alimentato e comanda la pompa con l\u2019interruttore. Cabla l\u2019anello di corrente dal trasmettitore all\u2019ingresso analogico AI0 (il + al +, il \u2212 al \u2212) e le due lampade: Q1 \u201CLivello alto\u201D (sopra l\u201980 %) e Q2 \u201CGuasto sensore\u201D (corrente sotto 3,6 mA). Il programma \xE8 gi\xE0 scritto.",
+    fixed: W33_FIXED,
+    comps: [
+      Q3,
+      C("PLC", "plc", "PLC", "PLC con un ingresso analogico", T("A1", "A2", "I0", "IC", "AI0+", "AI0-", "Q0A", "Q0B", "Q1A", "Q1B", "Q2A", "Q2B"), {
+        program: [
+          { if: "I0", do: [{ op: "coil", a: "Q0" }] },
+          { if: ["ge", "AI0", 3.6], do: [{ op: "scale", in: "AI0", out: "MW0", lo: 0, hi: 100 }] },
+          { if: ["and", ["ge", "AI0", 3.6], ["gt", "MW0", 80]], do: [{ op: "coil", a: "Q1" }] },
+          { if: ["lt", "AI0", 3.6], do: [{ op: "coil", a: "Q2" }] }
+        ],
+        symbols: { I0: "Pompa", Q0: "Pompa", Q1: "Livello alto", Q2: "Guasto sensore", AI0: "Livello (mA)", MW0: "Livello (%)" }
+      }),
+      C("TT", "tx", "Trasmettitore", "Trasmettitore di livello 4-20 mA", T("+", "-"), { sense: { v: "h", lo: 0, hi: 100 } }),
+      C("SA", "sw", "Pompa", "Interruttore della pompa", T("a", "b")),
+      C("HP", "spia", "Pompa", "Pompa in marcia", T("X1", "X2")),
+      C("HH", "spia", "Livello alto", "Lampada di livello alto", T("X1", "X2")),
+      C("HF", "spia", "Guasto sensore", "Lampada di guasto del sensore", T("X1", "X2"))
+    ],
+    controls: ["SA"],
+    process: {
+      model: "serbatoio",
+      title: "Il serbatoio",
+      alt: "Serbatoio con la pompa e il livello",
+      params: { qIn: 36, qOut: 12 },
+      init: { h: 30 },
+      speed: 20,
+      actuators: { pump: { load: "HP" }, valve: { value: 1 } },
+      trace: ["h"],
+      labels: { h: "Il livello" },
+      graph: { vars: [{ v: "h", label: "Livello %", lo: 0, hi: 100 }], window: 300, lines: [{ value: 80, label: "livello alto" }] }
+    },
+    demoDo: [{ do: ["toggle SA"], say: "" }],
+    checks: [
+      { id: "riposo", label: "Serbatoio a met\xE0 e pompa ferma: nessuna lampada di allarme", do: [], expect: { loads: { HH: "off", HF: "off", HP: "off" }, process: { h: [29, 31] } } },
+      { id: "pieno", label: "Accendi la pompa: il livello sale e sopra l\u201980 % si accende \u201CLivello alto\u201D", do: ["toggle SA", "wait 200"], expect: { loads: { HP: "on", HH: "on", HF: "off" }, process: { h: [95, 100] } } },
+      { id: "sale", label: "Il trasmettitore segue il livello: dopo 60 secondi di pompa non c\u2019\xE8 ancora l\u2019allarme", do: ["toggle SA", "wait 60"], expect: { loads: { HH: "off", HF: "off" } } }
+    ],
+    safety: { coilReturn: ["PLC"] },
+    solution: W33_FIXED.concat(W33_LOOP, W33_LAMPS),
+    hints: [
+      "Il trasmettitore ha due morsetti, + e \u2212. L\u2019ingresso analogico AI0 ha lo stesso: AI0+ e AI0\u2212. Il + va al +, il \u2212 va al \u2212.",
+      "Se i due fili sono scambiati il PLC legge 0 mA, come se il filo fosse staccato: si accende il guasto sensore.",
+      "Le lampade sono carichi comandati da un\u2019uscita a rel\xE8: la fase entra in QnA, esce da QnB e va alla lampada; l\u2019altro capo va al neutro."
+    ]
+  });
 
   // src/content/units-v2.js
   var UNITS_V2 = {
@@ -9639,6 +9727,125 @@ html[dir="rtl"] .phud,html[dir="rtl"] .psheet,html[dir="rtl"] .pintro,html[dir="
         },
         fixSay: "Nel gradino del nastro aggiungi in serie il contatto I3 (Sicurezze), normalmente aperto. Poi premi Verifica."
       }
+    },
+    "c33-sensore": {
+      support: "passi",
+      lesson: {
+        pages: [
+          {
+            type: "spiegazione",
+            title: "Misurare il livello di un serbatoio",
+            paras: [
+              "Un serbatoio si riempie e si svuota, e il PLC deve sapere quanto \xE8 pieno per decidere quando accendere la pompa o dare un allarme. Un trasmettitore di livello \xE8 un sensore che trasforma il livello in un segnale elettrico.",
+              "Finora gli ingressi del PLC erano acceso o spento: un pulsante, una fotocellula. Un livello invece \xE8 un numero: 30 %, 54 %, 80 %. Serve un ingresso analogico, che legge un valore e non solo un s\xEC o un no."
+            ]
+          },
+          {
+            type: "spiegazione",
+            title: "Perch\xE9 una corrente e non una tensione",
+            paras: [
+              "Il segnale pi\xF9 usato nell\u2019industria \xE8 una corrente tra 4 e 20 milliampere. Si usa la corrente perch\xE9 in un anello in serie la corrente \xE8 la stessa in ogni punto del filo: la lunghezza del cavo, o la resistenza di un morsetto un po\u2019 ossidato, non la cambia. Una tensione invece cala lungo il cavo e i disturbi dei motori vicini la deformano.",
+              "Per questo il trasmettitore e l\u2019ingresso analogico stanno in un anello: un filo parte dal pi\xF9 (+) del trasmettitore e arriva a AI0+, un altro torna da AI0\u2212 al meno (\u2212) del trasmettitore. Il trasmettitore regola la corrente che passa nell\u2019anello in base al livello."
+            ]
+          },
+          {
+            type: "spiegazione",
+            title: "Perch\xE9 4 e non 0",
+            paras: [
+              "Il livello vuoto vale 4 mA, non 0, e il pieno 20 mA. Sembra strano, ma \xE8 il punto pi\xF9 importante. Se il vuoto fosse 0 mA, un filo staccato e un serbatoio vuoto darebbero lo stesso valore, e il PLC non potrebbe distinguerli.",
+              "Con 4 mA come minimo, una corrente sotto 4 mA non pu\xF2 essere una misura: vuol dire che il filo \xE8 interrotto, che l\u2019anello ha la polarit\xE0 invertita o che il trasmettitore \xE8 guasto. Il programma pu\xF2 accorgersene e dare l\u2019allarme invece di credere che il serbatoio sia vuoto."
+            ],
+            table: {
+              head: ["Corrente", "Che cosa vuol dire"],
+              rows: [
+                ["0 mA", "anello aperto o polarit\xE0 invertita: guasto"],
+                ["4 mA", "serbatoio vuoto (0 %)"],
+                ["12 mA", "serbatoio a met\xE0 (50 %)"],
+                ["20 mA", "serbatoio pieno (100 %)"]
+              ]
+            }
+          },
+          {
+            type: "spiegazione",
+            title: "Come lo legge il programma",
+            paras: [
+              "Il PLC converte la corrente in un numero: AI0 vale i milliampere dell\u2019anello. L\u2019istruzione SCALE trasforma da 4-20 mA in una scala che serve a noi, qui 0-100 %, e mette il risultato nella parola MW0. Poi basta confrontare: se MW0 \xE8 maggiore di 80 si accende la lampada di livello alto.",
+              "Guarda il programma sotto il banco. Il gradino 4 non guarda il livello ma la corrente: se AI0 \xE8 minore di 3,6 mA accende la lampada di guasto. La soglia \xE8 un po\u2019 sotto i 4 mA, cos\xEC una misura di serbatoio vuoto, che con piccoli errori pu\xF2 valere 3,9 mA, non d\xE0 un falso allarme."
+            ],
+            warn: "Le lampade non sono collegate ai loro morsetti: le cabli tu. Il PLC fa solo da interruttore, la tensione la porti con il filo."
+          },
+          {
+            type: "previsione",
+            question: "Il serbatoio \xE8 pieno a met\xE0. Quanti milliampere trasmette il sensore?",
+            options: [
+              { id: "a", text: "10 mA, la met\xE0 di 20." },
+              { id: "b", text: "12 mA: da 4 a 20 ci sono 16 mA, la met\xE0 \xE8 8 pi\xF9 4." },
+              { id: "c", text: "2 mA." }
+            ],
+            correct: "b",
+            why: "Il segnale parte da 4 mA, non da 0: la scala \xE8 lunga 16 mA. A met\xE0 si somma met\xE0 della scala (8 mA) ai 4 mA di partenza."
+          },
+          {
+            type: "previsione",
+            question: "Un filo dell\u2019anello si stacca mentre il serbatoio \xE8 a met\xE0. Che cosa legge il PLC?",
+            options: [
+              { id: "a", text: "12 mA, il livello non \xE8 cambiato." },
+              { id: "b", text: "4 mA: sembra un serbatoio vuoto." },
+              { id: "c", text: "0 mA: sotto i 4 mA non pu\xF2 essere una misura, \xE8 un guasto." }
+            ],
+            correct: "c",
+            why: "Se l\u2019anello \xE8 aperto non passa corrente. Zero milliampere \xE8 fuori scala: il programma lo vede (AI0 sotto 3,6 mA) e accende la lampada di guasto invece di far credere che il serbatoio sia vuoto."
+          },
+          { type: "sintesi", title: "Da ricordare" }
+        ]
+      },
+      steps: [
+        { kind: "wire", from: "TT.+", to: ["PLC.AI0+"], color: "rosso", short: "1 Il pi\xF9", title: "Il + del trasmettitore a AI0+", text: "Un filo rosso dal morsetto + del trasmettitore al morsetto AI0+ del PLC. Perch\xE9: la corrente esce dal + del trasmettitore, attraversa l\u2019ingresso e deve rientrare dal lato giusto." },
+        { kind: "wire", from: "TT.-", to: ["PLC.AI0-"], color: "rosso", short: "2 Il meno", title: "Il \u2212 del trasmettitore a AI0\u2212", text: "Un filo rosso dal morsetto \u2212 del trasmettitore al morsetto AI0\u2212 del PLC. Perch\xE9: chiude l\u2019anello. Se li scambi il PLC legge 0 mA, come con un filo staccato." },
+        { kind: "wire", from: "PLC.Q1B", to: ["HH.X1"], color: "rosso", short: "3 Livello alto", title: "Q1 alla lampada di livello alto", text: "La fase entra in Q1A, esce da Q1B e va alla lampada \u201CLivello alto\u201D. L\u2019altro capo della lampada va al neutro. Perch\xE9: l\u2019uscita \xE8 solo un contatto, la tensione la porti tu." },
+        { kind: "wire", from: "PLC.Q2B", to: ["HF.X1"], color: "rosso", short: "4 Guasto sensore", title: "Q2 alla lampada di guasto", text: "Lo stesso con Q2A, Q2B e la lampada \u201CGuasto sensore\u201D, con l\u2019altro capo al neutro. Perch\xE9: il guasto del sensore ha una sua segnalazione, diversa dal livello alto." },
+        { kind: "control", id: "SA", short: "5 Prova", title: "Riempi il serbatoio", text: "Tocca l\u2019interruttore della pompa e guarda il livello salire nel grafico (il tempo corre 20 volte pi\xF9 veloce). Sopra l\u201980 % si accende \u201CLivello alto\u201D." },
+        { kind: "verify", short: "6 Verifica", title: "Controlla l\u2019impianto", text: "Premi Verifica." }
+      ],
+      summary: [
+        "Un trasmettitore 4-20 mA trasforma una grandezza (qui il livello) in una corrente: 4 mA al minimo, 20 mA al massimo.",
+        "La corrente \xE8 la stessa in tutto l\u2019anello: non dipende dalla lunghezza del cavo e subisce meno i disturbi di una tensione.",
+        "Il minimo \xE8 4 mA e non 0 perch\xE9 sotto 4 mA il PLC capisce che c\u2019\xE8 un guasto (filo interrotto, polarit\xE0 invertita) e non scambia il guasto per un serbatoio vuoto.",
+        "SCALE converte i milliampere in una scala utile (0-100 %); un confronto sulla corrente grezza (AI0 sotto 3,6 mA) segnala il guasto.",
+        "La polarit\xE0 conta: + con + e \u2212 con \u2212. Scambiati danno 0 mA."
+      ],
+      fault: {
+        say: "Il serbatoio \xE8 a met\xE0 e la pompa \xE8 ferma, ma la lampada \u201CGuasto sensore\u201D \xE8 accesa. Il sensore funziona. Guarda i fili dell\u2019anello.",
+        wires: [
+          ["Q.L1", "PLC.A1", "rosso"],
+          ["PLC.A2", "Q.N", "blu"],
+          ["PLC.IC", "Q.N", "blu"],
+          ["Q.L1", "SA.a", "rosso"],
+          ["SA.b", "PLC.I0", "rosso"],
+          ["Q.L1", "PLC.Q0A", "rosso"],
+          ["PLC.Q0B", "HP.X1", "rosso"],
+          ["HP.X2", "Q.N", "blu"],
+          ["TT.+", "PLC.AI0-", "rosso"],
+          ["TT.-", "PLC.AI0+", "rosso"],
+          ["Q.L1", "PLC.Q1A", "rosso"],
+          ["PLC.Q1B", "HH.X1", "rosso"],
+          ["HH.X2", "Q.N", "blu"],
+          ["Q.L1", "PLC.Q2A", "rosso"],
+          ["PLC.Q2B", "HF.X1", "rosso"],
+          ["HF.X2", "Q.N", "blu"]
+        ],
+        diagnosis: {
+          question: "Perch\xE9 si accende il guasto sensore se il sensore \xE8 sano?",
+          options: [
+            { id: "a", text: "I due fili dell\u2019anello sono scambiati: il PLC legge 0 mA, come con un filo interrotto." },
+            { id: "b", text: "Il serbatoio \xE8 vuoto." },
+            { id: "c", text: "Il programma del PLC \xE8 sbagliato." }
+          ],
+          correct: "a",
+          why: "La corrente 4-20 mA ha un verso: esce dal + del trasmettitore e deve entrare in AI0+. Con i fili scambiati l\u2019anello non funziona e il PLC legge 0 mA. Il programma fa il suo lavoro: sotto 3,6 mA \xE8 un guasto, e lo segnala."
+        },
+        fixSay: "Scambia i due fili dell\u2019anello: il + del trasmettitore va a AI0+, il \u2212 va a AI0\u2212. Poi premi Verifica."
+      }
     }
   };
 
@@ -10170,7 +10377,7 @@ html[dir="rtl"] .phud,html[dir="rtl"] .psheet,html[dir="rtl"] .pintro,html[dir="
         "c25-fungo",
         "c26-rele-sicurezza",
         "c27-portella",
-        { soon: true, title: "Il sensore 4-20 mA", blurb: "Perch\xE9 4 e non 0: il filo interrotto si riconosce." },
+        "c33-sensore",
         { soon: true, title: "Il variatore", blurb: "Frequenza e velocit\xE0, con le rampe." },
         { soon: true, title: "Il serbatoio", blurb: "Due soglie e l\u2019isteresi." },
         { soon: true, title: "Il PID", blurb: "P, I e D con i cursori e il grafico." },
@@ -10363,10 +10570,12 @@ html[dir="rtl"] .phud,html[dir="rtl"] .psheet,html[dir="rtl"] .pintro,html[dir="
     gu: [HALF, 112, [], []],
     rel: [HALF, 150, ["A1", "A2", "11"], ["12", "14"]],
     kt: [HALF, 150, ["A1", "A2", "15"], ["16", "18"]],
-    plc: [FULL, 200, ["A1", "A2", "I0", "I1", "I2", "I3", "IC"], ["Q0A", "Q0B", "Q1A", "Q1B", "Q2A", "Q2B"]],
+    plc: [FULL, 200, ["A1", "A2", "I0", "I1", "I2", "I3", "IC", "AI0+", "AI0-", "AI1+", "AI1-"], ["Q0A", "Q0B", "Q1A", "Q1B", "Q2A", "Q2B"]],
     km: [FULL, 190, ["A1", "1", "3", "5", "13", "21"], ["A2", "2", "4", "6", "14", "22"]],
     ft: [FULL, 150, ["1", "3", "5", "95", "97"], ["2", "4", "6", "96", "98"], 0.3],
     fc: [HALF, 110, ["1", "3"], ["2", "4"]],
+    sens: [HALF, 130, ["1", "3"], ["2", "4"]],
+    tx: [HALF, 130, ["+"], ["-"]],
     trafo: [FULL, 150, ["1", "2"], ["3", "4"]],
     bell: [HALF, 110, ["1", "2"], []],
     spia: [HALF, 100, ["X1", "X2"], []],
@@ -10609,6 +10818,12 @@ html[dir="rtl"] .phud,html[dir="rtl"] .psheet,html[dir="rtl"] .pintro,html[dir="
           o += ln(x, 22, x, mid - 40, L(t));
           if (t !== "IC") o += `<circle cx="${x}" cy="${mid - 30}" r="4.5" fill="${st2.inputs[t] ? "#F59F00" : "none"}" stroke="var(--sch)" stroke-width="1.6"/>`;
         });
+        Object.keys(c2.terms).filter((t) => /^AI\d+\+$/.test(t)).forEach((t) => {
+          const k = t.slice(0, -1), xp = w * c2.terms[t].f, xm = w * c2.terms[k + "-"].f, mA = st2.ai && st2.ai[k];
+          o += ln(xp, 22, xp, mid - 40, L(t)) + ln(xm, 22, xm, mid - 40, L(k + "-"));
+          o += lab(xp, mid - 22, "+") + lab(xm, mid - 22, "\u2212");
+          o += lab((xp + xm) / 2, mid - 8 + 14, st2.powered ? mA ? String(Math.round(mA * 10) / 10).replace(".", ",") + " mA" : "0 mA" : "", "middle");
+        });
         Object.keys(c2.terms).filter((t) => /^Q\d+A$/.test(t)).forEach((a) => {
           const k = a.slice(0, -1), b = k + "B", on = !!st2.q[k];
           const xa = w * c2.terms[a].f, xb = w * c2.terms[b].f, ym = h - 54;
@@ -10669,6 +10884,21 @@ html[dir="rtl"] .phud,html[dir="rtl"] .psheet,html[dir="rtl"] .pintro,html[dir="
         const act2 = !!part2.act;
         o += pole2(w * c2.terms["1"].f, 22, h - 22, !act2, L("1"), L("2")) + pole2(w * c2.terms["3"].f, 22, h - 22, act2, L("3"), L("4"));
         o += lab(w / 2, h - 6, act2 ? "PREMUTO DAL PACCO" : "A RIPOSO");
+        break;
+      }
+      case "sens": {
+        const act2 = !!part2.act;
+        o += pole2(w * c2.terms["1"].f, 22, h - 22, !act2, L("1"), L("2")) + pole2(w * c2.terms["3"].f, 22, h - 22, act2, L("3"), L("4"));
+        o += lab(w / 2, h - 6, act2 ? "SCATTATO" : "A RIPOSO");
+        break;
+      }
+      case "tx": {
+        const xp = w * c2.terms["+"].f, xm = w * c2.terms["-"].f, cy = mid;
+        o += ln(xp, 22, xp, cy - 22, L("+")) + ln(xm, cy + 22, xm, h - 22, L("-"));
+        o += `<circle cx="${w / 2}" cy="${cy}" r="22" fill="#F0EBDD" stroke="var(--comp-edge)" stroke-width="2"/>`;
+        o += `<text x="${w / 2}" y="${cy + 5}" text-anchor="middle" style="font:600 14px 'IBM Plex Mono',monospace;fill:var(--ink)">mA</text>`;
+        o += lab(xp + 10, cy - 28, "+") + lab(xm + 10, cy + 40, "\u2212");
+        if (c2.sense && part2.mA) o += lab(w / 2, h - 6, "trasmette " + String(Math.round(part2.mA * 10) / 10).replace(".", ",") + " mA");
         break;
       }
       case "trafo": {
@@ -10758,7 +10988,7 @@ html[dir="rtl"] .phud,html[dir="rtl"] .psheet,html[dir="rtl"] .pintro,html[dir="
     }
     return o;
   }
-  var V2_TYPES = /* @__PURE__ */ new Set(["quadro", "mt", "rcd", "mt3", "sez", "pb", "pbnc", "fungo", "port", "rs", "ri", "rel", "tmr", "km", "ft", "fc", "trafo", "bell", "spia", "lamp", "presa", "motor3", "motor6", "kt", "plc", "gu"]);
+  var V2_TYPES = /* @__PURE__ */ new Set(["quadro", "mt", "rcd", "mt3", "sez", "pb", "pbnc", "fungo", "port", "rs", "ri", "rel", "tmr", "km", "ft", "fc", "sens", "tx", "trafo", "bell", "spia", "lamp", "presa", "motor3", "motor6", "kt", "plc", "gu"]);
   var DEV = /* @__PURE__ */ new Set(["lamp", "spia", "bell", "presa", "motor3", "motor6"]);
   var WALLCTL = { sw: "tog", dev: "tog", inv: "tog", pb: "hold", pbnc: "hold", fungo: "mush", port: "tog" };
   function roomV2HTML(level) {
@@ -11542,8 +11772,8 @@ html[dir="rtl"] .phud,html[dir="rtl"] .psheet,html[dir="rtl"] .pintro,html[dir="
         <ol class="uplist">${m.levels.map((x) => `<li>${esc(x)}</li>`).join("")}</ol>
         ${terminusHTML()}${milestoneCard({ id: "ms-" + m.project.art, kick: m.project.kick, name: m.project.name, text: m.project.text, art: m.project.art, st: "soon" })}
       </section>` }));
-    const num = (tag) => Number((tag.match(/\d+/) || [0])[0]);
-    const listed = MODULES.map((m, i) => ({ n: num(m.tag), html: mods[i] })).concat(upItems);
+    const num2 = (tag) => Number((tag.match(/\d+/) || [0])[0]);
+    const listed = MODULES.map((m, i) => ({ n: num2(m.tag), html: mods[i] })).concat(upItems);
     const ordered = listed.sort((a, b) => a.n - b.n).map((x) => x.html).join("");
     return `<div class="homegrid">
       <div class="homemain">${cont.replace('class="cont"', 'class="cont only-narrow"')}${ordered}${trNoteHTML()}</div>
@@ -11814,17 +12044,25 @@ html[dir="rtl"] .phud,html[dir="rtl"] .psheet,html[dir="rtl"] .pintro,html[dir="
   var PAD = 14;
   var OUT_W = 96;
   var esc2 = (s) => String(s).replace(/[&<>"]/g, (c2) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c2]);
-  function evalBits(e, bits) {
+  var CMP2 = { gt: ">", lt: "<", ge: "\u2265", le: "\u2264" };
+  var num = (v, words) => typeof v === "number" ? v : Number(words[v]) || 0;
+  function evalBits(e, bits, words = {}) {
     if (typeof e === "string") return !!bits[e];
     if (!Array.isArray(e)) return false;
     const [op, ...a] = e;
-    if (op === "not") return !evalBits(a[0], bits);
-    if (op === "and") return a.every((x) => evalBits(x, bits));
-    if (op === "or") return a.some((x) => evalBits(x, bits));
+    if (op === "not") return !evalBits(a[0], bits, words);
+    if (op === "and") return a.every((x) => evalBits(x, bits, words));
+    if (op === "or") return a.some((x) => evalBits(x, bits, words));
     if (op === "rise") return !!bits[a[0]];
+    if (CMP2[op]) {
+      const x = num(a[0], words), y = num(a[1], words);
+      return op === "gt" ? x > y : op === "lt" ? x < y : op === "ge" ? x >= y : x <= y;
+    }
     return false;
   }
-  var isLeaf = (e) => typeof e === "string" || Array.isArray(e) && (e[0] === "not" || e[0] === "rise");
+  var isCmp = (e) => Array.isArray(e) && !!CMP2[e[0]];
+  var isLeaf = (e) => typeof e === "string" || Array.isArray(e) && (e[0] === "not" || e[0] === "rise" || isCmp(e));
+  var numTxt = (v) => typeof v === "number" ? String(v).replace(".", ",") : v;
   function size(e) {
     if (e === void 0 || e === null) return { w: CW, h: CH };
     if (isLeaf(e)) return { w: CW, h: CH };
@@ -11833,8 +12071,12 @@ html[dir="rtl"] .phud,html[dir="rtl"] .psheet,html[dir="rtl"] .pintro,html[dir="
     return { w: Math.max(...kids.map((k) => k.w)) + 2 * PAD, h: kids.reduce((s, k) => s + k.h, 0) };
   }
   var same = (a, b) => a && b && a.kind === b.kind && a.r === b.r && a.cell === b.cell && a.alt === b.alt && a.out === b.out;
-  function draw(e, x, y, w, bits, names, on, cx, path = []) {
+  function draw(e, x, y, w, bits, names, on, cx, path = [], words = {}) {
     const my = y + CH / 2;
+    if (isCmp(e)) {
+      const v = evalBits(e, bits, words), mx = x + w / 2, bw = Math.min(w - 8, 64);
+      return `<path class="lad-wire ${on ? "lad-on" : ""}" d="M${x} ${my}H${mx - bw / 2}M${mx + bw / 2} ${my}H${x + w}"/><rect class="lad-box ${v ? "lad-done" : ""}" x="${mx - bw / 2}" y="${y + 9}" width="${bw}" height="${CH - 18}" rx="5"/><text class="lad-s" x="${mx}" y="${my - 1}" text-anchor="middle">${esc2(numTxt(e[1]))}</text><text class="lad-s" x="${mx}" y="${my + 11}" text-anchor="middle">${CMP2[e[0]]} ${esc2(numTxt(e[2]))}</text>`;
+    }
     if (isLeaf(e)) {
       const addr = typeof e === "string" ? e : e[1], nc = Array.isArray(e) && e[0] === "not", rise = Array.isArray(e) && e[0] === "rise";
       const v = evalBits(e, bits);
@@ -11859,7 +12101,7 @@ html[dir="rtl"] .phud,html[dir="rtl"] .psheet,html[dir="rtl"] .pintro,html[dir="
       const extra = (w - sizes.reduce((s, k) => s + k.w, 0)) / kids.length;
       kids.forEach((k, i) => {
         const kw = sizes[i].w + extra;
-        o2 += draw(k, px2, y, kw, bits, names, on, cx, path.length ? path : [i]);
+        o2 += draw(k, px2, y, kw, bits, names, on, cx, path.length ? path : [i], words);
         px2 += kw;
       });
       return o2;
@@ -11870,7 +12112,7 @@ html[dir="rtl"] .phud,html[dir="rtl"] .psheet,html[dir="rtl"] .pintro,html[dir="
       const s = size(k);
       rows.push(py + CH / 2);
       o += `<path class="lad-wire ${on ? "lad-on" : ""}" d="M${x} ${py + CH / 2}H${x + PAD}M${x + w - PAD} ${py + CH / 2}H${x + w}"/>`;
-      o += draw(k, x + PAD, py, w - 2 * PAD, bits, names, on, cx, path.length ? path.concat([j]) : [0, j]);
+      o += draw(k, x + PAD, py, w - 2 * PAD, bits, names, on, cx, path.length ? path.concat([j]) : [0, j], words);
       py += s.h;
     });
     o += `<path class="lad-wire ${on ? "lad-on" : ""}" d="M${x} ${rows[0]}V${rows[rows.length - 1]}M${x + w} ${rows[0]}V${rows[rows.length - 1]}"/>`;
@@ -11884,12 +12126,17 @@ html[dir="rtl"] .phud,html[dir="rtl"] .psheet,html[dir="rtl"] .pintro,html[dir="
       const t = ins.op === "ton" ? `TON ${ins.pt} s` : `CTU ${ins.pv}`;
       return `<path class="lad-wire ${on ? "lad-on" : ""}" d="M${x} ${my}H${x + 10}"/><rect class="lad-box ${bits[ins.id] ? "lad-done" : ""}" x="${x + 10}" y="${y + 6}" width="${OUT_W - 10}" height="${CH - 12}" rx="5"/><text class="lad-s" x="${x + 10 + (OUT_W - 10) / 2}" y="${my - 1}" text-anchor="middle">${t}</text><text class="lad-a" x="${x + 10 + (OUT_W - 10) / 2}" y="${my + 12}" text-anchor="middle">${ins.id}</text>${hit}`;
     }
+    if (ins.op === "move" || ins.op === "scale" || ins.op === "pid") {
+      const t = ins.op === "move" ? ["MOVE", numTxt(ins.v) + " \u2192 " + ins.out] : ins.op === "scale" ? ["SCALE", ins.in + " \u2192 " + ins.out] : ["PID", ins.pv + " \u2192 " + ins.out];
+      return `<path class="lad-wire ${on ? "lad-on" : ""}" d="M${x} ${my}H${x + 10}"/><rect class="lad-box ${on ? "lad-done" : ""}" x="${x + 10}" y="${y + 6}" width="${OUT_W - 10}" height="${CH - 12}" rx="5"/><text class="lad-s" x="${x + 10 + (OUT_W - 10) / 2}" y="${my - 1}" text-anchor="middle">${t[0]}</text><text class="lad-a" x="${x + 10 + (OUT_W - 10) / 2}" y="${my + 12}" text-anchor="middle">${esc2(t[1])}</text>${hit}`;
+    }
     const v = !!bits[ins.a];
     const mx = x + OUT_W / 2;
     return `<path class="lad-wire ${on ? "lad-on" : ""}" d="M${x} ${my}H${mx - 13}"/><text class="lad-coil ${v ? "lad-on" : "lad-off"}" x="${mx}" y="${my + 8}" text-anchor="middle">${OUT_TXT[ins.op]}</text><text class="lad-n" x="${mx}" y="${y + 8}" text-anchor="middle">${esc2(names[ins.a] || "")}</text><text class="lad-a" x="${mx}" y="${y + CH - 2}" text-anchor="middle">${ins.a}</text>${hit}`;
   }
   function ladderHTML(program, st, names = {}, opt = {}) {
     const bits = st && st.bits || {};
+    const words = { ...st && st.words, ...st && st.ai, ...st && st.aq };
     const rungs = st && st.rungs || [];
     if (!program.length) {
       return `<svg class="ladder" viewBox="0 0 360 70" role="img" aria-label="Programma vuoto"><path class="lad-rail" d="M22 6V64M330 6V64"/><text class="lad-a" x="176" y="40" text-anchor="middle">Programma vuoto</text></svg>`;
@@ -11910,7 +12157,7 @@ html[dir="rtl"] .phud,html[dir="rtl"] .psheet,html[dir="rtl"] .pintro,html[dir="
       if (r.if === void 0 || r.if === null) {
         body += `<path class="lad-wire" d="M${x0} ${y + CH / 2}H${x0 + w + 4}" stroke-dasharray="4 6"/><text class="lad-a" x="${x0 + 10}" y="${y + CH / 2 - 8}">nessun contatto</text>`;
       } else {
-        body += `<g>${draw(r.if, x0, y, w, bits, names, on, cx)}</g>`;
+        body += `<g>${draw(r.if, x0, y, w, bits, names, on, cx, [], words)}</g>`;
         body += `<path class="lad-wire ${on ? "lad-on" : ""}" d="M${x0 + s.w} ${y + CH / 2}H${x0 + w + 4}"/>`;
       }
       if (r.do.length) r.do.forEach((ins, k) => {
@@ -11963,6 +12210,122 @@ html[dir="rtl"] .phud,html[dir="rtl"] .psheet,html[dir="rtl"] .pintro,html[dir="
     }
     const errs = errors.length ? `<ul class="laderr">${errors.slice(0, 4).map((e) => `<li>${esc2(text2(e))}</li>`).join("")}</ul>` : "";
     return `<div class="ladpanel">${body}<div class="ladbtns"><button class="btn primary" data-lac="addRung">Nuovo gradino</button></div>${errs}</div>`;
+  }
+
+  // src/ui2d/process.js
+  var NS = (v) => String(Math.round(v * 10) / 10).replace(".", ",");
+  var clamp3 = (x, a, b) => Math.max(a, Math.min(b, x));
+  var COLORS = ["#2563B0", "#C0262D", "#2E9E5B", "#B8860B"];
+  function tankScene(level, s) {
+    const p = s.obs.process, a = s.obs.processAct || {};
+    const h = clamp3(p.h, 0, 100), top = 20, bot = 138, yH = bot - (bot - top) * h / 100;
+    let o = `<rect x="150" y="${top}" width="110" height="${bot - top}" rx="6" fill="#F4F1E6" stroke="var(--comp-edge)" stroke-width="2.4"/>`;
+    o += `<rect id="pv-water" x="152" y="${yH}" width="106" height="${bot - yH - 2}" fill="#5AA2D6" opacity=".85"/>`;
+    level.comps.filter((c2) => c2.type === "sens" && c2.sense && c2.sense.v === "h").forEach((c2) => {
+      const lvl = c2.sense.above !== void 0 ? c2.sense.above : c2.sense.below, y = bot - (bot - top) * lvl / 100;
+      const act2 = !!(s.obs.parts[c2.id] || {}).act;
+      o += `<line x1="262" y1="${y}" x2="290" y2="${y}" stroke="${act2 ? "#F59F00" : "var(--ink2)"}" stroke-width="3"/><circle cx="296" cy="${y}" r="5" fill="${act2 ? "#F59F00" : "none"}" stroke="var(--ink2)" stroke-width="1.6"/><text x="306" y="${y + 4}" style="font:600 11px 'IBM Plex Mono',monospace;fill:var(--ink2)">${c2.short}</text>`;
+    });
+    if (level.comps.some((c2) => c2.type === "tx" && c2.sense && c2.sense.v === "h")) o += `<text x="206" y="${top - 6}" text-anchor="middle" style="font:600 11px 'IBM Plex Mono',monospace;fill:var(--ink2)">livello ${NS(h)} %</text>`;
+    else o += `<text x="206" y="${top - 6}" text-anchor="middle" style="font:600 11px 'IBM Plex Mono',monospace;fill:var(--ink2)">${NS(h)} %</text>`;
+    const pump = a.pump || 0;
+    o += `<path d="M40 52 H150" stroke="${pump ? "#5AA2D6" : "var(--line)"}" stroke-width="6" fill="none"/><circle cx="70" cy="52" r="15" fill="${pump ? "#E9F4EC" : "#F0EBDD"}" stroke="var(--comp-edge)" stroke-width="2"/><text x="70" y="57" text-anchor="middle" style="font:600 13px 'IBM Plex Mono',monospace;fill:var(--ink)">P</text><text x="70" y="82" text-anchor="middle" style="font:500 10px 'IBM Plex Sans',sans-serif;fill:var(--ink2)">${pump ? pump < 1 ? NS(pump * 100) + " %" : "in marcia" : "ferma"}</text>`;
+    const valve = a.valve === void 0 ? 1 : a.valve;
+    o += `<path d="M205 138 V150 H330" stroke="${valve ? "#5AA2D6" : "var(--line)"}" stroke-width="6" fill="none"/><text x="330" y="146" style="font:500 10px 'IBM Plex Sans',sans-serif;fill:var(--ink2)">${valve ? "scarico" : "chiuso"}</text>`;
+    return o;
+  }
+  function ovenScene(level, s) {
+    const p = s.obs.process, a = s.obs.processAct || {};
+    const T2 = p.T, heat = clamp3(a.heater || 0, 0, 1), t = clamp3((T2 - 20) / 180, 0, 1);
+    const r = Math.round(235 + 20 * t), g = Math.round(235 - 140 * t), b = Math.round(225 - 190 * t);
+    let o = `<rect x="110" y="24" width="180" height="112" rx="8" fill="rgb(${r},${g},${b})" stroke="var(--comp-edge)" stroke-width="2.4"/>`;
+    o += `<path d="M130 122 q10 -14 20 0 t20 0 t20 0 t20 0 t20 0 t20 0 t20 0" fill="none" stroke="${heat > 0 ? "#E5484D" : "var(--ink2)"}" stroke-width="${2 + 3 * heat}" opacity="${heat > 0 ? 1 : 0.5}"/>`;
+    o += `<text x="200" y="76" text-anchor="middle" style="font:600 22px 'IBM Plex Mono',monospace;fill:#222">${NS(T2)} \xB0C</text>`;
+    o += `<text x="200" y="152" text-anchor="middle" style="font:500 11px 'IBM Plex Sans',sans-serif;fill:var(--ink2)">resistenza ${heat > 0 ? heat < 1 ? NS(heat * 100) + " %" : "accesa" : "spenta"}</text>`;
+    return o;
+  }
+  function beltScene(level, s) {
+    const p = s.obs.process;
+    const speed = clamp3(p.v, 0, 100);
+    let o = `<rect x="50" y="86" width="300" height="22" rx="11" fill="#4A4F57" stroke="#2A2D33" stroke-width="2"/>`;
+    const off = (s.t || 0) * speed * 0.6 % 30;
+    for (let x = 40 - 30 + off; x < 350; x += 30) if (x > 56 && x < 344) o += `<line x1="${x}" y1="90" x2="${x}" y2="104" stroke="#8C9099" stroke-width="3"/>`;
+    o += `<text x="200" y="64" text-anchor="middle" style="font:600 18px 'IBM Plex Mono',monospace;fill:var(--ink)">${NS(p.f)} Hz</text>`;
+    o += `<text x="200" y="136" text-anchor="middle" style="font:500 11px 'IBM Plex Sans',sans-serif;fill:var(--ink2)">velocit\xE0 ${NS(speed)} % della nominale</text>`;
+    return o;
+  }
+  var SCENES = { serbatoio: tankScene, forno: ovenScene, nastro: beltScene };
+  function graphSVG(level, s) {
+    const gr = level.process.graph;
+    if (!gr) return "";
+    const W = 400, H = 150, L = 34, R = 8, T2 = 10, B = 20;
+    const rows = s.trace || [];
+    const t1 = rows.length ? rows[rows.length - 1].t : 0, win = gr.window || 300, t0 = Math.max(0, t1 - win);
+    const x = (t) => L + (W - L - R) * (t - t0) / win;
+    const part2 = rows.filter((r) => r.t >= t0);
+    let o = `<rect x="${L}" y="${T2}" width="${W - L - R}" height="${H - T2 - B}" fill="none" stroke="var(--line)"/>`;
+    const first = gr.vars[0];
+    [0, 0.5, 1].forEach((f) => {
+      const y = T2 + (H - T2 - B) * (1 - f);
+      o += `<line x1="${L}" y1="${y}" x2="${W - R}" y2="${y}" stroke="var(--line)" stroke-dasharray="3 4"/><text x="${L - 4}" y="${y + 3}" text-anchor="end" style="font:500 9px 'IBM Plex Mono',monospace;fill:var(--ink2)">${Math.round(first.lo + (first.hi - first.lo) * f)}</text>`;
+    });
+    o += `<text x="${L}" y="${H - 6}" style="font:500 9px 'IBM Plex Mono',monospace;fill:var(--ink2)">${Math.round(t0)} s</text><text x="${W - R}" y="${H - 6}" text-anchor="end" style="font:500 9px 'IBM Plex Mono',monospace;fill:var(--ink2)">${Math.round(t1)} s</text>`;
+    (gr.lines || []).forEach((ln3, i) => {
+      const v = ln3.tuned ? (s.tuned || {})[ln3.tuned] : ln3.value;
+      const vr = gr.vars.find((q) => q.v === (ln3.var || first.v)) || first;
+      if (v === void 0) return;
+      const y = T2 + (H - T2 - B) * (1 - clamp3((v - vr.lo) / (vr.hi - vr.lo), 0, 1));
+      o += `<line x1="${L}" y1="${y}" x2="${W - R}" y2="${y}" stroke="#7A7F88" stroke-width="1.4" stroke-dasharray="6 3"/><text x="${W - R - 2}" y="${y - 3}" text-anchor="end" style="font:500 9px 'IBM Plex Sans',sans-serif;fill:var(--ink2)">${ln3.label || ""}</text>`;
+    });
+    gr.vars.forEach((vr, i) => {
+      const pts = part2.filter((r) => vr.v in r).map((r) => `${x(r.t).toFixed(1)},${(T2 + (H - T2 - B) * (1 - clamp3((r[vr.v] - vr.lo) / (vr.hi - vr.lo), 0, 1))).toFixed(1)}`);
+      if (pts.length > 1) o += `<polyline points="${pts.join(" ")}" fill="none" stroke="${vr.color || COLORS[i % COLORS.length]}" stroke-width="2" stroke-linejoin="round"/>`;
+    });
+    o += gr.vars.map((vr, i) => `<text x="${L + 6 + i * 96}" y="${T2 + 11}" style="font:600 9.5px 'IBM Plex Sans',sans-serif;fill:${vr.color || COLORS[i % COLORS.length]}">${vr.label || vr.v}</text>`).join("");
+    return `<svg class="procgraph" viewBox="0 0 ${W} ${H}" role="img" aria-label="Grafico dell\u2019andamento nel tempo">${o}</svg>`;
+  }
+  function slidersHTML(level, s) {
+    const tn = level.process.tunable;
+    if (!tn) return "";
+    const lab2 = level.process.tunableLabels || {};
+    return `<div class="procsliders">` + Object.entries(tn).map(([name, d]) => {
+      const v = (s.tuned || {})[name] ?? d.init;
+      return `<label class="procsl"><span>${lab2[name] || name}</span><input type="range" data-tune="${name}" min="${d.min}" max="${d.max}" step="${d.step || "any"}" value="${v}" aria-label="${lab2[name] || name}"><output data-out="${name}">${NS(v)}${d.unit ? " " + d.unit : ""}</output></label>`;
+    }).join("") + `</div>`;
+  }
+  function processMount(el, s) {
+    const lv = s.level;
+    if (!lv.process || !s.obs) {
+      el.hidden = true;
+      el.innerHTML = "";
+      el.dataset.key = "";
+      return;
+    }
+    el.hidden = false;
+    el.dataset.key = s.levelKey;
+    el.innerHTML = `<div class="ladhead"><b>${lv.process.title || "Il processo"}</b><span data-speed>${s.speed > 1 ? "tempo \xD7 " + s.speed : ""}</span></div><svg class="procscene" viewBox="0 0 400 160" role="img" aria-label="${lv.process.alt || "Il processo che si regola"}"></svg>` + (lv.process.graph ? `<div class="procgraphbox"></div>` : "") + slidersHTML(lv, s);
+    processUpdate(el, s);
+  }
+  function processSync(el, s) {
+    if (!s.level.process || !s.obs || el.hidden || el.dataset.key !== s.levelKey) processMount(el, s);
+    else processUpdate(el, s);
+  }
+  function processUpdate(el, s) {
+    const lv = s.level;
+    const scene = SCENES[lv.process.model];
+    const sc = el.querySelector(".procscene");
+    if (sc && scene) sc.innerHTML = scene(lv, s);
+    const gb = el.querySelector(".procgraphbox");
+    if (gb) gb.innerHTML = graphSVG(lv, s);
+    el.querySelectorAll("[data-out]").forEach((o) => {
+      const name = o.dataset.out, d = lv.process.tunable[name], v = (s.tuned || {})[name];
+      if (v !== void 0) o.textContent = NS(v) + (d.unit ? " " + d.unit : "");
+    });
+    const inp = document.activeElement;
+    el.querySelectorAll("input[data-tune]").forEach((i) => {
+      const v = (s.tuned || {})[i.dataset.tune];
+      if (v !== void 0 && i !== inp) i.value = v;
+    });
   }
 
   // src/i18n/ar-1.js
@@ -15075,6 +15438,91 @@ html[dir="rtl"] .phud,html[dir="rtl"] .psheet,html[dir="rtl"] .pintro,html[dir="
     "\xC8 il motore di stella-triangolo, ma ora i tre contattori li comanda un PLC e il temporizzatore KT non c\u2019\xE8 pi\xF9: il tempo si conta nel programma. L\u2019interblocco tra stella e triangolo resta nei fili, come prima. Il PLC ha gi\xE0 il gradino di marcia e arresto, che accende Q0 (la linea KM1). Aggiungi tu un temporizzatore di 6 secondi, e due gradini: Q1 (stella, KM2) per i primi 6 secondi, Q2 (triangolo, KM3) dopo. Anche nel programma stella e triangolo non devono mai essere accesi insieme.": "\u0647\u0630\u0627 \u0647\u0648 \u0645\u062D\u0631\u0643 \u0646\u062C\u0645\u0629-\u062F\u0644\u062A\u0627\u060C \u0644\u0643\u0646 \u0627\u0644\u0643\u0648\u0646\u062A\u0627\u0643\u062A\u0648\u0631\u0627\u062A \u0627\u0644\u062B\u0644\u0627\u062B\u0629 \u064A\u062A\u062D\u0643\u0645 \u0628\u0647\u0627 \u0627\u0644\u0622\u0646 PLC \u0648\u0644\u0645 \u064A\u0639\u062F \u0627\u0644\u0645\u0624\u0642\u0651\u062A KT \u0645\u0648\u062C\u0648\u062F\u064B\u0627: \u0641\u0627\u0644\u0632\u0645\u0646 \u064A\u064F\u0639\u062F\u0651 \u0641\u064A \u0627\u0644\u0628\u0631\u0646\u0627\u0645\u062C. \u0648\u064A\u0628\u0642\u0649 \u0627\u0644\u062A\u0639\u0634\u064A\u0642 \u0628\u064A\u0646 \u0627\u0644\u0646\u062C\u0645\u0629 \u0648\u0627\u0644\u062F\u0644\u062A\u0627 \u0641\u064A \u0627\u0644\u0623\u0633\u0644\u0627\u0643 \u0643\u0645\u0627 \u0643\u0627\u0646. \u0641\u064A \u0627\u0644\u0640PLC \u062F\u0631\u062C\u0629 \u0627\u0644\u062A\u0634\u063A\u064A\u0644 \u0648\u0627\u0644\u0625\u064A\u0642\u0627\u0641 \u0627\u0644\u062A\u064A \u062A\u0634\u063A\u0651\u0644 Q0 (\u062E\u0637 KM1) \u0645\u0648\u062C\u0648\u062F\u0629 \u0623\u0635\u0644\u064B\u0627. \u0623\u0636\u0641 \u0623\u0646\u062A \u0645\u0624\u0642\u0651\u062A\u064B\u0627 \u0645\u062F\u062A\u0647 6 \u062B\u0648\u0627\u0646\u064D \u0648\u062F\u0631\u062C\u062A\u064A\u0646: Q1 (\u0646\u062C\u0645\u0629\u060C KM2) \u0641\u064A \u0627\u0644\u062B\u0648\u0627\u0646\u064A \u0627\u0644\u0633\u062A \u0627\u0644\u0623\u0648\u0644\u0649\u060C \u0648Q2 (\u062F\u0644\u062A\u0627\u060C KM3) \u0628\u0639\u062F\u0647\u0627. \u0648\u064A\u062C\u0628 \u0623\u0644\u0651\u0627 \u062A\u0639\u0645\u0644 \u0627\u0644\u0646\u062C\u0645\u0629 \u0648\u0627\u0644\u062F\u0644\u062A\u0627 \u0645\u0639\u064B\u0627 \u0641\u064A \u0627\u0644\u0628\u0631\u0646\u0627\u0645\u062C \u0623\u064A\u0636\u064B\u0627."
   };
 
+  // src/i18n/ar-25.js
+  var ar_25_default = {
+    "Accendi la pompa: il livello sale e sopra l\u201980 % si accende \u201CLivello alto\u201D": "\u0634\u063A\u0651\u0644 \u0627\u0644\u0645\u0636\u062E\u0629: \u064A\u0631\u062A\u0641\u0639 \u0627\u0644\u0645\u0633\u062A\u0648\u0649 \u0648\u0641\u0648\u0642 80\u066A \u064A\u0636\u064A\u0621 \xAB\u0645\u0633\u062A\u0648\u0649 \u0645\u0631\u062A\u0641\u0639\xBB",
+    "Che cosa vuol dire": "\u0645\u0627\u0630\u0627 \u064A\u0639\u0646\u064A",
+    "Come lo legge il programma": "\u0643\u064A\u0641 \u064A\u0642\u0631\u0623\u0647 \u0627\u0644\u0628\u0631\u0646\u0627\u0645\u062C",
+    "Con 4 mA come minimo, una corrente sotto 4 mA non pu\xF2 essere una misura: vuol dire che il filo \xE8 interrotto, che l\u2019anello ha la polarit\xE0 invertita o che il trasmettitore \xE8 guasto. Il programma pu\xF2 accorgersene e dare l\u2019allarme invece di credere che il serbatoio sia vuoto.": "\u0645\u0639 4 \u0645\u064A\u0644\u064A \u0623\u0645\u0628\u064A\u0631 \u0643\u062D\u062F\u0651 \u0623\u062F\u0646\u0649\u060C \u0644\u0627 \u064A\u0645\u0643\u0646 \u0644\u062A\u064A\u0627\u0631 \u0623\u0642\u0644 \u0645\u0646 4 \u0645\u064A\u0644\u064A \u0623\u0645\u0628\u064A\u0631 \u0623\u0646 \u064A\u0643\u0648\u0646 \u0642\u064A\u0627\u0633\u064B\u0627: \u0647\u0630\u0627 \u064A\u0639\u0646\u064A \u0623\u0646 \u0627\u0644\u0633\u0644\u0643 \u0645\u0642\u0637\u0648\u0639 \u0623\u0648 \u0623\u0646 \u0642\u0637\u0628\u064A\u0629 \u0627\u0644\u062D\u0644\u0642\u0629 \u0645\u0639\u0643\u0648\u0633\u0629 \u0623\u0648 \u0623\u0646 \u0627\u0644\u0645\u0631\u0633\u0650\u0644 \u0645\u0639\u0637\u0651\u0644. \u064A\u0633\u062A\u0637\u064A\u0639 \u0627\u0644\u0628\u0631\u0646\u0627\u0645\u062C \u0623\u0646 \u064A\u0646\u062A\u0628\u0647 \u0644\u0630\u0644\u0643 \u0648\u064A\u0637\u0644\u0642 \u0627\u0644\u0625\u0646\u0630\u0627\u0631 \u0628\u062F\u0644 \u0623\u0646 \u064A\u0638\u0646\u0651 \u0623\u0646 \u0627\u0644\u062E\u0632\u0627\u0646 \u0641\u0627\u0631\u063A.",
+    "Finora gli ingressi del PLC erano acceso o spento: un pulsante, una fotocellula. Un livello invece \xE8 un numero: 30 %, 54 %, 80 %. Serve un ingresso analogico, che legge un valore e non solo un s\xEC o un no.": "\u062D\u062A\u0649 \u0627\u0644\u0622\u0646 \u0643\u0627\u0646\u062A \u0645\u062F\u0627\u062E\u0644 \u0627\u0644\u0640PLC \u0625\u0645\u0627 \u0645\u0634\u063A\u064E\u0651\u0644\u0629 \u0623\u0648 \u0645\u0637\u0641\u0623\u0629: \u0632\u0631 \u0623\u0648 \u062E\u0644\u064A\u0629 \u0636\u0648\u0626\u064A\u0629. \u0623\u0645\u0627 \u0627\u0644\u0645\u0633\u062A\u0648\u0649 \u0641\u0647\u0648 \u0631\u0642\u0645: 30\u066A \u0623\u0648 54\u066A \u0623\u0648 80\u066A. \u0646\u062D\u062A\u0627\u062C \u0625\u0644\u0649 \u0645\u062F\u062E\u0644 \u062A\u0645\u0627\u062B\u0644\u064A \u064A\u0642\u0631\u0623 \u0642\u064A\u0645\u0629 \u0648\u0644\u064A\u0633 \u0645\u062C\u0631\u062F \u0646\u0639\u0645 \u0623\u0648 \u0644\u0627.",
+    "Grafico dell\u2019andamento nel tempo": "\u0631\u0633\u0645 \u0628\u064A\u0627\u0646\u064A \u0644\u0644\u062A\u063A\u064A\u0651\u0631 \u0645\u0639 \u0627\u0644\u0632\u0645\u0646",
+    "Guarda il programma sotto il banco. Il gradino 4 non guarda il livello ma la corrente: se AI0 \xE8 minore di 3,6 mA accende la lampada di guasto. La soglia \xE8 un po\u2019 sotto i 4 mA, cos\xEC una misura di serbatoio vuoto, che con piccoli errori pu\xF2 valere 3,9 mA, non d\xE0 un falso allarme.": "\u0627\u0646\u0638\u0631 \u0625\u0644\u0649 \u0627\u0644\u0628\u0631\u0646\u0627\u0645\u062C \u062A\u062D\u062A \u0627\u0644\u0644\u0648\u062D\u0629. \u0627\u0644\u062F\u0631\u062C\u0629 4 \u0644\u0627 \u062A\u0646\u0638\u0631 \u0625\u0644\u0649 \u0627\u0644\u0645\u0633\u062A\u0648\u0649 \u0628\u0644 \u0625\u0644\u0649 \u0627\u0644\u062A\u064A\u0627\u0631: \u0625\u0630\u0627 \u0643\u0627\u0646 AI0 \u0623\u0642\u0644 \u0645\u0646 3\u066B6 \u0645\u064A\u0644\u064A \u0623\u0645\u0628\u064A\u0631 \u064A\u0636\u064A\u0621 \u0645\u0635\u0628\u0627\u062D \u0627\u0644\u0639\u0637\u0644. \u0627\u0644\u0639\u062A\u0628\u0629 \u0623\u0642\u0644 \u0642\u0644\u064A\u0644\u064B\u0627 \u0645\u0646 4 \u0645\u064A\u0644\u064A \u0623\u0645\u0628\u064A\u0631\u060C \u0644\u0630\u0644\u0643 \u0641\u0625\u0646 \u0642\u064A\u0627\u0633 \u062E\u0632\u0627\u0646 \u0641\u0627\u0631\u063A\u060C \u0627\u0644\u0630\u064A \u0642\u062F \u064A\u0633\u0627\u0648\u064A 3\u066B9 \u0645\u064A\u0644\u064A \u0623\u0645\u0628\u064A\u0631 \u0628\u0633\u0628\u0628 \u0623\u062E\u0637\u0627\u0621 \u0635\u063A\u064A\u0631\u0629\u060C \u0644\u0627 \u064A\u0639\u0637\u064A \u0625\u0646\u0630\u0627\u0631\u064B\u0627 \u0643\u0627\u0630\u0628\u064B\u0627.",
+    "Guasto sensore": "\u0639\u0637\u0644 \u0627\u0644\u0645\u0633\u062A\u0634\u0639\u0631",
+    "I due fili dell\u2019anello sono scambiati: il PLC legge 0 mA, come con un filo interrotto.": "\u0633\u0644\u0643\u0627 \u0627\u0644\u062D\u0644\u0642\u0629 \u0645\u0642\u0644\u0648\u0628\u0627\u0646: \u064A\u0642\u0631\u0623 \u0627\u0644\u0640PLC \u0635\u0641\u0631 \u0645\u064A\u0644\u064A \u0623\u0645\u0628\u064A\u0631\u060C \u0643\u0645\u0627 \u0644\u0648 \u0643\u0627\u0646 \u0627\u0644\u0633\u0644\u0643 \u0645\u0642\u0637\u0648\u0639\u064B\u0627.",
+    "Il + del trasmettitore a AI0+": "\u0627\u0644\u0645\u0648\u062C\u0628 \u0641\u064A \u0627\u0644\u0645\u0631\u0633\u0650\u0644 \u0625\u0644\u0649 AI0+",
+    "Il PLC converte la corrente in un numero: AI0 vale i milliampere dell\u2019anello. L\u2019istruzione SCALE trasforma da 4-20 mA in una scala che serve a noi, qui 0-100 %, e mette il risultato nella parola MW0. Poi basta confrontare: se MW0 \xE8 maggiore di 80 si accende la lampada di livello alto.": "\u064A\u062D\u0648\u0651\u0644 \u0627\u0644\u0640PLC \u0627\u0644\u062A\u064A\u0627\u0631 \u0625\u0644\u0649 \u0631\u0642\u0645: AI0 \u064A\u0633\u0627\u0648\u064A \u0645\u064A\u0644\u064A \u0623\u0645\u0628\u064A\u0631\u0627\u062A \u0627\u0644\u062D\u0644\u0642\u0629. \u062A\u062D\u0648\u0651\u0644 \u0627\u0644\u062A\u0639\u0644\u064A\u0645\u0629 SCALE \u0645\u0646 4-20 \u0645\u064A\u0644\u064A \u0623\u0645\u0628\u064A\u0631 \u0625\u0644\u0649 \u0645\u0642\u064A\u0627\u0633 \u064A\u0641\u064A\u062F\u0646\u0627\u060C \u0647\u0646\u0627 0-100\u066A\u060C \u0648\u062A\u0636\u0639 \u0627\u0644\u0646\u062A\u064A\u062C\u0629 \u0641\u064A \u0627\u0644\u0643\u0644\u0645\u0629 MW0. \u0628\u0639\u062F \u0630\u0644\u0643 \u064A\u0643\u0641\u064A \u0623\u0646 \u0646\u0642\u0627\u0631\u0646: \u0625\u0630\u0627 \u0643\u0627\u0646 MW0 \u0623\u0643\u0628\u0631 \u0645\u0646 80 \u064A\u0636\u064A\u0621 \u0645\u0635\u0628\u0627\u062D \u0627\u0644\u0645\u0633\u062A\u0648\u0649 \u0627\u0644\u0645\u0631\u062A\u0641\u0639.",
+    "Il livello": "\u0627\u0644\u0645\u0633\u062A\u0648\u0649",
+    "Il livello del serbatoio arriva al PLC come una corrente: 4 mA vuoto, 20 mA pieno. Sotto 4 mA il filo \xE8 interrotto.": "\u064A\u0635\u0644 \u0645\u0633\u062A\u0648\u0649 \u0627\u0644\u062E\u0632\u0627\u0646 \u0625\u0644\u0649 \u0627\u0644\u0640PLC \u0639\u0644\u0649 \u0634\u0643\u0644 \u062A\u064A\u0627\u0631: 4 \u0645\u064A\u0644\u064A \u0623\u0645\u0628\u064A\u0631 \u0641\u0627\u0631\u063A \u064820 \u0645\u064A\u0644\u064A \u0623\u0645\u0628\u064A\u0631 \u0645\u0645\u062A\u0644\u0626. \u062A\u062D\u062A 4 \u0645\u064A\u0644\u064A \u0623\u0645\u0628\u064A\u0631 \u064A\u0643\u0648\u0646 \u0627\u0644\u0633\u0644\u0643 \u0645\u0642\u0637\u0648\u0639\u064B\u0627.",
+    "Il livello vuoto vale 4 mA, non 0, e il pieno 20 mA. Sembra strano, ma \xE8 il punto pi\xF9 importante. Se il vuoto fosse 0 mA, un filo staccato e un serbatoio vuoto darebbero lo stesso valore, e il PLC non potrebbe distinguerli.": "\u0627\u0644\u0645\u0633\u062A\u0648\u0649 \u0627\u0644\u0641\u0627\u0631\u063A \u064A\u0633\u0627\u0648\u064A 4 \u0645\u064A\u0644\u064A \u0623\u0645\u0628\u064A\u0631 \u0648\u0644\u064A\u0633 0\u060C \u0648\u0627\u0644\u0645\u0645\u062A\u0644\u0626 20 \u0645\u064A\u0644\u064A \u0623\u0645\u0628\u064A\u0631. \u064A\u0628\u062F\u0648 \u0630\u0644\u0643 \u063A\u0631\u064A\u0628\u064B\u0627 \u0644\u0643\u0646\u0647 \u0623\u0647\u0645 \u0646\u0642\u0637\u0629. \u0644\u0648 \u0643\u0627\u0646 \u0627\u0644\u0641\u0627\u0631\u063A 0 \u0645\u064A\u0644\u064A \u0623\u0645\u0628\u064A\u0631 \u0644\u0623\u0639\u0637\u0649 \u0633\u0644\u0643 \u0645\u0641\u0635\u0648\u0644 \u0648\u062E\u0632\u0627\u0646 \u0641\u0627\u0631\u063A \u0627\u0644\u0642\u064A\u0645\u0629 \u0646\u0641\u0633\u0647\u0627\u060C \u0648\u0644\u0645\u0627 \u0627\u0633\u062A\u0637\u0627\u0639 \u0627\u0644\u0640PLC \u0627\u0644\u062A\u0645\u064A\u064A\u0632 \u0628\u064A\u0646\u0647\u0645\u0627.",
+    "Il meno": "\u0627\u0644\u0633\u0627\u0644\u0628",
+    "Il minimo \xE8 4 mA e non 0 perch\xE9 sotto 4 mA il PLC capisce che c\u2019\xE8 un guasto (filo interrotto, polarit\xE0 invertita) e non scambia il guasto per un serbatoio vuoto.": "\u0627\u0644\u062D\u062F \u0627\u0644\u0623\u062F\u0646\u0649 4 \u0645\u064A\u0644\u064A \u0623\u0645\u0628\u064A\u0631 \u0648\u0644\u064A\u0633 0 \u0644\u0623\u0646 \u0627\u0644\u0640PLC \u064A\u0641\u0647\u0645 \u062A\u062D\u062A 4 \u0645\u064A\u0644\u064A \u0623\u0645\u0628\u064A\u0631 \u0623\u0646 \u0647\u0646\u0627\u0643 \u0639\u0637\u0644\u064B\u0627 (\u0633\u0644\u0643 \u0645\u0642\u0637\u0648\u0639 \u0623\u0648 \u0642\u0637\u0628\u064A\u0629 \u0645\u0639\u0643\u0648\u0633\u0629) \u0641\u0644\u0627 \u064A\u062E\u0644\u0637 \u0628\u064A\u0646\u0647 \u0648\u0628\u064A\u0646 \u062E\u0632\u0627\u0646 \u0641\u0627\u0631\u063A.",
+    "Il pi\xF9": "\u0627\u0644\u0645\u0648\u062C\u0628",
+    "Il segnale parte da 4 mA, non da 0: la scala \xE8 lunga 16 mA. A met\xE0 si somma met\xE0 della scala (8 mA) ai 4 mA di partenza.": "\u062A\u0628\u062F\u0623 \u0627\u0644\u0625\u0634\u0627\u0631\u0629 \u0645\u0646 4 \u0645\u064A\u0644\u064A \u0623\u0645\u0628\u064A\u0631 \u0648\u0644\u064A\u0633 \u0645\u0646 0: \u0637\u0648\u0644 \u0627\u0644\u0645\u0642\u064A\u0627\u0633 16 \u0645\u064A\u0644\u064A \u0623\u0645\u0628\u064A\u0631. \u0641\u064A \u0627\u0644\u0645\u0646\u062A\u0635\u0641 \u0646\u0636\u064A\u0641 \u0646\u0635\u0641 \u0627\u0644\u0645\u0642\u064A\u0627\u0633 (8 \u0645\u064A\u0644\u064A \u0623\u0645\u0628\u064A\u0631) \u0625\u0644\u0649 4 \u0645\u064A\u0644\u064A \u0623\u0645\u0628\u064A\u0631 \u0627\u0644\u0628\u062F\u0627\u064A\u0629.",
+    "Il segnale pi\xF9 usato nell\u2019industria \xE8 una corrente tra 4 e 20 milliampere. Si usa la corrente perch\xE9 in un anello in serie la corrente \xE8 la stessa in ogni punto del filo: la lunghezza del cavo, o la resistenza di un morsetto un po\u2019 ossidato, non la cambia. Una tensione invece cala lungo il cavo e i disturbi dei motori vicini la deformano.": "\u0627\u0644\u0625\u0634\u0627\u0631\u0629 \u0627\u0644\u0623\u0643\u062B\u0631 \u0627\u0633\u062A\u062E\u062F\u0627\u0645\u064B\u0627 \u0641\u064A \u0627\u0644\u0635\u0646\u0627\u0639\u0629 \u0647\u064A \u062A\u064A\u0627\u0631 \u0628\u064A\u0646 4 \u064820 \u0645\u064A\u0644\u064A \u0623\u0645\u0628\u064A\u0631. \u0646\u0633\u062A\u062E\u062F\u0645 \u0627\u0644\u062A\u064A\u0627\u0631 \u0644\u0623\u0646 \u0627\u0644\u062A\u064A\u0627\u0631 \u0641\u064A \u062D\u0644\u0642\u0629 \u0639\u0644\u0649 \u0627\u0644\u062A\u0633\u0644\u0633\u0644 \u0647\u0648 \u0646\u0641\u0633\u0647 \u0641\u064A \u0643\u0644 \u0646\u0642\u0637\u0629 \u0645\u0646 \u0627\u0644\u0633\u0644\u0643: \u0637\u0648\u0644 \u0627\u0644\u0643\u0627\u0628\u0644 \u0623\u0648 \u0645\u0642\u0627\u0648\u0645\u0629 \u0645\u0631\u0628\u0637 \u0645\u062A\u0623\u0643\u0633\u062F \u0642\u0644\u064A\u0644\u064B\u0627 \u0644\u0627 \u062A\u063A\u064A\u0651\u0631\u0647. \u0623\u0645\u0627 \u0627\u0644\u062C\u0647\u062F \u0641\u064A\u062A\u0646\u0627\u0642\u0635 \u0639\u0644\u0649 \u0637\u0648\u0644 \u0627\u0644\u0643\u0627\u0628\u0644 \u0648\u062A\u0634\u0648\u0651\u0647\u0647 \u0627\u0636\u0637\u0631\u0627\u0628\u0627\u062A \u0627\u0644\u0645\u062D\u0631\u0643\u0627\u062A \u0627\u0644\u0642\u0631\u064A\u0628\u0629.",
+    "Il serbatoio \xE8 a met\xE0 e la pompa \xE8 ferma, ma la lampada \u201CGuasto sensore\u201D \xE8 accesa. Il sensore funziona. Guarda i fili dell\u2019anello.": "\u0627\u0644\u062E\u0632\u0627\u0646 \u0641\u064A \u0645\u0646\u062A\u0635\u0641\u0647 \u0648\u0627\u0644\u0645\u0636\u062E\u0629 \u0645\u062A\u0648\u0642\u0641\u0629\u060C \u0644\u0643\u0646 \u0645\u0635\u0628\u0627\u062D \xAB\u0639\u0637\u0644 \u0627\u0644\u0645\u0633\u062A\u0634\u0639\u0631\xBB \u0645\u0636\u0627\u0621. \u0627\u0644\u0645\u0633\u062A\u0634\u0639\u0631 \u0633\u0644\u064A\u0645. \u0627\u0646\u0638\u0631 \u0625\u0644\u0649 \u0623\u0633\u0644\u0627\u0643 \u0627\u0644\u062D\u0644\u0642\u0629.",
+    "Il serbatoio \xE8 pieno a met\xE0. Quanti milliampere trasmette il sensore?": "\u0627\u0644\u062E\u0632\u0627\u0646 \u0645\u0645\u062A\u0644\u0626 \u0625\u0644\u0649 \u0627\u0644\u0646\u0635\u0641. \u0643\u0645 \u0645\u064A\u0644\u064A \u0623\u0645\u0628\u064A\u0631 \u064A\u0631\u0633\u0644 \u0627\u0644\u0645\u0633\u062A\u0634\u0639\u0631\u061F",
+    "Il serbatoio \xE8 vuoto.": "\u0627\u0644\u062E\u0632\u0627\u0646 \u0641\u0627\u0631\u063A.",
+    "Il trasmettitore ha due morsetti, + e \u2212. L\u2019ingresso analogico AI0 ha lo stesso: AI0+ e AI0\u2212. Il + va al +, il \u2212 va al \u2212.": "\u0644\u0644\u0645\u0631\u0633\u0650\u0644 \u0645\u0631\u0628\u0637\u0627\u0646: + \u0648\u2212. \u0648\u0644\u0644\u0645\u062F\u062E\u0644 \u0627\u0644\u062A\u0645\u0627\u062B\u0644\u064A AI0 \u0645\u0631\u0628\u0637\u0627\u0646 \u0643\u0630\u0644\u0643: AI0+ \u0648AI0\u2212. \u0627\u0644\u0645\u0648\u062C\u0628 \u0625\u0644\u0649 \u0627\u0644\u0645\u0648\u062C\u0628 \u0648\u0627\u0644\u0633\u0627\u0644\u0628 \u0625\u0644\u0649 \u0627\u0644\u0633\u0627\u0644\u0628.",
+    "Il trasmettitore segue il livello: dopo 60 secondi di pompa non c\u2019\xE8 ancora l\u2019allarme": "\u0627\u0644\u0645\u0631\u0633\u0650\u0644 \u064A\u062A\u0628\u0639 \u0627\u0644\u0645\u0633\u062A\u0648\u0649: \u0628\u0639\u062F 60 \u062B\u0627\u0646\u064A\u0629 \u0645\u0646 \u062A\u0634\u063A\u064A\u0644 \u0627\u0644\u0645\u0636\u062E\u0629 \u0644\u0627 \u064A\u0648\u062C\u062F \u0625\u0646\u0630\u0627\u0631 \u0628\u0639\u062F",
+    "Il \u2212 del trasmettitore a AI0\u2212": "\u0627\u0644\u0633\u0627\u0644\u0628 \u0641\u064A \u0627\u0644\u0645\u0631\u0633\u0650\u0644 \u0625\u0644\u0649 AI0\u2212",
+    "Interruttore della pompa": "\u0645\u0641\u062A\u0627\u062D \u0627\u0644\u0645\u0636\u062E\u0629",
+    "La corrente 4-20 mA ha un verso: esce dal + del trasmettitore e deve entrare in AI0+. Con i fili scambiati l\u2019anello non funziona e il PLC legge 0 mA. Il programma fa il suo lavoro: sotto 3,6 mA \xE8 un guasto, e lo segnala.": "\u0644\u062A\u064A\u0627\u0631 4-20 \u0645\u064A\u0644\u064A \u0623\u0645\u0628\u064A\u0631 \u0627\u062A\u062C\u0627\u0647: \u064A\u062E\u0631\u062C \u0645\u0646 \u0645\u0648\u062C\u0628 \u0627\u0644\u0645\u0631\u0633\u0650\u0644 \u0648\u064A\u062C\u0628 \u0623\u0646 \u064A\u062F\u062E\u0644 \u0641\u064A AI0+. \u0645\u0639 \u062A\u0628\u062F\u064A\u0644 \u0627\u0644\u0623\u0633\u0644\u0627\u0643 \u0644\u0627 \u062A\u0639\u0645\u0644 \u0627\u0644\u062D\u0644\u0642\u0629 \u0648\u064A\u0642\u0631\u0623 \u0627\u0644\u0640PLC \u0635\u0641\u0631 \u0645\u064A\u0644\u064A \u0623\u0645\u0628\u064A\u0631. \u0627\u0644\u0628\u0631\u0646\u0627\u0645\u062C \u064A\u0624\u062F\u064A \u0639\u0645\u0644\u0647: \u062A\u062D\u062A 3\u066B6 \u0645\u064A\u0644\u064A \u0623\u0645\u0628\u064A\u0631 \u0647\u0648 \u0639\u0637\u0644\u060C \u0648\u064A\u0628\u0644\u0651\u063A \u0639\u0646\u0647.",
+    "La corrente \xE8 la stessa in tutto l\u2019anello: non dipende dalla lunghezza del cavo e subisce meno i disturbi di una tensione.": "\u0627\u0644\u062A\u064A\u0627\u0631 \u0646\u0641\u0633\u0647 \u0641\u064A \u0643\u0644 \u0627\u0644\u062D\u0644\u0642\u0629: \u0644\u0627 \u064A\u0639\u062A\u0645\u062F \u0639\u0644\u0649 \u0637\u0648\u0644 \u0627\u0644\u0643\u0627\u0628\u0644 \u0648\u064A\u062A\u0623\u062B\u0631 \u0628\u0627\u0644\u0627\u0636\u0637\u0631\u0627\u0628\u0627\u062A \u0623\u0642\u0644 \u0645\u0646 \u0627\u0644\u062C\u0647\u062F.",
+    "La fase entra in Q1A, esce da Q1B e va alla lampada \u201CLivello alto\u201D. L\u2019altro capo della lampada va al neutro. Perch\xE9: l\u2019uscita \xE8 solo un contatto, la tensione la porti tu.": "\u064A\u062F\u062E\u0644 \u0627\u0644\u0637\u0648\u0631 \u0641\u064A Q1A \u0648\u064A\u062E\u0631\u062C \u0645\u0646 Q1B \u0648\u064A\u0630\u0647\u0628 \u0625\u0644\u0649 \u0645\u0635\u0628\u0627\u062D \xAB\u0645\u0633\u062A\u0648\u0649 \u0645\u0631\u062A\u0641\u0639\xBB. \u0627\u0644\u0637\u0631\u0641 \u0627\u0644\u0622\u062E\u0631 \u0644\u0644\u0645\u0635\u0628\u0627\u062D \u064A\u0630\u0647\u0628 \u0625\u0644\u0649 \u0627\u0644\u0645\u062D\u0627\u064A\u062F. \u0627\u0644\u0633\u0628\u0628: \u0627\u0644\u0645\u062E\u0631\u062C \u0645\u062C\u0631\u062F \u062A\u0644\u0627\u0645\u0633 \u0648\u0627\u0644\u062C\u0647\u062F \u0623\u0646\u062A \u0645\u0646 \u064A\u0648\u0635\u0644\u0647.",
+    "La polarit\xE0 conta: + con + e \u2212 con \u2212. Scambiati danno 0 mA.": "\u0627\u0644\u0642\u0637\u0628\u064A\u0629 \u0645\u0647\u0645\u0629: \u0645\u0648\u062C\u0628 \u0645\u0639 \u0645\u0648\u062C\u0628 \u0648\u0633\u0627\u0644\u0628 \u0645\u0639 \u0633\u0627\u0644\u0628. \u0625\u0630\u0627 \u0628\u064F\u062F\u0651\u0644\u0627 \u0623\u0639\u0637\u064A\u0627 0 \u0645\u064A\u0644\u064A \u0623\u0645\u0628\u064A\u0631.",
+    "Lampada di guasto del sensore": "\u0645\u0635\u0628\u0627\u062D \u0639\u0637\u0644 \u0627\u0644\u0645\u0633\u062A\u0634\u0639\u0631",
+    "Lampada di livello alto": "\u0645\u0635\u0628\u0627\u062D \u0627\u0644\u0645\u0633\u062A\u0648\u0649 \u0627\u0644\u0645\u0631\u062A\u0641\u0639",
+    "Le lampade non sono collegate ai loro morsetti: le cabli tu. Il PLC fa solo da interruttore, la tensione la porti con il filo.": "\u0627\u0644\u0645\u0635\u0628\u0627\u062D\u0627\u0646 \u063A\u064A\u0631 \u0645\u0648\u0635\u0648\u0644\u064A\u0646 \u0628\u0645\u0631\u0628\u0637\u064A\u0647\u0645\u0627: \u0623\u0646\u062A \u062A\u0648\u0635\u0644\u0647\u0645\u0627. \u0627\u0644\u0640PLC \u064A\u0639\u0645\u0644 \u0643\u0645\u0641\u062A\u0627\u062D \u0641\u0642\u0637 \u0648\u0627\u0644\u062C\u0647\u062F \u062A\u062D\u0645\u0644\u0647 \u0623\u0646\u062A \u0628\u0627\u0644\u0633\u0644\u0643.",
+    "Le lampade sono carichi comandati da un\u2019uscita a rel\xE8: la fase entra in QnA, esce da QnB e va alla lampada; l\u2019altro capo va al neutro.": "\u0627\u0644\u0645\u0635\u0628\u0627\u062D\u0627\u0646 \u062D\u0645\u0648\u0644\u062A\u0627\u0646 \u064A\u062A\u062D\u0643\u0645 \u0628\u0647\u0645\u0627 \u0645\u062E\u0631\u062C \u0645\u0631\u062D\u0651\u0644: \u064A\u062F\u062E\u0644 \u0627\u0644\u0637\u0648\u0631 \u0641\u064A QnA \u0648\u064A\u062E\u0631\u062C \u0645\u0646 QnB \u0648\u064A\u0630\u0647\u0628 \u0625\u0644\u0649 \u0627\u0644\u0645\u0635\u0628\u0627\u062D\u060C \u0648\u0627\u0644\u0637\u0631\u0641 \u0627\u0644\u0622\u062E\u0631 \u0625\u0644\u0649 \u0627\u0644\u0645\u062D\u0627\u064A\u062F.",
+    "Livello %": "\u0627\u0644\u0645\u0633\u062A\u0648\u0649 \u066A",
+    "Livello alto": "\u0645\u0633\u062A\u0648\u0649 \u0645\u0631\u062A\u0641\u0639",
+    "Lo stesso con Q2A, Q2B e la lampada \u201CGuasto sensore\u201D, con l\u2019altro capo al neutro. Perch\xE9: il guasto del sensore ha una sua segnalazione, diversa dal livello alto.": "\u0627\u0644\u0634\u064A\u0621 \u0646\u0641\u0633\u0647 \u0645\u0639 Q2A \u0648Q2B \u0648\u0645\u0635\u0628\u0627\u062D \xAB\u0639\u0637\u0644 \u0627\u0644\u0645\u0633\u062A\u0634\u0639\u0631\xBB \u0648\u0627\u0644\u0637\u0631\u0641 \u0627\u0644\u0622\u062E\u0631 \u0625\u0644\u0649 \u0627\u0644\u0645\u062D\u0627\u064A\u062F. \u0627\u0644\u0633\u0628\u0628: \u0644\u0639\u0637\u0644 \u0627\u0644\u0645\u0633\u062A\u0634\u0639\u0631 \u0625\u0634\u0627\u0631\u062A\u0647 \u0627\u0644\u062E\u0627\u0635\u0629 \u0627\u0644\u0645\u062E\u062A\u0644\u0641\u0629 \u0639\u0646 \u0627\u0644\u0645\u0633\u062A\u0648\u0649 \u0627\u0644\u0645\u0631\u062A\u0641\u0639.",
+    "Misurare il livello di un serbatoio": "\u0642\u064A\u0627\u0633 \u0645\u0633\u062A\u0648\u0649 \u062E\u0632\u0627\u0646",
+    "Morsetto PLC AI0+": "\u0627\u0644\u0645\u0631\u0628\u0637 AI0+ \u0641\u064A \u0627\u0644\u0640PLC",
+    "Morsetto PLC AI0-": "\u0627\u0644\u0645\u0631\u0628\u0637 AI0\u2212 \u0641\u064A \u0627\u0644\u0640PLC",
+    "Morsetto Pompa a": "\u0627\u0644\u0645\u0631\u0628\u0637 a \u0641\u064A \u0627\u0644\u0645\u0636\u062E\u0629",
+    "Morsetto Pompa b": "\u0627\u0644\u0645\u0631\u0628\u0637 b \u0641\u064A \u0627\u0644\u0645\u0636\u062E\u0629",
+    "Morsetto Trasmettitore +": "\u0627\u0644\u0645\u0631\u0628\u0637 + \u0641\u064A \u0627\u0644\u0645\u0631\u0633\u0650\u0644",
+    "Morsetto Trasmettitore -": "\u0627\u0644\u0645\u0631\u0628\u0637 \u2212 \u0641\u064A \u0627\u0644\u0645\u0631\u0633\u0650\u0644",
+    "PLC con un ingresso analogico": "PLC \u0628\u0645\u062F\u062E\u0644 \u062A\u0645\u0627\u062B\u0644\u064A",
+    "PLC.AI0+": "PLC.AI0+",
+    "PLC.AI0-": "PLC.AI0-",
+    "Per questo il trasmettitore e l\u2019ingresso analogico stanno in un anello: un filo parte dal pi\xF9 (+) del trasmettitore e arriva a AI0+, un altro torna da AI0\u2212 al meno (\u2212) del trasmettitore. Il trasmettitore regola la corrente che passa nell\u2019anello in base al livello.": "\u0644\u0630\u0644\u0643 \u064A\u0643\u0648\u0651\u0646 \u0627\u0644\u0645\u0631\u0633\u0650\u0644 \u0648\u0627\u0644\u0645\u062F\u062E\u0644 \u0627\u0644\u062A\u0645\u0627\u062B\u0644\u064A \u062D\u0644\u0642\u0629: \u0633\u0644\u0643 \u064A\u0628\u062F\u0623 \u0645\u0646 \u0645\u0648\u062C\u0628 (+) \u0627\u0644\u0645\u0631\u0633\u0650\u0644 \u0648\u064A\u0635\u0644 \u0625\u0644\u0649 AI0+\u060C \u0648\u0633\u0644\u0643 \u0622\u062E\u0631 \u064A\u0639\u0648\u062F \u0645\u0646 AI0\u2212 \u0625\u0644\u0649 \u0633\u0627\u0644\u0628 (\u2212) \u0627\u0644\u0645\u0631\u0633\u0650\u0644. \u064A\u0636\u0628\u0637 \u0627\u0644\u0645\u0631\u0633\u0650\u0644 \u0627\u0644\u062A\u064A\u0627\u0631 \u0627\u0644\u0645\u0627\u0631 \u0641\u064A \u0627\u0644\u062D\u0644\u0642\u0629 \u0628\u062D\u0633\u0628 \u0627\u0644\u0645\u0633\u062A\u0648\u0649.",
+    "Perch\xE9 4 e non 0": "\u0644\u0645\u0627\u0630\u0627 4 \u0648\u0644\u064A\u0633 0",
+    "Perch\xE9 si accende il guasto sensore se il sensore \xE8 sano?": "\u0644\u0645\u0627\u0630\u0627 \u064A\u0636\u064A\u0621 \u0639\u0637\u0644 \u0627\u0644\u0645\u0633\u062A\u0634\u0639\u0631 \u0648\u0647\u0648 \u0633\u0644\u064A\u0645\u061F",
+    "Perch\xE9 una corrente e non una tensione": "\u0644\u0645\u0627\u0630\u0627 \u062A\u064A\u0627\u0631 \u0648\u0644\u064A\u0633 \u062C\u0647\u062F\u064B\u0627",
+    "Pompa": "\u0627\u0644\u0645\u0636\u062E\u0629",
+    "Pompa in marcia": "\u0627\u0644\u0645\u0636\u062E\u0629 \u062A\u0639\u0645\u0644",
+    "Q1 alla lampada di livello alto": "Q1 \u0625\u0644\u0649 \u0645\u0635\u0628\u0627\u062D \u0627\u0644\u0645\u0633\u062A\u0648\u0649 \u0627\u0644\u0645\u0631\u062A\u0641\u0639",
+    "Q2 alla lampada di guasto": "Q2 \u0625\u0644\u0649 \u0645\u0635\u0628\u0627\u062D \u0627\u0644\u0639\u0637\u0644",
+    "Riempi il serbatoio": "\u0627\u0645\u0644\u0623 \u0627\u0644\u062E\u0632\u0627\u0646",
+    "SCALE": "SCALE",
+    "SCALE converte i milliampere in una scala utile (0-100 %); un confronto sulla corrente grezza (AI0 sotto 3,6 mA) segnala il guasto.": "\u062A\u062D\u0648\u0651\u0644 SCALE \u0627\u0644\u0645\u064A\u0644\u064A \u0623\u0645\u0628\u064A\u0631\u0627\u062A \u0625\u0644\u0649 \u0645\u0642\u064A\u0627\u0633 \u0645\u0641\u064A\u062F (0-100\u066A)\u060C \u0648\u0645\u0642\u0627\u0631\u0646\u0629 \u0639\u0644\u0649 \u0627\u0644\u062A\u064A\u0627\u0631 \u0627\u0644\u062E\u0627\u0645 (AI0 \u062A\u062D\u062A 3\u066B6 \u0645\u064A\u0644\u064A \u0623\u0645\u0628\u064A\u0631) \u062A\u0634\u064A\u0631 \u0625\u0644\u0649 \u0627\u0644\u0639\u0637\u0644.",
+    "Scambia i due fili dell\u2019anello: il + del trasmettitore va a AI0+, il \u2212 va a AI0\u2212. Poi premi Verifica.": "\u0628\u062F\u0651\u0644 \u0633\u0644\u0643\u064A \u0627\u0644\u062D\u0644\u0642\u0629: \u0645\u0648\u062C\u0628 \u0627\u0644\u0645\u0631\u0633\u0650\u0644 \u0625\u0644\u0649 AI0+ \u0648\u0633\u0627\u0644\u0628\u0647 \u0625\u0644\u0649 AI0\u2212. \u062B\u0645 \u0627\u0636\u063A\u0637 \xAB\u062A\u062D\u0642\u0642\xBB.",
+    "Se i due fili sono scambiati il PLC legge 0 mA, come se il filo fosse staccato: si accende il guasto sensore.": "\u0625\u0630\u0627 \u0628\u064F\u062F\u0651\u0644 \u0627\u0644\u0633\u0644\u0643\u0627\u0646 \u064A\u0642\u0631\u0623 \u0627\u0644\u0640PLC \u0635\u0641\u0631 \u0645\u064A\u0644\u064A \u0623\u0645\u0628\u064A\u0631 \u0643\u0623\u0646 \u0627\u0644\u0633\u0644\u0643 \u0645\u0641\u0635\u0648\u0644: \u064A\u0636\u064A\u0621 \u0639\u0637\u0644 \u0627\u0644\u0645\u0633\u062A\u0634\u0639\u0631.",
+    "Se l\u2019anello \xE8 aperto non passa corrente. Zero milliampere \xE8 fuori scala: il programma lo vede (AI0 sotto 3,6 mA) e accende la lampada di guasto invece di far credere che il serbatoio sia vuoto.": "\u0625\u0630\u0627 \u0643\u0627\u0646\u062A \u0627\u0644\u062D\u0644\u0642\u0629 \u0645\u0641\u062A\u0648\u062D\u0629 \u0641\u0644\u0627 \u064A\u0645\u0631 \u062A\u064A\u0627\u0631. \u0635\u0641\u0631 \u0645\u064A\u0644\u064A \u0623\u0645\u0628\u064A\u0631 \u062E\u0627\u0631\u062C \u0627\u0644\u0645\u0642\u064A\u0627\u0633: \u064A\u0631\u0649 \u0627\u0644\u0628\u0631\u0646\u0627\u0645\u062C \u0630\u0644\u0643 (AI0 \u062A\u062D\u062A 3\u066B6 \u0645\u064A\u0644\u064A \u0623\u0645\u0628\u064A\u0631) \u0648\u064A\u0636\u064A\u0621 \u0645\u0635\u0628\u0627\u062D \u0627\u0644\u0639\u0637\u0644 \u0628\u062F\u0644 \u0623\u0646 \u064A\u0648\u062D\u064A \u0628\u0623\u0646 \u0627\u0644\u062E\u0632\u0627\u0646 \u0641\u0627\u0631\u063A.",
+    "Serbatoio a met\xE0 e pompa ferma: nessuna lampada di allarme": "\u0627\u0644\u062E\u0632\u0627\u0646 \u0641\u064A \u0627\u0644\u0645\u0646\u062A\u0635\u0641 \u0648\u0627\u0644\u0645\u0636\u062E\u0629 \u0645\u062A\u0648\u0642\u0641\u0629: \u0644\u0627 \u0645\u0635\u0628\u0627\u062D \u0625\u0646\u0630\u0627\u0631",
+    "Serbatoio con la pompa e il livello": "\u062E\u0632\u0627\u0646 \u0645\u0639 \u0627\u0644\u0645\u0636\u062E\u0629 \u0648\u0627\u0644\u0645\u0633\u062A\u0648\u0649",
+    "Tocca l\u2019interruttore della pompa e guarda il livello salire nel grafico (il tempo corre 20 volte pi\xF9 veloce). Sopra l\u201980 % si accende \u201CLivello alto\u201D.": "\u0627\u0644\u0645\u0633 \u0645\u0641\u062A\u0627\u062D \u0627\u0644\u0645\u0636\u062E\u0629 \u0648\u0631\u0627\u0642\u0628 \u0627\u0644\u0645\u0633\u062A\u0648\u0649 \u064A\u0631\u062A\u0641\u0639 \u0641\u064A \u0627\u0644\u0631\u0633\u0645 \u0627\u0644\u0628\u064A\u0627\u0646\u064A (\u0627\u0644\u0632\u0645\u0646 \u064A\u062C\u0631\u064A \u0623\u0633\u0631\u0639 20 \u0645\u0631\u0629). \u0641\u0648\u0642 80\u066A \u064A\u0636\u064A\u0621 \xAB\u0645\u0633\u062A\u0648\u0649 \u0645\u0631\u062A\u0641\u0639\xBB.",
+    "Trasmettitore": "\u0627\u0644\u0645\u0631\u0633\u0650\u0644",
+    "Trasmettitore di livello 4-20 mA": "\u0645\u0631\u0633\u0650\u0644 \u0645\u0633\u062A\u0648\u0649 4-20 \u0645\u064A\u0644\u064A \u0623\u0645\u0628\u064A\u0631",
+    "Un filo dell\u2019anello si stacca mentre il serbatoio \xE8 a met\xE0. Che cosa legge il PLC?": "\u064A\u0646\u0641\u0635\u0644 \u0633\u0644\u0643 \u0645\u0646 \u0627\u0644\u062D\u0644\u0642\u0629 \u0628\u064A\u0646\u0645\u0627 \u0627\u0644\u062E\u0632\u0627\u0646 \u0641\u064A \u0645\u0646\u062A\u0635\u0641\u0647. \u0645\u0627\u0630\u0627 \u064A\u0642\u0631\u0623 \u0627\u0644\u0640PLC\u061F",
+    "Un filo rosso dal morsetto + del trasmettitore al morsetto AI0+ del PLC. Perch\xE9: la corrente esce dal + del trasmettitore, attraversa l\u2019ingresso e deve rientrare dal lato giusto.": "\u0633\u0644\u0643 \u0623\u062D\u0645\u0631 \u0645\u0646 \u0627\u0644\u0645\u0631\u0628\u0637 + \u0641\u064A \u0627\u0644\u0645\u0631\u0633\u0650\u0644 \u0625\u0644\u0649 \u0627\u0644\u0645\u0631\u0628\u0637 AI0+ \u0641\u064A \u0627\u0644\u0640PLC. \u0627\u0644\u0633\u0628\u0628: \u064A\u062E\u0631\u062C \u0627\u0644\u062A\u064A\u0627\u0631 \u0645\u0646 \u0645\u0648\u062C\u0628 \u0627\u0644\u0645\u0631\u0633\u0650\u0644 \u0648\u064A\u0639\u0628\u0631 \u0627\u0644\u0645\u062F\u062E\u0644 \u0648\u064A\u062C\u0628 \u0623\u0646 \u064A\u0639\u0648\u062F \u0645\u0646 \u0627\u0644\u062C\u0647\u0629 \u0627\u0644\u0635\u062D\u064A\u062D\u0629.",
+    "Un filo rosso dal morsetto \u2212 del trasmettitore al morsetto AI0\u2212 del PLC. Perch\xE9: chiude l\u2019anello. Se li scambi il PLC legge 0 mA, come con un filo staccato.": "\u0633\u0644\u0643 \u0623\u062D\u0645\u0631 \u0645\u0646 \u0627\u0644\u0645\u0631\u0628\u0637 \u2212 \u0641\u064A \u0627\u0644\u0645\u0631\u0633\u0650\u0644 \u0625\u0644\u0649 \u0627\u0644\u0645\u0631\u0628\u0637 AI0\u2212 \u0641\u064A \u0627\u0644\u0640PLC. \u0627\u0644\u0633\u0628\u0628: \u064A\u063A\u0644\u0642 \u0627\u0644\u062D\u0644\u0642\u0629. \u0625\u0630\u0627 \u0628\u062F\u0651\u0644\u062A\u0647\u0645\u0627 \u064A\u0642\u0631\u0623 \u0627\u0644\u0640PLC \u0635\u0641\u0631 \u0645\u064A\u0644\u064A \u0623\u0645\u0628\u064A\u0631 \u0643\u0645\u0627 \u0644\u0648 \u0643\u0627\u0646 \u0627\u0644\u0633\u0644\u0643 \u0645\u0641\u0635\u0648\u0644\u064B\u0627.",
+    "Un serbatoio ha un trasmettitore di livello 4-20 mA. Il PLC \xE8 gi\xE0 alimentato e comanda la pompa con l\u2019interruttore. Cabla l\u2019anello di corrente dal trasmettitore all\u2019ingresso analogico AI0 (il + al +, il \u2212 al \u2212) e le due lampade: Q1 \u201CLivello alto\u201D (sopra l\u201980 %) e Q2 \u201CGuasto sensore\u201D (corrente sotto 3,6 mA). Il programma \xE8 gi\xE0 scritto.": "\u0641\u064A \u062E\u0632\u0627\u0646 \u0645\u0631\u0633\u0650\u0644 \u0645\u0633\u062A\u0648\u0649 4-20 \u0645\u064A\u0644\u064A \u0623\u0645\u0628\u064A\u0631. \u0627\u0644\u0640PLC \u0645\u063A\u0630\u0651\u0649 \u0628\u0627\u0644\u0641\u0639\u0644 \u0648\u064A\u0634\u063A\u0651\u0644 \u0627\u0644\u0645\u0636\u062E\u0629 \u0628\u0627\u0644\u0645\u0641\u062A\u0627\u062D. \u0635\u0650\u0644 \u062D\u0644\u0642\u0629 \u0627\u0644\u062A\u064A\u0627\u0631 \u0645\u0646 \u0627\u0644\u0645\u0631\u0633\u0650\u0644 \u0625\u0644\u0649 \u0627\u0644\u0645\u062F\u062E\u0644 \u0627\u0644\u062A\u0645\u0627\u062B\u0644\u064A AI0 (\u0627\u0644\u0645\u0648\u062C\u0628 \u0628\u0627\u0644\u0645\u0648\u062C\u0628 \u0648\u0627\u0644\u0633\u0627\u0644\u0628 \u0628\u0627\u0644\u0633\u0627\u0644\u0628) \u0648\u0627\u0644\u0645\u0635\u0628\u0627\u062D\u064A\u0646: Q1 \xAB\u0645\u0633\u062A\u0648\u0649 \u0645\u0631\u062A\u0641\u0639\xBB (\u0641\u0648\u0642 80\u066A) \u0648Q2 \xAB\u0639\u0637\u0644 \u0627\u0644\u0645\u0633\u062A\u0634\u0639\u0631\xBB (\u062A\u064A\u0627\u0631 \u062A\u062D\u062A 3\u066B6 \u0645\u064A\u0644\u064A \u0623\u0645\u0628\u064A\u0631). \u0627\u0644\u0628\u0631\u0646\u0627\u0645\u062C \u0645\u0643\u062A\u0648\u0628 \u0645\u0633\u0628\u0642\u064B\u0627.",
+    "Un serbatoio si riempie e si svuota, e il PLC deve sapere quanto \xE8 pieno per decidere quando accendere la pompa o dare un allarme. Un trasmettitore di livello \xE8 un sensore che trasforma il livello in un segnale elettrico.": "\u064A\u0645\u062A\u0644\u0626 \u0627\u0644\u062E\u0632\u0627\u0646 \u0648\u064A\u0641\u0631\u063A\u060C \u0648\u064A\u062C\u0628 \u0623\u0646 \u064A\u0639\u0631\u0641 \u0627\u0644\u0640PLC \u0645\u0642\u062F\u0627\u0631 \u0627\u0645\u062A\u0644\u0627\u0626\u0647 \u0644\u064A\u0642\u0631\u0631 \u0645\u062A\u0649 \u064A\u0634\u063A\u0651\u0644 \u0627\u0644\u0645\u0636\u062E\u0629 \u0623\u0648 \u064A\u0637\u0644\u0642 \u0625\u0646\u0630\u0627\u0631\u064B\u0627. \u0645\u0631\u0633\u0650\u0644 \u0627\u0644\u0645\u0633\u062A\u0648\u0649 \u0645\u0633\u062A\u0634\u0639\u0631 \u064A\u062D\u0648\u0651\u0644 \u0627\u0644\u0645\u0633\u062A\u0648\u0649 \u0625\u0644\u0649 \u0625\u0634\u0627\u0631\u0629 \u0643\u0647\u0631\u0628\u0627\u0626\u064A\u0629.",
+    "Un trasmettitore 4-20 mA trasforma una grandezza (qui il livello) in una corrente: 4 mA al minimo, 20 mA al massimo.": "\u064A\u062D\u0648\u0651\u0644 \u0645\u0631\u0633\u0650\u0644 4-20 \u0645\u064A\u0644\u064A \u0623\u0645\u0628\u064A\u0631 \u0643\u0645\u064A\u0629 (\u0647\u0646\u0627 \u0627\u0644\u0645\u0633\u062A\u0648\u0649) \u0625\u0644\u0649 \u062A\u064A\u0627\u0631: 4 \u0645\u064A\u0644\u064A \u0623\u0645\u0628\u064A\u0631 \u0643\u062D\u062F \u0623\u062F\u0646\u0649 \u064820 \u0645\u064A\u0644\u064A \u0623\u0645\u0628\u064A\u0631 \u0643\u062D\u062F \u0623\u0642\u0635\u0649.",
+    "anello aperto o polarit\xE0 invertita: guasto": "\u062D\u0644\u0642\u0629 \u0645\u0641\u062A\u0648\u062D\u0629 \u0623\u0648 \u0642\u0637\u0628\u064A\u0629 \u0645\u0639\u0643\u0648\u0633\u0629: \u0639\u0637\u0644",
+    "ferma": "\u0645\u062A\u0648\u0642\u0641\u0629",
+    "livello alto": "\u0645\u0633\u062A\u0648\u0649 \u0645\u0631\u062A\u0641\u0639",
+    "scarico": "\u062A\u0641\u0631\u064A\u063A",
+    "serbatoio a met\xE0 (50 %)": "\u0627\u0644\u062E\u0632\u0627\u0646 \u0641\u064A \u0627\u0644\u0645\u0646\u062A\u0635\u0641 (50\u066A)",
+    "serbatoio pieno (100 %)": "\u0627\u0644\u062E\u0632\u0627\u0646 \u0645\u0645\u062A\u0644\u0626 (100\u066A)",
+    "serbatoio vuoto (0 %)": "\u0627\u0644\u062E\u0632\u0627\u0646 \u0641\u0627\u0631\u063A (0\u066A)",
+    "in marcia": "\u062A\u0639\u0645\u0644",
+    "chiuso": "\u0645\u063A\u0644\u0642"
+  };
+
   // src/i18n/ar.js
   var ROLE = { "del neutro": "\u0627\u0644\u0645\u062D\u0627\u064A\u062F", "di terra": "\u0627\u0644\u0623\u0631\u0636\u064A", "di fase": "\u0627\u0644\u0637\u0648\u0631", "a bassa tensione": "\u0627\u0644\u062C\u0647\u062F \u0627\u0644\u0645\u0646\u062E\u0641\u0636", "di comando": "\u0627\u0644\u062A\u062D\u0643\u0645" };
   var COLORI = { "blu": "\u0623\u0632\u0631\u0642", "giallo-verde": "\u0623\u0635\u0641\u0631-\u0623\u062E\u0636\u0631", "marrone, nero o grigio": "\u0628\u0646\u064A\u064B\u0651\u0627 \u0623\u0648 \u0623\u0633\u0648\u062F \u0623\u0648 \u0631\u0645\u0627\u062F\u064A\u064B\u0651\u0627", "rosso, marrone, nero o grigio": "\u0623\u062D\u0645\u0631 \u0623\u0648 \u0628\u0646\u064A\u064B\u0651\u0627 \u0623\u0648 \u0623\u0633\u0648\u062F \u0623\u0648 \u0631\u0645\u0627\u062F\u064A\u064B\u0651\u0627", "di un colore diverso da blu e giallo-verde": "\u0628\u0644\u0648\u0646 \u0645\u062E\u062A\u0644\u0641 \u0639\u0646 \u0627\u0644\u0623\u0632\u0631\u0642 \u0648\u0627\u0644\u0623\u0635\u0641\u0631-\u0627\u0644\u0623\u062E\u0636\u0631" };
@@ -15082,6 +15530,17 @@ html[dir="rtl"] .phud,html[dir="rtl"] .psheet,html[dir="rtl"] .pintro,html[dir="
   var PAT = [
     [/^Casa vista dall’alto\. Stanze con la luce accesa: (.+)$/, (m, t) => `\u0645\u0646\u0632\u0644 \u0645\u0646 \u0627\u0644\u0623\u0639\u0644\u0649. \u0627\u0644\u063A\u0631\u0641 \u0627\u0644\u0645\u0636\u0627\u0621\u0629: ${m[1].split(", ").map((x) => t(x)).join("\u060C ")}`],
     [/^[\d,.]+ kWh$/, (m) => iso(m[0])],
+    // pannello del processo (serbatoio, forno, nastro): valori che cambiano a ogni istante
+    [/^livello ([\d,.]+) %$/, (m) => `\u0627\u0644\u0645\u0633\u062A\u0648\u0649 ${iso(m[1])}\u066A`],
+    [/^([\d,.]+) %$/, (m) => `${iso(m[1])}\u066A`],
+    [/^trasmette ([\d,.]+) mA$/, (m) => `\u064A\u0631\u0633\u0644 ${iso(m[1])} \u0645\u064A\u0644\u064A \u0623\u0645\u0628\u064A\u0631`],
+    [/^([\d,.]+) mA$/, (m) => `${iso(m[1])} \u0645\u064A\u0644\u064A \u0623\u0645\u0628\u064A\u0631`],
+    [/^tempo × (\d+)$/, (m) => `\u0627\u0644\u0632\u0645\u0646 \xD7 ${iso(m[1])}`],
+    [/^([\d,.-]+) °C$/, (m) => `${iso(m[1])} \xB0\u0645`],
+    [/^([\d,.]+) Hz$/, (m) => `${iso(m[1])} \u0647\u0631\u062A\u0632`],
+    [/^velocità ([\d,.]+) % della nominale$/, (m) => `\u0627\u0644\u0633\u0631\u0639\u0629 ${iso(m[1])}\u066A \u0645\u0646 \u0627\u0644\u0627\u0633\u0645\u064A\u0629`],
+    [/^resistenza ([\d,.]+) %$/, (m) => `\u0627\u0644\u0645\u0642\u0627\u0648\u0645\u0629 ${iso(m[1])}\u066A`],
+    [/^resistenza (accesa|spenta)$/, (m) => m[1] === "accesa" ? "\u0627\u0644\u0645\u0642\u0627\u0648\u0645\u0629 \u062A\u0639\u0645\u0644" : "\u0627\u0644\u0645\u0642\u0627\u0648\u0645\u0629 \u0645\u062A\u0648\u0642\u0641\u0629"],
     [/^(\d+) di (\d+) completati$/, (m) => `\u0627\u0643\u062A\u0645\u0644 ${iso(m[1])} \u0645\u0646 ${iso(m[2])}`],
     [/^(\d+) di (\d+)$/, (m) => `${iso(m[1])} \u0645\u0646 ${iso(m[2])}`],
     [/^(\d+) \/ (\d+)$/, (m) => `${iso(m[1])} / ${iso(m[2])}`],
@@ -15146,7 +15605,7 @@ html[dir="rtl"] .phud,html[dir="rtl"] .psheet,html[dir="rtl"] .pintro,html[dir="
     [/^Portata (.+): (\d+) ampere\. Tocca per cambiarla$/, (m, t) => `\u0627\u0644\u0633\u0639\u0629 ${t(m[1])}: ${m[2]} \u0623\u0645\u0628\u064A\u0631. \u0627\u0644\u0645\u0633 \u0644\u062A\u063A\u064A\u064A\u0631\u0647\u0627`],
     [/^Protezioni scattate: (.+)\.$/, (m, t) => `\u062D\u0645\u0627\u064A\u0627\u062A \u0641\u0635\u0644\u062A: ${t(m[1])}.`]
   ];
-  registerLang("ar", { ...ar_1_default, ...ar_2_default, ...ar_3_default, ...ar_4_default, ...ar_5_default, ...ar_6_default, ...ar_7_default, ...ar_8_default, ...ar_9_default, ...ar_10_default, ...ar_11_default, ...ar_12_default, ...ar_13_default, ...ar_14_default, ...ar_15_default, ...ar_16_default, ...ar_17_default, ...ar_18_default, ...ar_19_default, ...ar_20_default, ...ar_21_default, ...ar_22_default, ...ar_23_default, ...ar_24_default }, PAT);
+  registerLang("ar", { ...ar_1_default, ...ar_2_default, ...ar_3_default, ...ar_4_default, ...ar_5_default, ...ar_6_default, ...ar_7_default, ...ar_8_default, ...ar_9_default, ...ar_10_default, ...ar_11_default, ...ar_12_default, ...ar_13_default, ...ar_14_default, ...ar_15_default, ...ar_16_default, ...ar_17_default, ...ar_18_default, ...ar_19_default, ...ar_20_default, ...ar_21_default, ...ar_22_default, ...ar_23_default, ...ar_24_default, ...ar_25_default }, PAT);
 
   // src/trilocale/house.js
   function houseState(session2, on = true) {
@@ -17248,6 +17707,7 @@ html[dir="rtl"] .phud,html[dir="rtl"] .psheet,html[dir="rtl"] .pintro,html[dir="
     mp.innerHTML = S.meter && S.meter.on ? meterHTML(S.meter, (t) => termName(S.level, t)) : "";
     renderBench();
     renderLadder();
+    processSync($("#process"), S);
     renderStatus();
     renderResult();
   }
@@ -17652,6 +18112,10 @@ html[dir="rtl"] .phud,html[dir="rtl"] .psheet,html[dir="rtl"] .pintro,html[dir="
       e.preventDefault();
       setInfo(h.dataset.help);
     }
+  });
+  $("#process").addEventListener("input", (e) => {
+    const t = e.target.closest("[data-tune]");
+    if (t) session.tune(t.dataset.tune, Number(t.value));
   });
   document.addEventListener("click", (e) => {
     if (e.target.closest("[data-overload]")) session.setOverload(!S.overload);

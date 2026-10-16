@@ -2906,4 +2906,113 @@ export const UNITS_V2 = {
       fixSay: 'Nel gradino del nastro aggiungi in serie il contatto I3 (Sicurezze), normalmente aperto. Poi premi Verifica.',
     },
   },
+  'c33-sensore': {
+    support: 'passi',
+    lesson: {
+      pages: [
+        {
+          type: 'spiegazione',
+          title: 'Misurare il livello di un serbatoio',
+          paras: [
+            'Un serbatoio si riempie e si svuota, e il PLC deve sapere quanto è pieno per decidere quando accendere la pompa o dare un allarme. Un trasmettitore di livello è un sensore che trasforma il livello in un segnale elettrico.',
+            'Finora gli ingressi del PLC erano acceso o spento: un pulsante, una fotocellula. Un livello invece è un numero: 30 %, 54 %, 80 %. Serve un ingresso analogico, che legge un valore e non solo un sì o un no.',
+          ],
+        },
+        {
+          type: 'spiegazione',
+          title: 'Perché una corrente e non una tensione',
+          paras: [
+            'Il segnale più usato nell’industria è una corrente tra 4 e 20 milliampere. Si usa la corrente perché in un anello in serie la corrente è la stessa in ogni punto del filo: la lunghezza del cavo, o la resistenza di un morsetto un po’ ossidato, non la cambia. Una tensione invece cala lungo il cavo e i disturbi dei motori vicini la deformano.',
+            'Per questo il trasmettitore e l’ingresso analogico stanno in un anello: un filo parte dal più (+) del trasmettitore e arriva a AI0+, un altro torna da AI0− al meno (−) del trasmettitore. Il trasmettitore regola la corrente che passa nell’anello in base al livello.',
+          ],
+        },
+        {
+          type: 'spiegazione',
+          title: 'Perché 4 e non 0',
+          paras: [
+            'Il livello vuoto vale 4 mA, non 0, e il pieno 20 mA. Sembra strano, ma è il punto più importante. Se il vuoto fosse 0 mA, un filo staccato e un serbatoio vuoto darebbero lo stesso valore, e il PLC non potrebbe distinguerli.',
+            'Con 4 mA come minimo, una corrente sotto 4 mA non può essere una misura: vuol dire che il filo è interrotto, che l’anello ha la polarità invertita o che il trasmettitore è guasto. Il programma può accorgersene e dare l’allarme invece di credere che il serbatoio sia vuoto.',
+          ],
+          table: {
+            head: ['Corrente', 'Che cosa vuol dire'],
+            rows: [
+              ['0 mA', 'anello aperto o polarità invertita: guasto'],
+              ['4 mA', 'serbatoio vuoto (0 %)'],
+              ['12 mA', 'serbatoio a metà (50 %)'],
+              ['20 mA', 'serbatoio pieno (100 %)'],
+            ],
+          },
+        },
+        {
+          type: 'spiegazione',
+          title: 'Come lo legge il programma',
+          paras: [
+            'Il PLC converte la corrente in un numero: AI0 vale i milliampere dell’anello. L’istruzione SCALE trasforma da 4-20 mA in una scala che serve a noi, qui 0-100 %, e mette il risultato nella parola MW0. Poi basta confrontare: se MW0 è maggiore di 80 si accende la lampada di livello alto.',
+            'Guarda il programma sotto il banco. Il gradino 4 non guarda il livello ma la corrente: se AI0 è minore di 3,6 mA accende la lampada di guasto. La soglia è un po’ sotto i 4 mA, così una misura di serbatoio vuoto, che con piccoli errori può valere 3,9 mA, non dà un falso allarme.',
+          ],
+          warn: 'Le lampade non sono collegate ai loro morsetti: le cabli tu. Il PLC fa solo da interruttore, la tensione la porti con il filo.',
+        },
+        {
+          type: 'previsione',
+          question: 'Il serbatoio è pieno a metà. Quanti milliampere trasmette il sensore?',
+          options: [
+            { id: 'a', text: '10 mA, la metà di 20.' },
+            { id: 'b', text: '12 mA: da 4 a 20 ci sono 16 mA, la metà è 8 più 4.' },
+            { id: 'c', text: '2 mA.' },
+          ],
+          correct: 'b',
+          why: 'Il segnale parte da 4 mA, non da 0: la scala è lunga 16 mA. A metà si somma metà della scala (8 mA) ai 4 mA di partenza.',
+        },
+        {
+          type: 'previsione',
+          question: 'Un filo dell’anello si stacca mentre il serbatoio è a metà. Che cosa legge il PLC?',
+          options: [
+            { id: 'a', text: '12 mA, il livello non è cambiato.' },
+            { id: 'b', text: '4 mA: sembra un serbatoio vuoto.' },
+            { id: 'c', text: '0 mA: sotto i 4 mA non può essere una misura, è un guasto.' },
+          ],
+          correct: 'c',
+          why: 'Se l’anello è aperto non passa corrente. Zero milliampere è fuori scala: il programma lo vede (AI0 sotto 3,6 mA) e accende la lampada di guasto invece di far credere che il serbatoio sia vuoto.',
+        },
+        { type: 'sintesi', title: 'Da ricordare' },
+      ],
+    },
+    steps: [
+      { kind: 'wire', from: 'TT.+', to: ['PLC.AI0+'], color: 'rosso', short: '1 Il più', title: 'Il + del trasmettitore a AI0+', text: 'Un filo rosso dal morsetto + del trasmettitore al morsetto AI0+ del PLC. Perché: la corrente esce dal + del trasmettitore, attraversa l’ingresso e deve rientrare dal lato giusto.' },
+      { kind: 'wire', from: 'TT.-', to: ['PLC.AI0-'], color: 'rosso', short: '2 Il meno', title: 'Il − del trasmettitore a AI0−', text: 'Un filo rosso dal morsetto − del trasmettitore al morsetto AI0− del PLC. Perché: chiude l’anello. Se li scambi il PLC legge 0 mA, come con un filo staccato.' },
+      { kind: 'wire', from: 'PLC.Q1B', to: ['HH.X1'], color: 'rosso', short: '3 Livello alto', title: 'Q1 alla lampada di livello alto', text: 'La fase entra in Q1A, esce da Q1B e va alla lampada “Livello alto”. L’altro capo della lampada va al neutro. Perché: l’uscita è solo un contatto, la tensione la porti tu.' },
+      { kind: 'wire', from: 'PLC.Q2B', to: ['HF.X1'], color: 'rosso', short: '4 Guasto sensore', title: 'Q2 alla lampada di guasto', text: 'Lo stesso con Q2A, Q2B e la lampada “Guasto sensore”, con l’altro capo al neutro. Perché: il guasto del sensore ha una sua segnalazione, diversa dal livello alto.' },
+      { kind: 'control', id: 'SA', short: '5 Prova', title: 'Riempi il serbatoio', text: 'Tocca l’interruttore della pompa e guarda il livello salire nel grafico (il tempo corre 20 volte più veloce). Sopra l’80 % si accende “Livello alto”.' },
+      { kind: 'verify', short: '6 Verifica', title: 'Controlla l’impianto', text: 'Premi Verifica.' },
+    ],
+    summary: [
+      'Un trasmettitore 4-20 mA trasforma una grandezza (qui il livello) in una corrente: 4 mA al minimo, 20 mA al massimo.',
+      'La corrente è la stessa in tutto l’anello: non dipende dalla lunghezza del cavo e subisce meno i disturbi di una tensione.',
+      'Il minimo è 4 mA e non 0 perché sotto 4 mA il PLC capisce che c’è un guasto (filo interrotto, polarità invertita) e non scambia il guasto per un serbatoio vuoto.',
+      'SCALE converte i milliampere in una scala utile (0-100 %); un confronto sulla corrente grezza (AI0 sotto 3,6 mA) segnala il guasto.',
+      'La polarità conta: + con + e − con −. Scambiati danno 0 mA.',
+    ],
+    fault: {
+      say: 'Il serbatoio è a metà e la pompa è ferma, ma la lampada “Guasto sensore” è accesa. Il sensore funziona. Guarda i fili dell’anello.',
+      wires: [
+        ['Q.L1', 'PLC.A1', 'rosso'], ['PLC.A2', 'Q.N', 'blu'], ['PLC.IC', 'Q.N', 'blu'],
+        ['Q.L1', 'SA.a', 'rosso'], ['SA.b', 'PLC.I0', 'rosso'],
+        ['Q.L1', 'PLC.Q0A', 'rosso'], ['PLC.Q0B', 'HP.X1', 'rosso'], ['HP.X2', 'Q.N', 'blu'],
+        ['TT.+', 'PLC.AI0-', 'rosso'], ['TT.-', 'PLC.AI0+', 'rosso'],
+        ['Q.L1', 'PLC.Q1A', 'rosso'], ['PLC.Q1B', 'HH.X1', 'rosso'], ['HH.X2', 'Q.N', 'blu'],
+        ['Q.L1', 'PLC.Q2A', 'rosso'], ['PLC.Q2B', 'HF.X1', 'rosso'], ['HF.X2', 'Q.N', 'blu'],
+      ],
+      diagnosis: {
+        question: 'Perché si accende il guasto sensore se il sensore è sano?',
+        options: [
+          { id: 'a', text: 'I due fili dell’anello sono scambiati: il PLC legge 0 mA, come con un filo interrotto.' },
+          { id: 'b', text: 'Il serbatoio è vuoto.' },
+          { id: 'c', text: 'Il programma del PLC è sbagliato.' },
+        ],
+        correct: 'a',
+        why: 'La corrente 4-20 mA ha un verso: esce dal + del trasmettitore e deve entrare in AI0+. Con i fili scambiati l’anello non funziona e il PLC legge 0 mA. Il programma fa il suo lavoro: sotto 3,6 mA è un guasto, e lo segnala.',
+      },
+      fixSay: 'Scambia i due fili dell’anello: il + del trasmettitore va a AI0+, il − va a AI0−. Poi premi Verifica.',
+    },
+  },
 };

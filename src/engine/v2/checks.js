@@ -157,7 +157,7 @@ export function runCheck(level, wires, check) {
 
 /* ---------- ruoli dei fili per i colori ---------- */
 
-const CTL_TYPES = new Set(['pb', 'pbnc', 'fungo', 'port', 'spia', 'fc', 'ri', 'tmr', 'kt', 'rs', 'plc', 'sens', 'tx']);
+const CTL_TYPES = new Set(['pb', 'pbnc', 'fungo', 'port', 'spia', 'fc', 'ri', 'tmr', 'kt', 'rs', 'plc', 'sens', 'tx', 'sw']);
 function isCtlTerm(level, term) {
   const [id, t] = term.split('.');
   const c = level.comps.find(x => x.id === id);

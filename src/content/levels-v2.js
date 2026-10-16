@@ -996,3 +996,61 @@ LEVELS_V2.push({
     'La spia Q1 segue il contatore: contatto C1 e bobina Q1.',
   ],
 });
+
+// c33: il sensore 4-20 mA (Modulo 6). Un serbatoio con trasmettitore di livello: si cabla l'anello di corrente e le due lampade;
+// il programma (gia' scritto) scala i milliampere in percentuale e riconosce il filo interrotto (sotto 3,6 mA).
+const W33_FIXED = [
+  ['Q.L1', 'PLC.A1', 'rosso'], ['PLC.A2', 'Q.N', 'blu'], ['PLC.IC', 'Q.N', 'blu'],
+  ['Q.L1', 'SA.a', 'rosso'], ['SA.b', 'PLC.I0', 'rosso'],
+  ['Q.L1', 'PLC.Q0A', 'rosso'], ['PLC.Q0B', 'HP.X1', 'rosso'], ['HP.X2', 'Q.N', 'blu'],
+];
+const W33_LOOP = [['TT.+', 'PLC.AI0+', 'rosso'], ['TT.-', 'PLC.AI0-', 'rosso']];
+const W33_LAMPS = [
+  ['Q.L1', 'PLC.Q1A', 'rosso'], ['PLC.Q1B', 'HH.X1', 'rosso'], ['HH.X2', 'Q.N', 'blu'],
+  ['Q.L1', 'PLC.Q2A', 'rosso'], ['PLC.Q2B', 'HF.X1', 'rosso'], ['HF.X2', 'Q.N', 'blu'],
+];
+LEVELS_V2.push({
+  id: 'c33-sensore', code: 'c33', n: 0, ...IND, flow: 'onDemand',
+  name: 'Il sensore 4-20 mA', title: 'Il sensore 4-20 mA',
+  blurb: 'Il livello del serbatoio arriva al PLC come una corrente: 4 mA vuoto, 20 mA pieno. Sotto 4 mA il filo è interrotto.',
+  goal: 'Un serbatoio ha un trasmettitore di livello 4-20 mA. Il PLC è già alimentato e comanda la pompa con l’interruttore. Cabla l’anello di corrente dal trasmettitore all’ingresso analogico AI0 (il + al +, il − al −) e le due lampade: Q1 “Livello alto” (sopra l’80 %) e Q2 “Guasto sensore” (corrente sotto 3,6 mA). Il programma è già scritto.',
+  fixed: W33_FIXED,
+  comps: [
+    Q3,
+    C('PLC', 'plc', 'PLC', 'PLC con un ingresso analogico', T('A1', 'A2', 'I0', 'IC', 'AI0+', 'AI0-', 'Q0A', 'Q0B', 'Q1A', 'Q1B', 'Q2A', 'Q2B'), {
+      program: [
+        { if: 'I0', do: [{ op: 'coil', a: 'Q0' }] },
+        { if: ['ge', 'AI0', 3.6], do: [{ op: 'scale', in: 'AI0', out: 'MW0', lo: 0, hi: 100 }] },
+        { if: ['and', ['ge', 'AI0', 3.6], ['gt', 'MW0', 80]], do: [{ op: 'coil', a: 'Q1' }] },
+        { if: ['lt', 'AI0', 3.6], do: [{ op: 'coil', a: 'Q2' }] },
+      ],
+      symbols: { I0: 'Pompa', Q0: 'Pompa', Q1: 'Livello alto', Q2: 'Guasto sensore', AI0: 'Livello (mA)', MW0: 'Livello (%)' },
+    }),
+    C('TT', 'tx', 'Trasmettitore', 'Trasmettitore di livello 4-20 mA', T('+', '-'), { sense: { v: 'h', lo: 0, hi: 100 } }),
+    C('SA', 'sw', 'Pompa', 'Interruttore della pompa', T('a', 'b')),
+    C('HP', 'spia', 'Pompa', 'Pompa in marcia', T('X1', 'X2')),
+    C('HH', 'spia', 'Livello alto', 'Lampada di livello alto', T('X1', 'X2')),
+    C('HF', 'spia', 'Guasto sensore', 'Lampada di guasto del sensore', T('X1', 'X2')),
+  ],
+  controls: ['SA'],
+  process: {
+    model: 'serbatoio', title: 'Il serbatoio', alt: 'Serbatoio con la pompa e il livello',
+    params: { qIn: 36, qOut: 12 }, init: { h: 30 }, speed: 20,
+    actuators: { pump: { load: 'HP' }, valve: { value: 1 } },
+    trace: ['h'], labels: { h: 'Il livello' },
+    graph: { vars: [{ v: 'h', label: 'Livello %', lo: 0, hi: 100 }], window: 300, lines: [{ value: 80, label: 'livello alto' }] },
+  },
+  demoDo: [{ do: ['toggle SA'], say: '' }],
+  checks: [
+    { id: 'riposo', label: 'Serbatoio a metà e pompa ferma: nessuna lampada di allarme', do: [], expect: { loads: { HH: 'off', HF: 'off', HP: 'off' }, process: { h: [29, 31] } } },
+    { id: 'pieno', label: 'Accendi la pompa: il livello sale e sopra l’80 % si accende “Livello alto”', do: ['toggle SA', 'wait 200'], expect: { loads: { HP: 'on', HH: 'on', HF: 'off' }, process: { h: [95, 100] } } },
+    { id: 'sale', label: 'Il trasmettitore segue il livello: dopo 60 secondi di pompa non c’è ancora l’allarme', do: ['toggle SA', 'wait 60'], expect: { loads: { HH: 'off', HF: 'off' } } },
+  ],
+  safety: { coilReturn: ['PLC'] },
+  solution: W33_FIXED.concat(W33_LOOP, W33_LAMPS),
+  hints: [
+    'Il trasmettitore ha due morsetti, + e −. L’ingresso analogico AI0 ha lo stesso: AI0+ e AI0−. Il + va al +, il − va al −.',
+    'Se i due fili sono scambiati il PLC legge 0 mA, come se il filo fosse staccato: si accende il guasto sensore.',
+    'Le lampade sono carichi comandati da un’uscita a relè: la fase entra in QnA, esce da QnB e va alla lampada; l’altro capo va al neutro.',
+  ],
+});
