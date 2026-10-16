@@ -7,6 +7,7 @@ import { HOUSE } from '../content/trilocale.js';
 import { provaState } from './state.js';
 import * as H from './hud.js';
 import { sound } from './sound.js';
+import { loaderHTML } from '../ui2d/tower.js';
 
 const VIEW_LABEL = {
   insieme: 'Vista d’insieme', quadro: 'Quadro', soggiorno: 'Soggiorno', cucina: 'Cucina',
@@ -362,7 +363,13 @@ export function createProva(host, env) {
   }
   function apply() {
     el.pMsg.hidden = !(sceneState === 'loading' || sceneState === 'failed') || act === 'call';
-    el.pMsg.textContent = sceneState === 'loading' ? 'Caricamento della scena' : 'La scena 3D non è disponibile su questo dispositivo: la prova funziona con i comandi e con lo schema.';
+    // Il loader si scrive una volta sola: riscriverlo a ogni aggiornamento farebbe ripartire l'animazione.
+    const loading = sceneState === 'loading';
+    if (el.pMsg.classList.contains('load') !== loading) {
+      el.pMsg.classList.toggle('load', loading);
+      if (loading) el.pMsg.innerHTML = loaderHTML('Caricamento della scena');
+      else el.pMsg.textContent = 'La scena 3D non è disponibile su questo dispositivo: la prova funziona con i comandi e con lo schema.';
+    }
     el.pScene.hidden = sceneState !== 'ready';
     host.classList.toggle('noscene', sceneState === 'failed');
     const st = host.querySelector('.hstage');

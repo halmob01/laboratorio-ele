@@ -944,5 +944,10 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
   .tw .tw-w{animation:none!important;stroke-dashoffset:0!important;stroke-dasharray:none!important;opacity:1!important}
   .tw .tw-spark{animation:none!important;opacity:1!important;transform:none!important}
 }
+.hmsg.load{display:flex;align-items:center;gap:12px}
+.milestone .house .hmsg.load{flex-direction:column;gap:8px;padding:16px 20px}
+.hmsg .tw-fase{stroke:#E9A15F}
+.hmsg .tw-neutro{stroke:#8CC3F2}
+.hmsg .tw-ghost{stroke:#fff;opacity:.4}
 .ftower{display:flex;align-items:flex-end;gap:16px}
 .ftower .tw{flex:none;margin-bottom:-2px}

@@ -1,43 +1,10 @@
-// La torre di Rozzano disegnata dai due fili: marrone (fase) a sinistra, blu (neutro) a destra.
-// Solo SVG e CSS: niente script durante l'animazione. Due versioni:
-//   'profilo'  la sagoma vista di lato, i due fili ne disegnano meta' ciascuno e si toccano in cima
-//   'spira'    fili dritti alla base, poi attorcigliati; tre dischi in prospettiva (davanti marrone, dietro blu)
+// La torre di Rozzano disegnata dai due fili: marrone (fase) e blu (neutro).
+// Alla base salgono dritti e paralleli, poi si attorcigliano; tre dischi in prospettiva (davanti marrone, dietro blu).
+// Solo SVG e CSS: niente script durante l'animazione.
 // Modi (classe sul <svg>): 'draw' disegna una volta (aggiungere 'go' per partire), 'loop' per il caricamento.
 
 const CX = 50;
 const f = n => +n.toFixed(2);
-
-// Meta' destra della sagoma, dal piede alla punta: [scarto dal centro, y].
-const PROFILE = [
-  [3.5, 152], [3.5, 80],
-  [20, 71], [22, 70], [22, 68], [20, 67.5], [4, 67],   // disco basso: cono sotto, bordo, piano
-  [4, 60],
-  [13, 56.5], [14, 54.5], [11.5, 54],                  // corona: tre gradini, il piu' largo in alto
-  [20, 50.5], [21, 48.5], [18, 48],
-  [27.5, 44.5], [28, 42.5], [26, 41.5], [6, 41],
-  [5, 36],
-  [13, 33], [13.5, 31.5], [12, 31], [5, 31],           // dischi piccoli delle parabole
-  [4.5, 26],
-  [11, 23.5], [11.5, 22], [4.5, 21.5],
-  [3, 19], [1.5, 11], [0, 3],                          // antenna
-];
-
-function half(points, side, cx, lead) {
-  const pts = points.map(([dx, y]) => [cx + side * dx, y]);
-  if (lead) pts.unshift([cx + side * lead, points[0][1]]);
-  return 'M' + pts.map(([x, y]) => `${f(x)} ${f(y)}`).join('L');
-}
-
-function profilo(o) {
-  const lead = o.lead ? 46 : 0;
-  return {
-    box: o.lead ? '0 0 100 160' : '20 0 60 160',
-    fase: half(PROFILE, -1, CX, lead),
-    neutro: half(PROFILE, 1, CX, lead),
-    spark: [CX, 3],
-    width: 2.2,
-  };
-}
 
 // Fusto della spira: i due fili salgono dritti e paralleli, poi si attorcigliano.
 // Due giri esatti: in cima ogni filo e' di nuovo dal suo lato e prosegue senza salti.
@@ -82,10 +49,10 @@ function spira(o) {
   };
 }
 
-const BUILD = { profilo, spira };
+const BUILD = { spira };
 
 /**
- * @param {'profilo'|'spira'} variant
+ * @param {'spira'} variant
  * @param {{ mode?: 'draw'|'loop'|'still', lead?: boolean, size?: number, label?: string }} o
  */
 export function towerSVG(variant = 'spira', o = {}) {
@@ -101,6 +68,11 @@ export function towerSVG(variant = 'spira', o = {}) {
     `<path class="tw-w tw-fase" pathLength="1" d="${g.fase}"/>` +
     `<path class="tw-w tw-neutro" pathLength="1" d="${g.neutro}"/></g>` +
     `<circle class="tw-spark" cx="${g.spark[0]}" cy="${g.spark[1]}" r="2.6"/></svg>`;
+}
+
+// Riquadro di caricamento: torre in ciclo e testo.
+export function loaderHTML(text) {
+  return towerSVG('spira', { mode: 'loop', size: 56 }) + `<span>${text}</span>`;
 }
 
 // Fa partire le torri in modo 'draw' quando entrano nella finestra (una volta sola).
