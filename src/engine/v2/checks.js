@@ -44,6 +44,20 @@ function mismatch(obs, expect) {
       if (obs.machine[k] !== v) return { comp: 'machine.' + k, want: v, got: obs.machine[k] };
     }
   }
+  if (expect.hmi) {
+    const h = obs.hmi || {};
+    if (expect.hmi.link !== undefined && !!h.link !== expect.hmi.link) return { comp: 'hmi.link', want: expect.hmi.link, got: !!h.link };
+    for (const [id, want] of Object.entries(expect.hmi.alarms || {})) {
+      const a = (h.alarms || []).find(x => x.id === id);
+      const got = a ? a.state : 'off';
+      if (got !== want) return { comp: 'hmi.alarm.' + id, want, got };
+    }
+    if (expect.hmi.horn !== undefined && !!h.horn !== expect.hmi.horn) return { comp: 'hmi.horn', want: expect.hmi.horn, got: !!h.horn };
+    for (const [id, want] of Object.entries(expect.hmi.stale || {})) {
+      const v = (h.values || []).find(x => x.id === id);
+      if (!v || v.stale !== want) return { comp: 'hmi.stale.' + id, want, got: v ? v.stale : null };
+    }
+  }
   if (expect.process) {
     for (const [k, v] of Object.entries(expect.process)) {
       const got = obs.process ? obs.process[k] : undefined;
@@ -107,7 +121,7 @@ export function traceMismatch(rows, rules) {
 
 // Guasti che fanno fallire una prova (il neutro a terra senza differenziale e' un problema di sicurezza, non di funzionamento).
 const BLOCKING = { corto: 'work.short', faseterra: 'work.phaseToEarth', secondarioMisto: 'work.secondaryMixed', instabile: 'work.unstable', caricoTerra: 'work.loadOnEarth' };
-const QUADRO = { corto: 'work.short', faseterra: 'work.phaseToEarth' };
+const QUADRO = { corto: 'work.short', faseterra: 'work.phaseToEarth', cortoDC: 'work.shortDC' };
 
 // Primo motivo di fallimento in uno stato osservato, oppure null.
 function blockingOf(o, allowTrip) {
@@ -171,7 +185,18 @@ function isCtlTerm(level, term) {
   return false;
 }
 
+// In continua: i fili sulla rete del + di una batteria sono positivi (rossi), su quella del - negativi (neri);
+// una rete che le tocca entrambe (il punto tra due batterie in serie) o nessuna puo' avere tutti e due i colori.
+function wireRolesDC(level, wires) {
+  const uf = makeUF();
+  wires.forEach(w => uf.u(w.a, w.b));
+  const pos = new Set(), neg = new Set();
+  level.comps.filter(c => c.type === 'batt').forEach(c => { pos.add(uf.f(c.id + '.+')); neg.add(uf.f(c.id + '.-')); });
+  return wires.map(w => { const k = uf.f(w.a); return pos.has(k) && !neg.has(k) ? 'dcpos' : neg.has(k) && !pos.has(k) ? 'dcneg' : 'dc'; });
+}
+
 export function wireRoles(level, wires) {
+  if (level.dc) return wireRolesDC(level, wires);
   const uf = makeUF();
   wires.forEach(w => uf.u(w.a, w.b));
   level.comps.forEach(c => {
@@ -205,6 +230,9 @@ export function wireRoles(level, wires) {
 
 export function allowedColorsV2(level, role, wire) {
   const red = level.controlColor === 'rosso' && (isCtlTerm(level, wire.a) || isCtlTerm(level, wire.b)) ? ['rosso'] : [];
+  if (role === 'dcpos') return ['rosso'];
+  if (role === 'dcneg') return ['nero'];
+  if (role === 'dc') return ['rosso', 'nero'];
   if (role === 'neutro') return ['blu'];
   if (role === 'terra') return ['gv'];
   if (role === 'bassa') return ['marrone', 'nero', 'grigio', 'rosso', 'bianco'];
@@ -245,6 +273,8 @@ export function evaluateV2(level, wires, ctx = {}) {
     const missing = (level.measures || []).filter(m => !(ctx.measured || []).some(x => measureMatches(m, x)));
     if (missing.length) { out.work.ok = false; add('work', 'work.measureMissing', { label: missing[0].label, n: missing.length }); }
     if ((ctx.faultOn || []).length) { out.work.ok = false; add('work', 'work.faultActive', { comp: ctx.faultOn[0] }); }
+    // il pannello operatore scollegato mostra dati vecchi: l'impianto non si consegna cosi'
+    if ((ctx.hmiOff || []).length) { out.work.ok = false; add('work', 'work.hmiOffline', { comp: ctx.hmiOff[0] }); }
   } else {
     // un guasto che blocca tutte le prove si dice una volta sola
     const first = failed[0].r.fail;
@@ -261,7 +291,7 @@ export function evaluateV2(level, wires, ctx = {}) {
   wires.forEach((w, i) => {
     if (!allowedColorsV2(level, roles[i], w).includes(w.c)) bad.push({ code: 'color.wrong', a: w.a, b: w.b, role: roles[i] });
   });
-  if (!bad.length) { out.color.ok = true; add('color', 'color.ok', { earth: !!(level.safety && level.safety.earth) }); }
+  if (!bad.length) { out.color.ok = true; add('color', 'color.ok', level.dc ? { dc: true } : { earth: !!(level.safety && level.safety.earth) }); }
   else {
     bad.slice(0, 3).forEach(b => out.color.items.push(b));
     if (bad.length > 3) add('color', 'color.more', { n: bad.length - 3 });

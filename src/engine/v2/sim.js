@@ -8,6 +8,7 @@
 import { makeUF } from '../circuit.js';
 import { PARTS, partOf, loadVolt } from './parts.js';
 import { scan, newMem } from './plc.js';
+import { solveDC } from './dc.js';
 import { newProcess, stepProcess, exposeProcess, senseDigital, senseAnalog, tunedValues, clampTune } from './process.js';
 
 const PHASES = ['F', 'L1', 'L2', 'L3'];
@@ -44,6 +45,7 @@ export function createSim(level, wires = []) {
     process: level.process ? newProcess(level.process) : null,   // modello di processo (process.js): { state, params }
     trace: [],             // righe { t, grandezza: valore } ogni passo, per le prove e il grafico (level.process.trace)
     hmi: {},               // parole dei PLC scritte dal pannello di regolazione: { idPLC: { MW0: 60 } }
+    panel: level.hmi ? { values: {}, alarms: {}, seq: 0 } : null,   // pannello operatore (level.hmi): ultime letture e stato degli allarmi
   };
   Object.entries(tunedValues(level.process)).forEach(([name, v]) => applyTune(sim, name, v));
   settle(sim);
@@ -161,7 +163,44 @@ export function voltage(p, q) {
   return 0;
 }
 
+// Livelli in corrente continua (level.dc): stessa forma dell'analisi in alternata, calcolata con il risolutore nodale.
+function analyseDC(sim, open) {
+  const { level } = sim;
+  const uf = connect(sim, open);
+  const els = [];
+  sim.wires.forEach(w => els.push({ id: 'w' + w.id, type: 'W', a: w.a, b: w.b }));
+  level.comps.forEach(c => {
+    const p = partOf(c);
+    p.contacts(c, sim.parts[c.id] || {}).forEach(([x, y]) => els.push({ id: c.id + ':' + x, type: 'W', a: c.id + '.' + x, b: c.id + '.' + y }));
+    // dopo un cortocircuito il fusibile delle batterie e' bruciato: niente sorgenti finche' non si rifa' il cablaggio
+    if (p.dc) p.dc(c, sim.parts[c.id] || {}).forEach(e => { if (e.type !== 'V' || (sim.supply && !sim.mainTrip)) els.push(e); });
+  });
+  const firstV = els.find(e => e.type === 'V');
+  const r = solveDC({ elements: els, ground: firstV ? firstV.b : (els[0] && els[0].a) });
+  const vOf = t => (r.ok ? r.v[t] || 0 : 0);
+  const faults = [];
+  if (!r.ok) faults.push({ code: 'corto' });
+  level.comps.forEach(c => { if (c.type === 'batt' && r.ok && Math.abs(r.i[c.id] || 0) > (c.imax || 20)) faults.push({ code: 'corto', comp: c.id }); });
+  const loads = {}, burntNow = [];
+  level.comps.forEach(c => {
+    const p = partOf(c);
+    if (!p.dcLoad) return;
+    let st = 'off';
+    if (c.type === 'led') st = r.ok && (r.i[c.id] || 0) > 0.002 ? 'on' : 'off';
+    else {
+      const V = Math.abs(vOf(c.id + '.' + p.dcLoad[0]) - vOf(c.id + '.' + p.dcLoad[1])), vn = c.volt || 12;
+      st = V > vn * 1.3 ? 'burnt' : V >= vn * 0.85 ? 'on' : V > vn * 0.2 ? 'weak' : 'off';
+    }
+    if (sim.burnt[c.id]) st = 'burnt';
+    loads[c.id] = st;
+  });
+  return {
+    uf, pots: {}, potAt: () => null, volt: (x, y) => Math.abs(vOf(x) - vOf(y)), faults, loads, coils: {}, motors: {}, modes: {}, plcIn: {}, plcAi: {}, trafoOn: {}, burntNow, leaks: [], dc: r,
+  };
+}
+
 function analyse(sim, open) {
+  if (sim.level.dc) return analyseDC(sim, open);
   const { level } = sim;
   const uf = connect(sim, open);
   const pots = {};   // radice -> Set di potenziali
@@ -340,7 +379,7 @@ function protect(sim, an) {
     const c = pick(closedProtections(sim, 'corto'), a => hasFault(a, ['corto']));
     if (c) { trip(sim, c); return true; }
     sim.mainTrip = true;
-    sim.mainTripCause = 'corto';
+    sim.mainTripCause = sim.level.dc ? 'cortoDC' : 'corto';
     return true;
   }
   // fase a terra, neutro a terra: differenziale
@@ -378,8 +417,8 @@ function machineSwitches(sim) {
   if (sim.process) {
     const vars = processVars(sim);
     sim.level.comps.forEach(c => {
-      if (c.type === 'sens' && c.sense) sim.parts[c.id].act = senseDigital(vars, c.sense);
-      if (c.type === 'tx' && c.sense) sim.parts[c.id].mA = senseAnalog(vars, c.sense);
+      if (c.type === 'sens' && c.sense && !sim.parts[c.id].jam) sim.parts[c.id].act = senseDigital(vars, c.sense);
+      if (c.type === 'tx' && c.sense) sim.parts[c.id].mA = sim.parts[c.id].cut ? 0 : senseAnalog(vars, c.sense);
     });
   }
   const m = sim.level.machine;
@@ -476,11 +515,65 @@ export function settle(sim) {
     if (changed) break;
     }
     if (!changed && plcScan(sim, an)) { changed = true; plcFlips++; }
-    if (!changed) { sim.unstable = false; sim.unstableCause = null; return; }
+    if (!changed) { sim.unstable = false; sim.unstableCause = null; hmiPoll(sim, an); return; }
   }
   // le uscite del PLC cambiavano di continuo: il programma si contraddice (es. Q0 comandata da "non Q0")
   sim.unstable = true;
   sim.unstableCause = plcFlips > MAX_ITER / 4 ? 'plc' : null;
+}
+
+/* ---------- pannello operatore (docs/SPEC-PROCESSI.md, sezione 8c) ---------- */
+
+const hmiComp = sim => sim.level.comps.find(c => c.type === 'hmi');
+function hmiLink(sim, an) {
+  const h = hmiComp(sim), cfg = sim.level.hmi;
+  return !!(h && sim.parts[h.id].on && cfg && an.coils[cfg.plc]);
+}
+
+// Con il collegamento il pannello rilegge valori e bit d'allarme; senza, tutto resta fermo all'ultima lettura.
+function hmiPoll(sim, an) {
+  const cfg = sim.level.hmi, P = sim.panel;
+  if (!cfg || !P || !hmiLink(sim, an)) return;
+  const vars = processVars(sim);
+  (cfg.values || []).forEach(v => { P.values[v.id] = { v: traceValue(sim, v.v, vars), t: sim.t }; });
+  (cfg.alarms || []).forEach(a => {
+    const on = traceValue(sim, cfg.plc + '.' + a.bit, vars) === 1;
+    const st = P.alarms[a.id] || { state: 'off', since: null, seq: 0 };
+    let next = st.state;
+    if (on && (st.state === 'off' || st.state === 'rientrato')) next = 'attivo';
+    else if (!on && st.state === 'attivo') next = 'rientrato';
+    else if (!on && st.state === 'riconosciuto') next = 'off';
+    if (next !== st.state) {
+      P.alarms[a.id] = next === 'attivo' && st.state === 'off' ? { state: next, since: sim.t, seq: ++P.seq } : { ...st, state: next };
+    }
+  });
+}
+
+function hmiAck(sim) {
+  const P = sim.panel;
+  if (!P || !hmiLink(sim, analyse(sim))) return;
+  Object.entries(P.alarms).forEach(([id, st]) => {
+    if (st.state === 'attivo') P.alarms[id] = { ...st, state: 'riconosciuto' };
+    else if (st.state === 'rientrato') P.alarms[id] = { ...st, state: 'off' };
+  });
+}
+
+const PRIO = { alta: 0, media: 1, bassa: 2 };
+function hmiReport(sim, an) {
+  const cfg = sim.level.hmi, P = sim.panel;
+  if (!cfg || !P) return null;
+  const stale = cfg.stale || 3;
+  const values = (cfg.values || []).map(v => {
+    const r = P.values[v.id];
+    const age = r ? sim.t - r.t : null;
+    const val = r ? r.v : null;
+    const text = val === null ? '' : v.bool ? v.bool[val ? 1 : 0] : String(Math.round(val * 10) / 10).replace('.', ',') + (v.unit ? ' ' + v.unit : '');
+    return { id: v.id, label: v.label, v: val, text, age, stale: !r || age > stale };
+  });
+  const alarms = (cfg.alarms || []).map(a => ({ id: a.id, text: a.text, prio: a.prio, ...(P.alarms[a.id] || { state: 'off', since: null, seq: 0 }) }))
+    .filter(a => a.state !== 'off')
+    .sort((x, y) => PRIO[x.prio] - PRIO[y.prio] || y.seq - x.seq);
+  return { link: hmiLink(sim, an), horn: alarms.some(a => a.state === 'attivo' || a.state === 'rientrato'), values, alarms };
 }
 
 /* ---------- azioni ---------- */
@@ -506,6 +599,9 @@ export function act(sim, action, id) {
     s.heat = 0;
   } else if (action === 'weld' && (c.type === 'km' || c.type === 'rel')) { if (s.on || s.welded) s.welded = !s.welded; }
   else if (action === 'reset' && c.type === 'ft') { s.tripped = false; s.heat = 0; }
+  else if (action === 'jam' && c.type === 'sens') s.jam = !s.jam;
+  else if (action === 'cut' && c.type === 'tx') s.cut = !s.cut;
+  else if (action === 'ack' && c.type === 'hmi') hmiAck(sim);
   else if (action === 'test' && c.type === 'rcd') {
     if (s.on) {
       const an = analyse(sim);
@@ -620,6 +716,7 @@ export function observe(sim) {
     plc: Object.fromEntries(sim.level.comps.filter(c => c.type === 'plc').map(c => [c.id, { powered: !!an.coils[c.id], inputs: an.plcIn[c.id], ai: { ...an.plcAi[c.id] }, q: { ...sim.parts[c.id].q }, aq: { ...sim.parts[c.id].aq }, rungs: sim.parts[c.id].rungs.slice(), bits: { ...((sim.parts[c.id].mem && sim.parts[c.id].mem.bits) || {}) }, words: { ...((sim.parts[c.id].mem && sim.parts[c.id].mem.words) || {}) }, timers: { ...((sim.parts[c.id].mem && sim.parts[c.id].mem.timers) || {}) }, counters: { ...((sim.parts[c.id].mem && sim.parts[c.id].mem.counters) || {}) } }])),
     process: sim.process ? { ...processVars(sim) } : null,
     processAct: sim.process ? actuatorsOf(sim, an) : null,   // comandi che il processo sta ricevendo (0-1), per il disegno
+    hmi: hmiReport(sim, an),   // pannello operatore (level.hmi): collegamento, valori con l'eta', allarmi
     coils: Object.fromEntries(Object.entries(an.coils).filter(([id]) => !sim.level.comps.some(c => c.id === id && c.type === 'plc'))),
     parts,
     machine: sim.level.machine ? { pos: sim.pos, atStart: sim.pos <= 0, atEnd: sim.pos >= sim.level.machine.length } : null,
@@ -669,6 +766,8 @@ function windings(sim) {
  */
 export function measure(sim, a, b, mode = 'V') {
   const an = analyse(sim);
+  // in continua il multimetro legge una tensione con il segno: rosso sul + e nero sul - da' un valore positivo
+  if (sim.level.dc && mode === 'V') return { kind: 'v', value: an.dc.ok ? Math.round(((an.dc.v[a] || 0) - (an.dc.v[b] || 0)) * 100) / 100 : null, ac: false };
   const roots = new Map();   // radice -> potenziale
   const wd = windings(sim);
   const terms = [a, b];

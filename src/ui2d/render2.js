@@ -41,6 +41,9 @@ function poles(c, tops, bots, closed, L, y1 = 22, y2 = c.h - 22) {
   return o;
 }
 
+// Pulsante di guasto simulato (galleggiante bloccato, filo interrotto) nei livelli con il pannello operatore.
+const faultBtn = (id, kind, x, y, text, aria) => `<g class="tbtn" data-${kind}="${id}" role="button" tabindex="0" aria-label="${aria}"><rect x="${x}" y="${y}" width="60" height="26" rx="5" fill="#F6E1C8" stroke="var(--comp-edge)" stroke-width="1.4"/><text x="${x + 30}" y="${y + 17}" text-anchor="middle" style="font:600 10px 'IBM Plex Mono',monospace;fill:#222">${text}</text></g>`;
+
 export function schemV2(c, s, L, ui) {
   const w = c.w, h = c.h, st = s.controlStates[c.id] ? 1 : 0, part = obsOf(s, c.id), obs = s.obs || { loads: {}, motors: {}, coils: {} };
   let o = '';
@@ -227,7 +230,8 @@ export function schemV2(c, s, L, ui) {
       // sensore digitale di processo (galleggiante, termostato): contatto NC 1-2 e NA 3-4 comandati dalla grandezza del processo
       const act = !!part.act;
       o += pole(w * c.terms['1'].f, 22, h - 22, !act, L('1'), L('2')) + pole(w * c.terms['3'].f, 22, h - 22, act, L('3'), L('4'));
-      o += lab(w / 2, h - 6, act ? 'SCATTATO' : 'A RIPOSO');
+      o += lab(w / 2, h - 6, part.jam ? 'BLOCCATO' : act ? 'SCATTATO' : 'A RIPOSO');
+      if (s.level.hmi) o += faultBtn(c.id, 'jam', w - 66, mid - 14, part.jam ? 'SBLOCCA' : 'BLOCCA', (part.jam ? 'Sblocca ' : 'Blocca ') + c.short);
       break;
     }
     case 'tx': {
@@ -238,6 +242,16 @@ export function schemV2(c, s, L, ui) {
       o += `<text x="${w / 2}" y="${cy + 5}" text-anchor="middle" style="font:600 14px 'IBM Plex Mono',monospace;fill:var(--ink)">mA</text>`;
       o += lab(xp + 10, cy - 28, '+') + lab(xm + 10, cy + 40, '−');
       if (c.sense && part.mA) o += lab(w / 2, h - 6, 'trasmette ' + String(Math.round(part.mA * 10) / 10).replace('.', ',') + ' mA');
+      if (part.cut) o += lab(w / 2, h - 6, 'FILO INTERROTTO');
+      if (s.level.hmi) o += faultBtn(c.id, 'cut', w - 66, mid - 14, part.cut ? 'RICOLLEGA' : 'TAGLIA', part.cut ? 'Ricollega il filo del trasmettitore' : 'Interrompi il filo del trasmettitore');
+      break;
+    }
+    case 'hmi': {
+      // pannello operatore: uno schermo e il cavo di rete verso il PLC (si stacca e si ricollega toccandolo)
+      const on = !!part.on, cx = w / 2;
+      o += `<rect x="${cx - 70}" y="22" width="76" height="52" rx="5" fill="#1D2430" stroke="var(--comp-edge)" stroke-width="2"/><text x="${cx - 32}" y="53" text-anchor="middle" style="font:600 12px 'IBM Plex Mono',monospace;fill:#9FE3B8">HMI</text>`;
+      o += `<g class="tbtn" data-ctl="${c.id}" role="button" tabindex="0" aria-label="Cavo di rete del pannello: ${on ? 'collegato. Tocca per staccarlo' : 'staccato. Tocca per ricollegarlo'}"><rect x="${cx + 14}" y="30" width="62" height="34" rx="5" fill="#EDE7D4" stroke="var(--comp-edge)" stroke-width="1.4"/><path d="M${cx + 6} 47 H${cx + 14}" stroke="${on ? '#2E9E5B' : '#C0262D'}" stroke-width="3"/><text x="${cx + 45}" y="52" text-anchor="middle" style="font:600 11px 'IBM Plex Mono',monospace;fill:#222">${on ? 'RETE' : 'STACCATO'}</text></g>`;
+      o += lab(cx, h - 8, on ? 'collegato al PLC' : 'cavo staccato');
       break;
     }
     case 'trafo': {
@@ -274,6 +288,24 @@ export function schemV2(c, s, L, ui) {
       o += lab(cx + 45, 82, on ? 'verso terra' : 'tocca il pannello');
       break;
     }
+    case 'batt': {
+      // batteria: piastra lunga = +, piastra corta = -
+      const xp = w * c.terms['+'].f, xm = w * c.terms['-'].f, cy = mid;
+      o += ln(xp, 22, xp, cy - 10, L('+')) + ln(xm, cy + 10, xm, h - 22, L('-'));
+      o += `<line x1="${xp - 22}" y1="${cy - 10}" x2="${xp + 22}" y2="${cy - 10}" stroke="var(--sch)" stroke-width="3"/><line x1="${xm - 12}" y1="${cy + 10}" x2="${xm + 12}" y2="${cy + 10}" stroke="var(--sch)" stroke-width="6"/>`;
+      o += lab(w - 30, cy + 4, String(c.v || 6).replace('.', ',') + ' V');
+      break;
+    }
+    case 'led': {
+      // LED: triangolo dall'anodo A al catodo K; si accende solo nel verso giusto
+      const on = obs.loads[c.id] === 'on', xa = w * c.terms.A.f, xk = w * c.terms.K.f, cy = 60, cx = w / 2;
+      o += ln(xa, 22, xa, cy, L('A')) + ln(xa, cy, cx - 12, cy, L('A')) + ln(xk, 22, xk, cy, L('K')) + ln(xk, cy, cx + 12, cy, L('K'));
+      o += `<path d="M${cx - 12} ${cy - 11} L${cx + 10} ${cy} L${cx - 12} ${cy + 11} Z" fill="${on ? '#FF5A5F' : 'var(--bulb-off)'}" stroke="var(--comp-edge)" stroke-width="1.6"/><line x1="${cx + 11}" y1="${cy - 12}" x2="${cx + 11}" y2="${cy + 12}" stroke="var(--comp-edge)" stroke-width="2.4"/>`;
+      if (on) o += `<path d="M${cx + 2} ${cy - 16} l8 -10 m-4 0 h4 v4 M${cx + 12} ${cy - 12} l8 -10 m-4 0 h4 v4" fill="none" stroke="#E5484D" stroke-width="1.8"/>`;
+      o += lab(xa, cy + 24, 'A (+)') + lab(xk, cy + 24, 'K (−)');
+      break;
+    }
+    case 'dcl':
     case 'lamp': {
       const on = obs.loads[c.id] === 'on', burnt = obs.loads[c.id] === 'burnt';
       const cx = w / 2, cy = 58;
@@ -319,10 +351,10 @@ export function schemV2(c, s, L, ui) {
 }
 
 // Tipi che il disegno v2 gestisce al posto di quelli del motore v1 (sw, dev e inv restano come nel v1).
-export const V2_TYPES = new Set(['quadro', 'mt', 'rcd', 'mt3', 'sez', 'pb', 'pbnc', 'fungo', 'port', 'rs', 'ri', 'rel', 'tmr', 'km', 'ft', 'fc', 'sens', 'tx', 'trafo', 'bell', 'spia', 'lamp', 'presa', 'motor3', 'motor6', 'kt', 'plc', 'gu']);
+export const V2_TYPES = new Set(['quadro', 'mt', 'rcd', 'mt3', 'sez', 'pb', 'pbnc', 'fungo', 'port', 'rs', 'ri', 'rel', 'tmr', 'km', 'ft', 'fc', 'sens', 'tx', 'hmi', 'trafo', 'bell', 'spia', 'lamp', 'batt', 'dcl', 'led', 'presa', 'motor3', 'motor6', 'kt', 'plc', 'gu']);
 
 /* ---------- scena della stanza / della macchina (livelli v2) ---------- */
-const DEV = new Set(['lamp', 'spia', 'bell', 'presa', 'motor3', 'motor6']);
+const DEV = new Set(['lamp', 'spia', 'bell', 'presa', 'motor3', 'motor6', 'dcl', 'led']);
 const WALLCTL = { sw: 'tog', dev: 'tog', inv: 'tog', pb: 'hold', pbnc: 'hold', fungo: 'mush', port: 'tog' };
 
 // Struttura fissa della scena (gli id servono a updateRoomV2, che cambia solo classi e posizioni).
@@ -336,11 +368,11 @@ export function roomV2HTML(level) {
   devs.forEach((c, i) => {
     const x = Math.round(400 * (i + .5) / Math.max(1, n)), y = m ? 40 : 52;
     o += `<g data-dev="${c.id}">`;
-    if (c.type === 'lamp' || c.type === 'spia') {
+    if (c.type === 'lamp' || c.type === 'spia' || c.type === 'dcl' || c.type === 'led') {
       o += `<line x1="${x}" y1="0" x2="${x}" y2="${y - 22}" stroke="var(--ink)" stroke-width="2.5" opacity=".7"/>`;
       o += `<circle id="gl-${c.id}" class="glowc" cx="${x}" cy="${y}" r="70" fill="url(#glow2)" opacity="0"/>`;
-      o += `<circle id="ld-${c.id}" class="bulb" cx="${x}" cy="${y}" r="${c.type === 'spia' ? 9 : 13}"/>`;
-      if (c.type === 'lamp') o += `<path class="shade" d="M${x - 30} ${y - 10} Q${x} ${y - 50} ${x + 30} ${y - 10} Z"/>`;
+      o += `<circle id="ld-${c.id}" class="bulb" cx="${x}" cy="${y}" r="${c.type === 'spia' || c.type === 'led' ? 9 : 13}"/>`;
+      if (c.type === 'lamp' || c.type === 'dcl') o += `<path class="shade" d="M${x - 30} ${y - 10} Q${x} ${y - 50} ${x + 30} ${y - 10} Z"/>`;
     } else if (c.type === 'bell') {
       o += `<path id="ld-${c.id}" class="bellb" d="M${x - 18} ${y + 14} Q${x - 18} ${y - 16} ${x} ${y - 16} Q${x + 18} ${y - 16} ${x + 18} ${y + 14} Z" fill="#C8A04A" stroke="#7A5E1C" stroke-width="2"/><circle cx="${x}" cy="${y + 18}" r="4" fill="#7A5E1C"/>`;
     } else if (c.type === 'presa') {
@@ -388,7 +420,7 @@ export function updateRoomV2(root, s) {
   const set = (id, cls) => { const e = root.querySelector('#' + id); if (e) e.setAttribute('class', cls); return e; };
   level.comps.forEach(c => {
     const st = o.loads[c.id];
-    if (c.type === 'lamp' || c.type === 'spia') {
+    if (c.type === 'lamp' || c.type === 'spia' || c.type === 'dcl' || c.type === 'led') {
       const on = st === 'on';
       set('ld-' + c.id, 'bulb' + (on ? ' on' : ''));
       const g = root.querySelector('#gl-' + c.id); if (g) g.setAttribute('opacity', on ? '1' : '0');

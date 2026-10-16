@@ -128,6 +128,27 @@ Il nucleo è nel ramo `p6-processi`. Cose decise scrivendo il codice, che la spe
 
 Per chi fa la parte visiva (non Opus): il disegno dei pezzi `sens` e `tx` sul banco e i morsetti `AIk+`/`AIk-` del PLC; il pannello di regolazione (cursori dai `tunable`, grafico da `snapshot().trace`, scritta "tempo × speed"); l'editor del ladder per confronti, `move`, `scale`, `pid` (oggi il motore li ha, l'editor no; `validateProgram` va chiamata con `AI` e `AQ` del PLC); l'arabo dei testi nuovi in `it.js` (`work.unstablePlc` e le frasi di `processText`: `check-lang` non li vede perché sono composti).
 
+## 8c. Pannello operatore (6.8)
+
+Scritta da Opus il 16 ottobre 2026, dopo il nucleo. Il pannello operatore (HMI) e' un componente `hmi` senza morsetti: rappresenta lo schermo collegato al PLC con un cavo di rete. Il livello lo configura con `level.hmi`:
+
+```js
+hmi: {
+  plc: 'PLC',                 // il PLC con cui parla
+  stale: 3,                   // secondi senza aggiornamenti dopo i quali un valore e' "vecchio"
+  values: [{ id: 'V1', label: 'Livello', v: 'PLC.MW0', unit: '%' }, { id: 'V2', label: 'Pompa', v: 'PLC.Q0', bool: ['ferma', 'in marcia'] }],
+  alarms: [{ id: 'A1', bit: 'M0', text: 'Livello troppo alto', prio: 'alta' }, ...],   // prio: 'alta' | 'media' | 'bassa'
+}
+```
+
+- **Collegamento**: c'e' se il cavo e' collegato (`parts.HMI.on`, azione `toggle`) e il PLC e' alimentato. Con il collegamento i valori e gli allarmi si aggiornano a ogni assestamento; senza, restano fermi all'ultimo valore letto.
+- **Dato vecchio**: ogni valore porta l'istante dell'ultima lettura; se e' piu' vecchio di `stale` secondi il pannello lo mostra come vecchio (grigio, con l'eta'). Nei primi secondi dopo la perdita del collegamento il valore sembra ancora buono: e' realistico ed e' il punto della lezione.
+- **Allarmi** (modello ISA-18.2 semplificato): stati `off`, `attivo` (condizione vera, non riconosciuto), `riconosciuto` (vera, riconosciuta), `rientrato` (tornata falsa senza riconoscimento). `off -> attivo` quando il bit diventa 1; `attivo -> riconosciuto` con il riconoscimento; `riconosciuto -> off` quando il bit torna 0; `attivo -> rientrato` quando torna 0; `rientrato -> off` con il riconoscimento; `rientrato -> attivo` se ritorna 1. La sirena suona finche' c'e' un allarme non riconosciuto (`attivo` o `rientrato`). L'elenco si ordina per priorita' (alta, media, bassa) e poi per ora di comparsa, il piu' recente in alto.
+- **Riconoscimento**: azione `ack` sul componente `hmi` (riconosce tutti gli allarmi visibili). Funziona solo con il collegamento.
+- **Guasti simulati** per le prove e per la gestione guasti (6.10): `jam` su un `sens` (galleggiante bloccato: il contatto resta com'e'), `cut` su un `tx` (filo del trasmettitore interrotto: 0 mA).
+- **Osservazione**: `obs.hmi = { link, horn, values: [{ id, label, v, text, age, stale }], alarms: [{ id, text, prio, state, since }] }`.
+- **Prove**: `expect.hmi = { link, horn, alarms: { A1: 'attivo' }, stale: { V1: true } }`.
+
 ## 9. Fuori da questa specifica
 
 Bus di campo, manutenzione predittiva, pannello operatore con allarmi (6.8: si appoggia sul tracciato e sulle parole del PLC, ma la sua interfaccia è da progettare), modelli della linea (P7).
