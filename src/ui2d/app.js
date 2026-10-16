@@ -449,6 +449,7 @@ bench.addEventListener('click', e => {
   if (t) return;
   const h = e.target.closest('[data-help]'); if (h) { setInfo(h.dataset.help); return; }
   const q = e.target.closest('[data-q]'); if (q) { clearSel(); session.toggleBreaker(); return; }
+  const lk = e.target.closest('[data-lock]'); if (lk) { clearSel(); session.lockControl(lk.dataset.lock); return; }
   const rt = e.target.closest('[data-rate]'); if (rt) { clearSel(); session.rateControl(rt.dataset.rate); return; }
   const tp = e.target.closest('[data-test]'); if (tp) { clearSel(); session.testPart(tp.dataset.test); return; }
   const rp = e.target.closest('[data-reset]'); if (rp) { clearSel(); session.resetPart(rp.dataset.reset); return; }
@@ -496,6 +497,8 @@ bench.addEventListener('keydown', e => {
   if (e.key !== 'Enter' && e.key !== ' ') return;
   const hd = e.target.closest('[data-hold]');
   if (hd) { e.preventDefault(); if (!e.repeat) holdStart(hd.dataset.hold); return; }
+  const lk_ = e.target.closest('[data-lock]');
+  if (lk_) { e.preventDefault(); session.lockControl(lk_.dataset.lock); return; }
   const rt_ = e.target.closest('[data-rate]');
   if (rt_) { e.preventDefault(); session.rateControl(rt_.dataset.rate); return; }
   const fb_ = e.target.closest('[data-jam],[data-cut]');

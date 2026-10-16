@@ -1,4 +1,4 @@
-// La prova della fabbrica (c53, il turno di notte): guasti estratti con il seme, turno che comincia al riarmo, tempo di fermo,
+// La prova della fabbrica (c51, il turno di notte): guasti estratti con il seme, turno che comincia al riarmo, tempo di fermo,
 // riparare dentro la cella solo a robot senza potenza. Prima il motore (test/turno.js), poi la sessione con i comandi del banco.
 // Specifica: docs/PROGETTO-FABBRICA.md.
 
@@ -6,15 +6,15 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createSession } from '../src/engine/index.js';
 import { levels, deriveFull } from '../src/content/index.js';
-import { LEVELS_V2, LIB_53, W53_PLANT } from '../src/content/levels-v2.js';
+import { LEVELS_V2, LIB_51, W51_PLANT } from '../src/content/levels-v2.js';
 import { scenarioFaults, scenarioReport, observe } from '../src/engine/v2/index.js';
 import { playShift } from './turno.js';
 
-const ID = 'c53-turno-notte';
+const ID = 'c51-turno-notte';
 const L = LEVELS_V2.find(l => l.id === ID);
 const withSeed = seed => ({ ...L, scenario: { ...L.scenario, seed } });
 
-test('c53: i guasti del turno vengono dalla libreria; il primo e\' sempre il finecorsa, lo stesso seme da\' lo stesso turno', () => {
+test('c51: i guasti del turno vengono dalla libreria; il primo e\' sempre il finecorsa, lo stesso seme da\' lo stesso turno', () => {
   const seq = seed => scenarioFaults(L.scenario, seed).map(f => f.id + '@' + f.at);
   assert.deepEqual(seq(7), seq(7));
   const all = [1, 2, 3, 4, 5, 6, 7, 8].map(seq);
@@ -25,13 +25,13 @@ test('c53: i guasti del turno vengono dalla libreria; il primo e\' sempre il fin
     assert.equal(new Set(s.map(x => x.split('@')[0])).size, 4, 'niente guasti ripetuti');
   });
   assert.ok(new Set(all.map(s => s.join())).size > 3, 'semi diversi, turni diversi');
-  assert.ok(scenarioFaults(L.scenario, 3).every(f => LIB_53.some(x => x.id === f.id)));
+  assert.ok(scenarioFaults(L.scenario, 3).every(f => LIB_51.some(x => x.id === f.id)));
   // c44 e c45 non hanno `pick`: i loro guasti restano quelli scritti
   const c45 = LEVELS_V2.find(l => l.id === 'c45-fabbrica');
   assert.deepEqual(scenarioFaults(c45.scenario).map(f => f.at), c45.scenario.faults.map(f => f.at));
 });
 
-test('c53: partita di riferimento: riparando in tempo si arriva all\'obiettivo; senza riparare no', () => {
+test('c51: partita di riferimento: riparando in tempo si arriva all\'obiettivo; senza riparare no', () => {
   [1, 2, 7].forEach(seed => {
     const sim = playShift(withSeed(seed), { start: L.solutionStart, react: () => 30 });
     const r = scenarioReport(sim), p = observe(sim).process;
@@ -47,7 +47,7 @@ test('c53: partita di riferimento: riparando in tempo si arriva all\'obiettivo; 
   assert.ok(scenarioReport(none).down > 1000, 'senza riparare la cella resta ferma quasi tutto il turno');
 });
 
-test('c53: il turno comincia quando il robot riceve potenza (riarmo), non quando si apre il livello', () => {
+test('c51: il turno comincia quando il robot riceve potenza (riarmo), non quando si apre il livello', () => {
   const sim = playShift(withSeed(1), { start: [], react: () => null, extra: -1700 });
   const r = scenarioReport(sim);
   assert.equal(r.started, false);
@@ -68,17 +68,17 @@ function playTo(s, t, react = null) {
     sc.faults.forEach(f => {
       if (!f.open || done.has(f.id) || sc.t < f.firedAt + react) return;
       done.add(f.id);
-      run(s, LIB_53.find(x => x.id === f.id).fix);
+      run(s, LIB_51.find(x => x.id === f.id).fix);
     });
   }
 }
 
-test('c53: la prova parte con la cella cablata e programmata; il turno parte al riarmo', () => {
+test('c51: la prova parte con la cella cablata e programmata; il turno parte al riarmo', () => {
   const s = open();
   const sn = s.snapshot();
   assert.equal(sn.unit.phase, 'fault');
   assert.equal(sn.unit.prova, true);
-  assert.ok(sn.wires.length > W53_PLANT.length, 'cablaggio della sicurezza e del PLC');
+  assert.ok(sn.wires.length > W51_PLANT.length, 'cablaggio della sicurezza e del PLC');
   for (let i = 0; i < 20; i++) s.tick(0.5);
   assert.equal(s.snapshot().obs.scenario.started, false, 'senza riarmo il turno non comincia');
   run(s, L.solutionStart);
@@ -87,7 +87,7 @@ test('c53: la prova parte con la cella cablata e programmata; il turno parte al 
   assert.equal(s.snapshot().obs.loads.L, 'on', 'il robot e\' alimentato');
 });
 
-test('c53: riparando dentro la cella a portella aperta e rispondendo giusto la prova si supera', () => {
+test('c51: riparando dentro la cella a portella aperta e rispondendo giusto la prova si supera', () => {
   const s = open();
   run(s, L.solutionStart);
   s.answerDiagnosis('b');
@@ -101,7 +101,7 @@ test('c53: riparando dentro la cella a portella aperta e rispondendo giusto la p
   assert.equal(s.snapshot().unit.faultSolved, true);
 });
 
-test('c53: riparare il finecorsa con il robot alimentato fa perdere la stella di sicurezza', () => {
+test('c51: riparare il finecorsa con il robot alimentato fa perdere la stella di sicurezza', () => {
   const s = open();
   run(s, L.solutionStart);
   s.answerDiagnosis('b');

@@ -108,12 +108,21 @@ export function createSession({ levels, deriveFull, storage = memoryStorage(), i
     if (sim) levels[i].comps.forEach(c => { if (c.type === 'mt' && sim.parts[c.id] && sim.parts[c.id].in) out[c.id] = sim.parts[c.id].in; });
     return out;
   };
-  // Stato dei sezionamenti del lavoro fuori tensione (livelli con safety.deadWork), se diverso da quello di partenza.
+  // Sezionamenti del lavoro fuori tensione: quelli di safety.deadWork e quello del lucchetto (safety.lockout.iso).
+  const lockoutOf = lv => (lv && lv.safety && lv.safety.lockout) || null;
+  const isoIds = lv => [...new Set([...((lv.safety && lv.safety.deadWork) || []), ...(lockoutOf(lv) ? [lockoutOf(lv).iso] : [])])];
+  // Stato dei sezionamenti, se diverso da quello di partenza: 1 chiuso, 0 aperto, { lock: [letture] } aperto con il lucchetto.
   const isoOf = (i = levelIndex) => {
     const lv = levels[i], k = keyOf(i, 'quadro');
     const out = { ...(isoSaved[k] || {}) };
     const sim = simsByKey[k];
-    if (sim && lv.safety && lv.safety.deadWork) lv.safety.deadWork.forEach(id => { const c = lv.comps.find(x => x.id === id); if (sim.parts[id] && !!sim.parts[id].on !== (c.init !== 0)) out[id] = sim.parts[id].on ? 1 : 0; else delete out[id]; });
+    if (sim) isoIds(lv).forEach(id => {
+      const c = lv.comps.find(x => x.id === id), s = sim.parts[id];
+      if (!s) return;
+      if (s.locked) out[id] = { lock: (s.verified || []).slice() };
+      else if (!!s.on !== (c.init !== 0)) out[id] = s.on ? 1 : 0;
+      else delete out[id];
+    });
     return out;
   };
   const meterOf = () => meterBy[keyOf()] || (meterBy[keyOf()] = { on: false, mode: 'V', a: null, b: null, last: '' });
@@ -131,6 +140,29 @@ export function createSession({ levels, deriveFull, storage = memoryStorage(), i
     if (k === m.last) return;
     m.last = k;
     (measuredBy[keyOf()] = measuredBy[keyOf()] || []).push({ a: m.a, b: m.b, mode: m.mode, kind: r.kind, value: r.value === undefined ? null : r.value, ohm: r.ohm || null, live: !!power });
+    noteVerify(level, m, r);
+  }
+  // Lucchetto (safety.lockout = { iso, test: [[a, b], ...], known?: [a, b] }): con il sezionamento aperto e bloccato, impianto alimentato,
+  // le letture di 0 V tra le coppie di `test` (e, se c'e', la prova dello strumento: 230 V su `known`, un punto che resta in tensione)
+  // si segnano sul sezionamento. Ogni modifica dei fili senza tutte queste letture e' lavoro non sicuro.
+  const pairKey = (a, b) => [a, b].sort().join('~');
+  const lockPairs = lv => (lockoutOf(lv) ? lockoutOf(lv).test.map(([a, b]) => pairKey(a, b)).concat(lockoutOf(lv).known ? [pairKey(...lockoutOf(lv).known)] : []) : []);
+  function noteVerify(level, m, r) {
+    const L = lockoutOf(level);
+    if (!L || !v2(level) || !power || m.mode !== 'V' || r.kind !== 'v') return;
+    const s = simFor().parts[L.iso];
+    if (!s || !s.locked || s.on) return;
+    const k = pairKey(m.a, m.b);
+    const isTest = L.test.some(([a, b]) => pairKey(a, b) === k) && r.value === 0;
+    const isKnown = !!L.known && pairKey(...L.known) === k && r.value === 230;
+    if ((isTest || isKnown) && !s.verified.includes(k)) s.verified.push(k);
+  }
+  // La procedura e' completa? Sezionamento aperto, lucchetto messo, tutte le letture fatte dopo averlo messo.
+  function lockoutDone(level = levelAt()) {
+    const L = lockoutOf(level);
+    if (!L) return true;
+    const s = simFor().parts[L.iso];
+    return !!s && s.locked && !s.on && lockPairs(level).every(k => s.verified.includes(k));
   }
   const isoSaved = {};       // stato (1 chiuso, 0 aperto) dei sezionamenti del lavoro fuori tensione, ricaricato dal lavoro salvato
   const ratingsSaved = {};   // portate scelte e ricaricate dal lavoro salvato, applicate alla prima simulazione
@@ -165,7 +197,14 @@ export function createSession({ levels, deriveFull, storage = memoryStorage(), i
       delete ratingsSaved[k];
       const iso = isoSaved[k];
       delete isoSaved[k];
-      if (iso) { levelAt().comps.forEach(c => { if (iso[c.id] !== undefined && sim.parts[c.id] && 'on' in sim.parts[c.id]) sim.parts[c.id].on = !!iso[c.id]; }); settleSim(sim); }
+      if (iso) {
+        levelAt().comps.forEach(c => {
+          const v = iso[c.id], s = sim.parts[c.id];
+          if (v === undefined || !s || !('on' in s)) return;
+          if (v && typeof v === 'object') { s.on = false; s.locked = true; s.verified = Array.isArray(v.lock) ? v.lock.slice() : []; } else s.on = !!v;
+        });
+        settleSim(sim);
+      }
       if (sr) levelAt().comps.forEach(c => { if (c.type === 'mt' && c.ratings && c.ratings.includes(sr[c.id]) && sim.parts[c.id]) { sim.parts[c.id].in = sr[c.id]; } });
       if (sim.supply !== power) setSupply(sim, power);
       simsByKey[k] = sim;
@@ -248,6 +287,8 @@ export function createSession({ levels, deriveFull, storage = memoryStorage(), i
       selfPowered: is2 ? selfPowered(level) : false,
       overload: is2 ? !!simFor().overload : false,
       // multimetro: solo nei livelli che lo dichiarano (`meter: true`)
+      // lucchetto: stato della procedura per la vista (sezionamento bloccato, letture fatte e da fare)
+      lockout: is2 && lockoutOf(level) ? { iso: lockoutOf(level).iso, locked: !!(simFor().parts[lockoutOf(level).iso] || {}).locked, done: lockoutDone(level), verified: ((simFor().parts[lockoutOf(level).iso] || {}).verified || []).slice(), need: lockPairs(level) } : null,
       meter: is2 && level.meter ? { on: meterOf().on, mode: meterOf().mode, a: meterOf().a, b: meterOf().b, reading: readMeter(level) } : null,
       flowVisible: flowVisible(level),
       result: resultsByKey[keyOf()] || null,
@@ -378,9 +419,14 @@ export function createSession({ levels, deriveFull, storage = memoryStorage(), i
             .map(x => ({ a: x.a, b: x.b, mode: x.mode, kind: x.kind, value: typeof x.value === 'number' ? x.value : null, ohm: typeof x.ohm === 'number' ? x.ohm : null, live: !!x.live }));
           if (ms.length) { measuredBy[keyOf(i, m)] = ms; entry.measured = ms.map(x => ({ ...x })); }
         }
-        if (isObj(e.iso) && lv.safety && lv.safety.deadWork) {
+        if (isObj(e.iso) && isoIds(lv).length) {
           const io = {};
-          lv.safety.deadWork.forEach(id => { if (e.iso[id] === 0 || e.iso[id] === 1) io[id] = e.iso[id]; });
+          const pairs = new Set(lockPairs(lv));
+          isoIds(lv).forEach(id => {
+            const v = e.iso[id];
+            if (v === 0 || v === 1) io[id] = v;
+            else if (isObj(v) && lockoutOf(lv) && lockoutOf(lv).iso === id) io[id] = { lock: (Array.isArray(v.lock) ? v.lock : []).filter(x => pairs.has(x)).slice(0, 10) };
+          });
           if (Object.keys(io).length) { isoSaved[keyOf(i, m)] = io; entry.iso = { ...io }; }
         }
         if (Array.isArray(e.live)) {
@@ -550,6 +596,14 @@ export function createSession({ levels, deriveFull, storage = memoryStorage(), i
   }
   function noteLive(terms) {
     const lv = levelAt();
+    if (v2(lv) && lockoutOf(lv)) {
+      // con il lucchetto non basta che i morsetti siano spenti: conta la procedura (sezionare, bloccare, verificare)
+      if (lockoutDone(lv)) return false;
+      const list = liveEditsBy[keyOf()] || (liveEditsBy[keyOf()] = []);
+      let fresh = false;
+      terms.forEach(x => { if (!list.includes(x) && list.length < 20) { list.push(x); fresh = true; } });
+      return fresh;
+    }
     if (!v2(lv) || !lv.safety || !lv.safety.deadWork || !power) return false;
     // due simulazioni sui fili di adesso (quella della sessione puo' ancora avere i fili di prima): gli interruttori restano come li ha lasciati l'allievo
     const sim = simFor();
@@ -691,7 +745,7 @@ export function createSession({ levels, deriveFull, storage = memoryStorage(), i
       if (k >= 0) ws.splice(k, 1);
       else ws.push({ id: nextWireId++, a, b, c: color });
       afterEdit();
-      if (fresh) message = { code: 'liveWorkNow' };
+      if (fresh) message = { code: lockoutOf(levelAt()) ? 'lockWorkNow' : 'liveWorkNow' };
       emit();
     },
     removeWire(id) {
@@ -703,7 +757,7 @@ export function createSession({ levels, deriveFull, storage = memoryStorage(), i
       wiresChanged();
       ws.splice(k, 1);
       afterEdit();
-      if (fresh) message = { code: 'liveWorkNow' };
+      if (fresh) message = { code: lockoutOf(levelAt()) ? 'lockWorkNow' : 'liveWorkNow' };
       emit();
     },
     // Programma di un PLC (livelli con `edit`): sostituisce quello attuale. Il PLC riparte da zero, come dopo un nuovo caricamento.
@@ -727,7 +781,7 @@ export function createSession({ levels, deriveFull, storage = memoryStorage(), i
       wiresChanged();
       wires().pop();
       afterEdit();
-      if (fresh) message = { code: 'liveWorkNow' };
+      if (fresh) message = { code: lockoutOf(levelAt()) ? 'lockWorkNow' : 'liveWorkNow' };
       emit();
     },
     clear() {
@@ -791,6 +845,7 @@ export function createSession({ levels, deriveFull, storage = memoryStorage(), i
         const c = levelAt().comps.find(x => x.id === id);
         if (!c) return;
         const sim = simFor();
+        if (sim.parts[id] && sim.parts[id].locked) { message = { code: 'isoLocked', comp: id }; emit(); return; }
         if (HOLD.has(c.type)) { act(sim, 'press', id); act(sim, 'release', id); }   // da tastiera un comando a impulso vale premi e rilascia
         else act(sim, 'toggle', id);
         if (power && !operated().includes(id)) operated().push(id);
@@ -874,6 +929,19 @@ export function createSession({ levels, deriveFull, storage = memoryStorage(), i
       emit();
     },
     // Livelli con corrente "a richiesta": mostra o nasconde i fili percorsi.
+    // Lucchetto sul sezionamento del lavoro fuori tensione (safety.lockout): si mette solo a sezionamento aperto, si toglie quando si vuole.
+    lockControl(id) {
+      const level = levelAt(), L = lockoutOf(level);
+      if (!v2(level) || !L || L.iso !== id || !inBuildOrFault()) return;
+      const s = simFor().parts[id];
+      if (!s) return;
+      if (s.on && !s.locked) { message = { code: 'lockNeedsOpen', comp: id }; emit(); return; }
+      act(simFor(), 'lock', id);
+      if (s.locked && !operated().includes('lock:' + id)) operated().push('lock:' + id);
+      resultsByKey[keyOf()] = null;
+      message = null;
+      emit();
+    },
     // Cambia la portata di un magnetotermico che ne ha piu' di una (si passa alla successiva dell'elenco).
     rateControl(id) {
       const level = levelAt();

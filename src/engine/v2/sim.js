@@ -118,6 +118,7 @@ function actuatorsOf(sim, an) {
     else if (src.coil) v = sim.parts[src.coil] && sim.parts[src.coil].on ? 1 : 0;
     else if (src.plc) { const [id, q] = src.plc.split('.'); v = sim.parts[id] && sim.parts[id].q[q] ? 1 : 0; }
     else if (src.analog) { const [id, q] = src.analog.split('.'); v = sim.parts[id] ? (Number(sim.parts[id].aq[q]) || 0) / 100 : 0; }
+    else if (src.ctl) { const s = sim.parts[src.ctl] || {}; v = s.open || s.on || s.pressed ? 1 : 0; }   // comando manuale (finestra aperta, ...)
     else if (src.value !== undefined) v = src.value;
     out[name] = v;
   });
@@ -655,6 +656,7 @@ export function act(sim, action, id) {
   if (action === 'press') s.pressed = true;
   else if (action === 'release') s.pressed = false;
   else if (action === 'toggle') {
+    if (s.locked) return;   // un sezionamento bloccato con il lucchetto non si richiude
     if ('pressed' in s && c.type === 'fungo') s.pressed = !s.pressed;
     else if (c.type === 'port') s.open = !s.open;
     else { s.on = !s.on; if (s.on) s.tripped = false; s.heat = 0; }
@@ -665,6 +667,10 @@ export function act(sim, action, id) {
     const i = c.ratings.indexOf(s.in);
     s.in = c.ratings[(i + 1) % c.ratings.length];
     s.heat = 0;
+  } else if (action === 'lock') {
+    if (s.on) return;       // il lucchetto si mette solo a sezionamento aperto
+    s.locked = !s.locked;
+    s.verified = [];
   } else if (action === 'weld' && (c.type === 'km' || c.type === 'rel')) { if (s.on || s.welded) s.welded = !s.welded; }
   else if (action === 'reset' && c.type === 'ft') { s.tripped = false; s.heat = 0; }
   else if (action === 'jam' && c.type === 'sens') s.jam = !s.jam;

@@ -1541,6 +1541,7 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
       if (st.kind === "wire") d = !ctx2.fault && wireDone(st, wires);
       else if (st.kind === "power") d = !!ctx2.power;
       else if (st.kind === "control") d = operated.has(st.id);
+      else if (st.kind === "lock") d = operated.has("lock:" + st.id);
       else if (st.kind === "measure") d = (ctx2.measured || []).some((m) => measureMatches(st, m));
       else if (st.kind === "rate") d = !!ctx2.ratings && ctx2.ratings[st.id] === st.value;
       else if (st.kind === "program") d = ((ctx2.programs || {})[st.plc] || []).filter((r) => r.do && r.do.length && r.if !== void 0).length >= (st.min || 1);
@@ -1654,10 +1655,12 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
     // Le uscite 13-14 e 23-24 si chiudono solo dopo un riarmo valido e si riaprono appena un canale cade. Vedi sim.js, settle.
     rs: { coil: ["A1", "A2"], contacts: (c2, s) => pole(s.on, [["13", "14"], ["23", "24"]]), init: () => ({ on: false, coil: false, ready: false, held: false, disc: false }) },
     // protezioni e sezionamento (chiusi all'inizio, salvo `init: 0`)
+    // `lock` (lavoro fuori tensione con il lucchetto, level.safety.lockout): solo aperto si blocca; bloccato non si richiude.
+    // `verified`: letture di assenza di tensione fatte a lucchetto messo (le registra la sessione), si azzera togliendo o mettendo il lucchetto.
     // `in` (portata, A) e `ratings` (portate tra cui scegliere) rendono il sovraccarico simulato (E1): vedi sim.js, lineCurrent.
-    mt: { protect: "corto", contacts: (c2, s) => pole(s.on, [["1", "2"], ["N1", "N2"]]), poles: { F: ["1", "2"], N: ["N1", "N2"] }, init: (c2) => ({ on: c2.init !== 0, tripped: false, in: c2.in || null, heat: 0 }), actions: ["toggle", "rate"] },
-    mt3: { protect: "corto", contacts: (c2, s) => pole(s.on, [["1", "2"], ["3", "4"], ["5", "6"]]), init: (c2) => ({ on: c2.init !== 0, tripped: false }), actions: ["toggle"] },
-    sez: { contacts: (c2, s) => pole(s.on, [["1", "2"], ["3", "4"], ["5", "6"]]), init: (c2) => ({ on: c2.init !== 0, tripped: false }), actions: ["toggle"] },
+    mt: { protect: "corto", contacts: (c2, s) => pole(s.on, [["1", "2"], ["N1", "N2"]]), poles: { F: ["1", "2"], N: ["N1", "N2"] }, init: (c2) => ({ on: c2.init !== 0, tripped: false, in: c2.in || null, heat: 0, locked: false, verified: [] }), actions: ["toggle", "rate", "lock"] },
+    mt3: { protect: "corto", contacts: (c2, s) => pole(s.on, [["1", "2"], ["3", "4"], ["5", "6"]]), init: (c2) => ({ on: c2.init !== 0, tripped: false, locked: false, verified: [] }), actions: ["toggle", "lock"] },
+    sez: { contacts: (c2, s) => pole(s.on, [["1", "2"], ["3", "4"], ["5", "6"]]), init: (c2) => ({ on: c2.init !== 0, tripped: false, locked: false, verified: [] }), actions: ["toggle", "lock"] },
     rcd: { protect: "terra", contacts: (c2, s) => pole(s.on, [["1", "2"], ["N1", "N2"]]), poles: { F: ["1", "2"], N: ["N1", "N2"] }, init: (c2) => ({ on: c2.init !== 0, tripped: false }), actions: ["toggle", "test"] },
     // dispersione verso terra (guasto d'isolamento): non ha morsetti. `at` e' il punto del circuito dove l'isolante cede, `levels` le correnti disperse (mA) tra cui scegliere
     gu: { contacts: () => [], init: (c2) => ({ on: false, mA: (c2.levels || [30])[0] }), actions: ["toggle", "rate"] },
@@ -2117,6 +2120,7 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
   // src/engine/v2/process.js
   var clamp2 = (x, lo, hi) => Math.max(lo, Math.min(hi, x));
   var frac = (x) => clamp2(Number(x) || 0, 0, 1);
+  var priceAt = (hour, p) => hour >= p.hiFrom && hour < p.hiTo ? p.priceHi : p.priceLo;
   var sunShape = (hour, p) => hour <= p.sunrise || hour >= p.sunset ? 0 : Math.sin(Math.PI * (hour - p.sunrise) / (p.sunset - p.sunrise));
   var MODELS = {
     // Serbatoio: livello h in % del volume. Portate in % al minuto.
@@ -2144,20 +2148,78 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
       },
       expose: (s) => ({ T: s.T, Tw: s.Tw })
     },
+    // Clima per zone (5.11): fino a tre stanze riscaldate da una pompa di calore attraverso una valvola per zona.
+    // Temperature in gradi, tempo in secondi simulati; gain e loss sono per minuto. Ogni stanza: dT/dt = (gain·valvola·pompa − loss·(T − Text)·finestra) / 60,
+    // con la finestra aperta che moltiplica la dispersione per winK. Le valvole impiegano valveT secondi ad aprirsi del tutto (0 = subito).
+    // La pompa che gira con le valvole chiuse (portata sotto il 10 %) lavora a vuoto: dopo dryMax secondi si blocca in guasto (broken) e non riparte.
+    // L'ora corre come nel modello energia (dayLen secondi per un giorno); night = 1 tra nightFrom e dayFrom. eHeat: energia della pompa (kWh).
+    zone: {
+      init: { hour: 18, T1: 16, T2: 16, T3: 16, p1: 0, p2: 0, p3: 0, dry: 0, broken: 0, eHeat: 0 },
+      params: { n: 2, dayLen: 1440, dayFrom: 6, nightFrom: 22, Text: 5, gain: 1.2, loss: 0.05, winK: 6, valveT: 0, dryMax: 60, pumpKw: 1.5 },
+      acts: { pump: 0, v1: 0, v2: 0, v3: 0, w1: 0, w2: 0, w3: 0 },
+      step(s, a, p, dt) {
+        const hour = (s.hour + dt * 24 / p.dayLen) % 24;
+        const n = clamp2(Math.round(p.n), 1, 3);
+        const run = frac(a.pump) > 0 && !s.broken;
+        const out = { ...s, hour };
+        let flow = 0;
+        for (let i = 1; i <= n; i++) {
+          const want = frac(a["v" + i]);
+          const pos = p.valveT > 0 ? clamp2(s["p" + i] + Math.sign(want - s["p" + i]) * Math.min(Math.abs(want - s["p" + i]), dt / p.valveT), 0, 1) : want;
+          out["p" + i] = pos;
+          flow += pos;
+          const T2 = s["T" + i];
+          const heat = run ? p.gain * pos : 0;
+          const lossK = p.loss * (frac(a["w" + i]) > 0 ? p.winK : 1);
+          out["T" + i] = T2 + (heat - lossK * (T2 - p.Text)) * dt / 60;
+        }
+        out.dry = run && flow < 0.1 ? s.dry + dt : Math.max(0, s.dry - dt);
+        out.broken = s.broken || (out.dry >= p.dryMax ? 1 : 0);
+        out.eHeat = s.eHeat + (run ? p.pumpKw * dt / 3600 : 0);
+        return out;
+      },
+      expose: (s, p) => ({ ...s, night: s.hour >= p.nightFrom || s.hour < p.dayFrom ? 1 : 0, broken: !!s.broken, dryRun: s.dry > 0 ? 1 : 0 })
+    },
     // Casa con fotovoltaico, batteria, contatore e carichi (Modulo 5A). Potenze in kW, energie in kWh, tempo in ore del giorno.
     // Una giornata dura `dayLen` secondi simulati. La produzione segue il sole (curva a campana tra alba e tramonto) e la nuvolosita';
     // il consumo ha una base con il picco della sera piu' i carichi accesi (scaldabagno, auto). La batteria, se collegata, assorbe l'eccedenza
     // e copre il mancante. grid > 0 e' prelievo dalla rete, grid < 0 immissione. Oltre `limit` kW per `tripAfter` secondi il contatore stacca.
     energia: {
-      init: { hour: 8, soc: 20, eImp: 0, eExp: 0, eProd: 0, eEv: 0, over: 0, blackout: 0, pv: 0, load: 0, grid: 0, pb: 0 },
-      params: { dayLen: 1440, sunrise: 6, sunset: 20, pvKw: 4, cloud: 0, baseKw: 0.4, eveningKw: 1.1, boilerKw: 2, evKw: 3.7, batCap: 10, batKw: 3, limit: 4.5, tripAfter: 20 },
-      acts: { pv: 1, house: 1, batt: 0, boiler: 0, ev: 0 },
+      init: { hour: 8, soc: 20, eImp: 0, eExp: 0, eProd: 0, eEv: 0, over: 0, blackout: 0, pv: 0, load: 0, grid: 0, pb: 0, cost: 0 },
+      // Gestione dei carichi (5.10): pompa di calore `hp` e lavatrice `wash` comandabili; forno `oven` non comandabile, acceso dalle persone
+      // tra ovenFrom e ovenTo (0 kW salvo che il livello lo dichiari). Prezzo per fasce: priceHi dalle hiFrom alle hiTo, priceLo il resto (euro/kWh).
+      params: {
+        dayLen: 1440,
+        sunrise: 6,
+        sunset: 20,
+        pvKw: 4,
+        cloud: 0,
+        baseKw: 0.4,
+        eveningKw: 1.1,
+        boilerKw: 2,
+        evKw: 3.7,
+        batCap: 10,
+        batKw: 3,
+        limit: 4.5,
+        tripAfter: 20,
+        hpKw: 1.5,
+        washKw: 2,
+        ovenKw: 0,
+        ovenFrom: 19.5,
+        ovenTo: 20.5,
+        priceHi: 0.32,
+        priceLo: 0.2,
+        hiFrom: 8,
+        hiTo: 19
+      },
+      acts: { pv: 1, house: 1, batt: 0, boiler: 0, ev: 0, hp: 0, wash: 0 },
       step(s, a, p, dt) {
         const hour = (s.hour + dt * 24 / p.dayLen) % 24;
         const sun = sunShape(hour, p) * (1 - clamp2(p.cloud, 0, 1));
         const pv = p.pvKw * sun * frac(a.pv);
         const evening = Math.exp(-(((hour - 20.5 + 12) % 24 - 12) ** 2) / 4.5);
-        const load = frac(a.house) * (p.baseKw + p.eveningKw * evening) + p.boilerKw * frac(a.boiler) + p.evKw * frac(a.ev);
+        const oven = hour >= p.ovenFrom && hour < p.ovenTo ? p.ovenKw : 0;
+        const load = frac(a.house) * (p.baseKw + p.eveningKw * evening) + p.boilerKw * frac(a.boiler) + p.evKw * frac(a.ev) + p.hpKw * frac(a.hp) + p.washKw * frac(a.wash) + oven;
         const dh = dt * 24 / p.dayLen;
         let pb = 0;
         if (frac(a.batt)) {
@@ -2182,10 +2244,20 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
           eImp: s.eImp + Math.max(0, grid) * dh,
           eExp: s.eExp + Math.max(0, -grid) * dh,
           eProd: s.eProd + pv * dh,
-          eEv: s.eEv + (blackout ? 0 : p.evKw * frac(a.ev) * dh)
+          eEv: s.eEv + (blackout ? 0 : p.evKw * frac(a.ev) * dh),
+          cost: s.cost + Math.max(0, grid) * priceAt(hour, p) * dh
         };
       },
-      expose: (s, p) => ({ ...s, sun: sunShape(s.hour, p) * (1 - clamp2(p.cloud, 0, 1)), blackout: !!s.blackout, over: s.over, battKwh: s.soc / 100 * p.batCap })
+      expose: (s, p) => ({
+        ...s,
+        sun: sunShape(s.hour, p) * (1 - clamp2(p.cloud, 0, 1)),
+        blackout: !!s.blackout,
+        over: s.over,
+        battKwh: s.soc / 100 * p.batCap,
+        price: priceAt(s.hour, p),
+        peak: priceAt(s.hour, p) >= p.priceHi ? 1 : 0,
+        oven: s.hour >= p.ovenFrom && s.hour < p.ovenTo && p.ovenKw > 0 ? 1 : 0
+      })
     },
     // Linea di prelievo e deposito (Modulo 6): un robot a tre movimenti prende il pezzo dal punto di prelievo e lo porta al deposito.
     //   down  (1 = braccio giu', 0 = su)   shift (1 = verso il deposito, 0 = verso il prelievo)   grip (1 = pinza chiusa)
@@ -2439,6 +2511,9 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
       } else if (src.analog) {
         const [id, q] = src.analog.split(".");
         v = sim.parts[id] ? (Number(sim.parts[id].aq[q]) || 0) / 100 : 0;
+      } else if (src.ctl) {
+        const s = sim.parts[src.ctl] || {};
+        v = s.open || s.on || s.pressed ? 1 : 0;
       } else if (src.value !== void 0) v = src.value;
       out[name] = v;
     });
@@ -3025,6 +3100,7 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
     if (action === "press") s.pressed = true;
     else if (action === "release") s.pressed = false;
     else if (action === "toggle") {
+      if (s.locked) return;
       if ("pressed" in s && c2.type === "fungo") s.pressed = !s.pressed;
       else if (c2.type === "port") s.open = !s.open;
       else {
@@ -3039,6 +3115,10 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
       const i = c2.ratings.indexOf(s.in);
       s.in = c2.ratings[(i + 1) % c2.ratings.length];
       s.heat = 0;
+    } else if (action === "lock") {
+      if (s.on) return;
+      s.locked = !s.locked;
+      s.verified = [];
     } else if (action === "weld" && (c2.type === "km" || c2.type === "rel")) {
       if (s.on || s.welded) s.welded = !s.welded;
     } else if (action === "reset" && c2.type === "ft") {
@@ -3578,7 +3658,8 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
           if (uf.f(x) !== uf.f(y)) fail2("safe.noEarth", { comp: x.split(".")[0] });
         });
       }
-      if (S2.deadWork && (ctx2.liveEdits || []).length) fail2("safe.liveWork", { comp: S2.deadWork[0] });
+      if (S2.lockout && (ctx2.liveEdits || []).length) fail2("safe.lockout", { comp: S2.lockout.iso });
+      else if (S2.deadWork && (ctx2.liveEdits || []).length) fail2("safe.liveWork", { comp: S2.deadWork[0] });
       if (S2.programStopped && ctx2.programLive) fail2("safe.programRunning", { comp: S2.programStopped[0] });
       if (S2.repairDead && ctx2.repairLive) fail2("safe.repairLive", { comp: S2.repairDead.coil });
       if (S2.never) {
@@ -4005,13 +4086,17 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
       });
       return out;
     };
+    const lockoutOf = (lv) => lv && lv.safety && lv.safety.lockout || null;
+    const isoIds = (lv) => [.../* @__PURE__ */ new Set([...lv.safety && lv.safety.deadWork || [], ...lockoutOf(lv) ? [lockoutOf(lv).iso] : []])];
     const isoOf = (i = levelIndex) => {
       const lv = levels2[i], k = keyOf(i, "quadro");
       const out = { ...isoSaved[k] || {} };
       const sim = simsByKey[k];
-      if (sim && lv.safety && lv.safety.deadWork) lv.safety.deadWork.forEach((id) => {
-        const c2 = lv.comps.find((x) => x.id === id);
-        if (sim.parts[id] && !!sim.parts[id].on !== (c2.init !== 0)) out[id] = sim.parts[id].on ? 1 : 0;
+      if (sim) isoIds(lv).forEach((id) => {
+        const c2 = lv.comps.find((x) => x.id === id), s = sim.parts[id];
+        if (!s) return;
+        if (s.locked) out[id] = { lock: (s.verified || []).slice() };
+        else if (!!s.on !== (c2.init !== 0)) out[id] = s.on ? 1 : 0;
         else delete out[id];
       });
       return out;
@@ -4030,6 +4115,25 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
       if (k === m.last) return;
       m.last = k;
       (measuredBy[keyOf()] = measuredBy[keyOf()] || []).push({ a: m.a, b: m.b, mode: m.mode, kind: r.kind, value: r.value === void 0 ? null : r.value, ohm: r.ohm || null, live: !!power });
+      noteVerify(level, m, r);
+    }
+    const pairKey = (a, b) => [a, b].sort().join("~");
+    const lockPairs = (lv) => lockoutOf(lv) ? lockoutOf(lv).test.map(([a, b]) => pairKey(a, b)).concat(lockoutOf(lv).known ? [pairKey(...lockoutOf(lv).known)] : []) : [];
+    function noteVerify(level, m, r) {
+      const L = lockoutOf(level);
+      if (!L || !v2(level) || !power || m.mode !== "V" || r.kind !== "v") return;
+      const s = simFor().parts[L.iso];
+      if (!s || !s.locked || s.on) return;
+      const k = pairKey(m.a, m.b);
+      const isTest = L.test.some(([a, b]) => pairKey(a, b) === k) && r.value === 0;
+      const isKnown = !!L.known && pairKey(...L.known) === k && r.value === 230;
+      if ((isTest || isKnown) && !s.verified.includes(k)) s.verified.push(k);
+    }
+    function lockoutDone(level = levelAt()) {
+      const L = lockoutOf(level);
+      if (!L) return true;
+      const s = simFor().parts[L.iso];
+      return !!s && s.locked && !s.on && lockPairs(level).every((k) => s.verified.includes(k));
     }
     const isoSaved = {};
     const ratingsSaved = {};
@@ -4067,7 +4171,13 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
         delete isoSaved[k];
         if (iso2) {
           levelAt().comps.forEach((c2) => {
-            if (iso2[c2.id] !== void 0 && sim.parts[c2.id] && "on" in sim.parts[c2.id]) sim.parts[c2.id].on = !!iso2[c2.id];
+            const v = iso2[c2.id], s = sim.parts[c2.id];
+            if (v === void 0 || !s || !("on" in s)) return;
+            if (v && typeof v === "object") {
+              s.on = false;
+              s.locked = true;
+              s.verified = Array.isArray(v.lock) ? v.lock.slice() : [];
+            } else s.on = !!v;
           });
           settle(sim);
         }
@@ -4151,6 +4261,8 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
         selfPowered: is2 ? selfPowered(level) : false,
         overload: is2 ? !!simFor().overload : false,
         // multimetro: solo nei livelli che lo dichiarano (`meter: true`)
+        // lucchetto: stato della procedura per la vista (sezionamento bloccato, letture fatte e da fare)
+        lockout: is2 && lockoutOf(level) ? { iso: lockoutOf(level).iso, locked: !!(simFor().parts[lockoutOf(level).iso] || {}).locked, done: lockoutDone(level), verified: ((simFor().parts[lockoutOf(level).iso] || {}).verified || []).slice(), need: lockPairs(level) } : null,
         meter: is2 && level.meter ? { on: meterOf().on, mode: meterOf().mode, a: meterOf().a, b: meterOf().b, reading: readMeter(level) } : null,
         flowVisible: flowVisible(level),
         result: resultsByKey[keyOf()] || null,
@@ -4309,10 +4421,13 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
               entry.measured = ms.map((x) => ({ ...x }));
             }
           }
-          if (isObj(e2.iso) && lv.safety && lv.safety.deadWork) {
+          if (isObj(e2.iso) && isoIds(lv).length) {
             const io = {};
-            lv.safety.deadWork.forEach((id) => {
-              if (e2.iso[id] === 0 || e2.iso[id] === 1) io[id] = e2.iso[id];
+            const pairs = new Set(lockPairs(lv));
+            isoIds(lv).forEach((id) => {
+              const v = e2.iso[id];
+              if (v === 0 || v === 1) io[id] = v;
+              else if (isObj(v) && lockoutOf(lv) && lockoutOf(lv).iso === id) io[id] = { lock: (Array.isArray(v.lock) ? v.lock : []).filter((x) => pairs.has(x)).slice(0, 10) };
             });
             if (Object.keys(io).length) {
               isoSaved[keyOf(i, m)] = io;
@@ -4501,6 +4616,18 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
     }
     function noteLive(terms) {
       const lv = levelAt();
+      if (v2(lv) && lockoutOf(lv)) {
+        if (lockoutDone(lv)) return false;
+        const list2 = liveEditsBy[keyOf()] || (liveEditsBy[keyOf()] = []);
+        let fresh2 = false;
+        terms.forEach((x) => {
+          if (!list2.includes(x) && list2.length < 20) {
+            list2.push(x);
+            fresh2 = true;
+          }
+        });
+        return fresh2;
+      }
       if (!v2(lv) || !lv.safety || !lv.safety.deadWork || !power) return false;
       const sim = simFor();
       const mk = () => {
@@ -4651,7 +4778,7 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
         if (k >= 0) ws.splice(k, 1);
         else ws.push({ id: nextWireId++, a, b, c: color });
         afterEdit();
-        if (fresh) message = { code: "liveWorkNow" };
+        if (fresh) message = { code: lockoutOf(levelAt()) ? "lockWorkNow" : "liveWorkNow" };
         emit();
       },
       removeWire(id) {
@@ -4663,7 +4790,7 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
         wiresChanged();
         ws.splice(k, 1);
         afterEdit();
-        if (fresh) message = { code: "liveWorkNow" };
+        if (fresh) message = { code: lockoutOf(levelAt()) ? "lockWorkNow" : "liveWorkNow" };
         emit();
       },
       // Programma di un PLC (livelli con `edit`): sostituisce quello attuale. Il PLC riparte da zero, come dopo un nuovo caricamento.
@@ -4690,7 +4817,7 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
         wiresChanged();
         wires().pop();
         afterEdit();
-        if (fresh) message = { code: "liveWorkNow" };
+        if (fresh) message = { code: lockoutOf(levelAt()) ? "lockWorkNow" : "liveWorkNow" };
         emit();
       },
       clear() {
@@ -4756,6 +4883,11 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
           const c2 = levelAt().comps.find((x) => x.id === id);
           if (!c2) return;
           const sim = simFor();
+          if (sim.parts[id] && sim.parts[id].locked) {
+            message = { code: "isoLocked", comp: id };
+            emit();
+            return;
+          }
           if (HOLD.has(c2.type)) {
             act(sim, "press", id);
             act(sim, "release", id);
@@ -4864,6 +4996,23 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
         emit();
       },
       // Livelli con corrente "a richiesta": mostra o nasconde i fili percorsi.
+      // Lucchetto sul sezionamento del lavoro fuori tensione (safety.lockout): si mette solo a sezionamento aperto, si toglie quando si vuole.
+      lockControl(id) {
+        const level = levelAt(), L = lockoutOf(level);
+        if (!v2(level) || !L || L.iso !== id || !inBuildOrFault()) return;
+        const s = simFor().parts[id];
+        if (!s) return;
+        if (s.on && !s.locked) {
+          message = { code: "lockNeedsOpen", comp: id };
+          emit();
+          return;
+        }
+        act(simFor(), "lock", id);
+        if (s.locked && !operated().includes("lock:" + id)) operated().push("lock:" + id);
+        resultsByKey[keyOf()] = null;
+        message = null;
+        emit();
+      },
       // Cambia la portata di un magnetotermico che ne ha piu' di una (si passa alla successiva dell'elenco).
       rateControl(id) {
         const level = levelAt();
@@ -8428,11 +8577,11 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
     ]
   });
   var L45 = LEVELS_V2.find((l) => l.id === "c45-fabbrica");
-  var W53_PLANT = W45_SAFE;
-  var PROG_53 = START_45.concat(TRANS_43, ALARMS_45);
+  var W51_PLANT = W45_SAFE;
+  var PROG_51 = START_45.concat(TRANS_43, ALARMS_45);
   var insideFix = (id) => ["toggle P", "jam " + id, "toggle P", "press SBR", "release SBR", "press SB1", "release SB1"];
   var restart = (d) => [d, "press SBR", "release SBR", "press SB1", "release SB1"];
-  var LIB_53 = [
+  var LIB_51 = [
     { id: "zd", do: "dead ZD", label: "il finecorsa \u201Cbraccio gi\xF9\u201D", fixed: { part: "ZD", prop: "jam", is: false }, maxDelay: 150, fix: insideFix("ZD") },
     { id: "zu", do: "dead ZU", label: "il finecorsa \u201Cbraccio su\u201D", fixed: { part: "ZU", prop: "jam", is: false }, maxDelay: 150, fix: insideFix("ZU") },
     { id: "xl", do: "dead XL", label: "il finecorsa \u201Cal deposito\u201D", fixed: { part: "XL", prop: "jam", is: false }, maxDelay: 150, fix: insideFix("XL") },
@@ -8442,8 +8591,8 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
   ];
   LEVELS_V2.push({
     ...L45,
-    id: "c53-turno-notte",
-    code: "c53",
+    id: "c51-turno-notte",
+    code: "c51",
     prova: { scene: "fabbrica" },
     supply: "protezioni",
     // la cella e' in servizio: il quadro e' gia' in tensione, si comincia dal riarmo
@@ -8455,14 +8604,14 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
     scenario: {
       duration: 1800,
       startWhen: { coil: "KM" },
-      pick: { from: LIB_53, first: "zd", n: 4, slots: [200, 600, 1e3, 1400] },
+      pick: { from: LIB_51, first: "zd", n: 4, slots: [200, 600, 1e3, 1400] },
       downtime: { enable: "KM", vars: ["x", "z", "grip"], stall: 15 },
       // partita di riferimento (test/fabbrica.test.js): riparando in 15 s escono circa 88 pezzi, in 60 s circa 80, senza riparare 10
       expect: { process: { crash: false, dropped: [0, 0] }, trace: [{ v: "out", reaches: 70 }] }
     },
     safety: { ...L45.safety, repairDead: { parts: ["ZU", "ZD", "XP", "XL", "PR"], coil: "KM" } },
     solution: W45_SAFE.concat(W45_PLC),
-    solutionPrograms: { PLC: PROG_53 },
+    solutionPrograms: { PLC: PROG_51 },
     hints: [
       "Per cominciare: riarma le sicurezze e premi Marcia. Il turno comincia quando il robot riceve potenza.",
       "\u201CCiclo bloccato\u201D con il robot alimentato: il programma aspetta un finecorsa che non arriva. Guarda in che posizione si \xE8 fermato il braccio.",
@@ -13295,7 +13444,7 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
       fixSay: "Collega la tacitazione al contatto 11 del rel\xE8, e il contatto 14 alla bobina A1. Poi premi Verifica."
     }
   };
-  UNITS_V2["c53-turno-notte"] = {
+  UNITS_V2["c51-turno-notte"] = {
     support: "obiettivo",
     lesson: {
       pages: [
@@ -13365,8 +13514,8 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
     ],
     fault: {
       say: "La cella \xE8 in servizio. Riarma le sicurezze e premi Marcia: il turno comincia. Quando la cella si ferma, guarda il pannello e il braccio, e rispondi.",
-      wires: W53_PLANT,
-      programs: { PLC: PROG_53 },
+      wires: W51_PLANT,
+      programs: { PLC: PROG_51 },
       diagnosis: {
         question: "La cella si \xE8 fermata: il pannello dice \u201CCiclo bloccato\u201D, il robot \xE8 alimentato e il braccio \xE8 in basso. Perch\xE9?",
         options: [
@@ -13630,6 +13779,8 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
         return "Sbloccando l\u2019emergenza la macchina riparte da sola: deve ripartire solo con un nuovo comando di marcia.";
       case "safe.notCovered":
         return "Un carico (" + nameOf(level, item.comp) + ") non \xE8 protetto dal differenziale.";
+      case "safe.lockout":
+        return "Hai cambiato i fili senza finire la procedura di sicurezza su " + nameOf(level, item.comp) + ": prima si apre il sezionamento, si mette il lucchetto e si verifica con il multimetro che non ci sia tensione. Premi Annulla tutto e rifai il lavoro in quest\u2019ordine.";
       case "safe.liveWork":
         return "Hai cambiato i fili mentre il sezionamento (" + nameOf(level, item.comp) + ") era chiuso e i morsetti erano in tensione. Premi Annulla tutto, apri il sezionamento e cabla da capo.";
       case "safe.programRunning":
@@ -13680,6 +13831,12 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
         return "Attenzione: stai cambiando il programma con la macchina in moto. Fermala prima: cos\xEC com\u2019\xE8, perdi la stella di sicurezza.";
       case "repairLiveNow":
         return "Attenzione: stai riparando dentro la cella con il robot alimentato. Apri prima la portella: cos\xEC com\u2019\xE8, perdi la stella di sicurezza.";
+      case "lockWorkNow":
+        return "Attenzione: hai toccato i fili prima di finire la procedura (sezionamento aperto, lucchetto messo, assenza di tensione verificata con il multimetro). Cos\xEC com\u2019\xE8, perdi la stella di sicurezza.";
+      case "isoLocked":
+        return "Il sezionamento \xE8 bloccato con il lucchetto: toglilo prima di richiuderlo.";
+      case "lockNeedsOpen":
+        return "Il lucchetto si mette solo a sezionamento aperto: aprilo prima.";
       case "liveWorkNow":
         return "Attenzione: stai toccando morsetti in tensione. Apri il sezionamento prima di cablare: cos\xEC com\u2019\xE8, perdi la stella di sicurezza.";
       case "editWhileLive":
@@ -14292,6 +14449,12 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
     return o;
   }
   var faultBtn = (id, kind, x, y, text2, aria) => `<g class="tbtn" data-${kind}="${id}" role="button" tabindex="0" aria-label="${aria}"><rect x="${x}" y="${y}" width="60" height="26" rx="5" fill="#F6E1C8" stroke="var(--comp-edge)" stroke-width="1.4"/><text x="${x + 30}" y="${y + 17}" text-anchor="middle" style="font:600 10px 'IBM Plex Mono',monospace;fill:#222">${text2}</text></g>`;
+  var lockBtn = (c2, s, part2, w) => {
+    if (!s.lockout || s.lockout.iso !== c2.id) return "";
+    const on = !!part2.locked, x = w / 2 - 36;
+    const icon = `<rect x="${x + 8}" y="13" width="11" height="9" rx="1.5" fill="${on ? "#B5651D" : "none"}" stroke="var(--comp-edge)" stroke-width="1.4"/><path d="M${x + 10} 13 v-3 a3.5 3.5 0 0 1 7 0 ${on ? "v3" : "v-1"}" fill="none" stroke="var(--comp-edge)" stroke-width="1.4"/>`;
+    return `<g class="tbtn" data-lock="${c2.id}" role="button" tabindex="0" aria-label="${on ? "Togli il lucchetto da" : "Metti il lucchetto su"} ${c2.short}"><rect x="${x}" y="3" width="72" height="24" rx="5" fill="${on ? "#F6E1C8" : "#EDE7D4"}" stroke="var(--comp-edge)" stroke-width="1.4"/>${icon}<text x="${x + 46}" y="19" text-anchor="middle" style="font:600 9px 'IBM Plex Mono',monospace" fill="#1B2230">${on ? "BLOCCATO" : "LUCCHETTO"}</text></g>`;
+  };
   function schemV2(c2, s, L, ui2) {
     const w = c2.w, h = c2.h, st = s.controlStates[c2.id] ? 1 : 0, part2 = obsOf(s, c2.id), obs2 = s.obs || { loads: {}, motors: {}, coils: {} };
     let o = "";
@@ -14322,6 +14485,7 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
           o += `<g class="tbtn" data-rate="${c2.id}" role="button" tabindex="0" aria-label="Portata ${c2.short}: ${part2.in} ampere. Tocca per cambiarla"><rect x="${w / 2 - 25}" y="${h - 50}" width="50" height="26" rx="5" fill="#EDE7D4" stroke="var(--comp-edge)" stroke-width="1.4"/><text x="${w / 2}" y="${h - 32}" text-anchor="middle" style="font:600 13px 'IBM Plex Mono',monospace;fill:#222">${part2.in} A</text></g>`;
           o += lab(w / 2, h - 12, amps ? amps.toFixed(1).replace(".", ",") + " A" : "0 A");
         }
+        if (c2.type === "mt") o += lockBtn(c2, s, part2, w);
         if (c2.type === "rcd") o += `<g class="tbtn" data-test="${c2.id}" role="button" tabindex="0" aria-label="Tasto di prova ${c2.short}"><rect x="${w / 2 - 15}" y="${h - 46}" width="30" height="24" rx="5" fill="#EDE7D4" stroke="var(--comp-edge)" stroke-width="1.4"/><text x="${w / 2}" y="${h - 29}" text-anchor="middle" style="font:600 12px 'IBM Plex Mono',monospace;fill:#222">T</text></g>`;
         break;
       }
@@ -14329,6 +14493,7 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
       case "sez": {
         o += poles(c2, ["1", "3", "5"], ["2", "4", "6"], part2.on, L);
         o += lever(w / 2, mid, part2.on, part2.tripped);
+        o += lockBtn(c2, s, part2, w);
         break;
       }
       case "pb":
@@ -20913,8 +21078,17 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
     "L\u2019autoritenuta d\xE0 la memoria: il contatto 11-14 riporta la fase alla bobina, che si tiene da sola.": "\u0627\u0644\u062A\u062B\u0628\u064A\u062A \u0627\u0644\u0630\u0627\u062A\u064A \u064A\u0639\u0637\u064A \u0627\u0644\u0630\u0627\u0643\u0631\u0629: \u0627\u0644\u0645\u0644\u0627\u0645\u0633 11-14 \u064A\u0639\u064A\u062F \u0627\u0644\u0637\u0648\u0631 \u0625\u0644\u0649 \u0627\u0644\u0645\u0644\u0641 \u0641\u064A\u0645\u0633\u0643 \u0646\u0641\u0633\u0647."
   };
 
-  // src/i18n/ar-44.js
-  var ar_44_default = {
+  // src/i18n/ar-40.js
+  var ar_40_default = {
+    "LUCCHETTO": "\u0627\u0644\u0642\u0641\u0644",
+    "BLOCCATO": "\u0645\u0642\u0641\u0648\u0644",
+    "Attenzione: hai toccato i fili prima di finire la procedura (sezionamento aperto, lucchetto messo, assenza di tensione verificata con il multimetro). Cos\xEC com\u2019\xE8, perdi la stella di sicurezza.": "\u0627\u0646\u062A\u0628\u0647: \u0644\u0645\u0633\u062A \u0627\u0644\u0623\u0633\u0644\u0627\u0643 \u0642\u0628\u0644 \u0625\u0646\u0647\u0627\u0621 \u0627\u0644\u0625\u062C\u0631\u0627\u0621 (\u0639\u0646\u0635\u0631 \u0627\u0644\u0641\u0635\u0644 \u0645\u0641\u062A\u0648\u062D\u060C \u0648\u0627\u0644\u0642\u0641\u0644 \u0645\u0648\u0636\u0648\u0639\u060C \u0648\u0627\u0646\u0639\u062F\u0627\u0645 \u0627\u0644\u062C\u0647\u062F \u0645\u064F\u062A\u062D\u0642\u064E\u0651\u0642 \u0645\u0646\u0647 \u0628\u062C\u0647\u0627\u0632 \u0627\u0644\u0642\u064A\u0627\u0633 \u0627\u0644\u0645\u062A\u0639\u062F\u062F). \u0648\u0628\u0647\u0630\u0627 \u0627\u0644\u0634\u0643\u0644 \u062A\u062E\u0633\u0631 \u0646\u062C\u0645\u0629 \u0627\u0644\u0633\u0644\u0627\u0645\u0629.",
+    "Il sezionamento \xE8 bloccato con il lucchetto: toglilo prima di richiuderlo.": "\u0639\u0646\u0635\u0631 \u0627\u0644\u0641\u0635\u0644 \u0645\u0642\u0641\u0648\u0644 \u0628\u0627\u0644\u0642\u0641\u0644: \u0623\u0632\u0644\u0647 \u0642\u0628\u0644 \u0625\u0639\u0627\u062F\u0629 \u0627\u0644\u0625\u063A\u0644\u0627\u0642.",
+    "Il lucchetto si mette solo a sezionamento aperto: aprilo prima.": "\u0644\u0627 \u064A\u0648\u0636\u0639 \u0627\u0644\u0642\u0641\u0644 \u0625\u0644\u0627 \u0648\u0639\u0646\u0635\u0631 \u0627\u0644\u0641\u0635\u0644 \u0645\u0641\u062A\u0648\u062D: \u0627\u0641\u062A\u062D\u0647 \u0623\u0648\u0644\u064B\u0627."
+  };
+
+  // src/i18n/ar-41.js
+  var ar_41_default = {
     "Il turno di notte": "\u0627\u0644\u0645\u0646\u0627\u0648\u0628\u0629 \u0627\u0644\u0644\u064A\u0644\u064A\u0629",
     "La cella lavora tutta la notte: tu sei il manutentore. I guasti arrivano uno alla volta, ogni minuto fermo conta.": "\u0627\u0644\u062E\u0644\u064A\u0629 \u062A\u0639\u0645\u0644 \u0637\u0648\u0627\u0644 \u0627\u0644\u0644\u064A\u0644: \u0623\u0646\u062A \u0641\u0646\u064A \u0627\u0644\u0635\u064A\u0627\u0646\u0629. \u062A\u0635\u0644 \u0627\u0644\u0623\u0639\u0637\u0627\u0644 \u0648\u0627\u062D\u062F\u064B\u0627 \u062A\u0644\u0648 \u0627\u0644\u0622\u062E\u0631\u060C \u0648\u0643\u0644 \u062F\u0642\u064A\u0642\u0629 \u062A\u0648\u0642\u0641 \u0644\u0647\u0627 \u062B\u0645\u0646.",
     "La cella di produzione \xE8 cablata, programmata e in servizio. Sei il manutentore del turno di notte: riarma e avvia la cella, poi tienila in produzione fino alla fine del turno. I guasti arrivano uno alla volta: leggi il pannello, trova il pezzo, riparalo in sicurezza (dentro la cella solo con la portella aperta, cio\xE8 con il robot senza potenza), riarma e riparti.": "\u062E\u0644\u064A\u0629 \u0627\u0644\u0625\u0646\u062A\u0627\u062C \u0645\u0648\u0635\u0648\u0644\u0629 \u0648\u0645\u0628\u0631\u0645\u062C\u0629 \u0648\u0641\u064A \u0627\u0644\u062E\u062F\u0645\u0629. \u0623\u0646\u062A \u0641\u0646\u064A \u0635\u064A\u0627\u0646\u0629 \u0627\u0644\u0645\u0646\u0627\u0648\u0628\u0629 \u0627\u0644\u0644\u064A\u0644\u064A\u0629: \u0623\u0639\u062F \u062A\u0633\u0644\u064A\u062D \u0627\u0644\u062E\u0644\u064A\u0629 \u0648\u0634\u063A\u0651\u0644\u0647\u0627\u060C \u062B\u0645 \u0623\u0628\u0642\u0647\u0627 \u0645\u0646\u062A\u062C\u0629 \u062D\u062A\u0649 \u0646\u0647\u0627\u064A\u0629 \u0627\u0644\u0645\u0646\u0627\u0648\u0628\u0629. \u062A\u0635\u0644 \u0627\u0644\u0623\u0639\u0637\u0627\u0644 \u0648\u0627\u062D\u062F\u064B\u0627 \u062A\u0644\u0648 \u0627\u0644\u0622\u062E\u0631: \u0627\u0642\u0631\u0623 \u0627\u0644\u0644\u0648\u062D\u0629\u060C \u0627\u0639\u062B\u0631 \u0639\u0644\u0649 \u0627\u0644\u0642\u0637\u0639\u0629\u060C \u0623\u0635\u0644\u062D\u0647\u0627 \u0628\u0623\u0645\u0627\u0646 (\u062F\u0627\u062E\u0644 \u0627\u0644\u062E\u0644\u064A\u0629 \u0641\u0642\u0637 \u0648\u0627\u0644\u0628\u0648\u0627\u0628\u0629 \u0645\u0641\u062A\u0648\u062D\u0629\u060C \u0623\u064A \u0648\u0627\u0644\u0631\u0648\u0628\u0648\u062A \u0628\u0644\u0627 \u0642\u062F\u0631\u0629)\u060C \u0623\u0639\u062F \u0627\u0644\u062A\u0633\u0644\u064A\u062D \u0648\u0623\u0639\u062F \u0627\u0644\u062A\u0634\u063A\u064A\u0644.",
@@ -21110,9 +21284,12 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
     [/^portata ([\d,.]+) A$/, (m) => `\u0627\u0644\u0633\u0639\u0629 ${m[1]} \u0623\u0645\u0628\u064A\u0631`],
     [/^Corrente dispersa: (\d+) milliampere\. Tocca per cambiarla$/, (m) => `\u0627\u0644\u062A\u064A\u0627\u0631 \u0627\u0644\u0645\u062A\u0633\u0631\u0651\u0628: ${m[1]} \u0645\u0644\u0644\u064A \u0623\u0645\u0628\u064A\u0631. \u0627\u0644\u0645\u0633 \u0644\u062A\u063A\u064A\u064A\u0631\u0647`],
     [/^Portata (.+): (\d+) ampere\. Tocca per cambiarla$/, (m, t) => `\u0627\u0644\u0633\u0639\u0629 ${t(m[1])}: ${m[2]} \u0623\u0645\u0628\u064A\u0631. \u0627\u0644\u0645\u0633 \u0644\u062A\u063A\u064A\u064A\u0631\u0647\u0627`],
+    [/^Hai cambiato i fili senza finire la procedura di sicurezza su (.+): prima si apre il sezionamento, si mette il lucchetto e si verifica con il multimetro che non ci sia tensione\. Premi Annulla tutto e rifai il lavoro in quest’ordine\.$/, (m, t) => `\u063A\u064A\u0651\u0631\u062A \u0627\u0644\u0623\u0633\u0644\u0627\u0643 \u062F\u0648\u0646 \u0625\u0646\u0647\u0627\u0621 \u0625\u062C\u0631\u0627\u0621 \u0627\u0644\u0633\u0644\u0627\u0645\u0629 \u0639\u0644\u0649 ${t(m[1])}: \u0623\u0648\u0644\u064B\u0627 \u064A\u064F\u0641\u062A\u062D \u0639\u0646\u0635\u0631 \u0627\u0644\u0641\u0635\u0644\u060C \u062B\u0645 \u064A\u0648\u0636\u0639 \u0627\u0644\u0642\u0641\u0644\u060C \u062B\u0645 \u064A\u064F\u062A\u062D\u0642\u064E\u0651\u0642 \u0628\u062C\u0647\u0627\u0632 \u0627\u0644\u0642\u064A\u0627\u0633 \u0627\u0644\u0645\u062A\u0639\u062F\u062F \u0645\u0646 \u0627\u0646\u0639\u062F\u0627\u0645 \u0627\u0644\u062C\u0647\u062F. \u0627\u0636\u063A\u0637 \xAB\u0625\u0644\u063A\u0627\u0621 \u0627\u0644\u0643\u0644\xBB \u0648\u0623\u0639\u062F \u0627\u0644\u0639\u0645\u0644 \u0628\u0647\u0630\u0627 \u0627\u0644\u062A\u0631\u062A\u064A\u0628.`],
+    [/^Metti il lucchetto su (.+)$/, (m, t) => `\u0636\u0639 \u0627\u0644\u0642\u0641\u0644 \u0639\u0644\u0649 ${t(m[1])}`],
+    [/^Togli il lucchetto da (.+)$/, (m, t) => `\u0623\u0632\u0644 \u0627\u0644\u0642\u0641\u0644 \u0639\u0646 ${t(m[1])}`],
     [/^Protezioni scattate: (.+)\.$/, (m, t) => `\u062D\u0645\u0627\u064A\u0627\u062A \u0641\u0635\u0644\u062A: ${t(m[1])}.`]
   ];
-  registerLang("ar", { ...ar_1_default, ...ar_2_default, ...ar_3_default, ...ar_4_default, ...ar_5_default, ...ar_6_default, ...ar_7_default, ...ar_8_default, ...ar_9_default, ...ar_10_default, ...ar_11_default, ...ar_12_default, ...ar_13_default, ...ar_14_default, ...ar_15_default, ...ar_16_default, ...ar_17_default, ...ar_18_default, ...ar_19_default, ...ar_20_default, ...ar_21_default, ...ar_22_default, ...ar_23_default, ...ar_24_default, ...ar_25_default, ...ar_26_default, ...ar_27_default, ...ar_28_default, ...ar_29_default, ...ar_30_default, ...ar_31_default, ...ar_32_default, ...ar_33_default, ...ar_34_default, ...ar_35_default, ...ar_36_default, ...ar_37_default, ...ar_38_default, ...ar_39_default, ...ar_44_default }, PAT);
+  registerLang("ar", { ...ar_1_default, ...ar_2_default, ...ar_3_default, ...ar_4_default, ...ar_5_default, ...ar_6_default, ...ar_7_default, ...ar_8_default, ...ar_9_default, ...ar_10_default, ...ar_11_default, ...ar_12_default, ...ar_13_default, ...ar_14_default, ...ar_15_default, ...ar_16_default, ...ar_17_default, ...ar_18_default, ...ar_19_default, ...ar_20_default, ...ar_21_default, ...ar_22_default, ...ar_23_default, ...ar_24_default, ...ar_25_default, ...ar_26_default, ...ar_27_default, ...ar_28_default, ...ar_29_default, ...ar_30_default, ...ar_31_default, ...ar_32_default, ...ar_33_default, ...ar_34_default, ...ar_35_default, ...ar_36_default, ...ar_37_default, ...ar_38_default, ...ar_39_default, ...ar_40_default, ...ar_41_default }, PAT);
 
   // src/trilocale/house.js
   function houseState(session2, on = true) {
@@ -24173,6 +24350,12 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
       session.toggleBreaker();
       return;
     }
+    const lk = e.target.closest("[data-lock]");
+    if (lk) {
+      clearSel();
+      session.lockControl(lk.dataset.lock);
+      return;
+    }
     const rt = e.target.closest("[data-rate]");
     if (rt) {
       clearSel();
@@ -24266,6 +24449,12 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
     if (hd) {
       e.preventDefault();
       if (!e.repeat) holdStart(hd.dataset.hold);
+      return;
+    }
+    const lk_ = e.target.closest("[data-lock]");
+    if (lk_) {
+      e.preventDefault();
+      session.lockControl(lk_.dataset.lock);
       return;
     }
     const rt_ = e.target.closest("[data-rate]");

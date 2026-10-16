@@ -1,4 +1,4 @@
-// Dizionario arabo, parte 44: prova della fabbrica (c53 il turno di notte), regola della riparazione a robot senza potenza.
+// Dizionario arabo, parte 41: prova della fabbrica (c51 il turno di notte), regola della riparazione a robot senza potenza.
 // Glossario: finecorsa = نهاية الشوط، portella = البوابة، riarmo = إعادة التسليح، cella = الخلية، manutentore = فني الصيانة.
 export default {
 "Il turno di notte": "المناوبة الليلية",

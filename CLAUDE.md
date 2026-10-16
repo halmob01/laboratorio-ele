@@ -6,6 +6,8 @@ Gioco didattico di impianti elettrici per allievi elettricisti IeFP. Interfaccia
 - Test: `npm test`. Traduzioni mancanti: `node scripts/check-lang.mjs ar` (un file nuovo `src/i18n/ar-NN.js` per ogni lavoro,
   registrato in `src/i18n/ar.js`; controllare prima quale numero e' libero).
 - Le regole del gioco stanno in `src/engine` e non si cambiano per esigenze della grafica.
+- Più sessioni lavorano in parallelo: prima di cominciare e prima di unire in `main` seguire `docs/PROCEDURA-UNIONE.md`
+  (un ramo per lavoro, numeri di livello e file arabi prenotati nella tabella, unire `main` nel proprio ramo, mai il contrario).
 - Documentazione in `docs/`: le prove 3D in `docs/MILESTONE.md` e nei `docs/PROGETTO-*.md`.
 
 ## Scene 3D

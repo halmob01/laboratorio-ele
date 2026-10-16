@@ -4,6 +4,7 @@
 //   { kind: 'wire', from, to: [morsetti], color }   fatto quando `from` e' collegato, attraverso i soli fili, a uno dei `to`
 //   { kind: 'power' }                                fatto quando il quadro e' acceso
 //   { kind: 'control', id }                          fatto quando il comando e' stato azionato con il quadro acceso
+//   { kind: 'lock', id }                             fatto quando il lucchetto e' stato messo sul sezionamento `id` (almeno una volta)
 //   { kind: 'measure', between: [a, b], mode: 'V'|'R', value?, reading?, live? }   fatto quando il multimetro ha letto cio' che si chiede
 //   { kind: 'rate', id, value }                     fatto quando il magnetotermico `id` ha la portata `value` (ctx.ratings)
 //   { kind: 'program', plc, min }                    fatto quando il programma del PLC ha almeno `min` gradini con un'uscita
@@ -43,6 +44,7 @@ export function stepsState(steps, wires, ctx) {
     if (st.kind === 'wire') d = !ctx.fault && wireDone(st, wires);   // con un cortocircuito i passi di cablaggio non risultano fatti
     else if (st.kind === 'power') d = !!ctx.power;
     else if (st.kind === 'control') d = operated.has(st.id);
+    else if (st.kind === 'lock') d = operated.has('lock:' + st.id);
     else if (st.kind === 'measure') d = (ctx.measured || []).some(m => measureMatches(st, m));
     else if (st.kind === 'rate') d = !!ctx.ratings && ctx.ratings[st.id] === st.value;
     else if (st.kind === 'program') d = ((ctx.programs || {})[st.plc] || []).filter(r => r.do && r.do.length && r.if !== undefined).length >= (st.min || 1);

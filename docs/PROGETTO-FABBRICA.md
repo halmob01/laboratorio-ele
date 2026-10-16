@@ -1,9 +1,9 @@
 # Progetto: "Il turno di notte", la prova della fabbrica (Modulo 6)
 
-**Stato: fase 1 fatta** (motore e livello c53, vedi sezione 8). Prossima: fase 2, la cornice a tempo.
+**Stato: fase 1 fatta** (motore e livello c51, vedi sezione 8). Prossima: fase 2, la cornice a tempo.
 Differenze dal progetto emerse nella fase 1: il turno comincia al primo riarmo (`scenario.startWhen: { coil: 'KM' }`), non
-all'apertura del livello; la cella e' gia' in tensione (`supply: 'protezioni'`); livello `c53-turno-notte`, arabo in `ar-44.js`
-(numeri scelti lasciando spazio ai livelli del Modulo 5); obiettivo 70 pezzi (riferimento: circa 88 riparando in 15 s, 80 in
+all'apertura del livello; la cella e' gia' in tensione (`supply: 'protezioni'`); livello `c51-turno-notte`, arabo in `ar-41.js`
+(numeri prenotati in `docs/PROCEDURA-UNIONE.md`); obiettivo 70 pezzi (riferimento: circa 88 riparando in 15 s, 80 in
 60 s, 10 senza riparare).
 
 **Progetto iniziale:** Panoramica e decisioni in `docs/PROGETTO-PROVE-CASA-FABBRICA.md`; qui le scelte prese

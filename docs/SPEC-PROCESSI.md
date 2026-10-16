@@ -149,6 +149,24 @@ hmi: {
 - **Osservazione**: `obs.hmi = { link, horn, values: [{ id, label, v, text, age, stale }], alarms: [{ id, text, prio, state, since }] }`.
 - **Prove**: `expect.hmi = { link, horn, alarms: { A1: 'attivo' }, stale: { V1: true } }`.
 
+## 8d. La casa intelligente: `zone` ed `energia` ampliato (16 ottobre)
+
+Scritta da Opus con il codice (`process.js`, test in `test/casa-modelli.test.js`). Servono ai livelli 5.10 (gestione dei carichi) e 5.11 (clima per zone).
+
+**Modello `zone`** (fino a tre stanze, `params.n`, predefinito 2). Stato: `T1..T3` (gradi), `p1..p3` (apertura delle valvole 0-1), `hour`, `dry` (secondi di pompa a vuoto), `broken`, `eHeat` (kWh della pompa).
+- Ogni stanza: dT/dt = (gain · valvola · pompa − loss · (T − Text) · finestra) / 60. Predefiniti: Text 5 °C, gain 1,2 °C/min, loss 0,05/min (a regime con il calore sempre acceso 29 °C; senza, la stanza va verso 5 °C con costante di 20 minuti), winK 6 (finestra aperta: dispersione sei volte).
+- Attuatori: `pump`, `v1..v3` (valvole), `w1..w3` (finestre). Per le finestre c'è una sorgente nuova di attuatore, `{ ctl: 'W1' }`: lo stato di un comando manuale (interruttore chiuso, portella aperta, fungo premuto).
+- Valvole: con `valveT` > 0 secondi si aprono e chiudono piano (predefinito 0, subito). È la ragione per cui negli impianti veri il consenso alla pompa viene dal fine corsa della valvola.
+- Pompa a vuoto: se gira con portata sotto il 10 % (valvole chiuse) per `dryMax` secondi (60) si blocca in guasto (`broken`) e non scalda più. È la regola di sicurezza del livello: la pompa parte solo se almeno una zona chiede calore.
+- Giorno e notte: `night` vale 1 tra `nightFrom` (22) e `dayFrom` (6), per il programma orario (due temperature volute). Si legge con un `sens` (`sense: { v: 'night', above: 0.5 }`).
+- Le temperature si leggono con un `tx` per stanza (`sense: { v: 'T1', lo: 0, hi: 40 }`) e l'isteresi si scrive con Set e Reset su confronti, come c35.
+
+**Modello `energia` ampliato.** I livelli c39-c42 non cambiano: i parametri nuovi valgono zero o non sono collegati.
+- Carichi comandabili nuovi: `hp` (pompa di calore, `hpKw` 1,5) e `wash` (lavatrice, `washKw` 2).
+- Carico non comandabile: il forno (`ovenKw`, predefinito 0) acceso dalle persone tra `ovenFrom` (19,5) e `ovenTo` (20,5). È il picco serale che costringe a staccare qualcosa. Esposto come `oven`.
+- Fasce orarie: `price` (euro/kWh) vale `priceHi` (0,32) tra `hiFrom` (8) e `hiTo` (19), `priceLo` (0,20) il resto; `peak` vale 1 in fascia alta; `cost` accumula il costo del prelievo.
+- Esempio verificato nei test: contatore da 6 kW, colonnina e pompa di calore dal PLC, forno di 3 kW. Con priorità (prima la colonnina, poi la pompa di calore) e riattacco solo dopo 30 s di margine (TON) il contatore non stacca e i carichi commutano una volta; senza il ritardo pendolano (oltre cento commutazioni in una serata).
+
 ## 9. Fuori da questa specifica
 
 Bus di campo, manutenzione predittiva, pannello operatore con allarmi (6.8: si appoggia sul tracciato e sulle parole del PLC, ma la sua interfaccia è da progettare), modelli della linea (P7).

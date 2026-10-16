@@ -1,6 +1,6 @@
 // Unita' didattiche dei Moduli 2 e 3. Stessa forma di units.js.
 
-import { W46, PROG_46_FAULT, W53_PLANT, PROG_53 } from './levels-v2.js';
+import { W46, PROG_46_FAULT, W51_PLANT, PROG_51 } from './levels-v2.js';
 
 export const UNITS_V2 = {
   'c17-multimetro': {
@@ -4537,8 +4537,8 @@ UNITS_V2['c50-allarme'] = {
   },
 };
 
-// ---- Modulo 6: la prova della fabbrica, il turno di notte (c53) ----
-UNITS_V2['c53-turno-notte'] = {
+// ---- Modulo 6: la prova della fabbrica, il turno di notte (c51) ----
+UNITS_V2['c51-turno-notte'] = {
   support: 'obiettivo',
   lesson: {
     pages: [
@@ -4608,8 +4608,8 @@ UNITS_V2['c53-turno-notte'] = {
   ],
   fault: {
     say: 'La cella è in servizio. Riarma le sicurezze e premi Marcia: il turno comincia. Quando la cella si ferma, guarda il pannello e il braccio, e rispondi.',
-    wires: W53_PLANT,
-    programs: { PLC: PROG_53 },
+    wires: W51_PLANT,
+    programs: { PLC: PROG_51 },
     diagnosis: {
       question: 'La cella si è fermata: il pannello dice “Ciclo bloccato”, il robot è alimentato e il braccio è in basso. Perché?',
       options: [
