@@ -401,3 +401,11 @@ test('c37: la verifica rifiuta il pannello scollegato', () => {
   assert.equal(off.work.items.some(i => i.code === 'work.hmiOffline'), true);
   assert.equal(off.pass, false);
 });
+
+test('motivo di un intervallo con numeri negativi si legge bene', async () => {
+  const { itemText } = await import('../src/content/it.js');
+  const lv = { process: { labels: { grid: 'La potenza della rete' } } };
+  const fail = traceMismatch([{ t: 5, grid: 1.4 }], [{ v: 'grid', within: [-4.5, 0.1] }]);
+  assert.deepEqual([fail.rule, fail.want], ['within', '-4.5~0.1']);
+  assert.equal(itemText({ code: 'work.checkFail', label: 'x', comp: 'trace.grid', ...fail }, lv), 'Prova non superata: x. La potenza della rete vale 1,4 (a 5 s): deve restare tra −4,5 e 0,1.'.replace('−', '-'));
+});

@@ -62,7 +62,7 @@ function mismatch(obs, expect) {
     for (const [k, v] of Object.entries(expect.process)) {
       const got = obs.process ? obs.process[k] : undefined;
       const ok = Array.isArray(v) ? typeof got === 'number' && got >= v[0] && got <= v[1] : got === v;
-      if (!ok) return { comp: 'process.' + k, want: Array.isArray(v) ? v.join('-') : v, got: typeof got === 'number' ? round1(got) : got ?? null };
+      if (!ok) return { comp: 'process.' + k, want: Array.isArray(v) ? v.join('~') : v, got: typeof got === 'number' ? round1(got) : got ?? null };
     }
   }
   return null;
@@ -91,7 +91,7 @@ export function traceMismatch(rows, rules) {
     if (!win.length) return fail('noData', null, null, from);
     if (r.within) {
       const bad = win.find(x => x[r.v] < r.within[0] || x[r.v] > r.within[1]);
-      if (bad) return fail('within', r.within.join('-'), bad[r.v], bad.t);
+      if (bad) return fail('within', r.within.join('~'), bad[r.v], bad.t);
     }
     if (r.min !== undefined) {
       const bad = win.find(x => x[r.v] < r.min);

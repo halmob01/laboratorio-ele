@@ -3138,7 +3138,7 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
       for (const [k, v] of Object.entries(expect.process)) {
         const got = obs2.process ? obs2.process[k] : void 0;
         const ok = Array.isArray(v) ? typeof got === "number" && got >= v[0] && got <= v[1] : got === v;
-        if (!ok) return { comp: "process." + k, want: Array.isArray(v) ? v.join("-") : v, got: typeof got === "number" ? round1(got) : got ?? null };
+        if (!ok) return { comp: "process." + k, want: Array.isArray(v) ? v.join("~") : v, got: typeof got === "number" ? round1(got) : got ?? null };
       }
     }
     return null;
@@ -3158,7 +3158,7 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
       if (!win.length) return fail2("noData", null, null, from);
       if (r.within) {
         const bad = win.find((x) => x[r.v] < r.within[0] || x[r.v] > r.within[1]);
-        if (bad) return fail2("within", r.within.join("-"), bad[r.v], bad.t);
+        if (bad) return fail2("within", r.within.join("~"), bad[r.v], bad.t);
       }
       if (r.min !== void 0) {
         const bad = win.find((x) => x[r.v] < r.min);
@@ -11634,7 +11634,7 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
     const v = String(item.comp).split(".").slice(1).join(".");
     const name = level.process && level.process.labels && level.process.labels[v] || v;
     const at = item.at === void 0 || item.at === null || item.at === Infinity ? "" : " (a " + numIt(item.at) + " s)";
-    const range = String(item.want).replace("-", " e ");
+    const range = String(item.want).split("~").map((x) => numIt(Number(x))).join(" e ");
     switch (item.rule) {
       case "within":
         return name + " vale " + numIt(item.got) + at + ": deve restare tra " + range + ".";
@@ -11651,7 +11651,7 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
       case "noData":
         return name + ": nessun valore registrato.";
       default:
-        return name + " vale " + numIt(item.got) + "; atteso: " + (String(item.want).includes("-") ? "tra " + range : numIt(item.want)) + ".";
+        return name + " vale " + numIt(item.got) + "; atteso: " + (String(item.want).includes("~") ? "tra " + range : numIt(item.want)) + ".";
     }
   }
   var ALARM_STATE = { off: "nessun allarme", attivo: "allarme attivo da riconoscere", riconosciuto: "allarme riconosciuto", rientrato: "allarme rientrato da riconoscere" };

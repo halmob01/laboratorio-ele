@@ -99,7 +99,8 @@ function processText(level, item) {
   const v = String(item.comp).split('.').slice(1).join('.');
   const name = (level.process && level.process.labels && level.process.labels[v]) || v;
   const at = item.at === undefined || item.at === null || item.at === Infinity ? '' : ' (a ' + numIt(item.at) + ' s)';
-  const range = String(item.want).replace('-', ' e ');
+  // gli intervalli arrivano come "min~max" (i numeri possono essere negativi)
+  const range = String(item.want).split('~').map(x => numIt(Number(x))).join(' e ');
   switch (item.rule) {
     case 'within': return name + ' vale ' + numIt(item.got) + at + ': deve restare tra ' + range + '.';
     case 'min': return name + ' scende a ' + numIt(item.got) + at + ': non deve andare sotto ' + numIt(item.want) + '.';
@@ -108,7 +109,7 @@ function processText(level, item) {
     case 'reaches': return name + ' arriva al massimo a ' + numIt(item.got) + (at ? ' entro ' + numIt(item.at) + ' s' : '') + ': doveva raggiungere ' + numIt(item.want) + '.';
     case 'drops': return name + ' scende al minimo a ' + numIt(item.got) + (at ? ' entro ' + numIt(item.at) + ' s' : '') + ': doveva arrivare a ' + numIt(item.want) + '.';
     case 'noData': return name + ': nessun valore registrato.';
-    default: return name + ' vale ' + numIt(item.got) + '; atteso: ' + (String(item.want).includes('-') ? 'tra ' + range : numIt(item.want)) + '.';
+    default: return name + ' vale ' + numIt(item.got) + '; atteso: ' + (String(item.want).includes('~') ? 'tra ' + range : numIt(item.want)) + '.';
   }
 }
 // Prove sul pannello operatore (docs/SPEC-PROCESSI.md, sezione 8c).
