@@ -40,3 +40,4 @@ Scritta il 16 ottobre 2026 da Gianluca, dopo la collisione evitata tra la casa i
 | File arabi della fabbrica 3D | ar-41 (usato), ar-45 se ne serve un altro | claude/stoic-hawking-u5cka0 | ar-41 in lavorazione |
 | Lavori in sicurezza, Gestione dei carichi, Clima per zone | c52, c53, c54 | livelli-casa-sicurezza | in lavorazione |
 | File arabi dei tre livelli | ar-42 (usato); ar-43 e ar-44 liberi | livelli-casa-sicurezza | ar-42 usato |
+| Fabbrica fase 3b (pezzi del reparto, nessun numero) | - | fabbrica-fase3b, da `claude/stoic-hawking-u5cka0` | istruzioni in `docs/FABBRICA-FASE-3B.md` |

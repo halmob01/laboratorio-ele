@@ -162,7 +162,7 @@ Le due meta' non toccano gli stessi file; la scena che le mette insieme e' la fa
 | Meta' | Chi | File | Pezzi |
 |---|---|---|---|
 | 3a | questa sessione, ramo `claude/stoic-hawking-u5cka0` | `src/scene3d/parts-cella.js` (nuovo) | `gantry(M)` portale del robot con carrello, asta e pinza; `cellSensor(M, o)` finecorsa con il LED |
-| 3b | un altro agente, ramo `fabbrica-fase3b` | `src/scene3d/parts-reparto.js` (nuovo), `src/scene3d/capannone.js` (solo aggiunte) | `fence(M, o)` recinzione con la portella; `ksModule(M)` relè di sicurezza KS; `hmiStand(M)` pannello operatore su supporto; `NOTTE` preset dell'ora di notte per `buildHall` |
+| 3b | un'altra sessione, ramo `fabbrica-fase3b`, istruzioni in `docs/FABBRICA-FASE-3B.md` | `src/scene3d/parts-reparto.js` (nuovo), `src/scene3d/capannone.js` (solo aggiunte) | `fence(M, o)` recinzione con la portella; `ksModule(M)` relè di sicurezza KS; `hmiStand(M)` pannello operatore su supporto; `NOTTE` preset dell'ora di notte per `buildHall` |
 
 Contratto comune (come i pezzi di `parts3d.js`):
 - ogni pezzo e' una funzione che riceve i materiali del kit (`kitMaterials()` da `parts3d.js`) e ritorna
