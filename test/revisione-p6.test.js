@@ -50,3 +50,12 @@ test('tracciato: i bit del PLC (M, T, I) si leggono, non solo le parole', () => 
   assert.equal(traceValue(sim, 'PLC.M0'), 1);
   assert.equal(traceValue(sim, 'PLC.Q0'), 1);
 });
+
+test('Annulla tutto riporta anche i cursori ai valori di partenza', () => {
+  const s = createSession({ levels, deriveFull });
+  s.start(); s.selectLevel('c36-pid'); s.skipLesson();
+  s.tune('kp', 3);
+  assert.equal(s.snapshot().tuned.kp, 3);
+  s.clear();
+  assert.deepEqual(s.snapshot().tuned, { kp: 1, ti: 0, td: 0 });
+});

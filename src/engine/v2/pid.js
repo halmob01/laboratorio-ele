@@ -6,8 +6,9 @@
 //
 // Anti-windup: con l'uscita satura e l'errore che spinge ancora oltre, l'integrale non cresce (si puo' spegnere per farlo vedere).
 // Manuale -> automatico senza scosse: con `track` l'integrale si allinea all'uscita data.
+// Cambio di Kp senza scosse: con l'integrale attivo, quando Kp cambia l'integrale si riallinea e l'uscita non salta.
 
-export const newPid = () => ({ i: 0, d: 0, lastPv: null, u: 0 });
+export const newPid = () => ({ i: 0, d: 0, lastPv: null, u: 0, kp: null });
 
 const clamp = (x, lo, hi) => Math.max(lo, Math.min(hi, x));
 
@@ -29,9 +30,13 @@ export function pidStep(st, p) {
     s.i = kp > 0 && p.ti > 0 ? s.u / kp - e : 0;
     s.d = 0;
     s.lastPv = p.pv;
+    s.kp = kp;
     return { state: s, u: s.u };
   }
   const dt = p.dt > 0 ? p.dt : 0;
+  // Kp cambiato (dal pannello): l'integrale assorbe la differenza, cosi' l'uscita riparte da dove era
+  if (p.ti > 0 && kp > 0 && s.kp > 0 && s.kp !== kp) s.i = s.kp * (e + s.i + s.d) / kp - e - s.d;
+  s.kp = kp;
   // derivativa sulla misura, con un filtro del primo ordine (costante Td/8)
   if (p.td > 0 && dt > 0 && s.lastPv !== null) {
     const raw = -p.td * (p.pv - s.lastPv) / dt;
