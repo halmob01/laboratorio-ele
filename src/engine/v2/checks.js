@@ -3,7 +3,7 @@
 
 import { makeUF } from '../circuit.js';
 import { PHASE_COLORS } from '../wires.js';
-import { act, advance, rewind, createSim, observe, setSupply, sourcesOf, stillOnIfOpen, settle, traceValue, processVars } from './sim.js';
+import { act, advance, rewind, createSim, observe, setSupply, sourcesOf, stillOnIfOpen, settle, traceValue, processVars, scenarioReport } from './sim.js';
 import { partOf, POWER_PATH } from './parts.js';
 import { withTuned } from './process.js';
 import { measureMatches } from '../steps.js';
@@ -266,7 +266,22 @@ export function evaluateV2(level, wires, ctx = {}) {
   /* funziona */
   const runs = (level.checks || []).map(ch => ({ ch, r: runCheck(level, wires, ch) }));
   const failed = runs.filter(x => !x.r.ok);
-  if (!failed.length) {
+  if (level.scenario) {
+    // turno a guasti: si giudica la partita vera (la simulazione viva della sessione), non una prova scritta
+    const rep = ctx.liveSim && scenarioReport(ctx.liveSim);
+    if (!rep) add('work', 'work.scenarioNone');
+    else if (failed.length) failed.slice(0, 3).forEach(({ ch, r }) => add('work', 'work.checkFail', { check: ch.id, label: ch.label, cause: r.fail.code, want: r.fail.want, got: r.fail.got, comp: r.fail.comp }));
+    else if (!rep.done) add('work', 'work.scenarioRunning', { left: Math.ceil(rep.duration - rep.t) });
+    else {
+      const open = rep.faults.find(f => f.open), late = rep.faults.find(f => f.late);
+      const o = observe(ctx.liveSim);
+      const mm = level.scenario.expect ? (mismatch(o, level.scenario.expect) || (level.scenario.expect.trace ? traceMismatch(ctx.liveSim.trace, level.scenario.expect.trace) : null)) : null;
+      if (open) add('work', 'work.scenarioOpen', { label: open.label });
+      else if (late) add('work', 'work.scenarioLate', { label: late.label, delay: Math.round(late.delay), max: late.max });
+      else if (mm) add('work', 'work.checkFail', { check: 'turno', label: 'Il turno', cause: 'work.checkFail', want: mm.want, got: mm.got, comp: mm.comp, ...(mm.rule ? { rule: mm.rule, at: mm.at } : {}) });
+      else { out.work.ok = true; add('work', 'work.scenarioOk', { n: rep.faults.length }); }
+    }
+  } else if (!failed.length) {
     out.work.ok = true;
     add('work', 'work.allChecksOk', { n: runs.length });
     // letture del multimetro che il livello pretende (misurare prima di dare per buono)

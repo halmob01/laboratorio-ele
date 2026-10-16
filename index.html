@@ -1065,6 +1065,12 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
 .hmiack{align-self:flex-start;min-height:44px}
 @keyframes hmiblink{50%{filter:brightness(1.5)}}
 @media (prefers-reduced-motion:reduce){.hmihorn,.hmialm{animation:none}}
+
+/* turno a guasti: barra con il tempo e i guasti riparati */
+.shiftbar{display:flex;flex-wrap:wrap;align-items:center;gap:6px 14px;padding:8px 10px;border:1px solid var(--line);border-radius:10px;background:var(--chip);font:500 13px 'IBM Plex Sans',sans-serif}
+.shiftbar b{font:600 13px 'IBM Plex Mono',monospace;text-transform:uppercase}
+.shiftbar .late{color:var(--bad);font-weight:600}
+.shiftbar .btn{margin-left:auto;min-height:44px}
 </style>
 </head>
 <body>
@@ -2334,6 +2340,8 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
       // righe { t, grandezza: valore } ogni passo, per le prove e il grafico (level.process.trace)
       hmi: {},
       // parole dei PLC scritte dal pannello di regolazione: { idPLC: { MW0: 60 } }
+      scenario: level.scenario ? { firedAt: {}, fixedAt: {} } : null,
+      // turno con guasti a tempo (level.scenario): quando sono scattati e quando sono stati riparati
       panel: level.hmi ? { values: {}, alarms: {}, seq: 0 } : null
       // pannello operatore (level.hmi): ultime letture e stato degli allarmi
     };
@@ -2898,6 +2906,44 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
     const alarms = (cfg.alarms || []).map((a) => ({ id: a.id, text: a.text, prio: a.prio, ...P.alarms[a.id] || { state: "off", since: null, seq: 0 } })).filter((a) => a.state !== "off").sort((x, y) => PRIO[x.prio] - PRIO[y.prio] || y.seq - x.seq);
     return { link: hmiLink(sim, an), horn: alarms.some((a) => a.state === "attivo" || a.state === "rientrato"), values, alarms };
   }
+  function scenarioTick(sim) {
+    const sc = sim.level.scenario, S2 = sim.scenario;
+    if (!sc || !S2) return;
+    sc.faults.forEach((f2) => {
+      if (S2.firedAt[f2.id] === void 0 && sim.t >= f2.at) {
+        const [a, x] = f2.do.split(/\s+/);
+        S2.firedAt[f2.id] = sim.t;
+        try {
+          act(sim, a, x);
+        } catch (e) {
+        }
+      }
+      if (S2.firedAt[f2.id] !== void 0 && S2.fixedAt[f2.id] === void 0) {
+        const part2 = sim.parts[f2.fixed.part];
+        if (part2 && !!part2[f2.fixed.prop] === !!f2.fixed.is) S2.fixedAt[f2.id] = sim.t;
+      }
+    });
+  }
+  function scenarioReport(sim) {
+    const sc = sim.level.scenario, S2 = sim.scenario;
+    if (!sc || !S2) return null;
+    const faults = sc.faults.map((f2) => {
+      const firedAt = S2.firedAt[f2.id], fixedAt = S2.fixedAt[f2.id];
+      const delay = firedAt === void 0 ? null : (fixedAt === void 0 ? sim.t : fixedAt) - firedAt;
+      return {
+        id: f2.id,
+        label: f2.label || f2.id,
+        at: f2.at,
+        firedAt: firedAt ?? null,
+        fixedAt: fixedAt ?? null,
+        delay,
+        max: f2.maxDelay ?? Infinity,
+        late: delay !== null && delay > (f2.maxDelay ?? Infinity),
+        open: firedAt !== void 0 && fixedAt === void 0
+      };
+    });
+    return { duration: sc.duration, t: sim.t, done: sim.t >= sc.duration, faults };
+  }
   function act(sim, action, id) {
     const c2 = sim.level.comps.find((x) => x.id === id);
     if (!c2) throw new Error("componente sconosciuto: " + id);
@@ -2936,6 +2982,7 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
       }
     } else throw new Error("azione non valida: " + action);
     settle(sim);
+    scenarioTick(sim);
   }
   function setSupply(sim, on) {
     sim.supply = on;
@@ -2999,6 +3046,7 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
       if (sim.process) sim.process = stepProcess(sim.level.process, sim.process, actuatorsOf(sim, an), STEP);
       sim.plcDt = STEP;
       settle(sim);
+      scenarioTick(sim);
       recordTrace(sim);
     }
   }
@@ -3032,6 +3080,7 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
       processAct: sim.process ? actuatorsOf(sim, an) : null,
       // comandi che il processo sta ricevendo (0-1), per il disegno
       hmi: hmiReport(sim, an),
+      scenario: scenarioReport(sim),
       // pannello operatore (level.hmi): collegamento, valori con l'eta', allarmi
       coils: Object.fromEntries(Object.entries(an.coils).filter(([id]) => !sim.level.comps.some((c2) => c2.id === id && c2.type === "plc"))),
       parts,
@@ -3365,7 +3414,24 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
     }
     const runs = (level.checks || []).map((ch) => ({ ch, r: runCheck(level, wires, ch) }));
     const failed = runs.filter((x) => !x.r.ok);
-    if (!failed.length) {
+    if (level.scenario) {
+      const rep = ctx2.liveSim && scenarioReport(ctx2.liveSim);
+      if (!rep) add("work", "work.scenarioNone");
+      else if (failed.length) failed.slice(0, 3).forEach(({ ch, r }) => add("work", "work.checkFail", { check: ch.id, label: ch.label, cause: r.fail.code, want: r.fail.want, got: r.fail.got, comp: r.fail.comp }));
+      else if (!rep.done) add("work", "work.scenarioRunning", { left: Math.ceil(rep.duration - rep.t) });
+      else {
+        const open = rep.faults.find((f2) => f2.open), late = rep.faults.find((f2) => f2.late);
+        const o = observe(ctx2.liveSim);
+        const mm = level.scenario.expect ? mismatch(o, level.scenario.expect) || (level.scenario.expect.trace ? traceMismatch(ctx2.liveSim.trace, level.scenario.expect.trace) : null) : null;
+        if (open) add("work", "work.scenarioOpen", { label: open.label });
+        else if (late) add("work", "work.scenarioLate", { label: late.label, delay: Math.round(late.delay), max: late.max });
+        else if (mm) add("work", "work.checkFail", { check: "turno", label: "Il turno", cause: "work.checkFail", want: mm.want, got: mm.got, comp: mm.comp, ...mm.rule ? { rule: mm.rule, at: mm.at } : {} });
+        else {
+          out.work.ok = true;
+          add("work", "work.scenarioOk", { n: rep.faults.length });
+        }
+      }
+    } else if (!failed.length) {
       out.work.ok = true;
       add("work", "work.allChecksOk", { n: runs.length });
       const missing = (level.measures || []).filter((m) => !(ctx2.measured || []).some((x) => measureMatches(m, x)));
@@ -3752,7 +3818,7 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
       if (c2.type === "mt") return s.heat > 0 || obs2.cable && !obs2.cable.burnt && (obs2.cable.heat > 0 || obs2.cable.amps > obs2.cable.iz) || !!s.in && !!s.on && !s.tripped && !!(obs2.lines && obs2.lines[c2.id] && obs2.lines[c2.id].ratio > 1.45);
       if (c2.type === "ft") return !s.tripped && (s.heat > 0 || Object.values(obs2.motors).some((m) => m === "hum" || obs2.overload && running(m)));
       return false;
-    }) || (!!level.process || !!level.hmi) && !!obs2.supply || !!level.machine && !!obs2.machine && Object.values(obs2.motors).some((m) => m === "fwd" && !obs2.machine.atEnd || m === "rev" && !obs2.machine.atStart);
+    }) || (!!level.process || !!level.hmi) && !!obs2.supply && !(obs2.scenario && obs2.scenario.done) || !!level.machine && !!obs2.machine && Object.values(obs2.motors).some((m) => m === "fwd" && !obs2.machine.atEnd || m === "rev" && !obs2.machine.atStart);
   }
   function viewOf(level, sim, power) {
     const obs2 = observe(sim);
@@ -3767,7 +3833,8 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
       potential: (tid) => obs2.potential(tid),
       controlStates: controlStates(level, sim),
       flow: flowV2(sim),
-      needsClock: needsClock(level, obs2)
+      needsClock: needsClock(level, obs2) && !(obs2.scenario && obs2.scenario.done)
+      // a turno finito l'orologio si ferma
     };
   }
 
@@ -4589,6 +4656,14 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
       testPart(id) {
         this._act("test", id);
       },
+      // Turno a guasti (level.scenario): ricomincia da capo con la stessa impostazione.
+      restartShift() {
+        if (!v2() || !levelAt().scenario) return;
+        dropSim();
+        resultsByKey[keyOf()] = null;
+        message = null;
+        emit();
+      },
       // Pannello operatore: riconoscimento degli allarmi; guasti simulati sui sensori (galleggiante bloccato, filo del trasmettitore interrotto).
       ackPanel(id) {
         this._act("ack", id);
@@ -4690,7 +4765,7 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
       check() {
         const level = levelAt();
         const faultOn = v2(level) && level.unit && level.unit.fault && unitState().phase === "fault" ? (level.unit.fault.on || []).filter((id) => simFor().parts[id] && simFor().parts[id].on) : [];
-        const r = v2(level) ? evaluateV2(level, wires(), { measured: measuredBy[keyOf()] || [], ratings: ratingsOf(), programs: programsOf(), tuned: tunedByKey[keyOf()], faultOn, hmiOff: levelAt().comps.filter((c2) => c2.type === "hmi" && simFor().parts[c2.id] && !simFor().parts[c2.id].on).map((c2) => c2.id), liveEdits: liveEditsBy[keyOf()] || [] }) : evaluate(level, wires());
+        const r = v2(level) ? evaluateV2(level, wires(), { measured: measuredBy[keyOf()] || [], ratings: ratingsOf(), programs: programsOf(), tuned: tunedByKey[keyOf()], liveSim: level.scenario ? simFor() : null, faultOn, hmiOff: levelAt().comps.filter((c2) => c2.type === "hmi" && simFor().parts[c2.id] && !simFor().parts[c2.id].on).map((c2) => c2.id), liveEdits: liveEditsBy[keyOf()] || [] }) : evaluate(level, wires());
         resultsByKey[keyOf()] = r;
         const u = usage();
         u.checks++;
@@ -7725,6 +7800,74 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
       "Per esempio, da M1 si passa a M2 quando il braccio \xE8 gi\xF9: contatto M1 in serie con I4 (braccio gi\xF9); uscite Reset M1 e Set M2.",
       "Dalla pinza chiusa (M2) si passa a M3 quando \xE8 finito il tempo T1; da M6 a M7 con T2; M3 e M7 aspettano il braccio su (I3); M4 aspetta il deposito (I6); M5 aspetta il braccio gi\xF9 (I4); M8 aspetta il prelievo (I5).",
       "Il primo gradino parte il ciclo: serve Marcia (M0), un pezzo pronto (I2), braccio su (I3), al prelievo (I5) e nessun ciclo in corso (M9 normalmente chiuso). Uscite: Set M1 e Set M9. L\u2019ultimo gradino, da M8 con I5, fa Reset M8 e Reset M9."
+    ]
+  });
+  var PROG_44 = START_37.concat(ALARMS_37);
+  LEVELS_V2.push({
+    id: "c44-guasti",
+    code: "c44",
+    n: 0,
+    ...IND,
+    flow: "onDemand",
+    name: "Gestione guasti",
+    title: "Gestione guasti",
+    blurb: "Un turno di lavoro: tre guasti arrivano a tempo, tu li leggi dal pannello e li ripari prima del danno.",
+    goal: "Il serbatoio con il pannello operatore \xE8 in servizio, gi\xE0 cablato e programmato. Dai corrente e comincia il turno: durante il turno arrivano tre guasti, uno alla volta. Leggi il pannello (allarmi, dato vecchio, collegamento), trova il pezzo guasto sul banco e riparalo. Ogni guasto ha un tempo massimo; il serbatoio non deve mai traboccare. Quando il turno finisce premi Verifica.",
+    fixed: W37,
+    comps: [
+      Q3,
+      C("PLC", "plc", "PLC", "PLC con gli allarmi", T("A1", "A2", "I0", "I1", "IC", "AI0+", "AI0-", "Q0A", "Q0B"), {
+        program: PROG_44,
+        symbols: { I0: "Livello alto", I1: "Livello basso", Q0: "Pompa", AI0: "Livello (mA)", MW0: "Livello (%)", M0: "Troppo alto", M1: "Guasto sensore", M2: "Troppo basso", M3: "Pompa a lungo" }
+      }),
+      C("LH", "sens", "Galleggiante alto", "Galleggiante di livello alto (80 %)", T("1", "2", "3", "4"), { sense: { v: "h", above: 80 } }),
+      C("LL", "sens", "Galleggiante basso", "Galleggiante di livello basso (20 %)", T("1", "2", "3", "4"), { sense: { v: "h", below: 20 } }),
+      C("TT", "tx", "Trasmettitore", "Trasmettitore di livello 4-20 mA", T("+", "-"), { sense: { v: "h", lo: 0, hi: 100 } }),
+      C("HP", "spia", "Pompa", "Pompa in marcia", T("X1", "X2")),
+      C("HMI", "hmi", "Pannello", "Pannello operatore collegato al PLC", {})
+    ],
+    process: {
+      model: "serbatoio",
+      title: "Il serbatoio",
+      alt: "Serbatoio con due galleggianti, il trasmettitore e la pompa",
+      params: { qIn: 30, qOut: 12 },
+      init: { h: 50 },
+      speed: 4,
+      actuators: { pump: { load: "HP" }, valve: { value: 1 } },
+      trace: ["h"],
+      labels: { h: "Il livello" },
+      graph: { vars: [{ v: "h", label: "Livello %", lo: 0, hi: 100 }], window: 600, lines: [{ value: 90, label: "troppo alto" }, { value: 10, label: "troppo basso" }] }
+    },
+    hmi: {
+      plc: "PLC",
+      stale: 3,
+      values: [{ id: "V1", label: "Livello", v: "PLC.MW0", unit: "%" }, { id: "V2", label: "Pompa", v: "PLC.Q0", bool: ["ferma", "in marcia"] }],
+      alarms: [
+        { id: "A1", bit: "M0", text: "Livello troppo alto", prio: "alta" },
+        { id: "A2", bit: "M1", text: "Guasto del sensore di livello", prio: "alta" },
+        { id: "A3", bit: "M2", text: "Livello troppo basso", prio: "media" },
+        { id: "A4", bit: "M3", text: "Pompa accesa da pi\xF9 di 5 minuti", prio: "bassa" }
+      ]
+    },
+    scenario: {
+      duration: 700,
+      faults: [
+        { id: "f1", at: 70, do: "cut TT", label: "il filo del trasmettitore di livello", fixed: { part: "TT", prop: "cut", is: false }, maxDelay: 150 },
+        { id: "f2", at: 300, do: "jam LH", label: "il galleggiante alto bloccato", fixed: { part: "LH", prop: "jam", is: false }, maxDelay: 150 },
+        { id: "f3", at: 500, do: "toggle HMI", label: "il cavo di rete del pannello", fixed: { part: "HMI", prop: "on", is: true }, maxDelay: 120 }
+      ],
+      expect: { trace: [{ v: "h", max: 99.9 }] }
+    },
+    demoDo: [{ do: ["wait 200"], say: "" }],
+    checks: [],
+    safety: { coilReturn: ["PLC"] },
+    solution: W37,
+    // partita di riferimento (usata dai test): a che secondo del turno si ripara, e con quale azione
+    solutionPlay: [{ at: 90, do: "cut TT" }, { at: 320, do: "jam LH" }, { at: 520, do: "toggle HMI" }],
+    hints: [
+      "Gli allarmi arrivano sul pannello: leggi il testo e la priorit\xE0. \u201CGuasto del sensore di livello\u201D vuol dire che l\u2019anello del trasmettitore non porta corrente.",
+      "Un livello che sale oltre il 90 % con la pompa accesa e nessuna fermata fa pensare a un galleggiante che non scatta: guarda i galleggianti sul banco.",
+      "Se i valori del pannello diventano grigi e compare \u201Ccollegamento perso\u201D, il cavo di rete del pannello \xE8 staccato: toccalo per ricollegarlo."
     ]
   });
 
@@ -11770,6 +11913,79 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
         "Il segnale \u201Cfatto\u201D non si salta: senza il finecorsa il passo successivo parte troppo presto e la macchina urta.",
         "Il ciclo in corso finisce sempre: Arresto impedisce di cominciare il successivo, non ferma la macchina a met\xE0."
       ]
+    },
+    "c44-guasti": {
+      support: "passi",
+      lesson: {
+        pages: [
+          {
+            type: "spiegazione",
+            title: "Un impianto in servizio non resta a posto",
+            paras: [
+              "Fin qui hai costruito impianti che funzionano. Un impianto vero lavora per anni e prima o poi qualcosa si rompe: un filo si stacca, un contatto si blocca, un cavo di rete si sfila. Il lavoro di chi lo gestisce \xE8 accorgersene presto, capire che cosa \xE8 successo e ripararlo prima che il guasto faccia danni.",
+              "In questo livello il serbatoio con il pannello operatore lavora da solo per un turno. Durante il turno arrivano tre guasti, uno alla volta e a tempo: non sai quando. Il pannello \xE8 la tua finestra sull\u2019impianto."
+            ]
+          },
+          {
+            type: "spiegazione",
+            title: "Dall\u2019allarme al pezzo guasto",
+            paras: [
+              "Un allarme dice che cosa non va, non dove. Per trovare il pezzo guasto si mettono insieme tre indizi: il testo dell\u2019allarme, i valori sul pannello e il banco. Si parte da quello che il guasto cambia."
+            ],
+            table: {
+              head: ["Che cosa vedi", "Che cosa significa", "Dove guardare"],
+              rows: [
+                ["\u201CGuasto del sensore di livello\u201D (corrente sotto 3,6 mA)", "l\u2019anello del trasmettitore non porta corrente", "il filo del trasmettitore"],
+                ["Il livello sale oltre il 90 % con la pompa che non si ferma", "il galleggiante alto non scatta", "i galleggianti sul banco"],
+                ["Valori grigi e \u201Ccollegamento perso\u201D", "il pannello non parla pi\xF9 con il PLC", "il cavo di rete del pannello"]
+              ]
+            }
+          },
+          {
+            type: "spiegazione",
+            title: "Riconoscere non \xE8 riparare",
+            paras: [
+              "Il tasto di riconoscimento del pannello ferma la sirena, ma non cambia niente nell\u2019impianto: il guasto resta. Riparare vuol dire intervenire sul pezzo, e vale solo quando l\u2019impianto torna a funzionare. Nel gioco lo fai dal banco: il pezzo guasto mostra un tasto per rimetterlo a posto.",
+              "Ogni guasto ha un tempo massimo di intervento. Pi\xF9 aspetti, pi\xF9 il danno cresce: un galleggiante bloccato non ferma la pompa e il serbatoio, se aspetti troppo, trabocca. Con pi\xF9 allarmi contemporanei si comincia da quello di priorit\xE0 pi\xF9 alta."
+            ],
+            warn: "Se in una riparazione sbagli pezzo, perdi tempo. Prima di toccare il banco guarda gli indizi: quello che cambia per quel guasto."
+          },
+          {
+            type: "previsione",
+            question: "Il pannello mostra tutti i valori grigi con \u201Ccollegamento perso\u201D, nessun allarme nuovo, e il serbatoio sul banco intanto continua a cambiare livello. Che cosa fai?",
+            options: [
+              { id: "a", text: "Niente: senza allarmi l\u2019impianto \xE8 a posto." },
+              { id: "b", text: "Cerco il guasto di comunicazione: il cavo di rete del pannello. Con il collegamento perso gli allarmi non arrivano pi\xF9." },
+              { id: "c", text: "Sostituisco il trasmettitore di livello." }
+            ],
+            correct: "b",
+            why: "Un pannello senza collegamento non riceve neppure gli allarmi: l\u2019assenza di allarmi non vuol dire che va tutto bene. I valori grigi sono il segnale che i dati sono vecchi."
+          },
+          {
+            type: "previsione",
+            question: "Compaiono insieme \u201CLivello troppo basso\u201D (media) e \u201CGuasto del sensore di livello\u201D (alta). Da quale cominci?",
+            options: [
+              { id: "a", text: "Dal livello basso, perch\xE9 \xE8 quello che si vede." },
+              { id: "b", text: "Dal guasto del sensore: \xE8 prioritario, e senza una misura giusta non puoi fidarti neanche del livello." },
+              { id: "c", text: "Non importa l\u2019ordine." }
+            ],
+            correct: "b",
+            why: "La priorit\xE0 alta va per prima. Il guasto del sensore \xE8 anche la causa possibile dell\u2019altro: con la misura persa il livello mostrato non \xE8 affidabile."
+          },
+          { type: "sintesi", title: "Da ricordare" }
+        ]
+      },
+      steps: [
+        { kind: "power", short: "1 Corrente", title: "Dai corrente e comincia il turno", text: "Tocca la levetta del quadro: il turno parte e il tempo corre. Guarda il pannello operatore e il grafico." },
+        { kind: "verify", short: "2 Turno", title: "Gestisci i guasti e consegna", text: "Quando scatta un guasto leggi il pannello, cerca il pezzo sul banco e ripara. Alla fine del turno premi Verifica." }
+      ],
+      summary: [
+        "Un impianto in servizio si guasta: conta accorgersene presto e riparare in tempo.",
+        "Un allarme dice che cosa non va, non dove: per trovare il pezzo si mettono insieme l\u2019allarme, i valori sul pannello e il banco.",
+        "Riconoscere un allarme non ripara il guasto: serve intervenire sul pezzo.",
+        "Ogni guasto ha un tempo massimo; con pi\xF9 allarmi si comincia da quello di priorit\xE0 pi\xF9 alta.",
+        "Un pannello senza collegamento non riceve neppure gli allarmi: l\u2019assenza di allarmi non basta a dire che l\u2019impianto \xE8 a posto."
+      ]
     }
   };
 
@@ -11951,6 +12167,16 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
         return "Il secondario del trasformatore \xE8 collegato alla rete: la bassa tensione non \xE8 pi\xF9 separata dai 230 V.";
       case "work.shortDC":
         return "Cortocircuito: il + e il \u2212 di una batteria sono collegati senza un carico in mezzo. La corrente diventa enorme e il fusibile della batteria brucia. Togli il filo che chiude il corto.";
+      case "work.scenarioNone":
+        return "Il turno non \xE8 ancora cominciato: dai corrente e gestisci i guasti che arrivano.";
+      case "work.scenarioRunning":
+        return "Il turno non \xE8 finito: mancano " + item.left + " secondi. Continua a gestire gli allarmi, poi premi Verifica.";
+      case "work.scenarioOpen":
+        return "Un guasto \xE8 ancora aperto: " + item.label + ". Trovalo e riparalo prima di consegnare il turno.";
+      case "work.scenarioLate":
+        return "Hai riparato troppo tardi: " + item.label + " \xE8 rimasto fermo " + item.delay + " secondi, il massimo era " + item.max + ".";
+      case "work.scenarioOk":
+        return "Turno consegnato: tutti i " + item.n + " guasti riparati in tempo.";
       case "work.hmiOffline":
         return "Il pannello operatore non \xE8 collegato al PLC: i valori che mostra sono vecchi e gli allarmi non arrivano. Ricollega il cavo di rete del pannello.";
       case "work.unstablePlc":
@@ -12348,7 +12574,7 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
         "c36-pid",
         "c37-pannello",
         "c43-linea",
-        { soon: true, title: "Gestione guasti", blurb: "Tre guasti da risolvere a tempo." }
+        "c44-guasti"
       ],
       milestone: { soon: true, art: "fabbrica", kick: "Fabbrica", name: "Una linea da cablare, programmare e mettere in sicurezza", text: "Il progetto finale: un turno di lavoro con guasti da gestire." }
     }
@@ -12852,7 +13078,7 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
         const act2 = !!part2.act;
         o += pole2(w * c2.terms["1"].f, 22, h - 22, !act2, L("1"), L("2")) + pole2(w * c2.terms["3"].f, 22, h - 22, act2, L("3"), L("4"));
         o += lab(w / 2, h - 6, part2.jam ? "BLOCCATO" : act2 ? "SCATTATO" : "A RIPOSO");
-        if (s.level.hmi) o += faultBtn(c2.id, "jam", w - 66, mid - 14, part2.jam ? "SBLOCCA" : "BLOCCA", (part2.jam ? "Sblocca " : "Blocca ") + c2.short);
+        if (s.level.hmi && (!s.level.scenario || part2.jam)) o += faultBtn(c2.id, "jam", w - 66, mid - 14, part2.jam ? "SBLOCCA" : "BLOCCA", (part2.jam ? "Sblocca " : "Blocca ") + c2.short);
         break;
       }
       case "tx": {
@@ -12863,7 +13089,7 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
         o += lab(xp + 10, cy - 28, "+") + lab(xm + 10, cy + 40, "\u2212");
         if (c2.sense && part2.mA) o += lab(w / 2, h - 6, "trasmette " + String(Math.round(part2.mA * 10) / 10).replace(".", ",") + " mA");
         if (part2.cut) o += lab(w / 2, h - 6, "FILO INTERROTTO");
-        if (s.level.hmi) o += faultBtn(c2.id, "cut", w - 66, mid - 14, part2.cut ? "RICOLLEGA" : "TAGLIA", part2.cut ? "Ricollega il filo del trasmettitore" : "Interrompi il filo del trasmettitore");
+        if (s.level.hmi && (!s.level.scenario || part2.cut)) o += faultBtn(c2.id, "cut", w - 66, mid - 14, part2.cut ? "RICOLLEGA" : "TAGLIA", part2.cut ? "Ricollega il filo del trasmettitore" : "Interrompi il filo del trasmettitore");
         break;
       }
       case "hmi": {
@@ -14438,6 +14664,16 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
     const id = (lv.comps.find((c2) => c2.type === "hmi") || {}).id || "HMI";
     return `<div class="hmi" role="region" aria-label="Pannello operatore"><div class="hmitop"><b>PANNELLO OPERATORE</b><span class="hmilink"></span><span class="hmihorn" hidden>SIRENA</span></div><div class="hmivals"></div><div class="hmialms" aria-live="polite"></div><button class="btn hmiack" data-hmiack="${id}">Riconosci gli allarmi</button></div>`;
   };
+  function scenarioHTML(s) {
+    const sc = s.obs.scenario;
+    if (!sc) return "";
+    const fired = sc.faults.filter((f2) => f2.firedAt !== null), fixed = fired.filter((f2) => !f2.open);
+    const left = Math.max(0, Math.ceil(sc.duration - sc.t));
+    const mm = String(Math.floor(left / 60)).padStart(2, "0") + ":" + String(left % 60).padStart(2, "0");
+    const late = fired.filter((f2) => f2.late);
+    const state = sc.done ? "turno finito" : s.power ? "turno in corso" : "dai corrente per cominciare";
+    return `<div class="shiftbar" role="status"><span><b>${state}</b></span><span>tempo rimasto ${mm}</span><span>guasti riparati ${fixed.length} di ${sc.faults.length}</span>${late.length ? `<span class="late">in ritardo: ${late.length}</span>` : ""}<button class="btn" data-shift="restart">Ricomincia il turno</button></div>`;
+  }
   function processMount(el, s) {
     const lv = s.level;
     if (!lv.process || !s.obs) {
@@ -14448,7 +14684,7 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
     }
     el.hidden = false;
     el.dataset.key = s.levelKey;
-    el.innerHTML = `<div class="ladhead"><b>${lv.process.title || "Il processo"}</b><span data-speed>${s.speed > 1 ? "tempo \xD7 " + s.speed : ""}</span></div><svg class="procscene" viewBox="0 0 400 160" role="img" aria-label="${lv.process.alt || "Il processo che si regola"}"></svg>` + (lv.hmi ? hmiShellHTML(lv) : "") + (lv.process.graph ? `<div class="procgraphbox"></div>` : "") + slidersHTML(lv, s);
+    el.innerHTML = `<div class="ladhead"><b>${lv.process.title || "Il processo"}</b><span data-speed>${s.speed > 1 ? "tempo \xD7 " + s.speed : ""}</span></div>` + (lv.scenario ? '<div class="shiftslot"></div>' : "") + `<svg class="procscene" viewBox="0 0 400 160" role="img" aria-label="${lv.process.alt || "Il processo che si regola"}"></svg>` + (lv.hmi ? hmiShellHTML(lv) : "") + (lv.process.graph ? `<div class="procgraphbox"></div>` : "") + slidersHTML(lv, s);
     processUpdate(el, s);
   }
   function processSync(el, s) {
@@ -14463,6 +14699,11 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
     const gb = el.querySelector(".procgraphbox");
     if (gb) gb.innerHTML = graphSVG(lv, s);
     if (lv.hmi) hmiSync(el, s);
+    const sh = el.querySelector(".shiftslot");
+    if (sh) {
+      const html = scenarioHTML(s);
+      if (sh.innerHTML !== html) sh.innerHTML = html;
+    }
     el.querySelectorAll("[data-out]").forEach((o) => {
       const name = o.dataset.out, d = lv.process.tunable[name], v = (s.tuned || {})[name];
       if (v !== void 0) o.textContent = NS(v) + (d.unit ? " " + d.unit : "");
@@ -18508,6 +18749,62 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
     "\xE8 passato il tempo T2": "\u0627\u0646\u0642\u0636\u0649 \u0627\u0644\u0632\u0645\u0646 T2"
   };
 
+  // src/i18n/ar-33.js
+  var ar_33_default = {
+    "Cerco il guasto di comunicazione: il cavo di rete del pannello. Con il collegamento perso gli allarmi non arrivano pi\xF9.": "\u0623\u0628\u062D\u062B \u0639\u0646 \u0639\u0637\u0644 \u0627\u0644\u0627\u062A\u0635\u0627\u0644: \u0643\u0627\u0628\u0644 \u0634\u0628\u0643\u0629 \u0627\u0644\u0644\u0648\u062D\u0629. \u0645\u0639 \u0627\u0646\u0642\u0637\u0627\u0639 \u0627\u0644\u0627\u062A\u0635\u0627\u0644 \u0644\u0627 \u062A\u0635\u0644 \u0627\u0644\u0625\u0646\u0630\u0627\u0631\u0627\u062A \u0628\u0639\u062F \u0630\u0644\u0643.",
+    "Che cosa significa": "\u0645\u0627\u0630\u0627 \u064A\u0639\u0646\u064A",
+    "Che cosa vedi": "\u0645\u0627\u0630\u0627 \u062A\u0631\u0649",
+    "Compaiono insieme \u201CLivello troppo basso\u201D (media) e \u201CGuasto del sensore di livello\u201D (alta). Da quale cominci?": "\u064A\u0638\u0647\u0631 \u0645\u0639\u064B\u0627 \xAB\u0645\u0633\u062A\u0648\u0649 \u0645\u0646\u062E\u0641\u0636 \u062C\u062F\u064B\u0627\xBB (\u0645\u062A\u0648\u0633\u0637\u0629) \u0648\xAB\u0639\u0637\u0644 \u0645\u0633\u062A\u0634\u0639\u0631 \u0627\u0644\u0645\u0633\u062A\u0648\u0649\xBB (\u0639\u0627\u0644\u064A\u0629). \u0628\u0623\u064A\u0647\u0645\u0627 \u062A\u0628\u062F\u0623\u061F",
+    "Dai corrente e comincia il turno": "\u0634\u063A\u0651\u0644 \u0627\u0644\u062A\u064A\u0627\u0631 \u0648\u0627\u0628\u062F\u0623 \u0627\u0644\u0645\u0646\u0627\u0648\u0628\u0629",
+    "Dal guasto del sensore: \xE8 prioritario, e senza una misura giusta non puoi fidarti neanche del livello.": "\u0628\u0639\u0637\u0644 \u0627\u0644\u0645\u0633\u062A\u0634\u0639\u0631: \u0644\u0647 \u0627\u0644\u0623\u0648\u0644\u0648\u064A\u0629\u060C \u0648\u0645\u0646 \u062F\u0648\u0646 \u0642\u064A\u0627\u0633 \u0635\u062D\u064A\u062D \u0644\u0627 \u064A\u0645\u0643\u0646\u0643 \u0627\u0644\u0648\u062B\u0648\u0642 \u062D\u062A\u0649 \u0628\u0627\u0644\u0645\u0633\u062A\u0648\u0649.",
+    "Dal livello basso, perch\xE9 \xE8 quello che si vede.": "\u0628\u0627\u0644\u0645\u0633\u062A\u0648\u0649 \u0627\u0644\u0645\u0646\u062E\u0641\u0636\u060C \u0644\u0623\u0646\u0647 \u0627\u0644\u0630\u064A \u064A\u064F\u0631\u0649.",
+    "Dall\u2019allarme al pezzo guasto": "\u0645\u0646 \u0627\u0644\u0625\u0646\u0630\u0627\u0631 \u0625\u0644\u0649 \u0627\u0644\u0642\u0637\u0639\u0629 \u0627\u0644\u0645\u0639\u0637\u0644\u0629",
+    "Dove guardare": "\u0623\u064A\u0646 \u0646\u0646\u0638\u0631",
+    "Fin qui hai costruito impianti che funzionano. Un impianto vero lavora per anni e prima o poi qualcosa si rompe: un filo si stacca, un contatto si blocca, un cavo di rete si sfila. Il lavoro di chi lo gestisce \xE8 accorgersene presto, capire che cosa \xE8 successo e ripararlo prima che il guasto faccia danni.": "\u062D\u062A\u0649 \u0627\u0644\u0622\u0646 \u0628\u0646\u064A\u062A \u0645\u0646\u0634\u0622\u062A \u062A\u0639\u0645\u0644. \u0623\u0645\u0627 \u0627\u0644\u0645\u0646\u0634\u0623\u0629 \u0627\u0644\u062D\u0642\u064A\u0642\u064A\u0629 \u0641\u062A\u0639\u0645\u0644 \u0633\u0646\u0648\u0627\u062A \u0648\u0639\u0627\u062C\u0644\u064B\u0627 \u0623\u0648 \u0622\u062C\u0644\u064B\u0627 \u064A\u062A\u0639\u0637\u0644 \u0634\u064A\u0621: \u0633\u0644\u0643 \u064A\u0646\u0641\u0635\u0644 \u0623\u0648 \u062A\u0644\u0627\u0645\u0633 \u064A\u0639\u0644\u0642 \u0623\u0648 \u0643\u0627\u0628\u0644 \u0634\u0628\u0643\u0629 \u064A\u0646\u0633\u0644\u0651. \u0639\u0645\u0644 \u0645\u0646 \u064A\u062F\u064A\u0631\u0647\u0627 \u0623\u0646 \u064A\u0646\u062A\u0628\u0647 \u0645\u0628\u0643\u0631\u064B\u0627 \u0648\u064A\u0641\u0647\u0645 \u0645\u0627 \u062D\u062F\u062B \u0648\u064A\u0635\u0644\u062D\u0647 \u0642\u0628\u0644 \u0623\u0646 \u064A\u064F\u062D\u062F\u062B \u0627\u0644\u0639\u0637\u0644 \u0636\u0631\u0631\u064B\u0627.",
+    "Gestisci i guasti e consegna": "\u0623\u062F\u0650\u0631 \u0627\u0644\u0623\u0639\u0637\u0627\u0644 \u0648\u0633\u0644\u0651\u0645",
+    "Gli allarmi arrivano sul pannello: leggi il testo e la priorit\xE0. \u201CGuasto del sensore di livello\u201D vuol dire che l\u2019anello del trasmettitore non porta corrente.": "\u062A\u0635\u0644 \u0627\u0644\u0625\u0646\u0630\u0627\u0631\u0627\u062A \u0625\u0644\u0649 \u0627\u0644\u0644\u0648\u062D\u0629: \u0627\u0642\u0631\u0623 \u0627\u0644\u0646\u0635 \u0648\u0627\u0644\u0623\u0648\u0644\u0648\u064A\u0629. \xAB\u0639\u0637\u0644 \u0645\u0633\u062A\u0634\u0639\u0631 \u0627\u0644\u0645\u0633\u062A\u0648\u0649\xBB \u064A\u0639\u0646\u064A \u0623\u0646 \u062D\u0644\u0642\u0629 \u0627\u0644\u0645\u0631\u0633\u0650\u0644 \u0644\u0627 \u062A\u062D\u0645\u0644 \u062A\u064A\u0627\u0631\u064B\u0627.",
+    "Il livello sale oltre il 90 % con la pompa che non si ferma": "\u0627\u0644\u0645\u0633\u062A\u0648\u0649 \u064A\u0631\u062A\u0641\u0639 \u0641\u0648\u0642 90\u066A \u0648\u0627\u0644\u0645\u0636\u062E\u0629 \u0644\u0627 \u062A\u062A\u0648\u0642\u0641",
+    "Il pannello mostra tutti i valori grigi con \u201Ccollegamento perso\u201D, nessun allarme nuovo, e il serbatoio sul banco intanto continua a cambiare livello. Che cosa fai?": "\u062A\u0639\u0631\u0636 \u0627\u0644\u0644\u0648\u062D\u0629 \u0643\u0644 \u0627\u0644\u0642\u064A\u0645 \u0631\u0645\u0627\u062F\u064A\u0629 \u0645\u0639 \xAB\u0627\u0646\u0642\u0637\u0639 \u0627\u0644\u0627\u062A\u0635\u0627\u0644\xBB\u060C \u062F\u0648\u0646 \u0625\u0646\u0630\u0627\u0631 \u062C\u062F\u064A\u062F\u060C \u0648\u0627\u0644\u062E\u0632\u0627\u0646 \u0639\u0644\u0649 \u0627\u0644\u0637\u0627\u0648\u0644\u0629 \u064A\u0648\u0627\u0635\u0644 \u062A\u063A\u064A\u064A\u0631 \u0645\u0633\u062A\u0648\u0627\u0647. \u0645\u0627\u0630\u0627 \u062A\u0641\u0639\u0644\u061F",
+    "Il serbatoio con il pannello operatore \xE8 in servizio, gi\xE0 cablato e programmato. Dai corrente e comincia il turno: durante il turno arrivano tre guasti, uno alla volta. Leggi il pannello (allarmi, dato vecchio, collegamento), trova il pezzo guasto sul banco e riparalo. Ogni guasto ha un tempo massimo; il serbatoio non deve mai traboccare. Quando il turno finisce premi Verifica.": "\u0627\u0644\u062E\u0632\u0627\u0646 \u0645\u0639 \u0644\u0648\u062D\u0629 \u0627\u0644\u0645\u0634\u063A\u0651\u0644 \u0641\u064A \u0627\u0644\u062E\u062F\u0645\u0629\u060C \u0645\u0648\u0635\u0648\u0644 \u0648\u0645\u0628\u0631\u0645\u062C \u0645\u0633\u0628\u0642\u064B\u0627. \u0634\u063A\u0651\u0644 \u0627\u0644\u062A\u064A\u0627\u0631 \u0648\u0627\u0628\u062F\u0623 \u0627\u0644\u0645\u0646\u0627\u0648\u0628\u0629: \u062E\u0644\u0627\u0644 \u0627\u0644\u0645\u0646\u0627\u0648\u0628\u0629 \u062A\u0635\u0644 \u062B\u0644\u0627\u062B\u0629 \u0623\u0639\u0637\u0627\u0644\u060C \u0648\u0627\u062D\u062F\u064B\u0627 \u0628\u0639\u062F \u0627\u0644\u0622\u062E\u0631. \u0627\u0642\u0631\u0623 \u0627\u0644\u0644\u0648\u062D\u0629 (\u0627\u0644\u0625\u0646\u0630\u0627\u0631\u0627\u062A \u0648\u0627\u0644\u0628\u064A\u0627\u0646 \u0627\u0644\u0642\u062F\u064A\u0645 \u0648\u0627\u0644\u0627\u062A\u0635\u0627\u0644) \u0648\u0627\u0628\u062D\u062B \u0639\u0646 \u0627\u0644\u0642\u0637\u0639\u0629 \u0627\u0644\u0645\u0639\u0637\u0644\u0629 \u0639\u0644\u0649 \u0627\u0644\u0637\u0627\u0648\u0644\u0629 \u0648\u0623\u0635\u0644\u062D\u0647\u0627. \u0644\u0643\u0644 \u0639\u0637\u0644 \u0632\u0645\u0646 \u0623\u0642\u0635\u0649\u061B \u0648\u0644\u0627 \u064A\u062C\u0648\u0632 \u0623\u0646 \u064A\u0641\u064A\u0636 \u0627\u0644\u062E\u0632\u0627\u0646. \u0639\u0646\u062F\u0645\u0627 \u062A\u0646\u062A\u0647\u064A \u0627\u0644\u0645\u0646\u0627\u0648\u0628\u0629 \u0627\u0636\u063A\u0637 \xAB\u062A\u062D\u0642\u0642\xBB.",
+    "Il tasto di riconoscimento del pannello ferma la sirena, ma non cambia niente nell\u2019impianto: il guasto resta. Riparare vuol dire intervenire sul pezzo, e vale solo quando l\u2019impianto torna a funzionare. Nel gioco lo fai dal banco: il pezzo guasto mostra un tasto per rimetterlo a posto.": "\u0632\u0631 \u0627\u0644\u0625\u0642\u0631\u0627\u0631 \u0641\u064A \u0627\u0644\u0644\u0648\u062D\u0629 \u064A\u0648\u0642\u0641 \u0627\u0644\u0635\u0641\u0651\u0627\u0631\u0629 \u0644\u0643\u0646\u0647 \u0644\u0627 \u064A\u063A\u064A\u0651\u0631 \u0634\u064A\u0626\u064B\u0627 \u0641\u064A \u0627\u0644\u0645\u0646\u0634\u0623\u0629: \u064A\u0628\u0642\u0649 \u0627\u0644\u0639\u0637\u0644. \u0627\u0644\u0625\u0635\u0644\u0627\u062D \u064A\u0639\u0646\u064A \u0627\u0644\u062A\u062F\u062E\u0644 \u0641\u064A \u0627\u0644\u0642\u0637\u0639\u0629\u060C \u0648\u0644\u0627 \u064A\u064F\u062D\u062A\u0633\u0628 \u0625\u0644\u0627 \u0639\u0646\u062F\u0645\u0627 \u062A\u0639\u0648\u062F \u0627\u0644\u0645\u0646\u0634\u0623\u0629 \u0625\u0644\u0649 \u0627\u0644\u0639\u0645\u0644. \u0641\u064A \u0627\u0644\u0644\u0639\u0628\u0629 \u062A\u0641\u0639\u0644 \u0630\u0644\u0643 \u0645\u0646 \u0627\u0644\u0637\u0627\u0648\u0644\u0629: \u062A\u064F\u0638\u0647\u0631 \u0627\u0644\u0642\u0637\u0639\u0629 \u0627\u0644\u0645\u0639\u0637\u0644\u0629 \u0632\u0631\u064B\u0627 \u0644\u0625\u0639\u0627\u062F\u062A\u0647\u0627 \u0625\u0644\u0649 \u0645\u0643\u0627\u0646\u0647\u0627.",
+    "In questo livello il serbatoio con il pannello operatore lavora da solo per un turno. Durante il turno arrivano tre guasti, uno alla volta e a tempo: non sai quando. Il pannello \xE8 la tua finestra sull\u2019impianto.": "\u0641\u064A \u0647\u0630\u0627 \u0627\u0644\u0645\u0633\u062A\u0648\u0649 \u064A\u0639\u0645\u0644 \u0627\u0644\u062E\u0632\u0627\u0646 \u0645\u0639 \u0644\u0648\u062D\u0629 \u0627\u0644\u0645\u0634\u063A\u0651\u0644 \u0648\u062D\u062F\u0647 \u0637\u0648\u0627\u0644 \u0645\u0646\u0627\u0648\u0628\u0629. \u062E\u0644\u0627\u0644 \u0627\u0644\u0645\u0646\u0627\u0648\u0628\u0629 \u062A\u0635\u0644 \u062B\u0644\u0627\u062B\u0629 \u0623\u0639\u0637\u0627\u0644 \u0648\u0627\u062D\u062F\u064B\u0627 \u0628\u0639\u062F \u0627\u0644\u0622\u062E\u0631 \u0648\u0641\u064A \u0623\u0648\u0642\u0627\u062A \u0645\u062D\u062F\u062F\u0629: \u0644\u0627 \u062A\u0639\u0631\u0641 \u0645\u062A\u0649. \u0627\u0644\u0644\u0648\u062D\u0629 \u0647\u064A \u0646\u0627\u0641\u0630\u062A\u0643 \u0639\u0644\u0649 \u0627\u0644\u0645\u0646\u0634\u0623\u0629.",
+    "La priorit\xE0 alta va per prima. Il guasto del sensore \xE8 anche la causa possibile dell\u2019altro: con la misura persa il livello mostrato non \xE8 affidabile.": "\u0627\u0644\u0623\u0648\u0644\u0648\u064A\u0629 \u0627\u0644\u0639\u0627\u0644\u064A\u0629 \u0623\u0648\u0644\u064B\u0627. \u0639\u0637\u0644 \u0627\u0644\u0645\u0633\u062A\u0634\u0639\u0631 \u0647\u0648 \u0623\u064A\u0636\u064B\u0627 \u0627\u0644\u0633\u0628\u0628 \u0627\u0644\u0645\u062D\u062A\u0645\u0644 \u0644\u0644\u0622\u062E\u0631: \u0645\u0639 \u0641\u0642\u062F\u0627\u0646 \u0627\u0644\u0642\u064A\u0627\u0633 \u0644\u0627 \u064A\u0645\u0643\u0646 \u0627\u0644\u0648\u062B\u0648\u0642 \u0628\u0627\u0644\u0645\u0633\u062A\u0648\u0649 \u0627\u0644\u0645\u0639\u0631\u0648\u0636.",
+    "Niente: senza allarmi l\u2019impianto \xE8 a posto.": "\u0644\u0627 \u0634\u064A\u0621: \u0628\u0644\u0627 \u0625\u0646\u0630\u0627\u0631\u0627\u062A \u062A\u0643\u0648\u0646 \u0627\u0644\u0645\u0646\u0634\u0623\u0629 \u0633\u0644\u064A\u0645\u0629.",
+    "Non importa l\u2019ordine.": "\u0644\u0627 \u064A\u0647\u0645 \u0627\u0644\u062A\u0631\u062A\u064A\u0628.",
+    "Ogni guasto ha un tempo massimo di intervento. Pi\xF9 aspetti, pi\xF9 il danno cresce: un galleggiante bloccato non ferma la pompa e il serbatoio, se aspetti troppo, trabocca. Con pi\xF9 allarmi contemporanei si comincia da quello di priorit\xE0 pi\xF9 alta.": "\u0644\u0643\u0644 \u0639\u0637\u0644 \u0632\u0645\u0646 \u062A\u062F\u062E\u0644 \u0623\u0642\u0635\u0649. \u0643\u0644\u0645\u0627 \u0627\u0646\u062A\u0638\u0631\u062A \u0627\u0632\u062F\u0627\u062F \u0627\u0644\u0636\u0631\u0631: \u0639\u0648\u0651\u0627\u0645\u0629 \u0639\u0627\u0644\u0642\u0629 \u0644\u0627 \u062A\u0648\u0642\u0641 \u0627\u0644\u0645\u0636\u062E\u0629 \u0648\u0627\u0644\u062E\u0632\u0627\u0646\u060C \u0625\u0646 \u0627\u0646\u062A\u0638\u0631\u062A \u0643\u062B\u064A\u0631\u064B\u0627\u060C \u064A\u0641\u064A\u0636. \u0648\u0645\u0639 \u0639\u062F\u0629 \u0625\u0646\u0630\u0627\u0631\u0627\u062A \u0641\u064A \u0648\u0642\u062A \u0648\u0627\u062D\u062F \u0646\u0628\u062F\u0623 \u0628\u0630\u064A \u0627\u0644\u0623\u0648\u0644\u0648\u064A\u0629 \u0627\u0644\u0623\u0639\u0644\u0649.",
+    "Ogni guasto ha un tempo massimo; con pi\xF9 allarmi si comincia da quello di priorit\xE0 pi\xF9 alta.": "\u0644\u0643\u0644 \u0639\u0637\u0644 \u0632\u0645\u0646 \u0623\u0642\u0635\u0649\u061B \u0648\u0645\u0639 \u0639\u062F\u0629 \u0625\u0646\u0630\u0627\u0631\u0627\u062A \u0646\u0628\u062F\u0623 \u0628\u0627\u0644\u0623\u0639\u0644\u0649 \u0623\u0648\u0644\u0648\u064A\u0629.",
+    "PLC con gli allarmi": "PLC \u0645\u0639 \u0627\u0644\u0625\u0646\u0630\u0627\u0631\u0627\u062A",
+    "Quando scatta un guasto leggi il pannello, cerca il pezzo sul banco e ripara. Alla fine del turno premi Verifica.": "\u0639\u0646\u062F\u0645\u0627 \u064A\u0642\u0639 \u0639\u0637\u0644 \u0627\u0642\u0631\u0623 \u0627\u0644\u0644\u0648\u062D\u0629 \u0648\u0627\u0628\u062D\u062B \u0639\u0646 \u0627\u0644\u0642\u0637\u0639\u0629 \u0639\u0644\u0649 \u0627\u0644\u0637\u0627\u0648\u0644\u0629 \u0648\u0623\u0635\u0644\u062D. \u0641\u064A \u0646\u0647\u0627\u064A\u0629 \u0627\u0644\u0645\u0646\u0627\u0648\u0628\u0629 \u0627\u0636\u063A\u0637 \xAB\u062A\u062D\u0642\u0642\xBB.",
+    "Ricomincia il turno": "\u0627\u0628\u062F\u0623 \u0627\u0644\u0645\u0646\u0627\u0648\u0628\u0629 \u0645\u0646 \u062C\u062F\u064A\u062F",
+    "Riconoscere non \xE8 riparare": "\u0627\u0644\u0625\u0642\u0631\u0627\u0631 \u0644\u064A\u0633 \u0625\u0635\u0644\u0627\u062D\u064B\u0627",
+    "Riconoscere un allarme non ripara il guasto: serve intervenire sul pezzo.": "\u0627\u0644\u0625\u0642\u0631\u0627\u0631 \u0628\u0625\u0646\u0630\u0627\u0631 \u0644\u0627 \u064A\u0635\u0644\u062D \u0627\u0644\u0639\u0637\u0644: \u064A\u0644\u0632\u0645 \u0627\u0644\u062A\u062F\u062E\u0644 \u0641\u064A \u0627\u0644\u0642\u0637\u0639\u0629.",
+    "Se i valori del pannello diventano grigi e compare \u201Ccollegamento perso\u201D, il cavo di rete del pannello \xE8 staccato: toccalo per ricollegarlo.": "\u0625\u0630\u0627 \u0623\u0635\u0628\u062D\u062A \u0642\u064A\u0645 \u0627\u0644\u0644\u0648\u062D\u0629 \u0631\u0645\u0627\u062F\u064A\u0629 \u0648\u0638\u0647\u0631 \xAB\u0627\u0646\u0642\u0637\u0639 \u0627\u0644\u0627\u062A\u0635\u0627\u0644\xBB \u0641\u0643\u0627\u0628\u0644 \u0634\u0628\u0643\u0629 \u0627\u0644\u0644\u0648\u062D\u0629 \u0645\u0641\u0635\u0648\u0644: \u0627\u0644\u0645\u0633\u0647 \u0644\u0625\u0639\u0627\u062F\u0629 \u0648\u0635\u0644\u0647.",
+    "Se in una riparazione sbagli pezzo, perdi tempo. Prima di toccare il banco guarda gli indizi: quello che cambia per quel guasto.": "\u0625\u0630\u0627 \u0623\u062E\u0637\u0623\u062A \u0641\u064A \u0627\u0644\u0642\u0637\u0639\u0629 \u0623\u062B\u0646\u0627\u0621 \u0627\u0644\u0625\u0635\u0644\u0627\u062D \u062E\u0633\u0631\u062A \u0648\u0642\u062A\u064B\u0627. \u0642\u0628\u0644 \u0623\u0646 \u062A\u0644\u0645\u0633 \u0627\u0644\u0637\u0627\u0648\u0644\u0629 \u0627\u0646\u0638\u0631 \u0625\u0644\u0649 \u0627\u0644\u0642\u0631\u0627\u0626\u0646: \u0645\u0627 \u0627\u0644\u0630\u064A \u064A\u062A\u063A\u064A\u0631 \u0628\u0633\u0628\u0628 \u0630\u0644\u0643 \u0627\u0644\u0639\u0637\u0644.",
+    "Sostituisco il trasmettitore di livello.": "\u0623\u0633\u062A\u0628\u062F\u0644 \u0645\u0631\u0633\u0650\u0644 \u0627\u0644\u0645\u0633\u062A\u0648\u0649.",
+    "Tocca la levetta del quadro: il turno parte e il tempo corre. Guarda il pannello operatore e il grafico.": "\u0627\u0644\u0645\u0633 \u0630\u0631\u0627\u0639 \u0627\u0644\u0644\u0648\u062D\u0629 \u0627\u0644\u0643\u0647\u0631\u0628\u0627\u0626\u064A\u0629: \u062A\u0628\u062F\u0623 \u0627\u0644\u0645\u0646\u0627\u0648\u0628\u0629 \u0648\u064A\u062C\u0631\u064A \u0627\u0644\u0648\u0642\u062A. \u0631\u0627\u0642\u0628 \u0644\u0648\u062D\u0629 \u0627\u0644\u0645\u0634\u063A\u0651\u0644 \u0648\u0627\u0644\u0631\u0633\u0645 \u0627\u0644\u0628\u064A\u0627\u0646\u064A.",
+    "Turno": "\u0627\u0644\u0645\u0646\u0627\u0648\u0628\u0629",
+    "Un allarme dice che cosa non va, non dove. Per trovare il pezzo guasto si mettono insieme tre indizi: il testo dell\u2019allarme, i valori sul pannello e il banco. Si parte da quello che il guasto cambia.": "\u0627\u0644\u0625\u0646\u0630\u0627\u0631 \u064A\u0642\u0648\u0644 \u0645\u0627 \u0627\u0644\u0630\u064A \u0644\u0627 \u064A\u0639\u0645\u0644 \u0644\u0627 \u0623\u064A\u0646. \u0644\u0644\u0639\u062B\u0648\u0631 \u0639\u0644\u0649 \u0627\u0644\u0642\u0637\u0639\u0629 \u0627\u0644\u0645\u0639\u0637\u0644\u0629 \u0646\u062C\u0645\u0639 \u062B\u0644\u0627\u062B \u0642\u0631\u0627\u0626\u0646: \u0646\u0635 \u0627\u0644\u0625\u0646\u0630\u0627\u0631 \u0648\u0642\u064A\u0645 \u0627\u0644\u0644\u0648\u062D\u0629 \u0648\u0627\u0644\u0637\u0627\u0648\u0644\u0629. \u0646\u0628\u062F\u0623 \u0645\u0645\u0627 \u064A\u063A\u064A\u0651\u0631\u0647 \u0627\u0644\u0639\u0637\u0644.",
+    "Un allarme dice che cosa non va, non dove: per trovare il pezzo si mettono insieme l\u2019allarme, i valori sul pannello e il banco.": "\u0627\u0644\u0625\u0646\u0630\u0627\u0631 \u064A\u0642\u0648\u0644 \u0645\u0627 \u0627\u0644\u0630\u064A \u0644\u0627 \u064A\u0639\u0645\u0644 \u0644\u0627 \u0623\u064A\u0646: \u0644\u0644\u0639\u062B\u0648\u0631 \u0639\u0644\u0649 \u0627\u0644\u0642\u0637\u0639\u0629 \u0646\u062C\u0645\u0639 \u0627\u0644\u0625\u0646\u0630\u0627\u0631 \u0648\u0642\u064A\u0645 \u0627\u0644\u0644\u0648\u062D\u0629 \u0648\u0627\u0644\u0637\u0627\u0648\u0644\u0629.",
+    "Un impianto in servizio non resta a posto": "\u0645\u0646\u0634\u0623\u0629 \u0641\u064A \u0627\u0644\u062E\u062F\u0645\u0629 \u0644\u0627 \u062A\u0628\u0642\u0649 \u0633\u0644\u064A\u0645\u0629",
+    "Un impianto in servizio si guasta: conta accorgersene presto e riparare in tempo.": "\u0627\u0644\u0645\u0646\u0634\u0623\u0629 \u0627\u0644\u0639\u0627\u0645\u0644\u0629 \u062A\u062A\u0639\u0637\u0644: \u0627\u0644\u0645\u0647\u0645 \u0623\u0646 \u0646\u0646\u062A\u0628\u0647 \u0645\u0628\u0643\u0631\u064B\u0627 \u0648\u0646\u0635\u0644\u062D \u0641\u064A \u0627\u0644\u0648\u0642\u062A.",
+    "Un livello che sale oltre il 90 % con la pompa accesa e nessuna fermata fa pensare a un galleggiante che non scatta: guarda i galleggianti sul banco.": "\u0645\u0633\u062A\u0648\u0649 \u064A\u0631\u062A\u0641\u0639 \u0641\u0648\u0642 90\u066A \u0648\u0627\u0644\u0645\u0636\u062E\u0629 \u062A\u0639\u0645\u0644 \u0648\u0644\u0627 \u062A\u062A\u0648\u0642\u0641 \u064A\u0648\u062D\u064A \u0628\u0639\u0648\u0651\u0627\u0645\u0629 \u0644\u0627 \u062A\u0639\u0645\u0644: \u0627\u0646\u0638\u0631 \u0625\u0644\u0649 \u0627\u0644\u0639\u0648\u0651\u0627\u0645\u0627\u062A \u0639\u0644\u0649 \u0627\u0644\u0637\u0627\u0648\u0644\u0629.",
+    "Un pannello senza collegamento non riceve neppure gli allarmi: l\u2019assenza di allarmi non basta a dire che l\u2019impianto \xE8 a posto.": "\u0627\u0644\u0644\u0648\u062D\u0629 \u063A\u064A\u0631 \u0627\u0644\u0645\u0648\u0635\u0648\u0644\u0629 \u0644\u0627 \u062A\u0633\u062A\u0642\u0628\u0644 \u0627\u0644\u0625\u0646\u0630\u0627\u0631\u0627\u062A \u0623\u064A\u0636\u064B\u0627: \u063A\u064A\u0627\u0628 \u0627\u0644\u0625\u0646\u0630\u0627\u0631\u0627\u062A \u0644\u0627 \u064A\u0643\u0641\u064A \u0644\u0644\u0642\u0648\u0644 \u0625\u0646 \u0627\u0644\u0645\u0646\u0634\u0623\u0629 \u0633\u0644\u064A\u0645\u0629.",
+    "Un pannello senza collegamento non riceve neppure gli allarmi: l\u2019assenza di allarmi non vuol dire che va tutto bene. I valori grigi sono il segnale che i dati sono vecchi.": "\u0627\u0644\u0644\u0648\u062D\u0629 \u063A\u064A\u0631 \u0627\u0644\u0645\u0648\u0635\u0648\u0644\u0629 \u0644\u0627 \u062A\u0633\u062A\u0642\u0628\u0644 \u0627\u0644\u0625\u0646\u0630\u0627\u0631\u0627\u062A \u0623\u064A\u0636\u064B\u0627: \u063A\u064A\u0627\u0628 \u0627\u0644\u0625\u0646\u0630\u0627\u0631\u0627\u062A \u0644\u0627 \u064A\u0639\u0646\u064A \u0623\u0646 \u0643\u0644 \u0634\u064A\u0621 \u0628\u062E\u064A\u0631. \u0627\u0644\u0642\u064A\u0645 \u0627\u0644\u0631\u0645\u0627\u062F\u064A\u0629 \u0625\u0634\u0627\u0631\u0629 \u0625\u0644\u0649 \u0623\u0646 \u0627\u0644\u0628\u064A\u0627\u0646\u0627\u062A \u0642\u062F\u064A\u0645\u0629.",
+    "Un turno di lavoro: tre guasti arrivano a tempo, tu li leggi dal pannello e li ripari prima del danno.": "\u0645\u0646\u0627\u0648\u0628\u0629 \u0639\u0645\u0644: \u062A\u0635\u0644 \u062B\u0644\u0627\u062B\u0629 \u0623\u0639\u0637\u0627\u0644 \u0641\u064A \u0623\u0648\u0642\u0627\u062A \u0645\u062D\u062F\u062F\u0629\u060C \u062A\u0642\u0631\u0624\u0647\u0627 \u0645\u0646 \u0627\u0644\u0644\u0648\u062D\u0629 \u0648\u062A\u0635\u0644\u062D\u0647\u0627 \u0642\u0628\u0644 \u0648\u0642\u0648\u0639 \u0627\u0644\u0636\u0631\u0631.",
+    "Valori grigi e \u201Ccollegamento perso\u201D": "\u0642\u064A\u0645 \u0631\u0645\u0627\u062F\u064A\u0629 \u0648\xAB\u0627\u0646\u0642\u0637\u0639 \u0627\u0644\u0627\u062A\u0635\u0627\u0644\xBB",
+    "dai corrente per cominciare": "\u0634\u063A\u0651\u0644 \u0627\u0644\u062A\u064A\u0627\u0631 \u0644\u062A\u0628\u062F\u0623",
+    "i galleggianti sul banco": "\u0627\u0644\u0639\u0648\u0651\u0627\u0645\u0627\u062A \u0639\u0644\u0649 \u0627\u0644\u0637\u0627\u0648\u0644\u0629",
+    "il cavo di rete del pannello": "\u0643\u0627\u0628\u0644 \u0634\u0628\u0643\u0629 \u0627\u0644\u0644\u0648\u062D\u0629",
+    "il filo del trasmettitore": "\u0633\u0644\u0643 \u0627\u0644\u0645\u0631\u0633\u0650\u0644",
+    "il filo del trasmettitore di livello": "\u0633\u0644\u0643 \u0645\u0631\u0633\u0650\u0644 \u0627\u0644\u0645\u0633\u062A\u0648\u0649",
+    "il galleggiante alto bloccato": "\u0627\u0644\u0639\u0648\u0651\u0627\u0645\u0629 \u0627\u0644\u0639\u0644\u064A\u0627 \u0627\u0644\u0639\u0627\u0644\u0642\u0629",
+    "il galleggiante alto non scatta": "\u0627\u0644\u0639\u0648\u0651\u0627\u0645\u0629 \u0627\u0644\u0639\u0644\u064A\u0627 \u0644\u0627 \u062A\u0639\u0645\u0644",
+    "il pannello non parla pi\xF9 con il PLC": "\u0627\u0644\u0644\u0648\u062D\u0629 \u0644\u0645 \u062A\u0639\u062F \u062A\u062A\u0635\u0644 \u0628\u0627\u0644\u0640PLC",
+    "l\u2019anello del trasmettitore non porta corrente": "\u062D\u0644\u0642\u0629 \u0627\u0644\u0645\u0631\u0633\u0650\u0644 \u0644\u0627 \u062A\u062D\u0645\u0644 \u062A\u064A\u0627\u0631\u064B\u0627",
+    "\u201CGuasto del sensore di livello\u201D (corrente sotto 3,6 mA)": "\xAB\u0639\u0637\u0644 \u0645\u0633\u062A\u0634\u0639\u0631 \u0627\u0644\u0645\u0633\u062A\u0648\u0649\xBB (\u062A\u064A\u0627\u0631 \u062A\u062D\u062A 3\u066B6 \u0645\u064A\u0644\u064A \u0623\u0645\u0628\u064A\u0631)",
+    "Il turno non \xE8 ancora cominciato: dai corrente e gestisci i guasti che arrivano.": "\u0644\u0645 \u062A\u0628\u062F\u0623 \u0627\u0644\u0645\u0646\u0627\u0648\u0628\u0629 \u0628\u0639\u062F: \u0634\u063A\u0651\u0644 \u0627\u0644\u062A\u064A\u0627\u0631 \u0648\u062A\u0639\u0627\u0645\u0644 \u0645\u0639 \u0627\u0644\u0623\u0639\u0637\u0627\u0644 \u0627\u0644\u062A\u064A \u062A\u0635\u0644."
+  };
+
   // src/i18n/ar.js
   var ROLE = { "del neutro": "\u0627\u0644\u0645\u062D\u0627\u064A\u062F", "di terra": "\u0627\u0644\u0623\u0631\u0636\u064A", "di fase": "\u0627\u0644\u0637\u0648\u0631", "a bassa tensione": "\u0627\u0644\u062C\u0647\u062F \u0627\u0644\u0645\u0646\u062E\u0641\u0636", "di comando": "\u0627\u0644\u062A\u062D\u0643\u0645", "del positivo": "\u0627\u0644\u0645\u0648\u062C\u0628", "del negativo": "\u0627\u0644\u0633\u0627\u0644\u0628", "in continua": "\u0627\u0644\u062A\u064A\u0627\u0631 \u0627\u0644\u0645\u0633\u062A\u0645\u0631" };
   var COLORI = { "blu": "\u0623\u0632\u0631\u0642", "giallo-verde": "\u0623\u0635\u0641\u0631-\u0623\u062E\u0636\u0631", "marrone, nero o grigio": "\u0628\u0646\u064A\u064B\u0651\u0627 \u0623\u0648 \u0623\u0633\u0648\u062F \u0623\u0648 \u0631\u0645\u0627\u062F\u064A\u064B\u0651\u0627", "rosso, marrone, nero o grigio": "\u0623\u062D\u0645\u0631 \u0623\u0648 \u0628\u0646\u064A\u064B\u0651\u0627 \u0623\u0648 \u0623\u0633\u0648\u062F \u0623\u0648 \u0631\u0645\u0627\u062F\u064A\u064B\u0651\u0627", "di un colore diverso da blu e giallo-verde": "\u0628\u0644\u0648\u0646 \u0645\u062E\u062A\u0644\u0641 \u0639\u0646 \u0627\u0644\u0623\u0632\u0631\u0642 \u0648\u0627\u0644\u0623\u0635\u0641\u0631-\u0627\u0644\u0623\u062E\u0636\u0631", "rosso": "\u0623\u062D\u0645\u0631", "nero": "\u0623\u0633\u0648\u062F", "rosso o nero": "\u0623\u062D\u0645\u0631 \u0623\u0648 \u0623\u0633\u0648\u062F" };
@@ -18523,6 +18820,14 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
     [/^(.+) arriva al massimo a ([\d,.-]+)(?: entro ([\d,.]+) s)?: doveva raggiungere ([\d,.-]+)\.$/, (m, t) => `${t(m[1])} \u062A\u0628\u0644\u063A \u0643\u062D\u062F \u0623\u0642\u0635\u0649 ${iso(m[2])}${m[3] ? " \u062E\u0644\u0627\u0644 " + iso(m[3]) + " \u062B" : ""}: \u0643\u0627\u0646 \u064A\u062C\u0628 \u0623\u0646 \u062A\u0628\u0644\u063A ${iso(m[4])}.`],
     [/^(.+) scende al minimo a ([\d,.-]+)(?: entro ([\d,.]+) s)?: doveva arrivare a ([\d,.-]+)\.$/, (m, t) => `${t(m[1])} \u062A\u0646\u062E\u0641\u0636 \u0643\u062D\u062F \u0623\u062F\u0646\u0649 \u0625\u0644\u0649 ${iso(m[2])}${m[3] ? " \u062E\u0644\u0627\u0644 " + iso(m[3]) + " \u062B" : ""}: \u0643\u0627\u0646 \u064A\u062C\u0628 \u0623\u0646 \u062A\u0635\u0644 \u0625\u0644\u0649 ${iso(m[4])}.`],
     [/^(.+): nessun valore registrato\.$/, (m, t) => `${t(m[1])}: \u0644\u0627 \u062A\u0648\u062C\u062F \u0642\u064A\u0645\u0629 \u0645\u0633\u062C\u0651\u0644\u0629.`],
+    // turno a guasti (c44)
+    [/^tempo rimasto (\d\d):(\d\d)$/, (m) => `\u0627\u0644\u0648\u0642\u062A \u0627\u0644\u0645\u062A\u0628\u0642\u064A ${iso(m[1])}:${iso(m[2])}`],
+    [/^guasti riparati (\d+) di (\d+)$/, (m) => `\u0623\u0639\u0637\u0627\u0644 \u0623\u064F\u0635\u0644\u062D\u062A ${iso(m[1])} \u0645\u0646 ${iso(m[2])}`],
+    [/^in ritardo: (\d+)$/, (m) => `\u0645\u062A\u0623\u062E\u0631: ${iso(m[1])}`],
+    [/^Il turno non è finito: mancano (\d+) secondi\. Continua a gestire gli allarmi, poi premi Verifica\.$/, (m) => `\u0644\u0645 \u062A\u0646\u062A\u0647\u0650 \u0627\u0644\u0645\u0646\u0627\u0648\u0628\u0629 \u0628\u0639\u062F: \u062A\u0628\u0642\u0651\u062A ${iso(m[1])} \u062B\u0627\u0646\u064A\u0629. \u0648\u0627\u0635\u0644 \u0627\u0644\u062A\u0639\u0627\u0645\u0644 \u0645\u0639 \u0627\u0644\u0625\u0646\u0630\u0627\u0631\u0627\u062A \u062B\u0645 \u0627\u0636\u063A\u0637 \xAB\u062A\u062D\u0642\u0642\xBB.`],
+    [/^Un guasto è ancora aperto: (.+)\. Trovalo e riparalo prima di consegnare il turno\.$/, (m, t) => `\u0645\u0627 \u0632\u0627\u0644 \u0639\u0637\u0644 \u0645\u0641\u062A\u0648\u062D\u064B\u0627: ${t(m[1])}. \u0627\u0639\u062B\u0631 \u0639\u0644\u064A\u0647 \u0648\u0623\u0635\u0644\u062D\u0647 \u0642\u0628\u0644 \u062A\u0633\u0644\u064A\u0645 \u0627\u0644\u0645\u0646\u0627\u0648\u0628\u0629.`],
+    [/^Hai riparato troppo tardi: (.+) è rimasto fermo (\d+) secondi, il massimo era (\d+)\.$/, (m, t) => `\u0623\u0635\u0644\u062D\u062A \u0645\u062A\u0623\u062E\u0631\u064B\u0627 \u062C\u062F\u064B\u0627: ${t(m[1])} \u0628\u0642\u064A \u0645\u0639\u0637\u0644\u064B\u0627 ${iso(m[2])} \u062B\u0627\u0646\u064A\u0629 \u0648\u0627\u0644\u062D\u062F \u0627\u0644\u0623\u0642\u0635\u0649 \u0643\u0627\u0646 ${iso(m[3])}.`],
+    [/^Turno consegnato: tutti i (\d+) guasti riparati in tempo\.$/, (m) => `\u0633\u064F\u0644\u0651\u0645\u062A \u0627\u0644\u0645\u0646\u0627\u0648\u0628\u0629: \u0623\u064F\u0635\u0644\u062D\u062A \u0627\u0644\u0623\u0639\u0637\u0627\u0644 \u0627\u0644\u0640${iso(m[1])} \u0643\u0644\u0647\u0627 \u0641\u064A \u0627\u0644\u0648\u0642\u062A.`],
     // pannello operatore: stato degli allarmi con l'ora, eta' dei dati vecchi, motivi delle prove
     [/^(da riconoscere|riconosciuto|rientrato, da riconoscere) · a (\d+) s$/, (m, t) => `${t(m[1])} \xB7 \u0639\u0646\u062F ${iso(m[2])} \u062B`],
     [/^dato vecchio · (\d+) s$/, (m) => `\u0628\u064A\u0627\u0646 \u0642\u062F\u064A\u0645 \xB7 ${iso(m[1])} \u062B`],
@@ -18612,7 +18917,7 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
     [/^Portata (.+): (\d+) ampere\. Tocca per cambiarla$/, (m, t) => `\u0627\u0644\u0633\u0639\u0629 ${t(m[1])}: ${m[2]} \u0623\u0645\u0628\u064A\u0631. \u0627\u0644\u0645\u0633 \u0644\u062A\u063A\u064A\u064A\u0631\u0647\u0627`],
     [/^Protezioni scattate: (.+)\.$/, (m, t) => `\u062D\u0645\u0627\u064A\u0627\u062A \u0641\u0635\u0644\u062A: ${t(m[1])}.`]
   ];
-  registerLang("ar", { ...ar_1_default, ...ar_2_default, ...ar_3_default, ...ar_4_default, ...ar_5_default, ...ar_6_default, ...ar_7_default, ...ar_8_default, ...ar_9_default, ...ar_10_default, ...ar_11_default, ...ar_12_default, ...ar_13_default, ...ar_14_default, ...ar_15_default, ...ar_16_default, ...ar_17_default, ...ar_18_default, ...ar_19_default, ...ar_20_default, ...ar_21_default, ...ar_22_default, ...ar_23_default, ...ar_24_default, ...ar_25_default, ...ar_26_default, ...ar_27_default, ...ar_28_default, ...ar_29_default, ...ar_30_default, ...ar_31_default, ...ar_32_default }, PAT);
+  registerLang("ar", { ...ar_1_default, ...ar_2_default, ...ar_3_default, ...ar_4_default, ...ar_5_default, ...ar_6_default, ...ar_7_default, ...ar_8_default, ...ar_9_default, ...ar_10_default, ...ar_11_default, ...ar_12_default, ...ar_13_default, ...ar_14_default, ...ar_15_default, ...ar_16_default, ...ar_17_default, ...ar_18_default, ...ar_19_default, ...ar_20_default, ...ar_21_default, ...ar_22_default, ...ar_23_default, ...ar_24_default, ...ar_25_default, ...ar_26_default, ...ar_27_default, ...ar_28_default, ...ar_29_default, ...ar_30_default, ...ar_31_default, ...ar_32_default, ...ar_33_default }, PAT);
 
   // src/trilocale/house.js
   function houseState(session2, on = true) {
@@ -21645,6 +21950,9 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
       e.preventDefault();
       setInfo(h.dataset.help);
     }
+  });
+  $("#process").addEventListener("click", (e) => {
+    if (e.target.closest("[data-shift]")) session.restartShift();
   });
   $("#process").addEventListener("click", (e) => {
     const b = e.target.closest("[data-hmiack]");

@@ -3761,4 +3761,77 @@ export const UNITS_V2 = {
       'Il ciclo in corso finisce sempre: Arresto impedisce di cominciare il successivo, non ferma la macchina a metà.',
     ],
   },
+  'c44-guasti': {
+    support: 'passi',
+    lesson: {
+      pages: [
+        {
+          type: 'spiegazione',
+          title: 'Un impianto in servizio non resta a posto',
+          paras: [
+            'Fin qui hai costruito impianti che funzionano. Un impianto vero lavora per anni e prima o poi qualcosa si rompe: un filo si stacca, un contatto si blocca, un cavo di rete si sfila. Il lavoro di chi lo gestisce è accorgersene presto, capire che cosa è successo e ripararlo prima che il guasto faccia danni.',
+            'In questo livello il serbatoio con il pannello operatore lavora da solo per un turno. Durante il turno arrivano tre guasti, uno alla volta e a tempo: non sai quando. Il pannello è la tua finestra sull’impianto.',
+          ],
+        },
+        {
+          type: 'spiegazione',
+          title: 'Dall’allarme al pezzo guasto',
+          paras: [
+            'Un allarme dice che cosa non va, non dove. Per trovare il pezzo guasto si mettono insieme tre indizi: il testo dell’allarme, i valori sul pannello e il banco. Si parte da quello che il guasto cambia.',
+          ],
+          table: {
+            head: ['Che cosa vedi', 'Che cosa significa', 'Dove guardare'],
+            rows: [
+              ['“Guasto del sensore di livello” (corrente sotto 3,6 mA)', 'l’anello del trasmettitore non porta corrente', 'il filo del trasmettitore'],
+              ['Il livello sale oltre il 90 % con la pompa che non si ferma', 'il galleggiante alto non scatta', 'i galleggianti sul banco'],
+              ['Valori grigi e “collegamento perso”', 'il pannello non parla più con il PLC', 'il cavo di rete del pannello'],
+            ],
+          },
+        },
+        {
+          type: 'spiegazione',
+          title: 'Riconoscere non è riparare',
+          paras: [
+            'Il tasto di riconoscimento del pannello ferma la sirena, ma non cambia niente nell’impianto: il guasto resta. Riparare vuol dire intervenire sul pezzo, e vale solo quando l’impianto torna a funzionare. Nel gioco lo fai dal banco: il pezzo guasto mostra un tasto per rimetterlo a posto.',
+            'Ogni guasto ha un tempo massimo di intervento. Più aspetti, più il danno cresce: un galleggiante bloccato non ferma la pompa e il serbatoio, se aspetti troppo, trabocca. Con più allarmi contemporanei si comincia da quello di priorità più alta.',
+          ],
+          warn: 'Se in una riparazione sbagli pezzo, perdi tempo. Prima di toccare il banco guarda gli indizi: quello che cambia per quel guasto.',
+        },
+        {
+          type: 'previsione',
+          question: 'Il pannello mostra tutti i valori grigi con “collegamento perso”, nessun allarme nuovo, e il serbatoio sul banco intanto continua a cambiare livello. Che cosa fai?',
+          options: [
+            { id: 'a', text: 'Niente: senza allarmi l’impianto è a posto.' },
+            { id: 'b', text: 'Cerco il guasto di comunicazione: il cavo di rete del pannello. Con il collegamento perso gli allarmi non arrivano più.' },
+            { id: 'c', text: 'Sostituisco il trasmettitore di livello.' },
+          ],
+          correct: 'b',
+          why: 'Un pannello senza collegamento non riceve neppure gli allarmi: l’assenza di allarmi non vuol dire che va tutto bene. I valori grigi sono il segnale che i dati sono vecchi.',
+        },
+        {
+          type: 'previsione',
+          question: 'Compaiono insieme “Livello troppo basso” (media) e “Guasto del sensore di livello” (alta). Da quale cominci?',
+          options: [
+            { id: 'a', text: 'Dal livello basso, perché è quello che si vede.' },
+            { id: 'b', text: 'Dal guasto del sensore: è prioritario, e senza una misura giusta non puoi fidarti neanche del livello.' },
+            { id: 'c', text: 'Non importa l’ordine.' },
+          ],
+          correct: 'b',
+          why: 'La priorità alta va per prima. Il guasto del sensore è anche la causa possibile dell’altro: con la misura persa il livello mostrato non è affidabile.',
+        },
+        { type: 'sintesi', title: 'Da ricordare' },
+      ],
+    },
+    steps: [
+      { kind: 'power', short: '1 Corrente', title: 'Dai corrente e comincia il turno', text: 'Tocca la levetta del quadro: il turno parte e il tempo corre. Guarda il pannello operatore e il grafico.' },
+      { kind: 'verify', short: '2 Turno', title: 'Gestisci i guasti e consegna', text: 'Quando scatta un guasto leggi il pannello, cerca il pezzo sul banco e ripara. Alla fine del turno premi Verifica.' },
+    ],
+    summary: [
+      'Un impianto in servizio si guasta: conta accorgersene presto e riparare in tempo.',
+      'Un allarme dice che cosa non va, non dove: per trovare il pezzo si mettono insieme l’allarme, i valori sul pannello e il banco.',
+      'Riconoscere un allarme non ripara il guasto: serve intervenire sul pezzo.',
+      'Ogni guasto ha un tempo massimo; con più allarmi si comincia da quello di priorità più alta.',
+      'Un pannello senza collegamento non riceve neppure gli allarmi: l’assenza di allarmi non basta a dire che l’impianto è a posto.',
+    ],
+  },
 };

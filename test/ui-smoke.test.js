@@ -339,6 +339,12 @@ test('si superano tutti i livelli cablando la soluzione (quadro e contatore)', (
       programUI(w, d, lvl);
       tuneUI(w, d, lvl);
       click(w, q(d, '#bCheck'));
+      if (base.scenario) {
+        // turno a guasti: si gioca davvero (provato nei test del motore); qui la verifica dice che il turno non e' finito
+        assert.match(q(d, '#result').textContent, /turno non è finito/, base.id);
+        click(w, q(d, '[data-mode="quadro"]'));
+        return;
+      }
       assert.match(q(d, '#result h3').textContent, /Impianto funzionante/, base.id + ' ' + mode);
       assert.equal(qa(d, '#result .row:not(.chk) > .mark.ok').length, 3);
       click(w, q(d, '[data-mode="quadro"]'));

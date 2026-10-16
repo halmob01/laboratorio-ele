@@ -1557,3 +1557,64 @@ LEVELS_V2.push({
     'Il primo gradino parte il ciclo: serve Marcia (M0), un pezzo pronto (I2), braccio su (I3), al prelievo (I5) e nessun ciclo in corso (M9 normalmente chiuso). Uscite: Set M1 e Set M9. L’ultimo gradino, da M8 con I5, fa Reset M8 e Reset M9.',
   ],
 });
+
+// c44: la gestione dei guasti (Modulo 6). Il serbatoio con il pannello operatore di c37, tutto cablato e programmato:
+// e' un turno di lavoro. Durante il turno scattano tre guasti dalla libreria (filo del trasmettitore interrotto, galleggiante
+// bloccato, cavo di rete del pannello staccato); l'allievo li riconosce dal pannello e dal banco e li ripara in tempo.
+const PROG_44 = START_37.concat(ALARMS_37);
+LEVELS_V2.push({
+  id: 'c44-guasti', code: 'c44', n: 0, ...IND, flow: 'onDemand',
+  name: 'Gestione guasti', title: 'Gestione guasti',
+  blurb: 'Un turno di lavoro: tre guasti arrivano a tempo, tu li leggi dal pannello e li ripari prima del danno.',
+  goal: 'Il serbatoio con il pannello operatore è in servizio, già cablato e programmato. Dai corrente e comincia il turno: durante il turno arrivano tre guasti, uno alla volta. Leggi il pannello (allarmi, dato vecchio, collegamento), trova il pezzo guasto sul banco e riparalo. Ogni guasto ha un tempo massimo; il serbatoio non deve mai traboccare. Quando il turno finisce premi Verifica.',
+  fixed: W37,
+  comps: [
+    Q3,
+    C('PLC', 'plc', 'PLC', 'PLC con gli allarmi', T('A1', 'A2', 'I0', 'I1', 'IC', 'AI0+', 'AI0-', 'Q0A', 'Q0B'), {
+      program: PROG_44,
+      symbols: { I0: 'Livello alto', I1: 'Livello basso', Q0: 'Pompa', AI0: 'Livello (mA)', MW0: 'Livello (%)', M0: 'Troppo alto', M1: 'Guasto sensore', M2: 'Troppo basso', M3: 'Pompa a lungo' },
+    }),
+    C('LH', 'sens', 'Galleggiante alto', 'Galleggiante di livello alto (80 %)', T('1', '2', '3', '4'), { sense: { v: 'h', above: 80 } }),
+    C('LL', 'sens', 'Galleggiante basso', 'Galleggiante di livello basso (20 %)', T('1', '2', '3', '4'), { sense: { v: 'h', below: 20 } }),
+    C('TT', 'tx', 'Trasmettitore', 'Trasmettitore di livello 4-20 mA', T('+', '-'), { sense: { v: 'h', lo: 0, hi: 100 } }),
+    C('HP', 'spia', 'Pompa', 'Pompa in marcia', T('X1', 'X2')),
+    C('HMI', 'hmi', 'Pannello', 'Pannello operatore collegato al PLC', {}),
+  ],
+  process: {
+    model: 'serbatoio', title: 'Il serbatoio', alt: 'Serbatoio con due galleggianti, il trasmettitore e la pompa',
+    params: { qIn: 30, qOut: 12 }, init: { h: 50 }, speed: 4,
+    actuators: { pump: { load: 'HP' }, valve: { value: 1 } },
+    trace: ['h'], labels: { h: 'Il livello' },
+    graph: { vars: [{ v: 'h', label: 'Livello %', lo: 0, hi: 100 }], window: 600, lines: [{ value: 90, label: 'troppo alto' }, { value: 10, label: 'troppo basso' }] },
+  },
+  hmi: {
+    plc: 'PLC', stale: 3,
+    values: [{ id: 'V1', label: 'Livello', v: 'PLC.MW0', unit: '%' }, { id: 'V2', label: 'Pompa', v: 'PLC.Q0', bool: ['ferma', 'in marcia'] }],
+    alarms: [
+      { id: 'A1', bit: 'M0', text: 'Livello troppo alto', prio: 'alta' },
+      { id: 'A2', bit: 'M1', text: 'Guasto del sensore di livello', prio: 'alta' },
+      { id: 'A3', bit: 'M2', text: 'Livello troppo basso', prio: 'media' },
+      { id: 'A4', bit: 'M3', text: 'Pompa accesa da più di 5 minuti', prio: 'bassa' },
+    ],
+  },
+  scenario: {
+    duration: 700,
+    faults: [
+      { id: 'f1', at: 70, do: 'cut TT', label: 'il filo del trasmettitore di livello', fixed: { part: 'TT', prop: 'cut', is: false }, maxDelay: 150 },
+      { id: 'f2', at: 300, do: 'jam LH', label: 'il galleggiante alto bloccato', fixed: { part: 'LH', prop: 'jam', is: false }, maxDelay: 150 },
+      { id: 'f3', at: 500, do: 'toggle HMI', label: 'il cavo di rete del pannello', fixed: { part: 'HMI', prop: 'on', is: true }, maxDelay: 120 },
+    ],
+    expect: { trace: [{ v: 'h', max: 99.9 }] },
+  },
+  demoDo: [{ do: ['wait 200'], say: '' }],
+  checks: [],
+  safety: { coilReturn: ['PLC'] },
+  solution: W37,
+  // partita di riferimento (usata dai test): a che secondo del turno si ripara, e con quale azione
+  solutionPlay: [{ at: 90, do: 'cut TT' }, { at: 320, do: 'jam LH' }, { at: 520, do: 'toggle HMI' }],
+  hints: [
+    'Gli allarmi arrivano sul pannello: leggi il testo e la priorità. “Guasto del sensore di livello” vuol dire che l’anello del trasmettitore non porta corrente.',
+    'Un livello che sale oltre il 90 % con la pompa accesa e nessuna fermata fa pensare a un galleggiante che non scatta: guarda i galleggianti sul banco.',
+    'Se i valori del pannello diventano grigi e compare “collegamento perso”, il cavo di rete del pannello è staccato: toccalo per ricollegarlo.',
+  ],
+});

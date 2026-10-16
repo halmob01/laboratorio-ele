@@ -170,12 +170,25 @@ const hmiShellHTML = lv => {
   return `<div class="hmi" role="region" aria-label="Pannello operatore"><div class="hmitop"><b>PANNELLO OPERATORE</b><span class="hmilink"></span><span class="hmihorn" hidden>SIRENA</span></div><div class="hmivals"></div><div class="hmialms" aria-live="polite"></div><button class="btn hmiack" data-hmiack="${id}">Riconosci gli allarmi</button></div>`;
 };
 
+// ---------- turno a guasti (level.scenario) ----------
+function scenarioHTML(s) {
+  const sc = s.obs.scenario;
+  if (!sc) return '';
+  const fired = sc.faults.filter(f => f.firedAt !== null), fixed = fired.filter(f => !f.open);
+  const left = Math.max(0, Math.ceil(sc.duration - sc.t));
+  const mm = String(Math.floor(left / 60)).padStart(2, '0') + ':' + String(left % 60).padStart(2, '0');
+  const late = fired.filter(f => f.late);
+  const state = sc.done ? 'turno finito' : s.power ? 'turno in corso' : 'dai corrente per cominciare';
+  return `<div class="shiftbar" role="status"><span><b>${state}</b></span><span>tempo rimasto ${mm}</span><span>guasti riparati ${fixed.length} di ${sc.faults.length}</span>${late.length ? `<span class="late">in ritardo: ${late.length}</span>` : ''}<button class="btn" data-shift="restart">Ricomincia il turno</button></div>`;
+}
+
 export function processMount(el, s) {
   const lv = s.level;
   if (!lv.process || !s.obs) { el.hidden = true; el.innerHTML = ''; el.dataset.key = ''; return; }
   el.hidden = false;
   el.dataset.key = s.levelKey;
   el.innerHTML = `<div class="ladhead"><b>${lv.process.title || 'Il processo'}</b><span data-speed>${s.speed > 1 ? 'tempo × ' + s.speed : ''}</span></div>` +
+    (lv.scenario ? '<div class="shiftslot"></div>' : '') +
     `<svg class="procscene" viewBox="0 0 400 160" role="img" aria-label="${lv.process.alt || 'Il processo che si regola'}"></svg>` +
     (lv.hmi ? hmiShellHTML(lv) : '') + (lv.process.graph ? `<div class="procgraphbox"></div>` : '') + slidersHTML(lv, s);
   processUpdate(el, s);
@@ -195,6 +208,8 @@ function processUpdate(el, s) {
   const gb = el.querySelector('.procgraphbox');
   if (gb) gb.innerHTML = graphSVG(lv, s);
   if (lv.hmi) hmiSync(el, s);
+  const sh = el.querySelector('.shiftslot');
+  if (sh) { const html = scenarioHTML(s); if (sh.innerHTML !== html) sh.innerHTML = html; }
   el.querySelectorAll('[data-out]').forEach(o => {
     const name = o.dataset.out, d = lv.process.tunable[name], v = (s.tuned || {})[name];
     if (v !== undefined) o.textContent = NS(v) + (d.unit ? ' ' + d.unit : '');

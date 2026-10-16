@@ -231,7 +231,7 @@ export function schemV2(c, s, L, ui) {
       const act = !!part.act;
       o += pole(w * c.terms['1'].f, 22, h - 22, !act, L('1'), L('2')) + pole(w * c.terms['3'].f, 22, h - 22, act, L('3'), L('4'));
       o += lab(w / 2, h - 6, part.jam ? 'BLOCCATO' : act ? 'SCATTATO' : 'A RIPOSO');
-      if (s.level.hmi) o += faultBtn(c.id, 'jam', w - 66, mid - 14, part.jam ? 'SBLOCCA' : 'BLOCCA', (part.jam ? 'Sblocca ' : 'Blocca ') + c.short);
+      if (s.level.hmi && (!s.level.scenario || part.jam)) o += faultBtn(c.id, 'jam', w - 66, mid - 14, part.jam ? 'SBLOCCA' : 'BLOCCA', (part.jam ? 'Sblocca ' : 'Blocca ') + c.short);
       break;
     }
     case 'tx': {
@@ -243,7 +243,7 @@ export function schemV2(c, s, L, ui) {
       o += lab(xp + 10, cy - 28, '+') + lab(xm + 10, cy + 40, '−');
       if (c.sense && part.mA) o += lab(w / 2, h - 6, 'trasmette ' + String(Math.round(part.mA * 10) / 10).replace('.', ',') + ' mA');
       if (part.cut) o += lab(w / 2, h - 6, 'FILO INTERROTTO');
-      if (s.level.hmi) o += faultBtn(c.id, 'cut', w - 66, mid - 14, part.cut ? 'RICOLLEGA' : 'TAGLIA', part.cut ? 'Ricollega il filo del trasmettitore' : 'Interrompi il filo del trasmettitore');
+      if (s.level.hmi && (!s.level.scenario || part.cut)) o += faultBtn(c.id, 'cut', w - 66, mid - 14, part.cut ? 'RICOLLEGA' : 'TAGLIA', part.cut ? 'Ricollega il filo del trasmettitore' : 'Interrompi il filo del trasmettitore');
       break;
     }
     case 'hmi': {

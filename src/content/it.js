@@ -166,6 +166,11 @@ export function itemText(item, level) {
     case 'work.checkMore': return 'E altre ' + item.n + ' prove non superate.';
     case 'work.secondaryMixed': return 'Il secondario del trasformatore è collegato alla rete: la bassa tensione non è più separata dai 230 V.';
     case 'work.shortDC': return 'Cortocircuito: il + e il − di una batteria sono collegati senza un carico in mezzo. La corrente diventa enorme e il fusibile della batteria brucia. Togli il filo che chiude il corto.';
+    case 'work.scenarioNone': return 'Il turno non è ancora cominciato: dai corrente e gestisci i guasti che arrivano.';
+    case 'work.scenarioRunning': return 'Il turno non è finito: mancano ' + item.left + ' secondi. Continua a gestire gli allarmi, poi premi Verifica.';
+    case 'work.scenarioOpen': return 'Un guasto è ancora aperto: ' + item.label + '. Trovalo e riparalo prima di consegnare il turno.';
+    case 'work.scenarioLate': return 'Hai riparato troppo tardi: ' + item.label + ' è rimasto fermo ' + item.delay + ' secondi, il massimo era ' + item.max + '.';
+    case 'work.scenarioOk': return 'Turno consegnato: tutti i ' + item.n + ' guasti riparati in tempo.';
     case 'work.hmiOffline': return 'Il pannello operatore non è collegato al PLC: i valori che mostra sono vecchi e gli allarmi non arrivano. Ricollega il cavo di rete del pannello.';
     case 'work.unstablePlc': return 'Un’uscita del PLC si accende e si spegne a ogni ciclo: il programma si contraddice (per esempio un’uscita comandata dal suo stesso contatto negato).';
     case 'work.unstable': return 'Un relè si apre e si chiude da solo: la sua bobina è alimentata attraverso il suo stesso contatto NC.';

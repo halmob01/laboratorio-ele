@@ -33,6 +33,7 @@ import p29 from './ar-29.js';
 import p30 from './ar-30.js';
 import p31 from './ar-31.js';
 import p32 from './ar-32.js';
+import p33 from './ar-33.js';
 
 const ROLE = { 'del neutro': 'المحايد', 'di terra': 'الأرضي', 'di fase': 'الطور', 'a bassa tensione': 'الجهد المنخفض', 'di comando': 'التحكم', 'del positivo': 'الموجب', 'del negativo': 'السالب', 'in continua': 'التيار المستمر' };
 const COLORI = { 'blu': 'أزرق', 'giallo-verde': 'أصفر-أخضر', 'marrone, nero o grigio': 'بنيًّا أو أسود أو رماديًّا', 'rosso, marrone, nero o grigio': 'أحمر أو بنيًّا أو أسود أو رماديًّا', 'di un colore diverso da blu e giallo-verde': 'بلون مختلف عن الأزرق والأصفر-الأخضر', 'rosso': 'أحمر', 'nero': 'أسود', 'rosso o nero': 'أحمر أو أسود' };
@@ -49,6 +50,14 @@ const PAT = [
   [/^(.+) arriva al massimo a ([\d,.-]+)(?: entro ([\d,.]+) s)?: doveva raggiungere ([\d,.-]+)\.$/, (m, t) => `${t(m[1])} تبلغ كحد أقصى ${iso(m[2])}${m[3] ? ' خلال ' + iso(m[3]) + ' ث' : ''}: كان يجب أن تبلغ ${iso(m[4])}.`],
   [/^(.+) scende al minimo a ([\d,.-]+)(?: entro ([\d,.]+) s)?: doveva arrivare a ([\d,.-]+)\.$/, (m, t) => `${t(m[1])} تنخفض كحد أدنى إلى ${iso(m[2])}${m[3] ? ' خلال ' + iso(m[3]) + ' ث' : ''}: كان يجب أن تصل إلى ${iso(m[4])}.`],
   [/^(.+): nessun valore registrato\.$/, (m, t) => `${t(m[1])}: لا توجد قيمة مسجّلة.`],
+  // turno a guasti (c44)
+  [/^tempo rimasto (\d\d):(\d\d)$/, m => `الوقت المتبقي ${iso(m[1])}:${iso(m[2])}`],
+  [/^guasti riparati (\d+) di (\d+)$/, m => `أعطال أُصلحت ${iso(m[1])} من ${iso(m[2])}`],
+  [/^in ritardo: (\d+)$/, m => `متأخر: ${iso(m[1])}`],
+  [/^Il turno non è finito: mancano (\d+) secondi\. Continua a gestire gli allarmi, poi premi Verifica\.$/, m => `لم تنتهِ المناوبة بعد: تبقّت ${iso(m[1])} ثانية. واصل التعامل مع الإنذارات ثم اضغط «تحقق».`],
+  [/^Un guasto è ancora aperto: (.+)\. Trovalo e riparalo prima di consegnare il turno\.$/, (m, t) => `ما زال عطل مفتوحًا: ${t(m[1])}. اعثر عليه وأصلحه قبل تسليم المناوبة.`],
+  [/^Hai riparato troppo tardi: (.+) è rimasto fermo (\d+) secondi, il massimo era (\d+)\.$/, (m, t) => `أصلحت متأخرًا جدًا: ${t(m[1])} بقي معطلًا ${iso(m[2])} ثانية والحد الأقصى كان ${iso(m[3])}.`],
+  [/^Turno consegnato: tutti i (\d+) guasti riparati in tempo\.$/, m => `سُلّمت المناوبة: أُصلحت الأعطال الـ${iso(m[1])} كلها في الوقت.`],
   // pannello operatore: stato degli allarmi con l'ora, eta' dei dati vecchi, motivi delle prove
   [/^(da riconoscere|riconosciuto|rientrato, da riconoscere) · a (\d+) s$/, (m, t) => `${t(m[1])} · عند ${iso(m[2])} ث`],
   [/^dato vecchio · (\d+) s$/, m => `بيان قديم · ${iso(m[1])} ث`],
@@ -137,4 +146,4 @@ const PAT = [
   [/^Protezioni scattate: (.+)\.$/, (m, t) => `حمايات فصلت: ${t(m[1])}.`],
 ];
 
-registerLang('ar', { ...p1, ...p2, ...p3, ...p4, ...p5, ...p6, ...p7, ...p8, ...p9, ...p10, ...p11, ...p12, ...p13, ...p14, ...p15, ...p16, ...p17, ...p18, ...p19, ...p20, ...p21, ...p22, ...p23, ...p24, ...p25, ...p26, ...p27, ...p28, ...p29, ...p30, ...p31, ...p32 }, PAT);
+registerLang('ar', { ...p1, ...p2, ...p3, ...p4, ...p5, ...p6, ...p7, ...p8, ...p9, ...p10, ...p11, ...p12, ...p13, ...p14, ...p15, ...p16, ...p17, ...p18, ...p19, ...p20, ...p21, ...p22, ...p23, ...p24, ...p25, ...p26, ...p27, ...p28, ...p29, ...p30, ...p31, ...p32, ...p33 }, PAT);
