@@ -60,7 +60,7 @@ export const PARTS = {
   // sensore digitale di processo (galleggiante, termostato, sensore di velocita'): come il finecorsa, 1-2 NC e 3-4 NA.
   // `sense: { v: 'h', above: 80 }` o `{ v: 'h', below: 20 }`: azionato quando la condizione sulla grandezza del processo e' vera.
   // `jam` (guasto simulato): il galleggiante resta bloccato dov'e'
-  sens: { contacts: (c, s) => (s.act ? [['3', '4']] : [['1', '2']]), init: () => ({ act: false, jam: false }), actions: ['jam'] },
+  sens: { contacts: (c, s) => (s.act ? [['3', '4']] : [['1', '2']]), init: () => ({ act: false, jam: false }), actions: ['jam', 'dead'] },
   // trasmettitore 4-20 mA, morsetti + e -: anello verso un ingresso analogico del PLC (AIk+ / AIk-). `sense: { v, lo, hi }`.
   // Non e' un circuito risolto: vedi sim.js, analogIn, e docs/SPEC-PROCESSI.md, sezione 3.
   // `cut` (guasto simulato): filo del trasmettitore interrotto, l'anello porta 0 mA

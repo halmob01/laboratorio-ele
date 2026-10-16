@@ -1677,7 +1677,7 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
     // sensore digitale di processo (galleggiante, termostato, sensore di velocita'): come il finecorsa, 1-2 NC e 3-4 NA.
     // `sense: { v: 'h', above: 80 }` o `{ v: 'h', below: 20 }`: azionato quando la condizione sulla grandezza del processo e' vera.
     // `jam` (guasto simulato): il galleggiante resta bloccato dov'e'
-    sens: { contacts: (c2, s) => s.act ? [["3", "4"]] : [["1", "2"]], init: () => ({ act: false, jam: false }), actions: ["jam"] },
+    sens: { contacts: (c2, s) => s.act ? [["3", "4"]] : [["1", "2"]], init: () => ({ act: false, jam: false }), actions: ["jam", "dead"] },
     // trasmettitore 4-20 mA, morsetti + e -: anello verso un ingresso analogico del PLC (AIk+ / AIk-). `sense: { v, lo, hi }`.
     // Non e' un circuito risolto: vedi sim.js, analogIn, e docs/SPEC-PROCESSI.md, sezione 3.
     // `cut` (guasto simulato): filo del trasmettitore interrotto, l'anello porta 0 mA
@@ -2184,8 +2184,9 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
     linea: {
       init: { z: 0, x: 0, grip: 0, feed: 1, wait: 0, holding: 0, out: 0, dropped: 0, crash: 0 },
       params: { vz: 0.5, vx: 0.4, vg: 1, feedEvery: 5 },
-      acts: { down: 0, shift: 0, grip: 0 },
+      acts: { down: 0, shift: 0, grip: 0, enable: 1 },
       step(s, a, p, dt) {
+        if (!frac(a.enable)) return { ...s, wait: s.wait };
         const mv = (v, on, sp) => clamp2(v + (on ? 1 : -1) * sp * dt, 0, 1);
         let { z, x, grip, feed, wait, holding, out, dropped, crash } = s;
         z = mv(z, frac(a.down) > 0, p.vz);
@@ -2973,7 +2974,10 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
       s.tripped = false;
       s.heat = 0;
     } else if (action === "jam" && c2.type === "sens") s.jam = !s.jam;
-    else if (action === "cut" && c2.type === "tx") s.cut = !s.cut;
+    else if (action === "dead" && c2.type === "sens") {
+      s.jam = true;
+      s.act = false;
+    } else if (action === "cut" && c2.type === "tx") s.cut = !s.cut;
     else if (action === "ack" && c2.type === "hmi") hmiAck(sim);
     else if (action === "test" && c2.type === "rcd") {
       if (s.on) {
@@ -3416,8 +3420,8 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
     const failed = runs.filter((x) => !x.r.ok);
     if (level.scenario) {
       const rep = ctx2.liveSim && scenarioReport(ctx2.liveSim);
-      if (!rep) add("work", "work.scenarioNone");
-      else if (failed.length) failed.slice(0, 3).forEach(({ ch, r }) => add("work", "work.checkFail", { check: ch.id, label: ch.label, cause: r.fail.code, want: r.fail.want, got: r.fail.got, comp: r.fail.comp }));
+      if (failed.length) failed.slice(0, 3).forEach(({ ch, r }) => add("work", "work.checkFail", { check: ch.id, label: ch.label, cause: r.fail.code, want: r.fail.want, got: r.fail.got, comp: r.fail.comp }));
+      else if (!rep) add("work", "work.scenarioNone");
       else if (!rep.done) add("work", "work.scenarioRunning", { left: Math.ceil(rep.duration - rep.t) });
       else {
         const open = rep.faults.find((f2) => f2.open), late = rep.faults.find((f2) => f2.late);
@@ -3467,7 +3471,7 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
       bad.slice(0, 3).forEach((b) => out.color.items.push(b));
       if (bad.length > 3) add("color", "color.more", { n: bad.length - 3 });
     }
-    if (!out.work.ok) add("safe", "safe.skipped");
+    if (!out.work.ok && !(level.scenario && !failed.length)) add("safe", "safe.skipped");
     else {
       const S2 = level.safety || {};
       const states = runs.flatMap((x) => x.r.states);
@@ -7870,6 +7874,139 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
       "Se i valori del pannello diventano grigi e compare \u201Ccollegamento perso\u201D, il cavo di rete del pannello \xE8 staccato: toccalo per ricollegarlo."
     ]
   });
+  var W45_SAFE = [
+    ["Q.F", "E.1", "marrone"],
+    ["E.2", "P.1", "marrone"],
+    ["P.2", "KS.S12", "marrone"],
+    ["Q.F", "E.3", "marrone"],
+    ["E.4", "P.3", "marrone"],
+    ["P.4", "KS.S22", "marrone"],
+    ["Q.F", "KS.A1", "marrone"],
+    ["KS.A2", "Q.N", "blu"],
+    ["Q.F", "KM.21", "marrone"],
+    ["KM.22", "SBR.3", "marrone"],
+    ["SBR.4", "KS.R", "marrone"],
+    ["Q.F", "KS.13", "marrone"],
+    ["KS.14", "KS.23", "marrone"],
+    ["KS.24", "KM.A1", "marrone"],
+    ["KM.A2", "Q.N", "blu"],
+    ["Q.F", "KM.1", "marrone"],
+    ["KM.2", "L.A", "marrone"],
+    ["L.B", "Q.N", "blu"]
+  ];
+  var W45_PLC = [
+    ["Q.F", "PLC.A1", "marrone"],
+    ["PLC.A2", "Q.N", "blu"],
+    ["PLC.IC", "Q.N", "blu"],
+    ["Q.F", "SB0.1", "marrone"],
+    ["SB0.2", "PLC.I0", "marrone"],
+    ["Q.F", "SB1.3", "marrone"],
+    ["SB1.4", "PLC.I1", "marrone"],
+    ["Q.F", "PR.3", "marrone"],
+    ["PR.4", "PLC.I2", "marrone"],
+    ["Q.F", "ZU.3", "marrone"],
+    ["ZU.4", "PLC.I3", "marrone"],
+    ["Q.F", "ZD.3", "marrone"],
+    ["ZD.4", "PLC.I4", "marrone"],
+    ["Q.F", "XP.3", "marrone"],
+    ["XP.4", "PLC.I5", "marrone"],
+    ["Q.F", "XL.3", "marrone"],
+    ["XL.4", "PLC.I6", "marrone"],
+    ["Q.F", "KM.13", "marrone"],
+    ["KM.14", "PLC.I7", "marrone"],
+    // le sicurezze sono a posto: il contatto ausiliario del contattore
+    ["Q.F", "PLC.Q3A", "marrone"],
+    ["PLC.Q3B", "HC.X1", "marrone"],
+    ["HC.X2", "Q.N", "blu"]
+  ];
+  var START_45 = START_43.map((r) => r.do[0].op === "ton" ? { ...r, if: ["and", r.if, "I7"] } : r).concat([{ if: ["and", "M9", "I7"], do: [{ op: "ton", id: "T3", pt: 40 }] }]);
+  var ALARMS_45 = [
+    { if: "T3", do: [{ op: "coil", a: "M10" }] },
+    { if: ["not", "I7"], do: [{ op: "coil", a: "M11" }] }
+  ];
+  LEVELS_V2.push({
+    id: "c45-fabbrica",
+    code: "c45",
+    n: 0,
+    engine: 2,
+    quadroOnly: true,
+    flow: "onDemand",
+    palette: ["marrone", "blu"],
+    name: "La fabbrica",
+    title: "La fabbrica",
+    blurb: "Cabla la sicurezza, scrivi il programma e gestisci un turno con i guasti: tutto quello che hai imparato.",
+    goal: "Una cella di produzione: un robot porta i pezzi dal prelievo al deposito. Tre cose da fare. Uno: cabla la sicurezza, con fungo e portella a due canali, il rel\xE8 di sicurezza KS, il contattore KM che d\xE0 potenza al robot e il riarmo. Due: scrivi nel PLC le transizioni dei passi e i due allarmi, \u201Cciclo bloccato\u201D (il ciclo dura pi\xF9 di 40 secondi) e \u201Csicurezze aperte\u201D (il contatto ausiliario di KM, ingresso I7, non \xE8 chiuso). Tre: dai corrente e gestisci il turno: arrivano quattro guasti e il robot deve consegnare almeno 20 pezzi senza urti n\xE9 cadute.",
+    fixed: W45_PLC,
+    comps: [
+      QM,
+      C("E", "fungo", "Emergenza", "Emergenza a due canali", T("1", "2", "3", "4")),
+      C("P", "port", "Portella", "Portella a due canali", T("1", "2", "3", "4")),
+      C("SBR", "pb", "Riarmo", "Pulsante di riarmo", T("3", "4")),
+      C("KS", "rs", "Rel\xE8 sicurezza", "Rel\xE8 di sicurezza KS", T("A1", "A2", "S12", "S22", "R", "13", "14", "23", "24")),
+      C("KM", "km", "Contattore", "Contattore KM: potenza del robot", T("A1", "A2", "1", "2", "13", "14", "21", "22")),
+      C("L", "lamp", "Robot alimentato", "Spia: il robot \xE8 alimentato", { B: { l: "B" }, A: { l: "A" } }),
+      C("PLC", "plc", "PLC", "PLC (transizioni e allarmi da scrivere)", T("A1", "A2", "I0", "I1", "I2", "I3", "I4", "I5", "I6", "I7", "IC", "Q0A", "Q0B", "Q1A", "Q1B", "Q2A", "Q2B", "Q3A", "Q3B"), {
+        symbols: { I0: "Arresto", I1: "Marcia", I2: "Pezzo pronto", I3: "Braccio su", I4: "Braccio gi\xF9", I5: "Al prelievo", I6: "Al deposito", I7: "Sicurezze a posto", Q0: "Scendi", Q1: "Vai al deposito", Q2: "Chiudi pinza", Q3: "Spia ciclo", M0: "Marcia", M1: "1 Scendi", M2: "2 Prendi", M3: "3 Sali", M4: "4 Vai", M5: "5 Scendi", M6: "6 Lascia", M7: "7 Sali", M8: "8 Torna", M9: "Ciclo in corso", M10: "Ciclo bloccato", M11: "Sicurezze aperte", T1: "Pinza chiusa", T2: "Pinza aperta", T3: "Ciclo lungo" },
+        edit: { start: START_45, markers: 12, timers: 3, counters: 0, ops: ["coil", "set", "reset"] }
+      }),
+      C("SB0", "pbnc", "Arresto", "Pulsante di arresto (NC)", T("1", "2")),
+      C("SB1", "pb", "Marcia", "Pulsante di marcia (NA)", T("3", "4")),
+      C("HC", "spia", "Ciclo in corso", "Spia di ciclo in corso", T("X1", "X2")),
+      C("PR", "sens", "Pezzo pronto", "Sensore: pezzo pronto al prelievo", T("1", "2", "3", "4"), { sense: { v: "partReady" } }),
+      C("ZU", "sens", "Braccio su", "Finecorsa: braccio in alto", T("1", "2", "3", "4"), { sense: { v: "zUp" } }),
+      C("ZD", "sens", "Braccio gi\xF9", "Finecorsa: braccio in basso", T("1", "2", "3", "4"), { sense: { v: "zDown" } }),
+      C("XP", "sens", "Al prelievo", "Finecorsa: braccio sul punto di prelievo", T("1", "2", "3", "4"), { sense: { v: "atPick" } }),
+      C("XL", "sens", "Al deposito", "Finecorsa: braccio sul punto di deposito", T("1", "2", "3", "4"), { sense: { v: "atPlace" } }),
+      C("HMI", "hmi", "Pannello", "Pannello operatore collegato al PLC", {})
+    ],
+    controls: ["SBR", "E", "P", "SB0", "SB1"],
+    process: {
+      model: "linea",
+      title: "La cella",
+      alt: "Il robot che porta i pezzi dal prelievo al deposito",
+      speed: 4,
+      actuators: { down: { plc: "PLC.Q0" }, shift: { plc: "PLC.Q1" }, grip: { plc: "PLC.Q2" }, enable: { coil: "KM" } },
+      trace: ["out", "z", "x", "PLC.Q0"],
+      labels: { out: "I pezzi depositati", crash: "Il braccio", dropped: "I pezzi caduti" }
+    },
+    hmi: {
+      plc: "PLC",
+      stale: 3,
+      values: [{ id: "V1", label: "Pezzi depositati", v: "out", unit: "pz" }, { id: "V2", label: "Ciclo", v: "PLC.M9", bool: ["fermo", "in corso"] }],
+      alarms: [
+        { id: "A1", bit: "M10", text: "Ciclo bloccato", prio: "alta" },
+        { id: "A2", bit: "M11", text: "Sicurezze aperte", prio: "alta" }
+      ]
+    },
+    scenario: {
+      duration: 700,
+      faults: [
+        { id: "f1", at: 100, do: "dead ZD", label: "il finecorsa \u201Cbraccio gi\xF9\u201D (sensore guasto)", fixed: { part: "ZD", prop: "jam", is: false }, maxDelay: 90 },
+        { id: "f2", at: 250, do: "toggle E", label: "il fungo di emergenza premuto", fixed: { part: "KS", prop: "on", is: true }, maxDelay: 80 },
+        { id: "f3", at: 400, do: "toggle P", label: "la portella aperta", fixed: { part: "KS", prop: "on", is: true }, maxDelay: 80 },
+        { id: "f4", at: 540, do: "toggle HMI", label: "il cavo di rete del pannello", fixed: { part: "HMI", prop: "on", is: true }, maxDelay: 100 }
+      ],
+      expect: { process: { out: [20, 999], crash: false, dropped: [0, 0] } }
+    },
+    demoDo: [{ do: press("SBR").concat(press("SB1"), ["wait 30"]), say: "" }],
+    checks: [
+      { id: "fermo", label: "Prima del riarmo il robot non ha potenza e sta fermo, anche premendo Marcia", do: press("SB1").concat(["wait 20"]), expect: { loads: { L: "off" }, process: { out: [0, 0], z: [0, 0.01] } } },
+      { id: "lavora", label: "Dopo il riarmo e Marcia il robot deposita i pezzi, senza urti e senza cadute", do: press("SBR").concat(press("SB1"), ["wait 60"]), expect: { loads: { L: "on" }, process: { out: [2, 99], crash: false, dropped: [0, 0] } } },
+      { id: "emergenza", label: "Premendo il fungo il robot perde potenza e si ferma dov\u2019\xE8", steps: [{ do: press("SBR").concat(press("SB1"), ["wait 8"]), expect: { loads: { L: "on" } } }, { do: ["toggle E"], expect: { loads: { L: "off" } } }] },
+      { id: "portella", label: "Aprendo la portella il robot perde potenza", steps: [{ do: press("SBR").concat(press("SB1"), ["wait 8"]), expect: { loads: { L: "on" } } }, { do: ["toggle P"], expect: { loads: { L: "off" } } }] },
+      { id: "riparte", label: "Richiusa la portella il robot non riparte da solo: serve il riarmo", steps: [{ do: press("SBR").concat(press("SB1"), ["wait 8"]), expect: { loads: { L: "on" } } }, { do: ["toggle P", "toggle P"], expect: { loads: { L: "off" } } }, { do: press("SBR"), expect: { loads: { L: "on" } } }] },
+      { id: "allarmi", label: "Con le sicurezze aperte il pannello segnala \u201CSicurezze aperte\u201D", do: ["wait 3"], expect: { hmi: { alarms: { A2: "attivo" } } } }
+    ],
+    safety: { dualChannel: [["KS.S12", "KS.S22"]], outputsSeries: ["KS"], allContacts: ["E", "P"], restartNeedsReset: { stop: ["E", "P"], reset: "SBR", load: "L" }, feedbackMonitored: { km: "KM", stop: "E", reset: "SBR", rs: "KS" }, coilReturn: ["PLC"] },
+    solution: W45_SAFE.concat(W45_PLC),
+    solutionPrograms: { PLC: START_45.concat(TRANS_43, ALARMS_45) },
+    solutionPlay: [{ at: 2, do: "press SBR" }, { at: 3, do: "release SBR" }, { at: 4, do: "press SB1" }, { at: 5, do: "release SB1" }, { at: 120, do: "jam ZD" }, { at: 265, do: "toggle E" }, { at: 268, do: "press SBR" }, { at: 269, do: "release SBR" }, { at: 415, do: "toggle P" }, { at: 418, do: "press SBR" }, { at: 419, do: "release SBR" }, { at: 560, do: "toggle HMI" }],
+    hints: [
+      "La sicurezza \xE8 quella dei livelli precedenti: i due canali del fungo e della portella in serie ai due ingressi del rel\xE8 KS, le sue uscite in serie alla bobina di KM, il riarmo che passa dal contatto NC di KM.",
+      "Il programma: le transizioni sono quelle della linea (i tempi gi\xE0 scritti contano solo con le sicurezze a posto: un tempo che scorre a robot senza potenza farebbe passare al passo dopo con la pinza ferma). Gli allarmi sono due gradini con una bobina ciascuno: il timer T3 (ciclo pi\xF9 lungo di 40 secondi) alimenta la bobina M10, e I7 normalmente chiuso (le sicurezze non sono a posto) alimenta la bobina M11.",
+      "Nel turno: un robot che resta fermo con \u201CCiclo bloccato\u201D ha un finecorsa che non risponde; il fungo o la portella tolgono la potenza e il riarmo si fa dopo averli richiusi; il pannello grigio \xE8 il cavo di rete."
+    ]
+  });
 
   // src/content/units-v2.js
   var UNITS_V2 = {
@@ -11986,6 +12123,84 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
         "Ogni guasto ha un tempo massimo; con pi\xF9 allarmi si comincia da quello di priorit\xE0 pi\xF9 alta.",
         "Un pannello senza collegamento non riceve neppure gli allarmi: l\u2019assenza di allarmi non basta a dire che l\u2019impianto \xE8 a posto."
       ]
+    },
+    "c45-fabbrica": {
+      support: "passi",
+      lesson: {
+        pages: [
+          {
+            type: "spiegazione",
+            title: "Una cella di produzione completa",
+            paras: [
+              "Questo livello mette insieme tutto: la sicurezza a due canali dei primi livelli del modulo, il programma a sequenza della linea, gli allarmi e il pannello operatore, e la gestione dei guasti di un turno di lavoro. Non c\u2019\xE8 niente di nuovo da imparare: c\u2019\xE8 da dimostrare che sai farlo tutto insieme.",
+              "Un robot porta i pezzi dal prelievo al deposito. Le tre parti da fare: la sicurezza (cablaggio), il programma (transizioni e allarmi) e il turno (guasti)."
+            ]
+          },
+          {
+            type: "spiegazione",
+            title: "La sicurezza viene prima del programma",
+            paras: [
+              "Il robot riceve potenza solo dal contattore KM, e KM si eccita solo se il rel\xE8 di sicurezza KS \xE8 armato. KS ha i due canali di fungo e portella e un riarmo che passa dal contatto NC di KM. Tutto nei fili: se il PLC si blocca o ha un errore, premere il fungo toglie comunque la potenza.",
+              "Il PLC ascolta la sicurezza con un ingresso (I7, il contatto ausiliario di KM): non decide niente, ma sa quando le sicurezze sono aperte. Cos\xEC pu\xF2 dare l\u2019allarme \u201CSicurezze aperte\u201D e pu\xF2 sospendere i suoi tempi."
+            ]
+          },
+          {
+            type: "spiegazione",
+            title: "Perch\xE9 i tempi si fermano con la sicurezza aperta",
+            paras: [
+              "Se il robot resta senza potenza (fungo premuto) mentre sta aprendo la pinza, il tempo di apertura nel programma continuerebbe a scorrere: scaduto il tempo il programma passa al passo dopo e comanda di salire, ma la pinza non si \xE8 mai aperta. Al riarmo il robot parte con il passo sbagliato e fa cadere il pezzo.",
+              "Per questo i tempi del programma contano solo con le sicurezze a posto: I7 \xE8 in serie al contatto del temporizzatore. Quando la potenza torna, il tempo riparte da zero e il passo si completa davvero."
+            ],
+            warn: "Una macchina senza potenza non \u201Caspetta\u201D: \xE8 nel mondo, ma il programma continua a funzionare. Le sicurezze vanno sempre considerate nei tempi e nelle sequenze."
+          },
+          {
+            type: "spiegazione",
+            title: "Il turno: leggere, trovare, riparare",
+            paras: [
+              "Durante il turno arrivano quattro guasti: un finecorsa che non risponde (il ciclo si blocca e dopo 40 secondi scatta \u201CCiclo bloccato\u201D), il fungo premuto da un operatore, la portella aperta e il cavo di rete del pannello. Per fungo e portella si riarma dopo aver richiuso: prima si rimette a posto il dispositivo, poi si preme il riarmo.",
+              "Ogni guasto ha un tempo massimo e devi consegnare almeno 20 pezzi senza urti n\xE9 cadute. Se le riparazioni arrivano tardi, la produzione cala."
+            ]
+          },
+          {
+            type: "previsione",
+            question: "Compare \u201CCiclo bloccato\u201D e il robot \xE8 fermo con il braccio in basso. Dove cerchi?",
+            options: [
+              { id: "a", text: "Nel fungo: ha tolto la potenza." },
+              { id: "b", text: "Nei finecorsa: un sensore che non risponde lascia il programma in attesa di un \u201Cfatto\u201D che non arriva." },
+              { id: "c", text: "Nel cavo di rete del pannello." }
+            ],
+            correct: "b",
+            why: "Con il fungo premuto compare \u201CSicurezze aperte\u201D, e la spia di robot alimentato \xE8 spenta. \u201CCiclo bloccato\u201D con il robot alimentato indica che il programma aspetta un segnale che non arriva: un finecorsa guasto."
+          },
+          {
+            type: "previsione",
+            question: "Hai richiuso la portella ma il robot non riparte. Che cosa manca?",
+            options: [
+              { id: "a", text: "Niente: serve pi\xF9 tempo." },
+              { id: "b", text: "Il riarmo: il rel\xE8 di sicurezza non si riarma da solo, serve il pulsante." },
+              { id: "c", text: "Un nuovo comando di Marcia dal PLC." }
+            ],
+            correct: "b",
+            why: "\xC8 la regola che hai imparato con il rel\xE8 di sicurezza: dopo un arresto di sicurezza la macchina non riparte da sola. Il riarmo si d\xE0 con la portella chiusa e i canali a posto."
+          },
+          { type: "sintesi", title: "Da ricordare" }
+        ]
+      },
+      steps: [
+        { kind: "wire", from: "KS.S12", to: ["P.2"], color: "marrone", short: "1 Canali", title: "I due canali dell\u2019arresto", text: "Su ogni canale fungo e portella sono in serie: fase, fungo (1-2 per il canale 1, 3-4 per il canale 2), portella, ingresso del rel\xE8 (S12 e S22). Perch\xE9: aprendone uno qualunque il rel\xE8 perde il canale." },
+        { kind: "wire", from: "KS.24", to: ["KM.A1"], color: "marrone", short: "2 Contattore", title: "Le uscite del rel\xE8 alla bobina di KM", text: "Le uscite 13-14 e 23-24 sono in serie alla bobina di KM: dalla fase a 13, da 14 a 23, da 24 ad A1 di KM; A2 al neutro. Perch\xE9: se un\u2019uscita cade, il contattore si diseccita." },
+        { kind: "wire", from: "SBR.4", to: ["KS.R"], color: "marrone", short: "3 Riarmo", title: "Il riarmo passa dal contatto NC di KM", text: "Dalla fase al contatto NC 21-22 di KM, poi al pulsante di riarmo, poi al morsetto R del rel\xE8. Perch\xE9: se KM resta incollato il rel\xE8 non si riarma." },
+        { kind: "program", plc: "PLC", min: 17, short: "4 Transizioni", title: "Le transizioni dei passi", text: "Come nella linea: un gradino per ogni passo (M1-M8), con Reset del passo e Set del successivo, pi\xF9 il gradino di partenza del ciclo." },
+        { kind: "program", plc: "PLC", min: 19, short: "5 Allarmi", title: "I due allarmi", text: "T3 con la bobina M10 (ciclo bloccato) e I7 normalmente chiuso con la bobina M11 (sicurezze aperte)." },
+        { kind: "verify", short: "6 Cablaggio", title: "Controlla il cablaggio e il programma", text: "Premi Verifica: le prove sul cablaggio e sulla sicurezza devono passare. Poi dai corrente e gestisci il turno." }
+      ],
+      summary: [
+        "La sicurezza sta nei fili, a due canali, con il riarmo manuale e il controllo del contatto NC del contattore: il programma non la sostituisce.",
+        "Il PLC ascolta lo stato della sicurezza con un ingresso: d\xE0 l\u2019allarme e sospende i tempi.",
+        "Un tempo del programma che scorre a macchina senza potenza fa passare al passo sbagliato: i tempi contano solo con le sicurezze a posto.",
+        "Un guasto si trova leggendo insieme allarmi, valori e banco; si ripara in tempo e dopo un arresto di sicurezza si riarma.",
+        "Una cella completa riunisce cablaggio, programma, sicurezza e gestione dei guasti."
+      ]
     }
   };
 
@@ -12574,7 +12789,8 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
         "c36-pid",
         "c37-pannello",
         "c43-linea",
-        "c44-guasti"
+        "c44-guasti",
+        "c45-fabbrica"
       ],
       milestone: { soon: true, art: "fabbrica", kick: "Fabbrica", name: "Una linea da cablare, programmare e mettere in sicurezza", text: "Il progetto finale: un turno di lavoro con guasti da gestire." }
     }
@@ -18805,6 +19021,81 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
     "Il turno non \xE8 ancora cominciato: dai corrente e gestisci i guasti che arrivano.": "\u0644\u0645 \u062A\u0628\u062F\u0623 \u0627\u0644\u0645\u0646\u0627\u0648\u0628\u0629 \u0628\u0639\u062F: \u0634\u063A\u0651\u0644 \u0627\u0644\u062A\u064A\u0627\u0631 \u0648\u062A\u0639\u0627\u0645\u0644 \u0645\u0639 \u0627\u0644\u0623\u0639\u0637\u0627\u0644 \u0627\u0644\u062A\u064A \u062A\u0635\u0644."
   };
 
+  // src/i18n/ar-34.js
+  var ar_34_default = {
+    "Allarmi": "\u0627\u0644\u0625\u0646\u0630\u0627\u0631\u0627\u062A",
+    "Aprendo la portella il robot perde potenza": "\u0639\u0646\u062F \u0641\u062A\u062D \u0627\u0644\u0628\u0648\u0627\u0628\u0629 \u064A\u0641\u0642\u062F \u0627\u0644\u0631\u0648\u0628\u0648\u062A \u0642\u062F\u0631\u062A\u0647",
+    "Cabla la sicurezza, scrivi il programma e gestisci un turno con i guasti: tutto quello che hai imparato.": "\u0635\u0650\u0644 \u0627\u0644\u0633\u0644\u0627\u0645\u0629 \u0648\u0627\u0643\u062A\u0628 \u0627\u0644\u0628\u0631\u0646\u0627\u0645\u062C \u0648\u0623\u062F\u0650\u0631 \u0645\u0646\u0627\u0648\u0628\u0629 \u0645\u0639 \u0627\u0644\u0623\u0639\u0637\u0627\u0644: \u0643\u0644 \u0645\u0627 \u062A\u0639\u0644\u0645\u062A\u0647.",
+    "Cablaggio": "\u0627\u0644\u062A\u0633\u0644\u064A\u0643",
+    "Ciclo": "\u0627\u0644\u062F\u0648\u0631\u0629",
+    "Ciclo bloccato": "\u0627\u0644\u062F\u0648\u0631\u0629 \u0645\u062A\u0648\u0642\u0641\u0629",
+    "Ciclo lungo": "\u062F\u0648\u0631\u0629 \u0637\u0648\u064A\u0644\u0629",
+    "Come nella linea: un gradino per ogni passo (M1-M8), con Reset del passo e Set del successivo, pi\xF9 il gradino di partenza del ciclo.": "\u0643\u0645\u0627 \u0641\u064A \u0627\u0644\u062E\u0637: \u062F\u0631\u062C\u0629 \u0644\u0643\u0644 \u062E\u0637\u0648\u0629 (M1-M8) \u0645\u0639 Reset \u0644\u0644\u062E\u0637\u0648\u0629 \u0648Set \u0644\u0644\u062A\u0627\u0644\u064A\u0629\u060C \u0625\u0636\u0627\u0641\u0629 \u0625\u0644\u0649 \u062F\u0631\u062C\u0629 \u0628\u062F\u0621 \u0627\u0644\u062F\u0648\u0631\u0629.",
+    "Compare \u201CCiclo bloccato\u201D e il robot \xE8 fermo con il braccio in basso. Dove cerchi?": "\u062A\u0638\u0647\u0631 \xAB\u0627\u0644\u062F\u0648\u0631\u0629 \u0645\u062A\u0648\u0642\u0641\u0629\xBB \u0648\u0627\u0644\u0631\u0648\u0628\u0648\u062A \u0633\u0627\u0643\u0646 \u0648\u0627\u0644\u0630\u0631\u0627\u0639 \u0641\u064A \u0627\u0644\u0623\u0633\u0641\u0644. \u0623\u064A\u0646 \u062A\u0628\u062D\u062B\u061F",
+    "Con il fungo premuto compare \u201CSicurezze aperte\u201D, e la spia di robot alimentato \xE8 spenta. \u201CCiclo bloccato\u201D con il robot alimentato indica che il programma aspetta un segnale che non arriva: un finecorsa guasto.": "\u0645\u0639 \u0627\u0644\u0636\u063A\u0637 \u0639\u0644\u0649 \u0632\u0631 \u0627\u0644\u0637\u0648\u0627\u0631\u0626 \u062A\u0638\u0647\u0631 \xAB\u0627\u0644\u0633\u0644\u0627\u0645\u0629 \u0645\u0641\u062A\u0648\u062D\u0629\xBB \u0648\u064A\u0643\u0648\u0646 \u0645\u0635\u0628\u0627\u062D \u0627\u0644\u0631\u0648\u0628\u0648\u062A \u0627\u0644\u0645\u063A\u0630\u0651\u0649 \u0645\u0637\u0641\u0623\u064B. \u0623\u0645\u0627 \xAB\u0627\u0644\u062F\u0648\u0631\u0629 \u0645\u062A\u0648\u0642\u0641\u0629\xBB \u0645\u0639 \u0631\u0648\u0628\u0648\u062A \u0645\u063A\u0630\u0651\u0649 \u0641\u062A\u062F\u0644 \u0639\u0644\u0649 \u0623\u0646 \u0627\u0644\u0628\u0631\u0646\u0627\u0645\u062C \u064A\u0646\u062A\u0638\u0631 \u0625\u0634\u0627\u0631\u0629 \u0644\u0627 \u062A\u0635\u0644: \u0646\u0647\u0627\u064A\u0629 \u0634\u0648\u0637 \u0645\u0639\u0637\u0644\u0629.",
+    "Con le sicurezze aperte il pannello segnala \u201CSicurezze aperte\u201D": "\u0648\u0627\u0644\u0633\u0644\u0627\u0645\u0629 \u0645\u0641\u062A\u0648\u062D\u0629 \u062A\u0634\u064A\u0631 \u0627\u0644\u0644\u0648\u062D\u0629 \u0625\u0644\u0649 \xAB\u0627\u0644\u0633\u0644\u0627\u0645\u0629 \u0645\u0641\u062A\u0648\u062D\u0629\xBB",
+    "Contatto Sicurezze a posto": "\u062A\u0644\u0627\u0645\u0633 \u0627\u0644\u0633\u0644\u0627\u0645\u0629 \u0633\u0644\u064A\u0645\u0629",
+    "Contattore KM: potenza del robot": "\u0627\u0644\u0643\u0648\u0646\u062A\u0627\u0643\u062A\u0648\u0631 KM: \u0642\u062F\u0631\u0629 \u0627\u0644\u0631\u0648\u0628\u0648\u062A",
+    "Controlla il cablaggio e il programma": "\u062A\u062D\u0642\u0642 \u0645\u0646 \u0627\u0644\u062A\u0633\u0644\u064A\u0643 \u0648\u0627\u0644\u0628\u0631\u0646\u0627\u0645\u062C",
+    "Dalla fase al contatto NC 21-22 di KM, poi al pulsante di riarmo, poi al morsetto R del rel\xE8. Perch\xE9: se KM resta incollato il rel\xE8 non si riarma.": "\u0645\u0646 \u0627\u0644\u0637\u0648\u0631 \u0625\u0644\u0649 \u0627\u0644\u062A\u0644\u0627\u0645\u0633 NC 21-22 \u0641\u064A KM\u060C \u062B\u0645 \u0625\u0644\u0649 \u0632\u0631 \u0625\u0639\u0627\u062F\u0629 \u0627\u0644\u062A\u0633\u0644\u064A\u062D\u060C \u062B\u0645 \u0625\u0644\u0649 \u0627\u0644\u0645\u0631\u0628\u0637 R \u0641\u064A \u0627\u0644\u0645\u0631\u062D\u0651\u0644. \u0627\u0644\u0633\u0628\u0628: \u0625\u0630\u0627 \u0628\u0642\u064A KM \u0645\u0644\u062A\u0635\u0642\u064B\u0627 \u0644\u0627 \u064A\u064F\u0639\u0627\u062F \u062A\u0633\u0644\u064A\u062D \u0627\u0644\u0645\u0631\u062D\u0651\u0644.",
+    "Dopo il riarmo e Marcia il robot deposita i pezzi, senza urti e senza cadute": "\u0628\u0639\u062F \u0625\u0639\u0627\u062F\u0629 \u0627\u0644\u062A\u0633\u0644\u064A\u062D \u0648\u0627\u0644\u062A\u0634\u063A\u064A\u0644 \u064A\u0648\u062F\u0639 \u0627\u0644\u0631\u0648\u0628\u0648\u062A \u0627\u0644\u0642\u0637\u0639\u060C \u062F\u0648\u0646 \u0627\u0635\u0637\u062F\u0627\u0645 \u0648\u062F\u0648\u0646 \u0633\u0642\u0648\u0637",
+    "Durante il turno arrivano quattro guasti: un finecorsa che non risponde (il ciclo si blocca e dopo 40 secondi scatta \u201CCiclo bloccato\u201D), il fungo premuto da un operatore, la portella aperta e il cavo di rete del pannello. Per fungo e portella si riarma dopo aver richiuso: prima si rimette a posto il dispositivo, poi si preme il riarmo.": "\u062E\u0644\u0627\u0644 \u0627\u0644\u0645\u0646\u0627\u0648\u0628\u0629 \u062A\u0635\u0644 \u0623\u0631\u0628\u0639\u0629 \u0623\u0639\u0637\u0627\u0644: \u0646\u0647\u0627\u064A\u0629 \u0634\u0648\u0637 \u0644\u0627 \u062A\u0633\u062A\u062C\u064A\u0628 (\u062A\u062A\u0648\u0642\u0641 \u0627\u0644\u062F\u0648\u0631\u0629 \u0648\u0628\u0639\u062F 40 \u062B\u0627\u0646\u064A\u0629 \u064A\u0639\u0645\u0644 \xAB\u0627\u0644\u062F\u0648\u0631\u0629 \u0645\u062A\u0648\u0642\u0641\u0629\xBB)\u060C \u0648\u0632\u0631 \u0637\u0648\u0627\u0631\u0626 \u064A\u0636\u063A\u0637 \u0639\u0644\u064A\u0647 \u0645\u0634\u063A\u0651\u0644\u060C \u0648\u0628\u0648\u0627\u0628\u0629 \u0645\u0641\u062A\u0648\u062D\u0629\u060C \u0648\u0643\u0627\u0628\u0644 \u0634\u0628\u0643\u0629 \u0627\u0644\u0644\u0648\u062D\u0629. \u0628\u0627\u0644\u0646\u0633\u0628\u0629 \u0625\u0644\u0649 \u0627\u0644\u0632\u0631 \u0648\u0627\u0644\u0628\u0648\u0627\u0628\u0629 \u064A\u064F\u0639\u0627\u062F \u0627\u0644\u062A\u0633\u0644\u064A\u062D \u0628\u0639\u062F \u0625\u063A\u0644\u0627\u0642\u0647\u0645\u0627: \u0623\u0648\u0644\u064B\u0627 \u064A\u064F\u0639\u0627\u062F \u0627\u0644\u062C\u0647\u0627\u0632 \u0625\u0644\u0649 \u0645\u0643\u0627\u0646\u0647 \u062B\u0645 \u064A\u064F\u0636\u063A\u0637 \u0632\u0631 \u0625\u0639\u0627\u062F\u0629 \u0627\u0644\u062A\u0633\u0644\u064A\u062D.",
+    "Hai richiuso la portella ma il robot non riparte. Che cosa manca?": "\u0623\u063A\u0644\u0642\u062A \u0627\u0644\u0628\u0648\u0627\u0628\u0629 \u0644\u0643\u0646 \u0627\u0644\u0631\u0648\u0628\u0648\u062A \u0644\u0627 \u064A\u0639\u0645\u0644. \u0645\u0627\u0630\u0627 \u064A\u0646\u0642\u0635\u061F",
+    "I due allarmi": "\u0627\u0644\u0625\u0646\u0630\u0627\u0631\u0627\u0646",
+    "I due canali dell\u2019arresto": "\u0642\u0646\u0627\u062A\u0627 \u0627\u0644\u0625\u064A\u0642\u0627\u0641",
+    "Il PLC ascolta la sicurezza con un ingresso (I7, il contatto ausiliario di KM): non decide niente, ma sa quando le sicurezze sono aperte. Cos\xEC pu\xF2 dare l\u2019allarme \u201CSicurezze aperte\u201D e pu\xF2 sospendere i suoi tempi.": "\u064A\u0633\u062A\u0645\u0639 \u0627\u0644\u0640PLC \u0625\u0644\u0649 \u0627\u0644\u0633\u0644\u0627\u0645\u0629 \u0628\u0645\u062F\u062E\u0644 (I7\u060C \u0627\u0644\u062A\u0644\u0627\u0645\u0633 \u0627\u0644\u0645\u0633\u0627\u0639\u062F \u0644\u0640KM): \u0644\u0627 \u064A\u0642\u0631\u0631 \u0634\u064A\u0626\u064B\u0627 \u0644\u0643\u0646\u0647 \u064A\u0639\u0631\u0641 \u0645\u062A\u0649 \u062A\u0643\u0648\u0646 \u0627\u0644\u0633\u0644\u0627\u0645\u0629 \u0645\u0641\u062A\u0648\u062D\u0629. \u0648\u0647\u0643\u0630\u0627 \u064A\u0633\u062A\u0637\u064A\u0639 \u0625\u0637\u0644\u0627\u0642 \u0625\u0646\u0630\u0627\u0631 \xAB\u0627\u0644\u0633\u0644\u0627\u0645\u0629 \u0645\u0641\u062A\u0648\u062D\u0629\xBB \u0648\u062A\u0639\u0644\u064A\u0642 \u0623\u0632\u0645\u0646\u062A\u0647.",
+    "Il PLC ascolta lo stato della sicurezza con un ingresso: d\xE0 l\u2019allarme e sospende i tempi.": "\u064A\u0633\u062A\u0645\u0639 \u0627\u0644\u0640PLC \u0625\u0644\u0649 \u062D\u0627\u0644\u0629 \u0627\u0644\u0633\u0644\u0627\u0645\u0629 \u0628\u0645\u062F\u062E\u0644: \u064A\u0637\u0644\u0642 \u0627\u0644\u0625\u0646\u0630\u0627\u0631 \u0648\u064A\u0639\u0644\u0651\u0642 \u0627\u0644\u0623\u0632\u0645\u0646\u0629.",
+    "Il programma: le transizioni sono quelle della linea (i tempi gi\xE0 scritti contano solo con le sicurezze a posto: un tempo che scorre a robot senza potenza farebbe passare al passo dopo con la pinza ferma). Gli allarmi sono due gradini con una bobina ciascuno: il timer T3 (ciclo pi\xF9 lungo di 40 secondi) alimenta la bobina M10, e I7 normalmente chiuso (le sicurezze non sono a posto) alimenta la bobina M11.": "\u0627\u0644\u0628\u0631\u0646\u0627\u0645\u062C: \u0627\u0644\u0627\u0646\u062A\u0642\u0627\u0644\u0627\u062A \u0647\u064A \u0646\u0641\u0633\u0647\u0627 \u0641\u064A \u0627\u0644\u062E\u0637 (\u0627\u0644\u0623\u0632\u0645\u0646\u0629 \u0627\u0644\u0645\u0643\u062A\u0648\u0628\u0629 \u0645\u0633\u0628\u0642\u064B\u0627 \u062A\u064F\u062D\u062A\u0633\u0628 \u0641\u0642\u0637 \u0645\u0639 \u0633\u0644\u0627\u0645\u0629 \u0633\u0644\u064A\u0645\u0629: \u0632\u0645\u0646 \u064A\u062C\u0631\u064A \u0648\u0627\u0644\u0631\u0648\u0628\u0648\u062A \u0628\u0644\u0627 \u0642\u062F\u0631\u0629 \u064A\u062C\u0639\u0644 \u0627\u0644\u0628\u0631\u0646\u0627\u0645\u062C \u064A\u0646\u062A\u0642\u0644 \u0625\u0644\u0649 \u0627\u0644\u062E\u0637\u0648\u0629 \u0627\u0644\u062A\u0627\u0644\u064A\u0629 \u0648\u0627\u0644\u0645\u0644\u0642\u0637 \u062B\u0627\u0628\u062A). \u0627\u0644\u0625\u0646\u0630\u0627\u0631\u0627\u0646 \u062F\u0631\u062C\u062A\u0627\u0646 \u0628\u0645\u0644\u0641 \u0644\u0643\u0644 \u0645\u0646\u0647\u0645\u0627: \u0627\u0644\u0645\u0624\u0642\u062A T3 (\u062F\u0648\u0631\u0629 \u0623\u0637\u0648\u0644 \u0645\u0646 40 \u062B\u0627\u0646\u064A\u0629) \u064A\u063A\u0630\u064A \u0627\u0644\u0645\u0644\u0641 M10\u060C \u0648I7 \u0627\u0644\u0645\u063A\u0644\u0642 \u0641\u064A \u0627\u0644\u062D\u0627\u0644\u0629 \u0627\u0644\u0639\u0627\u062F\u064A\u0629 (\u0627\u0644\u0633\u0644\u0627\u0645\u0629 \u063A\u064A\u0631 \u0633\u0644\u064A\u0645\u0629) \u064A\u063A\u0630\u064A \u0627\u0644\u0645\u0644\u0641 M11.",
+    "Il riarmo passa dal contatto NC di KM": "\u0625\u0639\u0627\u062F\u0629 \u0627\u0644\u062A\u0633\u0644\u064A\u062D \u062A\u0645\u0631 \u0639\u0628\u0631 \u0627\u0644\u062A\u0644\u0627\u0645\u0633 NC \u0641\u064A KM",
+    "Il riarmo: il rel\xE8 di sicurezza non si riarma da solo, serve il pulsante.": "\u0625\u0639\u0627\u062F\u0629 \u0627\u0644\u062A\u0633\u0644\u064A\u062D: \u0644\u0627 \u064A\u0639\u064A\u062F \u0645\u0631\u062D\u0651\u0644 \u0627\u0644\u0633\u0644\u0627\u0645\u0629 \u062A\u0633\u0644\u064A\u062D \u0646\u0641\u0633\u0647\u060C \u064A\u0644\u0632\u0645 \u0627\u0644\u0632\u0631.",
+    "Il robot riceve potenza solo dal contattore KM, e KM si eccita solo se il rel\xE8 di sicurezza KS \xE8 armato. KS ha i due canali di fungo e portella e un riarmo che passa dal contatto NC di KM. Tutto nei fili: se il PLC si blocca o ha un errore, premere il fungo toglie comunque la potenza.": "\u064A\u062A\u0644\u0642\u0649 \u0627\u0644\u0631\u0648\u0628\u0648\u062A \u0642\u062F\u0631\u062A\u0647 \u0645\u0646 \u0627\u0644\u0643\u0648\u0646\u062A\u0627\u0643\u062A\u0648\u0631 KM \u0641\u0642\u0637\u060C \u0648\u0644\u0627 \u064A\u0639\u0645\u0644 KM \u0625\u0644\u0627 \u0625\u0630\u0627 \u0643\u0627\u0646 \u0645\u0631\u062D\u0651\u0644 \u0627\u0644\u0633\u0644\u0627\u0645\u0629 KS \u0645\u0633\u0644\u0651\u062D\u064B\u0627. \u0644\u0640KS \u0642\u0646\u0627\u062A\u0627 \u0632\u0631 \u0627\u0644\u0637\u0648\u0627\u0631\u0626 \u0648\u0627\u0644\u0628\u0648\u0627\u0628\u0629 \u0648\u0625\u0639\u0627\u062F\u0629 \u062A\u0633\u0644\u064A\u062D \u062A\u0645\u0631 \u0639\u0628\u0631 \u0627\u0644\u062A\u0644\u0627\u0645\u0633 NC \u0641\u064A KM. \u0643\u0644 \u0630\u0644\u0643 \u0641\u064A \u0627\u0644\u0623\u0633\u0644\u0627\u0643: \u0625\u0630\u0627 \u062A\u062C\u0645\u0651\u062F \u0627\u0644\u0640PLC \u0623\u0648 \u0623\u062E\u0637\u0623 \u0641\u0625\u0646 \u0627\u0644\u0636\u063A\u0637 \u0639\u0644\u0649 \u0632\u0631 \u0627\u0644\u0637\u0648\u0627\u0631\u0626 \u064A\u0631\u0641\u0639 \u0627\u0644\u0642\u062F\u0631\u0629 \u0639\u0644\u0649 \u0623\u064A \u062D\u0627\u0644.",
+    "Il turno: leggere, trovare, riparare": "\u0627\u0644\u0645\u0646\u0627\u0648\u0628\u0629: \u0627\u0642\u0631\u0623\u060C \u0627\u0639\u062B\u0631\u060C \u0623\u0635\u0644\u062D",
+    "La cella": "\u0627\u0644\u062E\u0644\u064A\u0629",
+    "La sicurezza sta nei fili, a due canali, con il riarmo manuale e il controllo del contatto NC del contattore: il programma non la sostituisce.": "\u0627\u0644\u0633\u0644\u0627\u0645\u0629 \u0641\u064A \u0627\u0644\u0623\u0633\u0644\u0627\u0643\u060C \u0628\u0642\u0646\u0627\u062A\u064A\u0646\u060C \u0645\u0639 \u0625\u0639\u0627\u062F\u0629 \u062A\u0633\u0644\u064A\u062D \u064A\u062F\u0648\u064A\u0629 \u0648\u0645\u0631\u0627\u0642\u0628\u0629 \u0627\u0644\u062A\u0644\u0627\u0645\u0633 NC \u0644\u0644\u0643\u0648\u0646\u062A\u0627\u0643\u062A\u0648\u0631: \u0644\u0627 \u064A\u062D\u0644 \u0627\u0644\u0628\u0631\u0646\u0627\u0645\u062C \u0645\u062D\u0644\u0647\u0627.",
+    "La sicurezza viene prima del programma": "\u0627\u0644\u0633\u0644\u0627\u0645\u0629 \u0642\u0628\u0644 \u0627\u0644\u0628\u0631\u0646\u0627\u0645\u062C",
+    "La sicurezza \xE8 quella dei livelli precedenti: i due canali del fungo e della portella in serie ai due ingressi del rel\xE8 KS, le sue uscite in serie alla bobina di KM, il riarmo che passa dal contatto NC di KM.": "\u0627\u0644\u0633\u0644\u0627\u0645\u0629 \u0647\u064A \u0646\u0641\u0633\u0647\u0627 \u0641\u064A \u0627\u0644\u0645\u0633\u062A\u0648\u064A\u0627\u062A \u0627\u0644\u0633\u0627\u0628\u0642\u0629: \u0642\u0646\u0627\u062A\u0627 \u0632\u0631 \u0627\u0644\u0637\u0648\u0627\u0631\u0626 \u0648\u0627\u0644\u0628\u0648\u0627\u0628\u0629 \u0639\u0644\u0649 \u0627\u0644\u062A\u0648\u0627\u0644\u064A \u0645\u0639 \u0645\u062F\u062E\u0644\u064A \u0627\u0644\u0645\u0631\u062D\u0651\u0644 KS\u060C \u0648\u0645\u062E\u0631\u062C\u0627\u0647 \u0639\u0644\u0649 \u0627\u0644\u062A\u0648\u0627\u0644\u064A \u0645\u0639 \u0645\u0644\u0641 KM\u060C \u0648\u0625\u0639\u0627\u062F\u0629 \u0627\u0644\u062A\u0633\u0644\u064A\u062D \u062A\u0645\u0631 \u0639\u0628\u0631 \u0627\u0644\u062A\u0644\u0627\u0645\u0633 NC \u0641\u064A KM.",
+    "Le uscite 13-14 e 23-24 sono in serie alla bobina di KM: dalla fase a 13, da 14 a 23, da 24 ad A1 di KM; A2 al neutro. Perch\xE9: se un\u2019uscita cade, il contattore si diseccita.": "\u0627\u0644\u0645\u062E\u0631\u062C\u0627\u0646 13-14 \u064823-24 \u0639\u0644\u0649 \u0627\u0644\u062A\u0648\u0627\u0644\u064A \u0645\u0639 \u0645\u0644\u0641 KM: \u0645\u0646 \u0627\u0644\u0637\u0648\u0631 \u0625\u0644\u0649 13 \u0648\u0645\u0646 14 \u0625\u0644\u0649 23 \u0648\u0645\u0646 24 \u0625\u0644\u0649 A1 \u0641\u064A KM\u061B \u0648A2 \u0625\u0644\u0649 \u0627\u0644\u0645\u062D\u0627\u064A\u062F. \u0627\u0644\u0633\u0628\u0628: \u0625\u0630\u0627 \u0633\u0642\u0637 \u0645\u062E\u0631\u062C \u064A\u0641\u0642\u062F \u0627\u0644\u0643\u0648\u0646\u062A\u0627\u0643\u062A\u0648\u0631 \u062A\u063A\u0630\u064A\u062A\u0647.",
+    "Le uscite del rel\xE8 alla bobina di KM": "\u0645\u062E\u0631\u062C\u0627\u062A \u0627\u0644\u0645\u0631\u062D\u0651\u0644 \u0625\u0644\u0649 \u0645\u0644\u0641 KM",
+    "Nei finecorsa: un sensore che non risponde lascia il programma in attesa di un \u201Cfatto\u201D che non arriva.": "\u0641\u064A \u0646\u0647\u0627\u064A\u0627\u062A \u0627\u0644\u0634\u0648\u0637: \u0645\u0633\u062A\u0634\u0639\u0631 \u0644\u0627 \u064A\u0633\u062A\u062C\u064A\u0628 \u064A\u062A\u0631\u0643 \u0627\u0644\u0628\u0631\u0646\u0627\u0645\u062C \u0645\u0646\u062A\u0638\u0631\u064B\u0627 \xAB\u062A\u0645\xBB \u0644\u0627 \u064A\u0635\u0644.",
+    "Nel cavo di rete del pannello.": "\u0641\u064A \u0643\u0627\u0628\u0644 \u0634\u0628\u0643\u0629 \u0627\u0644\u0644\u0648\u062D\u0629.",
+    "Nel fungo: ha tolto la potenza.": "\u0641\u064A \u0632\u0631 \u0627\u0644\u0637\u0648\u0627\u0631\u0626: \u0644\u0642\u062F \u0631\u0641\u0639 \u0627\u0644\u0642\u062F\u0631\u0629.",
+    "Nel turno: un robot che resta fermo con \u201CCiclo bloccato\u201D ha un finecorsa che non risponde; il fungo o la portella tolgono la potenza e il riarmo si fa dopo averli richiusi; il pannello grigio \xE8 il cavo di rete.": "\u0641\u064A \u0627\u0644\u0645\u0646\u0627\u0648\u0628\u0629: \u0631\u0648\u0628\u0648\u062A \u0633\u0627\u0643\u0646 \u0645\u0639 \xAB\u0627\u0644\u062F\u0648\u0631\u0629 \u0645\u062A\u0648\u0642\u0641\u0629\xBB \u0644\u0647 \u0646\u0647\u0627\u064A\u0629 \u0634\u0648\u0637 \u0644\u0627 \u062A\u0633\u062A\u062C\u064A\u0628\u061B \u0648\u0632\u0631 \u0627\u0644\u0637\u0648\u0627\u0631\u0626 \u0623\u0648 \u0627\u0644\u0628\u0648\u0627\u0628\u0629 \u064A\u0631\u0641\u0639\u0627\u0646 \u0627\u0644\u0642\u062F\u0631\u0629 \u0648\u0625\u0639\u0627\u062F\u0629 \u0627\u0644\u062A\u0633\u0644\u064A\u062D \u062A\u062A\u0645 \u0628\u0639\u062F \u0625\u063A\u0644\u0627\u0642\u0647\u0645\u0627\u061B \u0648\u0627\u0644\u0644\u0648\u062D\u0629 \u0627\u0644\u0631\u0645\u0627\u062F\u064A\u0629 \u0647\u064A \u0643\u0627\u0628\u0644 \u0627\u0644\u0634\u0628\u0643\u0629.",
+    "Niente: serve pi\xF9 tempo.": "\u0644\u0627 \u0634\u064A\u0621: \u064A\u0644\u0632\u0645 \u0648\u0642\u062A \u0623\u0637\u0648\u0644.",
+    "Ogni guasto ha un tempo massimo e devi consegnare almeno 20 pezzi senza urti n\xE9 cadute. Se le riparazioni arrivano tardi, la produzione cala.": "\u0644\u0643\u0644 \u0639\u0637\u0644 \u0632\u0645\u0646 \u0623\u0642\u0635\u0649 \u0648\u064A\u062C\u0628 \u0623\u0646 \u062A\u0633\u0644\u0651\u0645 20 \u0642\u0637\u0639\u0629 \u0639\u0644\u0649 \u0627\u0644\u0623\u0642\u0644 \u062F\u0648\u0646 \u0627\u0635\u0637\u062F\u0627\u0645 \u0648\u0644\u0627 \u0633\u0642\u0648\u0637. \u0625\u0630\u0627 \u062A\u0623\u062E\u0631\u062A \u0627\u0644\u0625\u0635\u0644\u0627\u062D\u0627\u062A \u064A\u0646\u062E\u0641\u0636 \u0627\u0644\u0625\u0646\u062A\u0627\u062C.",
+    "PLC (transizioni e allarmi da scrivere)": "PLC (\u0627\u0644\u0627\u0646\u062A\u0642\u0627\u0644\u0627\u062A \u0648\u0627\u0644\u0625\u0646\u0630\u0627\u0631\u0627\u062A \u0644\u0644\u0643\u062A\u0627\u0628\u0629)",
+    "PLC.I7": "PLC.I7",
+    "PLC.M9": "PLC.M9",
+    "Per questo i tempi del programma contano solo con le sicurezze a posto: I7 \xE8 in serie al contatto del temporizzatore. Quando la potenza torna, il tempo riparte da zero e il passo si completa davvero.": "\u0644\u0630\u0644\u0643 \u062A\u064F\u062D\u062A\u0633\u0628 \u0623\u0632\u0645\u0646\u0629 \u0627\u0644\u0628\u0631\u0646\u0627\u0645\u062C \u0641\u0642\u0637 \u0645\u0639 \u0633\u0644\u0627\u0645\u0629 \u0633\u0644\u064A\u0645\u0629: I7 \u0639\u0644\u0649 \u0627\u0644\u062A\u0648\u0627\u0644\u064A \u0645\u0639 \u062A\u0644\u0627\u0645\u0633 \u0627\u0644\u0645\u0624\u0642\u062A. \u0639\u0646\u062F\u0645\u0627 \u062A\u0639\u0648\u062F \u0627\u0644\u0642\u062F\u0631\u0629 \u064A\u0628\u062F\u0623 \u0627\u0644\u0632\u0645\u0646 \u0645\u0646 \u0627\u0644\u0635\u0641\u0631 \u0648\u062A\u0643\u062A\u0645\u0644 \u0627\u0644\u062E\u0637\u0648\u0629 \u0641\u0639\u0644\u064B\u0627.",
+    "Perch\xE9 i tempi si fermano con la sicurezza aperta": "\u0644\u0645\u0627\u0630\u0627 \u062A\u062A\u0648\u0642\u0641 \u0627\u0644\u0623\u0632\u0645\u0646\u0629 \u0648\u0627\u0644\u0633\u0644\u0627\u0645\u0629 \u0645\u0641\u062A\u0648\u062D\u0629",
+    "Pezzi depositati": "\u0627\u0644\u0642\u0637\u0639 \u0627\u0644\u0645\u0648\u062F\u064E\u0639\u0629",
+    "Premendo il fungo il robot perde potenza e si ferma dov\u2019\xE8": "\u0628\u0627\u0644\u0636\u063A\u0637 \u0639\u0644\u0649 \u0632\u0631 \u0627\u0644\u0637\u0648\u0627\u0631\u0626 \u064A\u0641\u0642\u062F \u0627\u0644\u0631\u0648\u0628\u0648\u062A \u0642\u062F\u0631\u062A\u0647 \u0648\u064A\u062A\u0648\u0642\u0641 \u062D\u064A\u062B \u0647\u0648",
+    "Premi Verifica: le prove sul cablaggio e sulla sicurezza devono passare. Poi dai corrente e gestisci il turno.": "\u0627\u0636\u063A\u0637 \xAB\u062A\u062D\u0642\u0642\xBB: \u064A\u062C\u0628 \u0623\u0646 \u062A\u0646\u062C\u062D \u0627\u0644\u0627\u062E\u062A\u0628\u0627\u0631\u0627\u062A \u0627\u0644\u062E\u0627\u0635\u0629 \u0628\u0627\u0644\u062A\u0633\u0644\u064A\u0643 \u0648\u0627\u0644\u0633\u0644\u0627\u0645\u0629. \u062B\u0645 \u0634\u063A\u0651\u0644 \u0627\u0644\u062A\u064A\u0627\u0631 \u0648\u0623\u062F\u0650\u0631 \u0627\u0644\u0645\u0646\u0627\u0648\u0628\u0629.",
+    "Prima del riarmo il robot non ha potenza e sta fermo, anche premendo Marcia": "\u0642\u0628\u0644 \u0625\u0639\u0627\u062F\u0629 \u0627\u0644\u062A\u0633\u0644\u064A\u062D \u0644\u0627 \u064A\u0645\u0644\u0643 \u0627\u0644\u0631\u0648\u0628\u0648\u062A \u0642\u062F\u0631\u0629 \u0648\u064A\u0628\u0642\u0649 \u0633\u0627\u0643\u0646\u064B\u0627 \u062D\u062A\u0649 \u0645\u0639 \u0627\u0644\u0636\u063A\u0637 \u0639\u0644\u0649 \u0627\u0644\u062A\u0634\u063A\u064A\u0644",
+    "Questo livello mette insieme tutto: la sicurezza a due canali dei primi livelli del modulo, il programma a sequenza della linea, gli allarmi e il pannello operatore, e la gestione dei guasti di un turno di lavoro. Non c\u2019\xE8 niente di nuovo da imparare: c\u2019\xE8 da dimostrare che sai farlo tutto insieme.": "\u064A\u062C\u0645\u0639 \u0647\u0630\u0627 \u0627\u0644\u0645\u0633\u062A\u0648\u0649 \u0643\u0644 \u0634\u064A\u0621: \u0627\u0644\u0633\u0644\u0627\u0645\u0629 \u0628\u0642\u0646\u0627\u062A\u064A\u0646 \u0645\u0646 \u0627\u0644\u0645\u0633\u062A\u0648\u064A\u0627\u062A \u0627\u0644\u0623\u0648\u0644\u0649 \u0644\u0644\u0648\u062D\u062F\u0629\u060C \u0648\u0628\u0631\u0646\u0627\u0645\u062C \u0627\u0644\u062A\u0633\u0644\u0633\u0644 \u0644\u0644\u062E\u0637\u060C \u0648\u0627\u0644\u0625\u0646\u0630\u0627\u0631\u0627\u062A \u0648\u0644\u0648\u062D\u0629 \u0627\u0644\u0645\u0634\u063A\u0651\u0644\u060C \u0648\u0625\u062F\u0627\u0631\u0629 \u0623\u0639\u0637\u0627\u0644 \u0645\u0646\u0627\u0648\u0628\u0629 \u0639\u0645\u0644. \u0644\u0627 \u064A\u0648\u062C\u062F \u0634\u064A\u0621 \u062C\u062F\u064A\u062F \u0644\u062A\u062A\u0639\u0644\u0645\u0647: \u0639\u0644\u064A\u0643 \u0623\u0646 \u062A\u062B\u0628\u062A \u0623\u0646\u0643 \u062A\u0633\u062A\u0637\u064A\u0639 \u0641\u0639\u0644 \u0643\u0644 \u0630\u0644\u0643 \u0645\u0639\u064B\u0627.",
+    "Richiusa la portella il robot non riparte da solo: serve il riarmo": "\u0628\u0639\u062F \u0625\u063A\u0644\u0627\u0642 \u0627\u0644\u0628\u0648\u0627\u0628\u0629 \u0644\u0627 \u064A\u0639\u0648\u062F \u0627\u0644\u0631\u0648\u0628\u0648\u062A \u0625\u0644\u0649 \u0627\u0644\u0639\u0645\u0644 \u0648\u062D\u062F\u0647: \u064A\u0644\u0632\u0645 \u0625\u0639\u0627\u062F\u0629 \u0627\u0644\u062A\u0633\u0644\u064A\u062D",
+    "Robot alimentato": "\u0627\u0644\u0631\u0648\u0628\u0648\u062A \u0645\u063A\u0630\u0651\u0649",
+    "Se il robot resta senza potenza (fungo premuto) mentre sta aprendo la pinza, il tempo di apertura nel programma continuerebbe a scorrere: scaduto il tempo il programma passa al passo dopo e comanda di salire, ma la pinza non si \xE8 mai aperta. Al riarmo il robot parte con il passo sbagliato e fa cadere il pezzo.": "\u0625\u0630\u0627 \u0628\u0642\u064A \u0627\u0644\u0631\u0648\u0628\u0648\u062A \u0628\u0644\u0627 \u0642\u062F\u0631\u0629 (\u0632\u0631 \u0627\u0644\u0637\u0648\u0627\u0631\u0626 \u0645\u0636\u063A\u0648\u0637) \u0623\u062B\u0646\u0627\u0621 \u0641\u062A\u062D \u0627\u0644\u0645\u0644\u0642\u0637 \u0641\u0633\u064A\u0633\u062A\u0645\u0631 \u0632\u0645\u0646 \u0627\u0644\u0641\u062A\u062D \u0641\u064A \u0627\u0644\u0628\u0631\u0646\u0627\u0645\u062C \u0628\u0627\u0644\u062C\u0631\u064A\u0627\u0646: \u0648\u0639\u0646\u062F \u0627\u0646\u0642\u0636\u0627\u0626\u0647 \u064A\u0646\u062A\u0642\u0644 \u0627\u0644\u0628\u0631\u0646\u0627\u0645\u062C \u0625\u0644\u0649 \u0627\u0644\u062E\u0637\u0648\u0629 \u0627\u0644\u062A\u0627\u0644\u064A\u0629 \u0648\u064A\u0623\u0645\u0631 \u0628\u0627\u0644\u0635\u0639\u0648\u062F\u060C \u0644\u0643\u0646 \u0627\u0644\u0645\u0644\u0642\u0637 \u0644\u0645 \u064A\u0646\u0641\u062A\u062D \u0623\u0628\u062F\u064B\u0627. \u0648\u0639\u0646\u062F \u0625\u0639\u0627\u062F\u0629 \u0627\u0644\u062A\u0633\u0644\u064A\u062D \u064A\u0628\u062F\u0623 \u0627\u0644\u0631\u0648\u0628\u0648\u062A \u0628\u0627\u0644\u062E\u0637\u0648\u0629 \u0627\u0644\u062E\u0637\u0623 \u0648\u064A\u064F\u0633\u0642\u0637 \u0627\u0644\u0642\u0637\u0639\u0629.",
+    "Sicurezze a posto": "\u0627\u0644\u0633\u0644\u0627\u0645\u0629 \u0633\u0644\u064A\u0645\u0629",
+    "Sicurezze aperte": "\u0627\u0644\u0633\u0644\u0627\u0645\u0629 \u0645\u0641\u062A\u0648\u062D\u0629",
+    "Spia: il robot \xE8 alimentato": "\u0645\u0635\u0628\u0627\u062D: \u0627\u0644\u0631\u0648\u0628\u0648\u062A \u0645\u063A\u0630\u0651\u0649",
+    "Su ogni canale fungo e portella sono in serie: fase, fungo (1-2 per il canale 1, 3-4 per il canale 2), portella, ingresso del rel\xE8 (S12 e S22). Perch\xE9: aprendone uno qualunque il rel\xE8 perde il canale.": "\u0639\u0644\u0649 \u0643\u0644 \u0642\u0646\u0627\u0629 \u0632\u0631 \u0627\u0644\u0637\u0648\u0627\u0631\u0626 \u0648\u0627\u0644\u0628\u0648\u0627\u0628\u0629 \u0639\u0644\u0649 \u0627\u0644\u062A\u0648\u0627\u0644\u064A: \u0627\u0644\u0637\u0648\u0631\u060C \u0632\u0631 \u0627\u0644\u0637\u0648\u0627\u0631\u0626 (1-2 \u0644\u0644\u0642\u0646\u0627\u0629 1 \u06483-4 \u0644\u0644\u0642\u0646\u0627\u0629 2)\u060C \u0627\u0644\u0628\u0648\u0627\u0628\u0629\u060C \u0645\u062F\u062E\u0644 \u0627\u0644\u0645\u0631\u062D\u0651\u0644 (S12 \u0648S22). \u0627\u0644\u0633\u0628\u0628: \u0639\u0646\u062F \u0641\u062A\u062D \u0623\u064A \u0645\u0646\u0647\u0627 \u064A\u0641\u0642\u062F \u0627\u0644\u0645\u0631\u062D\u0651\u0644 \u0627\u0644\u0642\u0646\u0627\u0629.",
+    "T3 con la bobina M10 (ciclo bloccato) e I7 normalmente chiuso con la bobina M11 (sicurezze aperte).": "T3 \u0645\u0639 \u0627\u0644\u0645\u0644\u0641 M10 (\u062F\u0648\u0631\u0629 \u0645\u062A\u0648\u0642\u0641\u0629) \u0648I7 \u0627\u0644\u0645\u063A\u0644\u0642 \u0641\u064A \u0627\u0644\u062D\u0627\u0644\u0629 \u0627\u0644\u0639\u0627\u062F\u064A\u0629 \u0645\u0639 \u0627\u0644\u0645\u0644\u0641 M11 (\u0627\u0644\u0633\u0644\u0627\u0645\u0629 \u0645\u0641\u062A\u0648\u062D\u0629).",
+    "TON 40 s": "TON 40 \u062B",
+    "Un guasto si trova leggendo insieme allarmi, valori e banco; si ripara in tempo e dopo un arresto di sicurezza si riarma.": "\u064A\u064F\u0639\u062B\u0631 \u0639\u0644\u0649 \u0627\u0644\u0639\u0637\u0644 \u0628\u0642\u0631\u0627\u0621\u0629 \u0627\u0644\u0625\u0646\u0630\u0627\u0631\u0627\u062A \u0648\u0627\u0644\u0642\u064A\u0645 \u0648\u0627\u0644\u0637\u0627\u0648\u0644\u0629 \u0645\u0639\u064B\u0627\u061B \u0648\u064A\u064F\u0635\u0644\u062D \u0641\u064A \u0627\u0644\u0648\u0642\u062A\u060C \u0648\u0628\u0639\u062F \u0625\u064A\u0642\u0627\u0641 \u0627\u0644\u0633\u0644\u0627\u0645\u0629 \u064A\u064F\u0639\u0627\u062F \u0627\u0644\u062A\u0633\u0644\u064A\u062D.",
+    "Un nuovo comando di Marcia dal PLC.": "\u0623\u0645\u0631 \u062A\u0634\u063A\u064A\u0644 \u062C\u062F\u064A\u062F \u0645\u0646 \u0627\u0644\u0640PLC.",
+    "Un robot porta i pezzi dal prelievo al deposito. Le tre parti da fare: la sicurezza (cablaggio), il programma (transizioni e allarmi) e il turno (guasti).": "\u0631\u0648\u0628\u0648\u062A \u064A\u0646\u0642\u0644 \u0627\u0644\u0642\u0637\u0639 \u0645\u0646 \u0627\u0644\u0627\u0644\u062A\u0642\u0627\u0637 \u0625\u0644\u0649 \u0627\u0644\u0625\u064A\u062F\u0627\u0639. \u0627\u0644\u0623\u062C\u0632\u0627\u0621 \u0627\u0644\u062B\u0644\u0627\u062B\u0629 \u0627\u0644\u0645\u0637\u0644\u0648\u0628\u0629: \u0627\u0644\u0633\u0644\u0627\u0645\u0629 (\u0627\u0644\u062A\u0633\u0644\u064A\u0643) \u0648\u0627\u0644\u0628\u0631\u0646\u0627\u0645\u062C (\u0627\u0644\u0627\u0646\u062A\u0642\u0627\u0644\u0627\u062A \u0648\u0627\u0644\u0625\u0646\u0630\u0627\u0631\u0627\u062A) \u0648\u0627\u0644\u0645\u0646\u0627\u0648\u0628\u0629 (\u0627\u0644\u0623\u0639\u0637\u0627\u0644).",
+    "Un tempo del programma che scorre a macchina senza potenza fa passare al passo sbagliato: i tempi contano solo con le sicurezze a posto.": "\u0632\u0645\u0646 \u0641\u064A \u0627\u0644\u0628\u0631\u0646\u0627\u0645\u062C \u064A\u062C\u0631\u064A \u0648\u0627\u0644\u0622\u0644\u0629 \u0628\u0644\u0627 \u0642\u062F\u0631\u0629 \u064A\u062C\u0639\u0644 \u0627\u0644\u0627\u0646\u062A\u0642\u0627\u0644 \u0625\u0644\u0649 \u0627\u0644\u062E\u0637\u0648\u0629 \u0627\u0644\u062E\u0637\u0623: \u062A\u064F\u062D\u062A\u0633\u0628 \u0627\u0644\u0623\u0632\u0645\u0646\u0629 \u0641\u0642\u0637 \u0645\u0639 \u0633\u0644\u0627\u0645\u0629 \u0633\u0644\u064A\u0645\u0629.",
+    "Una cella completa riunisce cablaggio, programma, sicurezza e gestione dei guasti.": "\u0627\u0644\u062E\u0644\u064A\u0629 \u0627\u0644\u0643\u0627\u0645\u0644\u0629 \u062A\u062C\u0645\u0639 \u0627\u0644\u062A\u0633\u0644\u064A\u0643 \u0648\u0627\u0644\u0628\u0631\u0646\u0627\u0645\u062C \u0648\u0627\u0644\u0633\u0644\u0627\u0645\u0629 \u0648\u0625\u062F\u0627\u0631\u0629 \u0627\u0644\u0623\u0639\u0637\u0627\u0644.",
+    "Una cella di produzione completa": "\u062E\u0644\u064A\u0629 \u0625\u0646\u062A\u0627\u062C \u0643\u0627\u0645\u0644\u0629",
+    "Una cella di produzione: un robot porta i pezzi dal prelievo al deposito. Tre cose da fare. Uno: cabla la sicurezza, con fungo e portella a due canali, il rel\xE8 di sicurezza KS, il contattore KM che d\xE0 potenza al robot e il riarmo. Due: scrivi nel PLC le transizioni dei passi e i due allarmi, \u201Cciclo bloccato\u201D (il ciclo dura pi\xF9 di 40 secondi) e \u201Csicurezze aperte\u201D (il contatto ausiliario di KM, ingresso I7, non \xE8 chiuso). Tre: dai corrente e gestisci il turno: arrivano quattro guasti e il robot deve consegnare almeno 20 pezzi senza urti n\xE9 cadute.": "\u062E\u0644\u064A\u0629 \u0625\u0646\u062A\u0627\u062C: \u0631\u0648\u0628\u0648\u062A \u064A\u0646\u0642\u0644 \u0627\u0644\u0642\u0637\u0639 \u0645\u0646 \u0627\u0644\u0627\u0644\u062A\u0642\u0627\u0637 \u0625\u0644\u0649 \u0627\u0644\u0625\u064A\u062F\u0627\u0639. \u062B\u0644\u0627\u062B\u0629 \u0623\u0645\u0648\u0631 \u0645\u0637\u0644\u0648\u0628\u0629. \u0627\u0644\u0623\u0648\u0644: \u0635\u0650\u0644 \u0627\u0644\u0633\u0644\u0627\u0645\u0629\u060C \u0628\u0632\u0631 \u0627\u0644\u0637\u0648\u0627\u0631\u0626 \u0648\u0627\u0644\u0628\u0648\u0627\u0628\u0629 \u0628\u0642\u0646\u0627\u062A\u064A\u0646 \u0648\u0645\u0631\u062D\u0651\u0644 \u0627\u0644\u0633\u0644\u0627\u0645\u0629 KS \u0648\u0627\u0644\u0643\u0648\u0646\u062A\u0627\u0643\u062A\u0648\u0631 KM \u0627\u0644\u0630\u064A \u064A\u0639\u0637\u064A \u0627\u0644\u0631\u0648\u0628\u0648\u062A \u0642\u062F\u0631\u062A\u0647 \u0648\u0625\u0639\u0627\u062F\u0629 \u0627\u0644\u062A\u0633\u0644\u064A\u062D. \u0627\u0644\u062B\u0627\u0646\u064A: \u0627\u0643\u062A\u0628 \u0641\u064A \u0627\u0644\u0640PLC \u0627\u0646\u062A\u0642\u0627\u0644\u0627\u062A \u0627\u0644\u062E\u0637\u0648\u0627\u062A \u0648\u0627\u0644\u0625\u0646\u0630\u0627\u0631\u064A\u0646\u060C \xAB\u062F\u0648\u0631\u0629 \u0645\u062A\u0648\u0642\u0641\u0629\xBB (\u062A\u062F\u0648\u0645 \u0627\u0644\u062F\u0648\u0631\u0629 \u0623\u0643\u062B\u0631 \u0645\u0646 40 \u062B\u0627\u0646\u064A\u0629) \u0648\xAB\u0627\u0644\u0633\u0644\u0627\u0645\u0629 \u0645\u0641\u062A\u0648\u062D\u0629\xBB (\u0627\u0644\u062A\u0644\u0627\u0645\u0633 \u0627\u0644\u0645\u0633\u0627\u0639\u062F \u0644\u0640KM\u060C \u0627\u0644\u0645\u062F\u062E\u0644 I7\u060C \u063A\u064A\u0631 \u0645\u063A\u0644\u0642). \u0627\u0644\u062B\u0627\u0644\u062B: \u0634\u063A\u0651\u0644 \u0627\u0644\u062A\u064A\u0627\u0631 \u0648\u0623\u062F\u0650\u0631 \u0627\u0644\u0645\u0646\u0627\u0648\u0628\u0629: \u062A\u0635\u0644 \u0623\u0631\u0628\u0639\u0629 \u0623\u0639\u0637\u0627\u0644 \u0648\u064A\u062C\u0628 \u0623\u0646 \u064A\u0633\u0644\u0651\u0645 \u0627\u0644\u0631\u0648\u0628\u0648\u062A 20 \u0642\u0637\u0639\u0629 \u0639\u0644\u0649 \u0627\u0644\u0623\u0642\u0644 \u062F\u0648\u0646 \u0627\u0635\u0637\u062F\u0627\u0645 \u0648\u0644\u0627 \u0633\u0642\u0648\u0637.",
+    "Una macchina senza potenza non \u201Caspetta\u201D: \xE8 nel mondo, ma il programma continua a funzionare. Le sicurezze vanno sempre considerate nei tempi e nelle sequenze.": "\u0622\u0644\u0629 \u0628\u0644\u0627 \u0642\u062F\u0631\u0629 \u0644\u0627 \xAB\u062A\u0646\u062A\u0638\u0631\xBB: \u0625\u0646\u0647\u0627 \u0641\u064A \u0627\u0644\u0639\u0627\u0644\u0645 \u0627\u0644\u062D\u0642\u064A\u0642\u064A\u060C \u0644\u0643\u0646 \u0627\u0644\u0628\u0631\u0646\u0627\u0645\u062C \u064A\u0648\u0627\u0635\u0644 \u0627\u0644\u0639\u0645\u0644. \u064A\u062C\u0628 \u0623\u062E\u0630 \u0627\u0644\u0633\u0644\u0627\u0645\u0629 \u0641\u064A \u0627\u0644\u062D\u0633\u0628\u0627\u0646 \u062F\u0627\u0626\u0645\u064B\u0627 \u0641\u064A \u0627\u0644\u0623\u0632\u0645\u0646\u0629 \u0648\u0627\u0644\u062A\u0633\u0644\u0633\u0644\u0627\u062A.",
+    "Uscita Ciclo lungo": "\u0645\u062E\u0631\u062C \u0627\u0644\u062F\u0648\u0631\u0629 \u0627\u0644\u0637\u0648\u064A\u0644\u0629",
+    "il finecorsa \u201Cbraccio gi\xF9\u201D (sensore guasto)": "\u0646\u0647\u0627\u064A\u0629 \u0627\u0644\u0634\u0648\u0637 \xAB\u0627\u0644\u0630\u0631\u0627\u0639 \u0644\u0644\u0623\u0633\u0641\u0644\xBB (\u0645\u0633\u062A\u0634\u0639\u0631 \u0645\u0639\u0637\u0644)",
+    "il fungo di emergenza premuto": "\u0632\u0631 \u0627\u0644\u0637\u0648\u0627\u0631\u0626 \u0627\u0644\u0645\u0636\u063A\u0648\u0637",
+    "la portella aperta": "\u0627\u0644\u0628\u0648\u0627\u0628\u0629 \u0627\u0644\u0645\u0641\u062A\u0648\u062D\u0629",
+    "\xC8 la regola che hai imparato con il rel\xE8 di sicurezza: dopo un arresto di sicurezza la macchina non riparte da sola. Il riarmo si d\xE0 con la portella chiusa e i canali a posto.": "\u0625\u0646\u0647\u0627 \u0627\u0644\u0642\u0627\u0639\u062F\u0629 \u0627\u0644\u062A\u064A \u062A\u0639\u0644\u0645\u062A\u0647\u0627 \u0645\u0639 \u0645\u0631\u062D\u0651\u0644 \u0627\u0644\u0633\u0644\u0627\u0645\u0629: \u0628\u0639\u062F \u0625\u064A\u0642\u0627\u0641 \u0627\u0644\u0633\u0644\u0627\u0645\u0629 \u0644\u0627 \u062A\u0639\u0648\u062F \u0627\u0644\u0622\u0644\u0629 \u0625\u0644\u0649 \u0627\u0644\u0639\u0645\u0644 \u0648\u062D\u062F\u0647\u0627. \u062A\u064F\u0639\u0637\u0649 \u0625\u0639\u0627\u062F\u0629 \u0627\u0644\u062A\u0633\u0644\u064A\u062D \u0648\u0627\u0644\u0628\u0648\u0627\u0628\u0629 \u0645\u063A\u0644\u0642\u0629 \u0648\u0627\u0644\u0642\u0646\u0648\u0627\u062A \u0633\u0644\u064A\u0645\u0629."
+  };
+
   // src/i18n/ar.js
   var ROLE = { "del neutro": "\u0627\u0644\u0645\u062D\u0627\u064A\u062F", "di terra": "\u0627\u0644\u0623\u0631\u0636\u064A", "di fase": "\u0627\u0644\u0637\u0648\u0631", "a bassa tensione": "\u0627\u0644\u062C\u0647\u062F \u0627\u0644\u0645\u0646\u062E\u0641\u0636", "di comando": "\u0627\u0644\u062A\u062D\u0643\u0645", "del positivo": "\u0627\u0644\u0645\u0648\u062C\u0628", "del negativo": "\u0627\u0644\u0633\u0627\u0644\u0628", "in continua": "\u0627\u0644\u062A\u064A\u0627\u0631 \u0627\u0644\u0645\u0633\u062A\u0645\u0631" };
   var COLORI = { "blu": "\u0623\u0632\u0631\u0642", "giallo-verde": "\u0623\u0635\u0641\u0631-\u0623\u062E\u0636\u0631", "marrone, nero o grigio": "\u0628\u0646\u064A\u064B\u0651\u0627 \u0623\u0648 \u0623\u0633\u0648\u062F \u0623\u0648 \u0631\u0645\u0627\u062F\u064A\u064B\u0651\u0627", "rosso, marrone, nero o grigio": "\u0623\u062D\u0645\u0631 \u0623\u0648 \u0628\u0646\u064A\u064B\u0651\u0627 \u0623\u0648 \u0623\u0633\u0648\u062F \u0623\u0648 \u0631\u0645\u0627\u062F\u064A\u064B\u0651\u0627", "di un colore diverso da blu e giallo-verde": "\u0628\u0644\u0648\u0646 \u0645\u062E\u062A\u0644\u0641 \u0639\u0646 \u0627\u0644\u0623\u0632\u0631\u0642 \u0648\u0627\u0644\u0623\u0635\u0641\u0631-\u0627\u0644\u0623\u062E\u0636\u0631", "rosso": "\u0623\u062D\u0645\u0631", "nero": "\u0623\u0633\u0648\u062F", "rosso o nero": "\u0623\u062D\u0645\u0631 \u0623\u0648 \u0623\u0633\u0648\u062F" };
@@ -18917,7 +19208,7 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
     [/^Portata (.+): (\d+) ampere\. Tocca per cambiarla$/, (m, t) => `\u0627\u0644\u0633\u0639\u0629 ${t(m[1])}: ${m[2]} \u0623\u0645\u0628\u064A\u0631. \u0627\u0644\u0645\u0633 \u0644\u062A\u063A\u064A\u064A\u0631\u0647\u0627`],
     [/^Protezioni scattate: (.+)\.$/, (m, t) => `\u062D\u0645\u0627\u064A\u0627\u062A \u0641\u0635\u0644\u062A: ${t(m[1])}.`]
   ];
-  registerLang("ar", { ...ar_1_default, ...ar_2_default, ...ar_3_default, ...ar_4_default, ...ar_5_default, ...ar_6_default, ...ar_7_default, ...ar_8_default, ...ar_9_default, ...ar_10_default, ...ar_11_default, ...ar_12_default, ...ar_13_default, ...ar_14_default, ...ar_15_default, ...ar_16_default, ...ar_17_default, ...ar_18_default, ...ar_19_default, ...ar_20_default, ...ar_21_default, ...ar_22_default, ...ar_23_default, ...ar_24_default, ...ar_25_default, ...ar_26_default, ...ar_27_default, ...ar_28_default, ...ar_29_default, ...ar_30_default, ...ar_31_default, ...ar_32_default, ...ar_33_default }, PAT);
+  registerLang("ar", { ...ar_1_default, ...ar_2_default, ...ar_3_default, ...ar_4_default, ...ar_5_default, ...ar_6_default, ...ar_7_default, ...ar_8_default, ...ar_9_default, ...ar_10_default, ...ar_11_default, ...ar_12_default, ...ar_13_default, ...ar_14_default, ...ar_15_default, ...ar_16_default, ...ar_17_default, ...ar_18_default, ...ar_19_default, ...ar_20_default, ...ar_21_default, ...ar_22_default, ...ar_23_default, ...ar_24_default, ...ar_25_default, ...ar_26_default, ...ar_27_default, ...ar_28_default, ...ar_29_default, ...ar_30_default, ...ar_31_default, ...ar_32_default, ...ar_33_default, ...ar_34_default }, PAT);
 
   // src/trilocale/house.js
   function houseState(session2, on = true) {

@@ -1618,3 +1618,103 @@ LEVELS_V2.push({
     'Se i valori del pannello diventano grigi e compare “collegamento perso”, il cavo di rete del pannello è staccato: toccalo per ricollegarlo.',
   ],
 });
+
+// c45: la fabbrica (Modulo 6). Una cella di prelievo e deposito con la sicurezza a due canali: l'allievo cabla l'arresto (fungo e portella,
+// relè di sicurezza, contattore, riarmo), scrive le transizioni e gli allarmi del programma e poi gestisce un turno con quattro guasti.
+const W45_SAFE = [
+  ['Q.F', 'E.1', 'marrone'], ['E.2', 'P.1', 'marrone'], ['P.2', 'KS.S12', 'marrone'],
+  ['Q.F', 'E.3', 'marrone'], ['E.4', 'P.3', 'marrone'], ['P.4', 'KS.S22', 'marrone'],
+  ['Q.F', 'KS.A1', 'marrone'], ['KS.A2', 'Q.N', 'blu'],
+  ['Q.F', 'KM.21', 'marrone'], ['KM.22', 'SBR.3', 'marrone'], ['SBR.4', 'KS.R', 'marrone'],
+  ['Q.F', 'KS.13', 'marrone'], ['KS.14', 'KS.23', 'marrone'], ['KS.24', 'KM.A1', 'marrone'], ['KM.A2', 'Q.N', 'blu'],
+  ['Q.F', 'KM.1', 'marrone'], ['KM.2', 'L.A', 'marrone'], ['L.B', 'Q.N', 'blu'],
+];
+const W45_PLC = [
+  ['Q.F', 'PLC.A1', 'marrone'], ['PLC.A2', 'Q.N', 'blu'], ['PLC.IC', 'Q.N', 'blu'],
+  ['Q.F', 'SB0.1', 'marrone'], ['SB0.2', 'PLC.I0', 'marrone'],
+  ['Q.F', 'SB1.3', 'marrone'], ['SB1.4', 'PLC.I1', 'marrone'],
+  ['Q.F', 'PR.3', 'marrone'], ['PR.4', 'PLC.I2', 'marrone'],
+  ['Q.F', 'ZU.3', 'marrone'], ['ZU.4', 'PLC.I3', 'marrone'],
+  ['Q.F', 'ZD.3', 'marrone'], ['ZD.4', 'PLC.I4', 'marrone'],
+  ['Q.F', 'XP.3', 'marrone'], ['XP.4', 'PLC.I5', 'marrone'],
+  ['Q.F', 'XL.3', 'marrone'], ['XL.4', 'PLC.I6', 'marrone'],
+  ['Q.F', 'KM.13', 'marrone'], ['KM.14', 'PLC.I7', 'marrone'],      // le sicurezze sono a posto: il contatto ausiliario del contattore
+  ['Q.F', 'PLC.Q3A', 'marrone'], ['PLC.Q3B', 'HC.X1', 'marrone'], ['HC.X2', 'Q.N', 'blu'],
+];
+// i tempi contano solo con le sicurezze a posto (I7): se il robot e' senza potenza, un tempo che scorre farebbe passare al passo dopo con la pinza ancora ferma
+const START_45 = START_43.map(r => (r.do[0].op === 'ton' ? { ...r, if: ['and', r.if, 'I7'] } : r)).concat([{ if: ['and', 'M9', 'I7'], do: [{ op: 'ton', id: 'T3', pt: 40 }] }]);
+const ALARMS_45 = [
+  { if: 'T3', do: [{ op: 'coil', a: 'M10' }] },
+  { if: ['not', 'I7'], do: [{ op: 'coil', a: 'M11' }] },
+];
+LEVELS_V2.push({
+  id: 'c45-fabbrica', code: 'c45', n: 0, engine: 2, quadroOnly: true, flow: 'onDemand', palette: ['marrone', 'blu'],
+  name: 'La fabbrica', title: 'La fabbrica',
+  blurb: 'Cabla la sicurezza, scrivi il programma e gestisci un turno con i guasti: tutto quello che hai imparato.',
+  goal: 'Una cella di produzione: un robot porta i pezzi dal prelievo al deposito. Tre cose da fare. Uno: cabla la sicurezza, con fungo e portella a due canali, il relè di sicurezza KS, il contattore KM che dà potenza al robot e il riarmo. Due: scrivi nel PLC le transizioni dei passi e i due allarmi, “ciclo bloccato” (il ciclo dura più di 40 secondi) e “sicurezze aperte” (il contatto ausiliario di KM, ingresso I7, non è chiuso). Tre: dai corrente e gestisci il turno: arrivano quattro guasti e il robot deve consegnare almeno 20 pezzi senza urti né cadute.',
+  fixed: W45_PLC,
+  comps: [
+    QM,
+    C('E', 'fungo', 'Emergenza', 'Emergenza a due canali', T('1', '2', '3', '4')),
+    C('P', 'port', 'Portella', 'Portella a due canali', T('1', '2', '3', '4')),
+    C('SBR', 'pb', 'Riarmo', 'Pulsante di riarmo', T('3', '4')),
+    C('KS', 'rs', 'Relè sicurezza', 'Relè di sicurezza KS', T('A1', 'A2', 'S12', 'S22', 'R', '13', '14', '23', '24')),
+    C('KM', 'km', 'Contattore', 'Contattore KM: potenza del robot', T('A1', 'A2', '1', '2', '13', '14', '21', '22')),
+    C('L', 'lamp', 'Robot alimentato', 'Spia: il robot è alimentato', { B: { l: 'B' }, A: { l: 'A' } }),
+    C('PLC', 'plc', 'PLC', 'PLC (transizioni e allarmi da scrivere)', T('A1', 'A2', 'I0', 'I1', 'I2', 'I3', 'I4', 'I5', 'I6', 'I7', 'IC', 'Q0A', 'Q0B', 'Q1A', 'Q1B', 'Q2A', 'Q2B', 'Q3A', 'Q3B'), {
+      symbols: { I0: 'Arresto', I1: 'Marcia', I2: 'Pezzo pronto', I3: 'Braccio su', I4: 'Braccio giù', I5: 'Al prelievo', I6: 'Al deposito', I7: 'Sicurezze a posto', Q0: 'Scendi', Q1: 'Vai al deposito', Q2: 'Chiudi pinza', Q3: 'Spia ciclo', M0: 'Marcia', M1: '1 Scendi', M2: '2 Prendi', M3: '3 Sali', M4: '4 Vai', M5: '5 Scendi', M6: '6 Lascia', M7: '7 Sali', M8: '8 Torna', M9: 'Ciclo in corso', M10: 'Ciclo bloccato', M11: 'Sicurezze aperte', T1: 'Pinza chiusa', T2: 'Pinza aperta', T3: 'Ciclo lungo' },
+      edit: { start: START_45, markers: 12, timers: 3, counters: 0, ops: ['coil', 'set', 'reset'] },
+    }),
+    C('SB0', 'pbnc', 'Arresto', 'Pulsante di arresto (NC)', T('1', '2')),
+    C('SB1', 'pb', 'Marcia', 'Pulsante di marcia (NA)', T('3', '4')),
+    C('HC', 'spia', 'Ciclo in corso', 'Spia di ciclo in corso', T('X1', 'X2')),
+    C('PR', 'sens', 'Pezzo pronto', 'Sensore: pezzo pronto al prelievo', T('1', '2', '3', '4'), { sense: { v: 'partReady' } }),
+    C('ZU', 'sens', 'Braccio su', 'Finecorsa: braccio in alto', T('1', '2', '3', '4'), { sense: { v: 'zUp' } }),
+    C('ZD', 'sens', 'Braccio giù', 'Finecorsa: braccio in basso', T('1', '2', '3', '4'), { sense: { v: 'zDown' } }),
+    C('XP', 'sens', 'Al prelievo', 'Finecorsa: braccio sul punto di prelievo', T('1', '2', '3', '4'), { sense: { v: 'atPick' } }),
+    C('XL', 'sens', 'Al deposito', 'Finecorsa: braccio sul punto di deposito', T('1', '2', '3', '4'), { sense: { v: 'atPlace' } }),
+    C('HMI', 'hmi', 'Pannello', 'Pannello operatore collegato al PLC', {}),
+  ],
+  controls: ['SBR', 'E', 'P', 'SB0', 'SB1'],
+  process: {
+    model: 'linea', title: 'La cella', alt: 'Il robot che porta i pezzi dal prelievo al deposito', speed: 4,
+    actuators: { down: { plc: 'PLC.Q0' }, shift: { plc: 'PLC.Q1' }, grip: { plc: 'PLC.Q2' }, enable: { coil: 'KM' } },
+    trace: ['out', 'z', 'x', 'PLC.Q0'], labels: { out: 'I pezzi depositati', crash: 'Il braccio', dropped: 'I pezzi caduti' },
+  },
+  hmi: {
+    plc: 'PLC', stale: 3,
+    values: [{ id: 'V1', label: 'Pezzi depositati', v: 'out', unit: 'pz' }, { id: 'V2', label: 'Ciclo', v: 'PLC.M9', bool: ['fermo', 'in corso'] }],
+    alarms: [
+      { id: 'A1', bit: 'M10', text: 'Ciclo bloccato', prio: 'alta' },
+      { id: 'A2', bit: 'M11', text: 'Sicurezze aperte', prio: 'alta' },
+    ],
+  },
+  scenario: {
+    duration: 700,
+    faults: [
+      { id: 'f1', at: 100, do: 'dead ZD', label: 'il finecorsa “braccio giù” (sensore guasto)', fixed: { part: 'ZD', prop: 'jam', is: false }, maxDelay: 90 },
+      { id: 'f2', at: 250, do: 'toggle E', label: 'il fungo di emergenza premuto', fixed: { part: 'KS', prop: 'on', is: true }, maxDelay: 80 },
+      { id: 'f3', at: 400, do: 'toggle P', label: 'la portella aperta', fixed: { part: 'KS', prop: 'on', is: true }, maxDelay: 80 },
+      { id: 'f4', at: 540, do: 'toggle HMI', label: 'il cavo di rete del pannello', fixed: { part: 'HMI', prop: 'on', is: true }, maxDelay: 100 },
+    ],
+    expect: { process: { out: [20, 999], crash: false, dropped: [0, 0] } },
+  },
+  demoDo: [{ do: press('SBR').concat(press('SB1'), ['wait 30']), say: '' }],
+  checks: [
+    { id: 'fermo', label: 'Prima del riarmo il robot non ha potenza e sta fermo, anche premendo Marcia', do: press('SB1').concat(['wait 20']), expect: { loads: { L: 'off' }, process: { out: [0, 0], z: [0, 0.01] } } },
+    { id: 'lavora', label: 'Dopo il riarmo e Marcia il robot deposita i pezzi, senza urti e senza cadute', do: press('SBR').concat(press('SB1'), ['wait 60']), expect: { loads: { L: 'on' }, process: { out: [2, 99], crash: false, dropped: [0, 0] } } },
+    { id: 'emergenza', label: 'Premendo il fungo il robot perde potenza e si ferma dov’è', steps: [{ do: press('SBR').concat(press('SB1'), ['wait 8']), expect: { loads: { L: 'on' } } }, { do: ['toggle E'], expect: { loads: { L: 'off' } } }] },
+    { id: 'portella', label: 'Aprendo la portella il robot perde potenza', steps: [{ do: press('SBR').concat(press('SB1'), ['wait 8']), expect: { loads: { L: 'on' } } }, { do: ['toggle P'], expect: { loads: { L: 'off' } } }] },
+    { id: 'riparte', label: 'Richiusa la portella il robot non riparte da solo: serve il riarmo', steps: [{ do: press('SBR').concat(press('SB1'), ['wait 8']), expect: { loads: { L: 'on' } } }, { do: ['toggle P', 'toggle P'], expect: { loads: { L: 'off' } } }, { do: press('SBR'), expect: { loads: { L: 'on' } } }] },
+    { id: 'allarmi', label: 'Con le sicurezze aperte il pannello segnala “Sicurezze aperte”', do: ['wait 3'], expect: { hmi: { alarms: { A2: 'attivo' } } } },
+  ],
+  safety: { dualChannel: [['KS.S12', 'KS.S22']], outputsSeries: ['KS'], allContacts: ['E', 'P'], restartNeedsReset: { stop: ['E', 'P'], reset: 'SBR', load: 'L' }, feedbackMonitored: { km: 'KM', stop: 'E', reset: 'SBR', rs: 'KS' }, coilReturn: ['PLC'] },
+  solution: W45_SAFE.concat(W45_PLC),
+  solutionPrograms: { PLC: START_45.concat(TRANS_43, ALARMS_45) },
+  solutionPlay: [{ at: 2, do: 'press SBR' }, { at: 3, do: 'release SBR' }, { at: 4, do: 'press SB1' }, { at: 5, do: 'release SB1' }, { at: 120, do: 'jam ZD' }, { at: 265, do: 'toggle E' }, { at: 268, do: 'press SBR' }, { at: 269, do: 'release SBR' }, { at: 415, do: 'toggle P' }, { at: 418, do: 'press SBR' }, { at: 419, do: 'release SBR' }, { at: 560, do: 'toggle HMI' }],
+  hints: [
+    'La sicurezza è quella dei livelli precedenti: i due canali del fungo e della portella in serie ai due ingressi del relè KS, le sue uscite in serie alla bobina di KM, il riarmo che passa dal contatto NC di KM.',
+    'Il programma: le transizioni sono quelle della linea (i tempi già scritti contano solo con le sicurezze a posto: un tempo che scorre a robot senza potenza farebbe passare al passo dopo con la pinza ferma). Gli allarmi sono due gradini con una bobina ciascuno: il timer T3 (ciclo più lungo di 40 secondi) alimenta la bobina M10, e I7 normalmente chiuso (le sicurezze non sono a posto) alimenta la bobina M11.',
+    'Nel turno: un robot che resta fermo con “Ciclo bloccato” ha un finecorsa che non risponde; il fungo o la portella tolgono la potenza e il riarmo si fa dopo averli richiusi; il pannello grigio è il cavo di rete.',
+  ],
+});

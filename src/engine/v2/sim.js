@@ -638,6 +638,7 @@ export function act(sim, action, id) {
   } else if (action === 'weld' && (c.type === 'km' || c.type === 'rel')) { if (s.on || s.welded) s.welded = !s.welded; }
   else if (action === 'reset' && c.type === 'ft') { s.tripped = false; s.heat = 0; }
   else if (action === 'jam' && c.type === 'sens') s.jam = !s.jam;
+  else if (action === 'dead' && c.type === 'sens') { s.jam = true; s.act = false; }   // sensore morto: resta a riposo qualunque cosa succeda
   else if (action === 'cut' && c.type === 'tx') s.cut = !s.cut;
   else if (action === 'ack' && c.type === 'hmi') hmiAck(sim);
   else if (action === 'test' && c.type === 'rcd') {

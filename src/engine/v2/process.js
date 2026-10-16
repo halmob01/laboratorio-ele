@@ -84,8 +84,10 @@ export const MODELS = {
   linea: {
     init: { z: 0, x: 0, grip: 0, feed: 1, wait: 0, holding: 0, out: 0, dropped: 0, crash: 0 },
     params: { vz: 0.5, vx: 0.4, vg: 1, feedEvery: 5 },
-    acts: { down: 0, shift: 0, grip: 0 },
+    acts: { down: 0, shift: 0, grip: 0, enable: 1 },
     step(s, a, p, dt) {
+      // `enable` (la potenza del robot, dal contattore di sicurezza): a zero il robot resta fermo dov'e' e tiene il pezzo
+      if (!frac(a.enable)) return { ...s, wait: s.wait };
       const mv = (v, on, sp) => clamp(v + (on ? 1 : -1) * sp * dt, 0, 1);
       let { z, x, grip, feed, wait, holding, out, dropped, crash } = s;
       z = mv(z, frac(a.down) > 0, p.vz);

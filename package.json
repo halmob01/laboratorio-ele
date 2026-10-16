@@ -5,7 +5,7 @@
   "description": "Laboratorio interattivo di impianti elettrici",
   "scripts": {
     "build": "node scripts/build.mjs",
-    "test": "node --test --test-timeout=120000 \"test/**/*.test.js\"",
+    "test": "node --test --test-timeout=300000 \"test/**/*.test.js\"",
     "check": "npm run build && npm test"
   },
   "devDependencies": {

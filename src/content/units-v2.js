@@ -3834,4 +3834,82 @@ export const UNITS_V2 = {
       'Un pannello senza collegamento non riceve neppure gli allarmi: l’assenza di allarmi non basta a dire che l’impianto è a posto.',
     ],
   },
+  'c45-fabbrica': {
+    support: 'passi',
+    lesson: {
+      pages: [
+        {
+          type: 'spiegazione',
+          title: 'Una cella di produzione completa',
+          paras: [
+            'Questo livello mette insieme tutto: la sicurezza a due canali dei primi livelli del modulo, il programma a sequenza della linea, gli allarmi e il pannello operatore, e la gestione dei guasti di un turno di lavoro. Non c’è niente di nuovo da imparare: c’è da dimostrare che sai farlo tutto insieme.',
+            'Un robot porta i pezzi dal prelievo al deposito. Le tre parti da fare: la sicurezza (cablaggio), il programma (transizioni e allarmi) e il turno (guasti).',
+          ],
+        },
+        {
+          type: 'spiegazione',
+          title: 'La sicurezza viene prima del programma',
+          paras: [
+            'Il robot riceve potenza solo dal contattore KM, e KM si eccita solo se il relè di sicurezza KS è armato. KS ha i due canali di fungo e portella e un riarmo che passa dal contatto NC di KM. Tutto nei fili: se il PLC si blocca o ha un errore, premere il fungo toglie comunque la potenza.',
+            'Il PLC ascolta la sicurezza con un ingresso (I7, il contatto ausiliario di KM): non decide niente, ma sa quando le sicurezze sono aperte. Così può dare l’allarme “Sicurezze aperte” e può sospendere i suoi tempi.',
+          ],
+        },
+        {
+          type: 'spiegazione',
+          title: 'Perché i tempi si fermano con la sicurezza aperta',
+          paras: [
+            'Se il robot resta senza potenza (fungo premuto) mentre sta aprendo la pinza, il tempo di apertura nel programma continuerebbe a scorrere: scaduto il tempo il programma passa al passo dopo e comanda di salire, ma la pinza non si è mai aperta. Al riarmo il robot parte con il passo sbagliato e fa cadere il pezzo.',
+            'Per questo i tempi del programma contano solo con le sicurezze a posto: I7 è in serie al contatto del temporizzatore. Quando la potenza torna, il tempo riparte da zero e il passo si completa davvero.',
+          ],
+          warn: 'Una macchina senza potenza non “aspetta”: è nel mondo, ma il programma continua a funzionare. Le sicurezze vanno sempre considerate nei tempi e nelle sequenze.',
+        },
+        {
+          type: 'spiegazione',
+          title: 'Il turno: leggere, trovare, riparare',
+          paras: [
+            'Durante il turno arrivano quattro guasti: un finecorsa che non risponde (il ciclo si blocca e dopo 40 secondi scatta “Ciclo bloccato”), il fungo premuto da un operatore, la portella aperta e il cavo di rete del pannello. Per fungo e portella si riarma dopo aver richiuso: prima si rimette a posto il dispositivo, poi si preme il riarmo.',
+            'Ogni guasto ha un tempo massimo e devi consegnare almeno 20 pezzi senza urti né cadute. Se le riparazioni arrivano tardi, la produzione cala.',
+          ],
+        },
+        {
+          type: 'previsione',
+          question: 'Compare “Ciclo bloccato” e il robot è fermo con il braccio in basso. Dove cerchi?',
+          options: [
+            { id: 'a', text: 'Nel fungo: ha tolto la potenza.' },
+            { id: 'b', text: 'Nei finecorsa: un sensore che non risponde lascia il programma in attesa di un “fatto” che non arriva.' },
+            { id: 'c', text: 'Nel cavo di rete del pannello.' },
+          ],
+          correct: 'b',
+          why: 'Con il fungo premuto compare “Sicurezze aperte”, e la spia di robot alimentato è spenta. “Ciclo bloccato” con il robot alimentato indica che il programma aspetta un segnale che non arriva: un finecorsa guasto.',
+        },
+        {
+          type: 'previsione',
+          question: 'Hai richiuso la portella ma il robot non riparte. Che cosa manca?',
+          options: [
+            { id: 'a', text: 'Niente: serve più tempo.' },
+            { id: 'b', text: 'Il riarmo: il relè di sicurezza non si riarma da solo, serve il pulsante.' },
+            { id: 'c', text: 'Un nuovo comando di Marcia dal PLC.' },
+          ],
+          correct: 'b',
+          why: 'È la regola che hai imparato con il relè di sicurezza: dopo un arresto di sicurezza la macchina non riparte da sola. Il riarmo si dà con la portella chiusa e i canali a posto.',
+        },
+        { type: 'sintesi', title: 'Da ricordare' },
+      ],
+    },
+    steps: [
+      { kind: 'wire', from: 'KS.S12', to: ['P.2'], color: 'marrone', short: '1 Canali', title: 'I due canali dell’arresto', text: 'Su ogni canale fungo e portella sono in serie: fase, fungo (1-2 per il canale 1, 3-4 per il canale 2), portella, ingresso del relè (S12 e S22). Perché: aprendone uno qualunque il relè perde il canale.' },
+      { kind: 'wire', from: 'KS.24', to: ['KM.A1'], color: 'marrone', short: '2 Contattore', title: 'Le uscite del relè alla bobina di KM', text: 'Le uscite 13-14 e 23-24 sono in serie alla bobina di KM: dalla fase a 13, da 14 a 23, da 24 ad A1 di KM; A2 al neutro. Perché: se un’uscita cade, il contattore si diseccita.' },
+      { kind: 'wire', from: 'SBR.4', to: ['KS.R'], color: 'marrone', short: '3 Riarmo', title: 'Il riarmo passa dal contatto NC di KM', text: 'Dalla fase al contatto NC 21-22 di KM, poi al pulsante di riarmo, poi al morsetto R del relè. Perché: se KM resta incollato il relè non si riarma.' },
+      { kind: 'program', plc: 'PLC', min: 17, short: '4 Transizioni', title: 'Le transizioni dei passi', text: 'Come nella linea: un gradino per ogni passo (M1-M8), con Reset del passo e Set del successivo, più il gradino di partenza del ciclo.' },
+      { kind: 'program', plc: 'PLC', min: 19, short: '5 Allarmi', title: 'I due allarmi', text: 'T3 con la bobina M10 (ciclo bloccato) e I7 normalmente chiuso con la bobina M11 (sicurezze aperte).' },
+      { kind: 'verify', short: '6 Cablaggio', title: 'Controlla il cablaggio e il programma', text: 'Premi Verifica: le prove sul cablaggio e sulla sicurezza devono passare. Poi dai corrente e gestisci il turno.' },
+    ],
+    summary: [
+      'La sicurezza sta nei fili, a due canali, con il riarmo manuale e il controllo del contatto NC del contattore: il programma non la sostituisce.',
+      'Il PLC ascolta lo stato della sicurezza con un ingresso: dà l’allarme e sospende i tempi.',
+      'Un tempo del programma che scorre a macchina senza potenza fa passare al passo sbagliato: i tempi contano solo con le sicurezze a posto.',
+      'Un guasto si trova leggendo insieme allarmi, valori e banco; si ripara in tempo e dopo un arresto di sicurezza si riarma.',
+      'Una cella completa riunisce cablaggio, programma, sicurezza e gestione dei guasti.',
+    ],
+  },
 };

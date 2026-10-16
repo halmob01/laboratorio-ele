@@ -61,3 +61,66 @@ test('c44: lasciando i guasti aperti la verifica non passa e "Ricomincia il turn
   assert.equal(o.scenario.faults.every(f => f.firedAt === null), true);
   assert.ok(SPEED > 1);
 });
+
+/* ---------- c45: la fabbrica ---------- */
+import { createSim, advance, act, observe, evaluateV2 } from '../src/engine/v2/index.js';
+const L45 = levels.find(l => l.id === 'c45-fabbrica');
+const W45 = L45.solution.map(([a, b, c], k) => ({ id: k + 1, a, b, c }));
+const lv45 = { ...L45, comps: L45.comps.map(c => (c.type === 'plc' ? { ...c, program: L45.solutionPrograms.PLC } : c)) };
+
+function shift45(plays) {
+  const sim = createSim(lv45, W45);
+  const todo = plays.slice().sort((a, b) => a.at - b.at);
+  let t = 0;
+  while (t < L45.scenario.duration + 2) {
+    advance(sim, 1); t += 1;
+    while (todo.length && todo[0].at <= t) { const [a, x] = todo.shift().do.split(' '); act(sim, a, x); }
+  }
+  return sim;
+}
+
+test('c45: la soluzione passa le prove sul cablaggio e il turno di riferimento si consegna con almeno 20 pezzi', () => {
+  const sim = shift45(L45.solutionPlay);
+  const r = evaluateV2(L45, W45, { programs: L45.solutionPrograms, liveSim: sim });
+  assert.equal(r.pass, true, JSON.stringify([r.work.items, r.color.items, r.safe.items]));
+  assert.ok(observe(sim).process.out >= 20);
+});
+
+test('c45: nessuna riparazione: i guasti restano aperti e la produzione si ferma', () => {
+  const sim = shift45(L45.solutionPlay.filter(x => x.at <= 5));
+  const rep = observe(sim).scenario;
+  assert.equal(rep.faults.every(f => f.firedAt !== null), true);
+  const r = evaluateV2(L45, W45, { programs: L45.solutionPrograms, liveSim: sim });
+  assert.equal(r.work.ok, false);
+});
+
+test('c45: i guasti si leggono dal pannello (ciclo bloccato con il sensore guasto, sicurezze aperte con il fungo)', () => {
+  const sim = createSim(lv45, W45);
+  const go = (s) => { advance(sim, s); return observe(sim); };
+  act(sim, 'press', 'SBR'); advance(sim, 1); act(sim, 'release', 'SBR'); advance(sim, 1);
+  act(sim, 'press', 'SB1'); advance(sim, 1); act(sim, 'release', 'SB1');
+  let o = go(95);                                                // produce
+  assert.ok(o.process.out >= 4);
+  o = go(120);                                                   // il finecorsa muore a 100 s: dopo 40 s di ciclo il pannello segnala
+  assert.equal(o.hmi.alarms.some(a => a.id === 'A1'), true);
+  assert.equal(o.parts.ZD.jam, true);
+});
+
+test('c45: dopo un\'emergenza il robot e\' fermo dov\'e\' e riparte solo dopo il riarmo', () => {
+  const sim = createSim(lv45, W45);
+  act(sim, 'press', 'SBR'); advance(sim, 1); act(sim, 'release', 'SBR'); advance(sim, 1);
+  act(sim, 'press', 'SB1'); advance(sim, 1); act(sim, 'release', 'SB1');
+  advance(sim, 10);
+  act(sim, 'toggle', 'E');
+  const pose = () => { const p = observe(sim).process; return [p.z, p.x, p.grip].join('/'); };
+  const z0 = pose();
+  advance(sim, 10);
+  assert.equal(pose(), z0, 'fermo');
+  assert.equal(observe(sim).loads.L, 'off');
+  act(sim, 'toggle', 'E');
+  advance(sim, 5);
+  assert.equal(pose(), z0, 'richiuso ma senza riarmo non riparte');
+  act(sim, 'press', 'SBR'); advance(sim, 1); act(sim, 'release', 'SBR');
+  advance(sim, 10);
+  assert.notEqual(pose(), z0);
+});

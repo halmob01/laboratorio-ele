@@ -269,8 +269,8 @@ export function evaluateV2(level, wires, ctx = {}) {
   if (level.scenario) {
     // turno a guasti: si giudica la partita vera (la simulazione viva della sessione), non una prova scritta
     const rep = ctx.liveSim && scenarioReport(ctx.liveSim);
-    if (!rep) add('work', 'work.scenarioNone');
-    else if (failed.length) failed.slice(0, 3).forEach(({ ch, r }) => add('work', 'work.checkFail', { check: ch.id, label: ch.label, cause: r.fail.code, want: r.fail.want, got: r.fail.got, comp: r.fail.comp }));
+    if (failed.length) failed.slice(0, 3).forEach(({ ch, r }) => add('work', 'work.checkFail', { check: ch.id, label: ch.label, cause: r.fail.code, want: r.fail.want, got: r.fail.got, comp: r.fail.comp }));
+    else if (!rep) add('work', 'work.scenarioNone');
     else if (!rep.done) add('work', 'work.scenarioRunning', { left: Math.ceil(rep.duration - rep.t) });
     else {
       const open = rep.faults.find(f => f.open), late = rep.faults.find(f => f.late);
@@ -313,7 +313,8 @@ export function evaluateV2(level, wires, ctx = {}) {
   }
 
   /* sicurezza */
-  if (!out.work.ok) add('safe', 'safe.skipped');
+  // nei livelli a turno le regole di sicurezza si controllano appena le prove sul cablaggio passano, senza aspettare la fine del turno
+  if (!out.work.ok && !(level.scenario && !failed.length)) add('safe', 'safe.skipped');
   else {
     const S = level.safety || {};
     const states = runs.flatMap(x => x.r.states);

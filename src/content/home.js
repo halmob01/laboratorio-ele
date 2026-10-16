@@ -88,6 +88,7 @@ export const MODULES = [
       'c37-pannello',
       'c43-linea',
       'c44-guasti',
+      'c45-fabbrica',
     ],
     milestone: { soon: true, art: 'fabbrica', kick: 'Fabbrica', name: 'Una linea da cablare, programmare e mettere in sicurezza', text: 'Il progetto finale: un turno di lavoro con guasti da gestire.' },
   },
