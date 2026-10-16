@@ -3015,4 +3015,209 @@ export const UNITS_V2 = {
       fixSay: 'Scambia i due fili dell’anello: il + del trasmettitore va a AI0+, il − va a AI0−. Poi premi Verifica.',
     },
   },
+  'c34-variatore': {
+    support: 'passi',
+    lesson: {
+      pages: [
+        {
+          type: 'spiegazione',
+          title: 'Perché serve un variatore',
+          paras: [
+            'Un motore trifase collegato alla rete gira a una velocità quasi fissa, decisa dalla frequenza della rete: 50 hertz. Se vuoi un nastro più lento o più veloce, e partenze dolci, devi cambiare la frequenza che arriva al motore.',
+            'Lo fa il variatore di frequenza (inverter): prende la tensione di rete e ne produce una trifase con la frequenza che gli chiedi. Più la frequenza è alta, più il motore gira in fretta.',
+          ],
+        },
+        {
+          type: 'spiegazione',
+          title: 'La rampa',
+          paras: [
+            'Se il variatore portasse la frequenza da 0 a 30 hertz di colpo, il motore e il nastro prenderebbero uno strappo: i pacchi cadono e gli organi meccanici soffrono. Per questo il variatore sale con una rampa, cioè di pochi hertz al secondo. Qui sono 10 hertz al secondo.',
+            'Anche la velocità del nastro non salta: segue la frequenza con un piccolo ritardo. Guarda il grafico: quando accendi, la linea sale in diagonale e non a scalino. Spegnendo, scende con la stessa rampa.',
+          ],
+        },
+        {
+          type: 'spiegazione',
+          title: 'Due segnali, due strade',
+          paras: [
+            'Al variatore arrivano due segnali diversi. Il consenso di marcia è un sì o un no: è l’uscita digitale Q0 del PLC. Il riferimento di velocità è un numero, da 0 a 100 %: è l’uscita analogica AQ0.',
+            'Il consenso lo cabli tu, con l’uscita a relè. Il riferimento è un valore che il programma copia dalla parola MW0 all’uscita analogica; lo imposti con il cursore. Se il consenso manca il variatore si ferma, qualunque sia il riferimento.',
+          ],
+          table: {
+            head: ['Segnale', 'Tipo', 'Da dove viene'],
+            rows: [
+              ['Consenso di marcia', 'digitale, sì o no', 'uscita Q0 (la cabli tu)'],
+              ['Velocità voluta', 'analogico, 0-100 %', 'uscita AQ0 (dal cursore)'],
+            ],
+          },
+        },
+        {
+          type: 'previsione',
+          question: 'Con la velocità voluta al 60 %, cioè 30 hertz, e una rampa di 10 hertz al secondo, quanti secondi servono per arrivare a regime?',
+          options: [
+            { id: 'a', text: 'Subito: il variatore è istantaneo.' },
+            { id: 'b', text: 'Circa 3 secondi: 30 hertz diviso 10 hertz al secondo.' },
+            { id: 'c', text: 'Circa 30 secondi.' },
+          ],
+          correct: 'b',
+          why: 'La rampa dice quanti hertz si guadagnano ogni secondo. Per salire di 30 hertz a 10 hertz al secondo servono 3 secondi (poi la velocità del nastro raggiunge la frequenza con un piccolo ritardo).',
+        },
+        { type: 'sintesi', title: 'Da ricordare' },
+      ],
+    },
+    steps: [
+      { kind: 'wire', from: 'SA.b', to: ['PLC.I0'], color: 'rosso', short: '1 Marcia', title: 'L’interruttore all’ingresso I0', text: 'La fase entra nel morsetto a dell’interruttore, esce da b e va all’ingresso I0, in rosso. Perché: chiudendolo l’ingresso vale 1 e il programma dà il consenso al variatore.' },
+      { kind: 'wire', from: 'PLC.Q0B', to: ['HV.X1'], color: 'rosso', short: '2 Consenso', title: 'L’uscita Q0 alla spia', text: 'La fase entra in Q0A, esce da Q0B e va alla spia; l’altro capo della spia va al neutro. Perché: la spia mostra il consenso di marcia che va al variatore.' },
+      { kind: 'control', id: 'SA', short: '3 Prova', title: 'Accendi e guarda la rampa', text: 'Tocca l’interruttore: la velocità sale con una rampa e si ferma al valore voluto. Cambia il cursore e guarda il grafico.' },
+      { kind: 'verify', short: '4 Verifica', title: 'Controlla l’impianto', text: 'Premi Verifica.' },
+    ],
+    summary: [
+      'Un variatore cambia la velocità del motore cambiando la frequenza che gli arriva.',
+      'La frequenza non salta: sale e scende con una rampa, per non dare strappi al motore e al nastro.',
+      'Il consenso di marcia è digitale (sì o no), il riferimento di velocità è analogico (0-100 %): sono due segnali diversi.',
+      'Senza consenso il variatore si ferma, qualunque sia il riferimento.',
+    ],
+  },
+  'c35-serbatoio': {
+    support: 'passi',
+    lesson: {
+      pages: [
+        {
+          type: 'spiegazione',
+          title: 'Riempire un serbatoio con la pompa',
+          paras: [
+            'Un serbatoio si svuota perché qualcuno ne usa l’acqua, e una pompa lo deve riempire. La pompa non deve restare sempre accesa, né spegnersi appena il livello risale: deve partire quando il livello è basso e fermarsi quando è alto.',
+            'Due galleggianti, due sensori digitali, dicono al PLC dove sta il livello: uno scatta sotto il 20 %, l’altro sopra l’80 %. Come il finecorsa del nastro, sono contatti che chiudono quando la condizione è vera.',
+          ],
+        },
+        {
+          type: 'spiegazione',
+          title: 'Il problema con una sola soglia',
+          paras: [
+            'Se la pompa fosse comandata solo dal galleggiante basso, accesa quando il livello è sotto il 20 %, si accenderebbe a 19 %, subito spingerebbe il livello a 20 %, si spegnerebbe, il livello ricalerebbe e così via: accensioni e spegnimenti di continuo. Il motore della pompa si rovina e i contatti si consumano.',
+            'Il rimedio si chiama isteresi: due soglie diverse, una per accendere e una per spegnere. La pompa parte a 20 % e si ferma a 80 %. In mezzo mantiene l’ultimo stato.',
+          ],
+        },
+        {
+          type: 'spiegazione',
+          title: 'Mantenere lo stato con Set e Reset',
+          paras: [
+            'Per mantenere “acceso” anche quando il livello è risalito sopra il 20 % serve una memoria. Nel PLC l’istruzione Set accende un’uscita e la tiene accesa anche quando la condizione che l’ha accesa sparisce. Soltanto un Reset la spegne.',
+            'Il programma ha due gradini: se il galleggiante basso scatta, Set su Q0; se il galleggiante alto scatta, Reset su Q0. In mezzo nessun gradino cambia Q0, e la pompa continua come prima.',
+          ],
+          table: {
+            head: ['Livello', 'Galleggiante', 'La pompa'],
+            rows: [
+              ['sotto il 20 %', 'basso scattato', 'Set: parte'],
+              ['tra 20 % e 80 %', 'nessuno', 'resta com’era'],
+              ['sopra l’80 %', 'alto scattato', 'Reset: si ferma'],
+            ],
+          },
+        },
+        {
+          type: 'previsione',
+          question: 'La pompa è accesa e il livello sale da 30 % a 60 %. Che cosa fa la pompa?',
+          options: [
+            { id: 'a', text: 'Si ferma: il livello non è più basso.' },
+            { id: 'b', text: 'Resta accesa: nessun galleggiante ha scattato, e il Set la mantiene.' },
+            { id: 'c', text: 'Si ferma a metà e riparte.' },
+          ],
+          correct: 'b',
+          why: 'Il Set ha acceso Q0 quando il livello era basso e Q0 resta acceso finché non arriva il Reset. Fino all’80 % nessun gradino cambia Q0.',
+        },
+        {
+          type: 'previsione',
+          question: 'Il galleggiante basso e quello alto non possono scattare insieme. Che cosa succederebbe se il programma usasse una bobina semplice su I1 invece di Set e Reset?',
+          options: [
+            { id: 'a', text: 'La pompa si accenderebbe e spegnerebbe di continuo attorno al 20 %.' },
+            { id: 'b', text: 'Non cambierebbe nulla.' },
+            { id: 'c', text: 'La pompa non si accenderebbe mai.' },
+          ],
+          correct: 'a',
+          why: 'Con la bobina semplice la pompa segue il galleggiante basso: accesa sotto il 20 %, spenta appena sale. Senza isteresi commuta di continuo.',
+        },
+        { type: 'sintesi', title: 'Da ricordare' },
+      ],
+    },
+    steps: [
+      { kind: 'program', plc: 'PLC', min: 1, short: '1 Accendi', title: 'Il gradino che accende la pompa', text: 'Nuovo gradino: contatto I1 (livello basso) e uscita Set su Q0. Perché: Set tiene accesa la pompa anche quando il livello risale sopra il 20 %.' },
+      { kind: 'program', plc: 'PLC', min: 2, short: '2 Spegni', title: 'Il gradino che spegne la pompa', text: 'Secondo gradino: contatto I0 (livello alto) e uscita Reset su Q0. Perché: solo il livello alto spegne la pompa.' },
+      { kind: 'verify', short: '3 Verifica', title: 'Controlla il programma', text: 'Premi Verifica. Il tempo corre 30 volte più veloce: in qualche secondo vedi il livello salire e scendere.' },
+    ],
+    summary: [
+      'Un galleggiante è un sensore digitale: il suo contatto chiude quando il livello supera o scende sotto la sua soglia.',
+      'Con una sola soglia la pompa si accenderebbe e spegnerebbe di continuo.',
+      'L’isteresi usa due soglie, una per accendere e una per spegnere, e tra le due l’uscita conserva il suo stato.',
+      'Nel PLC la memoria è Set (accende e tiene) e Reset (spegne).',
+    ],
+  },
+  'c36-pid': {
+    support: 'passi',
+    lesson: {
+      pages: [
+        {
+          type: 'spiegazione',
+          title: 'Regolare una temperatura',
+          paras: [
+            'Un forno deve stare a 60 gradi. Il PLC misura la temperatura e comanda la potenza della resistenza, da 0 a 100 %. La differenza tra la temperatura voluta e quella misurata si chiama errore: se è 60 meno 40, l’errore è 20 gradi.',
+            'Il regolatore PID calcola la potenza da dare in base all’errore. Ha tre parti, P, I e D, e ciascuna risponde a una domanda diversa. Nel grafico vedi la temperatura (rossa) e la potenza della resistenza (blu).',
+          ],
+        },
+        {
+          type: 'spiegazione',
+          title: 'P: quanto sono lontano?',
+          paras: [
+            'La parte proporzionale dà una potenza proporzionale all’errore: potenza = Kp per errore. Più lontano sei dai 60 gradi, più scaldi. Kp è il guadagno: con Kp alto reagisci forte, con Kp basso piano.',
+            'Il limite del solo P: quando ci si avvicina ai 60 gradi l’errore diventa piccolo, quindi anche la potenza, ma per mantenere il forno a 60 gradi, che disperde calore, serve ancora potenza. Il forno si ferma un po’ prima dei 60: resta un errore a regime. Prova con Kp e Ti e Td a zero.',
+          ],
+        },
+        {
+          type: 'spiegazione',
+          title: 'I: da quanto tempo sono lontano?',
+          paras: [
+            'La parte integrale somma l’errore nel tempo. Finché c’è un errore, anche piccolo, il valore cresce e la potenza aumenta, fino a che l’errore sparisce. Per questo l’integrale elimina l’errore a regime.',
+            'Ti è il tempo di integrazione, in secondi: più è piccolo, più l’integrale lavora in fretta. Con un Ti troppo piccolo si esagera e la temperatura oscilla attorno ai 60 gradi; con un Ti molto grande l’integrale è lento ad arrivare.',
+          ],
+        },
+        {
+          type: 'spiegazione',
+          title: 'D: quanto in fretta mi sto avvicinando?',
+          paras: [
+            'La parte derivativa guarda la velocità con cui cambia la temperatura. Se sale in fretta verso i 60 gradi, la derivativa toglie un po’ di potenza in anticipo, per non superarli. Td è il tempo di anticipo, in secondi.',
+            'Il forno ha un ritardo: la resistenza scalda prima la parete e poi la camera. Per questo, quando vedi la temperatura arrivare, il calore accumulato la farà salire ancora. La derivativa è proprio l’anticipo che serve.',
+          ],
+          table: {
+            head: ['Parte', 'Guarda', 'Se la alzi troppo'],
+            rows: [
+              ['P (Kp)', 'l’errore adesso', 'oscilla'],
+              ['I (Ti piccolo)', 'l’errore accumulato', 'supera i 60 e oscilla'],
+              ['D (Td)', 'quanto in fretta cambia', 'amplifica i disturbi'],
+            ],
+          },
+        },
+        {
+          type: 'previsione',
+          question: 'Con Kp = 1 e Ti, Td a zero la temperatura si ferma a circa 46 gradi. Perché non arriva a 60?',
+          options: [
+            { id: 'a', text: 'Il forno è rotto.' },
+            { id: 'b', text: 'Il solo P dà potenza proporzionale all’errore: per mantenere 60 gradi serve una potenza che richiede un errore ancora grande.' },
+            { id: 'c', text: 'Serve più tempo.' },
+          ],
+          correct: 'b',
+          why: 'Il P dà potenza solo se c’è un errore. A 46 gradi il forno ha bisogno del 14 % di potenza per restare lì, e con Kp = 1 il P la dà proprio perché l’errore vale 14 gradi. Se l’errore sparisse la potenza sparirebbe e il forno si raffredderebbe. Serve qualcosa che ricordi la potenza necessaria: l’integrale.',
+        },
+        { type: 'sintesi', title: 'Da ricordare' },
+      ],
+    },
+    steps: [
+      { kind: 'control', id: 'SA', short: '1 Accendi', title: 'Accendi la regolazione', text: 'Tocca l’interruttore: il PLC comincia a regolare. Con i valori di partenza (solo P) la temperatura si ferma sotto i 60 gradi.' },
+      { kind: 'verify', short: '2 Verifica', title: 'Regola e controlla', text: 'Cambia Kp, Ti e Td con i cursori guardando il grafico: cerca valori con cui la temperatura arriva a 60, non supera 66 e resta ferma. Poi premi Verifica.' },
+    ],
+    summary: [
+      'Il PID calcola la potenza dall’errore, la differenza tra il valore voluto e quello misurato.',
+      'P dà potenza proporzionale all’errore, ma lascia un errore a regime.',
+      'I somma l’errore nel tempo e lo elimina; con Ti troppo piccolo la temperatura oscilla.',
+      'D anticipa: frena quando la misura sale in fretta e riduce il superamento.',
+      'Un sistema con ritardo, come un forno, si regola trovando un equilibrio tra reattività e stabilità.',
+    ],
+  },
 };

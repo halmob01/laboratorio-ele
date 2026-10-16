@@ -94,9 +94,17 @@ function programUI(w, d, level) {
           lac('optype', 'ctu');
           const inp = q(d, 'input[data-lac="pv"]'); inp.value = String(ins.pv); inp.dispatchEvent(new w.Event('change', { bubbles: true }));
           if (ins.r) setSel(q(d, 'select[data-lac="ctur"]'), ins.r);
-        } else setSel(q(d, 'select[data-lac="outaddr"]'), ins.a);
+        } else { if (ins.op !== 'coil') lac('optype', ins.op); setSel(q(d, 'select[data-lac="outaddr"]'), ins.a); }
       });
     });
+  });
+}
+// Cursori di regolazione del processo: si portano ai valori di soluzione toccando davvero i cursori.
+function tuneUI(w, d, level) {
+  Object.entries(level.solutionTuned || {}).forEach(([name, v]) => {
+    const inp = q(d, `input[data-tune="${name}"]`);
+    inp.value = String(v);
+    inp.dispatchEvent(new w.Event('input', { bubbles: true }));
   });
 }
 function rateUI(w, d, level) {
@@ -322,6 +330,7 @@ test('si superano tutti i livelli cablando la soluzione (quadro e contatore)', (
       measureUI(w, d, lvl);
       rateUI(w, d, lvl);
       programUI(w, d, lvl);
+      tuneUI(w, d, lvl);
       click(w, q(d, '#bCheck'));
       assert.match(q(d, '#result h3').textContent, /Impianto funzionante/, base.id + ' ' + mode);
       assert.equal(qa(d, '#result .row:not(.chk) > .mark.ok').length, 3);
