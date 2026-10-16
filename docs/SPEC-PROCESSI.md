@@ -167,6 +167,35 @@ Scritta da Opus con il codice (`process.js`, test in `test/casa-modelli.test.js`
 - Fasce orarie: `price` (euro/kWh) vale `priceHi` (0,32) tra `hiFrom` (8) e `hiTo` (19), `priceLo` (0,20) il resto; `peak` vale 1 in fascia alta; `cost` accumula il costo del prelievo.
 - Esempio verificato nei test: contatore da 6 kW, colonnina e pompa di calore dal PLC, forno di 3 kW. Con priorità (prima la colonnina, poi la pompa di calore) e riattacco solo dopo 30 s di margine (TON) il contatore non stacca e i carichi commutano una volta; senza il ritardo pendolano (oltre cento commutazioni in una serata).
 
+## 8e. La prova della casa: modello `casa` ed eventi della serata (17 ottobre)
+
+Scritta con il codice (`process.js`, `sim.js`, test in `test/casa-prova.test.js`). Serve alla prova del Modulo 5, c55 "Una sera
+d'inverno" (`docs/PROGETTO-CASA.md`).
+
+**Perché un modello nuovo.** In c53 e c54 la pompa di calore compare due volte: in `energia` è un carico da 1,5 kW (`hp`), in `zone`
+è quella che scalda le stanze (`pump`). Nella casa della prova è la stessa macchina: se il PLC la stacca per non far saltare il
+contatore, le stanze smettono di scaldarsi; se il contatore stacca, si ferma anche lei. Con due modelli separati questo legame non
+c'è, e la prova direbbe una cosa falsa.
+
+**Modello `casa`.** Contiene `zone` ed `energia` senza copiarne il codice: `step` chiama `MODELS.zone.step` e `MODELS.energia.step`.
+- Stato piatto con le chiavi dei due modelli (non si sovrappongono salvo `hour`, uguale per costruzione: la tiene `energia`) più
+  `hpRun`. La specifica del progetto diceva "stato annidato `{ e, z }`": piatto è equivalente e lascia funzionare `init` del livello
+  così com'è (`{ hour, T1, T2, soc }`) e il tracciato (`T1`, `grid`) senza nomi composti.
+- Parametri: quelli dei due modelli insieme. `pumpKw` di `zone` non si usa: vale `hpKw`, lo stesso numero che entra nel contatore.
+- Attuatori: quelli dei due modelli. La pompa è `pump` (il consenso del PLC); `hp` di `energia` non si collega, lo calcola il modello.
+- La pompa gira se `pump` è acceso, non è guasta (`broken`, a vuoto come in `zone`) e il contatore non ha staccato. Quando gira scalda
+  le stanze ed entra nei carichi con `hpKw`. Il contatore staccato del passo prima la ferma: le stanze si raffreddano verso `Text`.
+- `expose`: le grandezze dei due modelli in un solo oggetto, con `broken`, `blackout` booleani e `hpRun` 0/1.
+- Il contatore che stacca resta staccato (come in `energia`): nella prova si rifà la serata (decisione 4 di `PROGETTO-CASA.md`).
+- Test: con la pompa spenta gli stessi numeri dei due modelli da soli; con la pompa accesa il carico sale di `hpKw` e le stanze come in
+  `zone`; la pompa guasta non è un carico; al buio la pompa si ferma e le stanze si raffreddano.
+
+**Eventi della serata (`level.scenario.events`).** `events: [{ id, at, do: 'toggle EV', label }]`. Sono le cose che fanno le persone
+a un'ora fissa (l'auto che si attacca, la finestra aperta e richiusa). A `at` secondi dal via del periodo il motore fa l'azione, una
+volta sola; se l'allievo la disfa, l'evento non la rifà. Non sono guasti: niente `fixed`, niente tempo massimo, niente stelle tolte.
+Dopo la fine del periodo non scattano. Il rapporto dello scenario aggiunge `events: [{ id, label, at, firedAt }]` per il registro e il
+verbale; `faults`, `pick` e `downtime` non cambiano (la fabbrica c51 ha `events: []`).
+
 ## 9. Fuori da questa specifica
 
 Bus di campo, manutenzione predittiva, pannello operatore con allarmi (6.8: si appoggia sul tracciato e sulle parole del PLC, ma la sua interfaccia è da progettare), modelli della linea (P7).

@@ -47,7 +47,7 @@ export function createSim(level, wires = []) {
     hmi: {},               // parole dei PLC scritte dal pannello di regolazione: { idPLC: { MW0: 60 } }
     // turno con guasti a tempo (level.scenario): i guasti del turno (scelti dal seme, se c'e' `pick`), quando sono scattati e quando
     // sono stati riparati, il tempo di fermo (`downtime`)
-    scenario: level.scenario ? { firedAt: {}, fixedAt: {}, seed: level.scenario.seed ?? 1, faults: scenarioFaults(level.scenario, level.scenario.seed ?? 1), down: 0, lastMove: 0, sig: null, t0: level.scenario.startWhen ? null : 0 } : null,
+    scenario: level.scenario ? { firedAt: {}, fixedAt: {}, eventAt: {}, seed: level.scenario.seed ?? 1, faults: scenarioFaults(level.scenario, level.scenario.seed ?? 1), down: 0, lastMove: 0, sig: null, t0: level.scenario.startWhen ? null : 0 } : null,
     panel: level.hmi ? { values: {}, alarms: {}, seq: 0 } : null,   // pannello operatore (level.hmi): ultime letture e stato degli allarmi
   };
   Object.entries(tunedValues(level.process)).forEach(([name, v]) => applyTune(sim, name, v));
@@ -608,7 +608,7 @@ function downtimeTick(sim, dt) {
   const powered = !d.enable || !!(sim.parts[d.enable] && sim.parts[d.enable].on);
   if (!powered || sim.t - S.lastMove > (d.stall || 15)) S.down += dt;
 }
-// level.scenario = { duration, faults: [{ id, at, do: 'cut TT', label, fixed: { part, prop, is }, maxDelay, fix: [azioni] }], expect? }
+// level.scenario = { duration, faults: [{ id, at, do: 'cut TT', label, fixed: { part, prop, is }, maxDelay, fix: [azioni] }], events?, expect? }
 // `fix` (le azioni che riparano, nell'ordine) non serve al gioco: lo usano i test per giocare il turno e documenta la riparazione.
 // A `at` secondi simulati dall'accensione scatta il guasto (un'azione del banco: cut, jam, toggle, weld...); l'allievo lo ripara
 // con gli stessi comandi. Il guasto e' riparato quando la proprieta' di quel pezzo torna al valore giusto.
@@ -629,6 +629,14 @@ function scenarioTick(sim) {
     // a turno finito non si ripara piu': il guasto resta aperto
     if (S.firedAt[f.id] !== undefined && S.fixedAt[f.id] === undefined && t < sc.duration && healthy(f)) S.fixedAt[f.id] = t;
   });
+  // eventi della serata (`events`: [{ id, at, do, label }]): azioni a un'ora fissa che non sono guasti. Scattano una volta sola,
+  // non hanno riparazione ne' tempo massimo e non tolgono stelle (docs/SPEC-PROCESSI.md, 8e). Dopo la fine del periodo non scattano.
+  (sc.events || []).forEach(ev => {
+    if (S.eventAt[ev.id] !== undefined || t < ev.at || t >= sc.duration) return;
+    S.eventAt[ev.id] = t;
+    const [a, x] = ev.do.split(/\s+/);
+    try { act(sim, a, x); } catch (e) { /* azione non valida per il pezzo: lo segnala il test sui livelli */ }
+  });
 }
 
 // Stato del turno per la vista e per la verifica.
@@ -642,7 +650,8 @@ export function scenarioReport(sim) {
     return { id: f.id, label: f.label || f.id, at: f.at, firedAt: firedAt ?? null, fixedAt: fixedAt ?? null, delay, max: f.maxDelay ?? Infinity,
       late: delay !== null && delay > (f.maxDelay ?? Infinity), open: firedAt !== undefined && fixedAt === undefined };
   });
-  return { duration: sc.duration, t, done: t >= sc.duration, started: S.t0 !== null, faults, seed: S.seed, down: sc.downtime ? Math.round(S.down) : null };
+  const events = (sc.events || []).map(ev => ({ id: ev.id, label: ev.label || ev.id, at: ev.at, firedAt: S.eventAt[ev.id] ?? null }));
+  return { duration: sc.duration, t, done: t >= sc.duration, started: S.t0 !== null, faults, events, seed: S.seed, down: sc.downtime ? Math.round(S.down) : null };
 }
 
 /* ---------- azioni ---------- */

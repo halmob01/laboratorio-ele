@@ -119,6 +119,8 @@ export const MODELS = {
       price: priceAt(s.hour, p), peak: priceAt(s.hour, p) >= p.priceHi ? 1 : 0, oven: s.hour >= p.ovenFrom && s.hour < p.ovenTo && p.ovenKw > 0 ? 1 : 0 }),
   },
 
+  // casa: definito sotto, dopo MODELS, perche' chiama `zone` ed `energia` (docs/SPEC-PROCESSI.md, 8e)
+
   // Linea di prelievo e deposito (Modulo 6): un robot a tre movimenti prende il pezzo dal punto di prelievo e lo porta al deposito.
   //   down  (1 = braccio giu', 0 = su)   shift (1 = verso il deposito, 0 = verso il prelievo)   grip (1 = pinza chiusa)
   // Posizioni da 0 a 1; i sensori scattano agli estremi. Ogni `feedEvery` secondi arriva un pezzo se il punto di prelievo e' libero.
@@ -187,6 +189,34 @@ export const MODELS = {
     expose: s => ({ f: s.f, v: s.v, moving: s.v > 1 }),
   },
 };
+
+// La casa intelligente della prova del Modulo 5 (c55, docs/PROGETTO-CASA.md 4.1): `zone` ed `energia` insieme, senza copiarne il codice.
+// Lo stato e' piatto: le chiavi dei due modelli non si sovrappongono salvo `hour`, che e' una sola (la calcolano tutti e due con la
+// stessa formula; vale quella di `energia`). La pompa di calore e' una sola: attuatore `pump` (consenso del PLC). Gira se `pump` e'
+// acceso, non e' guasta e il contatore non ha staccato; quando gira entra nei carichi del contatore con `hpKw` (lo stesso numero
+// usato da `zone` per `eHeat`). A contatore staccato la pompa si ferma e le stanze si raffreddano. `hpRun` dice se ha girato
+// nell'ultimo passo (per la scena e il pannello).
+{
+  const Z = MODELS.zone, E = MODELS.energia;
+  const zoneKeys = Object.keys(Z.init);
+  MODELS.casa = {
+    init: { ...E.init, ...Z.init, hpRun: 0 },
+    params: { ...Z.params, ...E.params },
+    acts: { ...E.acts, ...Z.acts, hp: 0, pump: 0 },
+    step(s, a, p, dt) {
+      const run = frac(a.pump) > 0 && !s.broken && !s.blackout ? 1 : 0;
+      const zp = { ...p, pumpKw: p.hpKw };
+      const zs = Object.fromEntries(zoneKeys.map(k => [k, s[k]]));
+      const z = Z.step(zs, { ...a, pump: run }, zp, dt);
+      const e = E.step(s, { ...a, hp: run }, p, dt);
+      return { ...s, ...z, ...e, hpRun: run };
+    },
+    expose(s, p) {
+      const z = Z.expose(s, { ...p, pumpKw: p.hpKw }), e = E.expose(s, p);
+      return { ...z, ...e, broken: z.broken, dryRun: z.dryRun, night: z.night, hpRun: s.hpRun ? 1 : 0 };
+    },
+  };
+}
 
 export const PROCESS_DT = 0.1;
 
