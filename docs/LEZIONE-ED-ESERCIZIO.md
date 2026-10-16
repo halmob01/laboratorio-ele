@@ -60,3 +60,16 @@ Ogni livello dichiara il proprio grado di aiuto nei dati (`src/content/units.js`
 - `steps`: i passi dell'esercizio con il testo del compito.
 - `support`: grado di aiuto (`guidato`, `passi`, `obiettivo`).
 - `summary`: i punti della sintesi (usati anche dal Quaderno).
+
+## 5. Criteri di chiarezza (richiesta di Gianluca, 16 ottobre)
+
+La lezione deve spiegare davvero il perché, non solo il come. Per ogni livello nuovo:
+
+- Un concetto per pagina, in ordine: perché serve, come funziona, come si collega. Prima il perché, poi i fili.
+- Le parole tecniche si spiegano la prima volta che compaiono (per esempio "contatto libero da tensione", "autoritenuta").
+- Una tabella dove aiuta a confrontare: tutti i casi (come buio/presenza), una cronologia (come l'allarme) o la corrispondenza tra pezzi e funzioni.
+- Un riquadro "Attenzione" per la regola che non si deve sbagliare.
+- Due previsioni: una sull'errore più probabile, una su un caso limite (due tasti insieme, il sensore ancora attivo).
+- Ogni passo dell'esercizio dice anche il perché ("Perché: ...") oltre a quali morsetti collegare.
+- La semplificazione del gioco si dice (per esempio i sensori che chiudono al pericolo, mentre nei sistemi veri sono NC in serie).
+
