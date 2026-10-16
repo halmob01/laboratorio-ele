@@ -921,9 +921,6 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
 .tw-fase{stroke:var(--fase)}
 .tw-neutro{stroke:var(--neutro)}
 .tw-spark{fill:var(--lamp);transform-box:fill-box;transform-origin:center}
-.tw-bg{fill:var(--quadro)}
-.tw-logo .tw-fase{stroke:#E9A15F}
-.tw-logo .tw-neutro{stroke:#8CC3F2}
 .tw-ghost{fill:none;stroke:var(--ink2);stroke-width:1.2;stroke-linecap:round;stroke-linejoin:round;opacity:.22}
 .tw .tw-w{stroke-dasharray:1 1}
 .tw.draw .tw-w{stroke-dashoffset:1;opacity:0}

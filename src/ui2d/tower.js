@@ -1,8 +1,7 @@
 // La torre di Rozzano disegnata dai due fili: marrone (fase) a sinistra, blu (neutro) a destra.
-// Solo SVG e CSS: niente script durante l'animazione. Tre versioni:
+// Solo SVG e CSS: niente script durante l'animazione. Due versioni:
 //   'profilo'  la sagoma vista di lato, i due fili ne disegnano meta' ciascuno e si toccano in cima
-//   'spira'    i fili attorcigliati lungo il fusto, i dischi in prospettiva (davanti marrone, dietro blu)
-//   'logo'     sagoma essenziale a tratto spesso nel tondo scuro del marchio
+//   'spira'    fili dritti alla base, poi attorcigliati; tre dischi in prospettiva (davanti marrone, dietro blu)
 // Modi (classe sul <svg>): 'draw' disegna una volta (aggiungere 'go' per partire), 'loop' per il caricamento.
 
 const CX = 50;
@@ -40,91 +39,68 @@ function profilo(o) {
   };
 }
 
-// Doppino attorcigliato tra y0 e y1 (dal basso verso l'alto), fase 0 o pi.
-function twist(y0, y1, phase, amp = 3.2) {
-  let d = '';
-  for (let y = y0; y >= y1 - 0.01; y -= 1.5) {
-    const x = CX + amp * Math.sin(y * 0.42 + phase);
-    d += (d ? 'L' : 'M') + `${f(x)} ${f(y)}`;
+// Fusto della spira: i due fili salgono dritti e paralleli, poi si attorcigliano.
+// Due giri esatti: in cima ogni filo e' di nuovo dal suo lato e prosegue senza salti.
+const STRAIGHT_TO = 112, TWIST_TO = 76, GAP = 3;
+const TURN = 4 * Math.PI / (STRAIGHT_TO - TWIST_TO);
+
+function trunk(side) {
+  let d = `L${CX + side * GAP} ${STRAIGHT_TO}`;
+  for (let y = STRAIGHT_TO - 1.5; y >= TWIST_TO - 0.01; y -= 1.5) {
+    d += `L${f(CX + side * GAP * Math.cos((STRAIGHT_TO - y) * TURN))} ${f(y)}`;
   }
   return d;
 }
 
 function spira(o) {
+  // dischi: y del bordo, raggio, y dove il cono parte dal fusto
   const discs = [
-    { y: 66, rx: 18, cone: 8, from: 74 },
-    { y: 56, rx: 12, cone: 3 },
-    { y: 51, rx: 16, cone: 3 },
-    { y: 45, rx: 21, cone: 3.5 },
-    { y: 36, rx: 11, cone: 2, from: 40 },
-    { y: 26, rx: 10, cone: 2, from: 30 },
+    { y: 66, rx: 18, from: TWIST_TO },
+    { y: 47, rx: 21, from: 59 },
+    { y: 31, rx: 10, from: 35 },
   ];
-  const build = (side, phase) => {
-    let d = o.lead ? `M${CX + side * 46} 152L${CX + side * 3} 152` : '';
-    d += twist(152, 74, phase).replace(/^M/, d ? 'L' : 'M');
-    let prevTop = null;
+  const build = side => {
+    let d = o.lead ? `M${CX + side * 46} 152L${CX + side * GAP} 152` : `M${CX + side * GAP} 152`;
+    d += trunk(side);
+    let top = null;
     for (const k of discs) {
-      if (k.from && prevTop !== null) d += twist(prevTop, k.from, phase);
       const ry = k.rx * 0.17;
-      const start = k.y + k.cone;
-      d += `M${CX + side * 3} ${f(start)}L${CX + side * k.rx} ${k.y}`;
-      // marrone: meta' davanti (sotto); blu: meta' dietro (sopra). Entrambi con sweep 0.
-      d += `A${k.rx} ${f(ry)} 0 0 0 ${CX - side * k.rx} ${k.y}`;
-      prevTop = k.y - ry - 1;
+      if (top !== null) d += `M${CX + side * GAP} ${f(top)}L${CX + side * GAP} ${k.from}`;
+      // cono fino al bordo, poi meta' disco: marrone davanti (sotto), blu dietro (sopra)
+      d += `L${CX + side * k.rx} ${k.y}A${k.rx} ${f(ry)} 0 0 0 ${CX - side * k.rx} ${k.y}`;
+      top = k.y - ry;
     }
-    d += `M${CX + side * 3.5} 24L${CX + side * 1.5} 14L${CX} 4`;
+    d += `M${CX + side * GAP} ${f(top)}L${CX + side * 1.5} 16L${CX} 4`;
     return d;
   };
   return {
     box: o.lead ? '0 0 100 160' : '20 0 60 160',
-    fase: build(-1, 0),
-    neutro: build(1, Math.PI),
+    fase: build(-1),
+    neutro: build(1),
     spark: [CX, 4],
     width: 1.8,
   };
 }
 
-const LOGO = [
-  [3, 58], [3, 42],
-  [13, 37.5], [13, 35.5], [4, 35.5],   // disco basso
-  [4, 31.5],
-  [16, 27], [16, 24.5], [4, 24.5],     // corona
-  [4, 21],
-  [9.5, 18.5], [9.5, 17], [3, 17],     // disco piccolo
-  [1.5, 13], [0, 8],
-];
-
-function logo() {
-  return {
-    box: '0 0 64 64',
-    fase: half(LOGO, -1, 32, 0),
-    neutro: half(LOGO, 1, 32, 0),
-    spark: [32, 8],
-    width: 3.4,
-    badge: true,
-  };
-}
-
-const BUILD = { profilo, spira, logo };
+const BUILD = { profilo, spira };
 
 /**
- * @param {'profilo'|'spira'|'logo'} variant
+ * @param {'profilo'|'spira'} variant
  * @param {{ mode?: 'draw'|'loop'|'still', lead?: boolean, size?: number, label?: string }} o
  */
-export function towerSVG(variant = 'profilo', o = {}) {
-  const g = (BUILD[variant] || profilo)(o);
+export function towerSVG(variant = 'spira', o = {}) {
+  const g = (BUILD[variant] || spira)(o);
   const mode = o.mode || 'draw';
   const [, , w, h] = g.box.split(' ').map(Number);
   const size = o.size || h;
   const a11y = o.label ? `role="img" aria-label="${o.label}"` : 'aria-hidden="true"';
-  const bg = g.badge ? `<circle cx="32" cy="32" r="32" class="tw-bg"/>` : '';
   // Il blu parte con un po' di ritardo: i due fili salgono quasi insieme, non a specchio perfetto.
-  return `<svg class="tw tw-${variant} ${mode}" viewBox="${g.box}" width="${f(size * w / h)}" height="${size}" ${a11y}>${bg}` +
+  return `<svg class="tw tw-${variant} ${mode}" viewBox="${g.box}" width="${f(size * w / h)}" height="${size}" ${a11y}>` +
     (variant === 'spira' && mode === 'loop' ? `<g class="tw-ghost"><path d="${g.fase}"/><path d="${g.neutro}"/></g>` : '') +
     `<g fill="none" stroke-width="${g.width}" stroke-linecap="round" stroke-linejoin="round">` +
     `<path class="tw-w tw-fase" pathLength="1" d="${g.fase}"/>` +
     `<path class="tw-w tw-neutro" pathLength="1" d="${g.neutro}"/></g>` +
-    `<circle class="tw-spark" cx="${g.spark[0]}" cy="${g.spark[1]}" r="${variant === 'logo' ? 3.2 : 2.6}"/></svg>`;
+    `<circle class="tw-spark" cx="${g.spark[0]}" cy="${g.spark[1]}" r="2.6"/></svg>`;
 }
 
 // Fa partire le torri in modo 'draw' quando entrano nella finestra (una volta sola).
