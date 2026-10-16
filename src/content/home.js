@@ -57,8 +57,9 @@ export const MODULES = [
       'c30-ladder',
       'c31-tempo',
       'c32-nastro-plc',
+      'c46-nastro-automatico',
     ],
-    milestone: { soon: true, art: 'plc', kick: 'Nastro con il PLC', name: 'Un nastro che si comanda da programma', text: 'Fotocellula, conteggio dei pacchi, emergenza e termico che restano cablati.' },
+    milestone: { level: 'c46-nastro-automatico', kick: 'Nastro automatico', name: 'Il cambio formato', text: 'Il nastro con il PLC passa ai lotti da 4 pacchi: collauda il programma nuovo e trova perché dopo il primo lotto non riparte. Il programma si cambia a nastro fermo.', src: 'assets/milestone/automatico.jpg', alt: 'Il capannone a mezzogiorno: il nastro con i pacchi, la fotocellula, il bancale e l’armadio con il PLC', tools: ['Pulsantiera', 'PLC', 'Fotocellula', 'Contatore', 'Editor ladder', 'Fungo'], cta: 'Entra nel capannone', again: 'Rifai la prova' },
   },
   {
     tag: 'MODULO 5',
@@ -90,7 +91,7 @@ export const MODULES = [
       'c44-guasti',
       'c45-fabbrica',
     ],
-    milestone: { soon: true, art: 'fabbrica', kick: 'Fabbrica', name: 'Una linea da cablare, programmare e mettere in sicurezza', text: 'Il progetto finale: un turno di lavoro con guasti da gestire.' },
+    milestone: { soon: true, art: 'fabbrica', kick: 'Fabbrica', name: 'Una linea da cablare, programmare e mettere in sicurezza', text: 'Un turno di lavoro con guasti da gestire.' },
   },
 ];
 

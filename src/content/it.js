@@ -209,6 +209,7 @@ export function itemText(item, level) {
     case 'safe.restartAfterEmergency': return 'Sbloccando l’emergenza la macchina riparte da sola: deve ripartire solo con un nuovo comando di marcia.';
     case 'safe.notCovered': return 'Un carico (' + nameOf(level, item.comp) + ') non è protetto dal differenziale.';
     case 'safe.liveWork': return 'Hai cambiato i fili mentre il sezionamento (' + nameOf(level, item.comp) + ') era chiuso e i morsetti erano in tensione. Premi Annulla tutto, apri il sezionamento e cabla da capo.';
+    case 'safe.programRunning': return 'Hai cambiato il programma con la macchina (' + nameOf(level, item.comp) + ') in moto: il PLC riparte da zero e la macchina può fermarsi o ripartire mentre qualcuno ci lavora. Premi Annulla tutto, ferma la macchina e correggi il programma da capo.';
     case 'safe.singleChannel': return 'I due canali dipendono dallo stesso contatto: se si incolla o viene scavalcato da un cortocircuito, restano chiusi tutti e due. Ogni canale deve avere il suo percorso.';
     case 'safe.notRedundant': return 'Se ' + nameOf(level, item.comp) + ' resta incollato la macchina non si ferma: ciascun dispositivo deve poterla fermare da solo.';
     case 'safe.contactUnused': return 'Il dispositivo ' + nameOf(level, item.comp) + ' ha un contatto non collegato: un dispositivo a due canali deve usarli tutti e due.';
@@ -249,6 +250,7 @@ export function sessionMessage(msg) {
       return msg.fault === 'corto'
         ? 'Il magnetotermico è scattato: la fase tocca il neutro (cortocircuito).'
         : 'È scattato il differenziale: la fase è finita sul filo di terra.';
+    case 'programLiveNow': return 'Attenzione: stai cambiando il programma con la macchina in moto. Fermala prima: così com’è, perdi la stella di sicurezza.';
     case 'liveWorkNow': return 'Attenzione: stai toccando morsetti in tensione. Apri il sezionamento prima di cablare: così com’è, perdi la stella di sicurezza.';
     case 'editWhileLive': return 'Per sicurezza il quadro si è spento: non si toccano i fili con la corrente.';
     case 'powerOff': return 'Quadro spento.';

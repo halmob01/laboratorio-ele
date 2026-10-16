@@ -53,9 +53,40 @@ export function officinaState(snap) {
   };
 }
 
+// Il nastro automatico (c46): il nastro con il PLC, i pacchi del modello `pacchi`, la fotocellula, la spia del lotto.
+export function automaticoState(snap) {
+  const o = snap.obs;
+  if (!o) return null;
+  const cs = snap.controlStates || {};
+  const fr = part(o, 'FR'), plc = part(o, 'PLC'), p = o.process || {};
+  const ctu = (((plc.mem || {}).counters || {}).C1 || {}).cv || 0;
+  const prog = ((snap.programs || {}).PLC || []).map(r => (r.do || []).find(i => i.op === 'ctu')).find(Boolean);
+  return {
+    scene: 'automatico',
+    supply: !!o.supply,
+    qm: !!part(o, 'QM').on,
+    motor: o.motors.M || 'off',
+    contactor: !!o.coils.KM,
+    thermal: { tripped: !!fr.tripped, heat: Math.max(0, Math.min(1, (fr.heat || 0) / ((snap.level && snap.level.comps.find(c => c.id === 'FR') || {}).tripAfter || 3))) },
+    start: !!cs.SB1,
+    stop: !!cs.SB0,
+    emergency: !!cs.SBE,
+    lamp: o.loads.H === 'on',                    // spia "lotto pieno"
+    beam: !!p.beam,                              // un pacco davanti alla fotocellula
+    // i pacchi: il fronte del primo e il passo (la scena li mette in fila da qui)
+    lead: p.lead || 0, gap: p.gap || 1.4, size: p.size || 0.48, at: p.at || 4.2, length: p.length || 6, passed: p.passed || 0,
+    // il PLC: acceso, ingressi e uscite come li vede lui, il conteggio e a quanto conta
+    plc: { on: !!plc.mem, inputs: { ...(plc.inputs || {}) }, outputs: { ...(plc.q || {}) } },
+    count: ctu, preset: prog ? prog.pv : 4, resetBy: prog ? prog.r || null : null,
+    wires: snap.wires || [],
+    flow: snap.flow || null,
+  };
+}
+
 export function provaState(snap) {
   const sc = snap && snap.level && snap.level.prova && snap.level.prova.scene;
   if (sc === 'appartamento') return appartamentoState(snap);
   if (sc === 'officina') return officinaState(snap);
+  if (sc === 'automatico') return automaticoState(snap);
   return null;
 }

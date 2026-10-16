@@ -178,7 +178,7 @@ Misure, da fare prima e dopo:
   confronto usato per l'ottimizzazione: si contano le `drawElements` e le `requestAnimationFrame` dal browser;
 - screenshot di ogni atto su computer (1440×900) e telefono (390×844), con la pagina servita da `python3 -m http.server`
   (aprendo il file con un doppio clic Chrome non carica modelli e texture);
-- prova finale su un portatile della scuola e su un telefono veri. Il browser di prova disegna via software e non dice
+- verifica su un portatile della scuola e su un telefono veri. Il browser di prova disegna via software e non dice
   la fluidita' reale.
 
 ## Movimento ridotto e senza 3D

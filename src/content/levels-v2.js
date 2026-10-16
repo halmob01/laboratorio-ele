@@ -1723,3 +1723,62 @@ LEVELS_V2.push({
     'Nel turno: un robot che resta fermo con “Ciclo bloccato” ha un finecorsa che non risponde; il fungo o la portella tolgono la potenza: prima li richiudi, poi premi il riarmo, poi Marcia (con le sicurezze aperte il PLC perde la marcia); il pannello grigio è il cavo di rete.',
   ],
 });
+
+// c46: la prova del Modulo 4 (scena 3D "automatico"). Il nastro di c32 con i lotti da 4: i pacchi arrivano da soli (modello
+// `pacchi`) e la fotocellula e' un sensore. Il cablaggio e' quello di c32; il guasto e' nel programma: il contatore non si azzera.
+// Specifica: docs/PROGETTO-NASTRO-PLC.md.
+export const W46 = W32_POWER.concat(W32_PLC);
+const PROG_46 = [
+  { if: 'I2', do: [{ op: 'ctu', id: 'C1', pv: 4, r: 'I1' }] },
+  { if: ['and', ['or', 'I1', 'Q0'], 'I0', 'I3', ['not', 'C1']], do: [{ op: 'coil', a: 'Q0' }] },
+  { if: 'C1', do: [{ op: 'coil', a: 'Q1' }] },
+];
+export const PROG_46_FAULT = [{ if: 'I2', do: [{ op: 'ctu', id: 'C1', pv: 4 }] }].concat(PROG_46.slice(1));
+LEVELS_V2.push({
+  id: 'c46-nastro-automatico', code: 'c46', n: 0, ...IND, flow: 'onDemand',
+  prova: { scene: 'automatico' },
+  name: 'Il cambio formato', title: 'Il cambio formato',
+  blurb: 'Lotti da 4 pacchi: collauda il programma nuovo, a nastro fermo si corregge.',
+  goal: 'Da oggi il nastro confeziona lotti da 4 pacchi invece che da 3, e stamattina un collega ha cambiato il programma del PLC. Collaudalo nella pausa pranzo: marcia, lotto completo, lotto nuovo, arresto ed emergenza. Se qualcosa non va, trovalo e correggi il programma a nastro fermo.',
+  comps: [
+    Q3,
+    C('QM', 'mt3', 'Salvamotore', 'Salvamotore magnetotermico', T(...T6)),
+    C('KM', 'km', 'Contattore', 'Contattore KM', T('A1', 'A2', ...T6)),
+    C('FR', 'ft', 'Termico', 'Relè termico', T(...T6, '95', '96'), { tripAfter: 3 }),
+    C('PLC', 'plc', 'PLC', 'PLC del nastro', T('A1', 'A2', 'I0', 'I1', 'I2', 'I3', 'IC', 'Q0A', 'Q0B', 'Q1A', 'Q1B'), {
+      symbols: { I0: 'Arresto', I1: 'Marcia', I2: 'Fotocellula', I3: 'Sicurezze', Q0: 'Nastro', Q1: 'Lotto pieno', C1: 'Pacchi' },
+      edit: { markers: 0, timers: 0, counters: 1, ops: ['coil', 'ctu'] },
+    }),
+    C('SBE', 'fungo', 'Emergenza', 'Pulsante di emergenza a fungo', T('1', '2')),
+    C('SB0', 'pbnc', 'Arresto', 'Pulsante di arresto (NC)', T('1', '2')),
+    C('SB1', 'pb', 'Marcia', 'Pulsante di marcia (NA)', T('3', '4')),
+    C('PH', 'sens', 'Fotocellula', 'Fotocellula: un pacco davanti al raggio', T('1', '2', '3', '4'), { sense: { v: 'beam' } }),
+    C('H', 'spia', 'Lotto pieno', 'Spia di lotto completo', T('X1', 'X2')),
+    C('M', 'motor3', 'Nastro', 'Motore del nastro', T('U', 'V', 'W', 'PE')),
+  ],
+  controls: ['SBE', 'SB0', 'SB1'],
+  process: {
+    model: 'pacchi', title: 'Il nastro a lotti', alt: 'Il nastro con i pacchi, la fotocellula e il bancale',
+    actuators: { run: { motor: 'M' } },
+    labels: { passed: 'I pacchi contati dalla fotocellula' },
+  },
+  demoDo: [{ do: press('SB1'), say: '' }],
+  checks: [
+    { id: 'marcia', label: 'Premi Marcia: il nastro parte e la spia del lotto è spenta', do: press('SB1'), expect: { motors: { M: 'fwd' }, loads: { H: 'off' } } },
+    { id: 'lotto', label: 'Dopo il quarto pacco davanti alla fotocellula il nastro si ferma e la spia si accende', do: press('SB1').concat(['wait 14']), expect: { motors: { M: 'off' }, loads: { H: 'on' }, process: { passed: [4, 4] } } },
+    { id: 'nuovo', label: 'Con Marcia parte un lotto nuovo e la spia si spegne', steps: [{ do: press('SB1').concat(['wait 14']), expect: { motors: { M: 'off' }, loads: { H: 'on' } } }, { do: press('SB1'), expect: { motors: { M: 'fwd' }, loads: { H: 'off' } } }] },
+    { id: 'secondo', label: 'Il lotto nuovo è di nuovo da 4 pacchi', steps: [{ do: press('SB1').concat(['wait 14']), expect: { process: { passed: [4, 4] } } }, { do: press('SB1').concat(['wait 14']), expect: { motors: { M: 'off' }, loads: { H: 'on' }, process: { passed: [8, 8] } } }] },
+    { id: 'arresto', label: 'Premi Arresto: il nastro si ferma', steps: [{ do: press('SB1'), expect: { motors: { M: 'fwd' } } }, { do: press('SB0'), expect: { motors: { M: 'off' } } }] },
+    { id: 'emergenza', label: 'Premi il fungo: il nastro si ferma e sbloccandolo non riparte da solo', steps: [{ do: press('SB1'), expect: { motors: { M: 'fwd' } } }, { do: ['toggle SBE'], expect: { motors: { M: 'off' } } }, { do: ['toggle SBE'], expect: { motors: { M: 'off' } } }] },
+    { id: 'termico', label: 'Con un sovraccarico il termico scatta e il nastro si ferma', steps: [{ do: press('SB1'), expect: { motors: { M: 'fwd' } } }, { do: ['overload on', 'wait 5'], expect: { motors: { M: 'off' }, tripped: ['FR'] } }] },
+    { id: 'fermo', label: 'Senza comandi il nastro è fermo', do: ['wait 5'], expect: { motors: { M: 'off' }, process: { passed: [0, 0] } } },
+  ],
+  safety: { deadWork: ['QM'], programStopped: ['M'], earth: [['M.PE', 'Q.PE']], stopWins: 'SB0', emergency: 'SBE', emergencyHardwired: { stop: 'SBE', start: ['SB1'] }, coilReturn: ['KM', 'PLC'], protectedBy: { M: 'QM', KM: 'QM' } },
+  solution: W46,
+  solutionPrograms: { PLC: PROG_46 },
+  hints: [
+    'Collauda come nell’officina: Marcia, poi lascia passare un lotto intero e guarda la spia; poi prova a far partire il lotto successivo.',
+    'Dopo il primo lotto Marcia arriva al PLC (il suo ingresso si accende) ma il nastro non riparte: il programma tiene il contatore pieno.',
+    'Ferma il nastro, apri il banco e nel gradino del contatore scegli “Si azzera con: I1 (Marcia)”. Lascia il conteggio a 4.',
+  ],
+});

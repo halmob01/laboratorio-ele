@@ -97,7 +97,29 @@ function lineScene(level, s) {
   return o;
 }
 
-export const SCENES = { serbatoio: tankScene, forno: ovenScene, nastro: beltScene, energia: houseScene, linea: lineScene };
+// Nastro a lotti (modello `pacchi`, prova del Modulo 4): i pacchi sul nastro, la fotocellula con il raggio, il bancale in fondo.
+function parcelScene(level, s) {
+  const p = s.obs.process;
+  const x0 = 40, x1 = 330, k = (x1 - x0) / p.length, y = 96;
+  let o = `<rect x="${x0}" y="${y}" width="${x1 - x0}" height="12" rx="6" fill="#4A4F57" stroke="#2A2D33" stroke-width="2"/>`;
+  for (let i = 0; i < 12; i++) {
+    const front = p.lead - i * p.gap;
+    if (front < 0) break;
+    if (front - p.size > p.length) continue;
+    const a = Math.max(0, front - p.size), b = Math.min(p.length, front);
+    if (b > a) o += `<rect x="${x0 + a * k}" y="${y - 28}" width="${(b - a) * k}" height="28" rx="2" fill="#C8A26A" stroke="#7A5A2E" stroke-width="1.5"/>`;
+  }
+  const bx = x0 + p.at * k, on = p.beam;
+  o += `<rect x="${bx - 4}" y="${y - 52}" width="8" height="16" fill="var(--ink2)"/><line x1="${bx}" y1="${y - 36}" x2="${bx}" y2="${y - 2}" stroke="${on ? '#E5484D' : '#F59F00'}" stroke-width="2" stroke-dasharray="${on ? '0' : '3 3'}"/>`;
+  o += `<text x="${bx}" y="${y - 58}" text-anchor="middle" style="font:600 11px 'IBM Plex Mono',monospace;fill:var(--ink2)">fotocellula</text>`;
+  const out = p.out, stack = out ? ((out - 1) % 4) + 1 : 0;   // un bancale per lotto: pieno a quattro, poi se ne prende uno vuoto
+  o += `<rect x="${x1 + 8}" y="${y + 6}" width="44" height="8" fill="#9A7B4F"/>`;
+  for (let i = 0; i < stack; i++) o += `<rect x="${x1 + 10 + (i % 2) * 20}" y="${y - 14 - Math.floor(i / 2) * 20}" width="19" height="19" fill="#C8A26A" stroke="#7A5A2E" stroke-width="1.2"/>`;
+  o += `<text x="200" y="140" text-anchor="middle" style="font:500 11px 'IBM Plex Sans',sans-serif;fill:var(--ink2)">pacchi contati dalla fotocellula: ${p.passed} · sul bancale: ${out}</text>`;
+  return o;
+}
+
+export const SCENES = { serbatoio: tankScene, forno: ovenScene, nastro: beltScene, energia: houseScene, linea: lineScene, pacchi: parcelScene };
 
 // ---------- grafico ----------
 // level.process.graph = { vars: [{ v, label, lo, hi }], window: secondi, lines: [{ tuned: 'sp', var: 'T' }] }

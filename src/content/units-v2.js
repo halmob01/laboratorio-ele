@@ -1,5 +1,7 @@
 // Unita' didattiche dei Moduli 2 e 3. Stessa forma di units.js.
 
+import { W46, PROG_46_FAULT } from './levels-v2.js';
+
 export const UNITS_V2 = {
   'c17-multimetro': {
     support: 'passi',
@@ -3914,5 +3916,63 @@ export const UNITS_V2 = {
       'Un guasto si trova leggendo insieme allarmi, valori e banco; si ripara in tempo e dopo un arresto di sicurezza si riarma.',
       'Una cella completa riunisce cablaggio, programma, sicurezza e gestione dei guasti.',
     ],
+  },
+  'c46-nastro-automatico': {
+    support: 'obiettivo',
+    lesson: {
+      pages: [
+        {
+          type: 'spiegazione',
+          title: 'Collaudare un programma',
+          paras: [
+            'Cambiare un programma è come rifare un pezzo di cablaggio: prima di consegnare la macchina si collaudano tutte le funzioni, non solo quella che si è cambiata. Un errore in una riga può fermare la produzione proprio dove nessuno guarda.',
+            'Un lotto si collauda per intero, e poi si prova anche il lotto dopo: un contatore che arriva al numero giusto ma non torna a zero fa un solo lotto e poi tiene ferma la macchina.',
+          ],
+        },
+        {
+          type: 'spiegazione',
+          title: 'Il programma si cambia a macchina ferma',
+          paras: [
+            'Quando il programma cambia, il PLC riparte da zero: perde le autoritenute, i conteggi e i tempi. Con la macchina in moto può fermarsi di colpo o, peggio, ripartire mentre qualcuno ci sta lavorando.',
+            'Per questo il programma si cambia solo a macchina ferma, come i fili si cambiano solo a salvamotore aperto. Fungo e termico restano nei fili: fermano il nastro anche se il programma sbaglia.',
+          ],
+        },
+        {
+          type: 'previsione',
+          question: 'Il primo lotto da 4 riesce. Premi Marcia per il lotto successivo: il nastro resta fermo e la spia "lotto pieno" resta accesa. Che cosa controlli per primo?',
+          options: [
+            { id: 'a', text: 'Il gradino del contatore: con che cosa si azzera.' },
+            { id: 'b', text: 'Il filo del fungo di emergenza.' },
+            { id: 'c', text: 'La taratura del relè termico.' },
+          ],
+          correct: 'a',
+          why: 'Il nastro ha appena finito un lotto, quindi fungo, termico e fili funzionano. Resta fermo perché il contatore è ancora pieno: nel gradino del nastro il contatto C1 normalmente chiuso è aperto. Se nessun ingresso azzera il contatore, resta pieno per sempre.',
+        },
+        { type: 'sintesi', title: 'Da ricordare' },
+      ],
+    },
+    summary: [
+      'Un programma cambiato si collauda per intero: tutte le funzioni, non solo quella cambiata.',
+      'Un lotto si prova fino in fondo, e poi si prova anche il lotto successivo.',
+      'Un contatore senza ingresso di azzeramento conta un solo lotto e poi resta pieno.',
+      'Il programma si cambia a macchina ferma: il PLC riparte da zero e la macchina può fermarsi o ripartire da sola.',
+    ],
+    fault: {
+      say: 'Il nastro è pronto con il programma nuovo, lotti da 4. Collaudalo: Marcia, un lotto intero, il lotto successivo, l’arresto e l’emergenza. Quando hai capito che cosa non va, rispondi.',
+      wires: W46,
+      programs: { PLC: PROG_46_FAULT },
+      diagnosis: {
+        question: 'Perché, finito il primo lotto, con Marcia il nastro non riparte e la spia resta accesa?',
+        options: [
+          { id: 'a', text: 'La fotocellula conta due volte ogni pacco.' },
+          { id: 'b', text: 'Il contatore non si azzera mai: nel suo gradino manca l’ingresso di azzeramento.' },
+          { id: 'c', text: 'Il pulsante di marcia non arriva al PLC.' },
+          { id: 'd', text: 'Il termico è scattato.' },
+        ],
+        correct: 'b',
+        why: 'Il PLC vede Marcia (l’ingresso I1 si accende) e i pacchi sono stati contati giusti, quattro. Ma il contatore non ha un ingresso che lo riporti a zero: resta pieno, il suo contatto normalmente chiuso nel gradino del nastro resta aperto e Marcia non può far partire niente.',
+      },
+      fixSay: 'Ferma il nastro. Apri il banco e nel gradino del contatore scegli “Si azzera con: I1 (Marcia)”, lasciando il conteggio a 4. Poi ricollauda e premi Verifica.',
+    },
   },
 };

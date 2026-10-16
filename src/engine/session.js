@@ -40,6 +40,7 @@ export function createSession({ levels, deriveFull, storage = memoryStorage(), i
   const unitByKey = {};
   const meterBy = {};         // multimetro: { on, mode, a, b } per livello e modalita'
   const liveEditsBy = {};      // lavoro fuori tensione: morsetti toccati mentre erano in tensione per colpa del sezionamento chiuso
+  const progLiveBy = {};       // programma cambiato con la macchina in moto (safety.programStopped)
   const measuredBy = {};      // letture fatte (per i passi): { a, b, mode, kind, value, ohm, live }
   const operatedByKey = {};   // comandi azionati con il quadro acceso, per i passi
   const programsByKey = {};   // programmi dei PLC scritti dall'allievo: { idPLC: [gradini] } per livello e modalita'
@@ -418,6 +419,7 @@ export function createSession({ levels, deriveFull, storage = memoryStorage(), i
     resetLevelState();
     delete measuredBy[keyOf()];
     delete liveEditsBy[keyOf()];
+    delete progLiveBy[keyOf()];
     wiresByKey[keyOf()] = faultWires(level);
     statesByKey[keyOf()] = {};
     resultsByKey[keyOf()] = null;
@@ -460,6 +462,7 @@ export function createSession({ levels, deriveFull, storage = memoryStorage(), i
       resultsByKey[keyOf(levelIndex, 'quadro')] = null;
       delete measuredBy[keyOf(levelIndex, 'quadro')];
       delete liveEditsBy[keyOf(levelIndex, 'quadro')];
+      delete progLiveBy[keyOf(levelIndex, 'quadro')];
       delete simsByKey[keyOf(levelIndex, 'quadro')];
       return;
     }
@@ -528,6 +531,13 @@ export function createSession({ levels, deriveFull, storage = memoryStorage(), i
 
   // Lavoro fuori tensione (livelli con safety.deadWork): toccare un morsetto che e' in tensione solo perche' il sezionamento e' chiuso
   // si registra. Il lato di linea del sezionamento non conta: resta in tensione anche a sezionamento aperto.
+  // Un programma si cambia a macchina ferma: gira uno dei motori di safety.programStopped?
+  function programRunning() {
+    const S = levelAt().safety && levelAt().safety.programStopped;
+    if (!v2(levelAt()) || !S || !power) return false;
+    const o = observe(simFor());
+    return S.some(m => o.motors[m] === 'fwd' || o.motors[m] === 'rev');
+  }
   function noteLive(terms) {
     const lv = levelAt();
     if (!v2(lv) || !lv.safety || !lv.safety.deadWork || !power) return false;
@@ -691,10 +701,12 @@ export function createSession({ levels, deriveFull, storage = memoryStorage(), i
       if (!inBuildOrFault()) return;
       const c = levelAt().comps.find(x => x.id === id && x.type === 'plc' && x.edit);
       if (!c) return;
+      const running = programRunning();
       programsByKey[keyOf()] = { ...programsOf(), [id]: sanitizeProgram(program) };
       resultsByKey[keyOf()] = null;
       rewireSim();
       applyLive2();
+      if (running) { progLiveBy[keyOf()] = true; message = { code: 'programLiveNow' }; }
       emit();
     },
     undo() {
@@ -715,6 +727,7 @@ export function createSession({ levels, deriveFull, storage = memoryStorage(), i
         // nella prova si torna all'impianto di partenza (con il suo guasto), non al banco vuoto
         wiresChanged();
         delete liveEditsBy[keyOf()];   // si ricomincia da capo, come al banco
+        delete progLiveBy[keyOf()];
         wiresByKey[keyOf()] = faultWires(lv);
         if (lv.unit.fault.programs) programsByKey[keyOf()] = JSON.parse(JSON.stringify(lv.unit.fault.programs)); else delete programsByKey[keyOf()];
         delete tunedByKey[keyOf()];
@@ -727,6 +740,7 @@ export function createSession({ levels, deriveFull, storage = memoryStorage(), i
       delete tunedByKey[keyOf()];   // anche i cursori del pannello tornano ai valori di partenza
       wiresChanged();
       delete liveEditsBy[keyOf()];   // si ricomincia da capo
+      delete progLiveBy[keyOf()];
       wiresByKey[keyOf()] = blank();
       statesByKey[keyOf()] = {};
       emit();
@@ -871,7 +885,7 @@ export function createSession({ levels, deriveFull, storage = memoryStorage(), i
       const level = levelAt();
       // nella sfida guasto i guasti da componente ancora attivi (dispersioni) vanno tolti prima di verificare
       const faultOn = v2(level) && level.unit && level.unit.fault && unitState().phase === 'fault' ? (level.unit.fault.on || []).filter(id => simFor().parts[id] && simFor().parts[id].on) : [];
-      const r = v2(level) ? evaluateV2(level, wires(), { measured: measuredBy[keyOf()] || [], ratings: ratingsOf(), programs: programsOf(), tuned: tunedByKey[keyOf()], liveSim: level.scenario ? simFor() : null, faultOn, hmiOff: levelAt().comps.filter(c => c.type === 'hmi' && simFor().parts[c.id] && !simFor().parts[c.id].on).map(c => c.id), liveEdits: liveEditsBy[keyOf()] || [] }) : evaluate(level, wires());
+      const r = v2(level) ? evaluateV2(level, wires(), { measured: measuredBy[keyOf()] || [], ratings: ratingsOf(), programs: programsOf(), tuned: tunedByKey[keyOf()], liveSim: level.scenario ? simFor() : null, faultOn, hmiOff: levelAt().comps.filter(c => c.type === 'hmi' && simFor().parts[c.id] && !simFor().parts[c.id].on).map(c => c.id), liveEdits: liveEditsBy[keyOf()] || [], programLive: !!progLiveBy[keyOf()] }) : evaluate(level, wires());
       resultsByKey[keyOf()] = r;
       const u = usage();
       u.checks++;

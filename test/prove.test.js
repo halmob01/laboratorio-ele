@@ -5,15 +5,16 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createSession } from '../src/engine/index.js';
 import { levels, deriveFull } from '../src/content/index.js';
+import { LEVELS_V2 } from '../src/content/levels-v2.js';
 
 const open = id => { const s = createSession({ levels, deriveFull, initialLevel: id }); s.start(); return s; };
 const tripped = s => s.snapshot().obs.tripped.slice().sort().join(',');
 
 test('le prove sono livelli con scena e sfida guasto', () => {
   const ps = levels.filter(l => l.prova);
-  assert.deepEqual(ps.map(l => l.id), ['c23-appartamento-notte', 'c24-officina']);
+  assert.deepEqual(ps.map(l => l.id), ['c23-appartamento-notte', 'c24-officina', 'c46-nastro-automatico']);
   ps.forEach(l => {
-    assert.ok(['appartamento', 'officina'].includes(l.prova.scene));
+    assert.ok(['appartamento', 'officina', 'automatico'].includes(l.prova.scene));
     assert.ok(l.unit && l.unit.fault && l.unit.fault.wires.length > 0);
     assert.ok(l.unit.fault.diagnosis.options.some(o => o.id === l.unit.fault.diagnosis.correct));
   });
@@ -187,4 +188,53 @@ test('una prova lasciata a meta’ riparte dall’impianto guasto, non dalla lez
   assert.equal(sn.unit.phase, 'fault');
   assert.equal(sn.wires.length, sn.level.unit.fault.wires.length);
   assert.equal(tripped(b), 'D');
+});
+
+/* ---------- c46: il nastro automatico (prova del Modulo 4) ---------- */
+const run = (s, sec) => { for (let i = 0; i < sec * 2; i++) s.tick(0.5); };
+const SOL46 = LEVELS_V2.find(l => l.id === 'c46-nastro-automatico').solutionPrograms.PLC;
+const obs46 = s => { const o = s.snapshot().obs; return { M: o.motors.M, H: o.loads.H, passed: o.process.passed }; };
+
+test('c46: i pacchi arrivano da soli, la fotocellula li conta e a quattro il nastro si ferma', () => {
+  const s = open('c46-nastro-automatico');
+  s.skipLesson();
+  assert.equal(s.snapshot().unit.phase, 'fault');
+  assert.deepEqual(obs46(s), { M: 'off', H: 'off', passed: 0 });
+  s.press('SB1'); s.release('SB1');
+  run(s, 14);
+  assert.deepEqual(obs46(s), { M: 'off', H: 'on', passed: 4 });
+});
+
+test('c46: con il programma guasto il lotto successivo non parte; corretto il contatore, si', () => {
+  const s = open('c46-nastro-automatico');
+  s.skipLesson();
+  s.press('SB1'); s.release('SB1'); run(s, 14);
+  s.press('SB1'); s.tick(0.5); s.release('SB1'); s.tick(0.5);
+  assert.deepEqual(obs46(s), { M: 'off', H: 'on', passed: 4 });     // il guasto: il contatore resta pieno
+  const r0 = s.check();
+  assert.equal(r0.pass, false);
+  assert.deepEqual(r0.checks.filter(c => !c.ok).map(c => c.id), ['nuovo', 'secondo']);
+  s.answerDiagnosis('b');
+  s.setProgram('PLC', SOL46);                                        // a nastro fermo
+  assert.equal(s.snapshot().message, null);
+  const r = s.check();
+  assert.equal(r.pass, true, JSON.stringify(r.checks.filter(c => !c.ok)));
+  assert.equal(r.stars, 3);
+  assert.equal(s.snapshot().unit.faultSolved, true);
+});
+
+test('c46: cambiare il programma con il nastro in marcia fa perdere la stella di sicurezza; Annulla tutto rimedia', () => {
+  const s = open('c46-nastro-automatico');
+  s.skipLesson();
+  s.answerDiagnosis('b');
+  s.press('SB1'); s.release('SB1'); s.tick(0.5);
+  assert.equal(obs46(s).M, 'fwd');
+  s.setProgram('PLC', SOL46);
+  assert.equal(s.snapshot().message.code, 'programLiveNow');
+  const r = s.check();
+  assert.equal(r.pass, false);
+  assert.ok(r.safe.items.some(i => i.code === 'safe.programRunning'));
+  s.clear();                                                         // torna il programma guasto e l'errore si cancella
+  s.setProgram('PLC', SOL46);
+  assert.equal(s.check().pass, true);
 });

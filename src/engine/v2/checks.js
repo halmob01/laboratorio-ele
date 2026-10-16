@@ -348,6 +348,7 @@ export function evaluateV2(level, wires, ctx = {}) {
       S.earth.forEach(([x, y]) => { if (uf.f(x) !== uf.f(y)) fail('safe.noEarth', { comp: x.split('.')[0] }); });
     }
     if (S.deadWork && (ctx.liveEdits || []).length) fail('safe.liveWork', { comp: S.deadWork[0] });
+    if (S.programStopped && ctx.programLive) fail('safe.programRunning', { comp: S.programStopped[0] });
     if (S.never) {
       const both = runs.some(x => x.r.sim.kmHistory.some(on => S.never.some(pair => pair.every(id => on.includes(id)))));
       // prova aggiuntiva: tutti i pulsanti di marcia premuti insieme

@@ -1,4 +1,4 @@
-// Fili dell'officina nella scena: dal morsetto del banco al punto 3D, e il percorso di ogni filo.
+// Fili del capannone nella scena (officina e nastro automatico): dal morsetto del banco al punto 3D, e il percorso di ogni filo.
 // Funzioni pure (niente three.js): la scena le usa per disegnare i fili veri del banco, compreso quello che scavalca il termico.
 // Coordinate in metri, come in officina.js: quadro sulla parete di fondo (x 2.6-3.4, z 0.1), pulsantiera a (6.4, 5.5),
 // finecorsa in fondo al nastro (8.68, 3.92), motore a (8.6, 4.35). I fili che escono dal quadro salgono alla passerella.
@@ -8,6 +8,8 @@ export const TRAY_Z = 0.4;
 const CAB_Z = 0.21;                         // davanti ai moduli del quadro
 const TOP = 2.0, BOT = 1.68;                // file dei morsetti alti (1, 3, 5) e bassi (2, 4, 6) dei moduli
 const MOD = { QM: 2.7, KM: 3.0, FR: 3.3 };
+export const PLC_X = 3.0, PLC_Y = 1.28;      // PLC del nastro automatico (centro, sulla guida bassa dell'armadio)
+export const PH_X = 6.8, PH_Z = 2.95;        // fotocellula: 4,2 m dall'inizio del nastro (x 2,6), sul lato verso la parete
 const POLE = { 1: -0.05, 2: -0.05, 3: 0, 4: 0, 5: 0.05, 6: 0.05 };
 
 // Morsetto -> { p: [x, y, z], zone }. zone: 'cab' nel quadro, altrimenti il nome del dispositivo in campo.
@@ -32,6 +34,18 @@ export function anchorOf(term) {
     const k = { 1: -0.02, 3: -0.02, X1: -0.02, 2: 0.02, 4: 0.02, X2: 0.02 }[t];
     return k === undefined ? null : { p: [st[0] + k, st[1], 5.4], zone: 'st' };
   }
+  // PLC del nastro automatico, sulla seconda guida dell'armadio: alimentazione, comune e ingressi in alto, uscite in basso
+  if (id === 'PLC') {
+    const top = ['A1', 'A2', 'IC', 'I0', 'I1', 'I2', 'I3'].indexOf(t), bot = ['Q0A', 'Q0B', 'Q1A', 'Q1B'].indexOf(t);
+    if (top >= 0) return { p: [PLC_X - 0.135 + top * 0.045, PLC_Y + 0.075, CAB_Z], zone: 'cab' };
+    if (bot >= 0) return { p: [PLC_X - 0.075 + bot * 0.05, PLC_Y - 0.075, CAB_Z], zone: 'cab' };
+    return null;
+  }
+  // fotocellula a sbarramento sul lato del nastro verso la parete, davanti al raggio
+  if (id === 'PH') {
+    const k = { 1: -0.03, 2: -0.01, 3: 0.01, 4: 0.03 }[t];
+    return k === undefined ? null : { p: [PH_X + k, 0.86, PH_Z], zone: 'ph' };
+  }
   if (id === 'FC') {
     const k = { 1: -0.03, 2: -0.01, 3: 0.01, 4: 0.03 }[t];
     return k === undefined ? null : { p: [8.68 + k, 1.0, 3.84], zone: 'fc' };
@@ -44,7 +58,7 @@ export function anchorOf(term) {
 }
 
 // Dal quadro alla passerella e poi al dispositivo: discesa sopra il dispositivo, alla sua x e z.
-const FIELD = { st: [6.4, 5.4], fc: [8.68, 3.84], mot: [8.6, 4.37] };
+const FIELD = { st: [6.4, 5.4], fc: [8.68, 3.84], mot: [8.6, 4.37], ph: [PH_X, PH_Z] };
 
 /**
  * Percorso di un filo del banco: punti [x, y, z] ad angoli retti, su una corsia sua (i) per non sovrapporsi agli altri.

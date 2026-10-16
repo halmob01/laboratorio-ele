@@ -794,6 +794,8 @@ html[dir="rtl"] .phud,html[dir="rtl"] .psheet,html[dir="rtl"] .pintro,html[dir="
   .psub{bottom:calc(220px + env(safe-area-inset-bottom,0px))}
   .psub b{font-size:56px}
   .psub span{font-size:14px}
+  .house.ofc .psub{bottom:calc(340px + env(safe-area-inset-bottom,0px))}   /* la pulsantiera di reparto e' piu' alta del quadro */
+  .house.ofc .psub b{font-size:46px}
   .prep{grid-template-columns:1fr;gap:2px 0}
   .prep dd{margin-bottom:8px}
 }
@@ -857,6 +859,14 @@ html[dir="rtl"] .phud,html[dir="rtl"] .psheet,html[dir="rtl"] .pintro,html[dir="
 .pst-mod.fr.trip{box-shadow:inset 0 0 0 2px var(--hud-bad)}
 .pst-mod.fr.trip .pst-state{color:#B21E16}
 .pst-side .pchip{grid-column:1/-1;justify-self:start;border-color:#9A968B;background:rgba(255,255,255,.5);color:#1B2230}
+/* nastro automatico: la spia del lotto (bianca) e il conteggio del PLC al posto della leva del sovraccarico */
+.pst-lamp.lot .pst-cap{background:#4a4a42}
+.pst-lamp.lot.on .pst-cap{background:radial-gradient(circle,#FFFDF0,#FFE38A);box-shadow:0 0 0 4px #23262A,0 0 18px #FFE38A}
+.pst-count{grid-column:1/-1;display:grid;grid-template-columns:1fr auto;align-items:center;gap:4px 10px;padding:8px 12px;border-radius:10px;background:#1B2230;color:#E9EEF5;min-height:44px}
+.pst-count .pst-name{color:#9AA6B8;width:auto}
+.pst-count b{font:600 22px/1 'IBM Plex Mono',monospace;color:#7CF0A6}
+.pst-count small{font-size:13px;color:#9AA6B8}
+.pst-cbar{grid-column:1/-1;height:4px;border-radius:2px;background:linear-gradient(90deg,#2EE66A calc(var(--k)*100%),#33405A 0)}
 .pverb-sub{margin:-6px 0 0!important;color:#6A6457!important;font-style:italic}
 .pverb-tests{list-style:none;margin:0;padding:0;display:grid;gap:4px}
 .pverb-tests li{display:flex;justify-content:space-between;gap:10px;border-bottom:1px dotted #B9B4A8;padding-bottom:3px}
@@ -2226,6 +2236,25 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
         partReady: !!s.feed && !s.holding
       })
     },
+    // Nastro a pacchi (prova del Modulo 4): un flusso di pacchi a passo fisso che il motore porta avanti. `s` sono i metri di
+    // nastro percorsi; il pacco k (0, 1, 2, ...) ha il fronte a first + s - k·gap. Davanti alla fotocellula (a `beam` metri
+    // dall'inizio) c'e' un pacco se il suo fronte ha passato il raggio da meno di `size` metri. Oltre `length` il pacco e'
+    // arrivato in fondo (sul bancale). Con il passo della simulazione (0,5 s) il raggio resta interrotto almeno size/v secondi.
+    pacchi: {
+      init: { s: 0 },
+      params: { v: 0.6, gap: 1.4, size: 0.48, beam: 4.2, first: 3.9, length: 6 },
+      acts: { run: 0 },
+      step(s, a, p, dt) {
+        return { s: s.s + (frac(a.run) > 0 ? p.v * dt : 0) };
+      },
+      expose: (s, p) => {
+        const lead = p.first + s.s;
+        const count = (x) => lead < x ? 0 : Math.floor((lead - x) / p.gap) + 1;
+        const d = lead - p.beam;
+        const beam = d >= 0 && (d % p.gap + p.gap) % p.gap < p.size;
+        return { s: s.s, lead, beam, passed: count(p.beam), out: count(p.length + p.size), gap: p.gap, size: p.size, at: p.beam, length: p.length };
+      }
+    },
     // Nastro con variatore di frequenza: f va verso ref·fmax con la rampa (Hz/s) se `run`, altrimenti scende a 0.
     // v (velocita' in % della nominale, a fNom) segue f con una costante di tempo breve. `load` frena (parametro).
     nastro: {
@@ -3508,6 +3537,7 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
         });
       }
       if (S2.deadWork && (ctx2.liveEdits || []).length) fail2("safe.liveWork", { comp: S2.deadWork[0] });
+      if (S2.programStopped && ctx2.programLive) fail2("safe.programRunning", { comp: S2.programStopped[0] });
       if (S2.never) {
         const both = runs.some((x) => x.r.sim.kmHistory.some((on) => S2.never.some((pair) => pair.every((id) => on.includes(id)))));
         const sim = createSim(level, wires);
@@ -3862,6 +3892,7 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
     const unitByKey = {};
     const meterBy = {};
     const liveEditsBy = {};
+    const progLiveBy = {};
     const measuredBy = {};
     const operatedByKey = {};
     const programsByKey = {};
@@ -4286,6 +4317,7 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
       resetLevelState();
       delete measuredBy[keyOf()];
       delete liveEditsBy[keyOf()];
+      delete progLiveBy[keyOf()];
       wiresByKey[keyOf()] = faultWires(level);
       statesByKey[keyOf()] = {};
       resultsByKey[keyOf()] = null;
@@ -4329,6 +4361,7 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
         resultsByKey[keyOf(levelIndex, "quadro")] = null;
         delete measuredBy[keyOf(levelIndex, "quadro")];
         delete liveEditsBy[keyOf(levelIndex, "quadro")];
+        delete progLiveBy[keyOf(levelIndex, "quadro")];
         delete simsByKey[keyOf(levelIndex, "quadro")];
         return;
       }
@@ -4407,6 +4440,12 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
         trip2 = true;
         message = { code: "trip", fault: cur.fault };
       }
+    }
+    function programRunning() {
+      const S2 = levelAt().safety && levelAt().safety.programStopped;
+      if (!v2(levelAt()) || !S2 || !power) return false;
+      const o = observe(simFor());
+      return S2.some((m) => o.motors[m] === "fwd" || o.motors[m] === "rev");
     }
     function noteLive(terms) {
       const lv = levelAt();
@@ -4580,10 +4619,15 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
         if (!inBuildOrFault()) return;
         const c2 = levelAt().comps.find((x) => x.id === id && x.type === "plc" && x.edit);
         if (!c2) return;
+        const running3 = programRunning();
         programsByKey[keyOf()] = { ...programsOf(), [id]: sanitizeProgram(program) };
         resultsByKey[keyOf()] = null;
         rewireSim();
         applyLive2();
+        if (running3) {
+          progLiveBy[keyOf()] = true;
+          message = { code: "programLiveNow" };
+        }
         emit();
       },
       undo() {
@@ -4603,6 +4647,7 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
         if (lv.prova && unitState().phase === "fault") {
           wiresChanged();
           delete liveEditsBy[keyOf()];
+          delete progLiveBy[keyOf()];
           wiresByKey[keyOf()] = faultWires(lv);
           if (lv.unit.fault.programs) programsByKey[keyOf()] = JSON.parse(JSON.stringify(lv.unit.fault.programs));
           else delete programsByKey[keyOf()];
@@ -4619,6 +4664,7 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
         delete tunedByKey[keyOf()];
         wiresChanged();
         delete liveEditsBy[keyOf()];
+        delete progLiveBy[keyOf()];
         wiresByKey[keyOf()] = blank();
         statesByKey[keyOf()] = {};
         emit();
@@ -4797,7 +4843,7 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
       check() {
         const level = levelAt();
         const faultOn = v2(level) && level.unit && level.unit.fault && unitState().phase === "fault" ? (level.unit.fault.on || []).filter((id) => simFor().parts[id] && simFor().parts[id].on) : [];
-        const r = v2(level) ? evaluateV2(level, wires(), { measured: measuredBy[keyOf()] || [], ratings: ratingsOf(), programs: programsOf(), tuned: tunedByKey[keyOf()], liveSim: level.scenario ? simFor() : null, faultOn, hmiOff: levelAt().comps.filter((c2) => c2.type === "hmi" && simFor().parts[c2.id] && !simFor().parts[c2.id].on).map((c2) => c2.id), liveEdits: liveEditsBy[keyOf()] || [] }) : evaluate(level, wires());
+        const r = v2(level) ? evaluateV2(level, wires(), { measured: measuredBy[keyOf()] || [], ratings: ratingsOf(), programs: programsOf(), tuned: tunedByKey[keyOf()], liveSim: level.scenario ? simFor() : null, faultOn, hmiOff: levelAt().comps.filter((c2) => c2.type === "hmi" && simFor().parts[c2.id] && !simFor().parts[c2.id].on).map((c2) => c2.id), liveEdits: liveEditsBy[keyOf()] || [], programLive: !!progLiveBy[keyOf()] }) : evaluate(level, wires());
         resultsByKey[keyOf()] = r;
         const u = usage();
         u.checks++;
@@ -8038,6 +8084,68 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
       "La sicurezza \xE8 quella dei livelli precedenti: i due canali del fungo e della portella in serie ai due ingressi del rel\xE8 KS, le sue uscite in serie alla bobina di KM, il riarmo che passa dal contatto NC di KM.",
       "Il programma: le transizioni sono quelle della linea (i tempi gi\xE0 scritti contano solo con le sicurezze a posto: un tempo che scorre a robot senza potenza farebbe passare al passo dopo con la pinza ferma). Gli allarmi sono due gradini con una bobina ciascuno: il timer T3 (ciclo pi\xF9 lungo di 40 secondi) alimenta la bobina M10, e I7 normalmente chiuso (le sicurezze non sono a posto) alimenta la bobina M11.",
       "Nel turno: un robot che resta fermo con \u201CCiclo bloccato\u201D ha un finecorsa che non risponde; il fungo o la portella tolgono la potenza: prima li richiudi, poi premi il riarmo, poi Marcia (con le sicurezze aperte il PLC perde la marcia); il pannello grigio \xE8 il cavo di rete."
+    ]
+  });
+  var W46 = W32_POWER.concat(W32_PLC);
+  var PROG_46 = [
+    { if: "I2", do: [{ op: "ctu", id: "C1", pv: 4, r: "I1" }] },
+    { if: ["and", ["or", "I1", "Q0"], "I0", "I3", ["not", "C1"]], do: [{ op: "coil", a: "Q0" }] },
+    { if: "C1", do: [{ op: "coil", a: "Q1" }] }
+  ];
+  var PROG_46_FAULT = [{ if: "I2", do: [{ op: "ctu", id: "C1", pv: 4 }] }].concat(PROG_46.slice(1));
+  LEVELS_V2.push({
+    id: "c46-nastro-automatico",
+    code: "c46",
+    n: 0,
+    ...IND,
+    flow: "onDemand",
+    prova: { scene: "automatico" },
+    name: "Il cambio formato",
+    title: "Il cambio formato",
+    blurb: "Lotti da 4 pacchi: collauda il programma nuovo, a nastro fermo si corregge.",
+    goal: "Da oggi il nastro confeziona lotti da 4 pacchi invece che da 3, e stamattina un collega ha cambiato il programma del PLC. Collaudalo nella pausa pranzo: marcia, lotto completo, lotto nuovo, arresto ed emergenza. Se qualcosa non va, trovalo e correggi il programma a nastro fermo.",
+    comps: [
+      Q3,
+      C("QM", "mt3", "Salvamotore", "Salvamotore magnetotermico", T(...T6)),
+      C("KM", "km", "Contattore", "Contattore KM", T("A1", "A2", ...T6)),
+      C("FR", "ft", "Termico", "Rel\xE8 termico", T(...T6, "95", "96"), { tripAfter: 3 }),
+      C("PLC", "plc", "PLC", "PLC del nastro", T("A1", "A2", "I0", "I1", "I2", "I3", "IC", "Q0A", "Q0B", "Q1A", "Q1B"), {
+        symbols: { I0: "Arresto", I1: "Marcia", I2: "Fotocellula", I3: "Sicurezze", Q0: "Nastro", Q1: "Lotto pieno", C1: "Pacchi" },
+        edit: { markers: 0, timers: 0, counters: 1, ops: ["coil", "ctu"] }
+      }),
+      C("SBE", "fungo", "Emergenza", "Pulsante di emergenza a fungo", T("1", "2")),
+      C("SB0", "pbnc", "Arresto", "Pulsante di arresto (NC)", T("1", "2")),
+      C("SB1", "pb", "Marcia", "Pulsante di marcia (NA)", T("3", "4")),
+      C("PH", "sens", "Fotocellula", "Fotocellula: un pacco davanti al raggio", T("1", "2", "3", "4"), { sense: { v: "beam" } }),
+      C("H", "spia", "Lotto pieno", "Spia di lotto completo", T("X1", "X2")),
+      C("M", "motor3", "Nastro", "Motore del nastro", T("U", "V", "W", "PE"))
+    ],
+    controls: ["SBE", "SB0", "SB1"],
+    process: {
+      model: "pacchi",
+      title: "Il nastro a lotti",
+      alt: "Il nastro con i pacchi, la fotocellula e il bancale",
+      actuators: { run: { motor: "M" } },
+      labels: { passed: "I pacchi contati dalla fotocellula" }
+    },
+    demoDo: [{ do: press("SB1"), say: "" }],
+    checks: [
+      { id: "marcia", label: "Premi Marcia: il nastro parte e la spia del lotto \xE8 spenta", do: press("SB1"), expect: { motors: { M: "fwd" }, loads: { H: "off" } } },
+      { id: "lotto", label: "Dopo il quarto pacco davanti alla fotocellula il nastro si ferma e la spia si accende", do: press("SB1").concat(["wait 14"]), expect: { motors: { M: "off" }, loads: { H: "on" }, process: { passed: [4, 4] } } },
+      { id: "nuovo", label: "Con Marcia parte un lotto nuovo e la spia si spegne", steps: [{ do: press("SB1").concat(["wait 14"]), expect: { motors: { M: "off" }, loads: { H: "on" } } }, { do: press("SB1"), expect: { motors: { M: "fwd" }, loads: { H: "off" } } }] },
+      { id: "secondo", label: "Il lotto nuovo \xE8 di nuovo da 4 pacchi", steps: [{ do: press("SB1").concat(["wait 14"]), expect: { process: { passed: [4, 4] } } }, { do: press("SB1").concat(["wait 14"]), expect: { motors: { M: "off" }, loads: { H: "on" }, process: { passed: [8, 8] } } }] },
+      { id: "arresto", label: "Premi Arresto: il nastro si ferma", steps: [{ do: press("SB1"), expect: { motors: { M: "fwd" } } }, { do: press("SB0"), expect: { motors: { M: "off" } } }] },
+      { id: "emergenza", label: "Premi il fungo: il nastro si ferma e sbloccandolo non riparte da solo", steps: [{ do: press("SB1"), expect: { motors: { M: "fwd" } } }, { do: ["toggle SBE"], expect: { motors: { M: "off" } } }, { do: ["toggle SBE"], expect: { motors: { M: "off" } } }] },
+      { id: "termico", label: "Con un sovraccarico il termico scatta e il nastro si ferma", steps: [{ do: press("SB1"), expect: { motors: { M: "fwd" } } }, { do: ["overload on", "wait 5"], expect: { motors: { M: "off" }, tripped: ["FR"] } }] },
+      { id: "fermo", label: "Senza comandi il nastro \xE8 fermo", do: ["wait 5"], expect: { motors: { M: "off" }, process: { passed: [0, 0] } } }
+    ],
+    safety: { deadWork: ["QM"], programStopped: ["M"], earth: [["M.PE", "Q.PE"]], stopWins: "SB0", emergency: "SBE", emergencyHardwired: { stop: "SBE", start: ["SB1"] }, coilReturn: ["KM", "PLC"], protectedBy: { M: "QM", KM: "QM" } },
+    solution: W46,
+    solutionPrograms: { PLC: PROG_46 },
+    hints: [
+      "Collauda come nell\u2019officina: Marcia, poi lascia passare un lotto intero e guarda la spia; poi prova a far partire il lotto successivo.",
+      "Dopo il primo lotto Marcia arriva al PLC (il suo ingresso si accende) ma il nastro non riparte: il programma tiene il contatore pieno.",
+      "Ferma il nastro, apri il banco e nel gradino del contatore scegli \u201CSi azzera con: I1 (Marcia)\u201D. Lascia il conteggio a 4."
     ]
   });
 
@@ -12237,6 +12345,64 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
         "Un guasto si trova leggendo insieme allarmi, valori e banco; si ripara in tempo e dopo un arresto di sicurezza si riarma.",
         "Una cella completa riunisce cablaggio, programma, sicurezza e gestione dei guasti."
       ]
+    },
+    "c46-nastro-automatico": {
+      support: "obiettivo",
+      lesson: {
+        pages: [
+          {
+            type: "spiegazione",
+            title: "Collaudare un programma",
+            paras: [
+              "Cambiare un programma \xE8 come rifare un pezzo di cablaggio: prima di consegnare la macchina si collaudano tutte le funzioni, non solo quella che si \xE8 cambiata. Un errore in una riga pu\xF2 fermare la produzione proprio dove nessuno guarda.",
+              "Un lotto si collauda per intero, e poi si prova anche il lotto dopo: un contatore che arriva al numero giusto ma non torna a zero fa un solo lotto e poi tiene ferma la macchina."
+            ]
+          },
+          {
+            type: "spiegazione",
+            title: "Il programma si cambia a macchina ferma",
+            paras: [
+              "Quando il programma cambia, il PLC riparte da zero: perde le autoritenute, i conteggi e i tempi. Con la macchina in moto pu\xF2 fermarsi di colpo o, peggio, ripartire mentre qualcuno ci sta lavorando.",
+              "Per questo il programma si cambia solo a macchina ferma, come i fili si cambiano solo a salvamotore aperto. Fungo e termico restano nei fili: fermano il nastro anche se il programma sbaglia."
+            ]
+          },
+          {
+            type: "previsione",
+            question: 'Il primo lotto da 4 riesce. Premi Marcia per il lotto successivo: il nastro resta fermo e la spia "lotto pieno" resta accesa. Che cosa controlli per primo?',
+            options: [
+              { id: "a", text: "Il gradino del contatore: con che cosa si azzera." },
+              { id: "b", text: "Il filo del fungo di emergenza." },
+              { id: "c", text: "La taratura del rel\xE8 termico." }
+            ],
+            correct: "a",
+            why: "Il nastro ha appena finito un lotto, quindi fungo, termico e fili funzionano. Resta fermo perch\xE9 il contatore \xE8 ancora pieno: nel gradino del nastro il contatto C1 normalmente chiuso \xE8 aperto. Se nessun ingresso azzera il contatore, resta pieno per sempre."
+          },
+          { type: "sintesi", title: "Da ricordare" }
+        ]
+      },
+      summary: [
+        "Un programma cambiato si collauda per intero: tutte le funzioni, non solo quella cambiata.",
+        "Un lotto si prova fino in fondo, e poi si prova anche il lotto successivo.",
+        "Un contatore senza ingresso di azzeramento conta un solo lotto e poi resta pieno.",
+        "Il programma si cambia a macchina ferma: il PLC riparte da zero e la macchina pu\xF2 fermarsi o ripartire da sola."
+      ],
+      fault: {
+        say: "Il nastro \xE8 pronto con il programma nuovo, lotti da 4. Collaudalo: Marcia, un lotto intero, il lotto successivo, l\u2019arresto e l\u2019emergenza. Quando hai capito che cosa non va, rispondi.",
+        wires: W46,
+        programs: { PLC: PROG_46_FAULT },
+        diagnosis: {
+          question: "Perch\xE9, finito il primo lotto, con Marcia il nastro non riparte e la spia resta accesa?",
+          options: [
+            { id: "a", text: "La fotocellula conta due volte ogni pacco." },
+            { id: "b", text: "Il contatore non si azzera mai: nel suo gradino manca l\u2019ingresso di azzeramento." },
+            { id: "c", text: "Il pulsante di marcia non arriva al PLC." },
+            { id: "d", text: "Il termico \xE8 scattato." }
+          ],
+          correct: "b",
+          why: "Il PLC vede Marcia (l\u2019ingresso I1 si accende) e i pacchi sono stati contati giusti, quattro. Ma il contatore non ha un ingresso che lo riporti a zero: resta pieno, il suo contatto normalmente chiuso nel gradino del nastro resta aperto e Marcia non pu\xF2 far partire niente."
+        },
+        fixSay: "Ferma il nastro. Apri il banco e nel gradino del contatore scegli \u201CSi azzera con: I1 (Marcia)\u201D, lasciando il conteggio a 4. Poi ricollauda e premi Verifica."
+      }
     }
   };
 
@@ -12490,6 +12656,8 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
         return "Un carico (" + nameOf(level, item.comp) + ") non \xE8 protetto dal differenziale.";
       case "safe.liveWork":
         return "Hai cambiato i fili mentre il sezionamento (" + nameOf(level, item.comp) + ") era chiuso e i morsetti erano in tensione. Premi Annulla tutto, apri il sezionamento e cabla da capo.";
+      case "safe.programRunning":
+        return "Hai cambiato il programma con la macchina (" + nameOf(level, item.comp) + ") in moto: il PLC riparte da zero e la macchina pu\xF2 fermarsi o ripartire mentre qualcuno ci lavora. Premi Annulla tutto, ferma la macchina e correggi il programma da capo.";
       case "safe.singleChannel":
         return "I due canali dipendono dallo stesso contatto: se si incolla o viene scavalcato da un cortocircuito, restano chiusi tutti e due. Ogni canale deve avere il suo percorso.";
       case "safe.notRedundant":
@@ -12530,6 +12698,8 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
     switch (msg.code) {
       case "trip":
         return msg.fault === "corto" ? "Il magnetotermico \xE8 scattato: la fase tocca il neutro (cortocircuito)." : "\xC8 scattato il differenziale: la fase \xE8 finita sul filo di terra.";
+      case "programLiveNow":
+        return "Attenzione: stai cambiando il programma con la macchina in moto. Fermala prima: cos\xEC com\u2019\xE8, perdi la stella di sicurezza.";
       case "liveWorkNow":
         return "Attenzione: stai toccando morsetti in tensione. Apri il sezionamento prima di cablare: cos\xEC com\u2019\xE8, perdi la stella di sicurezza.";
       case "editWhileLive":
@@ -12795,9 +12965,10 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
         "c29-plc",
         "c30-ladder",
         "c31-tempo",
-        "c32-nastro-plc"
+        "c32-nastro-plc",
+        "c46-nastro-automatico"
       ],
-      milestone: { soon: true, art: "plc", kick: "Nastro con il PLC", name: "Un nastro che si comanda da programma", text: "Fotocellula, conteggio dei pacchi, emergenza e termico che restano cablati." }
+      milestone: { level: "c46-nastro-automatico", kick: "Nastro automatico", name: "Il cambio formato", text: "Il nastro con il PLC passa ai lotti da 4 pacchi: collauda il programma nuovo e trova perch\xE9 dopo il primo lotto non riparte. Il programma si cambia a nastro fermo.", src: "assets/milestone/automatico.jpg", alt: "Il capannone a mezzogiorno: il nastro con i pacchi, la fotocellula, il bancale e l\u2019armadio con il PLC", tools: ["Pulsantiera", "PLC", "Fotocellula", "Contatore", "Editor ladder", "Fungo"], cta: "Entra nel capannone", again: "Rifai la prova" }
     },
     {
       tag: "MODULO 5",
@@ -12829,7 +13000,7 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
         "c44-guasti",
         "c45-fabbrica"
       ],
-      milestone: { soon: true, art: "fabbrica", kick: "Fabbrica", name: "Una linea da cablare, programmare e mettere in sicurezza", text: "Il progetto finale: un turno di lavoro con guasti da gestire." }
+      milestone: { soon: true, art: "fabbrica", kick: "Fabbrica", name: "Una linea da cablare, programmare e mettere in sicurezza", text: "Un turno di lavoro con guasti da gestire." }
     }
   ];
   var TRILOCALE = {
@@ -14847,7 +15018,27 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
     else if (p.dropped) o += `<text x="200" y="22" text-anchor="middle" style="font:700 11px 'IBM Plex Mono',monospace;fill:#C0262D">pezzi caduti: ${p.dropped}</text>`;
     return o;
   }
-  var SCENES = { serbatoio: tankScene, forno: ovenScene, nastro: beltScene, energia: houseScene, linea: lineScene };
+  function parcelScene(level, s) {
+    const p = s.obs.process;
+    const x0 = 40, x1 = 330, k = (x1 - x0) / p.length, y = 96;
+    let o = `<rect x="${x0}" y="${y}" width="${x1 - x0}" height="12" rx="6" fill="#4A4F57" stroke="#2A2D33" stroke-width="2"/>`;
+    for (let i = 0; i < 12; i++) {
+      const front = p.lead - i * p.gap;
+      if (front < 0) break;
+      if (front - p.size > p.length) continue;
+      const a = Math.max(0, front - p.size), b = Math.min(p.length, front);
+      if (b > a) o += `<rect x="${x0 + a * k}" y="${y - 28}" width="${(b - a) * k}" height="28" rx="2" fill="#C8A26A" stroke="#7A5A2E" stroke-width="1.5"/>`;
+    }
+    const bx = x0 + p.at * k, on = p.beam;
+    o += `<rect x="${bx - 4}" y="${y - 52}" width="8" height="16" fill="var(--ink2)"/><line x1="${bx}" y1="${y - 36}" x2="${bx}" y2="${y - 2}" stroke="${on ? "#E5484D" : "#F59F00"}" stroke-width="2" stroke-dasharray="${on ? "0" : "3 3"}"/>`;
+    o += `<text x="${bx}" y="${y - 58}" text-anchor="middle" style="font:600 11px 'IBM Plex Mono',monospace;fill:var(--ink2)">fotocellula</text>`;
+    const out = p.out, stack = out ? (out - 1) % 4 + 1 : 0;
+    o += `<rect x="${x1 + 8}" y="${y + 6}" width="44" height="8" fill="#9A7B4F"/>`;
+    for (let i = 0; i < stack; i++) o += `<rect x="${x1 + 10 + i % 2 * 20}" y="${y - 14 - Math.floor(i / 2) * 20}" width="19" height="19" fill="#C8A26A" stroke="#7A5A2E" stroke-width="1.2"/>`;
+    o += `<text x="200" y="140" text-anchor="middle" style="font:500 11px 'IBM Plex Sans',sans-serif;fill:var(--ink2)">pacchi contati dalla fotocellula: ${p.passed} \xB7 sul bancale: ${out}</text>`;
+    return o;
+  }
+  var SCENES = { serbatoio: tankScene, forno: ovenScene, nastro: beltScene, energia: houseScene, linea: lineScene, pacchi: parcelScene };
   function graphSVG(level, s) {
     const gr = level.process.graph;
     if (!gr) return "";
@@ -19195,6 +19386,125 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
     "Il salvamotore \xE8 aperto: lavori in corso.": "\u0627\u0644\u0642\u0627\u0637\u0639 \u0627\u0644\u062D\u0627\u0645\u064A \u0644\u0644\u0645\u062D\u0631\u0643 \u0645\u0641\u062A\u0648\u062D: \u0623\u0639\u0645\u0627\u0644 \u062C\u0627\u0631\u064A\u0629."
   };
 
+  // src/i18n/ar-37.js
+  var ar_37_default = {
+    // livello, mappa, lezione
+    "Il cambio formato": "\u062A\u063A\u064A\u064A\u0631 \u0627\u0644\u0635\u064A\u063A\u0629",
+    "Lotti da 4 pacchi: collauda il programma nuovo, a nastro fermo si corregge.": "\u062F\u0641\u0639\u0627\u062A \u0645\u0646 4 \u0637\u0631\u0648\u062F: \u0627\u062E\u062A\u0628\u0631 \u0627\u0644\u0628\u0631\u0646\u0627\u0645\u062C \u0627\u0644\u062C\u062F\u064A\u062F\u060C \u0648\u064A\u064F\u0635\u062D\u064E\u0651\u062D \u0648\u0627\u0644\u0633\u064A\u0631 \u0645\u062A\u0648\u0642\u0641.",
+    "Da oggi il nastro confeziona lotti da 4 pacchi invece che da 3, e stamattina un collega ha cambiato il programma del PLC. Collaudalo nella pausa pranzo: marcia, lotto completo, lotto nuovo, arresto ed emergenza. Se qualcosa non va, trovalo e correggi il programma a nastro fermo.": "\u0627\u0628\u062A\u062F\u0627\u0621\u064B \u0645\u0646 \u0627\u0644\u064A\u0648\u0645 \u064A\u0639\u0628\u0651\u0626 \u0627\u0644\u0633\u064A\u0631 \u062F\u0641\u0639\u0627\u062A \u0645\u0646 4 \u0637\u0631\u0648\u062F \u0628\u062F\u0644\u064B\u0627 \u0645\u0646 3\u060C \u0648\u0642\u062F \u063A\u064A\u0651\u0631 \u0632\u0645\u064A\u0644 \u0628\u0631\u0646\u0627\u0645\u062C \u0627\u0644\u0640PLC \u0647\u0630\u0627 \u0627\u0644\u0635\u0628\u0627\u062D. \u0627\u062E\u062A\u0628\u0631\u0647 \u0641\u064A \u0627\u0633\u062A\u0631\u0627\u062D\u0629 \u0627\u0644\u063A\u062F\u0627\u0621: \u0627\u0644\u062A\u0634\u063A\u064A\u0644\u060C \u0627\u0643\u062A\u0645\u0627\u0644 \u0627\u0644\u062F\u0641\u0639\u0629\u060C \u062F\u0641\u0639\u0629 \u062C\u062F\u064A\u062F\u0629\u060C \u0627\u0644\u0625\u064A\u0642\u0627\u0641 \u0648\u0627\u0644\u0637\u0648\u0627\u0631\u0626. \u0625\u0630\u0627 \u0643\u0627\u0646 \u0647\u0646\u0627\u0643 \u062E\u0644\u0644 \u0641\u0627\u0639\u062B\u0631 \u0639\u0644\u064A\u0647 \u0648\u0635\u062D\u0651\u062D \u0627\u0644\u0628\u0631\u0646\u0627\u0645\u062C \u0648\u0627\u0644\u0633\u064A\u0631 \u0645\u062A\u0648\u0642\u0641.",
+    "PLC del nastro": "PLC \u0627\u0644\u0633\u064A\u0631",
+    "Fotocellula: un pacco davanti al raggio": "\u0627\u0644\u062E\u0644\u064A\u0629 \u0627\u0644\u0636\u0648\u0626\u064A\u0629: \u0637\u0631\u062F \u0623\u0645\u0627\u0645 \u0627\u0644\u0634\u0639\u0627\u0639",
+    "Il nastro a lotti": "\u0627\u0644\u0633\u064A\u0631 \u0628\u0627\u0644\u062F\u0641\u0639\u0627\u062A",
+    "Il nastro con i pacchi, la fotocellula e il bancale": "\u0627\u0644\u0633\u064A\u0631 \u0645\u0639 \u0627\u0644\u0637\u0631\u0648\u062F \u0648\u0627\u0644\u062E\u0644\u064A\u0629 \u0627\u0644\u0636\u0648\u0626\u064A\u0629 \u0648\u0645\u0646\u0635\u0629 \u0627\u0644\u062A\u062D\u0645\u064A\u0644",
+    "I pacchi contati dalla fotocellula": "\u0627\u0644\u0637\u0631\u0648\u062F \u0627\u0644\u062A\u064A \u0639\u062F\u0651\u062A\u0647\u0627 \u0627\u0644\u062E\u0644\u064A\u0629 \u0627\u0644\u0636\u0648\u0626\u064A\u0629",
+    "Premi Marcia: il nastro parte e la spia del lotto \xE8 spenta": "\u0627\u0636\u063A\u0637 \u0627\u0644\u062A\u0634\u063A\u064A\u0644: \u064A\u0628\u062F\u0623 \u0627\u0644\u0633\u064A\u0631 \u0648\u0644\u0645\u0628\u0629 \u0627\u0644\u062F\u0641\u0639\u0629 \u0645\u0637\u0641\u0623\u0629",
+    "Dopo il quarto pacco davanti alla fotocellula il nastro si ferma e la spia si accende": "\u0628\u0639\u062F \u0627\u0644\u0637\u0631\u062F \u0627\u0644\u0631\u0627\u0628\u0639 \u0623\u0645\u0627\u0645 \u0627\u0644\u062E\u0644\u064A\u0629 \u0627\u0644\u0636\u0648\u0626\u064A\u0629 \u064A\u062A\u0648\u0642\u0641 \u0627\u0644\u0633\u064A\u0631 \u0648\u062A\u0636\u064A\u0621 \u0644\u0645\u0628\u0629 \u0627\u0644\u0625\u0634\u0627\u0631\u0629",
+    "Il lotto nuovo \xE8 di nuovo da 4 pacchi": "\u0627\u0644\u062F\u0641\u0639\u0629 \u0627\u0644\u062C\u062F\u064A\u062F\u0629 \u0645\u0646 4 \u0637\u0631\u0648\u062F \u0623\u064A\u0636\u064B\u0627",
+    "Premi il fungo: il nastro si ferma e sbloccandolo non riparte da solo": "\u0627\u0636\u063A\u0637 \u0632\u0631 \u0627\u0644\u0637\u0648\u0627\u0631\u0626: \u064A\u062A\u0648\u0642\u0641 \u0627\u0644\u0633\u064A\u0631 \u0648\u0639\u0646\u062F \u062A\u062D\u0631\u064A\u0631\u0647 \u0644\u0627 \u064A\u0639\u0627\u0648\u062F \u0627\u0644\u0639\u0645\u0644 \u0648\u062D\u062F\u0647",
+    "Collauda come nell\u2019officina: Marcia, poi lascia passare un lotto intero e guarda la spia; poi prova a far partire il lotto successivo.": "\u0627\u062E\u062A\u0628\u0631 \u0643\u0645\u0627 \u0641\u064A \u0627\u0644\u0648\u0631\u0634\u0629: \u0627\u0644\u062A\u0634\u063A\u064A\u0644\u060C \u062B\u0645 \u062F\u0639 \u062F\u0641\u0639\u0629 \u0643\u0627\u0645\u0644\u0629 \u062A\u0645\u0631 \u0648\u0627\u0646\u0638\u0631 \u0625\u0644\u0649 \u0644\u0645\u0628\u0629 \u0627\u0644\u0625\u0634\u0627\u0631\u0629\u061B \u062B\u0645 \u062D\u0627\u0648\u0644 \u062A\u0634\u063A\u064A\u0644 \u0627\u0644\u062F\u0641\u0639\u0629 \u0627\u0644\u062A\u0627\u0644\u064A\u0629.",
+    "Dopo il primo lotto Marcia arriva al PLC (il suo ingresso si accende) ma il nastro non riparte: il programma tiene il contatore pieno.": "\u0628\u0639\u062F \u0627\u0644\u062F\u0641\u0639\u0629 \u0627\u0644\u0623\u0648\u0644\u0649 \u064A\u0635\u0644 \u0627\u0644\u062A\u0634\u063A\u064A\u0644 \u0625\u0644\u0649 \u0627\u0644\u0640PLC (\u064A\u0636\u064A\u0621 \u0645\u062F\u062E\u0644\u0647) \u0644\u0643\u0646 \u0627\u0644\u0633\u064A\u0631 \u0644\u0627 \u064A\u0639\u0627\u0648\u062F \u0627\u0644\u0639\u0645\u0644: \u0627\u0644\u0628\u0631\u0646\u0627\u0645\u062C \u064A\u064F\u0628\u0642\u064A \u0627\u0644\u0639\u062F\u0651\u0627\u062F \u0645\u0645\u062A\u0644\u0626\u064B\u0627.",
+    "Ferma il nastro, apri il banco e nel gradino del contatore scegli \u201CSi azzera con: I1 (Marcia)\u201D. Lascia il conteggio a 4.": "\u0623\u0648\u0642\u0641 \u0627\u0644\u0633\u064A\u0631 \u0648\u0627\u0641\u062A\u062D \u0627\u0644\u0637\u0627\u0648\u0644\u0629 \u0648\u0641\u064A \u062F\u0631\u062C\u0629 \u0627\u0644\u0639\u062F\u0651\u0627\u062F \u0627\u062E\u062A\u0631 \xAB\u064A\u064F\u0635\u0641\u064E\u0651\u0631 \u0628\u0640: I1 (\u0627\u0644\u062A\u0634\u063A\u064A\u0644)\xBB. \u0627\u062A\u0631\u0643 \u0627\u0644\u0639\u062F\u0651 \u0639\u0644\u0649 4.",
+    "Nastro automatico": "\u0627\u0644\u0633\u064A\u0631 \u0627\u0644\u0622\u0644\u064A",
+    "Il nastro con il PLC passa ai lotti da 4 pacchi: collauda il programma nuovo e trova perch\xE9 dopo il primo lotto non riparte. Il programma si cambia a nastro fermo.": "\u064A\u0646\u062A\u0642\u0644 \u0627\u0644\u0633\u064A\u0631 \u0630\u0648 \u0627\u0644\u0640PLC \u0625\u0644\u0649 \u062F\u0641\u0639\u0627\u062A \u0645\u0646 4 \u0637\u0631\u0648\u062F: \u0627\u062E\u062A\u0628\u0631 \u0627\u0644\u0628\u0631\u0646\u0627\u0645\u062C \u0627\u0644\u062C\u062F\u064A\u062F \u0648\u0627\u0639\u0631\u0641 \u0644\u0645\u0627\u0630\u0627 \u0644\u0627 \u064A\u0639\u0627\u0648\u062F \u0627\u0644\u0639\u0645\u0644 \u0628\u0639\u062F \u0627\u0644\u062F\u0641\u0639\u0629 \u0627\u0644\u0623\u0648\u0644\u0649. \u064A\u064F\u063A\u064A\u064E\u0651\u0631 \u0627\u0644\u0628\u0631\u0646\u0627\u0645\u062C \u0648\u0627\u0644\u0633\u064A\u0631 \u0645\u062A\u0648\u0642\u0641.",
+    "Il capannone a mezzogiorno: il nastro con i pacchi, la fotocellula, il bancale e l\u2019armadio con il PLC": "\u0627\u0644\u0645\u0633\u062A\u0648\u062F\u0639 \u0639\u0646\u062F \u0627\u0644\u0638\u0647\u064A\u0631\u0629: \u0627\u0644\u0633\u064A\u0631 \u0645\u0639 \u0627\u0644\u0637\u0631\u0648\u062F \u0648\u0627\u0644\u062E\u0644\u064A\u0629 \u0627\u0644\u0636\u0648\u0626\u064A\u0629 \u0648\u0645\u0646\u0635\u0629 \u0627\u0644\u062A\u062D\u0645\u064A\u0644 \u0648\u0627\u0644\u062E\u0632\u0627\u0646\u0629 \u0645\u0639 \u0627\u0644\u0640PLC",
+    "Editor ladder": "\u0645\u062D\u0631\u0631 \u0627\u0644\u0633\u0644\u0651\u0645",
+    "Entra nel capannone": "\u0627\u062F\u062E\u0644 \u0627\u0644\u0645\u0633\u062A\u0648\u062F\u0639",
+    "Collaudare un programma": "\u0627\u062E\u062A\u0628\u0627\u0631 \u0628\u0631\u0646\u0627\u0645\u062C",
+    "Cambiare un programma \xE8 come rifare un pezzo di cablaggio: prima di consegnare la macchina si collaudano tutte le funzioni, non solo quella che si \xE8 cambiata. Un errore in una riga pu\xF2 fermare la produzione proprio dove nessuno guarda.": "\u062A\u063A\u064A\u064A\u0631 \u0628\u0631\u0646\u0627\u0645\u062C \u064A\u0634\u0628\u0647 \u0625\u0639\u0627\u062F\u0629 \u062C\u0632\u0621 \u0645\u0646 \u0627\u0644\u062A\u0648\u0635\u064A\u0644\u0627\u062A: \u0642\u0628\u0644 \u062A\u0633\u0644\u064A\u0645 \u0627\u0644\u0622\u0644\u0629 \u062A\u064F\u062E\u062A\u0628\u0631 \u0643\u0644 \u0627\u0644\u0648\u0638\u0627\u0626\u0641\u060C \u0644\u0627 \u062A\u0644\u0643 \u0627\u0644\u062A\u064A \u062A\u063A\u064A\u0651\u0631\u062A \u0641\u0642\u0637. \u062E\u0637\u0623 \u0641\u064A \u0633\u0637\u0631 \u0648\u0627\u062D\u062F \u0642\u062F \u064A\u0648\u0642\u0641 \u0627\u0644\u0625\u0646\u062A\u0627\u062C \u0641\u064A \u0627\u0644\u0645\u0643\u0627\u0646 \u0627\u0644\u0630\u064A \u0644\u0627 \u064A\u0646\u0638\u0631 \u0625\u0644\u064A\u0647 \u0623\u062D\u062F.",
+    "Un lotto si collauda per intero, e poi si prova anche il lotto dopo: un contatore che arriva al numero giusto ma non torna a zero fa un solo lotto e poi tiene ferma la macchina.": "\u062A\u064F\u062E\u062A\u0628\u0631 \u0627\u0644\u062F\u0641\u0639\u0629 \u0643\u0627\u0645\u0644\u0629\u060C \u062B\u0645 \u062A\u064F\u062C\u0631\u064E\u0651\u0628 \u0627\u0644\u062F\u0641\u0639\u0629 \u0627\u0644\u062A\u064A \u062A\u0644\u064A\u0647\u0627 \u0623\u064A\u0636\u064B\u0627: \u0627\u0644\u0639\u062F\u0651\u0627\u062F \u0627\u0644\u0630\u064A \u064A\u0628\u0644\u063A \u0627\u0644\u0631\u0642\u0645 \u0627\u0644\u0635\u062D\u064A\u062D \u0648\u0644\u0627 \u064A\u0639\u0648\u062F \u0625\u0644\u0649 \u0627\u0644\u0635\u0641\u0631 \u064A\u0646\u062C\u0632 \u062F\u0641\u0639\u0629 \u0648\u0627\u062D\u062F\u0629 \u062B\u0645 \u064A\u064F\u0628\u0642\u064A \u0627\u0644\u0622\u0644\u0629 \u0645\u062A\u0648\u0642\u0641\u0629.",
+    "Il programma si cambia a macchina ferma": "\u064A\u064F\u063A\u064A\u064E\u0651\u0631 \u0627\u0644\u0628\u0631\u0646\u0627\u0645\u062C \u0648\u0627\u0644\u0622\u0644\u0629 \u0645\u062A\u0648\u0642\u0641\u0629",
+    "Quando il programma cambia, il PLC riparte da zero: perde le autoritenute, i conteggi e i tempi. Con la macchina in moto pu\xF2 fermarsi di colpo o, peggio, ripartire mentre qualcuno ci sta lavorando.": "\u0639\u0646\u062F\u0645\u0627 \u064A\u062A\u063A\u064A\u0651\u0631 \u0627\u0644\u0628\u0631\u0646\u0627\u0645\u062C \u064A\u0628\u062F\u0623 \u0627\u0644\u0640PLC \u0645\u0646 \u0627\u0644\u0635\u0641\u0631: \u064A\u0641\u0642\u062F \u0627\u0644\u062A\u062B\u0628\u064A\u062A \u0627\u0644\u0630\u0627\u062A\u064A \u0648\u0627\u0644\u0639\u062F\u0651 \u0648\u0627\u0644\u0623\u0632\u0645\u0646\u0629. \u0648\u0627\u0644\u0622\u0644\u0629 \u0641\u064A \u062D\u0631\u0643\u0629 \u0642\u062F \u062A\u062A\u0648\u0642\u0641 \u0641\u062C\u0623\u0629\u060C \u0623\u0648 \u0627\u0644\u0623\u0633\u0648\u0623 \u0623\u0646 \u062A\u0639\u0627\u0648\u062F \u0627\u0644\u0639\u0645\u0644 \u0628\u064A\u0646\u0645\u0627 \u064A\u0639\u0645\u0644 \u0639\u0644\u064A\u0647\u0627 \u0623\u062D\u062F.",
+    "Per questo il programma si cambia solo a macchina ferma, come i fili si cambiano solo a salvamotore aperto. Fungo e termico restano nei fili: fermano il nastro anche se il programma sbaglia.": "\u0644\u0630\u0644\u0643 \u064A\u064F\u063A\u064A\u064E\u0651\u0631 \u0627\u0644\u0628\u0631\u0646\u0627\u0645\u062C \u0648\u0627\u0644\u0622\u0644\u0629 \u0645\u062A\u0648\u0642\u0641\u0629 \u0641\u0642\u0637\u060C \u0643\u0645\u0627 \u062A\u064F\u063A\u064A\u064E\u0651\u0631 \u0627\u0644\u0623\u0633\u0644\u0627\u0643 \u0648\u0642\u0627\u0637\u0639 \u062D\u0645\u0627\u064A\u0629 \u0627\u0644\u0645\u062D\u0631\u0643 \u0645\u0641\u062A\u0648\u062D \u0641\u0642\u0637. \u0632\u0631 \u0627\u0644\u0637\u0648\u0627\u0631\u0626 \u0648\u0627\u0644\u0645\u0631\u062D\u0651\u0644 \u0627\u0644\u062D\u0631\u0627\u0631\u064A \u064A\u0628\u0642\u064A\u0627\u0646 \u0641\u064A \u0627\u0644\u0623\u0633\u0644\u0627\u0643: \u064A\u0648\u0642\u0641\u0627\u0646 \u0627\u0644\u0633\u064A\u0631 \u062D\u062A\u0649 \u0644\u0648 \u0623\u062E\u0637\u0623 \u0627\u0644\u0628\u0631\u0646\u0627\u0645\u062C.",
+    'Il primo lotto da 4 riesce. Premi Marcia per il lotto successivo: il nastro resta fermo e la spia "lotto pieno" resta accesa. Che cosa controlli per primo?': "\u062A\u0646\u062C\u062D \u0627\u0644\u062F\u0641\u0639\u0629 \u0627\u0644\u0623\u0648\u0644\u0649 \u0645\u0646 4. \u062A\u0636\u063A\u0637 \u0627\u0644\u062A\u0634\u063A\u064A\u0644 \u0644\u0644\u062F\u0641\u0639\u0629 \u0627\u0644\u062A\u0627\u0644\u064A\u0629: \u064A\u0628\u0642\u0649 \u0627\u0644\u0633\u064A\u0631 \u0645\u062A\u0648\u0642\u0641\u064B\u0627 \u0648\u062A\u0628\u0642\u0649 \u0644\u0645\u0628\u0629 \xAB\u0627\u0644\u062F\u0641\u0639\u0629 \u0645\u0643\u062A\u0645\u0644\u0629\xBB \u0645\u0636\u0627\u0621\u0629. \u0645\u0627\u0630\u0627 \u062A\u0641\u062D\u0635 \u0623\u0648\u0644\u064B\u0627\u061F",
+    "Il gradino del contatore: con che cosa si azzera.": "\u062F\u0631\u062C\u0629 \u0627\u0644\u0639\u062F\u0651\u0627\u062F: \u0628\u0645\u0627\u0630\u0627 \u064A\u064F\u0635\u0641\u064E\u0651\u0631.",
+    "Il filo del fungo di emergenza.": "\u0633\u0644\u0643 \u0632\u0631 \u0627\u0644\u0637\u0648\u0627\u0631\u0626.",
+    "La taratura del rel\xE8 termico.": "\u0645\u0639\u0627\u064A\u0631\u0629 \u0627\u0644\u0645\u0631\u062D\u0651\u0644 \u0627\u0644\u062D\u0631\u0627\u0631\u064A.",
+    "Il nastro ha appena finito un lotto, quindi fungo, termico e fili funzionano. Resta fermo perch\xE9 il contatore \xE8 ancora pieno: nel gradino del nastro il contatto C1 normalmente chiuso \xE8 aperto. Se nessun ingresso azzera il contatore, resta pieno per sempre.": "\u0623\u0646\u0647\u0649 \u0627\u0644\u0633\u064A\u0631 \u062F\u0641\u0639\u0629 \u0644\u0644\u062A\u0648\u060C \u0625\u0630\u0646 \u0632\u0631 \u0627\u0644\u0637\u0648\u0627\u0631\u0626 \u0648\u0627\u0644\u0645\u0631\u062D\u0651\u0644 \u0627\u0644\u062D\u0631\u0627\u0631\u064A \u0648\u0627\u0644\u0623\u0633\u0644\u0627\u0643 \u062A\u0639\u0645\u0644. \u064A\u0628\u0642\u0649 \u0645\u062A\u0648\u0642\u0641\u064B\u0627 \u0644\u0623\u0646 \u0627\u0644\u0639\u062F\u0651\u0627\u062F \u0645\u0627 \u0632\u0627\u0644 \u0645\u0645\u062A\u0644\u0626\u064B\u0627: \u0641\u064A \u062F\u0631\u062C\u0629 \u0627\u0644\u0633\u064A\u0631 \u0645\u0644\u0627\u0645\u0633 C1 \u0627\u0644\u0645\u063A\u0644\u0642 \u0639\u0627\u062F\u0629\u064B \u0645\u0641\u062A\u0648\u062D. \u0648\u0625\u0630\u0627 \u0644\u0645 \u064A\u0635\u0641\u0651\u0631 \u0623\u064A \u0645\u062F\u062E\u0644 \u0627\u0644\u0639\u062F\u0651\u0627\u062F \u064A\u0628\u0642\u0649 \u0645\u0645\u062A\u0644\u0626\u064B\u0627 \u0625\u0644\u0649 \u0627\u0644\u0623\u0628\u062F.",
+    "Un programma cambiato si collauda per intero: tutte le funzioni, non solo quella cambiata.": "\u0627\u0644\u0628\u0631\u0646\u0627\u0645\u062C \u0627\u0644\u0645\u0639\u062F\u064E\u0651\u0644 \u064A\u064F\u062E\u062A\u0628\u0631 \u0643\u0627\u0645\u0644\u064B\u0627: \u0643\u0644 \u0627\u0644\u0648\u0638\u0627\u0626\u0641\u060C \u0644\u0627 \u062A\u0644\u0643 \u0627\u0644\u062A\u064A \u062A\u063A\u064A\u0651\u0631\u062A \u0641\u0642\u0637.",
+    "Un lotto si prova fino in fondo, e poi si prova anche il lotto successivo.": "\u062A\u064F\u062C\u0631\u064E\u0651\u0628 \u0627\u0644\u062F\u0641\u0639\u0629 \u062D\u062A\u0649 \u0627\u0644\u0646\u0647\u0627\u064A\u0629\u060C \u062B\u0645 \u062A\u064F\u062C\u0631\u064E\u0651\u0628 \u0627\u0644\u062F\u0641\u0639\u0629 \u0627\u0644\u062A\u0627\u0644\u064A\u0629 \u0623\u064A\u0636\u064B\u0627.",
+    "Un contatore senza ingresso di azzeramento conta un solo lotto e poi resta pieno.": "\u0627\u0644\u0639\u062F\u0651\u0627\u062F \u0628\u0644\u0627 \u0645\u062F\u062E\u0644 \u062A\u0635\u0641\u064A\u0631 \u064A\u0639\u062F\u0651 \u062F\u0641\u0639\u0629 \u0648\u0627\u062D\u062F\u0629 \u062B\u0645 \u064A\u0628\u0642\u0649 \u0645\u0645\u062A\u0644\u0626\u064B\u0627.",
+    "Il programma si cambia a macchina ferma: il PLC riparte da zero e la macchina pu\xF2 fermarsi o ripartire da sola.": "\u064A\u064F\u063A\u064A\u064E\u0651\u0631 \u0627\u0644\u0628\u0631\u0646\u0627\u0645\u062C \u0648\u0627\u0644\u0622\u0644\u0629 \u0645\u062A\u0648\u0642\u0641\u0629: \u064A\u0628\u062F\u0623 \u0627\u0644\u0640PLC \u0645\u0646 \u0627\u0644\u0635\u0641\u0631 \u0648\u0642\u062F \u062A\u062A\u0648\u0642\u0641 \u0627\u0644\u0622\u0644\u0629 \u0623\u0648 \u062A\u0639\u0627\u0648\u062F \u0627\u0644\u0639\u0645\u0644 \u0648\u062D\u062F\u0647\u0627.",
+    "Il nastro \xE8 pronto con il programma nuovo, lotti da 4. Collaudalo: Marcia, un lotto intero, il lotto successivo, l\u2019arresto e l\u2019emergenza. Quando hai capito che cosa non va, rispondi.": "\u0627\u0644\u0633\u064A\u0631 \u062C\u0627\u0647\u0632 \u0628\u0627\u0644\u0628\u0631\u0646\u0627\u0645\u062C \u0627\u0644\u062C\u062F\u064A\u062F\u060C \u062F\u0641\u0639\u0627\u062A \u0645\u0646 4. \u0627\u062E\u062A\u0628\u0631\u0647: \u0627\u0644\u062A\u0634\u063A\u064A\u0644\u060C \u062F\u0641\u0639\u0629 \u0643\u0627\u0645\u0644\u0629\u060C \u0627\u0644\u062F\u0641\u0639\u0629 \u0627\u0644\u062A\u0627\u0644\u064A\u0629\u060C \u0627\u0644\u0625\u064A\u0642\u0627\u0641 \u0648\u0627\u0644\u0637\u0648\u0627\u0631\u0626. \u0648\u0639\u0646\u062F\u0645\u0627 \u062A\u0641\u0647\u0645 \u0645\u0627 \u0627\u0644\u062E\u0644\u0644 \u0623\u062C\u0628.",
+    "Perch\xE9, finito il primo lotto, con Marcia il nastro non riparte e la spia resta accesa?": "\u0644\u0645\u0627\u0630\u0627\u060C \u0628\u0639\u062F \u0627\u0646\u062A\u0647\u0627\u0621 \u0627\u0644\u062F\u0641\u0639\u0629 \u0627\u0644\u0623\u0648\u0644\u0649\u060C \u0644\u0627 \u064A\u0639\u0627\u0648\u062F \u0627\u0644\u0633\u064A\u0631 \u0627\u0644\u0639\u0645\u0644 \u0628\u0627\u0644\u062A\u0634\u063A\u064A\u0644 \u0648\u062A\u0628\u0642\u0649 \u0644\u0645\u0628\u0629 \u0627\u0644\u0625\u0634\u0627\u0631\u0629 \u0645\u0636\u0627\u0621\u0629\u061F",
+    "La fotocellula conta due volte ogni pacco.": "\u0627\u0644\u062E\u0644\u064A\u0629 \u0627\u0644\u0636\u0648\u0626\u064A\u0629 \u062A\u0639\u062F\u0651 \u0643\u0644 \u0637\u0631\u062F \u0645\u0631\u062A\u064A\u0646.",
+    "Il contatore non si azzera mai: nel suo gradino manca l\u2019ingresso di azzeramento.": "\u0627\u0644\u0639\u062F\u0651\u0627\u062F \u0644\u0627 \u064A\u064F\u0635\u0641\u064E\u0651\u0631 \u0623\u0628\u062F\u064B\u0627: \u0641\u064A \u062F\u0631\u062C\u062A\u0647 \u064A\u0646\u0642\u0635 \u0645\u062F\u062E\u0644 \u0627\u0644\u062A\u0635\u0641\u064A\u0631.",
+    "Il pulsante di marcia non arriva al PLC.": "\u0632\u0631 \u0627\u0644\u062A\u0634\u063A\u064A\u0644 \u0644\u0627 \u064A\u0635\u0644 \u0625\u0644\u0649 \u0627\u0644\u0640PLC.",
+    "Il PLC vede Marcia (l\u2019ingresso I1 si accende) e i pacchi sono stati contati giusti, quattro. Ma il contatore non ha un ingresso che lo riporti a zero: resta pieno, il suo contatto normalmente chiuso nel gradino del nastro resta aperto e Marcia non pu\xF2 far partire niente.": "\u064A\u0631\u0649 \u0627\u0644\u0640PLC \u0627\u0644\u062A\u0634\u063A\u064A\u0644 (\u064A\u0636\u064A\u0621 \u0627\u0644\u0645\u062F\u062E\u0644 I1) \u0648\u0639\u064F\u062F\u0651\u062A \u0627\u0644\u0637\u0631\u0648\u062F \u0635\u062D\u064A\u062D\u0629\u060C \u0623\u0631\u0628\u0639\u0629. \u0644\u0643\u0646 \u0627\u0644\u0639\u062F\u0651\u0627\u062F \u0644\u064A\u0633 \u0644\u0647 \u0645\u062F\u062E\u0644 \u064A\u0639\u064A\u062F\u0647 \u0625\u0644\u0649 \u0627\u0644\u0635\u0641\u0631: \u064A\u0628\u0642\u0649 \u0645\u0645\u062A\u0644\u0626\u064B\u0627\u060C \u0648\u064A\u0628\u0642\u0649 \u0645\u0644\u0627\u0645\u0633\u0647 \u0627\u0644\u0645\u063A\u0644\u0642 \u0639\u0627\u062F\u0629\u064B \u0641\u064A \u062F\u0631\u062C\u0629 \u0627\u0644\u0633\u064A\u0631 \u0645\u0641\u062A\u0648\u062D\u064B\u0627\u060C \u0641\u0644\u0627 \u064A\u0633\u062A\u0637\u064A\u0639 \u0627\u0644\u062A\u0634\u063A\u064A\u0644 \u0623\u0646 \u064A\u0634\u063A\u0651\u0644 \u0634\u064A\u0626\u064B\u0627.",
+    "Ferma il nastro. Apri il banco e nel gradino del contatore scegli \u201CSi azzera con: I1 (Marcia)\u201D, lasciando il conteggio a 4. Poi ricollauda e premi Verifica.": "\u0623\u0648\u0642\u0641 \u0627\u0644\u0633\u064A\u0631. \u0627\u0641\u062A\u062D \u0627\u0644\u0637\u0627\u0648\u0644\u0629 \u0648\u0641\u064A \u062F\u0631\u062C\u0629 \u0627\u0644\u0639\u062F\u0651\u0627\u062F \u0627\u062E\u062A\u0631 \xAB\u064A\u064F\u0635\u0641\u064E\u0651\u0631 \u0628\u0640: I1 (\u0627\u0644\u062A\u0634\u063A\u064A\u0644)\xBB \u0645\u0639 \u062A\u0631\u0643 \u0627\u0644\u0639\u062F\u0651 \u0639\u0644\u0649 4. \u062B\u0645 \u0623\u0639\u062F \u0627\u0644\u0627\u062E\u062A\u0628\u0627\u0631 \u0648\u0627\u0636\u063A\u0637 \u062A\u062D\u0642\u0642.",
+    "Contatto Fotocellula": "\u0645\u0644\u0627\u0645\u0633 \u0627\u0644\u062E\u0644\u064A\u0629 \u0627\u0644\u0636\u0648\u0626\u064A\u0629",
+    "Contatto Nastro": "\u0645\u0644\u0627\u0645\u0633 \u0627\u0644\u0633\u064A\u0631",
+    "Contatto Pacchi": "\u0645\u0644\u0627\u0645\u0633 \u0627\u0644\u0637\u0631\u0648\u062F",
+    "Contatto Pacchi, normalmente chiuso": "\u0645\u0644\u0627\u0645\u0633 \u0627\u0644\u0637\u0631\u0648\u062F\u060C \u0645\u063A\u0644\u0642 \u0639\u0627\u062F\u0629\u064B",
+    "Contatto Sicurezze": "\u0645\u0644\u0627\u0645\u0633 \u0627\u0644\u0633\u0644\u0627\u0645\u0629",
+    "Uscita Lotto pieno": "\u0645\u062E\u0631\u062C \u0627\u0644\u062F\u0641\u0639\u0629 \u0645\u0643\u062A\u0645\u0644\u0629",
+    "Uscita Nastro": "\u0645\u062E\u0631\u062C \u0627\u0644\u0633\u064A\u0631",
+    "Uscita Pacchi": "\u0645\u062E\u0631\u062C \u0627\u0644\u0637\u0631\u0648\u062F",
+    "CTU 4": "CTU 4",
+    "fotocellula": "\u0627\u0644\u062E\u0644\u064A\u0629 \u0627\u0644\u0636\u0648\u0626\u064A\u0629",
+    // regola e messaggi del motore
+    "Hai cambiato il programma con la macchina (Nastro) in moto: il PLC riparte da zero e la macchina pu\xF2 fermarsi o ripartire mentre qualcuno ci lavora. Premi Annulla tutto, ferma la macchina e correggi il programma da capo.": "\u063A\u064A\u0651\u0631\u062A \u0627\u0644\u0628\u0631\u0646\u0627\u0645\u062C \u0648\u0627\u0644\u0622\u0644\u0629 (\u0627\u0644\u0633\u064A\u0631) \u0641\u064A \u062D\u0631\u0643\u0629: \u064A\u0628\u062F\u0623 \u0627\u0644\u0640PLC \u0645\u0646 \u0627\u0644\u0635\u0641\u0631 \u0648\u0642\u062F \u062A\u062A\u0648\u0642\u0641 \u0627\u0644\u0622\u0644\u0629 \u0623\u0648 \u062A\u0639\u0627\u0648\u062F \u0627\u0644\u0639\u0645\u0644 \u0628\u064A\u0646\u0645\u0627 \u064A\u0639\u0645\u0644 \u0639\u0644\u064A\u0647\u0627 \u0623\u062D\u062F. \u0627\u0636\u063A\u0637 \u0625\u0644\u063A\u0627\u0621 \u0627\u0644\u0643\u0644\u060C \u0648\u0623\u0648\u0642\u0641 \u0627\u0644\u0622\u0644\u0629\u060C \u062B\u0645 \u0635\u062D\u0651\u062D \u0627\u0644\u0628\u0631\u0646\u0627\u0645\u062C \u0645\u0646 \u0627\u0644\u0628\u062F\u0627\u064A\u0629.",
+    "Attenzione: stai cambiando il programma con la macchina in moto. Fermala prima: cos\xEC com\u2019\xE8, perdi la stella di sicurezza.": "\u0627\u0646\u062A\u0628\u0647: \u0623\u0646\u062A \u062A\u063A\u064A\u0651\u0631 \u0627\u0644\u0628\u0631\u0646\u0627\u0645\u062C \u0648\u0627\u0644\u0622\u0644\u0629 \u0641\u064A \u062D\u0631\u0643\u0629. \u0623\u0648\u0642\u0641\u0647\u0627 \u0623\u0648\u0644\u064B\u0627: \u0643\u0645\u0627 \u0647\u0648 \u0627\u0644\u062D\u0627\u0644 \u0633\u062A\u0641\u0642\u062F \u0646\u062C\u0645\u0629 \u0627\u0644\u0633\u0644\u0627\u0645\u0629.",
+    // cornice della prova
+    "prova": "\u0627\u0644\u0627\u062E\u062A\u0628\u0627\u0631",
+    "Modulo 2 \xB7 prova": "\u0627\u0644\u0648\u062D\u062F\u0629 2 \xB7 \u0627\u0644\u0627\u062E\u062A\u0628\u0627\u0631",
+    "Modulo 3 \xB7 prova": "\u0627\u0644\u0648\u062D\u062F\u0629 3 \xB7 \u0627\u0644\u0627\u062E\u062A\u0628\u0627\u0631",
+    "Modulo 4 \xB7 prova": "\u0627\u0644\u0648\u062D\u062F\u0629 4 \xB7 \u0627\u0644\u0627\u062E\u062A\u0628\u0627\u0631",
+    "Un turno di lavoro con guasti da gestire.": "\u0646\u0648\u0628\u0629 \u0639\u0645\u0644 \u0645\u0639 \u0623\u0639\u0637\u0627\u0644 \u064A\u062C\u0628 \u0627\u0644\u062A\u0639\u0627\u0645\u0644 \u0645\u0639\u0647\u0627.",
+    "Modulo 4": "\u0627\u0644\u0648\u062D\u062F\u0629 4",
+    "Modulo 4 completato": "\u0627\u0643\u062A\u0645\u0644\u062A \u0627\u0644\u0648\u062D\u062F\u0629 4",
+    "Capannone": "\u0627\u0644\u0645\u0633\u062A\u0648\u062F\u0639",
+    "Ore 13:30. Pausa pranzo.": "\u0627\u0644\u0633\u0627\u0639\u0629 13:30. \u0627\u0633\u062A\u0631\u0627\u062D\u0629 \u0627\u0644\u063A\u062F\u0627\u0621.",
+    "Da oggi i lotti sono da 4 pacchi e stamattina il programma del PLC \xE8 stato cambiato. Collaudalo prima che la linea riparta: marcia, lotto completo, lotto nuovo, arresto ed emergenza. Se qualcosa non va, correggi il programma a nastro fermo.": "\u0627\u0628\u062A\u062F\u0627\u0621\u064B \u0645\u0646 \u0627\u0644\u064A\u0648\u0645 \u0627\u0644\u062F\u0641\u0639\u0627\u062A \u0645\u0646 4 \u0637\u0631\u0648\u062F\u060C \u0648\u0642\u062F \u062A\u063A\u064A\u0651\u0631 \u0628\u0631\u0646\u0627\u0645\u062C \u0627\u0644\u0640PLC \u0647\u0630\u0627 \u0627\u0644\u0635\u0628\u0627\u062D. \u0627\u062E\u062A\u0628\u0631\u0647 \u0642\u0628\u0644 \u0623\u0646 \u064A\u0639\u0627\u0648\u062F \u0627\u0644\u062E\u0637 \u0627\u0644\u0639\u0645\u0644: \u0627\u0644\u062A\u0634\u063A\u064A\u0644\u060C \u0627\u0643\u062A\u0645\u0627\u0644 \u0627\u0644\u062F\u0641\u0639\u0629\u060C \u062F\u0641\u0639\u0629 \u062C\u062F\u064A\u062F\u0629\u060C \u0627\u0644\u0625\u064A\u0642\u0627\u0641 \u0648\u0627\u0644\u0637\u0648\u0627\u0631\u0626. \u0648\u0625\u0630\u0627 \u0643\u0627\u0646 \u0647\u0646\u0627\u0643 \u062E\u0644\u0644 \u0641\u0635\u062D\u0651\u062D \u0627\u0644\u0628\u0631\u0646\u0627\u0645\u062C \u0648\u0627\u0644\u0633\u064A\u0631 \u0645\u062A\u0648\u0642\u0641.",
+    "Pulsantiera della linea": "\u0644\u0648\u062D\u0629 \u0623\u0632\u0631\u0627\u0631 \u0627\u0644\u062E\u0637",
+    "Ordine di modifica": "\u0623\u0645\u0631 \u0627\u0644\u062A\u0639\u062F\u064A\u0644",
+    "Capannone Ferri, linea di confezionamento": "\u0645\u0633\u062A\u0648\u062F\u0639 \u0641\u064A\u0631\u0651\u064A\u060C \u062E\u0637 \u0627\u0644\u062A\u0639\u0628\u0626\u0629",
+    "\xABCambio formato: da oggi i lotti sono da 4 pacchi. Il programma \xE8 stato cambiato stamattina. Collaudalo nella pausa: la linea riparte alle 14.\xBB": "\xAB\u062A\u063A\u064A\u064A\u0631 \u0627\u0644\u0635\u064A\u063A\u0629: \u0627\u0628\u062A\u062F\u0627\u0621\u064B \u0645\u0646 \u0627\u0644\u064A\u0648\u0645 \u0627\u0644\u062F\u0641\u0639\u0627\u062A \u0645\u0646 4 \u0637\u0631\u0648\u062F. \u062A\u063A\u064A\u0651\u0631 \u0627\u0644\u0628\u0631\u0646\u0627\u0645\u062C \u0647\u0630\u0627 \u0627\u0644\u0635\u0628\u0627\u062D. \u0627\u062E\u062A\u0628\u0631\u0647 \u0641\u064A \u0627\u0644\u0627\u0633\u062A\u0631\u0627\u062D\u0629: \u064A\u0639\u0627\u0648\u062F \u0627\u0644\u062E\u0637 \u0627\u0644\u0639\u0645\u0644 \u0641\u064A \u0627\u0644\u0633\u0627\u0639\u0629 14.\xBB",
+    "Lotto da 4": "\u062F\u0641\u0639\u0629 \u0645\u0646 4",
+    "Lotto nuovo": "\u062F\u0641\u0639\u0629 \u062C\u062F\u064A\u062F\u0629",
+    "Correggi il programma a nastro fermo": "\u0635\u062D\u0651\u062D \u0627\u0644\u0628\u0631\u0646\u0627\u0645\u062C \u0648\u0627\u0644\u0633\u064A\u0631 \u0645\u062A\u0648\u0642\u0641",
+    "Il nastro non riparte.": "\u0627\u0644\u0633\u064A\u0631 \u0644\u0627 \u064A\u0639\u0627\u0648\u062F \u0627\u0644\u0639\u0645\u0644.",
+    "Marcia arriva al PLC, ma il programma non la lascia passare.": "\u0627\u0644\u062A\u0634\u063A\u064A\u0644 \u064A\u0635\u0644 \u0625\u0644\u0649 \u0627\u0644\u0640PLC\u060C \u0644\u0643\u0646 \u0627\u0644\u0628\u0631\u0646\u0627\u0645\u062C \u0644\u0627 \u064A\u062A\u0631\u0643\u0647 \u064A\u0645\u0631.",
+    "Ferma il nastro prima di cambiare il programma.": "\u0623\u0648\u0642\u0641 \u0627\u0644\u0633\u064A\u0631 \u0642\u0628\u0644 \u062A\u063A\u064A\u064A\u0631 \u0627\u0644\u0628\u0631\u0646\u0627\u0645\u062C.",
+    "Lotto completo: quattro pacchi.": "\u0627\u0643\u062A\u0645\u0644\u062A \u0627\u0644\u062F\u0641\u0639\u0629: \u0623\u0631\u0628\u0639\u0629 \u0637\u0631\u0648\u062F.",
+    "Linea di confezionamento, lotti da 4": "\u062E\u0637 \u0627\u0644\u062A\u0639\u0628\u0626\u0629\u060C \u062F\u0641\u0639\u0627\u062A \u0645\u0646 4",
+    "Nel programma il contatore dei pacchi non aveva l\u2019ingresso di azzeramento: dopo il primo lotto restava pieno e Marcia non faceva ripartire il nastro.": "\u0641\u064A \u0627\u0644\u0628\u0631\u0646\u0627\u0645\u062C \u0644\u0645 \u064A\u0643\u0646 \u0644\u0639\u062F\u0651\u0627\u062F \u0627\u0644\u0637\u0631\u0648\u062F \u0645\u062F\u062E\u0644 \u062A\u0635\u0641\u064A\u0631: \u0628\u0639\u062F \u0627\u0644\u062F\u0641\u0639\u0629 \u0627\u0644\u0623\u0648\u0644\u0649 \u0643\u0627\u0646 \u064A\u0628\u0642\u0649 \u0645\u0645\u062A\u0644\u0626\u064B\u0627 \u0648\u0644\u0645 \u064A\u0643\u0646 \u0627\u0644\u062A\u0634\u063A\u064A\u0644 \u064A\u0639\u064A\u062F \u0627\u0644\u0633\u064A\u0631 \u0625\u0644\u0649 \u0627\u0644\u0639\u0645\u0644.",
+    "A nastro fermo, nel gradino del contatore aggiunto l\u2019azzeramento con Marcia (I1). Conteggio a 4.": "\u0648\u0627\u0644\u0633\u064A\u0631 \u0645\u062A\u0648\u0642\u0641\u060C \u0623\u064F\u0636\u064A\u0641 \u0625\u0644\u0649 \u062F\u0631\u062C\u0629 \u0627\u0644\u0639\u062F\u0651\u0627\u062F \u0627\u0644\u062A\u0635\u0641\u064A\u0631 \u0628\u0627\u0644\u062A\u0634\u063A\u064A\u0644 (I1). \u0627\u0644\u0639\u062F\u0651 \u0639\u0644\u0649 4.",
+    "Ore 14:00. La linea riparte.": "\u0627\u0644\u0633\u0627\u0639\u0629 14:00. \u064A\u0639\u0627\u0648\u062F \u0627\u0644\u062E\u0637 \u0627\u0644\u0639\u0645\u0644.",
+    "Programma nuovo caricato. Inizia il collaudo.": "\u062D\u064F\u0645\u0650\u0651\u0644 \u0627\u0644\u0628\u0631\u0646\u0627\u0645\u062C \u0627\u0644\u062C\u062F\u064A\u062F. \u064A\u0628\u062F\u0623 \u0627\u0644\u0627\u062E\u062A\u0628\u0627\u0631.",
+    "Premuto Marcia: il nastro parte.": "\u0636\u064F\u063A\u0637 \u0627\u0644\u062A\u0634\u063A\u064A\u0644: \u064A\u0628\u062F\u0623 \u0627\u0644\u0633\u064A\u0631.",
+    "Premuto Marcia: il nastro non parte.": "\u0636\u064F\u063A\u0637 \u0627\u0644\u062A\u0634\u063A\u064A\u0644: \u0627\u0644\u0633\u064A\u0631 \u0644\u0627 \u064A\u0628\u062F\u0623.",
+    "Quarto pacco davanti alla fotocellula: il nastro si ferma, la spia del lotto \xE8 accesa.": "\u0627\u0644\u0637\u0631\u062F \u0627\u0644\u0631\u0627\u0628\u0639 \u0623\u0645\u0627\u0645 \u0627\u0644\u062E\u0644\u064A\u0629 \u0627\u0644\u0636\u0648\u0626\u064A\u0629: \u064A\u062A\u0648\u0642\u0641 \u0627\u0644\u0633\u064A\u0631 \u0648\u0644\u0645\u0628\u0629 \u0627\u0644\u062F\u0641\u0639\u0629 \u0645\u0636\u0627\u0621\u0629.",
+    "Premuto Marcia: parte un lotto nuovo, la spia si spegne.": "\u0636\u064F\u063A\u0637 \u0627\u0644\u062A\u0634\u063A\u064A\u0644: \u062A\u0628\u062F\u0623 \u062F\u0641\u0639\u0629 \u062C\u062F\u064A\u062F\u0629 \u0648\u062A\u0646\u0637\u0641\u0626 \u0644\u0645\u0628\u0629 \u0627\u0644\u0625\u0634\u0627\u0631\u0629.",
+    "Premuto Marcia: il nastro non riparte, la spia resta accesa.": "\u0636\u064F\u063A\u0637 \u0627\u0644\u062A\u0634\u063A\u064A\u0644: \u0627\u0644\u0633\u064A\u0631 \u0644\u0627 \u064A\u0639\u0627\u0648\u062F \u0627\u0644\u0639\u0645\u0644 \u0648\u0644\u0645\u0628\u0629 \u0627\u0644\u0625\u0634\u0627\u0631\u0629 \u062A\u0628\u0642\u0649 \u0645\u0636\u0627\u0621\u0629.",
+    "Programma cambiato a nastro fermo.": "\u062A\u063A\u064A\u0651\u0631 \u0627\u0644\u0628\u0631\u0646\u0627\u0645\u062C \u0648\u0627\u0644\u0633\u064A\u0631 \u0645\u062A\u0648\u0642\u0641.",
+    "Programma cambiato con il nastro in marcia.": "\u062A\u063A\u064A\u0651\u0631 \u0627\u0644\u0628\u0631\u0646\u0627\u0645\u062C \u0648\u0627\u0644\u0633\u064A\u0631 \u064A\u0639\u0645\u0644.",
+    "Nel programma il contatore ora si azzera con Marcia.": "\u0641\u064A \u0627\u0644\u0628\u0631\u0646\u0627\u0645\u062C \u0635\u0627\u0631 \u0627\u0644\u0639\u062F\u0651\u0627\u062F \u064A\u064F\u0635\u0641\u064E\u0651\u0631 \u0628\u0627\u0644\u062A\u0634\u063A\u064A\u0644.",
+    "Risposta giusta: il contatore non si azzera mai.": "\u0625\u062C\u0627\u0628\u0629 \u0635\u062D\u064A\u062D\u0629: \u0627\u0644\u0639\u062F\u0651\u0627\u062F \u0644\u0627 \u064A\u064F\u0635\u0641\u064E\u0651\u0631 \u0623\u0628\u062F\u064B\u0627.",
+    "Premi Marcia: il nastro deve partire e i pacchi passare davanti alla fotocellula.": "\u0627\u0636\u063A\u0637 \u0627\u0644\u062A\u0634\u063A\u064A\u0644: \u064A\u062C\u0628 \u0623\u0646 \u064A\u0628\u062F\u0623 \u0627\u0644\u0633\u064A\u0631 \u0648\u0623\u0646 \u062A\u0645\u0631 \u0627\u0644\u0637\u0631\u0648\u062F \u0623\u0645\u0627\u0645 \u0627\u0644\u062E\u0644\u064A\u0629 \u0627\u0644\u0636\u0648\u0626\u064A\u0629.",
+    "Lascia correre il nastro: al quarto pacco deve fermarsi da solo e accendere la spia del lotto.": "\u062F\u0639 \u0627\u0644\u0633\u064A\u0631 \u064A\u062C\u0631\u064A: \u0639\u0646\u062F \u0627\u0644\u0637\u0631\u062F \u0627\u0644\u0631\u0627\u0628\u0639 \u064A\u062C\u0628 \u0623\u0646 \u064A\u062A\u0648\u0642\u0641 \u0648\u062D\u062F\u0647 \u0648\u064A\u0636\u064A\u0621 \u0644\u0645\u0628\u0629 \u0627\u0644\u062F\u0641\u0639\u0629.",
+    "Lotto completo. Premi Marcia per il lotto successivo.": "\u0627\u0643\u062A\u0645\u0644\u062A \u0627\u0644\u062F\u0641\u0639\u0629. \u0627\u0636\u063A\u0637 \u0627\u0644\u062A\u0634\u063A\u064A\u0644 \u0644\u0644\u062F\u0641\u0639\u0629 \u0627\u0644\u062A\u0627\u0644\u064A\u0629.",
+    "In marcia, premi Arresto.": "\u0648\u0627\u0644\u0633\u064A\u0631 \u064A\u0639\u0645\u0644\u060C \u0627\u0636\u063A\u0637 \u0627\u0644\u0625\u064A\u0642\u0627\u0641.",
+    "Marcia arrivava al PLC ma il nastro non ripartiva: perch\xE9? Rispondi.": "\u0643\u0627\u0646 \u0627\u0644\u062A\u0634\u063A\u064A\u0644 \u064A\u0635\u0644 \u0625\u0644\u0649 \u0627\u0644\u0640PLC \u0644\u0643\u0646 \u0627\u0644\u0633\u064A\u0631 \u0644\u0627 \u064A\u0639\u0627\u0648\u062F \u0627\u0644\u0639\u0645\u0644: \u0644\u0645\u0627\u0630\u0627\u061F \u0623\u062C\u0628.",
+    "Con il nastro fermo apri il banco: nel gradino del contatore scegli con che cosa si azzera.": "\u0648\u0627\u0644\u0633\u064A\u0631 \u0645\u062A\u0648\u0642\u0641 \u0627\u0641\u062A\u062D \u0627\u0644\u0637\u0627\u0648\u0644\u0629: \u0641\u064A \u062F\u0631\u062C\u0629 \u0627\u0644\u0639\u062F\u0651\u0627\u062F \u0627\u062E\u062A\u0631 \u0628\u0645\u0627\u0630\u0627 \u064A\u064F\u0635\u0641\u064E\u0651\u0631.",
+    "Rifai le prove, con due lotti di fila, e premi Verifica.": "\u0623\u0639\u062F \u0627\u0644\u0627\u062E\u062A\u0628\u0627\u0631\u0627\u062A \u0628\u062F\u0641\u0639\u062A\u064A\u0646 \u0645\u062A\u062A\u0627\u0644\u064A\u062A\u064A\u0646\u060C \u0648\u0627\u0636\u063A\u0637 \u062A\u062D\u0642\u0642.",
+    "La linea riparte": "\u064A\u0639\u0627\u0648\u062F \u0627\u0644\u062E\u0637 \u0627\u0644\u0639\u0645\u0644",
+    "Il contatore dei pacchi non aveva l\u2019ingresso di azzeramento: dopo il primo lotto restava pieno e il nastro non ripartiva. Ora si azzera con Marcia e i lotti da 4 si susseguono.": "\u0644\u0645 \u064A\u0643\u0646 \u0644\u0639\u062F\u0651\u0627\u062F \u0627\u0644\u0637\u0631\u0648\u062F \u0645\u062F\u062E\u0644 \u062A\u0635\u0641\u064A\u0631: \u0628\u0639\u062F \u0627\u0644\u062F\u0641\u0639\u0629 \u0627\u0644\u0623\u0648\u0644\u0649 \u0643\u0627\u0646 \u064A\u0628\u0642\u0649 \u0645\u0645\u062A\u0644\u0626\u064B\u0627 \u0648\u0627\u0644\u0633\u064A\u0631 \u0644\u0627 \u064A\u0639\u0627\u0648\u062F \u0627\u0644\u0639\u0645\u0644. \u0627\u0644\u0622\u0646 \u064A\u064F\u0635\u0641\u064E\u0651\u0631 \u0628\u0627\u0644\u062A\u0634\u063A\u064A\u0644 \u0648\u062A\u062A\u0648\u0627\u0644\u0649 \u0627\u0644\u062F\u0641\u0639\u0627\u062A \u0645\u0646 4.",
+    "Pacchi nel lotto": "\u0627\u0644\u0637\u0631\u0648\u062F \u0641\u064A \u0627\u0644\u062F\u0641\u0639\u0629",
+    "PLC": "PLC",
+    "Bancale": "\u0645\u0646\u0635\u0629 \u0627\u0644\u062A\u062D\u0645\u064A\u0644",
+    "Quadro e PLC": "\u0627\u0644\u0644\u0648\u062D\u0629 \u0648\u0627\u0644\u0640PLC",
+    "Nastro": "\u0627\u0644\u0633\u064A\u0631",
+    // descrizione della scena (aria-label, una frase alla volta: schema in ar.js)
+    "Linea di confezionamento.": "\u062E\u0637 \u0627\u0644\u062A\u0639\u0628\u0626\u0629.",
+    "Il nastro \xE8 fermo.": "\u0627\u0644\u0633\u064A\u0631 \u0645\u062A\u0648\u0642\u0641.",
+    "La spia del lotto pieno \xE8 accesa.": "\u0644\u0645\u0628\u0629 \u0627\u0644\u062F\u0641\u0639\u0629 \u0627\u0644\u0645\u0643\u062A\u0645\u0644\u0629 \u0645\u0636\u0627\u0621\u0629.",
+    "La spia del lotto pieno \xE8 spenta.": "\u0644\u0645\u0628\u0629 \u0627\u0644\u062F\u0641\u0639\u0629 \u0627\u0644\u0645\u0643\u062A\u0645\u0644\u0629 \u0645\u0637\u0641\u0623\u0629.",
+    "Un pacco \xE8 davanti alla fotocellula.": "\u0637\u0631\u062F \u0623\u0645\u0627\u0645 \u0627\u0644\u062E\u0644\u064A\u0629 \u0627\u0644\u0636\u0648\u0626\u064A\u0629.",
+    "Davanti alla fotocellula non c\u2019\xE8 nessun pacco.": "\u0644\u0627 \u064A\u0648\u062C\u062F \u0623\u064A \u0637\u0631\u062F \u0623\u0645\u0627\u0645 \u0627\u0644\u062E\u0644\u064A\u0629 \u0627\u0644\u0636\u0648\u0626\u064A\u0629.",
+    "Il PLC \xE8 acceso.": "\u0627\u0644\u0640PLC \u064A\u0639\u0645\u0644.",
+    "Il PLC \xE8 spento.": "\u0627\u0644\u0640PLC \u0645\u0637\u0641\u0623."
+  };
+
   // src/i18n/ar.js
   var ROLE = { "del neutro": "\u0627\u0644\u0645\u062D\u0627\u064A\u062F", "di terra": "\u0627\u0644\u0623\u0631\u0636\u064A", "di fase": "\u0627\u0644\u0637\u0648\u0631", "a bassa tensione": "\u0627\u0644\u062C\u0647\u062F \u0627\u0644\u0645\u0646\u062E\u0641\u0636", "di comando": "\u0627\u0644\u062A\u062D\u0643\u0645", "del positivo": "\u0627\u0644\u0645\u0648\u062C\u0628", "del negativo": "\u0627\u0644\u0633\u0627\u0644\u0628", "in continua": "\u0627\u0644\u062A\u064A\u0627\u0631 \u0627\u0644\u0645\u0633\u062A\u0645\u0631" };
   var COLORI = { "blu": "\u0623\u0632\u0631\u0642", "giallo-verde": "\u0623\u0635\u0641\u0631-\u0623\u062E\u0636\u0631", "marrone, nero o grigio": "\u0628\u0646\u064A\u064B\u0651\u0627 \u0623\u0648 \u0623\u0633\u0648\u062F \u0623\u0648 \u0631\u0645\u0627\u062F\u064A\u064B\u0651\u0627", "rosso, marrone, nero o grigio": "\u0623\u062D\u0645\u0631 \u0623\u0648 \u0628\u0646\u064A\u064B\u0651\u0627 \u0623\u0648 \u0623\u0633\u0648\u062F \u0623\u0648 \u0631\u0645\u0627\u062F\u064A\u064B\u0651\u0627", "di un colore diverso da blu e giallo-verde": "\u0628\u0644\u0648\u0646 \u0645\u062E\u062A\u0644\u0641 \u0639\u0646 \u0627\u0644\u0623\u0632\u0631\u0642 \u0648\u0627\u0644\u0623\u0635\u0641\u0631-\u0627\u0644\u0623\u062E\u0636\u0631", "rosso": "\u0623\u062D\u0645\u0631", "nero": "\u0623\u0633\u0648\u062F", "rosso o nero": "\u0623\u062D\u0645\u0631 \u0623\u0648 \u0623\u0633\u0648\u062F" };
@@ -19202,6 +19512,9 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
   var SCENE_LABEL = /^(Appartamento di notte|Officina con il nastro trasportatore|Linea di confezionamento)\. /;
   var PAT = [
     [SCENE_LABEL, (m, t) => m.input.split(/(?<=\.) /).map((x) => t(x)).join(" ")],
+    // pannello del processo del nastro a lotti (modello `pacchi`)
+    [/^pacchi contati dalla fotocellula: (\d+)$/, (m) => `\u0637\u0631\u0648\u062F \u0639\u062F\u0651\u062A\u0647\u0627 \u0627\u0644\u062E\u0644\u064A\u0629 \u0627\u0644\u0636\u0648\u0626\u064A\u0629: ${iso(m[1])}`],
+    [/^sul bancale: (\d+)$/, (m) => `\u0639\u0644\u0649 \u0645\u0646\u0635\u0629 \u0627\u0644\u062A\u062D\u0645\u064A\u0644: ${iso(m[1])}`],
     [/^Casa vista dall’alto\. Stanze con la luce accesa: (.+)$/, (m, t) => `\u0645\u0646\u0632\u0644 \u0645\u0646 \u0627\u0644\u0623\u0639\u0644\u0649. \u0627\u0644\u063A\u0631\u0641 \u0627\u0644\u0645\u0636\u0627\u0621\u0629: ${m[1].split(", ").map((x) => t(x)).join("\u060C ")}`],
     [/^[\d,.]+ kWh$/, (m) => iso(m[0])],
     // motivi di una prova sul tracciato (processText in it.js): il nome della grandezza si traduce a parte
@@ -19309,7 +19622,7 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
     [/^Portata (.+): (\d+) ampere\. Tocca per cambiarla$/, (m, t) => `\u0627\u0644\u0633\u0639\u0629 ${t(m[1])}: ${m[2]} \u0623\u0645\u0628\u064A\u0631. \u0627\u0644\u0645\u0633 \u0644\u062A\u063A\u064A\u064A\u0631\u0647\u0627`],
     [/^Protezioni scattate: (.+)\.$/, (m, t) => `\u062D\u0645\u0627\u064A\u0627\u062A \u0641\u0635\u0644\u062A: ${t(m[1])}.`]
   ];
-  registerLang("ar", { ...ar_1_default, ...ar_2_default, ...ar_3_default, ...ar_4_default, ...ar_5_default, ...ar_6_default, ...ar_7_default, ...ar_8_default, ...ar_9_default, ...ar_10_default, ...ar_11_default, ...ar_12_default, ...ar_13_default, ...ar_14_default, ...ar_15_default, ...ar_16_default, ...ar_17_default, ...ar_18_default, ...ar_19_default, ...ar_20_default, ...ar_21_default, ...ar_22_default, ...ar_23_default, ...ar_24_default, ...ar_25_default, ...ar_26_default, ...ar_27_default, ...ar_28_default, ...ar_29_default, ...ar_30_default, ...ar_31_default, ...ar_32_default, ...ar_33_default, ...ar_34_default, ...ar_35_default, ...ar_36_default }, PAT);
+  registerLang("ar", { ...ar_1_default, ...ar_2_default, ...ar_3_default, ...ar_4_default, ...ar_5_default, ...ar_6_default, ...ar_7_default, ...ar_8_default, ...ar_9_default, ...ar_10_default, ...ar_11_default, ...ar_12_default, ...ar_13_default, ...ar_14_default, ...ar_15_default, ...ar_16_default, ...ar_17_default, ...ar_18_default, ...ar_19_default, ...ar_20_default, ...ar_21_default, ...ar_22_default, ...ar_23_default, ...ar_24_default, ...ar_25_default, ...ar_26_default, ...ar_27_default, ...ar_28_default, ...ar_29_default, ...ar_30_default, ...ar_31_default, ...ar_32_default, ...ar_33_default, ...ar_34_default, ...ar_35_default, ...ar_36_default, ...ar_37_default }, PAT);
 
   // src/trilocale/house.js
   function houseState(session2, on = true) {
@@ -20322,17 +20635,55 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
       flow: snap.flow || null
     };
   }
+  function automaticoState(snap) {
+    const o = snap.obs;
+    if (!o) return null;
+    const cs = snap.controlStates || {};
+    const fr = part(o, "FR"), plc = part(o, "PLC"), p = o.process || {};
+    const ctu = (((plc.mem || {}).counters || {}).C1 || {}).cv || 0;
+    const prog = ((snap.programs || {}).PLC || []).map((r) => (r.do || []).find((i) => i.op === "ctu")).find(Boolean);
+    return {
+      scene: "automatico",
+      supply: !!o.supply,
+      qm: !!part(o, "QM").on,
+      motor: o.motors.M || "off",
+      contactor: !!o.coils.KM,
+      thermal: { tripped: !!fr.tripped, heat: Math.max(0, Math.min(1, (fr.heat || 0) / ((snap.level && snap.level.comps.find((c2) => c2.id === "FR") || {}).tripAfter || 3))) },
+      start: !!cs.SB1,
+      stop: !!cs.SB0,
+      emergency: !!cs.SBE,
+      lamp: o.loads.H === "on",
+      // spia "lotto pieno"
+      beam: !!p.beam,
+      // un pacco davanti alla fotocellula
+      // i pacchi: il fronte del primo e il passo (la scena li mette in fila da qui)
+      lead: p.lead || 0,
+      gap: p.gap || 1.4,
+      size: p.size || 0.48,
+      at: p.at || 4.2,
+      length: p.length || 6,
+      passed: p.passed || 0,
+      // il PLC: acceso, ingressi e uscite come li vede lui, il conteggio e a quanto conta
+      plc: { on: !!plc.mem, inputs: { ...plc.inputs || {} }, outputs: { ...plc.q || {} } },
+      count: ctu,
+      preset: prog ? prog.pv : 4,
+      resetBy: prog ? prog.r || null : null,
+      wires: snap.wires || [],
+      flow: snap.flow || null
+    };
+  }
   function provaState(snap) {
     const sc = snap && snap.level && snap.level.prova && snap.level.prova.scene;
     if (sc === "appartamento") return appartamentoState(snap);
     if (sc === "officina") return officinaState(snap);
+    if (sc === "automatico") return automaticoState(snap);
     return null;
   }
 
   // src/content/prove.js
   var PROVE = {
     appartamento: {
-      kick: "Modulo 2 \xB7 prova finale",
+      kick: "Modulo 2 \xB7 prova",
       place: "Appartamento",
       title: "Una notte senza luce",
       tagline: "Ore 22:40. Tac.",
@@ -20399,7 +20750,7 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
       }
     },
     officina: {
-      kick: "Modulo 3 \xB7 prova finale",
+      kick: "Modulo 3 \xB7 prova",
       place: "Officina",
       title: "L\u2019officina",
       tagline: "Ore 6:40. Il turno parte alle 7.",
@@ -20473,6 +20824,78 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
         title: "Il turno pu\xF2 partire",
         text: "Il contatto 95-96 del termico non era nel circuito di comando: con il sovraccarico il termico scattava ma il nastro non si fermava. Ora \xE8 in serie prima del fungo e il collaudo \xE8 completo."
       }
+    },
+    automatico: {
+      kick: "Modulo 4 \xB7 prova",
+      place: "Capannone",
+      title: "Il cambio formato",
+      tagline: "Ore 13:30. Pausa pranzo.",
+      clock: [13, 30],
+      goal: "Da oggi i lotti sono da 4 pacchi e stamattina il programma del PLC \xE8 stato cambiato. Collaudalo prima che la linea riparta: marcia, lotto completo, lotto nuovo, arresto ed emergenza. Se qualcosa non va, correggi il programma a nastro fermo.",
+      dockTitle: "Pulsantiera della linea",
+      tools: ["wires", "sound", "log"],
+      call: { label: "Ordine di modifica", where: "Capannone Ferri, linea di confezionamento", quote: "\xABCambio formato: da oggi i lotti sono da 4 pacchi. Il programma \xE8 stato cambiato stamattina. Collaudalo nella pausa: la linea riparte alle 14.\xBB", go: "Inizia" },
+      tests: [
+        { id: "marcia", name: "Marcia" },
+        { id: "lotto", name: "Lotto da 4" },
+        { id: "nuovo", name: "Lotto nuovo" },
+        { id: "arresto", name: "Arresto" },
+        { id: "emergenza", name: "Emergenza" }
+      ],
+      steps: ["Marcia", "Lotto da 4", "Lotto nuovo", "Arresto", "Emergenza", "Trova il guasto", "Correggi il programma a nastro fermo", "Ricollauda e verifica"],
+      story: {
+        stuck: "Il nastro non riparte.",
+        stuckWhy: "Marcia arriva al PLC, ma il programma non la lascia passare.",
+        running: "Ferma il nastro prima di cambiare il programma.",
+        lot: "Lotto completo: quattro pacchi."
+      },
+      report: {
+        title: "Verbale di collaudo",
+        sub: "Linea di confezionamento, lotti da 4",
+        fault: "Nel programma il contatore dei pacchi non aveva l\u2019ingresso di azzeramento: dopo il primo lotto restava pieno e Marcia non faceva ripartire il nastro.",
+        fix: "A nastro fermo, nel gradino del contatore aggiunto l\u2019azzeramento con Marcia (I1). Conteggio a 4.",
+        end: "Ore 14:00. La linea riparte.",
+        ok: "Superata",
+        ko: "Non superata"
+      },
+      log: {
+        start: "Programma nuovo caricato. Inizia il collaudo.",
+        marcia: "Premuto Marcia: il nastro parte.",
+        marciaNo: "Premuto Marcia: il nastro non parte.",
+        lotto: "Quarto pacco davanti alla fotocellula: il nastro si ferma, la spia del lotto \xE8 accesa.",
+        nuovo: "Premuto Marcia: parte un lotto nuovo, la spia si spegne.",
+        nuovoKo: "Premuto Marcia: il nastro non riparte, la spia resta accesa.",
+        arresto: "Premuto Arresto: il nastro si ferma.",
+        arrestoIdle: "Premuto Arresto.",
+        fungo: "Premuto il fungo di emergenza: il nastro si ferma.",
+        fungoIdle: "Premuto il fungo di emergenza.",
+        fungoUp: "Sbloccato il fungo di emergenza.",
+        tripOk: "Il termico \xE8 scattato e ferma il nastro.",
+        reset: "Riarmato il termico.",
+        qmOff: "Aperto il salvamotore: lavori in corso.",
+        qmOn: "Richiuso il salvamotore.",
+        program: "Programma cambiato a nastro fermo.",
+        programLive: "Programma cambiato con il nastro in marcia.",
+        fixed: "Nel programma il contatore ora si azzera con Marcia.",
+        answerOk: "Risposta giusta: il contatore non si azzera mai.",
+        answerKo: "Risposta sbagliata. Si pu\xF2 riprovare.",
+        checkOk: "Verifica: collaudo superato.",
+        checkKo: "Verifica: qualcosa non va ancora."
+      },
+      hints: [
+        "Premi Marcia: il nastro deve partire e i pacchi passare davanti alla fotocellula.",
+        "Lascia correre il nastro: al quarto pacco deve fermarsi da solo e accendere la spia del lotto.",
+        "Lotto completo. Premi Marcia per il lotto successivo.",
+        "In marcia, premi Arresto.",
+        "Di nuovo in marcia, poi premi il fungo. Ricordati di sbloccarlo.",
+        "Marcia arrivava al PLC ma il nastro non ripartiva: perch\xE9? Rispondi.",
+        "Con il nastro fermo apri il banco: nel gradino del contatore scegli con che cosa si azzera.",
+        "Rifai le prove, con due lotti di fila, e premi Verifica."
+      ],
+      win: {
+        title: "La linea riparte",
+        text: "Il contatore dei pacchi non aveva l\u2019ingresso di azzeramento: dopo il primo lotto restava pieno e il nastro non ripartiva. Ora si azzera con Marcia e i lotti da 4 si susseguono."
+      }
     }
   };
 
@@ -20481,7 +20904,7 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
   var provaOf = (name) => PROVE[name] || null;
   var newMemory = () => ({ panel: false, opened: false, rearmed: false, found: false, tests: {}, fixed: false });
   function remember(name, mem, action, before, after) {
-    if (name === "officina") return rememberEvents(mem, officinaEvents(action, before, after));
+    if (isPlant(name)) return rememberEvents(mem, plantEvents(name, action, before, after));
     if (name !== "appartamento" || !after) return mem;
     const m = { ...mem };
     const lines = after.lines;
@@ -20491,6 +20914,8 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
     if (m.rearmed && line2 && before && before.rcd.on && !before.lines[line2].on && after.lines[line2].on && after.rcd.tripped) m.found = true;
     return m;
   }
+  var isPlant = (name) => name === "officina" || name === "automatico";
+  var plantEvents = (name, action, before, after) => name === "automatico" ? automaticoEvents(action, before, after) : officinaEvents(action, before, after);
   var lineOf = (name, id) => {
     const c2 = (PROVE[name].controls || []).find((x) => x.id === id);
     return c2 ? c2.line : null;
@@ -20503,7 +20928,7 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
     const diagOk = !!(unit && unit.diag && unit.diag.correct);
     if (name === "appartamento") {
       done = [mem.panel, mem.opened, mem.rearmed, mem.found, diagOk, !ps.heaterPlugged, unit && unit.phase === "done"];
-    } else if (name === "officina") {
+    } else if (isPlant(name)) {
       const t = mem.tests || {};
       done = cfg.tests.map((x) => t[x.id] === "ok").concat([diagOk, !!mem.fixed, unit && unit.phase === "done"]);
       ko = cfg.tests.map((x) => t[x.id] === "ko");
@@ -20542,6 +20967,35 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
     if (running2(before) && after.atEnd && !before.atEnd && !running2(after)) ev2.push({ kind: "fine", text: L.fine, test: "fine", result: "ok", good: true });
     return ev2;
   }
+  function automaticoEvents(action, before, after) {
+    if (!before || !after) return [];
+    const L = PROVE.automatico.log, ev2 = [];
+    const id = action && action.id;
+    const kind = action && action.kind;
+    const pressed = kind === "press" || kind === "toggle";
+    if (id === "SB1" && pressed) {
+      if (before.lamp && !running2(before)) {
+        if (running2(after)) ev2.push({ kind: "nuovo", text: L.nuovo, test: "nuovo", result: "ok", good: true });
+        else ev2.push({ kind: "nuovoKo", text: L.nuovoKo, test: "nuovo", result: "ko", trip: true });
+      } else if (!running2(before) && running2(after)) ev2.push({ kind: "marcia", text: L.marcia, test: "marcia", result: "ok", good: true });
+      else if (!running2(after)) ev2.push({ kind: "marciaNo", text: L.marciaNo });
+    } else if (id === "SB0" && pressed) {
+      if (running2(before) && !running2(after)) ev2.push({ kind: "arresto", text: L.arresto, test: "arresto", result: "ok", good: true });
+      else ev2.push({ kind: "arrestoIdle", text: L.arrestoIdle });
+    } else if (id === "SBE" && kind === "toggle") {
+      if (after.emergency && running2(before) && !running2(after)) ev2.push({ kind: "fungo", text: L.fungo, test: "emergenza", result: "ok", good: true });
+      else ev2.push({ kind: after.emergency ? "fungoIdle" : "fungoUp", text: after.emergency ? L.fungoIdle : L.fungoUp });
+    } else if (kind === "reset") ev2.push({ kind: "reset", text: L.reset, good: true });
+    else if (id === "QM" && kind === "toggle") ev2.push({ kind: after.qm ? "qmOn" : "qmOff", text: after.qm ? L.qmOn : L.qmOff });
+    if (!before.thermal.tripped && after.thermal.tripped) ev2.push({ kind: "tripOk", text: L.tripOk, good: true });
+    if (!action && running2(before) && !running2(after) && !before.lamp && after.lamp) ev2.push({ kind: "lotto", text: L.lotto, test: "lotto", result: after.count === 4 ? "ok" : "ko", good: after.count === 4 });
+    return ev2;
+  }
+  function automaticoFixed(programs) {
+    const ctu = ((programs || {}).PLC || []).map((r) => (r.do || []).find((i) => i.op === "ctu")).find(Boolean);
+    return !!ctu && ctu.r === "I1" && ctu.pv === 4;
+  }
+  var plantFixed = (name, snap) => name === "automatico" ? automaticoFixed(snap.programs) : officinaFixed(snap.wires);
   function rememberEvents(mem, events) {
     if (!events.length) return mem;
     const m = { ...mem, tests: { ...mem.tests || {} } };
@@ -20569,8 +21023,8 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
     return { kind: "multi", closed };
   }
   function describe(name, action, before, after) {
-    if (name === "officina") {
-      const ev2 = officinaEvents(action, before, after);
+    if (isPlant(name)) {
+      const ev2 = plantEvents(name, action, before, after);
       return ev2.length ? ev2[ev2.length - 1] : null;
     }
     const cfg = PROVE[name];
@@ -20665,7 +21119,7 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
     <div class="prail">${mods}</div>${dev}</div>`;
   }
   function hintOf(name, steps) {
-    if (name === "officina") return PROVE.officina.hints[steps.findIndex((s) => s.cur)] || "";
+    if (isPlant(name)) return PROVE[name].hints[steps.findIndex((s) => s.cur)] || "";
     if (name !== "appartamento") return "";
     const i = steps.findIndex((s) => s.cur);
     return [
@@ -20694,6 +21148,8 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
     if (unit && unit.phase === "fault") main = diagOk ? '<button class="pbtn y" type="button" data-pui="check">Verifica</button>' : '<button class="pbtn y" type="button" data-pui="answer">Rispondi</button>';
     else if (unit && unit.phase === "done") main = '<button class="pbtn y" type="button" data-pui="finale">Verbale</button>';
     const fr = ps.thermal.tripped ? "Scattato" : ps.thermal.heat > 0.02 ? "Scalda" : "Armato";
+    const auto = ps.scene === "automatico";
+    const left = auto ? `<div class="pst-count" role="status"><span class="pst-name">Pacchi nel lotto</span><b>${ps.plc.on ? ps.count : "\u2013"}<small> / ${ps.preset}</small></b><span class="pst-cbar" style="--k:${Math.min(1, ps.count / Math.max(1, ps.preset))}" aria-hidden="true"></span></div>` : `<button class="pst-lever" type="button" data-pui="overload" aria-pressed="${!!ps.overload}"><span class="pst-knob" aria-hidden="true"></span><span>${ps.overload ? "Libera il pacco" : "Incastra un pacco"}</span></button>`;
     return `<div class="pbox pstation"><div class="pboxhead"><h2>${esc5(cfg.dockTitle)}</h2><div class="prow">
       <button class="pchip" type="button" data-pui="schema" aria-pressed="${!!ui2.schema}">${ui2.schema ? "Chiudi il banco" : "Banco e schema"}</button>${main}</div></div>
     <div class="pst">
@@ -20701,13 +21157,13 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
         <button class="pst-btn pst-go" type="button" data-phold="SB1" data-pid="SB1" aria-pressed="${!!ps.start}"><span class="pst-cap" aria-hidden="true"></span><span>Marcia</span></button>
         <button class="pst-btn pst-stop" type="button" data-phold="SB0" data-pid="SB0" aria-pressed="${!!ps.stop}"><span class="pst-cap" aria-hidden="true"></span><span>Arresto</span></button>
         <button class="pst-mush${ui2.alarm ? " alarm" : ""}" type="button" data-pact="toggle" data-pid="SBE" aria-pressed="${!!ps.emergency}"><span class="pst-cap" aria-hidden="true"></span><span>${ps.emergency ? "Sblocca" : "Emergenza"}</span></button>
-        <span class="pst-lamp${ps.lamp ? " on" : ""}"><span class="pst-cap" aria-hidden="true"></span><span>Spia</span><span class="vh">${ps.lamp ? "accesa" : "spenta"}</span></span>
+        <span class="pst-lamp${ps.lamp ? " on" : ""}${auto ? " lot" : ""}"><span class="pst-cap" aria-hidden="true"></span><span>${auto ? "Lotto pieno" : "Spia"}</span><span class="vh">${ps.lamp ? "accesa" : "spenta"}</span></span>
       </div>
       <div class="pst-side">
-        <button class="pst-lever" type="button" data-pui="overload" aria-pressed="${!!ps.overload}"><span class="pst-knob" aria-hidden="true"></span><span>${ps.overload ? "Libera il pacco" : "Incastra un pacco"}</span></button>
+        ${left}
         <div class="pst-mod qm${ps.qm ? "" : " open"}"><span class="pst-name">Salvamotore</span><button class="pst-sw" type="button" data-pact="toggle" data-pid="QM" aria-pressed="${!!ps.qm}">${ps.qm ? "Chiuso" : "Aperto"}</button>${ps.qm ? "" : '<span class="pst-tag">Lavori in corso</span>'}</div>
         <div class="pst-mod fr${ps.thermal.tripped ? " trip" : ""}"><span class="pst-name">Termico</span><span class="pst-heat" style="--h:${Math.round(ps.thermal.heat * 100)}%" aria-hidden="true"></span><span class="pst-state">${fr}</span><button class="pst-sw" type="button" data-pact="reset" data-pid="FR"${ps.thermal.tripped ? "" : " disabled"}>Riarma</button></div>
-        <button class="pchip" type="button" data-pui="rewind">Rimetti il pacco</button>
+        ${auto ? "" : '<button class="pchip" type="button" data-pui="rewind">Rimetti il pacco</button>'}
       </div>
     </div></div>`;
   }
@@ -20715,7 +21171,7 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
     const R = cfg.report;
     const rows = cfg.tests.map((t) => `<li><span>${esc5(t.name)}</span><b>${esc5(R.ok)}</b></li>`).join("");
     return `<div class="pcard preport pverbale" role="dialog" aria-modal="true" aria-labelledby="pW">
-      <div class="prep-head"><span class="pk">${solved ? "Modulo 3 completato" : "Impianto funzionante"}</span><span class="prep-time">${esc5(from)}\u2013${esc5(to)}</span></div>
+      <div class="prep-head"><span class="pk">${solved ? esc5(cfg.kick.split(" \xB7 ")[0] + " completato") : "Impianto funzionante"}</span><span class="prep-time">${esc5(from)}\u2013${esc5(to)}</span></div>
       <h2 id="pW">${esc5(R.title)}</h2><p class="pverb-sub">${esc5(R.sub)}</p>
       <dl class="prep">
         <dt>Dove</dt><dd>${esc5(cfg.call.where)}</dd>
@@ -20749,7 +21205,10 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
     soggiorno: "Soggiorno",
     cucina: "Cucina",
     pulsantiera: "Pulsantiera",
-    motore: "Motore"
+    motore: "Motore",
+    plc: "PLC",
+    fotocellula: "Fotocellula",
+    bancale: "Bancale"
   };
   var SOUND_KEY2 = "fase-e-neutro-suono";
   var LOAD_MAX = 8e3;
@@ -20787,6 +21246,8 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
     }
     sound.setEnabled(ui2.sound);
     const s = () => env.session;
+    const plant = () => isPlant(name);
+    let progSig = null;
     const cfg = () => provaOf(name);
     const reduced = () => !!(env.reduced && env.reduced());
     const inLesson = () => !!(lastSnap && lastSnap.unit && lastSnap.unit.phase === "lesson");
@@ -20864,7 +21325,7 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
       el.pDock.addEventListener("pointercancel", up);
     }
     function doAct(action, run) {
-      if (name === "officina") {
+      if (plant()) {
         pending = action;
         run();
         pending = null;
@@ -20904,14 +21365,14 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
     function press2(u) {
       if (inLesson() || act2 && act2 !== "play") return;
       holding.add(u.id);
-      if (name === "officina") {
+      if (plant()) {
         sound.click();
         doAct({ kind: "press", id: u.id }, () => s().press(u.id));
       } else s().press(u.id);
     }
     function release(u) {
       if (!holding.delete(u.id)) return;
-      if (name === "officina") doAct({ kind: "release", id: u.id }, () => s().release(u.id));
+      if (plant()) doAct({ kind: "release", id: u.id }, () => s().release(u.id));
       else s().release(u.id);
     }
     function onClick(e) {
@@ -21013,6 +21474,13 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
     }
     function schema() {
       const opening = !ui2.schema;
+      if (opening && name === "automatico" && lastSnap.unit.phase === "fault" && lastSnap.unit.diag && lastSnap.unit.diag.correct && !mem.fixed) {
+        const ps = provaState(lastSnap);
+        if (ps && ps.motor === "fwd") {
+          subtitle("", cfg().story.running, 3600);
+          return;
+        }
+      }
       if (opening && name === "officina" && lastSnap.unit.phase === "fault" && lastSnap.unit.diag && lastSnap.unit.diag.correct && !mem.fixed) {
         const ps = provaState(lastSnap);
         if (ps && ps.qm) {
@@ -21025,7 +21493,7 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
       ui2.schema = opening;
       if (env.drawer) env.drawer(ui2.schema);
       renderHud();
-      if (!opening && name === "officina" && scene) scene.look("insieme", 900);
+      if (!opening && plant() && scene) scene.look("insieme", 900);
     }
     function check() {
       const r = s().check();
@@ -21088,7 +21556,7 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
     function hums2(ps) {
       ps = ps || override || lastSnap && provaState(lastSnap);
       if (!ps || act2 === "call") return;
-      if (name === "officina") {
+      if (plant()) {
         sound.motor(act2 !== "finale" && ps.motor === "fwd", ps.overload ? 1 : ps.thermal.heat * 0.5);
         return;
       }
@@ -21097,23 +21565,26 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
       sound.hum("tv", !!ps.socket);
       sound.hum("stufa", !!(ps.socket && ps.heaterPlugged));
     }
-    function observeOfficina(snapshot) {
+    function observePlant(snapshot) {
       const ps = provaState(snapshot);
       if (!ps) return;
       const before = prevPs;
       prevPs = ps;
+      const sig = name === "automatico" ? JSON.stringify(snapshot.programs || {}) : null, progBefore = progSig;
+      progSig = sig;
       if (!before || act2 !== "play" || inLesson() || snapshot.unit.phase === "lesson") return;
       const action = pending;
-      const events = officinaEvents(action, before, ps);
-      mem = remember("officina", mem, action, before, ps);
+      const events = plantEvents(name, action, before, ps);
+      mem = remember(name, mem, action, before, ps);
       const wasFixed = mem.fixed;
-      mem = rememberFixed(mem, snapshot.unit.phase === "fault" && officinaFixed(snapshot.wires));
+      mem = rememberFixed(mem, snapshot.unit.phase === "fault" && plantFixed(name, snapshot));
       events.forEach((e) => note(e.text, e));
+      const c2 = cfg();
+      if (sig !== null && progBefore !== null && sig !== progBefore) note(before.motor === "fwd" ? c2.log.programLive : c2.log.program, { trip: before.motor === "fwd" });
       if (!wasFixed && mem.fixed) {
-        note(cfg().log.fixed, { good: true });
+        note(c2.log.fixed, { good: true });
         sound.chime(1);
       }
-      const c2 = cfg();
       events.forEach((e) => {
         if (e.kind === "tripKo") {
           ui2.alarm = true;
@@ -21127,7 +21598,17 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
         } else if (e.kind === "tripOk") {
           sound.clunk();
           later(250, () => sound.chime(1));
-          subtitle(c2.story.stopped, "", 3e3);
+          if (c2.story.stopped) subtitle(c2.story.stopped, "", 3e3);
+        } else if (e.kind === "nuovoKo") {
+          sound.tac();
+          sound.vibrate([30, 40, 80]);
+          flash();
+          subtitle(c2.story.stuck, c2.story.stuckWhy, 4200);
+          if (scene && scene.alert) scene.alert(2600);
+        } else if (e.kind === "lotto") {
+          sound.clunk();
+          later(250, () => sound.chime(1));
+          subtitle(c2.story.lot, "", 2600);
         }
       });
       if (ui2.alarm && ps.motor !== "fwd") {
@@ -21200,7 +21681,7 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
       return { ...ps, rcd: { ...ps.rcd, on: true, tripped: false }, lines: { luce: { on: true }, prese: { on: true }, cucina: { on: true } }, lamp: true, socket: true, oven: true, dark: false, allRooms: true };
     }
     function prepareOutside() {
-      if (scene && name === "officina") {
+      if (scene && plant()) {
         scene.outside();
         const w2 = wires();
         if (w2) w2.setVisible(false);
@@ -21239,6 +21720,10 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
         return;
       }
       setAct("arrive");
+      if (scene.arrival) {
+        later(300, () => later(scene.arrival(), afterArrive));
+        return;
+      }
       if (name === "officina") {
         later(300, () => {
           scene.shutter(true, 1600);
@@ -21271,7 +21756,7 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
       clearLater();
       hideCall();
       override = null;
-      if (scene && name === "officina") {
+      if (scene && plant()) {
         scene.inside();
         scene.look("insieme", 1);
       }
@@ -21290,7 +21775,7 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
         setAct("brief");
         return;
       }
-      if (name === "officina") {
+      if (plant()) {
         mem.panel = true;
         setAct("play");
         subtitle("", hintOf(name, stepsOf(name, provaState(lastSnap), lastSnap.unit, mem)), 3600);
@@ -21299,7 +21784,7 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
       findPanel();
     }
     function findPanel() {
-      if (name === "officina") {
+      if (plant()) {
         mem.panel = true;
         setAct("play");
         return;
@@ -21358,7 +21843,7 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
       if (act2 === "finale") return;
       setAct("finale");
       hums2();
-      if (name === "officina") {
+      if (plant()) {
         ui2.alarm = false;
         if (ui2.schema) {
           ui2.schema = false;
@@ -21400,7 +21885,7 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
       });
     }
     function backInside() {
-      if (scene && name === "officina") {
+      if (scene && plant()) {
         scene.shift(false);
         scene.look("insieme", 1200);
         return;
@@ -21526,14 +22011,14 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
           name = snapshot.level.prova.scene;
           build();
           apply();
-          host2.classList.toggle("ofc", name === "officina");
+          host2.classList.toggle("ofc", plant());
           document.addEventListener("keydown", onKey);
           window.addEventListener("resize", onResize);
         }
         const ph = snapshot.unit ? snapshot.unit.phase : null;
         const prevPhase = phase;
         lastSnap = snapshot;
-        if (name === "officina" && cfg()) observeOfficina(snapshot);
+        if (plant() && cfg()) observePlant(snapshot);
         if (sceneState === "idle") loadScene(snapshot);
         if (cfg()) {
           if (first) {
@@ -21550,7 +22035,7 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
           } else if (ph === "fault" && prevPhase === "done") {
             restart(true);
             setAct("play");
-            if (name === "officina") {
+            if (plant()) {
               if (scene) scene.shift(false);
               prevPs = provaState(snapshot);
             } else {
@@ -21586,6 +22071,7 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
           scene = null;
         }
         if (ui2.schema && env.drawer) env.drawer(false);
+        progSig = null;
         host2._scene = null;
         name = null;
         override = null;
@@ -21616,7 +22102,7 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
         ui2.schema = false;
         if (env.drawer) env.drawer(false);
         renderHud();
-        if (name === "officina" && scene) scene.look("insieme", 900);
+        if (plant() && scene) scene.look("insieme", 900);
         const b = el.pDock && el.pDock.querySelector('[data-pui="schema"]');
         if (b && b.focus) b.focus({ preventScroll: true });
       },

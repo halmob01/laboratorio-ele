@@ -407,3 +407,63 @@ export function cabinetPanel(M) {
     },
   };
 }
+
+/* ---------- PLC e fotocellula (prova M4) ---------- */
+
+// PLC compatto da guida DIN: alimentazione, ingressi I0-I3, uscite Q0-Q1 e il LED RUN. Guarda verso +z.
+// I LED sono una sola InstancedMesh (una chiamata di disegno) con il colore per istanza: acceso pieno, spento scuro.
+// set({ on, inputs: { I0.. }, outputs: { Q0.. } })
+export function plcModule(M) {
+  const g = new THREE.Group();
+  const W = 0.36, H = 0.16;
+  box(g, M.modGrey, 0, 0, 0, W, H, 0.08, 0.01);
+  box(g, M.modDark, 0, 0, 0.042, W - 0.02, H - 0.05, 0.006, 0.004);
+  // morsettiere in alto e in basso
+  box(g, M.modDark, 0, H / 2 - 0.012, 0.03, W - 0.02, 0.022, 0.03, 0.003);
+  box(g, M.modDark, 0, -H / 2 + 0.012, 0.03, W - 0.02, 0.022, 0.03, 0.003);
+  textPlane(g, 'PLC     I0  I1  I2  I3     Q0  Q1', 0.0, -0.024, 0.047, 0.33, 0.022, { fg: '#c9ccd0', size: 0.6 });   // una scritta sola: una chiamata
+  const SLOTS = [['RUN', -W / 2 + 0.045, 0x2ee66a], ['I0', -0.042, 0x2ee66a], ['I1', -0.012, 0x2ee66a], ['I2', 0.018, 0x2ee66a], ['I3', 0.048, 0x2ee66a], ['Q0', 0.104, 0xffb11a], ['Q1', 0.134, 0xffb11a]];
+  const leds = new THREE.InstancedMesh(new THREE.BoxGeometry(0.014, 0.01, 0.006), new THREE.MeshBasicMaterial({ color: 0xffffff }), SLOTS.length);
+  const m4 = new THREE.Matrix4(), col = new THREE.Color();
+  SLOTS.forEach(([, x], i) => { m4.makeTranslation(x, i === 0 ? -0.004 : 0.004, 0.048); leds.setMatrixAt(i, m4); leds.setColorAt(i, col.setHex(0x1a1c1f)); });
+  leds.castShadow = false;
+  g.add(leds);
+  let last = '';
+  return {
+    group: g, leds,
+    set(s) {
+      const on = id => (id === 'RUN' ? s.on : s.on && !!((id[0] === 'I' ? s.inputs : s.outputs) || {})[id]);
+      const key = SLOTS.map(([id]) => (on(id) ? 1 : 0)).join('');
+      if (key === last) return false;
+      last = key;
+      SLOTS.forEach(([id, , c], i) => leds.setColorAt(i, on(id) ? col.setHex(c).multiplyScalar(2.2) : col.setHex(0x1a1c1f)));
+      leds.instanceColor.needsUpdate = true;
+      return true;
+    },
+  };
+}
+
+// Fotocellula a sbarramento: il trasmettitore su un palo da un lato del nastro, il catarifrangente dall'altro, il raggio in mezzo.
+// Il raggio e' appena visibile quando e' libero; il LED giallo del sensore si accende quando un pacco lo interrompe.
+// width: distanza tra i due pali (lungo z). set({ beam })
+export function photoCell(M, width = 0.9, h = 0.97) {
+  const g = new THREE.Group();
+  [0, width].forEach(z => {
+    cylinder(g, M.steelDark, 0, 0.02, z, 0.06, 0.04, 'y', 18);
+    cylinder(g, M.steel, 0, h / 2, z, 0.02, h, 'y', 10);
+  });
+  box(g, M.modDark, 0, h, -0.03, 0.09, 0.1, 0.09, 0.01);                   // trasmettitore
+  box(g, M.yellow, 0, h, width + 0.015, 0.08, 0.08, 0.025, 0.005);         // catarifrangente
+  const lamp = led(0xffb11a, 0.012);
+  lamp.mesh.position.set(0, h + 0.058, -0.03);
+  g.add(lamp.mesh);
+  const rayMat = new THREE.MeshBasicMaterial({ color: 0xff3a2a, transparent: true, opacity: 0.18, depthWrite: false });
+  const ray = new THREE.Mesh(new THREE.CylinderGeometry(0.0035, 0.0035, width, 6), rayMat);
+  ray.rotation.x = Math.PI / 2; ray.position.set(0, h, width / 2);
+  ray.castShadow = false;
+  g.add(ray);
+  return {
+    group: g,
+    set(s) { lamp.set(!!s.beam, 3.2); rayMat.opacity = s.beam ? 0.05 : 0.18; },
+  };
+}

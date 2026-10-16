@@ -147,6 +147,7 @@ Numeri di riferimento attuali (rendering software):
 | Trilocale | 0 | circa 86 |
 | Appartamento | 0 | circa 114 |
 | Officina, nastro in marcia | 0 | 81 su telefono; 185 su computer (con l'occlusione ambientale; senza, circa 110) |
+| Nastro automatico, in marcia | 0 | 100 su telefono (l'inquadratura comprende motore, scivolo e bancale); 162 su computer |
 
 ## Scena nuova: cosa fare
 
@@ -164,6 +165,13 @@ Numeri di riferimento attuali (rendering software):
 9. Verificare senza WebGL: la prova deve funzionare con la cornice e il banco anche se la scena non c'e'.
 
 ## Trappole gia' incontrate
+
+- Scene con un processo (`level.process`): la sessione manda uno stato ogni mezzo secondo anche a macchina ferma. La scena deve
+  ridisegnare solo se qualcosa e' cambiato, e `createLiveWires.sync` chiede sempre un fotogramma: chiamarlo solo quando cambia
+  l'elenco dei fili o il loro stato. La corrente che corre si anima finche' scorre: nel nastro automatico solo a nastro in
+  marcia (il PLC e la spia sono alimentati anche da fermi).
+- Un gruppo in `skip` non si accorpa per niente: il motore intero sono una ventina di chiamate. Se si muove solo una parte
+  (la ventola), in `skip` va solo quella.
 
 - `pkill -f` con un pezzo della riga di comando puo' uccidere la shell stessa: fermare il server in un altro modo.
 - Nomi di classi CSS gia' usati altrove: `.stop` del banco ha `pointer-events: none` e rendeva intoccabile il tasto Arresto.

@@ -285,7 +285,7 @@ Tutti i testi nuovi, pronti da copiare. A destra la traduzione in arabo, ora in 
 
 | Italiano | Arabo |
 |---|---|
-| Modulo 3 · prova finale | الوحدة 3 · الاختبار النهائي |
+| Modulo 3 · prova | الوحدة 3 · الاختبار |
 | Officina | الورشة |
 | L'officina | الورشة |
 | Scheda di collaudo | بطاقة الاختبار |

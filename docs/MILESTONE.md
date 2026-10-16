@@ -1,7 +1,7 @@
 # Le prove 3D dei moduli (milestone)
 
-Ogni modulo finisce con una prova in una scena 3D: l'appartamento di notte (Modulo 2), l'officina (Modulo 3), e poi il nastro
-con il PLC, la casa del futuro e la fabbrica. Sono il punto d'arrivo del modulo: devono sembrarlo.
+Ogni modulo ha una prova in una scena 3D: l'appartamento di notte (Modulo 2), l'officina (Modulo 3), e poi il nastro
+con il PLC, la casa del futuro e la fabbrica. Sono il punto d'arrivo del modulo (e ne potranno arrivare altre): devono sembrarlo.
 
 ## Una cornice comune, un contenuto per prova
 
@@ -64,6 +64,10 @@ Una prova senza voce in `PROVE` resta com'era: scena accanto al banco, con i pul
 L'officina (Modulo 3) ha la cornice dal progetto `docs/PROGETTO-OFFICINA.md`: scheda di collaudo, saracinesca e plafoniere,
 la pulsantiera in basso al posto del quadro, il verbale delle cinque prove a sinistra, i fili veri del banco nella scena, il
 termico che scatta ma non ferma il nastro, il banco a salvamotore aperto, il turno delle 7:00 e il verbale di collaudo.
+
+Il nastro automatico (Modulo 4, c46) usa la stessa cornice di reparto dell'officina (`isPlant` in `src/prove/hud.js`): stesso
+capannone (`src/scene3d/capannone.js`, in comune), pulsantiera con il conteggio del PLC, verbale delle cinque prove, il guasto
+nel programma da correggere a nastro fermo. Progetto in `docs/PROGETTO-NASTRO-PLC.md`.
 
 ## Aggiungere la cornice a una prova
 

@@ -345,6 +345,106 @@ test('pagina: l’officina a tutto schermo: scheda di collaudo, pulsantiera, il 
   assert.deepEqual(errors, []);
 });
 
+/* ---------- nastro automatico (Modulo 4): collaudo del programma ---------- */
+const AUTO = 'c46-nastro-automatico';
+function automatico() {
+  const s = createSession({ levels, deriveFull, initialLevel: AUTO }); s.start(); s.skipLesson();
+  let mem = H.newMemory();
+  const kinds = [];
+  const ps = () => provaState(s.snapshot());
+  const step = (action, run) => { const b = ps(); run(); const a = ps(); H.automaticoEvents(action, b, a).forEach(e => kinds.push(e.kind)); mem = H.remember('automatico', mem, action, b, a); };
+  const tick = n => { for (let i = 0; i < n; i++) step(null, () => s.tick(0.5)); };
+  const press = id => { step({ kind: 'press', id }, () => s.press(id)); step({ kind: 'release', id }, () => s.release(id)); };
+  const steps = () => H.stepsOf('automatico', ps(), s.snapshot().unit, mem);
+  return { s, ps, step, tick, press, steps, kinds, mem: () => mem, setMem: m => (mem = m) };
+}
+
+test('nastro automatico: il lotto da 4 riesce, il lotto nuovo no; arresto ed emergenza', () => {
+  const o = automatico();
+  assert.equal(o.steps().length, 8);
+  assert.equal(o.ps().scene, 'automatico');
+  assert.equal(o.ps().preset, 4);
+  o.press('SB1');
+  assert.equal(o.ps().motor, 'fwd');
+  o.tick(28);                                   // quattro pacchi davanti alla fotocellula: il nastro si ferma
+  assert.equal(o.ps().count, 4);
+  assert.equal(o.ps().lamp, true);
+  o.press('SB1');                               // il lotto nuovo non parte: il contatore resta pieno
+  assert.equal(o.ps().motor, 'off');
+  assert.deepEqual(o.kinds.filter(k => ['marcia', 'lotto', 'nuovo', 'nuovoKo'].includes(k)), ['marcia', 'lotto', 'nuovoKo']);
+  assert.deepEqual(o.mem().tests, { marcia: 'ok', lotto: 'ok', nuovo: 'ko' });
+  const st = o.steps();
+  assert.equal(st[2].ko, true, 'lotto nuovo in rosso');
+  assert.equal(cur(st), 3, 'si va avanti con l’arresto');
+  assert.equal(H.automaticoFixed(o.s.snapshot().programs), false);
+});
+
+test('nastro automatico: correzione del programma a nastro fermo, ricollaudo e verifica', async () => {
+  const { LEVELS_V2 } = await import('../src/content/levels-v2.js');
+  const sol = LEVELS_V2.find(l => l.id === AUTO).solutionPrograms.PLC;
+  const o = automatico();
+  o.press('SB1'); o.tick(28); o.press('SB1');
+  o.s.answerDiagnosis('b');
+  o.s.setProgram('PLC', sol);
+  assert.equal(H.automaticoFixed(o.s.snapshot().programs), true);
+  o.setMem(H.rememberFixed(o.mem(), true));
+  assert.equal(cur(o.steps()), 7, 'ricollaudo e verifica');
+  o.press('SB1'); o.tick(28); o.press('SB1');
+  assert.equal(o.ps().motor, 'fwd', 'ora il lotto nuovo parte');
+  assert.equal(o.kinds.at(-1), 'nuovo');
+  o.press('SB0');
+  o.press('SB1'); o.step({ kind: 'toggle', id: 'SBE' }, () => o.s.toggleControl('SBE'));
+  o.step({ kind: 'toggle', id: 'SBE' }, () => o.s.toggleControl('SBE'));
+  assert.deepEqual(o.mem().tests, { marcia: 'ok', lotto: 'ok', nuovo: 'ok', arresto: 'ok', emergenza: 'ok' });
+  const r = o.s.check();
+  assert.equal(r.pass, true, JSON.stringify(r.checks.filter(c => !c.ok)));
+  assert.equal(o.s.snapshot().unit.phase, 'done');
+  const v = H.verbaleHTML(PROVE.automatico, 3, true, '13:30', '14:00', 'Sara');
+  assert.match(v, /Modulo 4 completato/);
+  assert.equal((v.match(/Superata/g) || []).length, 5);
+});
+
+test('nastro automatico: ogni filo del banco ha il suo percorso nella scena', async () => {
+  const { officinaWires, anchorOf } = await import('../src/scene3d/officina-wires.js');
+  const lv = levels.find(l => l.id === AUTO);
+  lv.solution.forEach(([a, b]) => { assert.ok(anchorOf(a), a); assert.ok(anchorOf(b), b); });
+  const o = automatico();
+  o.press('SB1');
+  const snap = o.s.snapshot();
+  const list = officinaWires(snap.wires, snap.flow);
+  assert.equal(list.length, snap.wires.length);
+  assert.ok(list.some(w => w.live && w.current), 'in marcia: fili in tensione e percorsi da corrente');
+});
+
+test('pagina: il nastro automatico a tutto schermo: ordine di modifica, conteggio, il lotto che non riparte, banco a nastro fermo', async () => {
+  const { w, d, errors } = page('#/livello/' + AUTO);
+  const $ = q => d.querySelector(q);
+  assert.ok($('#screen-level').classList.contains('milestone'));
+  assert.match($('#pIntro').textContent, /Ordine di modifica/);
+  click(w, $('[data-pui="skipIntro"]'));
+  click(w, $('[data-unit="skip"]'));
+  await wait(400);
+  assert.equal($('#house').dataset.act, 'play');
+  assert.match($('#pTop').textContent, /Il cambio formato/);
+  assert.equal(d.querySelectorAll('#pSteps .psteps li').length, 8);
+  assert.match($('#pDock .pst-count').textContent, /0\s*\/\s*4/);
+  assert.ok(!$('#pDock [data-pui="overload"]'), 'niente leva del sovraccarico');
+  click(w, $('#pDock [data-phold="SB1"]'));
+  await wait(20);
+  click(w, $('[data-pui="answer"]'));
+  click(w, $('[data-pdiag="b"]'));
+  assert.match($('#pSheet').textContent, /Giusto/);
+  click(w, $('[data-pui="closeSheet"]'));
+  click(w, $('[data-pui="schema"]'));
+  assert.ok(!$('#screen-level').classList.contains('drawer'), 'con il nastro in marcia il banco non si apre');
+  assert.match($('#pSub').textContent, /Ferma il nastro/);
+  click(w, $('#pDock [data-phold="SB0"]'));
+  await wait(20);
+  click(w, $('[data-pui="schema"]'));
+  assert.ok($('#screen-level').classList.contains('drawer'), 'a nastro fermo il banco si apre a lato');
+  assert.deepEqual(errors, []);
+});
+
 /* ---------- schede delle milestone nella mappa ---------- */
 function home(storage) {
   const errors = [];
@@ -365,7 +465,7 @@ function home(storage) {
 test('mappa: ogni modulo chiude con la scheda della sua milestone, preceduta dal capolinea del binario', () => {
   const { d, errors } = home();
   const cards = [...d.querySelectorAll('.msc')];
-  assert.deepEqual(cards.map(c => c.id), ['ms-trilocale', 'ms-c23-appartamento-notte', 'ms-c24-officina', 'ms-plc', 'ms-casa', 'ms-fabbrica']);
+  assert.deepEqual(cards.map(c => c.id), ['ms-trilocale', 'ms-c23-appartamento-notte', 'ms-c24-officina', 'ms-c46-nastro-automatico', 'ms-casa', 'ms-fabbrica']);
   cards.forEach(c => assert.doesNotMatch(c.textContent, /Milestone/));
   assert.equal(d.querySelectorAll('.terminus').length, 6);
   // il binario delle Fondamenta finisce al capolinea del trilocale
@@ -373,10 +473,10 @@ test('mappa: ogni modulo chiude con la scheda della sua milestone, preceduta dal
   assert.ok(fond.querySelector('.rail + .terminus + #ms-trilocale'), 'Fondamenta: binario, capolinea, trilocale');
   assert.ok(fond.querySelector('.msteaser[data-goto="ms-trilocale"]'));
   assert.ok(!d.querySelector('.tricard'), 'le vecchie schede non ci sono piu');
-  // le tre con una scena vera mostrano la foto, le altre il disegno tecnico
+  // le quattro con una scena vera mostrano la foto, le altre il disegno tecnico
   assert.deepEqual([...d.querySelectorAll('.msc:not(.soon) img')].map(i => i.getAttribute('src')),
-    ['assets/milestone/trilocale.jpg', 'assets/milestone/appartamento.jpg', 'assets/milestone/officina.jpg']);
-  assert.equal(d.querySelectorAll('.msc.soon svg').length, 3);
+    ['assets/milestone/trilocale.jpg', 'assets/milestone/appartamento.jpg', 'assets/milestone/officina.jpg', 'assets/milestone/automatico.jpg']);
+  assert.equal(d.querySelectorAll('.msc.soon svg').length, 2);
   assert.equal(d.querySelectorAll('.msc.soon a').length, 0, 'in arrivo: niente pulsante');
   assert.deepEqual(errors, []);
 });

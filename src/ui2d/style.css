@@ -784,6 +784,8 @@ html[dir="rtl"] .phud,html[dir="rtl"] .psheet,html[dir="rtl"] .pintro,html[dir="
   .psub{bottom:calc(220px + env(safe-area-inset-bottom,0px))}
   .psub b{font-size:56px}
   .psub span{font-size:14px}
+  .house.ofc .psub{bottom:calc(340px + env(safe-area-inset-bottom,0px))}   /* la pulsantiera di reparto e' piu' alta del quadro */
+  .house.ofc .psub b{font-size:46px}
   .prep{grid-template-columns:1fr;gap:2px 0}
   .prep dd{margin-bottom:8px}
 }
@@ -847,6 +849,14 @@ html[dir="rtl"] .phud,html[dir="rtl"] .psheet,html[dir="rtl"] .pintro,html[dir="
 .pst-mod.fr.trip{box-shadow:inset 0 0 0 2px var(--hud-bad)}
 .pst-mod.fr.trip .pst-state{color:#B21E16}
 .pst-side .pchip{grid-column:1/-1;justify-self:start;border-color:#9A968B;background:rgba(255,255,255,.5);color:#1B2230}
+/* nastro automatico: la spia del lotto (bianca) e il conteggio del PLC al posto della leva del sovraccarico */
+.pst-lamp.lot .pst-cap{background:#4a4a42}
+.pst-lamp.lot.on .pst-cap{background:radial-gradient(circle,#FFFDF0,#FFE38A);box-shadow:0 0 0 4px #23262A,0 0 18px #FFE38A}
+.pst-count{grid-column:1/-1;display:grid;grid-template-columns:1fr auto;align-items:center;gap:4px 10px;padding:8px 12px;border-radius:10px;background:#1B2230;color:#E9EEF5;min-height:44px}
+.pst-count .pst-name{color:#9AA6B8;width:auto}
+.pst-count b{font:600 22px/1 'IBM Plex Mono',monospace;color:#7CF0A6}
+.pst-count small{font-size:13px;color:#9AA6B8}
+.pst-cbar{grid-column:1/-1;height:4px;border-radius:2px;background:linear-gradient(90deg,#2EE66A calc(var(--k)*100%),#33405A 0)}
 .pverb-sub{margin:-6px 0 0!important;color:#6A6457!important;font-style:italic}
 .pverb-tests{list-style:none;margin:0;padding:0;display:grid;gap:4px}
 .pverb-tests li{display:flex;justify-content:space-between;gap:10px;border-bottom:1px dotted #B9B4A8;padding-bottom:3px}

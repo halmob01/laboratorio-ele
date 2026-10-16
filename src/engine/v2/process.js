@@ -110,6 +110,24 @@ export const MODELS = {
     }),
   },
 
+  // Nastro a pacchi (prova del Modulo 4): un flusso di pacchi a passo fisso che il motore porta avanti. `s` sono i metri di
+  // nastro percorsi; il pacco k (0, 1, 2, ...) ha il fronte a first + s - k·gap. Davanti alla fotocellula (a `beam` metri
+  // dall'inizio) c'e' un pacco se il suo fronte ha passato il raggio da meno di `size` metri. Oltre `length` il pacco e'
+  // arrivato in fondo (sul bancale). Con il passo della simulazione (0,5 s) il raggio resta interrotto almeno size/v secondi.
+  pacchi: {
+    init: { s: 0 },
+    params: { v: 0.6, gap: 1.4, size: 0.48, beam: 4.2, first: 3.9, length: 6 },
+    acts: { run: 0 },
+    step(s, a, p, dt) { return { s: s.s + (frac(a.run) > 0 ? p.v * dt : 0) }; },
+    expose: (s, p) => {
+      const lead = p.first + s.s;                                     // fronte del primo pacco
+      const count = x => (lead < x ? 0 : Math.floor((lead - x) / p.gap) + 1);   // pacchi con il fronte oltre x
+      const d = lead - p.beam;
+      const beam = d >= 0 && ((d % p.gap) + p.gap) % p.gap < p.size;
+      return { s: s.s, lead, beam, passed: count(p.beam), out: count(p.length + p.size), gap: p.gap, size: p.size, at: p.beam, length: p.length };
+    },
+  },
+
   // Nastro con variatore di frequenza: f va verso ref·fmax con la rampa (Hz/s) se `run`, altrimenti scende a 0.
   // v (velocita' in % della nominale, a fNom) segue f con una costante di tempo breve. `load` frena (parametro).
   nastro: {

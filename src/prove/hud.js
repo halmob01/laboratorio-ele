@@ -14,7 +14,7 @@ export const newMemory = () => ({ panel: false, opened: false, rearmed: false, f
 
 // action: { kind: 'toggle' | 'test', id }; before/after: provaState prima e dopo l'azione.
 export function remember(name, mem, action, before, after) {
-  if (name === 'officina') return rememberEvents(mem, officinaEvents(action, before, after));
+  if (isPlant(name)) return rememberEvents(mem, plantEvents(name, action, before, after));
   if (name !== 'appartamento' || !after) return mem;
   const m = { ...mem };
   const lines = after.lines;
@@ -24,6 +24,9 @@ export function remember(name, mem, action, before, after) {
   if (m.rearmed && line && before && before.rcd.on && !before.lines[line].on && after.lines[line].on && after.rcd.tripped) m.found = true;
   return m;
 }
+// Le prove "di reparto" (officina, nastro automatico): pulsantiera in basso, verbale delle prove, eventi letti dallo stato.
+export const isPlant = name => name === 'officina' || name === 'automatico';
+export const plantEvents = (name, action, before, after) => (name === 'automatico' ? automaticoEvents(action, before, after) : officinaEvents(action, before, after));
 const lineOf = (name, id) => { const c = (PROVE[name].controls || []).find(x => x.id === id); return c ? c.line : null; };
 
 // Passi della prova: { text, done, cur }. Il passo corrente e' il primo non fatto dopo l'ultimo fatto.
@@ -35,7 +38,7 @@ export function stepsOf(name, ps, unit, mem) {
   const diagOk = !!(unit && unit.diag && unit.diag.correct);
   if (name === 'appartamento') {
     done = [mem.panel, mem.opened, mem.rearmed, mem.found, diagOk, !ps.heaterPlugged, unit && unit.phase === 'done'];
-  } else if (name === 'officina') {
+  } else if (isPlant(name)) {
     // le cinque prove del verbale, poi diagnosi, correzione, ricollaudo; una prova non superata conta come fatta (ma in rosso)
     const t = mem.tests || {};
     done = cfg.tests.map(x => t[x.id] === 'ok').concat([diagOk, !!mem.fixed, unit && unit.phase === 'done']);
@@ -78,6 +81,39 @@ export function officinaEvents(action, before, after) {
   if (running(before) && after.atEnd && !before.atEnd && !running(after)) ev.push({ kind: 'fine', text: L.fine, test: 'fine', result: 'ok', good: true });
   return ev;
 }
+// Il nastro automatico (c46): le prove del collaudo dagli eventi. Il lotto si riconosce dal nastro che si ferma da solo con la
+// spia accesa; il lotto nuovo da Marcia premuto a lotto pieno.
+export function automaticoEvents(action, before, after) {
+  if (!before || !after) return [];
+  const L = PROVE.automatico.log, ev = [];
+  const id = action && action.id;
+  const kind = action && action.kind;
+  const pressed = kind === 'press' || kind === 'toggle';
+  if (id === 'SB1' && pressed) {
+    if (before.lamp && !running(before)) {
+      if (running(after)) ev.push({ kind: 'nuovo', text: L.nuovo, test: 'nuovo', result: 'ok', good: true });
+      else ev.push({ kind: 'nuovoKo', text: L.nuovoKo, test: 'nuovo', result: 'ko', trip: true });
+    } else if (!running(before) && running(after)) ev.push({ kind: 'marcia', text: L.marcia, test: 'marcia', result: 'ok', good: true });
+    else if (!running(after)) ev.push({ kind: 'marciaNo', text: L.marciaNo });
+  } else if (id === 'SB0' && pressed) {
+    if (running(before) && !running(after)) ev.push({ kind: 'arresto', text: L.arresto, test: 'arresto', result: 'ok', good: true });
+    else ev.push({ kind: 'arrestoIdle', text: L.arrestoIdle });
+  } else if (id === 'SBE' && kind === 'toggle') {
+    if (after.emergency && running(before) && !running(after)) ev.push({ kind: 'fungo', text: L.fungo, test: 'emergenza', result: 'ok', good: true });
+    else ev.push({ kind: after.emergency ? 'fungoIdle' : 'fungoUp', text: after.emergency ? L.fungoIdle : L.fungoUp });
+  } else if (kind === 'reset') ev.push({ kind: 'reset', text: L.reset, good: true });
+  else if (id === 'QM' && kind === 'toggle') ev.push({ kind: after.qm ? 'qmOn' : 'qmOff', text: after.qm ? L.qmOn : L.qmOff });
+  if (!before.thermal.tripped && after.thermal.tripped) ev.push({ kind: 'tripOk', text: L.tripOk, good: true });
+  // il nastro si ferma da solo e la spia si accende: un lotto e' completo (da 4, come vuole l'ordine)
+  if (!action && running(before) && !running(after) && !before.lamp && after.lamp) ev.push({ kind: 'lotto', text: L.lotto, test: 'lotto', result: after.count === 4 ? 'ok' : 'ko', good: after.count === 4 });
+  return ev;
+}
+// Il contatore si azzera con Marcia e conta fino a 4? Si guarda il programma come lo vede il banco (solo lettura).
+export function automaticoFixed(programs) {
+  const ctu = ((programs || {}).PLC || []).map(r => (r.do || []).find(i => i.op === 'ctu')).find(Boolean);
+  return !!ctu && ctu.r === 'I1' && ctu.pv === 4;
+}
+export const plantFixed = (name, snap) => (name === 'automatico' ? automaticoFixed(snap.programs) : officinaFixed(snap.wires));
 function rememberEvents(mem, events) {
   if (!events.length) return mem;
   const m = { ...mem, tests: { ...(mem.tests || {}) } };
@@ -118,7 +154,7 @@ export function tripStory(name, action, before, after) {
 
 // Che cosa e' successo con un'azione: { text, trip, good, view } (view: dove guardare dopo). null se niente da dire.
 export function describe(name, action, before, after) {
-  if (name === 'officina') { const ev = officinaEvents(action, before, after); return ev.length ? ev[ev.length - 1] : null; }
+  if (isPlant(name)) { const ev = plantEvents(name, action, before, after); return ev.length ? ev[ev.length - 1] : null; }
   const cfg = PROVE[name];
   if (!cfg || !before || !after || !action) return null;
   const L = cfg.log;
@@ -220,7 +256,7 @@ export function dockHTML(cfg, ps, unit, ui) {
 
 // Suggerimento: dice il passo corrente con parole sue.
 export function hintOf(name, steps) {
-  if (name === 'officina') return PROVE.officina.hints[steps.findIndex(s => s.cur)] || '';
+  if (isPlant(name)) return PROVE[name].hints[steps.findIndex(s => s.cur)] || '';
   if (name !== 'appartamento') return '';
   const i = steps.findIndex(s => s.cur);
   return [
@@ -257,6 +293,11 @@ function stationHTML(cfg, ps, unit, ui) {
   if (unit && unit.phase === 'fault') main = diagOk ? '<button class="pbtn y" type="button" data-pui="check">Verifica</button>' : '<button class="pbtn y" type="button" data-pui="answer">Rispondi</button>';
   else if (unit && unit.phase === 'done') main = '<button class="pbtn y" type="button" data-pui="finale">Verbale</button>';
   const fr = ps.thermal.tripped ? 'Scattato' : ps.thermal.heat > 0.02 ? 'Scalda' : 'Armato';
+  const auto = ps.scene === 'automatico';
+  // nel nastro automatico, al posto della leva del sovraccarico: il conteggio del PLC e la spia del lotto
+  const left = auto
+    ? `<div class="pst-count" role="status"><span class="pst-name">Pacchi nel lotto</span><b>${ps.plc.on ? ps.count : '–'}<small> / ${ps.preset}</small></b><span class="pst-cbar" style="--k:${Math.min(1, ps.count / Math.max(1, ps.preset))}" aria-hidden="true"></span></div>`
+    : `<button class="pst-lever" type="button" data-pui="overload" aria-pressed="${!!ps.overload}"><span class="pst-knob" aria-hidden="true"></span><span>${ps.overload ? 'Libera il pacco' : 'Incastra un pacco'}</span></button>`;
   return `<div class="pbox pstation"><div class="pboxhead"><h2>${esc(cfg.dockTitle)}</h2><div class="prow">
       <button class="pchip" type="button" data-pui="schema" aria-pressed="${!!ui.schema}">${ui.schema ? 'Chiudi il banco' : 'Banco e schema'}</button>${main}</div></div>
     <div class="pst">
@@ -264,13 +305,13 @@ function stationHTML(cfg, ps, unit, ui) {
         <button class="pst-btn pst-go" type="button" data-phold="SB1" data-pid="SB1" aria-pressed="${!!ps.start}"><span class="pst-cap" aria-hidden="true"></span><span>Marcia</span></button>
         <button class="pst-btn pst-stop" type="button" data-phold="SB0" data-pid="SB0" aria-pressed="${!!ps.stop}"><span class="pst-cap" aria-hidden="true"></span><span>Arresto</span></button>
         <button class="pst-mush${ui.alarm ? ' alarm' : ''}" type="button" data-pact="toggle" data-pid="SBE" aria-pressed="${!!ps.emergency}"><span class="pst-cap" aria-hidden="true"></span><span>${ps.emergency ? 'Sblocca' : 'Emergenza'}</span></button>
-        <span class="pst-lamp${ps.lamp ? ' on' : ''}"><span class="pst-cap" aria-hidden="true"></span><span>Spia</span><span class="vh">${ps.lamp ? 'accesa' : 'spenta'}</span></span>
+        <span class="pst-lamp${ps.lamp ? ' on' : ''}${auto ? ' lot' : ''}"><span class="pst-cap" aria-hidden="true"></span><span>${auto ? 'Lotto pieno' : 'Spia'}</span><span class="vh">${ps.lamp ? 'accesa' : 'spenta'}</span></span>
       </div>
       <div class="pst-side">
-        <button class="pst-lever" type="button" data-pui="overload" aria-pressed="${!!ps.overload}"><span class="pst-knob" aria-hidden="true"></span><span>${ps.overload ? 'Libera il pacco' : 'Incastra un pacco'}</span></button>
+        ${left}
         <div class="pst-mod qm${ps.qm ? '' : ' open'}"><span class="pst-name">Salvamotore</span><button class="pst-sw" type="button" data-pact="toggle" data-pid="QM" aria-pressed="${!!ps.qm}">${ps.qm ? 'Chiuso' : 'Aperto'}</button>${ps.qm ? '' : '<span class="pst-tag">Lavori in corso</span>'}</div>
         <div class="pst-mod fr${ps.thermal.tripped ? ' trip' : ''}"><span class="pst-name">Termico</span><span class="pst-heat" style="--h:${Math.round(ps.thermal.heat * 100)}%" aria-hidden="true"></span><span class="pst-state">${fr}</span><button class="pst-sw" type="button" data-pact="reset" data-pid="FR"${ps.thermal.tripped ? '' : ' disabled'}>Riarma</button></div>
-        <button class="pchip" type="button" data-pui="rewind">Rimetti il pacco</button>
+        ${auto ? '' : '<button class="pchip" type="button" data-pui="rewind">Rimetti il pacco</button>'}
       </div>
     </div></div>`;
 }
@@ -280,7 +321,7 @@ export function verbaleHTML(cfg, stars, solved, from, to, who) {
   const R = cfg.report;
   const rows = cfg.tests.map(t => `<li><span>${esc(t.name)}</span><b>${esc(R.ok)}</b></li>`).join('');
   return `<div class="pcard preport pverbale" role="dialog" aria-modal="true" aria-labelledby="pW">
-      <div class="prep-head"><span class="pk">${solved ? 'Modulo 3 completato' : 'Impianto funzionante'}</span><span class="prep-time">${esc(from)}–${esc(to)}</span></div>
+      <div class="prep-head"><span class="pk">${solved ? esc(cfg.kick.split(' · ')[0] + ' completato') : 'Impianto funzionante'}</span><span class="prep-time">${esc(from)}–${esc(to)}</span></div>
       <h2 id="pW">${esc(R.title)}</h2><p class="pverb-sub">${esc(R.sub)}</p>
       <dl class="prep">
         <dt>Dove</dt><dd>${esc(cfg.call.where)}</dd>
