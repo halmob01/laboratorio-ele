@@ -8148,6 +8148,222 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
       "Ferma il nastro, apri il banco e nel gradino del contatore scegli \u201CSi azzera con: I1 (Marcia)\u201D. Lascia il conteggio a 4."
     ]
   });
+  LEVELS_V2.push({
+    id: "c47-videocitofono",
+    code: "c47",
+    n: 0,
+    engine: 2,
+    quadroOnly: true,
+    flow: "always",
+    palette: ["marrone", "blu", "bianco"],
+    name: "Il videocitofono",
+    title: "Il videocitofono",
+    blurb: "Chiamata dal portone e apriporta: tutto a 12 V, mai a contatto con la rete.",
+    goal: "Al portone c\u2019\xE8 la pulsantiera con il tasto di chiamata; in casa c\u2019\xE8 il tasto dell\u2019apriporta. Il trasformatore abbassa la tensione a 12 V: sul secondario collega il tasto di chiamata con la suoneria, e il tasto dell\u2019apriporta con la serratura. Sulla pulsantiera esterna non deve arrivare la tensione di rete.",
+    comps: [
+      QM,
+      C("TR", "trafo", "Trasformatore", "Trasformatore 230/12 V", T("1", "2", "3", "4"), { vout: 12 }),
+      C("SBC", "pb", "Chiamata", "Tasto di chiamata al portone", T("3", "4")),
+      C("B", "bell", "Suoneria", "Suoneria 12 V", T("1", "2")),
+      C("SBA", "pb", "Apriporta", "Tasto apriporta in casa", T("3", "4")),
+      C("SE", "lamp", "Serratura", "Serratura elettrica 12 V", { B: { l: "B" }, A: { l: "A" } }, { volt: 12 })
+    ],
+    controls: ["SBC", "SBA"],
+    demoDo: [
+      { do: ["press SBC"], say: "Tasto di chiamata premuto: suona la suoneria in casa." },
+      { do: ["press SBA"], say: "Tasto apriporta premuto: la serratura si sblocca." }
+    ],
+    checks: [
+      { id: "fermo", label: "Senza premere nulla la suoneria \xE8 silenziosa e la serratura \xE8 chiusa", do: [], expect: { loads: { B: "off", SE: "off" } } },
+      { id: "chiama", label: "Premi il tasto di chiamata: suona la suoneria, la serratura resta chiusa", do: ["press SBC"], expect: { loads: { B: "on", SE: "off" } } },
+      { id: "apre", label: "Premi l\u2019apriporta: la serratura si sblocca, la suoneria non suona", do: ["press SBA"], expect: { loads: { SE: "on", B: "off" } } }
+    ],
+    safety: {},
+    solution: [
+      ["Q.F", "TR.1", "marrone"],
+      ["TR.2", "Q.N", "blu"],
+      ["TR.3", "SBC.3", "bianco"],
+      ["SBC.4", "B.1", "bianco"],
+      ["B.2", "TR.4", "bianco"],
+      ["TR.3", "SBA.3", "bianco"],
+      ["SBA.4", "SE.A", "bianco"],
+      ["SE.B", "TR.4", "bianco"]
+    ],
+    hints: [
+      "Il primario del trasformatore (1 e 2) si collega alla rete. Tutto il resto sta sul secondario (3 e 4).",
+      "Dal morsetto 3 del secondario partono due rami: uno passa dal tasto di chiamata e arriva alla suoneria, l\u2019altro passa dall\u2019apriporta e arriva alla serratura. Entrambi tornano al morsetto 4.",
+      "I fili a bassa tensione non sono n\xE9 fase n\xE9 neutro: usa il bianco."
+    ]
+  });
+  LEVELS_V2.push({
+    id: "c48-luce-automatica",
+    code: "c48",
+    n: 0,
+    engine: 2,
+    quadroOnly: true,
+    flow: "always",
+    palette: ["marrone", "blu", "gv"],
+    name: "Il sensore e l\u2019attuatore",
+    title: "Il sensore e l\u2019attuatore",
+    blurb: "La luce del corridoio si accende da sola: ma solo se \xE8 buio e se passa qualcuno.",
+    goal: "Il corridoio ha un sensore di luce (chiude il contatto quando \xE8 buio) e un sensore di presenza (lo chiude quando passa qualcuno). La luce deve accendersi solo se \xE8 buio e c\u2019\xE8 qualcuno, e restare accesa 10 secondi dopo l\u2019ultimo passaggio. I sensori non portano carico: comandano un rel\xE8 temporizzato, che \xE8 l\u2019attuatore.",
+    comps: [
+      QM,
+      C("CR", "sw", "Sensore di luce", "Sensore di luce (chiuso al buio)", { a: { l: "1" }, b: { l: "2" } }),
+      C("PR", "sw", "Sensore di presenza", "Sensore di presenza (chiuso se passa qualcuno)", { a: { l: "1" }, b: { l: "2" } }),
+      C("T", "tmr", "Temporizzatore", "Rel\xE8 temporizzato", { A1: { l: "A1" }, A2: { l: "A2" }, "1": { l: "1" }, "2": { l: "2" } }, { time: 10 }),
+      C("L", "lamp", "Corridoio", "Lampada del corridoio", { B: { l: "B" }, A: { l: "A" } })
+    ],
+    controls: ["CR", "PR"],
+    demoDo: [
+      { do: ["toggle PR", "wait 2"], say: "Passa qualcuno ma \xE8 giorno: la luce resta spenta." },
+      { do: ["toggle PR", "toggle CR", "toggle PR"], say: "\xC8 buio e passa qualcuno: la luce si accende." },
+      { do: ["toggle PR", "wait 15"], say: "Non passa pi\xF9 nessuno: dopo 10 secondi la luce si spegne." }
+    ],
+    checks: [
+      { id: "giorno", label: "Di giorno, con qualcuno che passa, la luce resta spenta", do: ["toggle PR"], expect: { loads: { L: "off" } } },
+      { id: "vuoto", label: "Al buio, senza nessuno, la luce resta spenta", do: ["toggle CR"], expect: { loads: { L: "off" } } },
+      { id: "accende", label: "Al buio, con qualcuno che passa, la luce si accende", do: ["toggle CR", "toggle PR"], expect: { loads: { L: "on" } } },
+      { id: "resta", label: "Passato qualcuno, la luce resta accesa ancora per qualche secondo", do: ["toggle CR", "toggle PR", "toggle PR", "wait 5"], expect: { loads: { L: "on" } } },
+      { id: "spegne", label: "Dopo 15 secondi senza nessuno la luce si \xE8 spenta da sola", do: ["toggle CR", "toggle PR", "toggle PR", "wait 15"], expect: { loads: { L: "off" } } }
+    ],
+    safety: { phaseSwitched: ["L"], coilReturn: ["T"] },
+    solution: [
+      ["Q.F", "CR.a", "marrone"],
+      ["CR.b", "PR.a", "marrone"],
+      ["PR.b", "T.A1", "marrone"],
+      ["T.A2", "Q.N", "blu"],
+      ["Q.F", "T.1", "marrone"],
+      ["T.2", "L.A", "marrone"],
+      ["L.B", "Q.N", "blu"]
+    ],
+    hints: [
+      "La luce deve accendersi se \xE8 buio E c\u2019\xE8 qualcuno: due condizioni insieme vogliono i due contatti in serie.",
+      "Dalla fase, prima il sensore di luce, poi il sensore di presenza, poi la bobina A1 del temporizzatore. A2 va al neutro.",
+      "La lampada non passa dai sensori: la fase arriva al contatto 1 del temporizzatore, dal 2 va alla lampada."
+    ]
+  });
+  var W49 = [
+    ["Q.F", "PLC.A1", "marrone"],
+    ["PLC.A2", "Q.N", "blu"],
+    ["Q.F", "SBX.3", "marrone"],
+    ["SBX.4", "PLC.I0", "marrone"],
+    ["Q.F", "SBT.3", "marrone"],
+    ["SBT.4", "PLC.I1", "marrone"],
+    ["Q.F", "SBC.3", "marrone"],
+    ["SBC.4", "PLC.I2", "marrone"],
+    ["PLC.IC", "Q.N", "blu"],
+    ["Q.F", "PLC.Q0A", "marrone"],
+    ["PLC.Q0B", "L0.A", "marrone"],
+    ["L0.B", "Q.N", "blu"],
+    ["Q.F", "PLC.Q1A", "marrone"],
+    ["PLC.Q1B", "L1.A", "marrone"],
+    ["L1.B", "Q.N", "blu"]
+  ];
+  var PROG_49 = [
+    { if: "I1", do: [{ op: "set", a: "Q0" }, { op: "set", a: "Q1" }] },
+    { if: "I2", do: [{ op: "reset", a: "Q0" }, { op: "set", a: "Q1" }] },
+    { if: "I0", do: [{ op: "reset", a: "Q0" }, { op: "reset", a: "Q1" }] }
+  ];
+  LEVELS_V2.push({
+    id: "c49-casa-plc",
+    code: "c49",
+    n: 0,
+    engine: 2,
+    quadroOnly: true,
+    flow: "onDemand",
+    palette: ["marrone", "blu", "gv"],
+    name: "La casa col PLC",
+    title: "La casa col PLC",
+    blurb: "Tre tasti, tre scene: esco, torno, cena. Un tocco e cambiano le luci.",
+    goal: "In ingresso ci sono tre tasti: Esco, Torno e Cena. L\u2019impianto \xE8 cablato e il PLC \xE8 acceso, ma il programma \xE8 vuoto. Scrivilo tu: Torno accende la luce dell\u2019ingresso e quella del soggiorno; Cena spegne l\u2019ingresso e lascia il soggiorno; Esco spegne tutto. Le luci restano come le hai lasciate quando rilasci il tasto.",
+    fixed: W49,
+    comps: [
+      QM,
+      C("PLC", "plc", "PLC", "PLC (programma da scrivere)", T("A1", "A2", "I0", "I1", "I2", "IC", "Q0A", "Q0B", "Q1A", "Q1B"), {
+        symbols: { I0: "Esco", I1: "Torno", I2: "Cena", Q0: "Luce ingresso", Q1: "Luce soggiorno" },
+        edit: { markers: 0, timers: 0, counters: 0, ops: ["set", "reset"] }
+      }),
+      C("SBX", "pb", "Esco", "Tasto Esco", T("3", "4")),
+      C("SBT", "pb", "Torno", "Tasto Torno", T("3", "4")),
+      C("SBC", "pb", "Cena", "Tasto Cena", T("3", "4")),
+      C("L0", "lamp", "Ingresso", "Luce dell\u2019ingresso", { B: { l: "B" }, A: { l: "A" } }),
+      C("L1", "lamp", "Soggiorno", "Luce del soggiorno", { B: { l: "B" }, A: { l: "A" } })
+    ],
+    controls: ["SBX", "SBT", "SBC"],
+    demoDo: [
+      { do: press("SBT"), say: "" },
+      { do: press("SBC"), say: "" },
+      { do: press("SBX"), say: "" }
+    ],
+    checks: [
+      { id: "fermo", label: "All\u2019inizio le luci sono spente", do: [], expect: { loads: { L0: "off", L1: "off" } } },
+      { id: "torno", label: "Premi Torno: si accendono ingresso e soggiorno, e restano accese", do: press("SBT"), expect: { loads: { L0: "on", L1: "on" } } },
+      { id: "cena", label: "Premi Torno e poi Cena: l\u2019ingresso si spegne, il soggiorno resta acceso", do: press("SBT").concat(press("SBC")), expect: { loads: { L0: "off", L1: "on" } } },
+      { id: "esco", label: "Premi Torno e poi Esco: si spegne tutto", do: press("SBT").concat(press("SBX")), expect: { loads: { L0: "off", L1: "off" } } }
+    ],
+    safety: { coilReturn: ["PLC"] },
+    solution: W49,
+    solutionPrograms: { PLC: PROG_49 },
+    hints: [
+      "Una scena cambia lo stato delle luci e poi lo lascia. Per questo si usano Set (accende e ricorda) e Reset (spegne e ricorda), non una bobina semplice.",
+      "Torno \xE8 l\u2019ingresso I1: un gradino con il contatto I1 e due uscite, Set su Q0 e Set su Q1.",
+      "Cena \xE8 I2: Reset su Q0 e Set su Q1. Esco \xE8 I0: Reset su Q0 e Reset su Q1."
+    ]
+  });
+  LEVELS_V2.push({
+    id: "c50-allarme",
+    code: "c50",
+    n: 0,
+    engine: 2,
+    quadroOnly: true,
+    flow: "onDemand",
+    palette: ["marrone", "blu", "gv"],
+    name: "Allarme fumo e allagamento",
+    title: "Allarme fumo e allagamento",
+    blurb: "La sirena parte e non si ferma da sola: bisogna tacitarla, e solo quando il pericolo \xE8 passato.",
+    goal: "Un rilevatore di fumo e una sonda di allagamento chiudono ciascuno un contatto. Se uno dei due scatta suona la sirena, e deve continuare a suonare anche quando il fumo o l\u2019acqua spariscono: un allarme che si spegne da solo nasconde l\u2019evento. Il tasto di tacitazione la ferma, ma solo se i sensori sono tornati a riposo.",
+    comps: [
+      QM,
+      C("S1", "sw", "Rilevatore fumo", "Rilevatore di fumo (chiude se vede fumo)", { a: { l: "1" }, b: { l: "2" } }),
+      C("S2", "sw", "Sonda allagamento", "Sonda di allagamento (chiude se vede acqua)", { a: { l: "1" }, b: { l: "2" } }),
+      C("TA", "pbnc", "Tacitazione", "Tasto di tacitazione (NC)", { "1": { l: "1" }, "2": { l: "2" } }),
+      C("KA", "rel", "Rel\xE8 allarme", "Rel\xE8 dell\u2019allarme", T("A1", "A2", "11", "12", "14")),
+      C("B", "bell", "Sirena", "Sirena 230 V", T("1", "2"), { volt: 230 })
+    ],
+    controls: ["S1", "S2", "TA"],
+    demoDo: [
+      { do: ["toggle S1"], say: "Il rilevatore vede fumo: la sirena parte." },
+      { do: ["toggle S1"], say: "Il fumo \xE8 sparito, ma la sirena continua: il rel\xE8 ha la memoria." },
+      { do: press("TA"), say: "Il tasto di tacitazione ferma la sirena." }
+    ],
+    checks: [
+      { id: "quiete", label: "Senza fumo n\xE9 acqua la sirena \xE8 silenziosa", do: [], expect: { loads: { B: "off" } } },
+      { id: "fumo", label: "Il rilevatore vede fumo: la sirena suona", do: ["toggle S1"], expect: { loads: { B: "on" } } },
+      { id: "acqua", label: "La sonda vede acqua: la sirena suona", do: ["toggle S2"], expect: { loads: { B: "on" } } },
+      { id: "memoria", label: "Il fumo sparisce ma la sirena continua a suonare", do: ["toggle S1", "toggle S1"], expect: { loads: { B: "on" } } },
+      { id: "tacita", label: "Con il pericolo passato, il tasto di tacitazione ferma la sirena", do: ["toggle S1", "toggle S1"].concat(press("TA")), expect: { loads: { B: "off" } } },
+      { id: "ancora", label: "Se il fumo c\u2019\xE8 ancora, la tacitazione non basta: la sirena riparte", do: ["toggle S1"].concat(press("TA")), expect: { loads: { B: "on" } } }
+    ],
+    safety: { coilReturn: ["KA"] },
+    solution: [
+      ["Q.F", "TA.1", "marrone"],
+      ["TA.2", "S1.a", "marrone"],
+      ["TA.2", "S2.a", "marrone"],
+      ["TA.2", "KA.11", "marrone"],
+      ["S1.b", "KA.A1", "marrone"],
+      ["S2.b", "KA.A1", "marrone"],
+      ["KA.14", "KA.A1", "marrone"],
+      ["KA.A2", "Q.N", "blu"],
+      ["KA.A1", "B.1", "marrone"],
+      ["B.2", "Q.N", "blu"]
+    ],
+    hints: [
+      "I due sensori sono in parallelo: basta che uno solo chiuda per dare l\u2019allarme. Poi il rel\xE8 KA li tiene.",
+      "La memoria \xE8 un\u2019autoritenuta: il contatto 11-14 del rel\xE8 riporta la fase alla sua stessa bobina A1, quindi, una volta scattato, il rel\xE8 resta eccitato.",
+      "La tacitazione \xE8 un contatto normalmente chiuso messo in testa a tutto: premendolo si toglie la fase ai sensori e alla memoria. La sirena si alimenta dalla stessa linea di A1."
+    ]
+  });
 
   // src/content/units-v2.js
   var UNITS_V2 = {
@@ -12405,6 +12621,348 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
       }
     }
   };
+  UNITS_V2["c47-videocitofono"] = {
+    support: "passi",
+    lesson: {
+      pages: [
+        {
+          type: "spiegazione",
+          title: "Il portone a bassa tensione",
+          paras: [
+            "Il tasto di chiamata e la serratura stanno fuori, sul portone: chiunque li tocca. Per questo non possono mai essere collegati ai 230 V della rete, ma solo a una tensione bassa e sicura, per esempio 12 V.",
+            "Un trasformatore abbassa la tensione. Il primario (morsetti 1 e 2) sta sulla rete; il secondario (3 e 4) d\xE0 i 12 V. Tra i due lati non c\u2019\xE8 nessun collegamento elettrico.",
+            "Nei videocitofoni moderni voce, immagine e alimentazione viaggiano su due soli fili, con un segnale digitale (il bus). Il bus lo programma l\u2019impianto; qui impari la parte che resta uguale: l\u2019alimentatore separato e i due tasti sul secondario."
+          ]
+        },
+        {
+          type: "pezzi",
+          title: "Chiamata e apriporta",
+          focus: ["TR", "SBC", "B", "SBA", "SE"],
+          paras: [
+            "Dal morsetto 3 del secondario parte la linea a 12 V. Un ramo passa dal tasto di chiamata e arriva alla suoneria. L\u2019altro ramo passa dal tasto apriporta e arriva alla serratura. Entrambi tornano al morsetto 4.",
+            "La serratura elettrica si sblocca finch\xE9 il tasto \xE8 premuto. Dei due rami, ciascuno funziona da solo: la chiamata non sblocca la porta e l\u2019apriporta non fa suonare nulla."
+          ]
+        },
+        {
+          type: "demo",
+          title: "Guarda come si fa",
+          captions: {
+            wires: [
+              "La fase dal quadro al morsetto 1 del primario.",
+              "Dal morsetto 2 del primario al neutro: il trasformatore \xE8 sempre alimentato.",
+              "Dal morsetto 3 del secondario al tasto di chiamata. Qui si pu\xF2 usare il bianco.",
+              "Dal tasto di chiamata alla suoneria.",
+              "Dalla suoneria al morsetto 4 del secondario: il circuito si chiude.",
+              "Dal morsetto 3 del secondario anche al tasto apriporta.",
+              "Dal tasto apriporta alla serratura.",
+              "Dalla serratura al morsetto 4 del secondario."
+            ],
+            power: "Levetta su: il trasformatore d\xE0 12 V sul secondario. Non succede niente finch\xE9 nessuno preme un tasto.",
+            controls: []
+          }
+        },
+        {
+          type: "previsione",
+          question: "Colleghi la serratura a 12 V direttamente ai 230 V della rete, con il tasto apriporta in serie. Che cosa succede alla prima pressione?",
+          options: [
+            { id: "a", text: "Si sblocca normalmente: \xE8 solo un po\u2019 pi\xF9 forte." },
+            { id: "b", text: "La serratura si brucia, e sul portone c\u2019\xE8 la tensione di rete." },
+            { id: "c", text: "Non succede niente: il differenziale la protegge." }
+          ],
+          correct: "b",
+          why: "Una serratura da 12 V sottoposta a 230 V si brucia. Il pericolo vero \xE8 un altro: la pulsantiera sul portone \xE8 raggiungibile da chiunque e non deve mai avere la tensione di rete. Il trasformatore separa i due lati."
+        },
+        { type: "sintesi", title: "Da ricordare" }
+      ]
+    },
+    steps: [
+      { kind: "wire", from: "Q.F", to: ["TR.1"], color: "marrone", short: "1 Rete", title: "La fase al primario", text: "Dalla FASE del quadro al morsetto 1 del trasformatore." },
+      { kind: "wire", from: "Q.N", to: ["TR.2"], color: "blu", short: "2 Neutro", title: "Il neutro al primario", text: "Dal NEUTRO del quadro al morsetto 2 del trasformatore." },
+      { kind: "wire", from: "TR.3", to: ["SBC.3"], color: "bianco", short: "3 Chiamata", title: "Dal secondario al tasto di chiamata", text: "Dal morsetto 3 del secondario al morsetto 3 del tasto di chiamata. Qui puoi usare il bianco." },
+      { kind: "wire", from: "SBC.4", to: ["B.1"], color: "bianco", short: "4 Suoneria", title: "Dal tasto alla suoneria", text: "Dal morsetto 4 del tasto di chiamata a un morsetto della suoneria." },
+      { kind: "wire", from: "TR.4", to: ["B.2"], color: "bianco", short: "5 Ritorno", title: "Il ritorno della suoneria", text: "Dal morsetto 4 del secondario all\u2019altro morsetto della suoneria." },
+      { kind: "wire", from: "TR.3", to: ["SBA.3"], color: "bianco", short: "6 Apriporta", title: "Dal secondario all\u2019apriporta", text: "Dal morsetto 3 del secondario al morsetto 3 del tasto apriporta." },
+      { kind: "wire", from: "SBA.4", to: ["SE.A"], color: "bianco", short: "7 Serratura", title: "Dal tasto alla serratura", text: "Dal morsetto 4 del tasto apriporta a un morsetto della serratura." },
+      { kind: "wire", from: "TR.4", to: ["SE.B"], color: "bianco", short: "8 Ritorno", title: "Il ritorno della serratura", text: "Dal morsetto 4 del secondario all\u2019altro morsetto della serratura." },
+      { kind: "power", short: "9 Levetta", title: "Dai corrente", text: "Tocca la levetta del quadro." },
+      { kind: "control", id: "SBC", short: "10 Prova", title: "Prova la chiamata", text: "Tieni premuto il tasto di chiamata: la suoneria suona. Poi prova l\u2019apriporta." },
+      { kind: "verify", short: "11 Verifica", title: "Controlla l\u2019impianto", text: "Premi Verifica." }
+    ],
+    summary: [
+      "Il portone si comanda solo in bassa tensione: i 230 V non arrivano mai alla pulsantiera.",
+      "Il trasformatore separa la rete (primario) dai 12 V (secondario).",
+      "Chiamata e apriporta sono due rami in parallelo sul secondario: ciascuno funziona da solo.",
+      "I videocitofoni a due fili mettono voce, immagine e alimentazione sullo stesso cavo, con un bus: il principio dell\u2019alimentatore separato resta lo stesso."
+    ],
+    fault: {
+      say: "L\u2019impianto \xE8 cablato e la chiamata funziona. Premendo l\u2019apriporta la serratura non si sblocca. Guarda dove sono collegati l\u2019apriporta e la serratura.",
+      wires: [
+        ["Q.F", "TR.1", "marrone"],
+        ["TR.2", "Q.N", "blu"],
+        ["TR.3", "SBC.3", "bianco"],
+        ["SBC.4", "B.1", "bianco"],
+        ["B.2", "TR.4", "bianco"],
+        ["Q.F", "SBA.3", "marrone"],
+        ["SBA.4", "SE.A", "marrone"],
+        ["SE.B", "Q.N", "blu"]
+      ],
+      diagnosis: {
+        question: "Perch\xE9 la serratura non si sblocca?",
+        options: [
+          { id: "a", text: "L\u2019apriporta e la serratura sono collegati alla rete a 230 V invece che al secondario a 12 V." },
+          { id: "b", text: "Il primario del trasformatore \xE8 collegato al contrario." },
+          { id: "c", text: "Manca un ponte tra i due tasti." }
+        ],
+        correct: "a",
+        why: "La serratura \xE8 da 12 V e prende la fase e il neutro della rete: si brucia. Peggio, il tasto sul portone ha i 230 V. L\u2019apriporta e la serratura vanno sul secondario, come la chiamata."
+      },
+      fixSay: "Togli i fili che portano la fase e il neutro all\u2019apriporta e alla serratura. Collega il morsetto 3 del secondario all\u2019apriporta e la serratura al morsetto 4. Poi premi Verifica."
+    }
+  };
+  UNITS_V2["c48-luce-automatica"] = {
+    support: "passi",
+    lesson: {
+      pages: [
+        {
+          type: "spiegazione",
+          title: "Il sensore non porta il carico",
+          paras: [
+            "Un sensore di presenza o di luce non accende la lampada: chiude un contatto, come un interruttore comandato da chi passa o dal buio. Il contatto \xE8 libero da tensione, come quello di un rel\xE8: la tensione ce la porti tu.",
+            "Chi accende la lampada \xE8 l\u2019attuatore: qui un rel\xE8 temporizzato. I sensori comandano la sua bobina, il suo contatto alimenta la lampada. Cos\xEC il sensore, piccolo e delicato, non porta mai la corrente del carico."
+          ]
+        },
+        {
+          type: "pezzi",
+          title: "Sensori e attuatore",
+          focus: ["CR", "PR", "T", "L"],
+          paras: [
+            "Il sensore di luce chiude il contatto quando \xE8 buio. Il sensore di presenza lo chiude quando passa qualcuno. Il rel\xE8 temporizzato tiene il contatto chiuso per 10 secondi dopo che la bobina si spegne: \xE8 il tempo di attraversare il corridoio senza che la luce si spenga a met\xE0.",
+            "La luce deve accendersi solo se \xE8 buio e se passa qualcuno: due condizioni insieme. In un circuito le condizioni insieme si mettono in serie."
+          ]
+        },
+        {
+          type: "demo",
+          title: "Guarda come si fa",
+          captions: {
+            wires: [
+              "La fase dal quadro al sensore di luce.",
+              "Dal sensore di luce al sensore di presenza: i due contatti in serie.",
+              "Dal sensore di presenza alla bobina del temporizzatore.",
+              "Filo blu dalla bobina al neutro.",
+              "La fase al contatto del temporizzatore: la lampada non passa dai sensori.",
+              "Dal contatto alla lampada.",
+              "Filo blu dal neutro alla lampada."
+            ],
+            power: "Levetta su: giorno e nessuno nel corridoio, la lampada \xE8 spenta.",
+            controls: []
+          }
+        },
+        {
+          type: "previsione",
+          question: "Colleghi i due sensori in parallelo invece che in serie. Che cosa succede di giorno, quando passa qualcuno?",
+          options: [
+            { id: "a", text: "La luce resta spenta: \xE8 giorno." },
+            { id: "b", text: "La luce si accende lo stesso: basta che chiuda un sensore." },
+            { id: "c", text: "La luce lampeggia." }
+          ],
+          correct: "b",
+          why: "Con due contatti in parallelo basta uno solo per far passare la corrente: \xE8 un O. Il sensore di presenza chiude e la luce si accende anche se \xE8 giorno. Per avere un E, servono entrambi: i contatti vanno in serie."
+        },
+        { type: "sintesi", title: "Da ricordare" }
+      ]
+    },
+    steps: [
+      { kind: "wire", from: "Q.F", to: ["CR.a"], color: "marrone", short: "1 Luce", title: "La fase al sensore di luce", text: "Dalla FASE del quadro al morsetto 1 del sensore di luce." },
+      { kind: "wire", from: "CR.b", to: ["PR.a"], color: "marrone", short: "2 Serie", title: "I due sensori in serie", text: "Dal morsetto 2 del sensore di luce al morsetto 1 del sensore di presenza." },
+      { kind: "wire", from: "PR.b", to: ["T.A1"], color: "marrone", short: "3 Bobina", title: "Alla bobina del temporizzatore", text: "Dal morsetto 2 del sensore di presenza al morsetto A1 del temporizzatore." },
+      { kind: "wire", from: "Q.N", to: ["T.A2"], color: "blu", short: "4 Neutro", title: "Il neutro alla bobina", text: "Dal NEUTRO al morsetto A2 del temporizzatore." },
+      { kind: "wire", from: "Q.F", to: ["T.1"], color: "marrone", short: "5 Contatto", title: "La fase al contatto", text: "Dalla FASE al morsetto 1 del contatto del temporizzatore." },
+      { kind: "wire", from: "T.2", to: ["L.A"], color: "marrone", short: "6 Lampada", title: "Alla lampada", text: "Dal morsetto 2 del contatto alla lampada." },
+      { kind: "wire", from: "Q.N", to: ["L.B"], color: "blu", short: "7 Neutro lampada", title: "Il neutro alla lampada", text: "Dal NEUTRO al morsetto libero della lampada." },
+      { kind: "power", short: "8 Levetta", title: "Dai corrente", text: "Tocca la levetta del quadro." },
+      { kind: "control", id: "CR", short: "9 Prova", title: "Prova i sensori", text: "Simula il buio e il passaggio di qualcuno: la luce si accende e, dopo qualche secondo, si spegne da sola." },
+      { kind: "verify", short: "10 Verifica", title: "Controlla l\u2019impianto", text: "Premi Verifica." }
+    ],
+    summary: [
+      "Un sensore chiude un contatto, ma non porta il carico: la corrente della lampada passa dall\u2019attuatore.",
+      "Condizioni che servono tutte insieme sono contatti in serie (un E).",
+      "Il temporizzatore tiene la luce accesa ancora per qualche secondo dopo l\u2019ultimo passaggio.",
+      "I contatti dei sensori sono liberi da tensione: la tensione la porti tu, come per un interruttore."
+    ],
+    fault: {
+      say: "L\u2019impianto \xE8 gi\xE0 cablato. Di notte la luce si accende quando passa qualcuno, ma di giorno si accende lo stesso. Guarda come sono collegati i due sensori.",
+      wires: [
+        ["Q.F", "CR.a", "marrone"],
+        ["Q.F", "PR.a", "marrone"],
+        ["CR.b", "T.A1", "marrone"],
+        ["PR.b", "T.A1", "marrone"],
+        ["T.A2", "Q.N", "blu"],
+        ["Q.F", "T.1", "marrone"],
+        ["T.2", "L.A", "marrone"],
+        ["L.B", "Q.N", "blu"]
+      ],
+      diagnosis: {
+        question: "Perch\xE9 la luce si accende anche di giorno?",
+        options: [
+          { id: "a", text: "I due sensori sono in parallelo: ne basta uno." },
+          { id: "b", text: "Il temporizzatore ha il tempo troppo lungo." },
+          { id: "c", text: "Il neutro della lampada \xE8 collegato male." }
+        ],
+        correct: "a",
+        why: "In parallelo basta che uno dei due sensori chiuda. Per accendere la luce solo al buio e con qualcuno nel corridoio, i due contatti vanno in serie."
+      },
+      fixSay: "Togli i fili in parallelo. Collega la fase al sensore di luce, il sensore di luce al sensore di presenza e il sensore di presenza alla bobina. Poi premi Verifica."
+    }
+  };
+  UNITS_V2["c49-casa-plc"] = {
+    support: "passi",
+    lesson: {
+      pages: [
+        {
+          type: "spiegazione",
+          title: "Le scene",
+          paras: [
+            "Una scena cambia pi\xF9 luci con un solo tocco: Torno accende ingresso e soggiorno, Esco spegne tutto, Cena lascia solo il soggiorno. Nei fili ci vorrebbero molti rel\xE8; con il PLC \xE8 un programma.",
+            "Una scena lascia le luci come le ha messe, anche dopo che hai rilasciato il tasto. Una bobina semplice non basta, perch\xE9 segue la condizione: quando rilasci il tasto la luce si spegne. Servono Set e Reset, che ricordano."
+          ],
+          table: {
+            head: ["Istruzione", "Che cosa fa"],
+            rows: [
+              ["Set", "se la condizione \xE8 vera accende l\u2019uscita e la lascia accesa"],
+              ["Reset", "se la condizione \xE8 vera spegne l\u2019uscita e la lascia spenta"],
+              ["Bobina", "l\u2019uscita segue la condizione e si spegne con lei"]
+            ]
+          }
+        },
+        {
+          type: "previsione",
+          question: "Nel gradino di Torno usi la bobina Q0 invece di Set. Che cosa succede quando rilasci il tasto?",
+          options: [
+            { id: "a", text: "La luce resta accesa: il PLC ricorda." },
+            { id: "b", text: "La luce si spegne appena il tasto torna a 0." },
+            { id: "c", text: "Il PLC d\xE0 un errore." }
+          ],
+          correct: "b",
+          why: "Una bobina segue il suo gradino: la condizione vale 1 solo mentre il tasto \xE8 premuto, e allora la luce vale 1 solo per quel tempo. Per far restare la luce accesa si usa Set; per spegnerla Reset."
+        },
+        { type: "sintesi", title: "Da ricordare" }
+      ]
+    },
+    steps: [
+      { kind: "program", plc: "PLC", min: 1, short: "1 Torno", title: "La scena Torno", text: "Un gradino con il contatto Torno (I1) e due uscite: Set su Q0 e Set su Q1. Perch\xE9: Torno accende ingresso e soggiorno, e le luci devono restare accese." },
+      { kind: "program", plc: "PLC", min: 2, short: "2 Cena", title: "La scena Cena", text: "Un gradino con il contatto Cena (I2): Reset su Q0 e Set su Q1." },
+      { kind: "program", plc: "PLC", min: 3, short: "3 Esco", title: "La scena Esco", text: "Un gradino con il contatto Esco (I0): Reset su Q0 e Reset su Q1." },
+      { kind: "control", id: "SBT", short: "4 Prova", title: "Prova le scene", text: "Premi Torno, poi Cena, poi Esco: guarda come cambiano le luci." },
+      { kind: "verify", short: "5 Verifica", title: "Controlla il programma", text: "Premi Verifica." }
+    ],
+    summary: [
+      "Una scena \xE8 un gradino che cambia pi\xF9 uscite con un solo tasto.",
+      "Set accende e ricorda, Reset spegne e ricorda: la scena resta anche a tasto rilasciato.",
+      "Una bobina semplice segue il tasto e si spegne quando lo rilasci.",
+      "Un solo tasto pu\xF2 avere pi\xF9 istruzioni nello stesso gradino."
+    ]
+  };
+  UNITS_V2["c50-allarme"] = {
+    support: "passi",
+    lesson: {
+      pages: [
+        {
+          type: "spiegazione",
+          title: "Un allarme che si ricorda",
+          paras: [
+            "Un rilevatore di fumo e una sonda di allagamento chiudono un contatto quando vedono il pericolo. Se la sirena seguisse quel contatto, si spegnerebbe appena il fumo si dirada: l\u2019evento sparirebbe senza che nessuno lo sappia.",
+            "Per questo l\u2019allarme ha una memoria: un rel\xE8 con l\u2019autoritenuta. Una volta scattato resta eccitato, anche se il sensore torna a riposo. Si ferma solo con il tasto di tacitazione, che \xE8 un contatto normalmente chiuso messo in testa al circuito."
+          ]
+        },
+        {
+          type: "pezzi",
+          title: "Sensori in parallelo e memoria",
+          focus: ["S1", "S2", "TA", "KA", "B"],
+          paras: [
+            "I due sensori sono in parallelo: basta uno per dare l\u2019allarme. Dal loro lato comune la fase arriva dal tasto di tacitazione.",
+            "Il rel\xE8 KA ha la bobina A1-A2. Il suo contatto 11-14 riporta la fase alla bobina stessa: \xE8 l\u2019autoritenuta. La sirena si alimenta dalla stessa linea della bobina."
+          ]
+        },
+        {
+          type: "demo",
+          title: "Guarda come si fa",
+          captions: {
+            wires: [
+              "La fase dal quadro al tasto di tacitazione: \xE8 in testa a tutto.",
+              "Dalla tacitazione al rilevatore di fumo.",
+              "Dalla tacitazione anche alla sonda di allagamento: i due sensori sono in parallelo.",
+              "Dalla tacitazione al contatto 11 del rel\xE8: da qui parte l\u2019autoritenuta.",
+              "Dal rilevatore alla bobina del rel\xE8 (morsetto A1).",
+              "Dalla sonda alla stessa bobina.",
+              "Dal contatto 14 alla bobina: l\u2019autoritenuta, una volta scattato il rel\xE8 si tiene da solo.",
+              "Filo blu dalla bobina al neutro.",
+              "Dalla linea della bobina alla sirena.",
+              "Filo blu dalla sirena al neutro."
+            ],
+            power: "Levetta su: tutto a riposo, la sirena \xE8 silenziosa.",
+            controls: []
+          }
+        },
+        {
+          type: "previsione",
+          question: "Hai tolto l\u2019autoritenuta. Il fumo compare e poi si dirada. Che cosa fa la sirena?",
+          options: [
+            { id: "a", text: "Continua a suonare finch\xE9 non premi la tacitazione." },
+            { id: "b", text: "Si spegne appena il fumo sparisce, e nessuno sa che c\u2019\xE8 stato un allarme." },
+            { id: "c", text: "Non suona mai." }
+          ],
+          correct: "b",
+          why: "Senza memoria la sirena segue il sensore e si ferma appena il fumo sparisce. L\u2019autoritenuta tiene il rel\xE8 eccitato: l\u2019allarme resta finch\xE9 qualcuno lo tacita."
+        },
+        { type: "sintesi", title: "Da ricordare" }
+      ]
+    },
+    steps: [
+      { kind: "wire", from: "Q.F", to: ["TA.1"], color: "marrone", short: "1 Tacitazione", title: "La fase alla tacitazione", text: "Dalla FASE del quadro al morsetto 1 del tasto di tacitazione." },
+      { kind: "wire", from: "TA.2", to: ["S1.a"], color: "marrone", short: "2 Fumo", title: "Al rilevatore di fumo", text: "Dal morsetto 2 della tacitazione al morsetto 1 del rilevatore di fumo." },
+      { kind: "wire", from: "TA.2", to: ["S2.a"], color: "marrone", short: "3 Acqua", title: "Alla sonda di allagamento", text: "Dal morsetto 2 della tacitazione al morsetto 1 della sonda." },
+      { kind: "wire", from: "TA.2", to: ["KA.11"], color: "marrone", short: "4 Memoria", title: "Al contatto del rel\xE8", text: "Dal morsetto 2 della tacitazione al morsetto 11 del rel\xE8." },
+      { kind: "wire", from: "S1.b", to: ["KA.A1"], color: "marrone", short: "5 Bobina", title: "Il rilevatore alla bobina", text: "Dal morsetto 2 del rilevatore al morsetto A1 del rel\xE8." },
+      { kind: "wire", from: "S2.b", to: ["KA.A1"], color: "marrone", short: "6 Bobina", title: "La sonda alla bobina", text: "Dal morsetto 2 della sonda al morsetto A1 del rel\xE8." },
+      { kind: "wire", from: "KA.14", to: ["KA.A1"], color: "marrone", short: "7 Autoritenuta", title: "L\u2019autoritenuta", text: "Dal morsetto 14 del rel\xE8 al suo morsetto A1." },
+      { kind: "wire", from: "Q.N", to: ["KA.A2"], color: "blu", short: "8 Neutro", title: "Il neutro alla bobina", text: "Dal NEUTRO al morsetto A2 del rel\xE8." },
+      { kind: "wire", from: "KA.A1", to: ["B.1"], color: "marrone", short: "9 Sirena", title: "Alla sirena", text: "Dal morsetto A1 del rel\xE8 a un morsetto della sirena." },
+      { kind: "wire", from: "Q.N", to: ["B.2"], color: "blu", short: "10 Neutro sirena", title: "Il neutro alla sirena", text: "Dal NEUTRO all\u2019altro morsetto della sirena." },
+      { kind: "power", short: "11 Levetta", title: "Dai corrente", text: "Tocca la levetta del quadro." },
+      { kind: "control", id: "S1", short: "12 Prova", title: "Prova l\u2019allarme", text: "Simula il fumo, poi toglilo: la sirena continua. Premi la tacitazione per fermarla." },
+      { kind: "verify", short: "13 Verifica", title: "Controlla l\u2019impianto", text: "Premi Verifica." }
+    ],
+    summary: [
+      "Due sensori in parallelo: basta uno per dare l\u2019allarme.",
+      "L\u2019autoritenuta d\xE0 la memoria: la sirena continua anche se il pericolo sparisce.",
+      "La tacitazione \xE8 un contatto normalmente chiuso in testa al circuito: premuto, toglie tensione a tutto.",
+      "Se il sensore \xE8 ancora attivo, la tacitazione non basta: appena la rilasci l\u2019allarme riparte."
+    ],
+    fault: {
+      say: "L\u2019impianto \xE8 cablato e la sirena suona quando il rilevatore vede fumo. Ma quando il fumo si dirada la sirena si spegne da sola. Guarda il rel\xE8 dell\u2019allarme.",
+      wires: [
+        ["Q.F", "TA.1", "marrone"],
+        ["TA.2", "S1.a", "marrone"],
+        ["TA.2", "S2.a", "marrone"],
+        ["S1.b", "KA.A1", "marrone"],
+        ["S2.b", "KA.A1", "marrone"],
+        ["KA.A2", "Q.N", "blu"],
+        ["KA.A1", "B.1", "marrone"],
+        ["B.2", "Q.N", "blu"]
+      ],
+      diagnosis: {
+        question: "Perch\xE9 la sirena si ferma da sola?",
+        options: [
+          { id: "a", text: "Manca l\u2019autoritenuta: il contatto 11-14 del rel\xE8 non riporta la fase alla bobina." },
+          { id: "b", text: "I due sensori sono in serie invece che in parallelo." },
+          { id: "c", text: "La tacitazione \xE8 collegata sul neutro." }
+        ],
+        correct: "a",
+        why: "Senza il contatto 11-14 sulla bobina il rel\xE8 segue il sensore: appena il fumo si dirada la bobina si spegne e la sirena con lei. L\u2019autoritenuta tiene il rel\xE8 eccitato finch\xE9 qualcuno preme la tacitazione."
+      },
+      fixSay: "Collega la tacitazione al contatto 11 del rel\xE8, e il contatto 14 alla bobina A1. Poi premi Verifica."
+    }
+  };
 
   // src/content/it.js
   var COLOR_NAMES = {
@@ -12972,15 +13530,19 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
     },
     {
       tag: "MODULO 5",
-      title: "Impianti del futuro",
+      title: "La casa intelligente",
       levels: [
+        "c47-videocitofono",
+        "c48-luce-automatica",
+        "c49-casa-plc",
+        "c50-allarme",
         "c38-continua",
         "c39-fotovoltaico",
         "c40-contatore",
         "c41-accumulo",
         "c42-colonnina",
-        { soon: true, title: "Il sensore e l\u2019attuatore", blurb: "Sensore di presenza, tapparella, comando a bassa tensione." },
-        { soon: true, title: "La casa col PLC", blurb: "Luci e tapparelle da programma, le scene." }
+        { soon: true, title: "La gestione dei carichi", blurb: "Pi\xF9 carichi con priorit\xE0, il riattacco con ritardo." },
+        { soon: true, title: "Il clima per zone", blurb: "Un termostato per stanza e il consenso alla pompa di calore." }
       ],
       milestone: { soon: true, art: "casa", kick: "Casa del futuro", name: "Luci, tapparelle, sole e batteria", text: "La casa che si comanda da sola e produce la sua energia." }
     },
@@ -19505,6 +20067,286 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
     "Il PLC \xE8 spento.": "\u0627\u0644\u0640PLC \u0645\u0637\u0641\u0623."
   };
 
+  // src/i18n/ar-38.js
+  var ar_38_default = {
+    // sigle dei componenti nuovi
+    "SBA": "SBA",
+    "SBA.3": "SBA.3",
+    "SBA.4": "SBA.4",
+    "SBC": "SBC",
+    "SBC.3": "SBC.3",
+    "SBC.4": "SBC.4",
+    "SBT": "SBT",
+    "SBT.3": "SBT.3",
+    "SBT.4": "SBT.4",
+    "SBX": "SBX",
+    "SBX.3": "SBX.3",
+    "SBX.4": "SBX.4",
+    // mappa
+    "MODULO 5, La casa intelligente": "\u0627\u0644\u0648\u062D\u062F\u0629 5\u060C \u0627\u0644\u0645\u0646\u0632\u0644 \u0627\u0644\u0630\u0643\u064A",
+    "La casa intelligente": "\u0627\u0644\u0645\u0646\u0632\u0644 \u0627\u0644\u0630\u0643\u064A",
+    "La gestione dei carichi": "\u0625\u062F\u0627\u0631\u0629 \u0627\u0644\u0623\u062D\u0645\u0627\u0644",
+    "Pi\xF9 carichi con priorit\xE0, il riattacco con ritardo.": "\u0639\u062F\u0629 \u0623\u062D\u0645\u0627\u0644 \u062D\u0633\u0628 \u0627\u0644\u0623\u0648\u0644\u0648\u064A\u0629\u060C \u0648\u0625\u0639\u0627\u062F\u0629 \u0627\u0644\u062A\u0648\u0635\u064A\u0644 \u0628\u0639\u062F \u062A\u0623\u062E\u064A\u0631.",
+    "Il clima per zone": "\u0627\u0644\u062A\u0643\u064A\u064A\u0641 \u062D\u0633\u0628 \u0627\u0644\u0645\u0646\u0627\u0637\u0642",
+    "Un termostato per stanza e il consenso alla pompa di calore.": "\u062B\u0631\u0645\u0648\u0633\u062A\u0627\u062A \u0644\u0643\u0644 \u063A\u0631\u0641\u0629 \u0648\u0625\u0630\u0646 \u062A\u0634\u063A\u064A\u0644 \u0627\u0644\u0645\u0636\u062E\u0629 \u0627\u0644\u062D\u0631\u0627\u0631\u064A\u0629.",
+    // c47 il videocitofono
+    "Il videocitofono": "\u0627\u0644\u0641\u064A\u062F\u064A\u0648 \u0625\u0646\u062A\u0631\u0643\u0648\u0645",
+    "Chiamata dal portone e apriporta: tutto a 12 V, mai a contatto con la rete.": "\u0646\u062F\u0627\u0621 \u0645\u0646 \u0628\u0627\u0628 \u0627\u0644\u0645\u062F\u062E\u0644 \u0648\u0641\u062A\u062D \u0627\u0644\u0628\u0627\u0628: \u0643\u0644 \u0634\u064A\u0621 \u0628\u062C\u0647\u062F 12 \u0641\u0648\u0644\u062A \u062F\u0648\u0646 \u0623\u064A \u0627\u062A\u0635\u0627\u0644 \u0628\u0627\u0644\u0634\u0628\u0643\u0629.",
+    "Al portone c\u2019\xE8 la pulsantiera con il tasto di chiamata; in casa c\u2019\xE8 il tasto dell\u2019apriporta. Il trasformatore abbassa la tensione a 12 V: sul secondario collega il tasto di chiamata con la suoneria, e il tasto dell\u2019apriporta con la serratura. Sulla pulsantiera esterna non deve arrivare la tensione di rete.": "\u0639\u0646\u062F \u0628\u0627\u0628 \u0627\u0644\u0645\u062F\u062E\u0644 \u062A\u0648\u062C\u062F \u0644\u0648\u062D\u0629 \u0627\u0644\u0623\u0632\u0631\u0627\u0631 \u0645\u0639 \u0632\u0631 \u0627\u0644\u0646\u062F\u0627\u0621\u060C \u0648\u0641\u064A \u0627\u0644\u0628\u064A\u062A \u0632\u0631 \u0641\u062A\u062D \u0627\u0644\u0628\u0627\u0628. \u064A\u062E\u0641\u0636 \u0627\u0644\u0645\u062D\u0648\u0651\u0644 \u0627\u0644\u062C\u0647\u062F \u0625\u0644\u0649 12 \u0641\u0648\u0644\u062A: \u0639\u0644\u0649 \u0627\u0644\u0645\u0644\u0641 \u0627\u0644\u062B\u0627\u0646\u0648\u064A \u0635\u0650\u0644 \u0632\u0631 \u0627\u0644\u0646\u062F\u0627\u0621 \u0628\u0627\u0644\u062C\u0631\u0633\u060C \u0648\u0632\u0631 \u0641\u062A\u062D \u0627\u0644\u0628\u0627\u0628 \u0628\u0627\u0644\u0642\u0641\u0644. \u064A\u062C\u0628 \u0623\u0644\u0627 \u064A\u0635\u0644 \u062C\u0647\u062F \u0627\u0644\u0634\u0628\u0643\u0629 \u0625\u0644\u0649 \u0644\u0648\u062D\u0629 \u0627\u0644\u0623\u0632\u0631\u0627\u0631 \u0627\u0644\u062E\u0627\u0631\u062C\u064A\u0629.",
+    "Tasto di chiamata al portone": "\u0632\u0631 \u0627\u0644\u0646\u062F\u0627\u0621 \u0639\u0646\u062F \u0628\u0627\u0628 \u0627\u0644\u0645\u062F\u062E\u0644",
+    "Tasto di chiamata al portone, tieni premuto": "\u0632\u0631 \u0627\u0644\u0646\u062F\u0627\u0621 \u0639\u0646\u062F \u0628\u0627\u0628 \u0627\u0644\u0645\u062F\u062E\u0644\u060C \u0627\u0633\u062A\u0645\u0631 \u0641\u064A \u0627\u0644\u0636\u063A\u0637",
+    "Tasto apriporta in casa": "\u0632\u0631 \u0641\u062A\u062D \u0627\u0644\u0628\u0627\u0628 \u0641\u064A \u0627\u0644\u0628\u064A\u062A",
+    "Tasto apriporta in casa, tieni premuto": "\u0632\u0631 \u0641\u062A\u062D \u0627\u0644\u0628\u0627\u0628 \u0641\u064A \u0627\u0644\u0628\u064A\u062A\u060C \u0627\u0633\u062A\u0645\u0631 \u0641\u064A \u0627\u0644\u0636\u063A\u0637",
+    "Serratura elettrica 12 V": "\u0642\u0641\u0644 \u0643\u0647\u0631\u0628\u0627\u0626\u064A 12 \u0641\u0648\u0644\u062A",
+    "Suoneria 12 V": "\u062C\u0631\u0633 12 \u0641\u0648\u0644\u062A",
+    "Suoneria": "\u0627\u0644\u062C\u0631\u0633",
+    "Serratura": "\u0627\u0644\u0642\u0641\u0644",
+    "Chiamata": "\u0627\u0644\u0646\u062F\u0627\u0621",
+    "Apriporta": "\u0641\u062A\u062D \u0627\u0644\u0628\u0627\u0628",
+    "Tasto di chiamata premuto: suona la suoneria in casa.": "\u0632\u0631 \u0627\u0644\u0646\u062F\u0627\u0621 \u0645\u0636\u063A\u0648\u0637: \u064A\u0631\u0646\u0651 \u0627\u0644\u062C\u0631\u0633 \u0641\u064A \u0627\u0644\u0628\u064A\u062A.",
+    "Tasto apriporta premuto: la serratura si sblocca.": "\u0632\u0631 \u0641\u062A\u062D \u0627\u0644\u0628\u0627\u0628 \u0645\u0636\u063A\u0648\u0637: \u064A\u0646\u0641\u062A\u062D \u0627\u0644\u0642\u0641\u0644.",
+    "Senza premere nulla la suoneria \xE8 silenziosa e la serratura \xE8 chiusa": "\u062F\u0648\u0646 \u0636\u063A\u0637 \u0623\u064A \u0632\u0631 \u064A\u0643\u0648\u0646 \u0627\u0644\u062C\u0631\u0633 \u0635\u0627\u0645\u062A\u064B\u0627 \u0648\u0627\u0644\u0642\u0641\u0644 \u0645\u063A\u0644\u0642\u064B\u0627",
+    "Premi il tasto di chiamata: suona la suoneria, la serratura resta chiusa": "\u0627\u0636\u063A\u0637 \u0632\u0631 \u0627\u0644\u0646\u062F\u0627\u0621: \u064A\u0631\u0646\u0651 \u0627\u0644\u062C\u0631\u0633 \u0648\u064A\u0628\u0642\u0649 \u0627\u0644\u0642\u0641\u0644 \u0645\u063A\u0644\u0642\u064B\u0627",
+    "Premi l\u2019apriporta: la serratura si sblocca, la suoneria non suona": "\u0627\u0636\u063A\u0637 \u0632\u0631 \u0641\u062A\u062D \u0627\u0644\u0628\u0627\u0628: \u064A\u0646\u0641\u062A\u062D \u0627\u0644\u0642\u0641\u0644 \u0648\u0644\u0627 \u064A\u0631\u0646\u0651 \u0627\u0644\u062C\u0631\u0633",
+    "Il primario del trasformatore (1 e 2) si collega alla rete. Tutto il resto sta sul secondario (3 e 4).": "\u064A\u064F\u0648\u0635\u0644 \u0627\u0644\u0645\u0644\u0641 \u0627\u0644\u0627\u0628\u062A\u062F\u0627\u0626\u064A \u0644\u0644\u0645\u062D\u0648\u0651\u0644 (1 \u06482) \u0628\u0627\u0644\u0634\u0628\u0643\u0629. \u0648\u0643\u0644 \u0645\u0627 \u062A\u0628\u0642\u0651\u0649 \u0639\u0644\u0649 \u0627\u0644\u0645\u0644\u0641 \u0627\u0644\u062B\u0627\u0646\u0648\u064A (3 \u06484).",
+    "Dal morsetto 3 del secondario partono due rami: uno passa dal tasto di chiamata e arriva alla suoneria, l\u2019altro passa dall\u2019apriporta e arriva alla serratura. Entrambi tornano al morsetto 4.": "\u0645\u0646 \u0627\u0644\u0645\u0631\u0628\u0637 3 \u0641\u064A \u0627\u0644\u0645\u0644\u0641 \u0627\u0644\u062B\u0627\u0646\u0648\u064A \u064A\u062E\u0631\u062C \u0641\u0631\u0639\u0627\u0646: \u0627\u0644\u0623\u0648\u0644 \u064A\u0645\u0631\u0651 \u0628\u0632\u0631 \u0627\u0644\u0646\u062F\u0627\u0621 \u0648\u064A\u0635\u0644 \u0625\u0644\u0649 \u0627\u0644\u062C\u0631\u0633\u060C \u0648\u0627\u0644\u062B\u0627\u0646\u064A \u064A\u0645\u0631\u0651 \u0628\u0632\u0631 \u0641\u062A\u062D \u0627\u0644\u0628\u0627\u0628 \u0648\u064A\u0635\u0644 \u0625\u0644\u0649 \u0627\u0644\u0642\u0641\u0644. \u0648\u0643\u0644\u0627\u0647\u0645\u0627 \u064A\u0639\u0648\u062F \u0625\u0644\u0649 \u0627\u0644\u0645\u0631\u0628\u0637 4.",
+    "I fili a bassa tensione non sono n\xE9 fase n\xE9 neutro: usa il bianco.": "\u0623\u0633\u0644\u0627\u0643 \u0627\u0644\u062C\u0647\u062F \u0627\u0644\u0645\u0646\u062E\u0641\u0636 \u0644\u064A\u0633\u062A \u0637\u0648\u0631\u064B\u0627 \u0648\u0644\u0627 \u0645\u062D\u0627\u064A\u062F\u064B\u0627: \u0627\u0633\u062A\u062E\u062F\u0645 \u0627\u0644\u0644\u0648\u0646 \u0627\u0644\u0623\u0628\u064A\u0636.",
+    "Il portone a bassa tensione": "\u0628\u0627\u0628 \u0627\u0644\u0645\u062F\u062E\u0644 \u0628\u0627\u0644\u062C\u0647\u062F \u0627\u0644\u0645\u0646\u062E\u0641\u0636",
+    "Il tasto di chiamata e la serratura stanno fuori, sul portone: chiunque li tocca. Per questo non possono mai essere collegati ai 230 V della rete, ma solo a una tensione bassa e sicura, per esempio 12 V.": "\u0632\u0631 \u0627\u0644\u0646\u062F\u0627\u0621 \u0648\u0627\u0644\u0642\u0641\u0644 \u0641\u064A \u0627\u0644\u062E\u0627\u0631\u062C \u0639\u0646\u062F \u0628\u0627\u0628 \u0627\u0644\u0645\u062F\u062E\u0644: \u064A\u0644\u0645\u0633\u0647\u0645\u0627 \u0623\u064A \u0634\u062E\u0635. \u0644\u0630\u0644\u0643 \u0644\u0627 \u064A\u062C\u0648\u0632 \u0623\u0628\u062F\u064B\u0627 \u062A\u0648\u0635\u064A\u0644\u0647\u0645\u0627 \u0628\u062C\u0647\u062F \u0627\u0644\u0634\u0628\u0643\u0629 230 \u0641\u0648\u0644\u062A\u060C \u0628\u0644 \u0628\u062C\u0647\u062F \u0645\u0646\u062E\u0641\u0636 \u0648\u0622\u0645\u0646\u060C \u0645\u062B\u0644 12 \u0641\u0648\u0644\u062A.",
+    "Un trasformatore abbassa la tensione. Il primario (morsetti 1 e 2) sta sulla rete; il secondario (3 e 4) d\xE0 i 12 V. Tra i due lati non c\u2019\xE8 nessun collegamento elettrico.": "\u0627\u0644\u0645\u062D\u0648\u0651\u0644 \u064A\u062E\u0641\u0636 \u0627\u0644\u062C\u0647\u062F. \u0627\u0644\u0645\u0644\u0641 \u0627\u0644\u0627\u0628\u062A\u062F\u0627\u0626\u064A (\u0627\u0644\u0645\u0631\u0628\u0637\u0627\u0646 1 \u06482) \u0639\u0644\u0649 \u0627\u0644\u0634\u0628\u0643\u0629\u060C \u0648\u0627\u0644\u0645\u0644\u0641 \u0627\u0644\u062B\u0627\u0646\u0648\u064A (3 \u06484) \u064A\u0639\u0637\u064A 12 \u0641\u0648\u0644\u062A. \u0648\u0644\u0627 \u064A\u0648\u062C\u062F \u0623\u064A \u0627\u062A\u0635\u0627\u0644 \u0643\u0647\u0631\u0628\u0627\u0626\u064A \u0628\u064A\u0646 \u0627\u0644\u062C\u0627\u0646\u0628\u064A\u0646.",
+    "Nei videocitofoni moderni voce, immagine e alimentazione viaggiano su due soli fili, con un segnale digitale (il bus). Il bus lo programma l\u2019impianto; qui impari la parte che resta uguale: l\u2019alimentatore separato e i due tasti sul secondario.": "\u0641\u064A \u0627\u0644\u0641\u064A\u062F\u064A\u0648 \u0625\u0646\u062A\u0631\u0643\u0648\u0645 \u0627\u0644\u062D\u062F\u064A\u062B \u062A\u0646\u062A\u0642\u0644 \u0627\u0644\u0635\u0648\u062A \u0648\u0627\u0644\u0635\u0648\u0631\u0629 \u0648\u0627\u0644\u062A\u063A\u0630\u064A\u0629 \u0639\u0628\u0631 \u0633\u0644\u0643\u064A\u0646 \u0641\u0642\u0637 \u0628\u0625\u0634\u0627\u0631\u0629 \u0631\u0642\u0645\u064A\u0629 (\u0627\u0644\u0646\u0627\u0642\u0644). \u064A\u0628\u0631\u0645\u062C \u0627\u0644\u0645\u064F\u0631\u0643\u0650\u0651\u0628 \u0627\u0644\u0646\u0627\u0642\u0644\u061B \u0648\u0647\u0646\u0627 \u062A\u062A\u0639\u0644\u0645 \u0627\u0644\u062C\u0632\u0621 \u0627\u0644\u0630\u064A \u0644\u0627 \u064A\u062A\u063A\u064A\u0651\u0631: \u0645\u0635\u062F\u0631 \u0627\u0644\u062A\u063A\u0630\u064A\u0629 \u0627\u0644\u0645\u0646\u0641\u0635\u0644 \u0648\u0627\u0644\u0632\u0631\u0651\u0627\u0646 \u0639\u0644\u0649 \u0627\u0644\u0645\u0644\u0641 \u0627\u0644\u062B\u0627\u0646\u0648\u064A.",
+    "Chiamata e apriporta": "\u0627\u0644\u0646\u062F\u0627\u0621 \u0648\u0641\u062A\u062D \u0627\u0644\u0628\u0627\u0628",
+    "Dal morsetto 3 del secondario parte la linea a 12 V. Un ramo passa dal tasto di chiamata e arriva alla suoneria. L\u2019altro ramo passa dal tasto apriporta e arriva alla serratura. Entrambi tornano al morsetto 4.": "\u0645\u0646 \u0627\u0644\u0645\u0631\u0628\u0637 3 \u0641\u064A \u0627\u0644\u0645\u0644\u0641 \u0627\u0644\u062B\u0627\u0646\u0648\u064A \u064A\u062E\u0631\u062C \u062E\u0637 \u0627\u0644\u0640 12 \u0641\u0648\u0644\u062A. \u0641\u0631\u0639 \u064A\u0645\u0631\u0651 \u0628\u0632\u0631 \u0627\u0644\u0646\u062F\u0627\u0621 \u0648\u064A\u0635\u0644 \u0625\u0644\u0649 \u0627\u0644\u062C\u0631\u0633\u060C \u0648\u0641\u0631\u0639 \u0622\u062E\u0631 \u064A\u0645\u0631\u0651 \u0628\u0632\u0631 \u0641\u062A\u062D \u0627\u0644\u0628\u0627\u0628 \u0648\u064A\u0635\u0644 \u0625\u0644\u0649 \u0627\u0644\u0642\u0641\u0644. \u0648\u0643\u0644\u0627\u0647\u0645\u0627 \u064A\u0639\u0648\u062F \u0625\u0644\u0649 \u0627\u0644\u0645\u0631\u0628\u0637 4.",
+    "La serratura elettrica si sblocca finch\xE9 il tasto \xE8 premuto. Dei due rami, ciascuno funziona da solo: la chiamata non sblocca la porta e l\u2019apriporta non fa suonare nulla.": "\u064A\u0646\u0641\u062A\u062D \u0627\u0644\u0642\u0641\u0644 \u0627\u0644\u0643\u0647\u0631\u0628\u0627\u0626\u064A \u0645\u0627 \u062F\u0627\u0645 \u0627\u0644\u0632\u0631 \u0645\u0636\u063A\u0648\u0637\u064B\u0627. \u0643\u0644 \u0641\u0631\u0639 \u0645\u0646 \u0627\u0644\u0641\u0631\u0639\u064A\u0646 \u064A\u0639\u0645\u0644 \u0648\u062D\u062F\u0647: \u0627\u0644\u0646\u062F\u0627\u0621 \u0644\u0627 \u064A\u0641\u062A\u062D \u0627\u0644\u0628\u0627\u0628\u060C \u0648\u0632\u0631 \u0641\u062A\u062D \u0627\u0644\u0628\u0627\u0628 \u0644\u0627 \u064A\u062C\u0639\u0644 \u0623\u064A \u0634\u064A\u0621 \u064A\u0631\u0646\u0651.",
+    "La fase dal quadro al morsetto 1 del primario.": "\u0627\u0644\u0637\u0648\u0631 \u0645\u0646 \u0627\u0644\u0644\u0648\u062D\u0629 \u0625\u0644\u0649 \u0627\u0644\u0645\u0631\u0628\u0637 1 \u0641\u064A \u0627\u0644\u0645\u0644\u0641 \u0627\u0644\u0627\u0628\u062A\u062F\u0627\u0626\u064A.",
+    "Dal morsetto 2 del primario al neutro: il trasformatore \xE8 sempre alimentato.": "\u0645\u0646 \u0627\u0644\u0645\u0631\u0628\u0637 2 \u0641\u064A \u0627\u0644\u0645\u0644\u0641 \u0627\u0644\u0627\u0628\u062A\u062F\u0627\u0626\u064A \u0625\u0644\u0649 \u0627\u0644\u0645\u062D\u0627\u064A\u062F: \u0627\u0644\u0645\u062D\u0648\u0651\u0644 \u0645\u063A\u0630\u0651\u0649 \u062F\u0627\u0626\u0645\u064B\u0627.",
+    "Dal morsetto 3 del secondario al tasto di chiamata. Qui si pu\xF2 usare il bianco.": "\u0645\u0646 \u0627\u0644\u0645\u0631\u0628\u0637 3 \u0641\u064A \u0627\u0644\u0645\u0644\u0641 \u0627\u0644\u062B\u0627\u0646\u0648\u064A \u0625\u0644\u0649 \u0632\u0631 \u0627\u0644\u0646\u062F\u0627\u0621. \u0647\u0646\u0627 \u064A\u0645\u0643\u0646 \u0627\u0633\u062A\u062E\u062F\u0627\u0645 \u0627\u0644\u0644\u0648\u0646 \u0627\u0644\u0623\u0628\u064A\u0636.",
+    "Dal tasto di chiamata alla suoneria.": "\u0645\u0646 \u0632\u0631 \u0627\u0644\u0646\u062F\u0627\u0621 \u0625\u0644\u0649 \u0627\u0644\u062C\u0631\u0633.",
+    "Dalla suoneria al morsetto 4 del secondario: il circuito si chiude.": "\u0645\u0646 \u0627\u0644\u062C\u0631\u0633 \u0625\u0644\u0649 \u0627\u0644\u0645\u0631\u0628\u0637 4 \u0641\u064A \u0627\u0644\u0645\u0644\u0641 \u0627\u0644\u062B\u0627\u0646\u0648\u064A: \u062A\u064F\u063A\u0644\u0642 \u0627\u0644\u062F\u0627\u0626\u0631\u0629.",
+    "Dal morsetto 3 del secondario anche al tasto apriporta.": "\u0645\u0646 \u0627\u0644\u0645\u0631\u0628\u0637 3 \u0641\u064A \u0627\u0644\u0645\u0644\u0641 \u0627\u0644\u062B\u0627\u0646\u0648\u064A \u0623\u064A\u0636\u064B\u0627 \u0625\u0644\u0649 \u0632\u0631 \u0641\u062A\u062D \u0627\u0644\u0628\u0627\u0628.",
+    "Dal tasto apriporta alla serratura.": "\u0645\u0646 \u0632\u0631 \u0641\u062A\u062D \u0627\u0644\u0628\u0627\u0628 \u0625\u0644\u0649 \u0627\u0644\u0642\u0641\u0644.",
+    "Dalla serratura al morsetto 4 del secondario.": "\u0645\u0646 \u0627\u0644\u0642\u0641\u0644 \u0625\u0644\u0649 \u0627\u0644\u0645\u0631\u0628\u0637 4 \u0641\u064A \u0627\u0644\u0645\u0644\u0641 \u0627\u0644\u062B\u0627\u0646\u0648\u064A.",
+    "Levetta su: il trasformatore d\xE0 12 V sul secondario. Non succede niente finch\xE9 nessuno preme un tasto.": "\u0630\u0631\u0627\u0639 \u0627\u0644\u0644\u0648\u062D\u0629 \u0645\u0631\u0641\u0648\u0639: \u064A\u0639\u0637\u064A \u0627\u0644\u0645\u062D\u0648\u0651\u0644 12 \u0641\u0648\u0644\u062A \u0639\u0644\u0649 \u0627\u0644\u0645\u0644\u0641 \u0627\u0644\u062B\u0627\u0646\u0648\u064A. \u0644\u0627 \u064A\u062D\u062F\u062B \u0634\u064A\u0621 \u0645\u0627 \u062F\u0627\u0645 \u0644\u0627 \u0623\u062D\u062F \u064A\u0636\u063A\u0637 \u0632\u0631\u064B\u0627.",
+    "Colleghi la serratura a 12 V direttamente ai 230 V della rete, con il tasto apriporta in serie. Che cosa succede alla prima pressione?": "\u0648\u0635\u0644\u062A \u0627\u0644\u0642\u0641\u0644 \u0630\u0627 \u0627\u0644\u0640 12 \u0641\u0648\u0644\u062A \u0645\u0628\u0627\u0634\u0631\u0629 \u0628\u062C\u0647\u062F \u0627\u0644\u0634\u0628\u0643\u0629 230 \u0641\u0648\u0644\u062A \u0645\u0639 \u0632\u0631 \u0641\u062A\u062D \u0627\u0644\u0628\u0627\u0628 \u0639\u0644\u0649 \u0627\u0644\u062A\u0648\u0627\u0644\u064A. \u0645\u0627\u0630\u0627 \u064A\u062D\u062F\u062B \u0639\u0646\u062F \u0623\u0648\u0644 \u0636\u063A\u0637\u0629\u061F",
+    "Si sblocca normalmente: \xE8 solo un po\u2019 pi\xF9 forte.": "\u064A\u0646\u0641\u062A\u062D \u0628\u0634\u0643\u0644 \u0639\u0627\u062F\u064A: \u0641\u0642\u0637 \u0628\u0642\u0648\u0629 \u0623\u0643\u0628\u0631 \u0642\u0644\u064A\u0644\u064B\u0627.",
+    "La serratura si brucia, e sul portone c\u2019\xE8 la tensione di rete.": "\u064A\u062D\u062A\u0631\u0642 \u0627\u0644\u0642\u0641\u0644\u060C \u0648\u064A\u0648\u062C\u062F \u062C\u0647\u062F \u0627\u0644\u0634\u0628\u0643\u0629 \u0639\u0646\u062F \u0628\u0627\u0628 \u0627\u0644\u0645\u062F\u062E\u0644.",
+    "Non succede niente: il differenziale la protegge.": "\u0644\u0627 \u064A\u062D\u062F\u062B \u0634\u064A\u0621: \u0627\u0644\u0642\u0627\u0637\u0639 \u0627\u0644\u062A\u0641\u0627\u0636\u0644\u064A \u064A\u062D\u0645\u064A\u0647.",
+    "Una serratura da 12 V sottoposta a 230 V si brucia. Il pericolo vero \xE8 un altro: la pulsantiera sul portone \xE8 raggiungibile da chiunque e non deve mai avere la tensione di rete. Il trasformatore separa i due lati.": "\u0627\u0644\u0642\u0641\u0644 \u0630\u0648 \u0627\u0644\u0640 12 \u0641\u0648\u0644\u062A \u064A\u062D\u062A\u0631\u0642 \u0639\u0646\u062F \u062A\u0639\u0631\u064A\u0636\u0647 \u0644\u0640 230 \u0641\u0648\u0644\u062A. \u0644\u0643\u0646 \u0627\u0644\u062E\u0637\u0631 \u0627\u0644\u062D\u0642\u064A\u0642\u064A \u0622\u062E\u0631: \u0644\u0648\u062D\u0629 \u0627\u0644\u0623\u0632\u0631\u0627\u0631 \u0639\u0646\u062F \u0628\u0627\u0628 \u0627\u0644\u0645\u062F\u062E\u0644 \u064A\u0635\u0644 \u0625\u0644\u064A\u0647\u0627 \u0623\u064A \u0634\u062E\u0635 \u0648\u064A\u062C\u0628 \u0623\u0644\u0627 \u064A\u0643\u0648\u0646 \u0639\u0644\u064A\u0647\u0627 \u062C\u0647\u062F \u0627\u0644\u0634\u0628\u0643\u0629 \u0623\u0628\u062F\u064B\u0627. \u0627\u0644\u0645\u062D\u0648\u0651\u0644 \u064A\u0641\u0635\u0644 \u0627\u0644\u062C\u0627\u0646\u0628\u064A\u0646.",
+    "Dal NEUTRO del quadro al morsetto 2 del trasformatore.": "\u0645\u0646 \u0627\u0644\u0645\u062D\u0627\u064A\u062F \u0641\u064A \u0627\u0644\u0644\u0648\u062D\u0629 \u0625\u0644\u0649 \u0627\u0644\u0645\u0631\u0628\u0637 2 \u0641\u064A \u0627\u0644\u0645\u062D\u0648\u0651\u0644.",
+    "Dal secondario al tasto di chiamata": "\u0645\u0646 \u0627\u0644\u0645\u0644\u0641 \u0627\u0644\u062B\u0627\u0646\u0648\u064A \u0625\u0644\u0649 \u0632\u0631 \u0627\u0644\u0646\u062F\u0627\u0621",
+    "Dal morsetto 3 del secondario al morsetto 3 del tasto di chiamata. Qui puoi usare il bianco.": "\u0645\u0646 \u0627\u0644\u0645\u0631\u0628\u0637 3 \u0641\u064A \u0627\u0644\u0645\u0644\u0641 \u0627\u0644\u062B\u0627\u0646\u0648\u064A \u0625\u0644\u0649 \u0627\u0644\u0645\u0631\u0628\u0637 3 \u0641\u064A \u0632\u0631 \u0627\u0644\u0646\u062F\u0627\u0621. \u0647\u0646\u0627 \u064A\u0645\u0643\u0646\u0643 \u0627\u0633\u062A\u062E\u062F\u0627\u0645 \u0627\u0644\u0644\u0648\u0646 \u0627\u0644\u0623\u0628\u064A\u0636.",
+    "Dal tasto alla suoneria": "\u0645\u0646 \u0627\u0644\u0632\u0631 \u0625\u0644\u0649 \u0627\u0644\u062C\u0631\u0633",
+    "Dal morsetto 4 del tasto di chiamata a un morsetto della suoneria.": "\u0645\u0646 \u0627\u0644\u0645\u0631\u0628\u0637 4 \u0641\u064A \u0632\u0631 \u0627\u0644\u0646\u062F\u0627\u0621 \u0625\u0644\u0649 \u0623\u062D\u062F \u0645\u0631\u0628\u0637\u064A \u0627\u0644\u062C\u0631\u0633.",
+    "Il ritorno della suoneria": "\u0639\u0648\u062F\u0629 \u0627\u0644\u062C\u0631\u0633",
+    "Dal morsetto 4 del secondario all\u2019altro morsetto della suoneria.": "\u0645\u0646 \u0627\u0644\u0645\u0631\u0628\u0637 4 \u0641\u064A \u0627\u0644\u0645\u0644\u0641 \u0627\u0644\u062B\u0627\u0646\u0648\u064A \u0625\u0644\u0649 \u0627\u0644\u0645\u0631\u0628\u0637 \u0627\u0644\u0622\u062E\u0631 \u0641\u064A \u0627\u0644\u062C\u0631\u0633.",
+    "Dal secondario all\u2019apriporta": "\u0645\u0646 \u0627\u0644\u0645\u0644\u0641 \u0627\u0644\u062B\u0627\u0646\u0648\u064A \u0625\u0644\u0649 \u0632\u0631 \u0641\u062A\u062D \u0627\u0644\u0628\u0627\u0628",
+    "Dal morsetto 3 del secondario al morsetto 3 del tasto apriporta.": "\u0645\u0646 \u0627\u0644\u0645\u0631\u0628\u0637 3 \u0641\u064A \u0627\u0644\u0645\u0644\u0641 \u0627\u0644\u062B\u0627\u0646\u0648\u064A \u0625\u0644\u0649 \u0627\u0644\u0645\u0631\u0628\u0637 3 \u0641\u064A \u0632\u0631 \u0641\u062A\u062D \u0627\u0644\u0628\u0627\u0628.",
+    "Dal tasto alla serratura": "\u0645\u0646 \u0627\u0644\u0632\u0631 \u0625\u0644\u0649 \u0627\u0644\u0642\u0641\u0644",
+    "Dal morsetto 4 del tasto apriporta a un morsetto della serratura.": "\u0645\u0646 \u0627\u0644\u0645\u0631\u0628\u0637 4 \u0641\u064A \u0632\u0631 \u0641\u062A\u062D \u0627\u0644\u0628\u0627\u0628 \u0625\u0644\u0649 \u0623\u062D\u062F \u0645\u0631\u0628\u0637\u064A \u0627\u0644\u0642\u0641\u0644.",
+    "Il ritorno della serratura": "\u0639\u0648\u062F\u0629 \u0627\u0644\u0642\u0641\u0644",
+    "Dal morsetto 4 del secondario all\u2019altro morsetto della serratura.": "\u0645\u0646 \u0627\u0644\u0645\u0631\u0628\u0637 4 \u0641\u064A \u0627\u0644\u0645\u0644\u0641 \u0627\u0644\u062B\u0627\u0646\u0648\u064A \u0625\u0644\u0649 \u0627\u0644\u0645\u0631\u0628\u0637 \u0627\u0644\u0622\u062E\u0631 \u0641\u064A \u0627\u0644\u0642\u0641\u0644.",
+    "Prova la chiamata": "\u062C\u0631\u0651\u0628 \u0627\u0644\u0646\u062F\u0627\u0621",
+    "Tieni premuto il tasto di chiamata: la suoneria suona. Poi prova l\u2019apriporta.": "\u0623\u0628\u0642\u0650 \u0632\u0631 \u0627\u0644\u0646\u062F\u0627\u0621 \u0645\u0636\u063A\u0648\u0637\u064B\u0627: \u064A\u0631\u0646\u0651 \u0627\u0644\u062C\u0631\u0633. \u062B\u0645 \u062C\u0631\u0651\u0628 \u0632\u0631 \u0641\u062A\u062D \u0627\u0644\u0628\u0627\u0628.",
+    "Il portone si comanda solo in bassa tensione: i 230 V non arrivano mai alla pulsantiera.": "\u0628\u0627\u0628 \u0627\u0644\u0645\u062F\u062E\u0644 \u064A\u064F\u062A\u062D\u0643\u064E\u0651\u0645 \u0628\u0647 \u0628\u0627\u0644\u062C\u0647\u062F \u0627\u0644\u0645\u0646\u062E\u0641\u0636 \u0641\u0642\u0637: \u0644\u0627 \u064A\u0635\u0644 \u062C\u0647\u062F \u0627\u0644\u0640 230 \u0641\u0648\u0644\u062A \u0623\u0628\u062F\u064B\u0627 \u0625\u0644\u0649 \u0644\u0648\u062D\u0629 \u0627\u0644\u0623\u0632\u0631\u0627\u0631.",
+    "Il trasformatore separa la rete (primario) dai 12 V (secondario).": "\u0627\u0644\u0645\u062D\u0648\u0651\u0644 \u064A\u0641\u0635\u0644 \u0627\u0644\u0634\u0628\u0643\u0629 (\u0627\u0644\u0627\u0628\u062A\u062F\u0627\u0626\u064A) \u0639\u0646 \u0627\u0644\u0640 12 \u0641\u0648\u0644\u062A (\u0627\u0644\u062B\u0627\u0646\u0648\u064A).",
+    "Chiamata e apriporta sono due rami in parallelo sul secondario: ciascuno funziona da solo.": "\u0627\u0644\u0646\u062F\u0627\u0621 \u0648\u0641\u062A\u062D \u0627\u0644\u0628\u0627\u0628 \u0641\u0631\u0639\u0627\u0646 \u0639\u0644\u0649 \u0627\u0644\u062A\u0648\u0627\u0632\u064A \u0639\u0644\u0649 \u0627\u0644\u0645\u0644\u0641 \u0627\u0644\u062B\u0627\u0646\u0648\u064A: \u0643\u0644 \u0645\u0646\u0647\u0645\u0627 \u064A\u0639\u0645\u0644 \u0648\u062D\u062F\u0647.",
+    "I videocitofoni a due fili mettono voce, immagine e alimentazione sullo stesso cavo, con un bus: il principio dell\u2019alimentatore separato resta lo stesso.": "\u0627\u0644\u0641\u064A\u062F\u064A\u0648 \u0625\u0646\u062A\u0631\u0643\u0648\u0645 \u0630\u0648 \u0627\u0644\u0633\u0644\u0643\u064A\u0646 \u064A\u062C\u0645\u0639 \u0627\u0644\u0635\u0648\u062A \u0648\u0627\u0644\u0635\u0648\u0631\u0629 \u0648\u0627\u0644\u062A\u063A\u0630\u064A\u0629 \u0639\u0644\u0649 \u0627\u0644\u0643\u0628\u0644 \u0646\u0641\u0633\u0647 \u0639\u0628\u0631 \u0646\u0627\u0642\u0644: \u0648\u064A\u0628\u0642\u0649 \u0645\u0628\u062F\u0623 \u0645\u0635\u062F\u0631 \u0627\u0644\u062A\u063A\u0630\u064A\u0629 \u0627\u0644\u0645\u0646\u0641\u0635\u0644 \u0646\u0641\u0633\u0647.",
+    "L\u2019impianto \xE8 cablato e la chiamata funziona. Premendo l\u2019apriporta la serratura non si sblocca. Guarda dove sono collegati l\u2019apriporta e la serratura.": "\u0627\u0644\u062A\u0645\u062F\u064A\u062F \u0645\u0646\u0641\u064E\u0651\u0630 \u0648\u0627\u0644\u0646\u062F\u0627\u0621 \u064A\u0639\u0645\u0644. \u0639\u0646\u062F \u0627\u0644\u0636\u063A\u0637 \u0639\u0644\u0649 \u0632\u0631 \u0641\u062A\u062D \u0627\u0644\u0628\u0627\u0628 \u0644\u0627 \u064A\u0646\u0641\u062A\u062D \u0627\u0644\u0642\u0641\u0644. \u0627\u0646\u0638\u0631 \u0623\u064A\u0646 \u0648\u064F\u0635\u0644 \u0632\u0631 \u0641\u062A\u062D \u0627\u0644\u0628\u0627\u0628 \u0648\u0627\u0644\u0642\u0641\u0644.",
+    "Perch\xE9 la serratura non si sblocca?": "\u0644\u0645\u0627\u0630\u0627 \u0644\u0627 \u064A\u0646\u0641\u062A\u062D \u0627\u0644\u0642\u0641\u0644\u061F",
+    "L\u2019apriporta e la serratura sono collegati alla rete a 230 V invece che al secondario a 12 V.": "\u0632\u0631 \u0641\u062A\u062D \u0627\u0644\u0628\u0627\u0628 \u0648\u0627\u0644\u0642\u0641\u0644 \u0645\u0648\u0635\u0648\u0644\u0627\u0646 \u0628\u0627\u0644\u0634\u0628\u0643\u0629 230 \u0641\u0648\u0644\u062A \u0628\u062F\u0644 \u0627\u0644\u0645\u0644\u0641 \u0627\u0644\u062B\u0627\u0646\u0648\u064A 12 \u0641\u0648\u0644\u062A.",
+    "Il primario del trasformatore \xE8 collegato al contrario.": "\u0627\u0644\u0645\u0644\u0641 \u0627\u0644\u0627\u0628\u062A\u062F\u0627\u0626\u064A \u0644\u0644\u0645\u062D\u0648\u0651\u0644 \u0645\u0648\u0635\u0648\u0644 \u0628\u0634\u0643\u0644 \u0645\u0639\u0643\u0648\u0633.",
+    "Manca un ponte tra i due tasti.": "\u064A\u0646\u0642\u0635 \u0648\u0635\u0644\u0629 \u0628\u064A\u0646 \u0627\u0644\u0632\u0631\u0651\u064A\u0646.",
+    "La serratura \xE8 da 12 V e prende la fase e il neutro della rete: si brucia. Peggio, il tasto sul portone ha i 230 V. L\u2019apriporta e la serratura vanno sul secondario, come la chiamata.": "\u0627\u0644\u0642\u0641\u0644 12 \u0641\u0648\u0644\u062A \u0648\u064A\u0623\u062E\u0630 \u0637\u0648\u0631 \u0627\u0644\u0634\u0628\u0643\u0629 \u0648\u0645\u062D\u0627\u064A\u062F\u0647\u0627 \u0641\u064A\u062D\u062A\u0631\u0642. \u0648\u0627\u0644\u0623\u0633\u0648\u0623 \u0623\u0646 \u0627\u0644\u0632\u0631 \u0639\u0646\u062F \u0628\u0627\u0628 \u0627\u0644\u0645\u062F\u062E\u0644 \u0639\u0644\u064A\u0647 230 \u0641\u0648\u0644\u062A. \u0632\u0631 \u0641\u062A\u062D \u0627\u0644\u0628\u0627\u0628 \u0648\u0627\u0644\u0642\u0641\u0644 \u064A\u0648\u0635\u0644\u0627\u0646 \u0628\u0627\u0644\u0645\u0644\u0641 \u0627\u0644\u062B\u0627\u0646\u0648\u064A \u0645\u062B\u0644 \u0627\u0644\u0646\u062F\u0627\u0621.",
+    "Togli i fili che portano la fase e il neutro all\u2019apriporta e alla serratura. Collega il morsetto 3 del secondario all\u2019apriporta e la serratura al morsetto 4. Poi premi Verifica.": "\u0623\u0632\u0644 \u0627\u0644\u0623\u0633\u0644\u0627\u0643 \u0627\u0644\u062A\u064A \u062A\u062D\u0645\u0644 \u0627\u0644\u0637\u0648\u0631 \u0648\u0627\u0644\u0645\u062D\u0627\u064A\u062F \u0625\u0644\u0649 \u0632\u0631 \u0641\u062A\u062D \u0627\u0644\u0628\u0627\u0628 \u0648\u0627\u0644\u0642\u0641\u0644. \u0635\u0650\u0644 \u0627\u0644\u0645\u0631\u0628\u0637 3 \u0641\u064A \u0627\u0644\u0645\u0644\u0641 \u0627\u0644\u062B\u0627\u0646\u0648\u064A \u0628\u0632\u0631 \u0641\u062A\u062D \u0627\u0644\u0628\u0627\u0628 \u0648\u0627\u0644\u0642\u0641\u0644 \u0628\u0627\u0644\u0645\u0631\u0628\u0637 4. \u062B\u0645 \u0627\u0636\u063A\u0637 \xAB\u062A\u062D\u0642\u0642\xBB.",
+    // c48 il sensore e l'attuatore
+    "La luce del corridoio si accende da sola: ma solo se \xE8 buio e se passa qualcuno.": "\u0625\u0636\u0627\u0621\u0629 \u0627\u0644\u0645\u0645\u0631 \u062A\u064F\u0636\u0627\u0621 \u0648\u062D\u062F\u0647\u0627: \u0644\u0643\u0646 \u0641\u0642\u0637 \u0625\u0630\u0627 \u0643\u0627\u0646 \u0627\u0644\u0638\u0644\u0627\u0645 \u0648\u0625\u0630\u0627 \u0645\u0631\u0651 \u0623\u062D\u062F.",
+    "Il corridoio ha un sensore di luce (chiude il contatto quando \xE8 buio) e un sensore di presenza (lo chiude quando passa qualcuno). La luce deve accendersi solo se \xE8 buio e c\u2019\xE8 qualcuno, e restare accesa 10 secondi dopo l\u2019ultimo passaggio. I sensori non portano carico: comandano un rel\xE8 temporizzato, che \xE8 l\u2019attuatore.": "\u0641\u064A \u0627\u0644\u0645\u0645\u0631 \u062D\u0633\u0651\u0627\u0633 \u0636\u0648\u0621 (\u064A\u063A\u0644\u0642 \u0627\u0644\u0645\u0644\u0627\u0645\u0633 \u0639\u0646\u062F \u0627\u0644\u0638\u0644\u0627\u0645) \u0648\u062D\u0633\u0651\u0627\u0633 \u062D\u0636\u0648\u0631 (\u064A\u063A\u0644\u0642\u0647 \u0639\u0646\u062F \u0645\u0631\u0648\u0631 \u0623\u062D\u062F). \u064A\u062C\u0628 \u0623\u0646 \u064A\u064F\u0636\u0627\u0621 \u0627\u0644\u0645\u0635\u0628\u0627\u062D \u0641\u0642\u0637 \u0625\u0630\u0627 \u0643\u0627\u0646 \u0627\u0644\u0638\u0644\u0627\u0645 \u0648\u0648\u064F\u062C\u062F \u0623\u062D\u062F\u060C \u0648\u0623\u0646 \u064A\u0628\u0642\u0649 \u0645\u0636\u0627\u0621\u064B 10 \u062B\u0648\u0627\u0646\u064D \u0628\u0639\u062F \u0622\u062E\u0631 \u0645\u0631\u0648\u0631. \u0627\u0644\u062D\u0633\u0651\u0627\u0633\u0627\u062A \u0644\u0627 \u062A\u062D\u0645\u0644 \u0627\u0644\u062D\u0650\u0645\u0644: \u0628\u0644 \u062A\u062A\u062D\u0643\u0645 \u0641\u064A \u0645\u0631\u062D\u0651\u0644 \u0632\u0645\u0646\u064A \u0647\u0648 \u0627\u0644\u0645\u0634\u063A\u0651\u0644.",
+    "Sensore di luce": "\u062D\u0633\u0651\u0627\u0633 \u0627\u0644\u0636\u0648\u0621",
+    "Sensore di luce (chiuso al buio)": "\u062D\u0633\u0651\u0627\u0633 \u0627\u0644\u0636\u0648\u0621 (\u0645\u063A\u0644\u0642 \u0641\u064A \u0627\u0644\u0638\u0644\u0627\u0645)",
+    "Sensore di presenza": "\u062D\u0633\u0651\u0627\u0633 \u0627\u0644\u062D\u0636\u0648\u0631",
+    "Sensore di presenza (chiuso se passa qualcuno)": "\u062D\u0633\u0651\u0627\u0633 \u0627\u0644\u062D\u0636\u0648\u0631 (\u0645\u063A\u0644\u0642 \u0625\u0630\u0627 \u0645\u0631\u0651 \u0623\u062D\u062F)",
+    "Passa qualcuno ma \xE8 giorno: la luce resta spenta.": "\u064A\u0645\u0631\u0651 \u0623\u062D\u062F \u0644\u0643\u0646 \u0627\u0644\u0648\u0642\u062A \u0646\u0647\u0627\u0631: \u064A\u0628\u0642\u0649 \u0627\u0644\u0645\u0635\u0628\u0627\u062D \u0645\u0637\u0641\u0623\u064B.",
+    "\xC8 buio e passa qualcuno: la luce si accende.": "\u0627\u0644\u0638\u0644\u0627\u0645 \u0645\u0648\u062C\u0648\u062F \u0648\u064A\u0645\u0631\u0651 \u0623\u062D\u062F: \u064A\u064F\u0636\u0627\u0621 \u0627\u0644\u0645\u0635\u0628\u0627\u062D.",
+    "Non passa pi\xF9 nessuno: dopo 10 secondi la luce si spegne.": "\u0644\u0645 \u064A\u0639\u062F \u064A\u0645\u0631\u0651 \u0623\u062D\u062F: \u0628\u0639\u062F 10 \u062B\u0648\u0627\u0646\u064D \u064A\u0646\u0637\u0641\u0626 \u0627\u0644\u0645\u0635\u0628\u0627\u062D.",
+    "Di giorno, con qualcuno che passa, la luce resta spenta": "\u0641\u064A \u0627\u0644\u0646\u0647\u0627\u0631\u060C \u0645\u0639 \u0645\u0631\u0648\u0631 \u0623\u062D\u062F\u060C \u064A\u0628\u0642\u0649 \u0627\u0644\u0645\u0635\u0628\u0627\u062D \u0645\u0637\u0641\u0623\u064B",
+    "Al buio, senza nessuno, la luce resta spenta": "\u0641\u064A \u0627\u0644\u0638\u0644\u0627\u0645\u060C \u062F\u0648\u0646 \u0623\u062D\u062F\u060C \u064A\u0628\u0642\u0649 \u0627\u0644\u0645\u0635\u0628\u0627\u062D \u0645\u0637\u0641\u0623\u064B",
+    "Al buio, con qualcuno che passa, la luce si accende": "\u0641\u064A \u0627\u0644\u0638\u0644\u0627\u0645\u060C \u0645\u0639 \u0645\u0631\u0648\u0631 \u0623\u062D\u062F\u060C \u064A\u064F\u0636\u0627\u0621 \u0627\u0644\u0645\u0635\u0628\u0627\u062D",
+    "Passato qualcuno, la luce resta accesa ancora per qualche secondo": "\u0628\u0639\u062F \u0645\u0631\u0648\u0631 \u0623\u062D\u062F\u060C \u064A\u0628\u0642\u0649 \u0627\u0644\u0645\u0635\u0628\u0627\u062D \u0645\u0636\u0627\u0621\u064B \u0628\u0636\u0639 \u062B\u0648\u0627\u0646\u064D",
+    "Dopo 15 secondi senza nessuno la luce si \xE8 spenta da sola": "\u0628\u0639\u062F 15 \u062B\u0627\u0646\u064A\u0629 \u062F\u0648\u0646 \u0623\u062D\u062F \u0627\u0646\u0637\u0641\u0623 \u0627\u0644\u0645\u0635\u0628\u0627\u062D \u0648\u062D\u062F\u0647",
+    "La luce deve accendersi se \xE8 buio E c\u2019\xE8 qualcuno: due condizioni insieme vogliono i due contatti in serie.": "\u064A\u062C\u0628 \u0623\u0646 \u064A\u064F\u0636\u0627\u0621 \u0627\u0644\u0645\u0635\u0628\u0627\u062D \u0625\u0630\u0627 \u0643\u0627\u0646 \u0627\u0644\u0638\u0644\u0627\u0645 \u0648 \u0648\u064F\u062C\u062F \u0623\u062D\u062F: \u0634\u0631\u0637\u0627\u0646 \u0645\u0639\u064B\u0627 \u064A\u062A\u0637\u0644\u0628\u0627\u0646 \u0645\u0644\u0627\u0645\u0633\u064A\u0646 \u0639\u0644\u0649 \u0627\u0644\u062A\u0648\u0627\u0644\u064A.",
+    "Dalla fase, prima il sensore di luce, poi il sensore di presenza, poi la bobina A1 del temporizzatore. A2 va al neutro.": "\u0645\u0646 \u0627\u0644\u0637\u0648\u0631: \u0623\u0648\u0644\u064B\u0627 \u062D\u0633\u0651\u0627\u0633 \u0627\u0644\u0636\u0648\u0621\u060C \u062B\u0645 \u062D\u0633\u0651\u0627\u0633 \u0627\u0644\u062D\u0636\u0648\u0631\u060C \u062B\u0645 \u0645\u0644\u0641 \u0627\u0644\u0645\u0624\u0642\u0651\u062A A1. \u0648\u0627\u0644\u0645\u0631\u0628\u0637 A2 \u0625\u0644\u0649 \u0627\u0644\u0645\u062D\u0627\u064A\u062F.",
+    "La lampada non passa dai sensori: la fase arriva al contatto 1 del temporizzatore, dal 2 va alla lampada.": "\u0627\u0644\u0645\u0635\u0628\u0627\u062D \u0644\u0627 \u064A\u0645\u0631\u0651 \u0639\u0628\u0631 \u0627\u0644\u062D\u0633\u0651\u0627\u0633\u0627\u062A: \u064A\u0635\u0644 \u0627\u0644\u0637\u0648\u0631 \u0625\u0644\u0649 \u0627\u0644\u0645\u0644\u0627\u0645\u0633 1 \u0641\u064A \u0627\u0644\u0645\u0624\u0642\u0651\u062A \u0648\u0645\u0646 2 \u064A\u0630\u0647\u0628 \u0625\u0644\u0649 \u0627\u0644\u0645\u0635\u0628\u0627\u062D.",
+    "Il sensore non porta il carico": "\u0627\u0644\u062D\u0633\u0651\u0627\u0633 \u0644\u0627 \u064A\u062D\u0645\u0644 \u0627\u0644\u062D\u0650\u0645\u0644",
+    "Un sensore di presenza o di luce non accende la lampada: chiude un contatto, come un interruttore comandato da chi passa o dal buio. Il contatto \xE8 libero da tensione, come quello di un rel\xE8: la tensione ce la porti tu.": "\u062D\u0633\u0651\u0627\u0633 \u0627\u0644\u062D\u0636\u0648\u0631 \u0623\u0648 \u0627\u0644\u0636\u0648\u0621 \u0644\u0627 \u064A\u064F\u0636\u064A\u0621 \u0627\u0644\u0645\u0635\u0628\u0627\u062D: \u0625\u0646\u0647 \u064A\u063A\u0644\u0642 \u0645\u0644\u0627\u0645\u0633\u064B\u0627\u060C \u0643\u0645\u0641\u062A\u0627\u062D \u064A\u062A\u062D\u0643\u0645 \u0628\u0647 \u0645\u0646 \u064A\u0645\u0631\u0651 \u0623\u0648 \u0627\u0644\u0638\u0644\u0627\u0645. \u0627\u0644\u0645\u0644\u0627\u0645\u0633 \u062E\u0627\u0644\u064D \u0645\u0646 \u0627\u0644\u062C\u0647\u062F\u060C \u0645\u062B\u0644 \u0645\u0644\u0627\u0645\u0633 \u0627\u0644\u0645\u0631\u062D\u0651\u0644: \u0627\u0644\u062C\u0647\u062F \u0623\u0646\u062A \u0645\u0646 \u062A\u0648\u0635\u0644\u0647.",
+    "Chi accende la lampada \xE8 l\u2019attuatore: qui un rel\xE8 temporizzato. I sensori comandano la sua bobina, il suo contatto alimenta la lampada. Cos\xEC il sensore, piccolo e delicato, non porta mai la corrente del carico.": "\u0645\u0646 \u064A\u064F\u0636\u064A\u0621 \u0627\u0644\u0645\u0635\u0628\u0627\u062D \u0647\u0648 \u0627\u0644\u0645\u0634\u063A\u0651\u0644: \u0647\u0646\u0627 \u0645\u0631\u062D\u0651\u0644 \u0632\u0645\u0646\u064A. \u0627\u0644\u062D\u0633\u0651\u0627\u0633\u0627\u062A \u062A\u062A\u062D\u0643\u0645 \u0641\u064A \u0645\u0644\u0641\u0647 \u0648\u0645\u0644\u0627\u0645\u0633\u0647 \u064A\u063A\u0630\u0651\u064A \u0627\u0644\u0645\u0635\u0628\u0627\u062D. \u0648\u0647\u0643\u0630\u0627 \u0644\u0627 \u064A\u062D\u0645\u0644 \u0627\u0644\u062D\u0633\u0651\u0627\u0633\u060C \u0627\u0644\u0635\u063A\u064A\u0631 \u0648\u0627\u0644\u062D\u0633\u0627\u0633\u060C \u062A\u064A\u0627\u0631 \u0627\u0644\u062D\u0650\u0645\u0644 \u0623\u0628\u062F\u064B\u0627.",
+    "Sensori e attuatore": "\u0627\u0644\u062D\u0633\u0651\u0627\u0633\u0627\u062A \u0648\u0627\u0644\u0645\u0634\u063A\u0651\u0644",
+    "Il sensore di luce chiude il contatto quando \xE8 buio. Il sensore di presenza lo chiude quando passa qualcuno. Il rel\xE8 temporizzato tiene il contatto chiuso per 10 secondi dopo che la bobina si spegne: \xE8 il tempo di attraversare il corridoio senza che la luce si spenga a met\xE0.": "\u062D\u0633\u0651\u0627\u0633 \u0627\u0644\u0636\u0648\u0621 \u064A\u063A\u0644\u0642 \u0627\u0644\u0645\u0644\u0627\u0645\u0633 \u0639\u0646\u062F \u0627\u0644\u0638\u0644\u0627\u0645. \u0648\u062D\u0633\u0651\u0627\u0633 \u0627\u0644\u062D\u0636\u0648\u0631 \u064A\u063A\u0644\u0642\u0647 \u0639\u0646\u062F \u0645\u0631\u0648\u0631 \u0623\u062D\u062F. \u0627\u0644\u0645\u0631\u062D\u0651\u0644 \u0627\u0644\u0632\u0645\u0646\u064A \u064A\u064F\u0628\u0642\u064A \u0627\u0644\u0645\u0644\u0627\u0645\u0633 \u0645\u063A\u0644\u0642\u064B\u0627 10 \u062B\u0648\u0627\u0646\u064D \u0628\u0639\u062F \u0627\u0646\u0637\u0641\u0627\u0621 \u0627\u0644\u0645\u0644\u0641: \u0648\u0647\u0648 \u0627\u0644\u0648\u0642\u062A \u0627\u0644\u0644\u0627\u0632\u0645 \u0644\u0639\u0628\u0648\u0631 \u0627\u0644\u0645\u0645\u0631 \u062F\u0648\u0646 \u0623\u0646 \u064A\u0646\u0637\u0641\u0626 \u0627\u0644\u0645\u0635\u0628\u0627\u062D \u0641\u064A \u0645\u0646\u062A\u0635\u0641\u0647.",
+    "La luce deve accendersi solo se \xE8 buio e se passa qualcuno: due condizioni insieme. In un circuito le condizioni insieme si mettono in serie.": "\u064A\u062C\u0628 \u0623\u0646 \u064A\u064F\u0636\u0627\u0621 \u0627\u0644\u0645\u0635\u0628\u0627\u062D \u0641\u0642\u0637 \u0625\u0630\u0627 \u0643\u0627\u0646 \u0627\u0644\u0638\u0644\u0627\u0645 \u0648\u0645\u0631\u0651 \u0623\u062D\u062F: \u0634\u0631\u0637\u0627\u0646 \u0645\u0639\u064B\u0627. \u0648\u0641\u064A \u0627\u0644\u062F\u0627\u0626\u0631\u0629 \u062A\u0648\u0636\u0639 \u0627\u0644\u0634\u0631\u0648\u0637 \u0627\u0644\u0645\u062A\u0632\u0627\u0645\u0646\u0629 \u0639\u0644\u0649 \u0627\u0644\u062A\u0648\u0627\u0644\u064A.",
+    "La fase dal quadro al sensore di luce.": "\u0627\u0644\u0637\u0648\u0631 \u0645\u0646 \u0627\u0644\u0644\u0648\u062D\u0629 \u0625\u0644\u0649 \u062D\u0633\u0651\u0627\u0633 \u0627\u0644\u0636\u0648\u0621.",
+    "Dal sensore di luce al sensore di presenza: i due contatti in serie.": "\u0645\u0646 \u062D\u0633\u0651\u0627\u0633 \u0627\u0644\u0636\u0648\u0621 \u0625\u0644\u0649 \u062D\u0633\u0651\u0627\u0633 \u0627\u0644\u062D\u0636\u0648\u0631: \u0627\u0644\u0645\u0644\u0627\u0645\u0633\u0627\u0646 \u0639\u0644\u0649 \u0627\u0644\u062A\u0648\u0627\u0644\u064A.",
+    "Dal sensore di presenza alla bobina del temporizzatore.": "\u0645\u0646 \u062D\u0633\u0651\u0627\u0633 \u0627\u0644\u062D\u0636\u0648\u0631 \u0625\u0644\u0649 \u0645\u0644\u0641 \u0627\u0644\u0645\u0624\u0642\u0651\u062A.",
+    "La fase al contatto del temporizzatore: la lampada non passa dai sensori.": "\u0627\u0644\u0637\u0648\u0631 \u0625\u0644\u0649 \u0645\u0644\u0627\u0645\u0633 \u0627\u0644\u0645\u0624\u0642\u0651\u062A: \u0627\u0644\u0645\u0635\u0628\u0627\u062D \u0644\u0627 \u064A\u0645\u0631\u0651 \u0639\u0628\u0631 \u0627\u0644\u062D\u0633\u0651\u0627\u0633\u0627\u062A.",
+    "Dal contatto alla lampada.": "\u0645\u0646 \u0627\u0644\u0645\u0644\u0627\u0645\u0633 \u0625\u0644\u0649 \u0627\u0644\u0645\u0635\u0628\u0627\u062D.",
+    "Levetta su: giorno e nessuno nel corridoio, la lampada \xE8 spenta.": "\u0630\u0631\u0627\u0639 \u0627\u0644\u0644\u0648\u062D\u0629 \u0645\u0631\u0641\u0648\u0639: \u0646\u0647\u0627\u0631 \u0648\u0644\u0627 \u0623\u062D\u062F \u0641\u064A \u0627\u0644\u0645\u0645\u0631\u060C \u0627\u0644\u0645\u0635\u0628\u0627\u062D \u0645\u0637\u0641\u0623.",
+    "Colleghi i due sensori in parallelo invece che in serie. Che cosa succede di giorno, quando passa qualcuno?": "\u0648\u0635\u0644\u062A \u0627\u0644\u062D\u0633\u0651\u0627\u0633\u064A\u0646 \u0639\u0644\u0649 \u0627\u0644\u062A\u0648\u0627\u0632\u064A \u0628\u062F\u0644 \u0627\u0644\u062A\u0648\u0627\u0644\u064A. \u0645\u0627\u0630\u0627 \u064A\u062D\u062F\u062B \u0641\u064A \u0627\u0644\u0646\u0647\u0627\u0631 \u0639\u0646\u062F\u0645\u0627 \u064A\u0645\u0631\u0651 \u0623\u062D\u062F\u061F",
+    "La luce resta spenta: \xE8 giorno.": "\u064A\u0628\u0642\u0649 \u0627\u0644\u0645\u0635\u0628\u0627\u062D \u0645\u0637\u0641\u0623\u064B: \u0627\u0644\u0648\u0642\u062A \u0646\u0647\u0627\u0631.",
+    "La luce si accende lo stesso: basta che chiuda un sensore.": "\u064A\u064F\u0636\u0627\u0621 \u0627\u0644\u0645\u0635\u0628\u0627\u062D \u0645\u0639 \u0630\u0644\u0643: \u064A\u0643\u0641\u064A \u0623\u0646 \u064A\u064F\u063A\u0644\u0642 \u062D\u0633\u0651\u0627\u0633 \u0648\u0627\u062D\u062F.",
+    "La luce lampeggia.": "\u064A\u0648\u0645\u0636 \u0627\u0644\u0645\u0635\u0628\u0627\u062D.",
+    "Con due contatti in parallelo basta uno solo per far passare la corrente: \xE8 un O. Il sensore di presenza chiude e la luce si accende anche se \xE8 giorno. Per avere un E, servono entrambi: i contatti vanno in serie.": "\u0645\u0639 \u0645\u0644\u0627\u0645\u0633\u064A\u0646 \u0639\u0644\u0649 \u0627\u0644\u062A\u0648\u0627\u0632\u064A \u064A\u0643\u0641\u064A \u0648\u0627\u062D\u062F \u0641\u0642\u0637 \u0644\u0645\u0631\u0648\u0631 \u0627\u0644\u062A\u064A\u0627\u0631: \u0647\u0630\u0627 \u0647\u0648 \xAB\u0623\u0648\xBB. \u062D\u0633\u0651\u0627\u0633 \u0627\u0644\u062D\u0636\u0648\u0631 \u064A\u064F\u063A\u0644\u0642 \u0641\u064A\u064F\u0636\u0627\u0621 \u0627\u0644\u0645\u0635\u0628\u0627\u062D \u062D\u062A\u0649 \u0641\u064A \u0627\u0644\u0646\u0647\u0627\u0631. \u0644\u0644\u062D\u0635\u0648\u0644 \u0639\u0644\u0649 \xAB\u0648\xBB \u064A\u0644\u0632\u0645 \u0643\u0644\u0627\u0647\u0645\u0627: \u062A\u0648\u0636\u0639 \u0627\u0644\u0645\u0644\u0627\u0645\u0633\u0627\u062A \u0639\u0644\u0649 \u0627\u0644\u062A\u0648\u0627\u0644\u064A.",
+    "La fase al sensore di luce": "\u0627\u0644\u0637\u0648\u0631 \u0625\u0644\u0649 \u062D\u0633\u0651\u0627\u0633 \u0627\u0644\u0636\u0648\u0621",
+    "Dalla FASE del quadro al morsetto 1 del sensore di luce.": "\u0645\u0646 \u0627\u0644\u0637\u0648\u0631 \u0641\u064A \u0627\u0644\u0644\u0648\u062D\u0629 \u0625\u0644\u0649 \u0627\u0644\u0645\u0631\u0628\u0637 1 \u0641\u064A \u062D\u0633\u0651\u0627\u0633 \u0627\u0644\u0636\u0648\u0621.",
+    "I due sensori in serie": "\u0627\u0644\u062D\u0633\u0651\u0627\u0633\u0627\u0646 \u0639\u0644\u0649 \u0627\u0644\u062A\u0648\u0627\u0644\u064A",
+    "Dal morsetto 2 del sensore di luce al morsetto 1 del sensore di presenza.": "\u0645\u0646 \u0627\u0644\u0645\u0631\u0628\u0637 2 \u0641\u064A \u062D\u0633\u0651\u0627\u0633 \u0627\u0644\u0636\u0648\u0621 \u0625\u0644\u0649 \u0627\u0644\u0645\u0631\u0628\u0637 1 \u0641\u064A \u062D\u0633\u0651\u0627\u0633 \u0627\u0644\u062D\u0636\u0648\u0631.",
+    "Alla bobina del temporizzatore": "\u0625\u0644\u0649 \u0645\u0644\u0641 \u0627\u0644\u0645\u0624\u0642\u0651\u062A",
+    "Dal morsetto 2 del sensore di presenza al morsetto A1 del temporizzatore.": "\u0645\u0646 \u0627\u0644\u0645\u0631\u0628\u0637 2 \u0641\u064A \u062D\u0633\u0651\u0627\u0633 \u0627\u0644\u062D\u0636\u0648\u0631 \u0625\u0644\u0649 \u0627\u0644\u0645\u0631\u0628\u0637 A1 \u0641\u064A \u0627\u0644\u0645\u0624\u0642\u0651\u062A.",
+    "Dal NEUTRO al morsetto A2 del temporizzatore.": "\u0645\u0646 \u0627\u0644\u0645\u062D\u0627\u064A\u062F \u0625\u0644\u0649 \u0627\u0644\u0645\u0631\u0628\u0637 A2 \u0641\u064A \u0627\u0644\u0645\u0624\u0642\u0651\u062A.",
+    "Dalla FASE al morsetto 1 del contatto del temporizzatore.": "\u0645\u0646 \u0627\u0644\u0637\u0648\u0631 \u0625\u0644\u0649 \u0627\u0644\u0645\u0631\u0628\u0637 1 \u0641\u064A \u0645\u0644\u0627\u0645\u0633 \u0627\u0644\u0645\u0624\u0642\u0651\u062A.",
+    "Alla lampada": "\u0625\u0644\u0649 \u0627\u0644\u0645\u0635\u0628\u0627\u062D",
+    "Dal morsetto 2 del contatto alla lampada.": "\u0645\u0646 \u0627\u0644\u0645\u0631\u0628\u0637 2 \u0641\u064A \u0627\u0644\u0645\u0644\u0627\u0645\u0633 \u0625\u0644\u0649 \u0627\u0644\u0645\u0635\u0628\u0627\u062D.",
+    "Prova i sensori": "\u062C\u0631\u0651\u0628 \u0627\u0644\u062D\u0633\u0651\u0627\u0633\u0627\u062A",
+    "Simula il buio e il passaggio di qualcuno: la luce si accende e, dopo qualche secondo, si spegne da sola.": "\u062D\u0627\u0643\u0650 \u0627\u0644\u0638\u0644\u0627\u0645 \u0648\u0645\u0631\u0648\u0631 \u0623\u062D\u062F: \u064A\u064F\u0636\u0627\u0621 \u0627\u0644\u0645\u0635\u0628\u0627\u062D \u0648\u0628\u0639\u062F \u0628\u0636\u0639 \u062B\u0648\u0627\u0646\u064D \u064A\u0646\u0637\u0641\u0626 \u0648\u062D\u062F\u0647.",
+    "Un sensore chiude un contatto, ma non porta il carico: la corrente della lampada passa dall\u2019attuatore.": "\u0627\u0644\u062D\u0633\u0651\u0627\u0633 \u064A\u063A\u0644\u0642 \u0645\u0644\u0627\u0645\u0633\u064B\u0627 \u0644\u0643\u0646\u0647 \u0644\u0627 \u064A\u062D\u0645\u0644 \u0627\u0644\u062D\u0650\u0645\u0644: \u062A\u064A\u0627\u0631 \u0627\u0644\u0645\u0635\u0628\u0627\u062D \u064A\u0645\u0631\u0651 \u0639\u0628\u0631 \u0627\u0644\u0645\u0634\u063A\u0651\u0644.",
+    "Condizioni che servono tutte insieme sono contatti in serie (un E).": "\u0627\u0644\u0634\u0631\u0648\u0637 \u0627\u0644\u0644\u0627\u0632\u0645\u0629 \u0643\u0644\u0647\u0627 \u0645\u0639\u064B\u0627 \u0647\u064A \u0645\u0644\u0627\u0645\u0633\u0627\u062A \u0639\u0644\u0649 \u0627\u0644\u062A\u0648\u0627\u0644\u064A (\xAB\u0648\xBB).",
+    "Il temporizzatore tiene la luce accesa ancora per qualche secondo dopo l\u2019ultimo passaggio.": "\u0627\u0644\u0645\u0624\u0642\u0651\u062A \u064A\u064F\u0628\u0642\u064A \u0627\u0644\u0645\u0635\u0628\u0627\u062D \u0645\u0636\u0627\u0621\u064B \u0628\u0636\u0639 \u062B\u0648\u0627\u0646\u064D \u0628\u0639\u062F \u0622\u062E\u0631 \u0645\u0631\u0648\u0631.",
+    "I contatti dei sensori sono liberi da tensione: la tensione la porti tu, come per un interruttore.": "\u0645\u0644\u0627\u0645\u0633\u0627\u062A \u0627\u0644\u062D\u0633\u0651\u0627\u0633\u0627\u062A \u062E\u0627\u0644\u064A\u0629 \u0645\u0646 \u0627\u0644\u062C\u0647\u062F: \u0627\u0644\u062C\u0647\u062F \u0623\u0646\u062A \u0645\u0646 \u062A\u0648\u0635\u0644\u0647\u060C \u0643\u0645\u0627 \u0645\u0639 \u0627\u0644\u0645\u0641\u062A\u0627\u062D.",
+    "L\u2019impianto \xE8 gi\xE0 cablato. Di notte la luce si accende quando passa qualcuno, ma di giorno si accende lo stesso. Guarda come sono collegati i due sensori.": "\u0627\u0644\u062A\u0645\u062F\u064A\u062F \u0645\u0646\u0641\u064E\u0651\u0630 \u0628\u0627\u0644\u0641\u0639\u0644. \u0641\u064A \u0627\u0644\u0644\u064A\u0644 \u064A\u064F\u0636\u0627\u0621 \u0627\u0644\u0645\u0635\u0628\u0627\u062D \u0639\u0646\u062F\u0645\u0627 \u064A\u0645\u0631\u0651 \u0623\u062D\u062F\u060C \u0644\u0643\u0646\u0647 \u064A\u064F\u0636\u0627\u0621 \u0623\u064A\u0636\u064B\u0627 \u0641\u064A \u0627\u0644\u0646\u0647\u0627\u0631. \u0627\u0646\u0638\u0631 \u0643\u064A\u0641 \u0648\u064F\u0635\u0644 \u0627\u0644\u062D\u0633\u0651\u0627\u0633\u0627\u0646.",
+    "Perch\xE9 la luce si accende anche di giorno?": "\u0644\u0645\u0627\u0630\u0627 \u064A\u064F\u0636\u0627\u0621 \u0627\u0644\u0645\u0635\u0628\u0627\u062D \u0641\u064A \u0627\u0644\u0646\u0647\u0627\u0631 \u0623\u064A\u0636\u064B\u0627\u061F",
+    "I due sensori sono in parallelo: ne basta uno.": "\u0627\u0644\u062D\u0633\u0651\u0627\u0633\u0627\u0646 \u0639\u0644\u0649 \u0627\u0644\u062A\u0648\u0627\u0632\u064A: \u064A\u0643\u0641\u064A \u0648\u0627\u062D\u062F.",
+    "Il temporizzatore ha il tempo troppo lungo.": "\u0632\u0645\u0646 \u0627\u0644\u0645\u0624\u0642\u0651\u062A \u0637\u0648\u064A\u0644 \u062C\u062F\u064B\u0651\u0627.",
+    "Il neutro della lampada \xE8 collegato male.": "\u0645\u062D\u0627\u064A\u062F \u0627\u0644\u0645\u0635\u0628\u0627\u062D \u0645\u0648\u0635\u0648\u0644 \u0628\u0634\u0643\u0644 \u062E\u0627\u0637\u0626.",
+    "In parallelo basta che uno dei due sensori chiuda. Per accendere la luce solo al buio e con qualcuno nel corridoio, i due contatti vanno in serie.": "\u0639\u0644\u0649 \u0627\u0644\u062A\u0648\u0627\u0632\u064A \u064A\u0643\u0641\u064A \u0623\u0646 \u064A\u064F\u063A\u0644\u0642 \u0623\u062D\u062F \u0627\u0644\u062D\u0633\u0651\u0627\u0633\u064A\u0646. \u0648\u0644\u0625\u0636\u0627\u0621\u0629 \u0627\u0644\u0645\u0635\u0628\u0627\u062D \u0641\u0642\u0637 \u0641\u064A \u0627\u0644\u0638\u0644\u0627\u0645 \u0648\u0645\u0639 \u0648\u062C\u0648\u062F \u0623\u062D\u062F \u0641\u064A \u0627\u0644\u0645\u0645\u0631\u060C \u064A\u062C\u0628 \u0623\u0646 \u064A\u0643\u0648\u0646 \u0627\u0644\u0645\u0644\u0627\u0645\u0633\u0627\u0646 \u0639\u0644\u0649 \u0627\u0644\u062A\u0648\u0627\u0644\u064A.",
+    "Togli i fili in parallelo. Collega la fase al sensore di luce, il sensore di luce al sensore di presenza e il sensore di presenza alla bobina. Poi premi Verifica.": "\u0623\u0632\u0644 \u0627\u0644\u0623\u0633\u0644\u0627\u0643 \u0627\u0644\u0645\u0648\u0635\u0648\u0644\u0629 \u0639\u0644\u0649 \u0627\u0644\u062A\u0648\u0627\u0632\u064A. \u0635\u0650\u0644 \u0627\u0644\u0637\u0648\u0631 \u0628\u062D\u0633\u0651\u0627\u0633 \u0627\u0644\u0636\u0648\u0621\u060C \u0648\u062D\u0633\u0651\u0627\u0633 \u0627\u0644\u0636\u0648\u0621 \u0628\u062D\u0633\u0651\u0627\u0633 \u0627\u0644\u062D\u0636\u0648\u0631\u060C \u0648\u062D\u0633\u0651\u0627\u0633 \u0627\u0644\u062D\u0636\u0648\u0631 \u0628\u0627\u0644\u0645\u0644\u0641. \u062B\u0645 \u0627\u0636\u063A\u0637 \xAB\u062A\u062D\u0642\u0642\xBB.",
+    // c49 la casa col PLC
+    "Tre tasti, tre scene: esco, torno, cena. Un tocco e cambiano le luci.": "\u062B\u0644\u0627\u062B\u0629 \u0623\u0632\u0631\u0627\u0631 \u0648\u062B\u0644\u0627\u062B\u0629 \u0645\u0634\u0627\u0647\u062F: \u062E\u0631\u0648\u062C\u060C \u0639\u0648\u062F\u0629\u060C \u0639\u0634\u0627\u0621. \u0644\u0645\u0633\u0629 \u0648\u0627\u062D\u062F\u0629 \u0648\u062A\u062A\u063A\u064A\u0631 \u0627\u0644\u0623\u0636\u0648\u0627\u0621.",
+    "In ingresso ci sono tre tasti: Esco, Torno e Cena. L\u2019impianto \xE8 cablato e il PLC \xE8 acceso, ma il programma \xE8 vuoto. Scrivilo tu: Torno accende la luce dell\u2019ingresso e quella del soggiorno; Cena spegne l\u2019ingresso e lascia il soggiorno; Esco spegne tutto. Le luci restano come le hai lasciate quando rilasci il tasto.": "\u0639\u0646\u062F \u0627\u0644\u0645\u062F\u062E\u0644 \u062B\u0644\u0627\u062B\u0629 \u0623\u0632\u0631\u0627\u0631: \u062E\u0631\u0648\u062C \u0648\u0639\u0648\u062F\u0629 \u0648\u0639\u0634\u0627\u0621. \u0627\u0644\u062A\u0645\u062F\u064A\u062F \u0645\u0646\u0641\u064E\u0651\u0630 \u0648\u0627\u0644\u0640 PLC \u064A\u0639\u0645\u0644 \u0644\u0643\u0646 \u0627\u0644\u0628\u0631\u0646\u0627\u0645\u062C \u0641\u0627\u0631\u063A. \u0627\u0643\u062A\u0628\u0647 \u0623\u0646\u062A: \xAB\u0639\u0648\u062F\u0629\xBB \u062A\u064F\u0636\u064A\u0621 \u0645\u0635\u0628\u0627\u062D \u0627\u0644\u0645\u062F\u062E\u0644 \u0648\u0645\u0635\u0628\u0627\u062D \u063A\u0631\u0641\u0629 \u0627\u0644\u062C\u0644\u0648\u0633\u061B \xAB\u0639\u0634\u0627\u0621\xBB \u062A\u064F\u0637\u0641\u0626 \u0627\u0644\u0645\u062F\u062E\u0644 \u0648\u062A\u062A\u0631\u0643 \u0627\u0644\u062C\u0644\u0648\u0633\u061B \xAB\u062E\u0631\u0648\u062C\xBB \u062A\u064F\u0637\u0641\u0626 \u0643\u0644 \u0634\u064A\u0621. \u062A\u0628\u0642\u0649 \u0627\u0644\u0623\u0636\u0648\u0627\u0621 \u0643\u0645\u0627 \u062A\u0631\u0643\u062A\u0647\u0627 \u0639\u0646\u062F \u062A\u062D\u0631\u064A\u0631 \u0627\u0644\u0632\u0631.",
+    "Tasto Esco": "\u0632\u0631 \u0627\u0644\u062E\u0631\u0648\u062C",
+    "Tasto Esco, tieni premuto": "\u0632\u0631 \u0627\u0644\u062E\u0631\u0648\u062C\u060C \u0627\u0633\u062A\u0645\u0631 \u0641\u064A \u0627\u0644\u0636\u063A\u0637",
+    "Tasto Torno": "\u0632\u0631 \u0627\u0644\u0639\u0648\u062F\u0629",
+    "Tasto Torno, tieni premuto": "\u0632\u0631 \u0627\u0644\u0639\u0648\u062F\u0629\u060C \u0627\u0633\u062A\u0645\u0631 \u0641\u064A \u0627\u0644\u0636\u063A\u0637",
+    "Tasto Cena": "\u0632\u0631 \u0627\u0644\u0639\u0634\u0627\u0621",
+    "Tasto Cena, tieni premuto": "\u0632\u0631 \u0627\u0644\u0639\u0634\u0627\u0621\u060C \u0627\u0633\u062A\u0645\u0631 \u0641\u064A \u0627\u0644\u0636\u063A\u0637",
+    "Luce dell\u2019ingresso": "\u0645\u0635\u0628\u0627\u062D \u0627\u0644\u0645\u062F\u062E\u0644",
+    "Luce del soggiorno": "\u0645\u0635\u0628\u0627\u062D \u063A\u0631\u0641\u0629 \u0627\u0644\u062C\u0644\u0648\u0633",
+    "Luce ingresso": "\u0645\u0635\u0628\u0627\u062D \u0627\u0644\u0645\u062F\u062E\u0644",
+    "Luce soggiorno": "\u0645\u0635\u0628\u0627\u062D \u063A\u0631\u0641\u0629 \u0627\u0644\u062C\u0644\u0648\u0633",
+    "Esco": "\u062E\u0631\u0648\u062C",
+    "Torno": "\u0639\u0648\u062F\u0629",
+    "Cena": "\u0639\u0634\u0627\u0621",
+    "All\u2019inizio le luci sono spente": "\u0641\u064A \u0627\u0644\u0628\u062F\u0627\u064A\u0629 \u062A\u0643\u0648\u0646 \u0627\u0644\u0623\u0636\u0648\u0627\u0621 \u0645\u0637\u0641\u0623\u0629",
+    "Premi Torno: si accendono ingresso e soggiorno, e restano accese": "\u0627\u0636\u063A\u0637 \xAB\u0639\u0648\u062F\u0629\xBB: \u064A\u064F\u0636\u0627\u0621 \u0627\u0644\u0645\u062F\u062E\u0644 \u0648\u063A\u0631\u0641\u0629 \u0627\u0644\u062C\u0644\u0648\u0633 \u0648\u064A\u0628\u0642\u064A\u0627\u0646 \u0645\u0636\u0627\u0621\u064A\u0646",
+    "Premi Torno e poi Cena: l\u2019ingresso si spegne, il soggiorno resta acceso": "\u0627\u0636\u063A\u0637 \xAB\u0639\u0648\u062F\u0629\xBB \u062B\u0645 \xAB\u0639\u0634\u0627\u0621\xBB: \u064A\u0646\u0637\u0641\u0626 \u0627\u0644\u0645\u062F\u062E\u0644 \u0648\u062A\u0628\u0642\u0649 \u063A\u0631\u0641\u0629 \u0627\u0644\u062C\u0644\u0648\u0633 \u0645\u0636\u0627\u0621\u0629",
+    "Premi Torno e poi Esco: si spegne tutto": "\u0627\u0636\u063A\u0637 \xAB\u0639\u0648\u062F\u0629\xBB \u062B\u0645 \xAB\u062E\u0631\u0648\u062C\xBB: \u064A\u0646\u0637\u0641\u0626 \u0643\u0644 \u0634\u064A\u0621",
+    "Una scena cambia lo stato delle luci e poi lo lascia. Per questo si usano Set (accende e ricorda) e Reset (spegne e ricorda), non una bobina semplice.": "\u0627\u0644\u0645\u0634\u0647\u062F \u064A\u063A\u064A\u0651\u0631 \u062D\u0627\u0644\u0629 \u0627\u0644\u0623\u0636\u0648\u0627\u0621 \u062B\u0645 \u064A\u062A\u0631\u0643\u0647\u0627. \u0644\u0630\u0644\u0643 \u0646\u0633\u062A\u062E\u062F\u0645 Set (\u064A\u064F\u0634\u063A\u0651\u0644 \u0648\u064A\u062A\u0630\u0643\u0651\u0631) \u0648 Reset (\u064A\u064F\u0637\u0641\u0626 \u0648\u064A\u062A\u0630\u0643\u0651\u0631) \u0644\u0627 \u0645\u0644\u0641\u064B\u0651\u0627 \u0628\u0633\u064A\u0637\u064B\u0627.",
+    "Torno \xE8 l\u2019ingresso I1: un gradino con il contatto I1 e due uscite, Set su Q0 e Set su Q1.": "\xAB\u0639\u0648\u062F\u0629\xBB \u0647\u0648 \u0627\u0644\u0645\u062F\u062E\u0644 I1: \u062F\u0631\u062C\u0629 \u0641\u064A\u0647\u0627 \u0627\u0644\u0645\u0644\u0627\u0645\u0633 I1 \u0648\u0645\u062E\u0631\u062C\u0627\u0646\u060C Set \u0639\u0644\u0649 Q0 \u0648 Set \u0639\u0644\u0649 Q1.",
+    "Cena \xE8 I2: Reset su Q0 e Set su Q1. Esco \xE8 I0: Reset su Q0 e Reset su Q1.": "\xAB\u0639\u0634\u0627\u0621\xBB \u0647\u0648 I2: Reset \u0639\u0644\u0649 Q0 \u0648 Set \u0639\u0644\u0649 Q1. \u0648\xAB\u062E\u0631\u0648\u062C\xBB \u0647\u0648 I0: Reset \u0639\u0644\u0649 Q0 \u0648 Reset \u0639\u0644\u0649 Q1.",
+    "Le scene": "\u0627\u0644\u0645\u0634\u0627\u0647\u062F",
+    "Una scena cambia pi\xF9 luci con un solo tocco: Torno accende ingresso e soggiorno, Esco spegne tutto, Cena lascia solo il soggiorno. Nei fili ci vorrebbero molti rel\xE8; con il PLC \xE8 un programma.": "\u0627\u0644\u0645\u0634\u0647\u062F \u064A\u063A\u064A\u0651\u0631 \u0639\u062F\u0629 \u0623\u0636\u0648\u0627\u0621 \u0628\u0644\u0645\u0633\u0629 \u0648\u0627\u062D\u062F\u0629: \xAB\u0639\u0648\u062F\u0629\xBB \u062A\u064F\u0636\u064A\u0621 \u0627\u0644\u0645\u062F\u062E\u0644 \u0648\u0627\u0644\u062C\u0644\u0648\u0633\u060C \u0648\xAB\u062E\u0631\u0648\u062C\xBB \u062A\u064F\u0637\u0641\u0626 \u0643\u0644 \u0634\u064A\u0621\u060C \u0648\xAB\u0639\u0634\u0627\u0621\xBB \u062A\u062A\u0631\u0643 \u0627\u0644\u062C\u0644\u0648\u0633 \u0641\u0642\u0637. \u0641\u064A \u0627\u0644\u0623\u0633\u0644\u0627\u0643 \u0646\u062D\u062A\u0627\u062C \u0625\u0644\u0649 \u0645\u0631\u062D\u0651\u0644\u0627\u062A \u0643\u062B\u064A\u0631\u0629\u061B \u0648\u0645\u0639 \u0627\u0644\u0640 PLC \u064A\u0643\u0641\u064A \u0628\u0631\u0646\u0627\u0645\u062C.",
+    "Una scena lascia le luci come le ha messe, anche dopo che hai rilasciato il tasto. Una bobina semplice non basta, perch\xE9 segue la condizione: quando rilasci il tasto la luce si spegne. Servono Set e Reset, che ricordano.": "\u0627\u0644\u0645\u0634\u0647\u062F \u064A\u062A\u0631\u0643 \u0627\u0644\u0623\u0636\u0648\u0627\u0621 \u0643\u0645\u0627 \u0648\u0636\u0639\u0647\u0627 \u062D\u062A\u0649 \u0628\u0639\u062F \u062A\u062D\u0631\u064A\u0631 \u0627\u0644\u0632\u0631. \u0627\u0644\u0645\u0644\u0641 \u0627\u0644\u0628\u0633\u064A\u0637 \u0644\u0627 \u064A\u0643\u0641\u064A \u0644\u0623\u0646\u0647 \u064A\u062A\u0628\u0639 \u0627\u0644\u0634\u0631\u0637: \u0639\u0646\u062F \u062A\u062D\u0631\u064A\u0631 \u0627\u0644\u0632\u0631 \u064A\u0646\u0637\u0641\u0626 \u0627\u0644\u0645\u0635\u0628\u0627\u062D. \u0646\u062D\u062A\u0627\u062C \u0625\u0644\u0649 Set \u0648 Reset \u0627\u0644\u0644\u0630\u064A\u0646 \u064A\u062A\u0630\u0643\u0651\u0631\u0627\u0646.",
+    "Istruzione": "\u0627\u0644\u062A\u0639\u0644\u064A\u0645\u0629",
+    "Rete": "\u0627\u0644\u0634\u0628\u0643\u0629",
+    "Neutro sirena": "\u0645\u062D\u0627\u064A\u062F \u0627\u0644\u0635\u0641\u0651\u0627\u0631\u0629",
+    "se la condizione \xE8 vera accende l\u2019uscita e la lascia accesa": "\u0625\u0630\u0627 \u062A\u062D\u0642\u0642 \u0627\u0644\u0634\u0631\u0637 \u064A\u064F\u0634\u063A\u0651\u0644 \u0627\u0644\u0645\u062E\u0631\u062C \u0648\u064A\u062A\u0631\u0643\u0647 \u0645\u0634\u063A\u064E\u0651\u0644\u064B\u0627",
+    "se la condizione \xE8 vera spegne l\u2019uscita e la lascia spenta": "\u0625\u0630\u0627 \u062A\u062D\u0642\u0642 \u0627\u0644\u0634\u0631\u0637 \u064A\u064F\u0637\u0641\u0626 \u0627\u0644\u0645\u062E\u0631\u062C \u0648\u064A\u062A\u0631\u0643\u0647 \u0645\u0637\u0641\u0623\u064B",
+    "l\u2019uscita segue la condizione e si spegne con lei": "\u0627\u0644\u0645\u062E\u0631\u062C \u064A\u062A\u0628\u0639 \u0627\u0644\u0634\u0631\u0637 \u0648\u064A\u0646\u0637\u0641\u0626 \u0645\u0639\u0647",
+    "Nel gradino di Torno usi la bobina Q0 invece di Set. Che cosa succede quando rilasci il tasto?": "\u0641\u064A \u062F\u0631\u062C\u0629 \xAB\u0639\u0648\u062F\u0629\xBB \u062A\u0633\u062A\u062E\u062F\u0645 \u0627\u0644\u0645\u0644\u0641 Q0 \u0628\u062F\u0644 Set. \u0645\u0627\u0630\u0627 \u064A\u062D\u062F\u062B \u0639\u0646\u062F \u062A\u062D\u0631\u064A\u0631 \u0627\u0644\u0632\u0631\u061F",
+    "La luce resta accesa: il PLC ricorda.": "\u064A\u0628\u0642\u0649 \u0627\u0644\u0645\u0635\u0628\u0627\u062D \u0645\u0636\u0627\u0621\u064B: \u0627\u0644\u0640 PLC \u064A\u062A\u0630\u0643\u0651\u0631.",
+    "La luce si spegne appena il tasto torna a 0.": "\u064A\u0646\u0637\u0641\u0626 \u0627\u0644\u0645\u0635\u0628\u0627\u062D \u0641\u0648\u0631 \u0639\u0648\u062F\u0629 \u0627\u0644\u0632\u0631 \u0625\u0644\u0649 0.",
+    "Il PLC d\xE0 un errore.": "\u0627\u0644\u0640 PLC \u064A\u0639\u0637\u064A \u062E\u0637\u0623.",
+    "Una bobina segue il suo gradino: la condizione vale 1 solo mentre il tasto \xE8 premuto, e allora la luce vale 1 solo per quel tempo. Per far restare la luce accesa si usa Set; per spegnerla Reset.": "\u0627\u0644\u0645\u0644\u0641 \u064A\u062A\u0628\u0639 \u062F\u0631\u062C\u062A\u0647: \u0627\u0644\u0634\u0631\u0637 \u064A\u0633\u0627\u0648\u064A 1 \u0641\u0642\u0637 \u0623\u062B\u0646\u0627\u0621 \u0636\u063A\u0637 \u0627\u0644\u0632\u0631\u060C \u0648\u0639\u0646\u062F\u0626\u0630 \u064A\u0643\u0648\u0646 \u0627\u0644\u0645\u0635\u0628\u0627\u062D 1 \u0637\u0648\u0627\u0644 \u0630\u0644\u0643 \u0627\u0644\u0648\u0642\u062A \u0641\u0642\u0637. \u0644\u0625\u0628\u0642\u0627\u0621 \u0627\u0644\u0645\u0635\u0628\u0627\u062D \u0645\u0636\u0627\u0621\u064B \u0646\u0633\u062A\u062E\u062F\u0645 Set\u060C \u0648\u0644\u0625\u0637\u0641\u0627\u0626\u0647 Reset.",
+    "La scena Torno": "\u0645\u0634\u0647\u062F \xAB\u0639\u0648\u062F\u0629\xBB",
+    "Un gradino con il contatto Torno (I1) e due uscite: Set su Q0 e Set su Q1. Perch\xE9: Torno accende ingresso e soggiorno, e le luci devono restare accese.": "\u062F\u0631\u062C\u0629 \u0641\u064A\u0647\u0627 \u0645\u0644\u0627\u0645\u0633 \xAB\u0639\u0648\u062F\u0629\xBB (I1) \u0648\u0645\u062E\u0631\u062C\u0627\u0646: Set \u0639\u0644\u0649 Q0 \u0648 Set \u0639\u0644\u0649 Q1. \u0627\u0644\u0633\u0628\u0628: \xAB\u0639\u0648\u062F\u0629\xBB \u062A\u064F\u0636\u064A\u0621 \u0627\u0644\u0645\u062F\u062E\u0644 \u0648\u0627\u0644\u062C\u0644\u0648\u0633 \u0648\u064A\u062C\u0628 \u0623\u0646 \u062A\u0628\u0642\u0649 \u0627\u0644\u0623\u0636\u0648\u0627\u0621 \u0645\u0636\u0627\u0621\u0629.",
+    "La scena Cena": "\u0645\u0634\u0647\u062F \xAB\u0639\u0634\u0627\u0621\xBB",
+    "Un gradino con il contatto Cena (I2): Reset su Q0 e Set su Q1.": "\u062F\u0631\u062C\u0629 \u0641\u064A\u0647\u0627 \u0645\u0644\u0627\u0645\u0633 \xAB\u0639\u0634\u0627\u0621\xBB (I2): Reset \u0639\u0644\u0649 Q0 \u0648 Set \u0639\u0644\u0649 Q1.",
+    "La scena Esco": "\u0645\u0634\u0647\u062F \xAB\u062E\u0631\u0648\u062C\xBB",
+    "Un gradino con il contatto Esco (I0): Reset su Q0 e Reset su Q1.": "\u062F\u0631\u062C\u0629 \u0641\u064A\u0647\u0627 \u0645\u0644\u0627\u0645\u0633 \xAB\u062E\u0631\u0648\u062C\xBB (I0): Reset \u0639\u0644\u0649 Q0 \u0648 Reset \u0639\u0644\u0649 Q1.",
+    "Prova le scene": "\u062C\u0631\u0651\u0628 \u0627\u0644\u0645\u0634\u0627\u0647\u062F",
+    "Premi Torno, poi Cena, poi Esco: guarda come cambiano le luci.": "\u0627\u0636\u063A\u0637 \xAB\u0639\u0648\u062F\u0629\xBB \u062B\u0645 \xAB\u0639\u0634\u0627\u0621\xBB \u062B\u0645 \xAB\u062E\u0631\u0648\u062C\xBB: \u0631\u0627\u0642\u0628 \u0643\u064A\u0641 \u062A\u062A\u063A\u064A\u0631 \u0627\u0644\u0623\u0636\u0648\u0627\u0621.",
+    "Una scena \xE8 un gradino che cambia pi\xF9 uscite con un solo tasto.": "\u0627\u0644\u0645\u0634\u0647\u062F \u062F\u0631\u062C\u0629 \u062A\u063A\u064A\u0651\u0631 \u0639\u062F\u0629 \u0645\u062E\u0627\u0631\u062C \u0628\u0632\u0631 \u0648\u0627\u062D\u062F.",
+    "Set accende e ricorda, Reset spegne e ricorda: la scena resta anche a tasto rilasciato.": "Set \u064A\u064F\u0634\u063A\u0651\u0644 \u0648\u064A\u062A\u0630\u0643\u0651\u0631\u060C \u0648 Reset \u064A\u064F\u0637\u0641\u0626 \u0648\u064A\u062A\u0630\u0643\u0651\u0631: \u064A\u0628\u0642\u0649 \u0627\u0644\u0645\u0634\u0647\u062F \u062D\u062A\u0649 \u0628\u0639\u062F \u062A\u062D\u0631\u064A\u0631 \u0627\u0644\u0632\u0631.",
+    "Una bobina semplice segue il tasto e si spegne quando lo rilasci.": "\u0627\u0644\u0645\u0644\u0641 \u0627\u0644\u0628\u0633\u064A\u0637 \u064A\u062A\u0628\u0639 \u0627\u0644\u0632\u0631 \u0648\u064A\u0646\u0637\u0641\u0626 \u0639\u0646\u062F \u062A\u062D\u0631\u064A\u0631\u0647.",
+    "Un solo tasto pu\xF2 avere pi\xF9 istruzioni nello stesso gradino.": "\u064A\u0645\u0643\u0646 \u0644\u0632\u0631 \u0648\u0627\u062D\u062F \u0623\u0646 \u064A\u0645\u0644\u0643 \u0639\u062F\u0629 \u062A\u0639\u0644\u064A\u0645\u0627\u062A \u0641\u064A \u0627\u0644\u062F\u0631\u062C\u0629 \u0646\u0641\u0633\u0647\u0627.",
+    // c50 allarme
+    "Allarme fumo e allagamento": "\u0625\u0646\u0630\u0627\u0631 \u0627\u0644\u062F\u062E\u0627\u0646 \u0648\u0627\u0644\u0641\u064A\u0636\u0627\u0646",
+    "La sirena parte e non si ferma da sola: bisogna tacitarla, e solo quando il pericolo \xE8 passato.": "\u062A\u0646\u0637\u0644\u0642 \u0627\u0644\u0635\u0641\u0651\u0627\u0631\u0629 \u0648\u0644\u0627 \u062A\u062A\u0648\u0642\u0641 \u0648\u062D\u062F\u0647\u0627: \u064A\u062C\u0628 \u0643\u062A\u0645\u0647\u0627\u060C \u0648\u0641\u0642\u0637 \u0628\u0639\u062F \u0632\u0648\u0627\u0644 \u0627\u0644\u062E\u0637\u0631.",
+    "Un rilevatore di fumo e una sonda di allagamento chiudono ciascuno un contatto. Se uno dei due scatta suona la sirena, e deve continuare a suonare anche quando il fumo o l\u2019acqua spariscono: un allarme che si spegne da solo nasconde l\u2019evento. Il tasto di tacitazione la ferma, ma solo se i sensori sono tornati a riposo.": "\u0643\u0627\u0634\u0641 \u0627\u0644\u062F\u062E\u0627\u0646 \u0648\u0645\u0633\u0628\u0627\u0631 \u0627\u0644\u0641\u064A\u0636\u0627\u0646 \u064A\u063A\u0644\u0642 \u0643\u0644 \u0645\u0646\u0647\u0645\u0627 \u0645\u0644\u0627\u0645\u0633\u064B\u0627. \u0625\u0630\u0627 \u0639\u0645\u0644 \u0623\u062D\u062F\u0647\u0645\u0627 \u062A\u0646\u0637\u0644\u0642 \u0627\u0644\u0635\u0641\u0651\u0627\u0631\u0629 \u0648\u064A\u062C\u0628 \u0623\u0646 \u062A\u0633\u062A\u0645\u0631 \u062D\u062A\u0649 \u0628\u0639\u062F \u0632\u0648\u0627\u0644 \u0627\u0644\u062F\u062E\u0627\u0646 \u0623\u0648 \u0627\u0644\u0645\u0627\u0621: \u0627\u0644\u0625\u0646\u0630\u0627\u0631 \u0627\u0644\u0630\u064A \u064A\u0646\u0637\u0641\u0626 \u0648\u062D\u062F\u0647 \u064A\u064F\u062E\u0641\u064A \u0627\u0644\u062D\u062F\u062B. \u0632\u0631 \u0627\u0644\u0643\u062A\u0645 \u064A\u0648\u0642\u0641\u0647\u0627 \u0644\u0643\u0646 \u0641\u0642\u0637 \u0625\u0630\u0627 \u0639\u0627\u062F\u062A \u0627\u0644\u062D\u0633\u0651\u0627\u0633\u0627\u062A \u0625\u0644\u0649 \u062D\u0627\u0644\u0629 \u0627\u0644\u0631\u0627\u062D\u0629.",
+    "Rilevatore fumo": "\u0643\u0627\u0634\u0641 \u0627\u0644\u062F\u062E\u0627\u0646",
+    "Rilevatore di fumo (chiude se vede fumo)": "\u0643\u0627\u0634\u0641 \u0627\u0644\u062F\u062E\u0627\u0646 (\u064A\u063A\u0644\u0642 \u0625\u0630\u0627 \u0631\u0623\u0649 \u062F\u062E\u0627\u0646\u064B\u0627)",
+    "Sonda allagamento": "\u0645\u0633\u0628\u0627\u0631 \u0627\u0644\u0641\u064A\u0636\u0627\u0646",
+    "Sonda di allagamento (chiude se vede acqua)": "\u0645\u0633\u0628\u0627\u0631 \u0627\u0644\u0641\u064A\u0636\u0627\u0646 (\u064A\u063A\u0644\u0642 \u0625\u0630\u0627 \u0631\u0623\u0649 \u0645\u0627\u0621\u064B)",
+    "Tacitazione": "\u0627\u0644\u0643\u062A\u0645",
+    "Tasto di tacitazione (NC)": "\u0632\u0631 \u0627\u0644\u0643\u062A\u0645 (NC)",
+    "Tasto di tacitazione (NC), tieni premuto": "\u0632\u0631 \u0627\u0644\u0643\u062A\u0645 (NC)\u060C \u0627\u0633\u062A\u0645\u0631 \u0641\u064A \u0627\u0644\u0636\u063A\u0637",
+    "Rel\xE8 allarme": "\u0645\u0631\u062D\u0651\u0644 \u0627\u0644\u0625\u0646\u0630\u0627\u0631",
+    "Rel\xE8 dell\u2019allarme": "\u0645\u0631\u062D\u0651\u0644 \u0627\u0644\u0625\u0646\u0630\u0627\u0631",
+    "Sirena 230 V": "\u0635\u0641\u0651\u0627\u0631\u0629 \u0625\u0646\u0630\u0627\u0631 230 \u0641\u0648\u0644\u062A",
+    "Fumo": "\u0627\u0644\u062F\u062E\u0627\u0646",
+    "Acqua": "\u0627\u0644\u0645\u0627\u0621",
+    "Memoria": "\u0627\u0644\u0630\u0627\u0643\u0631\u0629",
+    "Il fumo sparisce ma la sirena continua a suonare": "\u064A\u0632\u0648\u0644 \u0627\u0644\u062F\u062E\u0627\u0646 \u0644\u0643\u0646 \u0627\u0644\u0635\u0641\u0651\u0627\u0631\u0629 \u062A\u0648\u0627\u0635\u0644 \u0627\u0644\u0631\u0646\u064A\u0646",
+    "Il rilevatore vede fumo: la sirena suona": "\u0643\u0627\u0634\u0641 \u0627\u0644\u062F\u062E\u0627\u0646 \u064A\u0631\u0649 \u062F\u062E\u0627\u0646\u064B\u0627: \u062A\u0646\u0637\u0644\u0642 \u0627\u0644\u0635\u0641\u0651\u0627\u0631\u0629",
+    "La sonda vede acqua: la sirena suona": "\u0627\u0644\u0645\u0633\u0628\u0627\u0631 \u064A\u0631\u0649 \u0645\u0627\u0621\u064B: \u062A\u0646\u0637\u0644\u0642 \u0627\u0644\u0635\u0641\u0651\u0627\u0631\u0629",
+    "Senza fumo n\xE9 acqua la sirena \xE8 silenziosa": "\u062F\u0648\u0646 \u062F\u062E\u0627\u0646 \u0623\u0648 \u0645\u0627\u0621 \u062A\u0643\u0648\u0646 \u0627\u0644\u0635\u0641\u0651\u0627\u0631\u0629 \u0635\u0627\u0645\u062A\u0629",
+    "Con il pericolo passato, il tasto di tacitazione ferma la sirena": "\u0628\u0639\u062F \u0632\u0648\u0627\u0644 \u0627\u0644\u062E\u0637\u0631\u060C \u064A\u0648\u0642\u0641 \u0632\u0631 \u0627\u0644\u0643\u062A\u0645 \u0627\u0644\u0635\u0641\u0651\u0627\u0631\u0629",
+    "Se il fumo c\u2019\xE8 ancora, la tacitazione non basta: la sirena riparte": "\u0625\u0630\u0627 \u0628\u0642\u064A \u0627\u0644\u062F\u062E\u0627\u0646 \u0641\u0627\u0644\u0643\u062A\u0645 \u0644\u0627 \u064A\u0643\u0641\u064A: \u062A\u0639\u0648\u062F \u0627\u0644\u0635\u0641\u0651\u0627\u0631\u0629 \u0625\u0644\u0649 \u0627\u0644\u0631\u0646\u064A\u0646",
+    "I due sensori sono in parallelo: basta che uno solo chiuda per dare l\u2019allarme. Poi il rel\xE8 KA li tiene.": "\u0627\u0644\u062D\u0633\u0651\u0627\u0633\u0627\u0646 \u0639\u0644\u0649 \u0627\u0644\u062A\u0648\u0627\u0632\u064A: \u064A\u0643\u0641\u064A \u0623\u0646 \u064A\u064F\u063A\u0644\u0642 \u0623\u062D\u062F\u0647\u0645\u0627 \u0648\u062D\u062F\u0647 \u0644\u0625\u0639\u0637\u0627\u0621 \u0627\u0644\u0625\u0646\u0630\u0627\u0631. \u062B\u0645 \u064A\u062D\u062A\u0641\u0638 \u0627\u0644\u0645\u0631\u062D\u0651\u0644 KA \u0628\u0627\u0644\u062D\u0627\u0644\u0629.",
+    "La memoria \xE8 un\u2019autoritenuta: il contatto 11-14 del rel\xE8 riporta la fase alla sua stessa bobina A1, quindi, una volta scattato, il rel\xE8 resta eccitato.": "\u0627\u0644\u0630\u0627\u0643\u0631\u0629 \u0647\u064A \u062A\u062B\u0628\u064A\u062A \u0630\u0627\u062A\u064A: \u0645\u0644\u0627\u0645\u0633 \u0627\u0644\u0645\u0631\u062D\u0651\u0644 11-14 \u064A\u0639\u064A\u062F \u0627\u0644\u0637\u0648\u0631 \u0625\u0644\u0649 \u0645\u0644\u0641\u0647 A1 \u0646\u0641\u0633\u0647\u060C \u0648\u0628\u0627\u0644\u062A\u0627\u0644\u064A \u064A\u0628\u0642\u0649 \u0627\u0644\u0645\u0631\u062D\u0651\u0644 \u0645\u064F\u062B\u0627\u0631\u064B\u0627 \u0628\u0639\u062F \u0623\u0646 \u064A\u0639\u0645\u0644.",
+    "La tacitazione \xE8 un contatto normalmente chiuso messo in testa a tutto: premendolo si toglie la fase ai sensori e alla memoria. La sirena si alimenta dalla stessa linea di A1.": "\u0627\u0644\u0643\u062A\u0645 \u0645\u0644\u0627\u0645\u0633 \u0645\u063A\u0644\u0642 \u0639\u0627\u062F\u0629\u064B \u0645\u0648\u0636\u0648\u0639 \u0641\u064A \u0623\u0648\u0644 \u0643\u0644 \u0634\u064A\u0621: \u0628\u0627\u0644\u0636\u063A\u0637 \u0639\u0644\u064A\u0647 \u064A\u064F\u0632\u0627\u0644 \u0627\u0644\u0637\u0648\u0631 \u0639\u0646 \u0627\u0644\u062D\u0633\u0651\u0627\u0633\u0627\u062A \u0648\u0639\u0646 \u0627\u0644\u0630\u0627\u0643\u0631\u0629. \u0648\u062A\u062A\u063A\u0630\u0649 \u0627\u0644\u0635\u0641\u0651\u0627\u0631\u0629 \u0645\u0646 \u062E\u0637 A1 \u0646\u0641\u0633\u0647.",
+    "Un allarme che si ricorda": "\u0625\u0646\u0630\u0627\u0631 \u064A\u062A\u0630\u0643\u0651\u0631",
+    "Un rilevatore di fumo e una sonda di allagamento chiudono un contatto quando vedono il pericolo. Se la sirena seguisse quel contatto, si spegnerebbe appena il fumo si dirada: l\u2019evento sparirebbe senza che nessuno lo sappia.": "\u0643\u0627\u0634\u0641 \u0627\u0644\u062F\u062E\u0627\u0646 \u0648\u0645\u0633\u0628\u0627\u0631 \u0627\u0644\u0641\u064A\u0636\u0627\u0646 \u064A\u063A\u0644\u0642\u0627\u0646 \u0645\u0644\u0627\u0645\u0633\u064B\u0627 \u0639\u0646\u062F\u0645\u0627 \u064A\u0631\u064A\u0627\u0646 \u0627\u0644\u062E\u0637\u0631. \u0644\u0648 \u062A\u0628\u0639\u062A \u0627\u0644\u0635\u0641\u0651\u0627\u0631\u0629 \u0630\u0644\u0643 \u0627\u0644\u0645\u0644\u0627\u0645\u0633 \u0644\u0627\u0646\u0637\u0641\u0623\u062A \u0641\u0648\u0631 \u0627\u0646\u0642\u0634\u0627\u0639 \u0627\u0644\u062F\u062E\u0627\u0646: \u0648\u0644\u0627\u062E\u062A\u0641\u0649 \u0627\u0644\u062D\u062F\u062B \u062F\u0648\u0646 \u0623\u0646 \u064A\u0639\u0644\u0645 \u0628\u0647 \u0623\u062D\u062F.",
+    "Per questo l\u2019allarme ha una memoria: un rel\xE8 con l\u2019autoritenuta. Una volta scattato resta eccitato, anche se il sensore torna a riposo. Si ferma solo con il tasto di tacitazione, che \xE8 un contatto normalmente chiuso messo in testa al circuito.": "\u0644\u0630\u0644\u0643 \u064A\u0645\u0644\u0643 \u0627\u0644\u0625\u0646\u0630\u0627\u0631 \u0630\u0627\u0643\u0631\u0629: \u0645\u0631\u062D\u0651\u0644 \u0645\u0639 \u062A\u062B\u0628\u064A\u062A \u0630\u0627\u062A\u064A. \u0628\u0639\u062F \u0623\u0646 \u064A\u0639\u0645\u0644 \u064A\u0628\u0642\u0649 \u0645\u064F\u062B\u0627\u0631\u064B\u0627 \u062D\u062A\u0649 \u0644\u0648 \u0639\u0627\u062F \u0627\u0644\u062D\u0633\u0651\u0627\u0633 \u0625\u0644\u0649 \u0627\u0644\u0631\u0627\u062D\u0629. \u0648\u0644\u0627 \u064A\u062A\u0648\u0642\u0641 \u0625\u0644\u0627 \u0628\u0632\u0631 \u0627\u0644\u0643\u062A\u0645\u060C \u0648\u0647\u0648 \u0645\u0644\u0627\u0645\u0633 \u0645\u063A\u0644\u0642 \u0639\u0627\u062F\u0629\u064B \u0645\u0648\u0636\u0648\u0639 \u0641\u064A \u0623\u0648\u0644 \u0627\u0644\u062F\u0627\u0626\u0631\u0629.",
+    "Sensori in parallelo e memoria": "\u062D\u0633\u0651\u0627\u0633\u0627\u062A \u0639\u0644\u0649 \u0627\u0644\u062A\u0648\u0627\u0632\u064A \u0648\u0630\u0627\u0643\u0631\u0629",
+    "I due sensori sono in parallelo: basta uno per dare l\u2019allarme. Dal loro lato comune la fase arriva dal tasto di tacitazione.": "\u0627\u0644\u062D\u0633\u0651\u0627\u0633\u0627\u0646 \u0639\u0644\u0649 \u0627\u0644\u062A\u0648\u0627\u0632\u064A: \u064A\u0643\u0641\u064A \u0648\u0627\u062D\u062F \u0644\u0625\u0639\u0637\u0627\u0621 \u0627\u0644\u0625\u0646\u0630\u0627\u0631. \u0648\u0639\u0644\u0649 \u0627\u0644\u062C\u0627\u0646\u0628 \u0627\u0644\u0645\u0634\u062A\u0631\u0643 \u0628\u064A\u0646\u0647\u0645\u0627 \u064A\u0635\u0644 \u0627\u0644\u0637\u0648\u0631 \u0645\u0646 \u0632\u0631 \u0627\u0644\u0643\u062A\u0645.",
+    "Il rel\xE8 KA ha la bobina A1-A2. Il suo contatto 11-14 riporta la fase alla bobina stessa: \xE8 l\u2019autoritenuta. La sirena si alimenta dalla stessa linea della bobina.": "\u0644\u0644\u0645\u0631\u062D\u0651\u0644 KA \u0645\u0644\u0641 A1-A2. \u0648\u0645\u0644\u0627\u0645\u0633\u0647 11-14 \u064A\u0639\u064A\u062F \u0627\u0644\u0637\u0648\u0631 \u0625\u0644\u0649 \u0627\u0644\u0645\u0644\u0641 \u0646\u0641\u0633\u0647: \u0647\u0630\u0627 \u0647\u0648 \u0627\u0644\u062A\u062B\u0628\u064A\u062A \u0627\u0644\u0630\u0627\u062A\u064A. \u0648\u062A\u062A\u063A\u0630\u0649 \u0627\u0644\u0635\u0641\u0651\u0627\u0631\u0629 \u0645\u0646 \u062E\u0637 \u0627\u0644\u0645\u0644\u0641 \u0646\u0641\u0633\u0647.",
+    "La fase dal quadro al tasto di tacitazione: \xE8 in testa a tutto.": "\u0627\u0644\u0637\u0648\u0631 \u0645\u0646 \u0627\u0644\u0644\u0648\u062D\u0629 \u0625\u0644\u0649 \u0632\u0631 \u0627\u0644\u0643\u062A\u0645: \u0648\u0647\u0648 \u0641\u064A \u0623\u0648\u0644 \u0643\u0644 \u0634\u064A\u0621.",
+    "Dalla tacitazione al rilevatore di fumo.": "\u0645\u0646 \u0627\u0644\u0643\u062A\u0645 \u0625\u0644\u0649 \u0643\u0627\u0634\u0641 \u0627\u0644\u062F\u062E\u0627\u0646.",
+    "Dalla tacitazione anche alla sonda di allagamento: i due sensori sono in parallelo.": "\u0645\u0646 \u0627\u0644\u0643\u062A\u0645 \u0623\u064A\u0636\u064B\u0627 \u0625\u0644\u0649 \u0645\u0633\u0628\u0627\u0631 \u0627\u0644\u0641\u064A\u0636\u0627\u0646: \u0627\u0644\u062D\u0633\u0651\u0627\u0633\u0627\u0646 \u0639\u0644\u0649 \u0627\u0644\u062A\u0648\u0627\u0632\u064A.",
+    "Dalla tacitazione al contatto 11 del rel\xE8: da qui parte l\u2019autoritenuta.": "\u0645\u0646 \u0627\u0644\u0643\u062A\u0645 \u0625\u0644\u0649 \u0627\u0644\u0645\u0644\u0627\u0645\u0633 11 \u0641\u064A \u0627\u0644\u0645\u0631\u062D\u0651\u0644: \u0645\u0646 \u0647\u0646\u0627 \u064A\u0628\u062F\u0623 \u0627\u0644\u062A\u062B\u0628\u064A\u062A \u0627\u0644\u0630\u0627\u062A\u064A.",
+    "Dal rilevatore alla bobina del rel\xE8 (morsetto A1).": "\u0645\u0646 \u0627\u0644\u0643\u0627\u0634\u0641 \u0625\u0644\u0649 \u0645\u0644\u0641 \u0627\u0644\u0645\u0631\u062D\u0651\u0644 (\u0627\u0644\u0645\u0631\u0628\u0637 A1).",
+    "Dalla sonda alla stessa bobina.": "\u0645\u0646 \u0627\u0644\u0645\u0633\u0628\u0627\u0631 \u0625\u0644\u0649 \u0627\u0644\u0645\u0644\u0641 \u0646\u0641\u0633\u0647.",
+    "Dal contatto 14 alla bobina: l\u2019autoritenuta, una volta scattato il rel\xE8 si tiene da solo.": "\u0645\u0646 \u0627\u0644\u0645\u0644\u0627\u0645\u0633 14 \u0625\u0644\u0649 \u0627\u0644\u0645\u0644\u0641: \u0627\u0644\u062A\u062B\u0628\u064A\u062A \u0627\u0644\u0630\u0627\u062A\u064A\u060C \u0641\u0628\u0639\u062F \u0623\u0646 \u064A\u0639\u0645\u0644 \u0627\u0644\u0645\u0631\u062D\u0651\u0644 \u064A\u0645\u0633\u0643 \u0646\u0641\u0633\u0647 \u0648\u062D\u062F\u0647.",
+    "Dalla linea della bobina alla sirena.": "\u0645\u0646 \u062E\u0637 \u0627\u0644\u0645\u0644\u0641 \u0625\u0644\u0649 \u0627\u0644\u0635\u0641\u0651\u0627\u0631\u0629.",
+    "Filo blu dalla sirena al neutro.": "\u0633\u0644\u0643 \u0623\u0632\u0631\u0642 \u0645\u0646 \u0627\u0644\u0635\u0641\u0651\u0627\u0631\u0629 \u0625\u0644\u0649 \u0627\u0644\u0645\u062D\u0627\u064A\u062F.",
+    "Levetta su: tutto a riposo, la sirena \xE8 silenziosa.": "\u0630\u0631\u0627\u0639 \u0627\u0644\u0644\u0648\u062D\u0629 \u0645\u0631\u0641\u0648\u0639: \u0643\u0644 \u0634\u064A\u0621 \u0641\u064A \u062D\u0627\u0644\u0629 \u0627\u0644\u0631\u0627\u062D\u0629 \u0648\u0627\u0644\u0635\u0641\u0651\u0627\u0631\u0629 \u0635\u0627\u0645\u062A\u0629.",
+    "Il rilevatore vede fumo: la sirena parte.": "\u0643\u0627\u0634\u0641 \u0627\u0644\u062F\u062E\u0627\u0646 \u064A\u0631\u0649 \u062F\u062E\u0627\u0646\u064B\u0627: \u062A\u0646\u0637\u0644\u0642 \u0627\u0644\u0635\u0641\u0651\u0627\u0631\u0629.",
+    "Il fumo \xE8 sparito, ma la sirena continua: il rel\xE8 ha la memoria.": "\u0627\u0644\u062F\u062E\u0627\u0646 \u0632\u0627\u0644 \u0644\u0643\u0646 \u0627\u0644\u0635\u0641\u0651\u0627\u0631\u0629 \u0645\u0633\u062A\u0645\u0631\u0629: \u0627\u0644\u0645\u0631\u062D\u0651\u0644 \u064A\u0645\u0644\u0643 \u0630\u0627\u0643\u0631\u0629.",
+    "Il tasto di tacitazione ferma la sirena.": "\u0632\u0631 \u0627\u0644\u0643\u062A\u0645 \u064A\u0648\u0642\u0641 \u0627\u0644\u0635\u0641\u0651\u0627\u0631\u0629.",
+    "Hai tolto l\u2019autoritenuta. Il fumo compare e poi si dirada. Che cosa fa la sirena?": "\u0623\u0632\u0644\u062A \u0627\u0644\u062A\u062B\u0628\u064A\u062A \u0627\u0644\u0630\u0627\u062A\u064A. \u064A\u0638\u0647\u0631 \u0627\u0644\u062F\u062E\u0627\u0646 \u062B\u0645 \u064A\u0646\u0642\u0634\u0639. \u0645\u0627\u0630\u0627 \u062A\u0641\u0639\u0644 \u0627\u0644\u0635\u0641\u0651\u0627\u0631\u0629\u061F",
+    "Continua a suonare finch\xE9 non premi la tacitazione.": "\u062A\u0648\u0627\u0635\u0644 \u0627\u0644\u0631\u0646\u064A\u0646 \u062D\u062A\u0649 \u062A\u0636\u063A\u0637 \u0632\u0631 \u0627\u0644\u0643\u062A\u0645.",
+    "Si spegne appena il fumo sparisce, e nessuno sa che c\u2019\xE8 stato un allarme.": "\u062A\u0646\u0637\u0641\u0626 \u0641\u0648\u0631 \u0632\u0648\u0627\u0644 \u0627\u0644\u062F\u062E\u0627\u0646 \u0648\u0644\u0627 \u0623\u062D\u062F \u064A\u0639\u0644\u0645 \u0623\u0646\u0647 \u0643\u0627\u0646 \u0647\u0646\u0627\u0643 \u0625\u0646\u0630\u0627\u0631.",
+    "Non suona mai.": "\u0644\u0627 \u062A\u0631\u0646\u0651 \u0623\u0628\u062F\u064B\u0627.",
+    "Senza memoria la sirena segue il sensore e si ferma appena il fumo sparisce. L\u2019autoritenuta tiene il rel\xE8 eccitato: l\u2019allarme resta finch\xE9 qualcuno lo tacita.": "\u062F\u0648\u0646 \u0630\u0627\u0643\u0631\u0629 \u062A\u062A\u0628\u0639 \u0627\u0644\u0635\u0641\u0651\u0627\u0631\u0629 \u0627\u0644\u062D\u0633\u0651\u0627\u0633 \u0648\u062A\u062A\u0648\u0642\u0641 \u0641\u0648\u0631 \u0632\u0648\u0627\u0644 \u0627\u0644\u062F\u062E\u0627\u0646. \u0627\u0644\u062A\u062B\u0628\u064A\u062A \u0627\u0644\u0630\u0627\u062A\u064A \u064A\u064F\u0628\u0642\u064A \u0627\u0644\u0645\u0631\u062D\u0651\u0644 \u0645\u064F\u062B\u0627\u0631\u064B\u0627: \u064A\u0628\u0642\u0649 \u0627\u0644\u0625\u0646\u0630\u0627\u0631 \u062D\u062A\u0649 \u064A\u0643\u062A\u0645\u0647 \u0623\u062D\u062F.",
+    "La fase alla tacitazione": "\u0627\u0644\u0637\u0648\u0631 \u0625\u0644\u0649 \u0627\u0644\u0643\u062A\u0645",
+    "Dalla FASE del quadro al morsetto 1 del tasto di tacitazione.": "\u0645\u0646 \u0627\u0644\u0637\u0648\u0631 \u0641\u064A \u0627\u0644\u0644\u0648\u062D\u0629 \u0625\u0644\u0649 \u0627\u0644\u0645\u0631\u0628\u0637 1 \u0641\u064A \u0632\u0631 \u0627\u0644\u0643\u062A\u0645.",
+    "Al rilevatore di fumo": "\u0625\u0644\u0649 \u0643\u0627\u0634\u0641 \u0627\u0644\u062F\u062E\u0627\u0646",
+    "Dal morsetto 2 della tacitazione al morsetto 1 del rilevatore di fumo.": "\u0645\u0646 \u0627\u0644\u0645\u0631\u0628\u0637 2 \u0641\u064A \u0627\u0644\u0643\u062A\u0645 \u0625\u0644\u0649 \u0627\u0644\u0645\u0631\u0628\u0637 1 \u0641\u064A \u0643\u0627\u0634\u0641 \u0627\u0644\u062F\u062E\u0627\u0646.",
+    "Alla sonda di allagamento": "\u0625\u0644\u0649 \u0645\u0633\u0628\u0627\u0631 \u0627\u0644\u0641\u064A\u0636\u0627\u0646",
+    "Dal morsetto 2 della tacitazione al morsetto 1 della sonda.": "\u0645\u0646 \u0627\u0644\u0645\u0631\u0628\u0637 2 \u0641\u064A \u0627\u0644\u0643\u062A\u0645 \u0625\u0644\u0649 \u0627\u0644\u0645\u0631\u0628\u0637 1 \u0641\u064A \u0627\u0644\u0645\u0633\u0628\u0627\u0631.",
+    "Al contatto del rel\xE8": "\u0625\u0644\u0649 \u0645\u0644\u0627\u0645\u0633 \u0627\u0644\u0645\u0631\u062D\u0651\u0644",
+    "Dal morsetto 2 della tacitazione al morsetto 11 del rel\xE8.": "\u0645\u0646 \u0627\u0644\u0645\u0631\u0628\u0637 2 \u0641\u064A \u0627\u0644\u0643\u062A\u0645 \u0625\u0644\u0649 \u0627\u0644\u0645\u0631\u0628\u0637 11 \u0641\u064A \u0627\u0644\u0645\u0631\u062D\u0651\u0644.",
+    "Il rilevatore alla bobina": "\u0627\u0644\u0643\u0627\u0634\u0641 \u0625\u0644\u0649 \u0627\u0644\u0645\u0644\u0641",
+    "Dal morsetto 2 del rilevatore al morsetto A1 del rel\xE8.": "\u0645\u0646 \u0627\u0644\u0645\u0631\u0628\u0637 2 \u0641\u064A \u0627\u0644\u0643\u0627\u0634\u0641 \u0625\u0644\u0649 \u0627\u0644\u0645\u0631\u0628\u0637 A1 \u0641\u064A \u0627\u0644\u0645\u0631\u062D\u0651\u0644.",
+    "La sonda alla bobina": "\u0627\u0644\u0645\u0633\u0628\u0627\u0631 \u0625\u0644\u0649 \u0627\u0644\u0645\u0644\u0641",
+    "Dal morsetto 2 della sonda al morsetto A1 del rel\xE8.": "\u0645\u0646 \u0627\u0644\u0645\u0631\u0628\u0637 2 \u0641\u064A \u0627\u0644\u0645\u0633\u0628\u0627\u0631 \u0625\u0644\u0649 \u0627\u0644\u0645\u0631\u0628\u0637 A1 \u0641\u064A \u0627\u0644\u0645\u0631\u062D\u0651\u0644.",
+    "Dal morsetto 14 del rel\xE8 al suo morsetto A1.": "\u0645\u0646 \u0627\u0644\u0645\u0631\u0628\u0637 14 \u0641\u064A \u0627\u0644\u0645\u0631\u062D\u0651\u0644 \u0625\u0644\u0649 \u0645\u0631\u0628\u0637\u0647 A1.",
+    "Alla sirena": "\u0625\u0644\u0649 \u0627\u0644\u0635\u0641\u0651\u0627\u0631\u0629",
+    "Dal morsetto A1 del rel\xE8 a un morsetto della sirena.": "\u0645\u0646 \u0627\u0644\u0645\u0631\u0628\u0637 A1 \u0641\u064A \u0627\u0644\u0645\u0631\u062D\u0651\u0644 \u0625\u0644\u0649 \u0623\u062D\u062F \u0645\u0631\u0628\u0637\u064A \u0627\u0644\u0635\u0641\u0651\u0627\u0631\u0629.",
+    "Il neutro alla sirena": "\u0627\u0644\u0645\u062D\u0627\u064A\u062F \u0625\u0644\u0649 \u0627\u0644\u0635\u0641\u0651\u0627\u0631\u0629",
+    "Dal NEUTRO all\u2019altro morsetto della sirena.": "\u0645\u0646 \u0627\u0644\u0645\u062D\u0627\u064A\u062F \u0625\u0644\u0649 \u0627\u0644\u0645\u0631\u0628\u0637 \u0627\u0644\u0622\u062E\u0631 \u0641\u064A \u0627\u0644\u0635\u0641\u0651\u0627\u0631\u0629.",
+    "Prova l\u2019allarme": "\u062C\u0631\u0651\u0628 \u0627\u0644\u0625\u0646\u0630\u0627\u0631",
+    "Simula il fumo, poi toglilo: la sirena continua. Premi la tacitazione per fermarla.": "\u062D\u0627\u0643\u0650 \u0627\u0644\u062F\u062E\u0627\u0646 \u062B\u0645 \u0623\u0632\u0650\u0644\u0647: \u062A\u0633\u062A\u0645\u0631 \u0627\u0644\u0635\u0641\u0651\u0627\u0631\u0629. \u0627\u0636\u063A\u0637 \u0632\u0631 \u0627\u0644\u0643\u062A\u0645 \u0644\u0625\u064A\u0642\u0627\u0641\u0647\u0627.",
+    "Due sensori in parallelo: basta uno per dare l\u2019allarme.": "\u062D\u0633\u0651\u0627\u0633\u0627\u0646 \u0639\u0644\u0649 \u0627\u0644\u062A\u0648\u0627\u0632\u064A: \u064A\u0643\u0641\u064A \u0648\u0627\u062D\u062F \u0644\u0625\u0639\u0637\u0627\u0621 \u0627\u0644\u0625\u0646\u0630\u0627\u0631.",
+    "L\u2019autoritenuta d\xE0 la memoria: la sirena continua anche se il pericolo sparisce.": "\u0627\u0644\u062A\u062B\u0628\u064A\u062A \u0627\u0644\u0630\u0627\u062A\u064A \u064A\u0639\u0637\u064A \u0627\u0644\u0630\u0627\u0643\u0631\u0629: \u062A\u0633\u062A\u0645\u0631 \u0627\u0644\u0635\u0641\u0651\u0627\u0631\u0629 \u062D\u062A\u0649 \u0644\u0648 \u0632\u0627\u0644 \u0627\u0644\u062E\u0637\u0631.",
+    "La tacitazione \xE8 un contatto normalmente chiuso in testa al circuito: premuto, toglie tensione a tutto.": "\u0627\u0644\u0643\u062A\u0645 \u0645\u0644\u0627\u0645\u0633 \u0645\u063A\u0644\u0642 \u0639\u0627\u062F\u0629\u064B \u0641\u064A \u0623\u0648\u0644 \u0627\u0644\u062F\u0627\u0626\u0631\u0629: \u0639\u0646\u062F \u0636\u063A\u0637\u0647 \u064A\u0642\u0637\u0639 \u0627\u0644\u062C\u0647\u062F \u0639\u0646 \u0643\u0644 \u0634\u064A\u0621.",
+    "Se il sensore \xE8 ancora attivo, la tacitazione non basta: appena la rilasci l\u2019allarme riparte.": "\u0625\u0630\u0627 \u0643\u0627\u0646 \u0627\u0644\u062D\u0633\u0651\u0627\u0633 \u0645\u0627 \u0632\u0627\u0644 \u0641\u0639\u0651\u0627\u0644\u064B\u0627 \u0641\u0627\u0644\u0643\u062A\u0645 \u0644\u0627 \u064A\u0643\u0641\u064A: \u0641\u0648\u0631 \u062A\u062D\u0631\u064A\u0631\u0647 \u064A\u0639\u0648\u062F \u0627\u0644\u0625\u0646\u0630\u0627\u0631.",
+    "L\u2019impianto \xE8 cablato e la sirena suona quando il rilevatore vede fumo. Ma quando il fumo si dirada la sirena si spegne da sola. Guarda il rel\xE8 dell\u2019allarme.": "\u0627\u0644\u062A\u0645\u062F\u064A\u062F \u0645\u0646\u0641\u064E\u0651\u0630 \u0648\u062A\u0646\u0637\u0644\u0642 \u0627\u0644\u0635\u0641\u0651\u0627\u0631\u0629 \u0639\u0646\u062F\u0645\u0627 \u064A\u0631\u0649 \u0627\u0644\u0643\u0627\u0634\u0641 \u062F\u062E\u0627\u0646\u064B\u0627. \u0644\u0643\u0646 \u0639\u0646\u062F\u0645\u0627 \u064A\u0646\u0642\u0634\u0639 \u0627\u0644\u062F\u062E\u0627\u0646 \u062A\u0646\u0637\u0641\u0626 \u0627\u0644\u0635\u0641\u0651\u0627\u0631\u0629 \u0648\u062D\u062F\u0647\u0627. \u0627\u0646\u0638\u0631 \u0625\u0644\u0649 \u0645\u0631\u062D\u0651\u0644 \u0627\u0644\u0625\u0646\u0630\u0627\u0631.",
+    "Perch\xE9 la sirena si ferma da sola?": "\u0644\u0645\u0627\u0630\u0627 \u062A\u062A\u0648\u0642\u0641 \u0627\u0644\u0635\u0641\u0651\u0627\u0631\u0629 \u0648\u062D\u062F\u0647\u0627\u061F",
+    "Manca l\u2019autoritenuta: il contatto 11-14 del rel\xE8 non riporta la fase alla bobina.": "\u064A\u0646\u0642\u0635 \u0627\u0644\u062A\u062B\u0628\u064A\u062A \u0627\u0644\u0630\u0627\u062A\u064A: \u0645\u0644\u0627\u0645\u0633 \u0627\u0644\u0645\u0631\u062D\u0651\u0644 11-14 \u0644\u0627 \u064A\u0639\u064A\u062F \u0627\u0644\u0637\u0648\u0631 \u0625\u0644\u0649 \u0627\u0644\u0645\u0644\u0641.",
+    "I due sensori sono in serie invece che in parallelo.": "\u0627\u0644\u062D\u0633\u0651\u0627\u0633\u0627\u0646 \u0639\u0644\u0649 \u0627\u0644\u062A\u0648\u0627\u0644\u064A \u0628\u062F\u0644 \u0627\u0644\u062A\u0648\u0627\u0632\u064A.",
+    "La tacitazione \xE8 collegata sul neutro.": "\u0632\u0631 \u0627\u0644\u0643\u062A\u0645 \u0645\u0648\u0635\u0648\u0644 \u0639\u0644\u0649 \u0627\u0644\u0645\u062D\u0627\u064A\u062F.",
+    "Senza il contatto 11-14 sulla bobina il rel\xE8 segue il sensore: appena il fumo si dirada la bobina si spegne e la sirena con lei. L\u2019autoritenuta tiene il rel\xE8 eccitato finch\xE9 qualcuno preme la tacitazione.": "\u062F\u0648\u0646 \u0627\u0644\u0645\u0644\u0627\u0645\u0633 11-14 \u0639\u0644\u0649 \u0627\u0644\u0645\u0644\u0641 \u064A\u062A\u0628\u0639 \u0627\u0644\u0645\u0631\u062D\u0651\u0644 \u0627\u0644\u062D\u0633\u0651\u0627\u0633: \u0641\u0648\u0631 \u0627\u0646\u0642\u0634\u0627\u0639 \u0627\u0644\u062F\u062E\u0627\u0646 \u064A\u0646\u0637\u0641\u0626 \u0627\u0644\u0645\u0644\u0641 \u0648\u062A\u0646\u0637\u0641\u0626 \u0627\u0644\u0635\u0641\u0651\u0627\u0631\u0629 \u0645\u0639\u0647. \u0627\u0644\u062A\u062B\u0628\u064A\u062A \u0627\u0644\u0630\u0627\u062A\u064A \u064A\u064F\u0628\u0642\u064A \u0627\u0644\u0645\u0631\u062D\u0651\u0644 \u0645\u064F\u062B\u0627\u0631\u064B\u0627 \u062D\u062A\u0649 \u064A\u0636\u063A\u0637 \u0623\u062D\u062F \u0632\u0631 \u0627\u0644\u0643\u062A\u0645.",
+    "Collega la tacitazione al contatto 11 del rel\xE8, e il contatto 14 alla bobina A1. Poi premi Verifica.": "\u0635\u0650\u0644 \u0632\u0631 \u0627\u0644\u0643\u062A\u0645 \u0628\u0627\u0644\u0645\u0644\u0627\u0645\u0633 11 \u0641\u064A \u0627\u0644\u0645\u0631\u062D\u0651\u0644\u060C \u0648\u0627\u0644\u0645\u0644\u0627\u0645\u0633 14 \u0628\u0627\u0644\u0645\u0644\u0641 A1. \u062B\u0645 \u0627\u0636\u063A\u0637 \xAB\u062A\u062D\u0642\u0642\xBB."
+  };
+
   // src/i18n/ar.js
   var ROLE = { "del neutro": "\u0627\u0644\u0645\u062D\u0627\u064A\u062F", "di terra": "\u0627\u0644\u0623\u0631\u0636\u064A", "di fase": "\u0627\u0644\u0637\u0648\u0631", "a bassa tensione": "\u0627\u0644\u062C\u0647\u062F \u0627\u0644\u0645\u0646\u062E\u0641\u0636", "di comando": "\u0627\u0644\u062A\u062D\u0643\u0645", "del positivo": "\u0627\u0644\u0645\u0648\u062C\u0628", "del negativo": "\u0627\u0644\u0633\u0627\u0644\u0628", "in continua": "\u0627\u0644\u062A\u064A\u0627\u0631 \u0627\u0644\u0645\u0633\u062A\u0645\u0631" };
   var COLORI = { "blu": "\u0623\u0632\u0631\u0642", "giallo-verde": "\u0623\u0635\u0641\u0631-\u0623\u062E\u0636\u0631", "marrone, nero o grigio": "\u0628\u0646\u064A\u064B\u0651\u0627 \u0623\u0648 \u0623\u0633\u0648\u062F \u0623\u0648 \u0631\u0645\u0627\u062F\u064A\u064B\u0651\u0627", "rosso, marrone, nero o grigio": "\u0623\u062D\u0645\u0631 \u0623\u0648 \u0628\u0646\u064A\u064B\u0651\u0627 \u0623\u0648 \u0623\u0633\u0648\u062F \u0623\u0648 \u0631\u0645\u0627\u062F\u064A\u064B\u0651\u0627", "di un colore diverso da blu e giallo-verde": "\u0628\u0644\u0648\u0646 \u0645\u062E\u062A\u0644\u0641 \u0639\u0646 \u0627\u0644\u0623\u0632\u0631\u0642 \u0648\u0627\u0644\u0623\u0635\u0641\u0631-\u0627\u0644\u0623\u062E\u0636\u0631", "rosso": "\u0623\u062D\u0645\u0631", "nero": "\u0623\u0633\u0648\u062F", "rosso o nero": "\u0623\u062D\u0645\u0631 \u0623\u0648 \u0623\u0633\u0648\u062F" };
@@ -19622,7 +20464,7 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
     [/^Portata (.+): (\d+) ampere\. Tocca per cambiarla$/, (m, t) => `\u0627\u0644\u0633\u0639\u0629 ${t(m[1])}: ${m[2]} \u0623\u0645\u0628\u064A\u0631. \u0627\u0644\u0645\u0633 \u0644\u062A\u063A\u064A\u064A\u0631\u0647\u0627`],
     [/^Protezioni scattate: (.+)\.$/, (m, t) => `\u062D\u0645\u0627\u064A\u0627\u062A \u0641\u0635\u0644\u062A: ${t(m[1])}.`]
   ];
-  registerLang("ar", { ...ar_1_default, ...ar_2_default, ...ar_3_default, ...ar_4_default, ...ar_5_default, ...ar_6_default, ...ar_7_default, ...ar_8_default, ...ar_9_default, ...ar_10_default, ...ar_11_default, ...ar_12_default, ...ar_13_default, ...ar_14_default, ...ar_15_default, ...ar_16_default, ...ar_17_default, ...ar_18_default, ...ar_19_default, ...ar_20_default, ...ar_21_default, ...ar_22_default, ...ar_23_default, ...ar_24_default, ...ar_25_default, ...ar_26_default, ...ar_27_default, ...ar_28_default, ...ar_29_default, ...ar_30_default, ...ar_31_default, ...ar_32_default, ...ar_33_default, ...ar_34_default, ...ar_35_default, ...ar_36_default, ...ar_37_default }, PAT);
+  registerLang("ar", { ...ar_1_default, ...ar_2_default, ...ar_3_default, ...ar_4_default, ...ar_5_default, ...ar_6_default, ...ar_7_default, ...ar_8_default, ...ar_9_default, ...ar_10_default, ...ar_11_default, ...ar_12_default, ...ar_13_default, ...ar_14_default, ...ar_15_default, ...ar_16_default, ...ar_17_default, ...ar_18_default, ...ar_19_default, ...ar_20_default, ...ar_21_default, ...ar_22_default, ...ar_23_default, ...ar_24_default, ...ar_25_default, ...ar_26_default, ...ar_27_default, ...ar_28_default, ...ar_29_default, ...ar_30_default, ...ar_31_default, ...ar_32_default, ...ar_33_default, ...ar_34_default, ...ar_35_default, ...ar_36_default, ...ar_37_default, ...ar_38_default }, PAT);
 
   // src/trilocale/house.js
   function houseState(session2, on = true) {

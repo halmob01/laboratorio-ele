@@ -1782,3 +1782,177 @@ LEVELS_V2.push({
     'Ferma il nastro, apri il banco e nel gradino del contatore scegli “Si azzera con: I1 (Marcia)”. Lascia il conteggio a 4.',
   ],
 });
+
+// ---- Modulo 5, La casa intelligente: livelli di comando (c47-c50). Pezzi gia' esistenti, nessuna estensione del motore. ----
+
+// c47: il videocitofono. Trasformatore 230/12 V sempre alimentato; sul secondario la chiamata dal posto esterno e l'apriporta.
+// Il bus a due fili dei sistemi reali non e' simulato: si spiega nella lezione.
+LEVELS_V2.push({
+  id: 'c47-videocitofono', code: 'c47', n: 0, engine: 2, quadroOnly: true, flow: 'always', palette: ['marrone', 'blu', 'bianco'],
+  name: 'Il videocitofono', title: 'Il videocitofono',
+  blurb: 'Chiamata dal portone e apriporta: tutto a 12 V, mai a contatto con la rete.',
+  goal: 'Al portone c’è la pulsantiera con il tasto di chiamata; in casa c’è il tasto dell’apriporta. Il trasformatore abbassa la tensione a 12 V: sul secondario collega il tasto di chiamata con la suoneria, e il tasto dell’apriporta con la serratura. Sulla pulsantiera esterna non deve arrivare la tensione di rete.',
+  comps: [
+    QM,
+    C('TR', 'trafo', 'Trasformatore', 'Trasformatore 230/12 V', T('1', '2', '3', '4'), { vout: 12 }),
+    C('SBC', 'pb', 'Chiamata', 'Tasto di chiamata al portone', T('3', '4')),
+    C('B', 'bell', 'Suoneria', 'Suoneria 12 V', T('1', '2')),
+    C('SBA', 'pb', 'Apriporta', 'Tasto apriporta in casa', T('3', '4')),
+    C('SE', 'lamp', 'Serratura', 'Serratura elettrica 12 V', { B: { l: 'B' }, A: { l: 'A' } }, { volt: 12 }),
+  ],
+  controls: ['SBC', 'SBA'],
+  demoDo: [
+    { do: ['press SBC'], say: 'Tasto di chiamata premuto: suona la suoneria in casa.' },
+    { do: ['press SBA'], say: 'Tasto apriporta premuto: la serratura si sblocca.' },
+  ],
+  checks: [
+    { id: 'fermo', label: 'Senza premere nulla la suoneria è silenziosa e la serratura è chiusa', do: [], expect: { loads: { B: 'off', SE: 'off' } } },
+    { id: 'chiama', label: 'Premi il tasto di chiamata: suona la suoneria, la serratura resta chiusa', do: ['press SBC'], expect: { loads: { B: 'on', SE: 'off' } } },
+    { id: 'apre', label: 'Premi l’apriporta: la serratura si sblocca, la suoneria non suona', do: ['press SBA'], expect: { loads: { SE: 'on', B: 'off' } } },
+  ],
+  safety: {},
+  solution: [
+    ['Q.F', 'TR.1', 'marrone'], ['TR.2', 'Q.N', 'blu'],
+    ['TR.3', 'SBC.3', 'bianco'], ['SBC.4', 'B.1', 'bianco'], ['B.2', 'TR.4', 'bianco'],
+    ['TR.3', 'SBA.3', 'bianco'], ['SBA.4', 'SE.A', 'bianco'], ['SE.B', 'TR.4', 'bianco'],
+  ],
+  hints: [
+    'Il primario del trasformatore (1 e 2) si collega alla rete. Tutto il resto sta sul secondario (3 e 4).',
+    'Dal morsetto 3 del secondario partono due rami: uno passa dal tasto di chiamata e arriva alla suoneria, l’altro passa dall’apriporta e arriva alla serratura. Entrambi tornano al morsetto 4.',
+    'I fili a bassa tensione non sono né fase né neutro: usa il bianco.',
+  ],
+});
+
+// c48: il sensore e l'attuatore. Due sensori (contatti liberi da tensione) in serie e un temporizzatore come attuatore.
+LEVELS_V2.push({
+  id: 'c48-luce-automatica', code: 'c48', n: 0, engine: 2, quadroOnly: true, flow: 'always', palette: ['marrone', 'blu', 'gv'],
+  name: 'Il sensore e l’attuatore', title: 'Il sensore e l’attuatore',
+  blurb: 'La luce del corridoio si accende da sola: ma solo se è buio e se passa qualcuno.',
+  goal: 'Il corridoio ha un sensore di luce (chiude il contatto quando è buio) e un sensore di presenza (lo chiude quando passa qualcuno). La luce deve accendersi solo se è buio e c’è qualcuno, e restare accesa 10 secondi dopo l’ultimo passaggio. I sensori non portano carico: comandano un relè temporizzato, che è l’attuatore.',
+  comps: [
+    QM,
+    C('CR', 'sw', 'Sensore di luce', 'Sensore di luce (chiuso al buio)', { a: { l: '1' }, b: { l: '2' } }),
+    C('PR', 'sw', 'Sensore di presenza', 'Sensore di presenza (chiuso se passa qualcuno)', { a: { l: '1' }, b: { l: '2' } }),
+    C('T', 'tmr', 'Temporizzatore', 'Relè temporizzato', { A1: { l: 'A1' }, A2: { l: 'A2' }, '1': { l: '1' }, '2': { l: '2' } }, { time: 10 }),
+    C('L', 'lamp', 'Corridoio', 'Lampada del corridoio', { B: { l: 'B' }, A: { l: 'A' } }),
+  ],
+  controls: ['CR', 'PR'],
+  demoDo: [
+    { do: ['toggle PR', 'wait 2'], say: 'Passa qualcuno ma è giorno: la luce resta spenta.' },
+    { do: ['toggle PR', 'toggle CR', 'toggle PR'], say: 'È buio e passa qualcuno: la luce si accende.' },
+    { do: ['toggle PR', 'wait 15'], say: 'Non passa più nessuno: dopo 10 secondi la luce si spegne.' },
+  ],
+  checks: [
+    { id: 'giorno', label: 'Di giorno, con qualcuno che passa, la luce resta spenta', do: ['toggle PR'], expect: { loads: { L: 'off' } } },
+    { id: 'vuoto', label: 'Al buio, senza nessuno, la luce resta spenta', do: ['toggle CR'], expect: { loads: { L: 'off' } } },
+    { id: 'accende', label: 'Al buio, con qualcuno che passa, la luce si accende', do: ['toggle CR', 'toggle PR'], expect: { loads: { L: 'on' } } },
+    { id: 'resta', label: 'Passato qualcuno, la luce resta accesa ancora per qualche secondo', do: ['toggle CR', 'toggle PR', 'toggle PR', 'wait 5'], expect: { loads: { L: 'on' } } },
+    { id: 'spegne', label: 'Dopo 15 secondi senza nessuno la luce si è spenta da sola', do: ['toggle CR', 'toggle PR', 'toggle PR', 'wait 15'], expect: { loads: { L: 'off' } } },
+  ],
+  safety: { phaseSwitched: ['L'], coilReturn: ['T'] },
+  solution: [
+    ['Q.F', 'CR.a', 'marrone'], ['CR.b', 'PR.a', 'marrone'], ['PR.b', 'T.A1', 'marrone'], ['T.A2', 'Q.N', 'blu'],
+    ['Q.F', 'T.1', 'marrone'], ['T.2', 'L.A', 'marrone'], ['L.B', 'Q.N', 'blu'],
+  ],
+  hints: [
+    'La luce deve accendersi se è buio E c’è qualcuno: due condizioni insieme vogliono i due contatti in serie.',
+    'Dalla fase, prima il sensore di luce, poi il sensore di presenza, poi la bobina A1 del temporizzatore. A2 va al neutro.',
+    'La lampada non passa dai sensori: la fase arriva al contatto 1 del temporizzatore, dal 2 va alla lampada.',
+  ],
+});
+
+// c49: la casa col PLC. Cablaggio fatto; il programma delle scene lo scrive l'allievo (Set e Reset, come i livelli di c40).
+const W49 = [
+  ['Q.F', 'PLC.A1', 'marrone'], ['PLC.A2', 'Q.N', 'blu'],
+  ['Q.F', 'SBX.3', 'marrone'], ['SBX.4', 'PLC.I0', 'marrone'],
+  ['Q.F', 'SBT.3', 'marrone'], ['SBT.4', 'PLC.I1', 'marrone'],
+  ['Q.F', 'SBC.3', 'marrone'], ['SBC.4', 'PLC.I2', 'marrone'],
+  ['PLC.IC', 'Q.N', 'blu'],
+  ['Q.F', 'PLC.Q0A', 'marrone'], ['PLC.Q0B', 'L0.A', 'marrone'], ['L0.B', 'Q.N', 'blu'],
+  ['Q.F', 'PLC.Q1A', 'marrone'], ['PLC.Q1B', 'L1.A', 'marrone'], ['L1.B', 'Q.N', 'blu'],
+];
+const PROG_49 = [
+  { if: 'I1', do: [{ op: 'set', a: 'Q0' }, { op: 'set', a: 'Q1' }] },
+  { if: 'I2', do: [{ op: 'reset', a: 'Q0' }, { op: 'set', a: 'Q1' }] },
+  { if: 'I0', do: [{ op: 'reset', a: 'Q0' }, { op: 'reset', a: 'Q1' }] },
+];
+LEVELS_V2.push({
+  id: 'c49-casa-plc', code: 'c49', n: 0, engine: 2, quadroOnly: true, flow: 'onDemand', palette: ['marrone', 'blu', 'gv'],
+  name: 'La casa col PLC', title: 'La casa col PLC',
+  blurb: 'Tre tasti, tre scene: esco, torno, cena. Un tocco e cambiano le luci.',
+  goal: 'In ingresso ci sono tre tasti: Esco, Torno e Cena. L’impianto è cablato e il PLC è acceso, ma il programma è vuoto. Scrivilo tu: Torno accende la luce dell’ingresso e quella del soggiorno; Cena spegne l’ingresso e lascia il soggiorno; Esco spegne tutto. Le luci restano come le hai lasciate quando rilasci il tasto.',
+  fixed: W49,
+  comps: [
+    QM,
+    C('PLC', 'plc', 'PLC', 'PLC (programma da scrivere)', T('A1', 'A2', 'I0', 'I1', 'I2', 'IC', 'Q0A', 'Q0B', 'Q1A', 'Q1B'), {
+      symbols: { I0: 'Esco', I1: 'Torno', I2: 'Cena', Q0: 'Luce ingresso', Q1: 'Luce soggiorno' },
+      edit: { markers: 0, timers: 0, counters: 0, ops: ['set', 'reset'] },
+    }),
+    C('SBX', 'pb', 'Esco', 'Tasto Esco', T('3', '4')),
+    C('SBT', 'pb', 'Torno', 'Tasto Torno', T('3', '4')),
+    C('SBC', 'pb', 'Cena', 'Tasto Cena', T('3', '4')),
+    C('L0', 'lamp', 'Ingresso', 'Luce dell’ingresso', { B: { l: 'B' }, A: { l: 'A' } }),
+    C('L1', 'lamp', 'Soggiorno', 'Luce del soggiorno', { B: { l: 'B' }, A: { l: 'A' } }),
+  ],
+  controls: ['SBX', 'SBT', 'SBC'],
+  demoDo: [
+    { do: press('SBT'), say: '' },
+    { do: press('SBC'), say: '' },
+    { do: press('SBX'), say: '' },
+  ],
+  checks: [
+    { id: 'fermo', label: 'All’inizio le luci sono spente', do: [], expect: { loads: { L0: 'off', L1: 'off' } } },
+    { id: 'torno', label: 'Premi Torno: si accendono ingresso e soggiorno, e restano accese', do: press('SBT'), expect: { loads: { L0: 'on', L1: 'on' } } },
+    { id: 'cena', label: 'Premi Torno e poi Cena: l’ingresso si spegne, il soggiorno resta acceso', do: press('SBT').concat(press('SBC')), expect: { loads: { L0: 'off', L1: 'on' } } },
+    { id: 'esco', label: 'Premi Torno e poi Esco: si spegne tutto', do: press('SBT').concat(press('SBX')), expect: { loads: { L0: 'off', L1: 'off' } } },
+  ],
+  safety: { coilReturn: ['PLC'] },
+  solution: W49,
+  solutionPrograms: { PLC: PROG_49 },
+  hints: [
+    'Una scena cambia lo stato delle luci e poi lo lascia. Per questo si usano Set (accende e ricorda) e Reset (spegne e ricorda), non una bobina semplice.',
+    'Torno è l’ingresso I1: un gradino con il contatto I1 e due uscite, Set su Q0 e Set su Q1.',
+    'Cena è I2: Reset su Q0 e Set su Q1. Esco è I0: Reset su Q0 e Reset su Q1.',
+  ],
+});
+
+// c50: allarme fumo e allagamento. Due sensori in parallelo su un relè con memoria; la tacitazione e' un contatto NC.
+LEVELS_V2.push({
+  id: 'c50-allarme', code: 'c50', n: 0, engine: 2, quadroOnly: true, flow: 'onDemand', palette: ['marrone', 'blu', 'gv'],
+  name: 'Allarme fumo e allagamento', title: 'Allarme fumo e allagamento',
+  blurb: 'La sirena parte e non si ferma da sola: bisogna tacitarla, e solo quando il pericolo è passato.',
+  goal: 'Un rilevatore di fumo e una sonda di allagamento chiudono ciascuno un contatto. Se uno dei due scatta suona la sirena, e deve continuare a suonare anche quando il fumo o l’acqua spariscono: un allarme che si spegne da solo nasconde l’evento. Il tasto di tacitazione la ferma, ma solo se i sensori sono tornati a riposo.',
+  comps: [
+    QM,
+    C('S1', 'sw', 'Rilevatore fumo', 'Rilevatore di fumo (chiude se vede fumo)', { a: { l: '1' }, b: { l: '2' } }),
+    C('S2', 'sw', 'Sonda allagamento', 'Sonda di allagamento (chiude se vede acqua)', { a: { l: '1' }, b: { l: '2' } }),
+    C('TA', 'pbnc', 'Tacitazione', 'Tasto di tacitazione (NC)', { '1': { l: '1' }, '2': { l: '2' } }),
+    C('KA', 'rel', 'Relè allarme', 'Relè dell’allarme', T('A1', 'A2', '11', '12', '14')),
+    C('B', 'bell', 'Sirena', 'Sirena 230 V', T('1', '2'), { volt: 230 }),
+  ],
+  controls: ['S1', 'S2', 'TA'],
+  demoDo: [
+    { do: ['toggle S1'], say: 'Il rilevatore vede fumo: la sirena parte.' },
+    { do: ['toggle S1'], say: 'Il fumo è sparito, ma la sirena continua: il relè ha la memoria.' },
+    { do: press('TA'), say: 'Il tasto di tacitazione ferma la sirena.' },
+  ],
+  checks: [
+    { id: 'quiete', label: 'Senza fumo né acqua la sirena è silenziosa', do: [], expect: { loads: { B: 'off' } } },
+    { id: 'fumo', label: 'Il rilevatore vede fumo: la sirena suona', do: ['toggle S1'], expect: { loads: { B: 'on' } } },
+    { id: 'acqua', label: 'La sonda vede acqua: la sirena suona', do: ['toggle S2'], expect: { loads: { B: 'on' } } },
+    { id: 'memoria', label: 'Il fumo sparisce ma la sirena continua a suonare', do: ['toggle S1', 'toggle S1'], expect: { loads: { B: 'on' } } },
+    { id: 'tacita', label: 'Con il pericolo passato, il tasto di tacitazione ferma la sirena', do: ['toggle S1', 'toggle S1'].concat(press('TA')), expect: { loads: { B: 'off' } } },
+    { id: 'ancora', label: 'Se il fumo c’è ancora, la tacitazione non basta: la sirena riparte', do: ['toggle S1'].concat(press('TA')), expect: { loads: { B: 'on' } } },
+  ],
+  safety: { coilReturn: ['KA'] },
+  solution: [
+    ['Q.F', 'TA.1', 'marrone'], ['TA.2', 'S1.a', 'marrone'], ['TA.2', 'S2.a', 'marrone'], ['TA.2', 'KA.11', 'marrone'],
+    ['S1.b', 'KA.A1', 'marrone'], ['S2.b', 'KA.A1', 'marrone'], ['KA.14', 'KA.A1', 'marrone'], ['KA.A2', 'Q.N', 'blu'],
+    ['KA.A1', 'B.1', 'marrone'], ['B.2', 'Q.N', 'blu'],
+  ],
+  hints: [
+    'I due sensori sono in parallelo: basta che uno solo chiuda per dare l’allarme. Poi il relè KA li tiene.',
+    'La memoria è un’autoritenuta: il contatto 11-14 del relè riporta la fase alla sua stessa bobina A1, quindi, una volta scattato, il relè resta eccitato.',
+    'La tacitazione è un contatto normalmente chiuso messo in testa a tutto: premendolo si toglie la fase ai sensori e alla memoria. La sirena si alimenta dalla stessa linea di A1.',
+  ],
+});

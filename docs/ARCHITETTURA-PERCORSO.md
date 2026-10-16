@@ -125,10 +125,10 @@ Ordine di gioco: M1, M2, M3, M4, **M5**, M6. Ordine di costruzione diverso (vedi
 
 | # | Livello | Si impara | Chiede | Stato |
 |---|---|---|---|---|
-| 5.1 | Il videocitofono | trasformatore e bassa tensione, chiamata dal posto esterno, apriporta con la serratura a 12 V e il suo tempo | M2, c10 | nuovo, pezzi esistenti |
-| 5.2 | Il sensore e l'attuatore | sensore di presenza e luce, tapparella, comando a bassa tensione | M2, c10 | nuovo, pezzi esistenti |
-| 5.3 | La casa col PLC | luci e tapparelle da programma, scene (esco, torno) | M4 (PLC) | nuovo |
-| 5.4 | Allarme fumo e allagamento | contatto NC che protegge anche se il filo si stacca, memoria dell'allarme, tacitazione | M2, M4 | nuovo, pezzi esistenti |
+| 5.1 | Il videocitofono | trasformatore e bassa tensione, chiamata dal posto esterno, apriporta con la serratura a 12 V | M2, c10 | fatto (c47) |
+| 5.2 | Il sensore e l'attuatore | sensore di luce e di presenza in serie (E), relè temporizzato come attuatore, contatti liberi da tensione | M2 | fatto (c48; la tapparella è stata tolta) |
+| 5.3 | La casa col PLC | luci e tapparelle da programma, scene (esco, torno) | M4 (PLC) | fatto (c49) |
+| 5.4 | Allarme fumo e allagamento | contatto NC che protegge anche se il filo si stacca, memoria dell'allarme, tacitazione | M2 | fatto (c50) |
 | 5.5 | La corrente continua (c38) | polarità, serie e parallelo, un pannello e un carico | E8 | esiste |
 | 5.6 | Il pannello fotovoltaico (c39) | stringa, inverter, produzione nella giornata simulata | E7, E8 | esiste |
 | 5.7 | Il contatore e lo scambio (c40) | consumo, produzione, immissione | E7 | esiste |

@@ -3976,3 +3976,335 @@ export const UNITS_V2 = {
     },
   },
 };
+
+// ---- Modulo 5, La casa intelligente: unita' didattiche dei livelli di comando (c47-c50) ----
+
+UNITS_V2['c47-videocitofono'] = {
+  support: 'passi',
+  lesson: {
+    pages: [
+      {
+        type: 'spiegazione',
+        title: 'Il portone a bassa tensione',
+        paras: [
+          'Il tasto di chiamata e la serratura stanno fuori, sul portone: chiunque li tocca. Per questo non possono mai essere collegati ai 230 V della rete, ma solo a una tensione bassa e sicura, per esempio 12 V.',
+          'Un trasformatore abbassa la tensione. Il primario (morsetti 1 e 2) sta sulla rete; il secondario (3 e 4) dà i 12 V. Tra i due lati non c’è nessun collegamento elettrico.',
+          'Nei videocitofoni moderni voce, immagine e alimentazione viaggiano su due soli fili, con un segnale digitale (il bus). Il bus lo programma l’impianto; qui impari la parte che resta uguale: l’alimentatore separato e i due tasti sul secondario.',
+        ],
+      },
+      {
+        type: 'pezzi',
+        title: 'Chiamata e apriporta',
+        focus: ['TR', 'SBC', 'B', 'SBA', 'SE'],
+        paras: [
+          'Dal morsetto 3 del secondario parte la linea a 12 V. Un ramo passa dal tasto di chiamata e arriva alla suoneria. L’altro ramo passa dal tasto apriporta e arriva alla serratura. Entrambi tornano al morsetto 4.',
+          'La serratura elettrica si sblocca finché il tasto è premuto. Dei due rami, ciascuno funziona da solo: la chiamata non sblocca la porta e l’apriporta non fa suonare nulla.',
+        ],
+      },
+      {
+        type: 'demo',
+        title: 'Guarda come si fa',
+        captions: {
+          wires: [
+            'La fase dal quadro al morsetto 1 del primario.',
+            'Dal morsetto 2 del primario al neutro: il trasformatore è sempre alimentato.',
+            'Dal morsetto 3 del secondario al tasto di chiamata. Qui si può usare il bianco.',
+            'Dal tasto di chiamata alla suoneria.',
+            'Dalla suoneria al morsetto 4 del secondario: il circuito si chiude.',
+            'Dal morsetto 3 del secondario anche al tasto apriporta.',
+            'Dal tasto apriporta alla serratura.',
+            'Dalla serratura al morsetto 4 del secondario.',
+          ],
+          power: 'Levetta su: il trasformatore dà 12 V sul secondario. Non succede niente finché nessuno preme un tasto.',
+          controls: [],
+        },
+      },
+      {
+        type: 'previsione',
+        question: 'Colleghi la serratura a 12 V direttamente ai 230 V della rete, con il tasto apriporta in serie. Che cosa succede alla prima pressione?',
+        options: [
+          { id: 'a', text: 'Si sblocca normalmente: è solo un po’ più forte.' },
+          { id: 'b', text: 'La serratura si brucia, e sul portone c’è la tensione di rete.' },
+          { id: 'c', text: 'Non succede niente: il differenziale la protegge.' },
+        ],
+        correct: 'b',
+        why: 'Una serratura da 12 V sottoposta a 230 V si brucia. Il pericolo vero è un altro: la pulsantiera sul portone è raggiungibile da chiunque e non deve mai avere la tensione di rete. Il trasformatore separa i due lati.',
+      },
+      { type: 'sintesi', title: 'Da ricordare' },
+    ],
+  },
+  steps: [
+    { kind: 'wire', from: 'Q.F', to: ['TR.1'], color: 'marrone', short: '1 Rete', title: 'La fase al primario', text: 'Dalla FASE del quadro al morsetto 1 del trasformatore.' },
+    { kind: 'wire', from: 'Q.N', to: ['TR.2'], color: 'blu', short: '2 Neutro', title: 'Il neutro al primario', text: 'Dal NEUTRO del quadro al morsetto 2 del trasformatore.' },
+    { kind: 'wire', from: 'TR.3', to: ['SBC.3'], color: 'bianco', short: '3 Chiamata', title: 'Dal secondario al tasto di chiamata', text: 'Dal morsetto 3 del secondario al morsetto 3 del tasto di chiamata. Qui puoi usare il bianco.' },
+    { kind: 'wire', from: 'SBC.4', to: ['B.1'], color: 'bianco', short: '4 Suoneria', title: 'Dal tasto alla suoneria', text: 'Dal morsetto 4 del tasto di chiamata a un morsetto della suoneria.' },
+    { kind: 'wire', from: 'TR.4', to: ['B.2'], color: 'bianco', short: '5 Ritorno', title: 'Il ritorno della suoneria', text: 'Dal morsetto 4 del secondario all’altro morsetto della suoneria.' },
+    { kind: 'wire', from: 'TR.3', to: ['SBA.3'], color: 'bianco', short: '6 Apriporta', title: 'Dal secondario all’apriporta', text: 'Dal morsetto 3 del secondario al morsetto 3 del tasto apriporta.' },
+    { kind: 'wire', from: 'SBA.4', to: ['SE.A'], color: 'bianco', short: '7 Serratura', title: 'Dal tasto alla serratura', text: 'Dal morsetto 4 del tasto apriporta a un morsetto della serratura.' },
+    { kind: 'wire', from: 'TR.4', to: ['SE.B'], color: 'bianco', short: '8 Ritorno', title: 'Il ritorno della serratura', text: 'Dal morsetto 4 del secondario all’altro morsetto della serratura.' },
+    { kind: 'power', short: '9 Levetta', title: 'Dai corrente', text: 'Tocca la levetta del quadro.' },
+    { kind: 'control', id: 'SBC', short: '10 Prova', title: 'Prova la chiamata', text: 'Tieni premuto il tasto di chiamata: la suoneria suona. Poi prova l’apriporta.' },
+    { kind: 'verify', short: '11 Verifica', title: 'Controlla l’impianto', text: 'Premi Verifica.' },
+  ],
+  summary: [
+    'Il portone si comanda solo in bassa tensione: i 230 V non arrivano mai alla pulsantiera.',
+    'Il trasformatore separa la rete (primario) dai 12 V (secondario).',
+    'Chiamata e apriporta sono due rami in parallelo sul secondario: ciascuno funziona da solo.',
+    'I videocitofoni a due fili mettono voce, immagine e alimentazione sullo stesso cavo, con un bus: il principio dell’alimentatore separato resta lo stesso.',
+  ],
+  fault: {
+    say: 'L’impianto è cablato e la chiamata funziona. Premendo l’apriporta la serratura non si sblocca. Guarda dove sono collegati l’apriporta e la serratura.',
+    wires: [
+      ['Q.F', 'TR.1', 'marrone'], ['TR.2', 'Q.N', 'blu'],
+      ['TR.3', 'SBC.3', 'bianco'], ['SBC.4', 'B.1', 'bianco'], ['B.2', 'TR.4', 'bianco'],
+      ['Q.F', 'SBA.3', 'marrone'], ['SBA.4', 'SE.A', 'marrone'], ['SE.B', 'Q.N', 'blu'],
+    ],
+    diagnosis: {
+      question: 'Perché la serratura non si sblocca?',
+      options: [
+        { id: 'a', text: 'L’apriporta e la serratura sono collegati alla rete a 230 V invece che al secondario a 12 V.' },
+        { id: 'b', text: 'Il primario del trasformatore è collegato al contrario.' },
+        { id: 'c', text: 'Manca un ponte tra i due tasti.' },
+      ],
+      correct: 'a',
+      why: 'La serratura è da 12 V e prende la fase e il neutro della rete: si brucia. Peggio, il tasto sul portone ha i 230 V. L’apriporta e la serratura vanno sul secondario, come la chiamata.',
+    },
+    fixSay: 'Togli i fili che portano la fase e il neutro all’apriporta e alla serratura. Collega il morsetto 3 del secondario all’apriporta e la serratura al morsetto 4. Poi premi Verifica.',
+  },
+};
+
+UNITS_V2['c48-luce-automatica'] = {
+  support: 'passi',
+  lesson: {
+    pages: [
+      {
+        type: 'spiegazione',
+        title: 'Il sensore non porta il carico',
+        paras: [
+          'Un sensore di presenza o di luce non accende la lampada: chiude un contatto, come un interruttore comandato da chi passa o dal buio. Il contatto è libero da tensione, come quello di un relè: la tensione ce la porti tu.',
+          'Chi accende la lampada è l’attuatore: qui un relè temporizzato. I sensori comandano la sua bobina, il suo contatto alimenta la lampada. Così il sensore, piccolo e delicato, non porta mai la corrente del carico.',
+        ],
+      },
+      {
+        type: 'pezzi',
+        title: 'Sensori e attuatore',
+        focus: ['CR', 'PR', 'T', 'L'],
+        paras: [
+          'Il sensore di luce chiude il contatto quando è buio. Il sensore di presenza lo chiude quando passa qualcuno. Il relè temporizzato tiene il contatto chiuso per 10 secondi dopo che la bobina si spegne: è il tempo di attraversare il corridoio senza che la luce si spenga a metà.',
+          'La luce deve accendersi solo se è buio e se passa qualcuno: due condizioni insieme. In un circuito le condizioni insieme si mettono in serie.',
+        ],
+      },
+      {
+        type: 'demo',
+        title: 'Guarda come si fa',
+        captions: {
+          wires: [
+            'La fase dal quadro al sensore di luce.',
+            'Dal sensore di luce al sensore di presenza: i due contatti in serie.',
+            'Dal sensore di presenza alla bobina del temporizzatore.',
+            'Filo blu dalla bobina al neutro.',
+            'La fase al contatto del temporizzatore: la lampada non passa dai sensori.',
+            'Dal contatto alla lampada.',
+            'Filo blu dal neutro alla lampada.',
+          ],
+          power: 'Levetta su: giorno e nessuno nel corridoio, la lampada è spenta.',
+          controls: [],
+        },
+      },
+      {
+        type: 'previsione',
+        question: 'Colleghi i due sensori in parallelo invece che in serie. Che cosa succede di giorno, quando passa qualcuno?',
+        options: [
+          { id: 'a', text: 'La luce resta spenta: è giorno.' },
+          { id: 'b', text: 'La luce si accende lo stesso: basta che chiuda un sensore.' },
+          { id: 'c', text: 'La luce lampeggia.' },
+        ],
+        correct: 'b',
+        why: 'Con due contatti in parallelo basta uno solo per far passare la corrente: è un O. Il sensore di presenza chiude e la luce si accende anche se è giorno. Per avere un E, servono entrambi: i contatti vanno in serie.',
+      },
+      { type: 'sintesi', title: 'Da ricordare' },
+    ],
+  },
+  steps: [
+    { kind: 'wire', from: 'Q.F', to: ['CR.a'], color: 'marrone', short: '1 Luce', title: 'La fase al sensore di luce', text: 'Dalla FASE del quadro al morsetto 1 del sensore di luce.' },
+    { kind: 'wire', from: 'CR.b', to: ['PR.a'], color: 'marrone', short: '2 Serie', title: 'I due sensori in serie', text: 'Dal morsetto 2 del sensore di luce al morsetto 1 del sensore di presenza.' },
+    { kind: 'wire', from: 'PR.b', to: ['T.A1'], color: 'marrone', short: '3 Bobina', title: 'Alla bobina del temporizzatore', text: 'Dal morsetto 2 del sensore di presenza al morsetto A1 del temporizzatore.' },
+    { kind: 'wire', from: 'Q.N', to: ['T.A2'], color: 'blu', short: '4 Neutro', title: 'Il neutro alla bobina', text: 'Dal NEUTRO al morsetto A2 del temporizzatore.' },
+    { kind: 'wire', from: 'Q.F', to: ['T.1'], color: 'marrone', short: '5 Contatto', title: 'La fase al contatto', text: 'Dalla FASE al morsetto 1 del contatto del temporizzatore.' },
+    { kind: 'wire', from: 'T.2', to: ['L.A'], color: 'marrone', short: '6 Lampada', title: 'Alla lampada', text: 'Dal morsetto 2 del contatto alla lampada.' },
+    { kind: 'wire', from: 'Q.N', to: ['L.B'], color: 'blu', short: '7 Neutro lampada', title: 'Il neutro alla lampada', text: 'Dal NEUTRO al morsetto libero della lampada.' },
+    { kind: 'power', short: '8 Levetta', title: 'Dai corrente', text: 'Tocca la levetta del quadro.' },
+    { kind: 'control', id: 'CR', short: '9 Prova', title: 'Prova i sensori', text: 'Simula il buio e il passaggio di qualcuno: la luce si accende e, dopo qualche secondo, si spegne da sola.' },
+    { kind: 'verify', short: '10 Verifica', title: 'Controlla l’impianto', text: 'Premi Verifica.' },
+  ],
+  summary: [
+    'Un sensore chiude un contatto, ma non porta il carico: la corrente della lampada passa dall’attuatore.',
+    'Condizioni che servono tutte insieme sono contatti in serie (un E).',
+    'Il temporizzatore tiene la luce accesa ancora per qualche secondo dopo l’ultimo passaggio.',
+    'I contatti dei sensori sono liberi da tensione: la tensione la porti tu, come per un interruttore.',
+  ],
+  fault: {
+    say: 'L’impianto è già cablato. Di notte la luce si accende quando passa qualcuno, ma di giorno si accende lo stesso. Guarda come sono collegati i due sensori.',
+    wires: [
+      ['Q.F', 'CR.a', 'marrone'], ['Q.F', 'PR.a', 'marrone'], ['CR.b', 'T.A1', 'marrone'], ['PR.b', 'T.A1', 'marrone'], ['T.A2', 'Q.N', 'blu'],
+      ['Q.F', 'T.1', 'marrone'], ['T.2', 'L.A', 'marrone'], ['L.B', 'Q.N', 'blu'],
+    ],
+    diagnosis: {
+      question: 'Perché la luce si accende anche di giorno?',
+      options: [
+        { id: 'a', text: 'I due sensori sono in parallelo: ne basta uno.' },
+        { id: 'b', text: 'Il temporizzatore ha il tempo troppo lungo.' },
+        { id: 'c', text: 'Il neutro della lampada è collegato male.' },
+      ],
+      correct: 'a',
+      why: 'In parallelo basta che uno dei due sensori chiuda. Per accendere la luce solo al buio e con qualcuno nel corridoio, i due contatti vanno in serie.',
+    },
+    fixSay: 'Togli i fili in parallelo. Collega la fase al sensore di luce, il sensore di luce al sensore di presenza e il sensore di presenza alla bobina. Poi premi Verifica.',
+  },
+};
+
+UNITS_V2['c49-casa-plc'] = {
+  support: 'passi',
+  lesson: {
+    pages: [
+      {
+        type: 'spiegazione',
+        title: 'Le scene',
+        paras: [
+          'Una scena cambia più luci con un solo tocco: Torno accende ingresso e soggiorno, Esco spegne tutto, Cena lascia solo il soggiorno. Nei fili ci vorrebbero molti relè; con il PLC è un programma.',
+          'Una scena lascia le luci come le ha messe, anche dopo che hai rilasciato il tasto. Una bobina semplice non basta, perché segue la condizione: quando rilasci il tasto la luce si spegne. Servono Set e Reset, che ricordano.',
+        ],
+        table: {
+          head: ['Istruzione', 'Che cosa fa'],
+          rows: [
+            ['Set', 'se la condizione è vera accende l’uscita e la lascia accesa'],
+            ['Reset', 'se la condizione è vera spegne l’uscita e la lascia spenta'],
+            ['Bobina', 'l’uscita segue la condizione e si spegne con lei'],
+          ],
+        },
+      },
+      {
+        type: 'previsione',
+        question: 'Nel gradino di Torno usi la bobina Q0 invece di Set. Che cosa succede quando rilasci il tasto?',
+        options: [
+          { id: 'a', text: 'La luce resta accesa: il PLC ricorda.' },
+          { id: 'b', text: 'La luce si spegne appena il tasto torna a 0.' },
+          { id: 'c', text: 'Il PLC dà un errore.' },
+        ],
+        correct: 'b',
+        why: 'Una bobina segue il suo gradino: la condizione vale 1 solo mentre il tasto è premuto, e allora la luce vale 1 solo per quel tempo. Per far restare la luce accesa si usa Set; per spegnerla Reset.',
+      },
+      { type: 'sintesi', title: 'Da ricordare' },
+    ],
+  },
+  steps: [
+    { kind: 'program', plc: 'PLC', min: 1, short: '1 Torno', title: 'La scena Torno', text: 'Un gradino con il contatto Torno (I1) e due uscite: Set su Q0 e Set su Q1. Perché: Torno accende ingresso e soggiorno, e le luci devono restare accese.' },
+    { kind: 'program', plc: 'PLC', min: 2, short: '2 Cena', title: 'La scena Cena', text: 'Un gradino con il contatto Cena (I2): Reset su Q0 e Set su Q1.' },
+    { kind: 'program', plc: 'PLC', min: 3, short: '3 Esco', title: 'La scena Esco', text: 'Un gradino con il contatto Esco (I0): Reset su Q0 e Reset su Q1.' },
+    { kind: 'control', id: 'SBT', short: '4 Prova', title: 'Prova le scene', text: 'Premi Torno, poi Cena, poi Esco: guarda come cambiano le luci.' },
+    { kind: 'verify', short: '5 Verifica', title: 'Controlla il programma', text: 'Premi Verifica.' },
+  ],
+  summary: [
+    'Una scena è un gradino che cambia più uscite con un solo tasto.',
+    'Set accende e ricorda, Reset spegne e ricorda: la scena resta anche a tasto rilasciato.',
+    'Una bobina semplice segue il tasto e si spegne quando lo rilasci.',
+    'Un solo tasto può avere più istruzioni nello stesso gradino.',
+  ],
+};
+
+UNITS_V2['c50-allarme'] = {
+  support: 'passi',
+  lesson: {
+    pages: [
+      {
+        type: 'spiegazione',
+        title: 'Un allarme che si ricorda',
+        paras: [
+          'Un rilevatore di fumo e una sonda di allagamento chiudono un contatto quando vedono il pericolo. Se la sirena seguisse quel contatto, si spegnerebbe appena il fumo si dirada: l’evento sparirebbe senza che nessuno lo sappia.',
+          'Per questo l’allarme ha una memoria: un relè con l’autoritenuta. Una volta scattato resta eccitato, anche se il sensore torna a riposo. Si ferma solo con il tasto di tacitazione, che è un contatto normalmente chiuso messo in testa al circuito.',
+        ],
+      },
+      {
+        type: 'pezzi',
+        title: 'Sensori in parallelo e memoria',
+        focus: ['S1', 'S2', 'TA', 'KA', 'B'],
+        paras: [
+          'I due sensori sono in parallelo: basta uno per dare l’allarme. Dal loro lato comune la fase arriva dal tasto di tacitazione.',
+          'Il relè KA ha la bobina A1-A2. Il suo contatto 11-14 riporta la fase alla bobina stessa: è l’autoritenuta. La sirena si alimenta dalla stessa linea della bobina.',
+        ],
+      },
+      {
+        type: 'demo',
+        title: 'Guarda come si fa',
+        captions: {
+          wires: [
+            'La fase dal quadro al tasto di tacitazione: è in testa a tutto.',
+            'Dalla tacitazione al rilevatore di fumo.',
+            'Dalla tacitazione anche alla sonda di allagamento: i due sensori sono in parallelo.',
+            'Dalla tacitazione al contatto 11 del relè: da qui parte l’autoritenuta.',
+            'Dal rilevatore alla bobina del relè (morsetto A1).',
+            'Dalla sonda alla stessa bobina.',
+            'Dal contatto 14 alla bobina: l’autoritenuta, una volta scattato il relè si tiene da solo.',
+            'Filo blu dalla bobina al neutro.',
+            'Dalla linea della bobina alla sirena.',
+            'Filo blu dalla sirena al neutro.',
+          ],
+          power: 'Levetta su: tutto a riposo, la sirena è silenziosa.',
+          controls: [],
+        },
+      },
+      {
+        type: 'previsione',
+        question: 'Hai tolto l’autoritenuta. Il fumo compare e poi si dirada. Che cosa fa la sirena?',
+        options: [
+          { id: 'a', text: 'Continua a suonare finché non premi la tacitazione.' },
+          { id: 'b', text: 'Si spegne appena il fumo sparisce, e nessuno sa che c’è stato un allarme.' },
+          { id: 'c', text: 'Non suona mai.' },
+        ],
+        correct: 'b',
+        why: 'Senza memoria la sirena segue il sensore e si ferma appena il fumo sparisce. L’autoritenuta tiene il relè eccitato: l’allarme resta finché qualcuno lo tacita.',
+      },
+      { type: 'sintesi', title: 'Da ricordare' },
+    ],
+  },
+  steps: [
+    { kind: 'wire', from: 'Q.F', to: ['TA.1'], color: 'marrone', short: '1 Tacitazione', title: 'La fase alla tacitazione', text: 'Dalla FASE del quadro al morsetto 1 del tasto di tacitazione.' },
+    { kind: 'wire', from: 'TA.2', to: ['S1.a'], color: 'marrone', short: '2 Fumo', title: 'Al rilevatore di fumo', text: 'Dal morsetto 2 della tacitazione al morsetto 1 del rilevatore di fumo.' },
+    { kind: 'wire', from: 'TA.2', to: ['S2.a'], color: 'marrone', short: '3 Acqua', title: 'Alla sonda di allagamento', text: 'Dal morsetto 2 della tacitazione al morsetto 1 della sonda.' },
+    { kind: 'wire', from: 'TA.2', to: ['KA.11'], color: 'marrone', short: '4 Memoria', title: 'Al contatto del relè', text: 'Dal morsetto 2 della tacitazione al morsetto 11 del relè.' },
+    { kind: 'wire', from: 'S1.b', to: ['KA.A1'], color: 'marrone', short: '5 Bobina', title: 'Il rilevatore alla bobina', text: 'Dal morsetto 2 del rilevatore al morsetto A1 del relè.' },
+    { kind: 'wire', from: 'S2.b', to: ['KA.A1'], color: 'marrone', short: '6 Bobina', title: 'La sonda alla bobina', text: 'Dal morsetto 2 della sonda al morsetto A1 del relè.' },
+    { kind: 'wire', from: 'KA.14', to: ['KA.A1'], color: 'marrone', short: '7 Autoritenuta', title: 'L’autoritenuta', text: 'Dal morsetto 14 del relè al suo morsetto A1.' },
+    { kind: 'wire', from: 'Q.N', to: ['KA.A2'], color: 'blu', short: '8 Neutro', title: 'Il neutro alla bobina', text: 'Dal NEUTRO al morsetto A2 del relè.' },
+    { kind: 'wire', from: 'KA.A1', to: ['B.1'], color: 'marrone', short: '9 Sirena', title: 'Alla sirena', text: 'Dal morsetto A1 del relè a un morsetto della sirena.' },
+    { kind: 'wire', from: 'Q.N', to: ['B.2'], color: 'blu', short: '10 Neutro sirena', title: 'Il neutro alla sirena', text: 'Dal NEUTRO all’altro morsetto della sirena.' },
+    { kind: 'power', short: '11 Levetta', title: 'Dai corrente', text: 'Tocca la levetta del quadro.' },
+    { kind: 'control', id: 'S1', short: '12 Prova', title: 'Prova l’allarme', text: 'Simula il fumo, poi toglilo: la sirena continua. Premi la tacitazione per fermarla.' },
+    { kind: 'verify', short: '13 Verifica', title: 'Controlla l’impianto', text: 'Premi Verifica.' },
+  ],
+  summary: [
+    'Due sensori in parallelo: basta uno per dare l’allarme.',
+    'L’autoritenuta dà la memoria: la sirena continua anche se il pericolo sparisce.',
+    'La tacitazione è un contatto normalmente chiuso in testa al circuito: premuto, toglie tensione a tutto.',
+    'Se il sensore è ancora attivo, la tacitazione non basta: appena la rilasci l’allarme riparte.',
+  ],
+  fault: {
+    say: 'L’impianto è cablato e la sirena suona quando il rilevatore vede fumo. Ma quando il fumo si dirada la sirena si spegne da sola. Guarda il relè dell’allarme.',
+    wires: [
+      ['Q.F', 'TA.1', 'marrone'], ['TA.2', 'S1.a', 'marrone'], ['TA.2', 'S2.a', 'marrone'],
+      ['S1.b', 'KA.A1', 'marrone'], ['S2.b', 'KA.A1', 'marrone'], ['KA.A2', 'Q.N', 'blu'],
+      ['KA.A1', 'B.1', 'marrone'], ['B.2', 'Q.N', 'blu'],
+    ],
+    diagnosis: {
+      question: 'Perché la sirena si ferma da sola?',
+      options: [
+        { id: 'a', text: 'Manca l’autoritenuta: il contatto 11-14 del relè non riporta la fase alla bobina.' },
+        { id: 'b', text: 'I due sensori sono in serie invece che in parallelo.' },
+        { id: 'c', text: 'La tacitazione è collegata sul neutro.' },
+      ],
+      correct: 'a',
+      why: 'Senza il contatto 11-14 sulla bobina il relè segue il sensore: appena il fumo si dirada la bobina si spegne e la sirena con lei. L’autoritenuta tiene il relè eccitato finché qualcuno preme la tacitazione.',
+    },
+    fixSay: 'Collega la tacitazione al contatto 11 del relè, e il contatto 14 alla bobina A1. Poi premi Verifica.',
+  },
+};

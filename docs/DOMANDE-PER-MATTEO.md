@@ -61,7 +61,8 @@ Da far controllare al collega di laboratorio:
 
 - Il Modulo 5 diventa un solo modulo, "La casa intelligente", con un solo traguardo 3D: comando (videocitofono, sensore e attuatore, casa col PLC, allarme) ed energia (c38-c42) insieme, in ordine di difficoltà. c38-c42 si spostano dopo i livelli di comando sulla mappa. Va bene?
 - Videocitofono: sul mercato si installano soprattutto sistemi a due fili con bus digitale. Nel gioco il livello usa il trasformatore a 12 V, la chiamata e l'apriporta; il bus si spiega solo in una pagina della lezione. Basta, o conviene un livello con un morsetto bus?
-- Tempo di apertura della serratura nel videocitofono: 3 secondi (valore didattico). Valori reali?
+- Videocitofono (c47): la serratura si sblocca finché il tasto è premuto, senza tempo di apertura; sulla pulsantiera esterna la chiamata e la serratura stanno sullo stesso secondario a 12 V. Nella realtà l'apriporta ha spesso una tensione e un impulso propri: va bene la semplificazione?
+- Sensore e attuatore (c48): la tapparella è stata tolta, i sensori sono contatti liberi da tensione che comandano un relè temporizzato di 10 s. Basta come "sensore e attuatore"?
 - Allarme fumo e allagamento: contatti NC in serie come in antifurto reale, memoria dell'allarme con tacitazione. Il rilevatore reale ha un contatto di uscita libero da tensione: va bene rappresentarlo con un contatto normale?
 - Lavori in sicurezza (Modulo 3, prima dell'officina): procedura sezionare, bloccare con lucchetto, verificare l'assenza di tensione, lavorare. La sequenza e i termini ("lucchetto", "cartello") vanno bene o usate le cinque regole d'oro di cantiere con altre parole?
 - Tolti dal piano: condominio (autoclave, ascensore, lampade di emergenza, sgancio antincendio), gru, comando a due mani, palchi, bus di campo, manutenzione predittiva. Il condominio resta come idea futura.
