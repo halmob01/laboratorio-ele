@@ -25,7 +25,8 @@ export function pidStep(st, p) {
   if (p.track !== undefined) {
     // manuale: l'uscita la decide qualcun altro; l'integrale si prepara a ripartire da li'
     s.u = clamp(p.track, lo, hi);
-    s.i = kp > 0 ? s.u / kp - e : 0;
+    // senza integrale (Ti = 0) non c'e' niente da allineare: il passaggio al solo P da' il salto, come in un regolatore vero
+    s.i = kp > 0 && p.ti > 0 ? s.u / kp - e : 0;
     s.d = 0;
     s.lastPv = p.pv;
     return { state: s, u: s.u };
@@ -39,12 +40,15 @@ export function pidStep(st, p) {
   } else if (!(p.td > 0)) s.d = 0;
   if (dt > 0 || s.lastPv === null) s.lastPv = p.pv;
   // integrale, con il blocco quando l'uscita e' satura nella stessa direzione dell'errore
-  let iNext = s.i;
-  if (p.ti > 0 && dt > 0) iNext = s.i + e * dt / p.ti;
-  if (!(p.ti > 0)) iNext = 0;
-  const uFree = kp * (e + iNext + s.d);
-  const saturatedSameWay = (uFree > hi && e > 0) || (uFree < lo && e < 0);
-  if (!(saturatedSameWay && !p.windup)) s.i = iNext;
+  // senza integrale (Ti = 0) l'integrale e' zero sempre, anche con l'uscita satura: un valore rimasto bloccato
+  // (dal manuale o da un Ti di prima) terrebbe l'uscita a zero per sempre
+  if (!(p.ti > 0)) s.i = 0;
+  else {
+    const iNext = dt > 0 ? s.i + e * dt / p.ti : s.i;
+    const uFree = kp * (e + iNext + s.d);
+    const saturatedSameWay = (uFree > hi && e > 0) || (uFree < lo && e < 0);
+    if (!(saturatedSameWay && !p.windup)) s.i = iNext;
+  }
   s.u = clamp(kp * (e + s.i + s.d), lo, hi);
   return { state: s, u: s.u };
 }

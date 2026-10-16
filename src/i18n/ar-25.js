@@ -61,7 +61,7 @@ export default {
 "Scambia i due fili dell’anello: il + del trasmettitore va a AI0+, il − va a AI0−. Poi premi Verifica.": "بدّل سلكي الحلقة: موجب المرسِل إلى AI0+ وسالبه إلى AI0−. ثم اضغط «تحقق».",
 "Se i due fili sono scambiati il PLC legge 0 mA, come se il filo fosse staccato: si accende il guasto sensore.": "إذا بُدّل السلكان يقرأ الـPLC صفر ميلي أمبير كأن السلك مفصول: يضيء عطل المستشعر.",
 "Se l’anello è aperto non passa corrente. Zero milliampere è fuori scala: il programma lo vede (AI0 sotto 3,6 mA) e accende la lampada di guasto invece di far credere che il serbatoio sia vuoto.": "إذا كانت الحلقة مفتوحة فلا يمر تيار. صفر ميلي أمبير خارج المقياس: يرى البرنامج ذلك (AI0 تحت 3٫6 ميلي أمبير) ويضيء مصباح العطل بدل أن يوحي بأن الخزان فارغ.",
-"Serbatoio a metà e pompa ferma: nessuna lampada di allarme": "الخزان في المنتصف والمضخة متوقفة: لا مصباح إنذار",
+"Serbatoio al 30 % e pompa ferma: nessuna lampada di allarme": "الخزان عند 30٪ والمضخة متوقفة: لا مصباح إنذار",
 "Serbatoio con la pompa e il livello": "خزان مع المضخة والمستوى",
 "Tocca l’interruttore della pompa e guarda il livello salire nel grafico (il tempo corre 20 volte più veloce). Sopra l’80 % si accende “Livello alto”.": "المس مفتاح المضخة وراقب المستوى يرتفع في الرسم البياني (الزمن يجري أسرع 20 مرة). فوق 80٪ يضيء «مستوى مرتفع».",
 "Trasmettitore": "المرسِل",
