@@ -85,7 +85,8 @@ export function traceValue(sim, name, vars = processVars(sim)) {
     if (/^Q\d+$/.test(k)) return num(!!s.q[k]);
     if (/^AQ\d+$/.test(k)) return num(s.aq[k]);
     if (/^AI\d+$/.test(k)) return num(s.ai[k]);
-    return num(s.mem && s.mem.words ? s.mem.words[k] : s.mem && s.mem.bits ? s.mem.bits[k] : 0);
+    const m = s.mem || {};
+    return num(/^(AI|AQ|MW)\d+$/.test(k) ? (m.words || {})[k] : (m.bits || {})[k]);
   }
   if (c.type === 'tx') return num(s.mA);
   return num(s.run !== undefined ? s.run : s.on !== undefined ? s.on : s.act);
