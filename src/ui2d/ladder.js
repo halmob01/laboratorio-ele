@@ -121,7 +121,7 @@ export function ladderHTML(program, st, names = {}, opt = {}) {
     else body += `<text class="lad-a" x="${x0 + w + 10}" y="${y + CH / 2 + 4}">nessuna uscita</text>`;
     y += h + 14;
   });
-  return `<svg class="ladder" viewBox="0 0 ${W} ${y}" role="img" aria-label="Programma del PLC, ${program.length} gradini" preserveAspectRatio="xMinYMin meet">${body}</svg>`;
+  return `<svg class="ladder" viewBox="0 0 ${W} ${y}" role="img" aria-label="Programma del PLC, ${program.length === 1 ? '1 gradino' : program.length + ' gradini'}" preserveAspectRatio="xMinYMin meet">${body}</svg>`;
 }
 
 // Quali gradini l'editor sa modificare (gli altri si vedono e basta).

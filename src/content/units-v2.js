@@ -2605,7 +2605,7 @@ export const UNITS_V2 = {
           title: 'Il tempo nel programma',
           paras: [
             'In stella-triangolo il passaggio da stella a triangolo avviene dopo un ritardo, e nel cablaggio lo faceva un temporizzatore a parte, KT. Un PLC non ne ha bisogno: contare il tempo è una funzione del programma.',
-            'Questo livello rifà lo stesso motore, con gli stessi tre contattori, ma senza KT. Il PLC comanda tutti e tre: Q0 la linea (KM1), Q1 la stella (KM2), Q2 il triangolo (KM3).',
+            'Questo livello rifà lo stesso motore, con gli stessi tre contattori, ma senza KT. Il PLC comanda tutti e tre: Q0 la linea (KM1), Q1 la stella (KM2), Q2 il triangolo (KM3). I fili sono già fatti, compreso l’interblocco tra stella e triangolo.',
           ],
         },
         {
@@ -2644,10 +2644,10 @@ export const UNITS_V2 = {
           type: 'spiegazione',
           title: 'Stella e triangolo non insieme',
           paras: [
-            'Come in c28, stella e triangolo non devono mai essere chiusi insieme: le tre fasi andrebbero in cortocircuito. Allora c’era l’interblocco dei contatti NC nei fili; ora lo garantisce il programma.',
-            'I due gradini usano T1 in modo opposto: la stella lo vuole a 0, il triangolo lo vuole a 1. Non possono essere veri nello stesso momento, quindi Q1 e Q2 non si accendono mai insieme. È l’interblocco, scritto nel programma.',
+            'Come in c28, stella e triangolo non devono mai essere chiusi insieme: le tre fasi andrebbero in cortocircuito. Per questo l’interblocco con i contatti NC resta nei fili: la bobina della stella passa dal contatto NC di KM3, quella del triangolo dal contatto NC di KM2. Un errore nel programma o un contattore incollato non possono scavalcarlo.',
+            'Il programma aggiunge il suo interblocco: i due gradini usano T1 in modo opposto, la stella lo vuole a 0 e il triangolo a 1. Non possono essere veri nello stesso momento, quindi Q1 e Q2 non si accendono mai insieme. Due protezioni, una nei fili e una nel programma.',
           ],
-          warn: 'Se dimentichi T1 nel gradino della stella, a 6 secondi il triangolo si accende mentre la stella è ancora chiusa: corto circuito.',
+          warn: 'Se dimentichi T1 nel gradino della stella, a 6 secondi il PLC accende anche il triangolo mentre la stella è ancora chiusa. L’interblocco nei fili impedisce il corto, ma il motore resta in stella e non arriva mai a piena potenza.',
         },
         {
           type: 'previsione',
@@ -2676,11 +2676,11 @@ export const UNITS_V2 = {
           question: 'Nel gradino della stella c’è solo il contatto Q0, senza T1. Che cosa succede dopo 6 secondi?',
           options: [
             { id: 'a', text: 'Il motore passa in triangolo regolarmente.' },
-            { id: 'b', text: 'Stella e triangolo sono chiusi insieme: le fasi vanno in cortocircuito e il salvamotore scatta.' },
-            { id: 'c', text: 'Il motore resta in stella e non cambia niente.' },
+            { id: 'b', text: 'Il PLC accende stella e triangolo insieme; l’interblocco nei fili tiene aperto il triangolo e il motore resta in stella.' },
+            { id: 'c', text: 'Stella e triangolo si chiudono insieme e il salvamotore scatta.' },
           ],
           correct: 'b',
-          why: 'Senza T1 la stella resta accesa finché Q0 è acceso, anche dopo i 6 secondi. Allo scadere il triangolo si accende e i due contattori sono chiusi insieme: stella e triangolo uniti mettono in corto le tre fasi.',
+          why: 'Senza T1 la stella resta accesa finché Q0 è acceso, anche dopo i 6 secondi. Allo scadere il PLC accende anche Q2, ma la bobina del triangolo passa dal contatto NC di KM2, che è aperto: il triangolo non chiude. Niente corto, grazie ai fili, ma il motore resta in stella. Senza l’interblocco nei fili sarebbe stato un cortocircuito.',
         },
         {
           type: 'spiegazione',
@@ -2704,11 +2704,11 @@ export const UNITS_V2 = {
       'Un PLC conta il tempo da solo, con un temporizzatore ritardato (TON): non serve un componente a parte.',
       'Il TON parte quando la sua condizione è vera, e il suo bit (T1) diventa 1 dopo il tempo impostato. Se la condizione cade, si azzera.',
       'Stella e triangolo si distinguono con T1: la stella lo vuole a 0, il triangolo a 1.',
-      'Con T1 usato in modo opposto, i due gradini non sono mai veri insieme: è l’interblocco scritto nel programma.',
+      'L’interblocco tra stella e triangolo resta nei fili; il programma ne aggiunge un secondo, usando T1 in modo opposto nei due gradini.',
       'Dopo un arresto il conteggio riparte da zero e il motore riparte in stella.',
     ],
     fault: {
-      say: 'Il programma è già scritto, ma premendo Marcia il motore parte in stella e dopo qualche secondo scatta il salvamotore. Guarda il gradino della stella.',
+      say: 'Il programma è già scritto, ma premendo Marcia il motore parte in stella e non passa mai in triangolo. Guarda il gradino della stella e le uscite del PLC dopo 6 secondi.',
       wires: [
         ['Q.L1', 'QM.1', 'marrone'], ['Q.L2', 'QM.3', 'nero'], ['Q.L3', 'QM.5', 'grigio'],
         ['QM.2', 'KM1.1', 'marrone'], ['QM.4', 'KM1.3', 'nero'], ['QM.6', 'KM1.5', 'grigio'],
@@ -2724,8 +2724,8 @@ export const UNITS_V2 = {
         ['QM.2', 'SB1.3', 'rosso'], ['SB1.4', 'PLC.I1', 'rosso'],
         ['PLC.IC', 'Q.N', 'blu'],
         ['QM.2', 'PLC.Q0A', 'rosso'], ['PLC.Q0B', 'KM1.A1', 'rosso'], ['KM1.A2', 'Q.N', 'blu'],
-        ['QM.2', 'PLC.Q1A', 'rosso'], ['PLC.Q1B', 'KM2.A1', 'rosso'], ['KM2.A2', 'Q.N', 'blu'],
-        ['QM.2', 'PLC.Q2A', 'rosso'], ['PLC.Q2B', 'KM3.A1', 'rosso'], ['KM3.A2', 'Q.N', 'blu'],
+        ['QM.2', 'PLC.Q1A', 'rosso'], ['PLC.Q1B', 'KM3.21', 'rosso'], ['KM3.22', 'KM2.A1', 'rosso'], ['KM2.A2', 'Q.N', 'blu'],
+        ['QM.2', 'PLC.Q2A', 'rosso'], ['PLC.Q2B', 'KM2.21', 'rosso'], ['KM2.22', 'KM3.A1', 'rosso'], ['KM3.A2', 'Q.N', 'blu'],
       ],
       programs: {
         PLC: [
@@ -2736,14 +2736,14 @@ export const UNITS_V2 = {
         ],
       },
       diagnosis: {
-        question: 'Perché scatta il salvamotore dopo qualche secondo?',
+        question: 'Perché il motore non passa mai in triangolo?',
         options: [
-          { id: 'a', text: 'Il gradino della stella non guarda T1: a 6 secondi la stella resta accesa e si accende anche il triangolo, e le fasi vanno in corto.' },
+          { id: 'a', text: 'Il gradino della stella non guarda T1: la stella resta accesa e l’interblocco nei fili impedisce al triangolo di chiudere.' },
           { id: 'b', text: 'Il tempo impostato è troppo lungo.' },
           { id: 'c', text: 'Il motore è in sovraccarico.' },
         ],
         correct: 'a',
-        why: 'Il gradino della stella dipende solo da Q0, quindi resta vero anche dopo i 6 secondi. Quando T1 diventa 1 si accende anche il triangolo: stella e triangolo sono chiusi insieme e mettono in corto le tre fasi. Serve T1 normalmente chiuso nel gradino della stella.',
+        why: 'Il gradino della stella dipende solo da Q0, quindi resta vero anche dopo i 6 secondi. Quando T1 diventa 1 il PLC accende anche Q2, ma la bobina del triangolo passa dal contatto NC di KM2, aperto finché la stella è chiusa. L’interblocco nei fili ha evitato il corto. Serve T1 normalmente chiuso nel gradino della stella.',
       },
       fixSay: 'Nel gradino della stella aggiungi in serie un contatto di T1 e mettilo normalmente chiuso. Poi premi Verifica.',
     },
@@ -2797,9 +2797,9 @@ export const UNITS_V2 = {
             head: ['Che cosa', 'Dove sta'],
             rows: [
               ['Marcia, arresto, conteggio, spia', 'nel programma'],
-              ['Fungo di emergenza (contatto di potenza del comando)', 'nei fili, in serie alla bobina'],
+              ['Contatto del fungo di emergenza', 'nei fili, in serie alla bobina'],
               ['Contatto del relè termico', 'nei fili, in serie alla bobina'],
-              ['Informare il PLC che il fungo è premuto', 'un secondo contatto del fungo verso l’ingresso I3'],
+              ['Dire al PLC se fungo e termico sono a posto', 'un filo dal punto dopo il termico (96) all’ingresso I3'],
             ],
           },
           warn: 'La verifica prova anche questo: forza tutte le uscite del PLC a 1 e controlla che con il fungo premuto il nastro si fermi lo stesso.',
@@ -2808,8 +2808,8 @@ export const UNITS_V2 = {
           type: 'spiegazione',
           title: 'Perché il PLC deve saperlo lo stesso',
           paras: [
-            'Premendo il fungo la bobina perde la fase e il nastro si ferma subito, anche se il PLC non se ne accorge. Ma il PLC pensa ancora di avere Q0 acceso, per via dell’autoritenuta. Sbloccando il fungo la bobina torna alimentata e il nastro ripartirebbe da solo.',
-            'Per evitarlo il PLC legge lo stato del fungo sull’ingresso I3, e nel gradino del nastro I3 è in serie: con il fungo premuto I3 vale 0, Q0 si spegne e l’autoritenuta si scioglie. Dopo lo sblocco serve un nuovo Marcia.',
+            'Premendo il fungo la bobina perde la fase e il nastro si ferma subito, anche se il PLC non se ne accorge. Ma il PLC pensa ancora di avere Q0 acceso, per via dell’autoritenuta. Sbloccando il fungo la bobina torna alimentata e il nastro ripartirebbe da solo. Lo stesso succederebbe riarmando il termico dopo un sovraccarico.',
+            'Per evitarlo un filo porta all’ingresso I3 il punto che sta dopo il fungo e il termico: è il consenso delle sicurezze. Vale 1 solo se il fungo è sbloccato e il termico non è scattato. Nel gradino del nastro I3 è in serie: se una sicurezza interviene I3 va a 0, Q0 si spegne e l’autoritenuta si scioglie. Per ripartire serve un nuovo Marcia.',
           ],
         },
         {
@@ -2844,7 +2844,7 @@ export const UNITS_V2 = {
         },
         {
           type: 'previsione',
-          question: 'Nel programma manca I3 nel gradino del nastro. Premi e sblocchi il fungo. Che cosa succede?',
+          question: 'Nel programma manca I3, il consenso delle sicurezze, nel gradino del nastro. Premi e sblocchi il fungo. Che cosa succede?',
           options: [
             { id: 'a', text: 'Il nastro resta fermo: il fungo lo ha fermato.' },
             { id: 'b', text: 'Il nastro riparte da solo: il PLC aveva ancora Q0 acceso con l’autoritenuta.' },
@@ -2858,7 +2858,7 @@ export const UNITS_V2 = {
     },
     steps: [
       { kind: 'program', plc: 'PLC', min: 1, short: '1 Contatore', title: 'Il conteggio dei pacchi', text: 'Primo gradino: contatto della fotocellula (I2) e, come uscita, un contatore a 3, azzerato da Marcia (I1). Perché: va per primo, così il nastro vede subito il contatore pieno.' },
-      { kind: 'program', plc: 'PLC', min: 2, short: '2 Nastro', title: 'Il gradino del nastro', text: 'Bobina Q0. Marcia (I1) in parallelo a Q0, in serie Arresto (I0), emergenza (I3) e C1 normalmente chiuso. Perché: l’autoritenuta tiene acceso, ogni altro contatto può fermare, e a lotto pieno il nastro si ferma.' },
+      { kind: 'program', plc: 'PLC', min: 2, short: '2 Nastro', title: 'Il gradino del nastro', text: 'Bobina Q0. Marcia (I1) in parallelo a Q0, in serie Arresto (I0), sicurezze (I3) e C1 normalmente chiuso. Perché: l’autoritenuta tiene acceso, ogni altro contatto può fermare, e a lotto pieno il nastro si ferma.' },
       { kind: 'program', plc: 'PLC', min: 3, short: '3 Spia', title: 'La spia del lotto', text: 'Contatto C1 e bobina Q1. Perché: la spia si accende quando il contatore è pieno.' },
       { kind: 'control', id: 'SB1', short: '4 Prova', title: 'Prova il lotto', text: 'Premi Marcia, poi fai passare tre pacchi con la fotocellula: al terzo il nastro si ferma e la spia si accende.' },
       { kind: 'verify', short: '5 Verifica', title: 'Controlla il programma', text: 'Premi Verifica.' },
@@ -2867,7 +2867,7 @@ export const UNITS_V2 = {
       'Una fotocellula è un ingresso: vale 1 mentre un pacco interrompe il raggio.',
       'Il CTU conta i fronti di salita della condizione e dà un bit (C1) quando arriva al numero impostato; un ingresso lo azzera.',
       'Il fungo e il contatto del termico stanno nei fili, in serie alla bobina: il programma non può scavalcarli.',
-      'Il PLC legge comunque il fungo (I3) per sciogliere l’autoritenuta: senza, dopo lo sblocco il nastro ripartirebbe da solo.',
+      'Il PLC legge lo stato di fungo e termico (I3, il consenso delle sicurezze) per sciogliere l’autoritenuta: senza, dopo lo sblocco o il riarmo il nastro ripartirebbe da solo.',
       'L’ordine dei gradini conta: un bit scritto in alto si legge subito nei gradini sotto.',
     ],
     fault: {
@@ -2882,8 +2882,8 @@ export const UNITS_V2 = {
         ['QM.2', 'SB0.1', 'rosso'], ['SB0.2', 'PLC.I0', 'rosso'],
         ['QM.2', 'SB1.3', 'rosso'], ['SB1.4', 'PLC.I1', 'rosso'],
         ['QM.2', 'PH.3', 'rosso'], ['PH.4', 'PLC.I2', 'rosso'],
-        ['QM.2', 'SBE.3', 'rosso'], ['SBE.4', 'PLC.I3', 'rosso'],
         ['QM.2', 'SBE.1', 'rosso'], ['SBE.2', 'FR.95', 'rosso'], ['FR.96', 'PLC.Q0A', 'rosso'], ['PLC.Q0B', 'KM.A1', 'rosso'], ['KM.A2', 'Q.N', 'blu'],
+        ['FR.96', 'PLC.I3', 'rosso'],
         ['QM.2', 'PLC.Q1A', 'rosso'], ['PLC.Q1B', 'H.X1', 'rosso'], ['H.X2', 'Q.N', 'blu'],
       ],
       programs: {
@@ -2896,14 +2896,14 @@ export const UNITS_V2 = {
       diagnosis: {
         question: 'Perché il nastro riparte da solo dopo l’emergenza?',
         options: [
-          { id: 'a', text: 'Il programma non legge il fungo (I3): Q0 resta acceso con l’autoritenuta e, sbloccato il fungo, la bobina torna alimentata.' },
+          { id: 'a', text: 'Il programma non legge il consenso delle sicurezze (I3): Q0 resta acceso con l’autoritenuta e, sbloccato il fungo, la bobina torna alimentata.' },
           { id: 'b', text: 'Il contatore non si è azzerato.' },
           { id: 'c', text: 'Il fungo non è collegato nei fili.' },
         ],
         correct: 'a',
-        why: 'Il fungo agisce giustamente nei fili e ferma il nastro, ma il PLC non lo sa: per lui Q0 è ancora acceso grazie all’autoritenuta. Allo sblocco il nastro riparte. Aggiungendo I3 in serie, con il fungo premuto l’autoritenuta si scioglie.',
+        why: 'Il fungo agisce giustamente nei fili e ferma il nastro, ma il programma non guarda I3: per lui Q0 è ancora acceso grazie all’autoritenuta. Allo sblocco il nastro riparte. Aggiungendo I3 in serie, quando una sicurezza interviene l’autoritenuta si scioglie.',
       },
-      fixSay: 'Nel gradino del nastro aggiungi in serie il contatto I3 (Emergenza), normalmente aperto. Poi premi Verifica.',
+      fixSay: 'Nel gradino del nastro aggiungi in serie il contatto I3 (Sicurezze), normalmente aperto. Poi premi Verifica.',
     },
   },
 };

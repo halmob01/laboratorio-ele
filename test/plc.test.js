@@ -262,13 +262,24 @@ test('c31: il programma di partenza ha il solo gradino di marcia e il motore res
   assert.equal(evaluateV2(L31, W31(L31.solution), { programs: { PLC: L31.comps.find(c => c.id === 'PLC').edit.start } }).pass, false);
 });
 
-test('c31: senza T1 nel gradino della stella le uscite Q1 e Q2 si accendono insieme e scatta il salvamotore', () => {
+test('c31: senza T1 nel gradino della stella il PLC accende stella e triangolo; l\'interblocco nei fili evita il corto e il motore resta in stella', () => {
   const bad = L31.unit.fault.programs.PLC;
   const s = createSim(lvProg(L31, bad), W31(L31.solution));
   press(s, 'SB1');
   advance(s, 7);
-  assert.ok(observe(s).tripped.includes('QM') || observe(s).faults.length > 0);
-  assert.equal(evaluateV2(L31, W31(L31.solution), { programs: { PLC: bad } }).pass, false);
+  assert.deepEqual(observe(s).tripped, []);
+  assert.equal(observe(s).modes.M, 'star');
+  assert.deepEqual(observe(s).plc.PLC.q, { Q0: true, Q1: true, Q2: true });
+  const r = evaluateV2(L31, W31(L31.solution), { programs: { PLC: bad } });
+  assert.equal(r.pass, false);
+});
+
+test('c31: l\'interblocco nei fili tiene anche con tutte le uscite del PLC forzate a 1', () => {
+  const s = createSim(lvProg(L31, L31.solutionPrograms.PLC), W31(L31.solution));
+  s.forcePlc = 'allOn';
+  press(s, 'SB1'); advance(s, 8);
+  assert.deepEqual(observe(s).tripped, []);
+  assert.ok(!s.kmHistory.some(on => on.includes('KM2') && on.includes('KM3')));
 });
 
 test('c31: la regola outputsNeverTogether scopre le due uscite accese insieme anche quando il corto non si vede', () => {
@@ -335,6 +346,17 @@ test('c32: il fungo ferma il nastro anche con tutte le uscite del PLC forzate, e
   assert.deepEqual(observe(s).tripped, ['FR']);
 });
 
+test('c32: riarmato il termico il nastro resta fermo (il PLC ha letto il consenso su I3)', () => {
+  const s = sim32(L32.solutionPrograms.PLC);
+  press(s, 'SB1');
+  s.overload = true; advance(s, 5);
+  assert.deepEqual(observe(s).tripped, ['FR']);
+  s.overload = false; act(s, 'reset', 'FR');
+  assert.equal(observe(s).motors.M, 'off');
+  press(s, 'SB1');
+  assert.equal(observe(s).motors.M, 'fwd');
+});
+
 test('c32: senza I3 il nastro riparte da solo dopo l\'emergenza, e la verifica lo dice', () => {
   const bad = L32.unit.fault.programs.PLC;
   const s = sim32(bad);
@@ -345,7 +367,8 @@ test('c32: senza I3 il nastro riparte da solo dopo l\'emergenza, e la verifica l
   assert.equal(observe(s).motors.M, 'fwd', 'riparte da solo');
   const r = evaluateV2(L32, W32(L32.solution), { programs: { PLC: bad } });
   assert.equal(r.pass, false);
-  assert.ok(r.safe.items.some(i => i.code === 'safe.restartAfterEmergency'), JSON.stringify(r.safe.items));
+  // la prova del riarmo del termico lo scopre gia' tra le prove di funzionamento
+  assert.ok(r.checks.some(c => c.id === 'riarmo' && !c.ok), JSON.stringify(r.checks));
 });
 
 test('c32: il contatore va per primo; se sta dopo il nastro si ferma con una scansione di ritardo ma funziona lo stesso', () => {
@@ -353,4 +376,15 @@ test('c32: il contatore va per primo; se sta dopo il nastro si ferma con una sca
   const s = sim32(late);
   press(s, 'SB1'); pacchi(s, 3);
   assert.equal(observe(s).motors.M, 'off');
+});
+
+test('il temporizzatore fa correre l\'orologio della sessione fin dal primo istante (anche a conteggio 0)', async () => {
+  const { needsClock } = await import('../src/engine/v2/view.js');
+  const L = { engine: 2, src: { F: 'Q.F', N: 'Q.N', PE: 'Q.PE' }, comps: [{ id: 'Q', type: 'quadro', terms: {} }, { id: 'PLC', type: 'plc', terms: { A1: {}, A2: {}, I0: {}, IC: {}, Q0A: {}, Q0B: {} }, program: [{ if: 'I0', do: [{ op: 'ton', id: 'T1', pt: 3 }] }] }] };
+  const ws = [['Q.F', 'PLC.A1'], ['PLC.A2', 'Q.N'], ['Q.F', 'PLC.I0'], ['PLC.IC', 'Q.N']].map(([a, b], k) => ({ id: k + 1, a, b, c: 'marrone' }));
+  const s = createSim(L, ws);
+  const o = observe(s);
+  assert.equal(needsClock(L, o), true, 'il conteggio e\' appena partito: serve l\'orologio');
+  advance(s, 3);
+  assert.equal(needsClock(L, observe(s)), false, 'tempo scaduto: l\'orologio si puo\' fermare');
 });

@@ -807,7 +807,7 @@ export const LEVELS_V2 = [
       Q3,
       C('QM', 'mt3', 'Salvamotore', 'Salvamotore magnetotermico', T(...T6)),
       C('KM', 'km', 'Contattore', 'Contattore KM', T('A1', 'A2', ...T6)),
-      C('PLC', 'plc', 'PLC', 'PLC a 4 ingressi e 2 uscite', T('A1', 'A2', 'I0', 'I1', 'I2', 'IC', 'Q0A', 'Q0B', 'Q1A', 'Q1B'), {
+      C('PLC', 'plc', 'PLC', 'PLC a 3 ingressi e 2 uscite', T('A1', 'A2', 'I0', 'I1', 'I2', 'IC', 'Q0A', 'Q0B', 'Q1A', 'Q1B'), {
         program: [
           { if: ['and', ['or', 'I1', 'Q0'], 'I0'], do: [{ op: 'coil', a: 'Q0' }] },
           { if: 'Q0', do: [{ op: 'coil', a: 'Q1' }] },
@@ -882,8 +882,9 @@ const PLC_WIRES_31 = [
   ['QM.2', 'SB1.3', 'rosso'], ['SB1.4', 'PLC.I1', 'rosso'],
   ['PLC.IC', 'Q.N', 'blu'],
   ['QM.2', 'PLC.Q0A', 'rosso'], ['PLC.Q0B', 'KM1.A1', 'rosso'], ['KM1.A2', 'Q.N', 'blu'],
-  ['QM.2', 'PLC.Q1A', 'rosso'], ['PLC.Q1B', 'KM2.A1', 'rosso'], ['KM2.A2', 'Q.N', 'blu'],
-  ['QM.2', 'PLC.Q2A', 'rosso'], ['PLC.Q2B', 'KM3.A1', 'rosso'], ['KM3.A2', 'Q.N', 'blu'],
+  // l'interblocco resta nei fili, come in c28: la stella passa dal contatto NC di KM3 e il triangolo da quello di KM2
+  ['QM.2', 'PLC.Q1A', 'rosso'], ['PLC.Q1B', 'KM3.21', 'rosso'], ['KM3.22', 'KM2.A1', 'rosso'], ['KM2.A2', 'Q.N', 'blu'],
+  ['QM.2', 'PLC.Q2A', 'rosso'], ['PLC.Q2B', 'KM2.21', 'rosso'], ['KM2.22', 'KM3.A1', 'rosso'], ['KM3.A2', 'Q.N', 'blu'],
 ];
 const POWER_31 = C28.fixed.map(w => w.slice());
 const PROG_31 = [
@@ -897,14 +898,14 @@ LEVELS_V2.push({
   id: 'c31-tempo', code: 'c31',
   name: 'Il temporizzatore', title: 'Il temporizzatore nel PLC',
   blurb: 'Stella-triangolo senza temporizzatore a parte: il tempo sta nel programma.',
-  goal: 'È il motore di stella-triangolo, ma ora i tre contattori li comanda un PLC e il temporizzatore KT non c’è più: il tempo si conta nel programma. Il PLC ha già il gradino di marcia e arresto, che accende Q0 (la linea KM1). Aggiungi tu un temporizzatore di 6 secondi, e due gradini: Q1 (stella, KM2) per i primi 6 secondi, Q2 (triangolo, KM3) dopo. Stella e triangolo non devono mai essere accesi insieme.',
+  goal: 'È il motore di stella-triangolo, ma ora i tre contattori li comanda un PLC e il temporizzatore KT non c’è più: il tempo si conta nel programma. L’interblocco tra stella e triangolo resta nei fili, come prima. Il PLC ha già il gradino di marcia e arresto, che accende Q0 (la linea KM1). Aggiungi tu un temporizzatore di 6 secondi, e due gradini: Q1 (stella, KM2) per i primi 6 secondi, Q2 (triangolo, KM3) dopo. Anche nel programma stella e triangolo non devono mai essere accesi insieme.',
   fixed: POWER_31.concat(PLC_WIRES_31),
   comps: [
     C28.comps.find(c => c.id === 'Q'),
     C28.comps.find(c => c.id === 'QM'),
     { ...C28.comps.find(c => c.id === 'KM1'), terms: T('A1', 'A2', ...T6) },
-    { ...C28.comps.find(c => c.id === 'KM2'), terms: T('A1', 'A2', ...T6) },
-    { ...C28.comps.find(c => c.id === 'KM3'), terms: T('A1', 'A2', ...T6) },
+    C28.comps.find(c => c.id === 'KM2'),
+    C28.comps.find(c => c.id === 'KM3'),
     C('PLC', 'plc', 'PLC', 'PLC (programma da completare)', T('A1', 'A2', 'I0', 'I1', 'I2', 'IC', 'Q0A', 'Q0B', 'Q1A', 'Q1B', 'Q2A', 'Q2B'), {
       symbols: { I0: 'Arresto', I1: 'Marcia', Q0: 'Linea KM1', Q1: 'Stella KM2', Q2: 'Triangolo KM3', T1: 'Ritardo' },
       edit: { markers: 0, timers: 1, counters: 0, ops: ['coil', 'ton'], start: [PROG_31[0]] },
@@ -922,7 +923,7 @@ LEVELS_V2.push({
     'Il gradino 1 c’è già: accende Q0 con Marcia, Arresto e autoritenuta. Gli altri tre li aggiungi tu.',
     'Il temporizzatore parte quando Q0 è acceso: un gradino con il contatto Q0 e, come uscita, il temporizzatore T1 impostato a 6 secondi. T1 diventa 1 solo dopo 6 secondi.',
     'La stella (Q1) è accesa mentre Q0 è acceso e T1 vale ancora 0: contatto Q0 in serie con T1 normalmente chiuso, bobina Q1.',
-    'Il triangolo (Q2) è acceso quando Q0 è acceso e T1 vale 1: contatto Q0 in serie con T1 normalmente aperto, bobina Q2. Così stella e triangolo non sono mai accesi insieme.',
+    'Il triangolo (Q2) è acceso quando Q0 è acceso e T1 vale 1: contatto Q0 in serie con T1 normalmente aperto, bobina Q2. Così anche nel programma stella e triangolo non sono mai accesi insieme.',
   ],
 });
 
@@ -939,9 +940,10 @@ const W32_PLC = [
   ['QM.2', 'SB0.1', 'rosso'], ['SB0.2', 'PLC.I0', 'rosso'],
   ['QM.2', 'SB1.3', 'rosso'], ['SB1.4', 'PLC.I1', 'rosso'],
   ['QM.2', 'PH.3', 'rosso'], ['PH.4', 'PLC.I2', 'rosso'],
-  ['QM.2', 'SBE.3', 'rosso'], ['SBE.4', 'PLC.I3', 'rosso'],
   // il comando del contattore passa dal fungo e dal termico, nei fili: il programma non puo' saltarli
   ['QM.2', 'SBE.1', 'rosso'], ['SBE.2', 'FR.95', 'rosso'], ['FR.96', 'PLC.Q0A', 'rosso'], ['PLC.Q0B', 'KM.A1', 'rosso'], ['KM.A2', 'Q.N', 'blu'],
+  // consenso delle sicurezze: il punto dopo fungo e termico arriva anche all'ingresso I3, cosi' il programma sa se sono a posto
+  ['FR.96', 'PLC.I3', 'rosso'],
   ['QM.2', 'PLC.Q1A', 'rosso'], ['PLC.Q1B', 'H.X1', 'rosso'], ['H.X2', 'Q.N', 'blu'],
 ];
 const PROG_32 = [
@@ -954,7 +956,7 @@ LEVELS_V2.push({
   id: 'c32-nastro-plc', code: 'c32', n: 0, ...IND, flow: 'onDemand',
   name: 'Il nastro con il PLC', title: 'Il nastro con il PLC',
   blurb: 'Una fotocellula conta i pacchi: a tre il nastro si ferma. Fungo e termico restano nei fili.',
-  goal: 'Un nastro trasporta pacchi in lotti da tre. Una fotocellula vede passare ogni pacco; dopo il terzo il nastro si ferma e una spia segnala il lotto completo. Con Marcia parte un lotto nuovo. L’impianto è cablato: il fungo di emergenza e il relè termico passano dai fili, in serie alla bobina del contattore, e il PLC li legge soltanto. Scrivi il programma.',
+  goal: 'Un nastro trasporta pacchi in lotti da tre. Una fotocellula vede passare ogni pacco; dopo il terzo il nastro si ferma e una spia segnala il lotto completo. Con Marcia parte un lotto nuovo. L’impianto è cablato: il fungo di emergenza e il relè termico passano dai fili, in serie alla bobina del contattore, e il PLC ne legge soltanto lo stato sull’ingresso I3. Scrivi il programma.',
   fixed: W32_POWER.concat(W32_PLC),
   comps: [
     Q3,
@@ -962,10 +964,10 @@ LEVELS_V2.push({
     C('KM', 'km', 'Contattore', 'Contattore KM', T('A1', 'A2', ...T6)),
     C('FR', 'ft', 'Termico', 'Relè termico', T(...T6, '95', '96'), { tripAfter: 3 }),
     C('PLC', 'plc', 'PLC', 'PLC (programma da scrivere)', T('A1', 'A2', 'I0', 'I1', 'I2', 'I3', 'IC', 'Q0A', 'Q0B', 'Q1A', 'Q1B'), {
-      symbols: { I0: 'Arresto', I1: 'Marcia', I2: 'Fotocellula', I3: 'Emergenza', Q0: 'Nastro', Q1: 'Lotto pieno', C1: 'Pacchi' },
+      symbols: { I0: 'Arresto', I1: 'Marcia', I2: 'Fotocellula', I3: 'Sicurezze', Q0: 'Nastro', Q1: 'Lotto pieno', C1: 'Pacchi' },
       edit: { markers: 0, timers: 0, counters: 1, ops: ['coil', 'ctu'] },
     }),
-    C('SBE', 'fungo', 'Emergenza', 'Pulsante di emergenza a due contatti', T('1', '2', '3', '4')),
+    C('SBE', 'fungo', 'Emergenza', 'Pulsante di emergenza a fungo', T('1', '2')),
     C('SB0', 'pbnc', 'Arresto', 'Pulsante di arresto (NC)', T('1', '2')),
     C('SB1', 'pb', 'Marcia', 'Pulsante di marcia (NA)', T('3', '4')),
     C('PH', 'pb', 'Fotocellula', 'Fotocellula: un pacco in transito (NA)', T('3', '4')),
@@ -981,6 +983,7 @@ LEVELS_V2.push({
     { id: 'nuovo', label: 'Con Marcia parte un lotto nuovo e la spia si spegne', steps: [{ do: press('SB1').concat(batch(3)), expect: { motors: { M: 'off' }, loads: { H: 'on' } } }, { do: press('SB1'), expect: { motors: { M: 'fwd' }, loads: { H: 'off' } } }] },
     { id: 'arresto', label: 'Premi Arresto: il nastro si ferma', steps: [{ do: press('SB1'), expect: { motors: { M: 'fwd' } } }, { do: press('SB0'), expect: { motors: { M: 'off' } } }] },
     { id: 'termico', label: 'Con un sovraccarico il termico scatta e il nastro si ferma', steps: [{ do: press('SB1'), expect: { motors: { M: 'fwd' } } }, { do: ['overload on', 'wait 5'], expect: { motors: { M: 'off' }, tripped: ['FR'] } }] },
+    { id: 'riarmo', label: 'Riarmato il termico, il nastro non riparte da solo', steps: [{ do: press('SB1'), expect: { motors: { M: 'fwd' } } }, { do: ['overload on', 'wait 5'], expect: { motors: { M: 'off' }, tripped: ['FR'] } }, { do: ['overload off', 'reset FR'], expect: { motors: { M: 'off' } } }] },
     { id: 'fermo', label: 'Senza comandi il nastro è fermo', do: [], expect: { motors: { M: 'off' } } },
   ],
   safety: { deadWork: ['QM'], earth: [['M.PE', 'Q.PE']], stopWins: 'SB0', emergency: 'SBE', emergencyHardwired: { stop: 'SBE', start: ['SB1'] }, coilReturn: ['KM', 'PLC'], protectedBy: { M: 'QM', KM: 'QM' } },
@@ -989,7 +992,7 @@ LEVELS_V2.push({
   hints: [
     'Il conteggio: un gradino con il contatto della fotocellula I2 e, come uscita, un contatore a 3. Si azzera con Marcia (I1).',
     'Il gradino del contatore va per primo: così, quando passa il terzo pacco, il gradino del nastro vede subito il contatore pieno.',
-    'Il nastro Q0: Marcia (I1) in parallelo a Q0 per l’autoritenuta; in serie Arresto (I0), emergenza (I3), e il contatore C1 normalmente chiuso, perché a lotto pieno il nastro si ferma.',
+    'Il nastro Q0: Marcia (I1) in parallelo a Q0 per l’autoritenuta; in serie Arresto (I0), le sicurezze (I3), e il contatore C1 normalmente chiuso, perché a lotto pieno il nastro si ferma.',
     'La spia Q1 segue il contatore: contatto C1 e bobina Q1.',
   ],
 });
