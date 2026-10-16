@@ -106,6 +106,7 @@ export function scan(program, inputs, mem, dt = 0) {
       else if (ins.op === 'ton') {
         const t = m.timers[ins.id] || (m.timers[ins.id] = { acc: 0 });
         t.acc = on ? Math.min(ins.pt, t.acc + dt) : 0;
+        t.on = on;                // sta contando (serve a chi fa correre l'orologio: all'inizio acc vale ancora 0)
         bits[ins.id] = t.acc >= ins.pt;
       } else if (ins.op === 'ctu') {
         const c = m.counters[ins.id] || (m.counters[ins.id] = { cv: 0 });
