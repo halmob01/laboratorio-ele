@@ -695,8 +695,9 @@ export function createSession({ levels, deriveFull, storage = memoryStorage(), i
     },
     clear() {
       if (!inBuildOrFault()) return;
-      if (!wires().some(w => !w.fixed) && !Object.keys(programsOf()).length) { delete liveEditsBy[keyOf()]; return; }
+      if (!wires().some(w => !w.fixed) && !Object.keys(programsOf()).length && !tunedByKey[keyOf()]) { delete liveEditsBy[keyOf()]; return; }
       delete programsByKey[keyOf()];
+      delete tunedByKey[keyOf()];   // anche i cursori del pannello tornano ai valori di partenza
       wiresChanged();
       delete liveEditsBy[keyOf()];   // si ricomincia da capo
       wiresByKey[keyOf()] = blank();

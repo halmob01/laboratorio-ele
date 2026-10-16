@@ -1561,7 +1561,7 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
   var loadVolt = (c2) => c2.volt || partOf(c2).volt || 230;
 
   // src/engine/v2/pid.js
-  var newPid = () => ({ i: 0, d: 0, lastPv: null, u: 0 });
+  var newPid = () => ({ i: 0, d: 0, lastPv: null, u: 0, kp: null });
   var clamp = (x, lo, hi) => Math.max(lo, Math.min(hi, x));
   function pidStep(st, p) {
     const s = { ...st || newPid() };
@@ -1573,9 +1573,12 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
       s.i = kp > 0 && p.ti > 0 ? s.u / kp - e : 0;
       s.d = 0;
       s.lastPv = p.pv;
+      s.kp = kp;
       return { state: s, u: s.u };
     }
     const dt = p.dt > 0 ? p.dt : 0;
+    if (p.ti > 0 && kp > 0 && s.kp > 0 && s.kp !== kp) s.i = s.kp * (e + s.i + s.d) / kp - e - s.d;
+    s.kp = kp;
     if (p.td > 0 && dt > 0 && s.lastPv !== null) {
       const raw = -p.td * (p.pv - s.lastPv) / dt;
       const tf = p.td / 8;
@@ -3982,11 +3985,12 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
       },
       clear() {
         if (!inBuildOrFault()) return;
-        if (!wires().some((w) => !w.fixed) && !Object.keys(programsOf()).length) {
+        if (!wires().some((w) => !w.fixed) && !Object.keys(programsOf()).length && !tunedByKey[keyOf()]) {
           delete liveEditsBy[keyOf()];
           return;
         }
         delete programsByKey[keyOf()];
+        delete tunedByKey[keyOf()];
         wiresChanged();
         delete liveEditsBy[keyOf()];
         wiresByKey[keyOf()] = blank();
@@ -18339,7 +18343,8 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
     let html = head + `<div class="ladscroll">${ladderHTML(prog, st, names, { edit: ed, sel: LADSEL })}</div>`;
     if (ed) {
       const addrs = addressesFor(plc, plc.edit);
-      const errors = validateProgram(prog, { I: addrs.inputs.length, Q: addrs.outputs.length });
+      const aq = Object.values(S.level.process && S.level.process.actuators || {}).map((a) => a.analog && a.analog.startsWith(plc.id + ".AQ") ? Number(a.analog.slice(plc.id.length + 3)) + 1 : 0);
+      const errors = validateProgram(prog, { I: addrs.inputs.length, Q: addrs.outputs.length, AI: Object.keys(plc.terms).filter((t) => /^AI\d+\+$/.test(t)).length, AQ: Math.max(0, ...aq) });
       if (LADSEL && !prog[LADSEL.r]) LADSEL = null;
       html += editorPanelHTML(prog, LADSEL, names, addrs, plc.edit.ops || ["coil"], errors, (e) => progText(e));
       if (S.solutionShown && S.level.solutionPrograms && S.level.solutionPrograms[plc.id]) {
