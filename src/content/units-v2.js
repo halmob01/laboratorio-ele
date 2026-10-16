@@ -3438,4 +3438,237 @@ export const UNITS_V2 = {
       'Il multimetro in continua legge la tensione con il segno: dice da che parte sta il positivo.',
     ],
   },
+  'c39-fotovoltaico': {
+    support: 'passi',
+    lesson: {
+      pages: [
+        {
+          type: 'spiegazione',
+          title: 'Come funziona un pannello fotovoltaico',
+          paras: [
+            'Un pannello fotovoltaico trasforma la luce del sole in corrente continua. Come una batteria ha un positivo e un negativo, ma la sua tensione non è fissa: dipende da quanta luce arriva. A pieno sole un pannello dà la sua tensione massima; con il cielo coperto o al tramonto ne dà molto meno; di notte niente.',
+            'Il sole nella giornata sale e scende: la produzione ha la forma di una campana, con il massimo verso mezzogiorno. Nel grafico vedi la produzione in kilowatt (kW) e il consumo della casa.',
+          ],
+        },
+        {
+          type: 'spiegazione',
+          title: 'Perché serve l’inverter',
+          paras: [
+            'La casa funziona in corrente alternata a 230 V. L’inverter trasforma la continua dei pannelli in alternata, e l’energia può così alimentare la casa o andare in rete.',
+            'L’inverter ha una finestra di tensione in ingresso: sotto una tensione minima (qui 30 V) non parte, perché non ha abbastanza tensione per lavorare; sopra la massima (qui 60 V) si danneggia. Il compito dell’impianto è tenere la tensione dei pannelli dentro la finestra.',
+          ],
+        },
+        {
+          type: 'spiegazione',
+          title: 'Serie e parallelo: quanti pannelli e come',
+          paras: [
+            'Come per le batterie, due pannelli in serie sommano le tensioni; in parallelo la tensione resta quella di uno e si sommano le correnti. Un pannello da 22 V da solo non arriva a 30 V: l’inverter non parte. Due in serie danno 44 V: dentro la finestra. Tre in serie darebbero 66 V: oltre il limite, e l’inverter si brucia.',
+            'Una stringa fotovoltaica è proprio questo: più pannelli in serie, in numero scelto in modo che la tensione, con il sole più forte, resti sotto il limite dell’inverter e, con il sole più debole, non scenda troppo sotto il minimo.',
+          ],
+          table: {
+            head: ['Collegamento', 'Tensione a pieno sole', 'Inverter'],
+            rows: [
+              ['1 pannello', '22 V', 'non parte (sotto 30 V)'],
+              ['2 in parallelo', '22 V', 'non parte (sotto 30 V)'],
+              ['2 in serie', '44 V', 'lavora'],
+              ['3 in serie', '66 V', 'si brucia (sopra 60 V)'],
+            ],
+          },
+        },
+        {
+          type: 'previsione',
+          question: 'Il sole è più debole al mattino. Con due pannelli in serie, quando parte l’inverter?',
+          options: [
+            { id: 'a', text: 'Appena sorge il sole.' },
+            { id: 'b', text: 'Quando la tensione dei due pannelli arriva a 30 V, cioè con un sole abbastanza alto.' },
+            { id: 'c', text: 'Mai: serve il sole pieno.' },
+          ],
+          correct: 'b',
+          why: 'La tensione sale con il sole. L’inverter parte appena la somma dei due pannelli raggiunge i 30 V, un po’ dopo l’alba. La stessa soglia lo spegne la sera.',
+        },
+        { type: 'sintesi', title: 'Da ricordare' },
+      ],
+    },
+    steps: [
+      { kind: 'wire', from: 'P1.+', to: ['I.+'], color: 'rosso', short: '1 Il positivo', title: 'Il + del primo pannello all’inverter', text: 'Un filo rosso dal + del pannello 1 al + dell’inverter. Perché: in una serie il + libero della catena va all’ingresso positivo.' },
+      { kind: 'wire', from: 'P1.-', to: ['P2.+'], color: 'rosso', short: '2 La serie', title: 'I due pannelli in serie', text: 'Un filo dal − del pannello 1 al + del pannello 2 (rosso o nero). Perché: così le tensioni si sommano, 22 V più 22 V fanno 44 V.' },
+      { kind: 'wire', from: 'P2.-', to: ['I.-'], color: 'nero', short: '3 Il negativo', title: 'Il − del secondo pannello all’inverter', text: 'Un filo nero dal − del pannello 2 al − dell’inverter. Perché: la corrente deve tornare al negativo per chiudere il giro.' },
+      { kind: 'verify', short: '4 Verifica', title: 'Guarda la giornata', text: 'Premi Verifica: il tempo corre e vedi l’inverter partire con il sole alto e fermarsi la sera. Prova anche i cursori: con più nuvole la produzione cala.' },
+    ],
+    summary: [
+      'Un pannello fotovoltaico è un generatore in continua la cui tensione dipende dal sole: la produzione ha la forma di una campana nella giornata.',
+      'L’inverter trasforma la continua in alternata e ha una finestra di tensione in ingresso: sotto il minimo non parte, sopra il massimo si brucia.',
+      'Pannelli in serie sommano le tensioni; in parallelo la tensione resta quella di uno e si sommano le correnti.',
+      'La stringa si dimensiona perché la tensione, col sole più forte, stia sotto il massimo dell’inverter.',
+    ],
+  },
+  'c40-contatore': {
+    support: 'passi',
+    lesson: {
+      pages: [
+        {
+          type: 'spiegazione',
+          title: 'Il contatore che va in due versi',
+          paras: [
+            'Con i pannelli la casa non solo consuma ma produce. Il contatore allora misura in due versi: quando la casa consuma più di quanto produce preleva dalla rete (potenza positiva); quando produce più di quanto consuma immette in rete (potenza negativa). Si chiama scambio sul posto: l’energia immessa va in rete.',
+            'Nella scena vedi la potenza scambiata: verde se la casa immette, rosso se preleva. Il contatore ha anche due totali: i kilowattora prelevati e quelli immessi.',
+          ],
+          table: {
+            head: ['Situazione', 'Potenza scambiata', 'Il contatore'],
+            rows: [
+              ['Notte: consumo e niente produzione', 'positiva', 'preleva'],
+              ['Mezzogiorno: produzione maggiore del consumo', 'negativa', 'immette'],
+              ['Produzione uguale al consumo', 'zero', 'in pareggio'],
+            ],
+          },
+        },
+        {
+          type: 'spiegazione',
+          title: 'Meglio usare l’eccedenza che regalarla',
+          paras: [
+            'L’energia che si immette in rete si paga poco: conviene consumare noi, in casa, quando il sole produce. Questo si chiama autoconsumo. Un carico che si può spostare, come uno scaldabagno che accumula acqua calda, si accende proprio quando c’è eccedenza.',
+            'Il PLC legge la potenza scambiata (in watt, nella parola MW0). Il programma deve accendere lo scaldabagno quando la casa immette abbastanza da alimentarlo, cioè più di 2,2 kW, e spegnerlo quando la casa comincia a prelevare.',
+          ],
+        },
+        {
+          type: 'spiegazione',
+          title: 'Due soglie anche qui',
+          paras: [
+            'Come per la pompa del serbatoio servono due soglie diverse, una per accendere e una per spegnere. Appena lo scaldabagno si accende consuma 2 kW e la potenza scambiata sale di colpo: se la soglia di spegnimento fosse la stessa dell’accensione si spegnerebbe subito e riparirebbe di continuo.',
+            'Qui si accende con una potenza sotto −2200 W (immissione di più di 2,2 kW) e si spegne con una potenza sopra 300 W (la casa preleva). In mezzo mantiene il suo stato: Set e Reset.',
+          ],
+        },
+        {
+          type: 'previsione',
+          question: 'È mezzogiorno, la casa immette 3 kW e lo scaldabagno si accende. Quanto immette adesso?',
+          options: [
+            { id: 'a', text: 'Ancora 3 kW.' },
+            { id: 'b', text: 'Circa 1 kW: lo scaldabagno consuma 2 kW dell’eccedenza.' },
+            { id: 'c', text: 'Niente: smette di immettere.' },
+          ],
+          correct: 'b',
+          why: 'L’eccedenza era 3 kW; 2 kW li assorbe lo scaldabagno e ne restano 1 da immettere. Per questo la potenza scambiata cambia appena il carico parte, e per questo servono due soglie.',
+        },
+        { type: 'sintesi', title: 'Da ricordare' },
+      ],
+    },
+    steps: [
+      { kind: 'program', plc: 'PLC', min: 2, short: '1 Accendi', title: 'Accendi con l’eccedenza', text: 'Nuovo gradino: contatto di confronto (tocca il contatto e scegli “Confronto”) MW0 minore di −2200; uscita Set su Q0. Perché: lo scaldabagno parte quando la casa immette più di 2,2 kW.' },
+      { kind: 'program', plc: 'PLC', min: 3, short: '2 Spegni', title: 'Spegni quando preleva', text: 'Secondo gradino: confronto MW0 maggiore di 300; uscita Reset su Q0. Perché: quando la casa preleva dalla rete non c’è più eccedenza da usare.' },
+      { kind: 'verify', short: '3 Verifica', title: 'Guarda la giornata', text: 'Premi Verifica. Nel grafico la linea blu è la potenza della rete: con lo scaldabagno acceso non scende sotto i −2,2 kW.' },
+    ],
+    summary: [
+      'Il contatore bidirezionale misura la potenza scambiata con la rete: positiva se la casa preleva, negativa se immette.',
+      'L’autoconsumo consiste nell’usare in casa l’energia prodotta, spostando i carichi nelle ore di sole.',
+      'Un carico che parte cambia subito la potenza scambiata: servono due soglie diverse (accendi e spegni), cioè Set e Reset.',
+      'Il PLC legge la potenza del contatore da un segnale 4-20 mA, che SCALE converte in watt.',
+    ],
+  },
+  'c41-accumulo': {
+    support: 'passi',
+    lesson: {
+      pages: [
+        {
+          type: 'spiegazione',
+          title: 'Il sole c’è quando serve meno',
+          paras: [
+            'Una casa consuma di più la sera, quando i pannelli non producono. Di giorno invece produce più di quanto consuma. Senza accumulo l’eccedenza va in rete e la sera si preleva dalla rete.',
+            'Una batteria sposta l’energia nel tempo: di giorno assorbe l’eccedenza e si carica, la sera la restituisce e copre i consumi. Così la casa preleva meno.',
+          ],
+        },
+        {
+          type: 'spiegazione',
+          title: 'Che cosa fa la batteria',
+          paras: [
+            'La batteria da 10 kWh ha una carica, in percentuale. Se la produzione supera il consumo, l’eccedenza (fino a 3 kW, la potenza massima della batteria) la carica; se il consumo supera la produzione, la batteria scarica e copre la differenza, fino a esaurirsi. Quando è piena, l’eccedenza va in rete; quando è vuota, si preleva di nuovo.',
+            'La scena mostra la carica a sinistra: verde mentre si carica, arancione mentre si scarica.',
+          ],
+          table: {
+            head: ['Situazione', 'La batteria', 'La rete'],
+            rows: [
+              ['Giorno, produzione > consumo', 'si carica', 'immette solo il resto, a batteria piena'],
+              ['Sera, niente produzione', 'si scarica', 'non preleva finché c’è carica'],
+              ['Notte, batteria vuota', 'ferma', 'preleva di nuovo'],
+            ],
+          },
+        },
+        {
+          type: 'previsione',
+          question: 'Con la batteria collegata, alle 14 i pannelli producono 3,5 kW e la casa consuma 0,5 kW. Che cosa succede?',
+          options: [
+            { id: 'a', text: 'Tutti i 3 kW di eccedenza vanno in rete.' },
+            { id: 'b', text: 'La batteria assorbe fino a 3 kW, che è il suo massimo: la rete immette il resto, o niente.' },
+            { id: 'c', text: 'La batteria si scarica.' },
+          ],
+          correct: 'b',
+          why: 'L’eccedenza è 3 kW e la batteria, se non è piena, può assorbirla tutta (3 kW è il suo massimo): la rete non immette niente. Se l’eccedenza fosse più grande, solo il resto andrebbe in rete.',
+        },
+        { type: 'sintesi', title: 'Da ricordare' },
+      ],
+    },
+    steps: [
+      { kind: 'wire', from: 'SA.b', to: ['HB.X1'], color: 'rosso', short: '1 Collega', title: 'La batteria in servizio', text: 'La fase entra nell’interruttore, esce dall’altro morsetto e va alla spia “Batteria collegata”; l’altro capo della spia va al neutro. Perché: la spia accesa è il segnale che la batteria è in servizio.' },
+      { kind: 'control', id: 'SA', short: '2 Prova', title: 'Collega la batteria', text: 'Tocca l’interruttore e guarda la scena: la batteria si carica mentre c’è sole e si scarica la sera.' },
+      { kind: 'verify', short: '3 Verifica', title: 'Controlla la giornata', text: 'Premi Verifica.' },
+    ],
+    summary: [
+      'Una batteria sposta l’energia nel tempo: si carica con l’eccedenza di giorno e copre i consumi la sera.',
+      'Si carica e scarica con una potenza massima (qui 3 kW); piena non assorbe più, vuota non può più dare.',
+      'Con l’accumulo la casa preleva meno dalla rete la sera e immette meno di giorno.',
+      'La batteria non produce energia: la sposta dal giorno alla sera, e per farlo ha bisogno dell’eccedenza dei pannelli.',
+    ],
+  },
+  'c42-colonnina': {
+    support: 'passi',
+    lesson: {
+      pages: [
+        {
+          type: 'spiegazione',
+          title: 'La colonnina e il limite del contatore',
+          paras: [
+            'Una colonnina di ricarica per auto assorbe molta potenza: qui 3,7 kW, quanto tutti gli elettrodomestici di casa messi insieme. Il contratto con il fornitore fissa una potenza massima; se la casa la supera per un po’, il contatore stacca tutto. Qui il limite è 4,5 kW e il contatore scatta se resta sopra per più di 20 secondi.',
+            'Quindi la colonnina non può partire sempre: deve partire quando la casa ha margine e fermarsi prima che la somma dei consumi raggiunga il limite. Si chiama gestione del carico.',
+          ],
+        },
+        {
+          type: 'spiegazione',
+          title: 'Distanza tra le due soglie',
+          paras: [
+            'Il PLC legge la potenza scambiata (MW0, in watt). Per partire serve margine: la potenza deve essere sotto una soglia bassa. Per fermarsi, deve superare una soglia alta, un poco sotto il limite del contatore.',
+            'Le due soglie devono stare lontane almeno quanto assorbe la colonnina, 3,7 kW. Con la soglia bassa a 500 W e quella alta a 4300 W vanno bene: appena la colonnina parte la potenza sale di 3,7 kW e non può riaccenderla da sola; appena la si stacca la potenza scende di 3,7 kW. Con le soglie troppo vicine succede un pasticcio: staccata la colonnina, la casa sembra subito avere margine e la colonnina riparte, e così via.',
+          ],
+          table: {
+            head: ['Soglia', 'Valore', 'Perché'],
+            rows: [
+              ['Parti (Set)', 'sotto 500 W', 'se la casa preleva poco c’è margine per 3,7 kW'],
+              ['Fermati (Reset)', 'sopra 4300 W', 'poco sotto il limite di 4500 W: lo stacca prima del contatore'],
+            ],
+          },
+        },
+        {
+          type: 'previsione',
+          question: 'La colonnina è accesa e la casa preleva 4,1 kW. Alle 20 i consumi salgono di 1,2 kW. Che cosa serve?',
+          options: [
+            { id: 'a', text: 'Niente: il limite è 4,5 kW e sono a 4,1.' },
+            { id: 'b', text: 'Staccare la colonnina: 4,1 + 1,2 = 5,3 kW supera il limite, e il contatore scatta dopo 20 secondi.' },
+            { id: 'c', text: 'Accendere un altro carico.' },
+          ],
+          correct: 'b',
+          why: 'La somma supera il limite. Il programma deve staccare la colonnina quando la potenza supera 4300 W, prima che il contatore scatti e la casa resti al buio.',
+        },
+        { type: 'sintesi', title: 'Da ricordare' },
+      ],
+    },
+    steps: [
+      { kind: 'program', plc: 'PLC', min: 2, short: '1 Parti', title: 'Parti con margine', text: 'Nuovo gradino: confronto MW0 minore di 500; uscita Set su Q0. Perché: se la casa preleva poco c’è margine per la colonnina.' },
+      { kind: 'program', plc: 'PLC', min: 3, short: '2 Fermati', title: 'Fermati prima del limite', text: 'Secondo gradino: confronto MW0 maggiore di 4300; uscita Reset su Q0. Perché: stacca la colonnina prima che il contatore scatti a 4500 W.' },
+      { kind: 'verify', short: '3 Verifica', title: 'Guarda la serata', text: 'Premi Verifica: il tempo corre dalle 17. Nel grafico la linea blu, la potenza della rete, deve restare sotto la linea del limite.' },
+    ],
+    summary: [
+      'Il contatore ha un limite di potenza: oltre, dopo qualche secondo, stacca tutta la casa.',
+      'La colonnina parte quando la casa ha margine e si ferma prima del limite: gestione del carico.',
+      'Le due soglie (parti e fermati) devono stare distanti almeno quanto assorbe il carico, altrimenti riparte subito.',
+      'Se il PLC sbaglia e il contatore scatta, tutta la casa resta senza corrente: il limite si rispetta con il programma, prima che scatti.',
+    ],
+  },
 };

@@ -184,7 +184,7 @@ Le estensioni sono additive: i livelli esistenti non cambiano (salvo M3, vedi so
 
 - Un modello è una funzione `step(state, inputs, params, dt)`: serbatoio (livello, portata della pompa), forno (temperatura con ritardo), motore con variatore (velocità, rampe), energia (produzione, consumo, batteria, contatore).
 - Il modello legge le uscite del PLC o i comandi del banco e scrive i sensori.
-- **Due tempi**: la simulazione elettrica resta a passi di 0,5 s; i processi lenti hanno un passo di integrazione proprio e un tempo accelerato (una giornata in un minuto, un turno in pochi minuti), con il fattore scritto a schermo.
+- **Un solo tempo simulato** (deciso in P6, vedi `docs/SPEC-PROCESSI.md`): il passo elettrico resta 0,5 s, i modelli integrano con sottopassi di 0,1 s e un fattore di accelerazione (`process.speed`, scritto a schermo come "tempo × N") fa correre l'orologio della sessione. Una giornata del modello `energia` dura 1440 s simulati.
 - Ogni grandezza si registra nel tempo. Prove sul tracciato: `expect: { trace: { T: { within: [58, 62], after: 60 } } }`, `maxSwitches`, `never`.
 - **4-20 mA in forma simbolica**: se l'anello è chiuso con la polarità giusta, la corrente è quella che dà il modello (4 mA a 0 per cento, 20 mA a 100); anello aperto vale 0 mA. Non serve E8 per il Modulo 6.
 

@@ -52,7 +52,34 @@ function beltScene(level, s) {
   return o;
 }
 
-const SCENES = { serbatoio: tankScene, forno: ovenScene, nastro: beltScene };
+// Casa con fotovoltaico (modello `energia`): sole sull'arco della giornata, tetto con i pannelli, casa, batteria e contatore.
+const kw = v => String(Math.round(v * 100) / 100).replace('.', ',') + ' kW';
+function houseScene(level, s) {
+  const p = s.obs.process;
+  const hr = p.hour, sunUp = p.sun > 0 || (hr > 6 && hr < 20);
+  const t = clamp((hr - 6) / 14, 0, 1), sx = 40 + 320 * t, sy = 70 - 52 * Math.sin(Math.PI * t);
+  const hh = String(Math.floor(hr)).padStart(2, '0') + ':' + String(Math.floor((hr % 1) * 60)).padStart(2, '0');
+  let o = `<rect x="0" y="0" width="400" height="160" fill="${sunUp ? '#EAF3FB' : '#26324A'}" opacity=".55"/>`;
+  o += `<path d="M40 70 Q200 -34 360 70" fill="none" stroke="var(--line)" stroke-dasharray="3 5"/>`;
+  o += sunUp ? `<circle cx="${sx}" cy="${sy}" r="${10 + 4 * p.sun}" fill="#F5B921" opacity="${.35 + .65 * p.sun}"/>` : `<circle cx="${sx}" cy="${clamp(sy, 14, 70)}" r="9" fill="#C9D3E3"/>`;
+  o += `<text x="12" y="20" style="font:600 12px 'IBM Plex Mono',monospace;fill:var(--ink)">ore ${hh}</text>`;
+  o += `<path d="M110 120 V86 L170 52 L230 86 V120 Z" fill="#F0EBDD" stroke="var(--comp-edge)" stroke-width="2.2"/><path d="M104 88 L170 48 L236 88" fill="none" stroke="${p.pv > 0.05 ? '#2E9E5B' : 'var(--comp-edge)'}" stroke-width="${3 + 2 * clamp(p.pv / 4, 0, 1)}"/>`;
+  o += `<text x="170" y="108" text-anchor="middle" style="font:600 11px 'IBM Plex Mono',monospace;fill:var(--ink)">casa ${kw(p.load)}</text>`;
+  o += `<text x="170" y="136" text-anchor="middle" style="font:600 11px 'IBM Plex Mono',monospace;fill:#2E9E5B">pannelli ${kw(p.pv)}</text>`;
+  // contatore e rete
+  const g = p.grid, ex = g < -0.01;
+  o += `<rect x="290" y="92" width="44" height="30" rx="4" fill="#EDE7D4" stroke="var(--comp-edge)" stroke-width="1.8"/><text x="312" y="111" text-anchor="middle" style="font:600 10px 'IBM Plex Mono',monospace;fill:#222">kWh</text>`;
+  o += `<path d="M232 106 H290" stroke="${Math.abs(g) > 0.01 ? (ex ? '#2E9E5B' : '#C0262D') : 'var(--line)'}" stroke-width="4"/>`;
+  o += `<path d="M334 106 H372" stroke="var(--ink2)" stroke-width="3"/><text x="312" y="136" text-anchor="middle" style="font:600 10px 'IBM Plex Mono',monospace;fill:${ex ? '#2E9E5B' : 'var(--ink)'}">${ex ? 'immette ' + kw(-g) : g > 0.01 ? 'preleva ' + kw(g) : 'in pareggio'}</text>`;
+  if (p.blackout) o += `<text x="200" y="152" text-anchor="middle" style="font:700 12px 'IBM Plex Mono',monospace;fill:#C0262D">CONTATORE SCATTATO</text>`;
+  // batteria
+  if (level.process.battery) {
+    o += `<rect x="24" y="96" width="34" height="48" rx="4" fill="none" stroke="var(--comp-edge)" stroke-width="2"/><rect x="26" y="${142 - 44 * p.soc / 100}" width="30" height="${44 * p.soc / 100}" fill="${p.pb < -0.01 ? '#F59F00' : '#2E9E5B'}" opacity=".85"/><text x="41" y="90" text-anchor="middle" style="font:600 10px 'IBM Plex Mono',monospace;fill:var(--ink)">${Math.round(p.soc)} %</text>`;
+  }
+  return o;
+}
+
+const SCENES = { serbatoio: tankScene, forno: ovenScene, nastro: beltScene, energia: houseScene };
 
 // ---------- grafico ----------
 // level.process.graph = { vars: [{ v, label, lo, hi }], window: secondi, lines: [{ tuned: 'sp', var: 'T' }] }

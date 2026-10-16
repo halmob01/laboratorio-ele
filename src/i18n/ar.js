@@ -31,6 +31,7 @@ import p27 from './ar-27.js';
 import p28 from './ar-28.js';
 import p29 from './ar-29.js';
 import p30 from './ar-30.js';
+import p31 from './ar-31.js';
 
 const ROLE = { 'del neutro': 'المحايد', 'di terra': 'الأرضي', 'di fase': 'الطور', 'a bassa tensione': 'الجهد المنخفض', 'di comando': 'التحكم', 'del positivo': 'الموجب', 'del negativo': 'السالب', 'in continua': 'التيار المستمر' };
 const COLORI = { 'blu': 'أزرق', 'giallo-verde': 'أصفر-أخضر', 'marrone, nero o grigio': 'بنيًّا أو أسود أو رماديًّا', 'rosso, marrone, nero o grigio': 'أحمر أو بنيًّا أو أسود أو رماديًّا', 'di un colore diverso da blu e giallo-verde': 'بلون مختلف عن الأزرق والأصفر-الأخضر', 'rosso': 'أحمر', 'nero': 'أسود', 'rosso o nero': 'أحمر أو أسود' };
@@ -53,6 +54,14 @@ const PAT = [
   [/^Allarme “(.+)”: (.+); atteso: (.+)\.$/, (m, t) => `الإنذار «${t(m[1])}»: ${t(m[2])}؛ المتوقع: ${t(m[3])}.`],
   [/^Allarme “(.+)”$/, (m, t) => `الإنذار «${t(m[1])}»`],
   [/^(.+): il pannello lo mostra come (dato vecchio|dato aggiornato); atteso: (dato vecchio|dato aggiornato)\.$/, (m, t) => `${t(m[1])}: تعرضه اللوحة ${m[2] === 'dato vecchio' ? 'كبيان قديم' : 'كبيان محدَّث'}؛ المتوقع: ${m[3] === 'dato vecchio' ? 'بيان قديم' : 'بيان محدَّث'}.`],
+  // scena della casa con il fotovoltaico (modello energia)
+  [/^ore (\d\d):(\d\d)$/, m => `الساعة ${iso(m[1])}:${iso(m[2])}`],
+  [/^casa ([\d,.]+) kW$/, m => `البيت ${iso(m[1])} كيلوواط`],
+  [/^pannelli ([\d,.]+) kW$/, m => `الألواح ${iso(m[1])} كيلوواط`],
+  [/^immette ([\d,.]+) kW$/, m => `يضخ ${iso(m[1])} كيلوواط`],
+  [/^preleva ([\d,.]+) kW$/, m => `يسحب ${iso(m[1])} كيلوواط`],
+  [/^([\d,.]+) kW$/, m => `${iso(m[1])} كيلوواط`],
+  [/^(.+) vale ([\d,.-]+); atteso: tra ([\d,.-]+) e ([\d,.-]+)\.$/, (m, t) => `${t(m[1])} قيمتها ${iso(m[2])}؛ المتوقع: بين ${iso(m[3])} و${iso(m[4])}.`],
   // pannello del processo (serbatoio, forno, nastro): valori che cambiano a ogni istante
   [/^livello ([\d,.]+) %$/, m => `المستوى ${iso(m[1])}٪`],
   [/^([\d,.]+) %$/, m => `${iso(m[1])}٪`],
@@ -127,4 +136,4 @@ const PAT = [
   [/^Protezioni scattate: (.+)\.$/, (m, t) => `حمايات فصلت: ${t(m[1])}.`],
 ];
 
-registerLang('ar', { ...p1, ...p2, ...p3, ...p4, ...p5, ...p6, ...p7, ...p8, ...p9, ...p10, ...p11, ...p12, ...p13, ...p14, ...p15, ...p16, ...p17, ...p18, ...p19, ...p20, ...p21, ...p22, ...p23, ...p24, ...p25, ...p26, ...p27, ...p28, ...p29, ...p30 }, PAT);
+registerLang('ar', { ...p1, ...p2, ...p3, ...p4, ...p5, ...p6, ...p7, ...p8, ...p9, ...p10, ...p11, ...p12, ...p13, ...p14, ...p15, ...p16, ...p17, ...p18, ...p19, ...p20, ...p21, ...p22, ...p23, ...p24, ...p25, ...p26, ...p27, ...p28, ...p29, ...p30, ...p31 }, PAT);

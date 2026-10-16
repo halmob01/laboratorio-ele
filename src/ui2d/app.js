@@ -279,7 +279,7 @@ function ladderAct(act, data) {
   const cur = sel && sel.kind === 'c' && cells[sel.cell] ? cells[sel.cell].alts[sel.alt] : null;
   if (act === 'addRung') { next = addRung(prog); nsel = { kind: 'r', r: next.length - 1 }; }
   else if (!sel) return;
-  else if (act === 'addContact') { next = addContact(prog, sel.r, { a: addrs.inputs[0] }); nsel = { kind: 'c', r: sel.r, cell: cells.length, alt: 0 }; }
+  else if (act === 'addContact') { next = addContact(prog, sel.r, addrs.inputs.length ? { a: addrs.inputs[0] } : addrs.words.length ? { cmp: 'gt', a: addrs.words[0], b: 0 } : { a: addrs.outputs[0] }); nsel = { kind: 'c', r: sel.r, cell: cells.length, alt: 0 }; }
   else if (act === 'addOut') {
     const used = new Set(prog.flatMap(r => r.do.map(x => x.a)));
     const a = addrs.outputs.find(x => !used.has(x)) || addrs.outputs[0];

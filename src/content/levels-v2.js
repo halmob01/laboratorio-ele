@@ -1324,3 +1324,157 @@ LEVELS_V2.push({
     'Il LED conduce solo dall’anodo (A) al catodo (K): A verso il positivo, K verso il negativo. Se è al contrario resta spento.',
   ],
 });
+
+// c39: il pannello fotovoltaico (Modulo 5A). Tre pannelli da 22 V e un inverter con finestra di ingresso 30-60 V: due in serie.
+// La tensione dei pannelli segue il sole nella giornata simulata (modello `energia`); l'inverter acceso e' cio' che fa produrre la casa.
+const W39 = [['P1.+', 'I.+', 'rosso'], ['P1.-', 'P2.+', 'rosso'], ['P2.-', 'I.-', 'nero']];
+LEVELS_V2.push({
+  id: 'c39-fotovoltaico', code: 'c39', n: 0, engine: 2, dc: true, quadroOnly: true, supply: 'protezioni', meter: true,
+  palette: ['rosso', 'nero'],
+  name: 'Il pannello fotovoltaico', title: 'Il pannello fotovoltaico',
+  blurb: 'Pannelli in serie per entrare nella finestra dell’inverter: la produzione segue il sole.',
+  goal: 'Un impianto fotovoltaico ha tre pannelli da 22 V a pieno sole e un inverter che lavora solo se la tensione in ingresso sta tra 30 e 60 V (sotto non parte, sopra si brucia). Scegli quanti pannelli collegare e come, in modo che l’inverter lavori a mezzogiorno senza bruciarsi. Poi guarda la giornata: la produzione segue il sole.',
+  comps: [
+    C('P1', 'pann', 'Pannello 1', 'Pannello fotovoltaico, 22 V a pieno sole', T('+', '-'), { v: 22 }),
+    C('P2', 'pann', 'Pannello 2', 'Pannello fotovoltaico, 22 V a pieno sole', T('+', '-'), { v: 22 }),
+    C('P3', 'pann', 'Pannello 3', 'Pannello fotovoltaico, 22 V a pieno sole', T('+', '-'), { v: 22 }),
+    C('I', 'invfv', 'Inverter', 'Inverter fotovoltaico: ingresso 30-60 V', T('+', '-'), { vmin: 30, vmax: 60, rin: 90 }),
+  ],
+  process: {
+    model: 'energia', title: 'La giornata', alt: 'La casa con i pannelli e il sole durante la giornata',
+    params: { pvKw: 4, cloud: 0 }, init: { hour: 9 }, speed: 40,
+    actuators: { pv: { load: 'I' }, house: { value: 1 } },
+    trace: ['pv', 'load', 'grid'], labels: { pv: 'La produzione' },
+    tunable: { cloud: { param: 'cloud', min: 0, max: 0.9, step: 0.1, init: 0 } },
+    tunableLabels: { cloud: 'Nuvole (0 = sereno)' },
+    graph: { vars: [{ v: 'pv', label: 'Produzione kW', lo: 0, hi: 5, color: '#2E9E5B' }, { v: 'load', label: 'Consumo kW', lo: 0, hi: 5, color: '#C0262D' }], window: 1500 },
+  },
+  demoDo: [{ do: ['wait 180'], say: '' }],
+  checks: [
+    { id: 'mezzogiorno', label: 'A mezzogiorno l’inverter lavora e i pannelli producono', do: ['wait 180'], expect: { loads: { I: 'on' }, process: { pv: [3.5, 4.1] } } },
+    { id: 'sera', label: 'Di sera, senza sole, l’inverter si spegne e la produzione è zero', do: ['wait 720'], expect: { loads: { I: 'off' }, process: { pv: [0, 0.01] } } },
+    { id: 'giornata', label: 'Nella giornata l’inverter non si brucia e produce per qualche ora', do: ['wait 1000'], expect: { trace: [{ v: 'pv', max: 4.1 }, { v: 'pv', reaches: 3.5 }] } },
+  ],
+  solution: W39,
+  hints: [
+    'Un pannello da solo dà al massimo 22 V: l’inverter vuole almeno 30 V per partire. Bisogna sommare le tensioni.',
+    'In serie le tensioni si sommano: due pannelli danno 44 V a pieno sole, dentro la finestra 30-60 V. Tre darebbero 66 V e brucerebbero l’inverter.',
+    'In serie il + di un pannello va al − del successivo; il + libero va al + dell’inverter e il − libero al − dell’inverter. In parallelo la tensione resterebbe 22 V.',
+  ],
+});
+
+// Livelli di casa con fotovoltaico (Modulo 5A): impianto e trasmettitore del contatore (potenza scambiata, -6 / +6 kW) gia' cablati,
+// il programma del PLC lo scrive l'allievo. W5_FIXED e' la parte comune; la potenza scambiata con la rete arriva in watt in MW0.
+const W5_FIXED = [
+  ['Q.L1', 'PLC.A1', 'rosso'], ['PLC.A2', 'Q.N', 'blu'],
+  ['TT.+', 'PLC.AI0+', 'rosso'], ['TT.-', 'PLC.AI0-', 'rosso'],
+  ['Q.L1', 'PLC.Q0A', 'rosso'],
+];
+const START_5 = [{ if: ['ge', 'AI0', 3.6], do: [{ op: 'scale', in: 'AI0', out: 'MW0', lo: -6000, hi: 6000 }] }];
+const GRID_TX = () => C('TT', 'tx', 'Contatore', 'Misuratore di potenza del contatore: -6 kW (immissione) … +6 kW (prelievo), 4-20 mA', T('+', '-'), { sense: { v: 'grid', lo: -6, hi: 6 } });
+const PLC_5 = (title, symbols) => C('PLC', 'plc', 'PLC', title, T('A1', 'A2', 'AI0+', 'AI0-', 'Q0A', 'Q0B'), {
+  symbols: { AI0: 'Potenza scambiata (mA)', MW0: 'Potenza scambiata (W)', ...symbols },
+  edit: { start: START_5, markers: 0, timers: 0, counters: 0, words: ['MW0'], ops: ['coil', 'set', 'reset'] },
+});
+const GRAPH_5 = (extra = []) => ({ vars: [{ v: 'pv', label: 'Produzione kW', lo: -5, hi: 5, color: '#2E9E5B' }, { v: 'load', label: 'Consumo kW', lo: -5, hi: 5, color: '#C0262D' }, { v: 'grid', label: 'Rete kW', lo: -5, hi: 5, color: '#2563B0' }], window: 1500, lines: [{ value: 0, label: 'zero', var: 'grid' }].concat(extra) });
+
+// c40: il contatore e lo scambio. Il contatore e' bidirezionale: preleva o immette. Lo scaldabagno si accende quando c'e' eccedenza.
+const W40 = W5_FIXED.concat([['PLC.Q0B', 'HS.X1', 'rosso'], ['HS.X2', 'Q.N', 'blu']]);
+const PROG_40 = START_5.concat([
+  { if: ['lt', 'MW0', -2200], do: [{ op: 'set', a: 'Q0' }] },
+  { if: ['gt', 'MW0', 300], do: [{ op: 'reset', a: 'Q0' }] },
+]);
+LEVELS_V2.push({
+  id: 'c40-contatore', code: 'c40', n: 0, ...IND, flow: 'onDemand',
+  name: 'Il contatore e lo scambio', title: 'Il contatore e lo scambio',
+  blurb: 'Di giorno la casa produce più di quanto consuma: meglio usare l’eccedenza che regalarla alla rete.',
+  goal: 'Una casa con pannelli fotovoltaici e un contatore che misura la potenza scambiata con la rete: positiva se preleva, negativa se immette. Il PLC la legge in watt (MW0). Scrivi il programma perché lo scaldabagno (2 kW) si accenda quando la casa immette più di 2,2 kW e si spenga quando comincia a prelevare più di 300 W: l’eccedenza si usa invece di regalarla.',
+  fixed: W40,
+  comps: [Q3, PLC_5('PLC (programma da scrivere)', { Q0: 'Scaldabagno' }), GRID_TX(), C('HS', 'spia', 'Scaldabagno', 'Scaldabagno in funzione', T('X1', 'X2'))],
+  process: {
+    model: 'energia', title: 'La giornata', alt: 'La casa con i pannelli, il contatore e il sole durante la giornata',
+    params: { pvKw: 4, cloud: 0 }, init: { hour: 8 }, speed: 40,
+    actuators: { boiler: { load: 'HS' }, house: { value: 1 } },
+    trace: ['pv', 'load', 'grid', 'PLC.Q0'], labels: { grid: 'La potenza della rete', pv: 'La produzione' },
+    graph: GRAPH_5(),
+  },
+  demoDo: [{ do: ['wait 300'], say: '' }],
+  checks: [
+    { id: 'eccedenza', label: 'Con il sole alto lo scaldabagno usa l’eccedenza: la casa non immette più di 2,2 kW', do: ['wait 480'], expect: { trace: [{ v: 'PLC.Q0', reaches: 1 }, { v: 'grid', within: [-2.3, 0.6], from: 200, to: 400 }] } },
+    { id: 'sera', label: 'Di sera, senza eccedenza, lo scaldabagno è spento e la casa preleva dalla rete', do: ['wait 780'], expect: { loads: { HS: 'off' }, process: { grid: [0.1, 5] } } },
+    { id: 'commutazioni', label: 'Lo scaldabagno non si accende e si spegne di continuo', do: ['wait 900'], expect: { trace: [{ v: 'PLC.Q0', maxSwitches: 4 }] } },
+  ],
+  safety: { coilReturn: ['PLC'] },
+  solution: W40,
+  solutionPrograms: { PLC: PROG_40 },
+  hints: [
+    'La potenza scambiata è in MW0, in watt: negativa quando la casa immette. Il gradino ha un contatto di confronto (MW0 minore di −2200) e, come uscita, Set su Q0.',
+    'Se usassi una bobina semplice lo scaldabagno si accenderebbe e, consumando 2 kW, farebbe salire subito la potenza: si spegnerebbe e così via. Serve l’isteresi: Set con una soglia, Reset con un’altra.',
+    'Secondo gradino: confronto MW0 maggiore di 300, uscita Reset su Q0. Quando la casa preleva, lo scaldabagno si ferma.',
+  ],
+});
+
+// c41: l'accumulo. La batteria assorbe l'eccedenza di giorno e copre il consumo la sera: l'allievo la collega con l'interruttore.
+const W41 = [['Q.L1', 'SA.a', 'rosso'], ['SA.b', 'HB.X1', 'rosso'], ['HB.X2', 'Q.N', 'blu']];
+LEVELS_V2.push({
+  id: 'c41-accumulo', code: 'c41', n: 0, ...IND, flow: 'onDemand',
+  name: 'L’accumulo', title: 'L’accumulo',
+  blurb: 'La batteria si carica di giorno con il sole e si scarica la sera: meno corrente dalla rete.',
+  goal: 'La casa ha una batteria da 10 kWh. Collegala con l’interruttore: la spia “Batteria collegata” si accende quando la batteria è in servizio. Di giorno la batteria assorbe l’eccedenza dei pannelli; la sera, quando i pannelli non producono, copre i consumi. Guarda la carica nella scena e il prelievo dalla rete.',
+  comps: [Q3, C('SA', 'sw', 'Batteria', 'Interruttore della batteria', T('a', 'b')), C('HB', 'spia', 'Batteria collegata', 'Spia di batteria collegata', T('X1', 'X2'))],
+  controls: ['SA'],
+  process: {
+    model: 'energia', title: 'La giornata', alt: 'La casa con i pannelli, la batteria e il sole durante la giornata', battery: true,
+    params: { pvKw: 4, cloud: 0 }, init: { hour: 8, soc: 20 }, speed: 40,
+    actuators: { batt: { load: 'HB' }, house: { value: 1 } },
+    trace: ['pv', 'load', 'grid', 'soc'], labels: { soc: 'La carica della batteria', grid: 'La potenza della rete' },
+    graph: { vars: [{ v: 'pv', label: 'Produzione kW', lo: -5, hi: 5, color: '#2E9E5B' }, { v: 'load', label: 'Consumo kW', lo: -5, hi: 5, color: '#C0262D' }, { v: 'grid', label: 'Rete kW', lo: -5, hi: 5, color: '#2563B0' }], window: 1500, lines: [{ value: 0, label: 'zero', var: 'grid' }] },
+  },
+  demoDo: [{ do: ['toggle SA', 'wait 240'], say: '' }],
+  checks: [
+    { id: 'spenta', label: 'Con la batteria scollegata la carica non cambia', do: ['wait 240'], expect: { process: { soc: [19, 21] } } },
+    { id: 'carica', label: 'Collegata, la batteria si carica con il sole fino quasi al massimo', do: ['toggle SA', 'wait 600'], expect: { loads: { HB: 'on' }, trace: [{ v: 'soc', reaches: 95, by: 400 }] } },
+    { id: 'sera', label: 'La sera la batteria copre i consumi: dalle 20 alle 23 la casa non preleva dalla rete', do: ['toggle SA', 'wait 900'], expect: { trace: [{ v: 'grid', within: [-4.5, 0.1], from: 720 }, { v: 'soc', min: 20, from: 720 }] } },
+  ],
+  solution: W41,
+  hints: [
+    'La batteria è collegata quando il suo interruttore è chiuso. Il circuito è semplice: la fase passa dall’interruttore e arriva alla spia, il ritorno va al neutro.',
+    'Quando la spia è accesa la batteria è in servizio: di giorno assorbe l’eccedenza (la scena la mostra riempirsi), la sera la restituisce.',
+  ],
+});
+
+// c42: la colonnina. La ricarica dell'auto (3,7 kW) piu' i consumi della casa non devono superare il limite del contatore (4,5 kW).
+const W42 = W5_FIXED.concat([['PLC.Q0B', 'HE.X1', 'rosso'], ['HE.X2', 'Q.N', 'blu']]);
+const PROG_42 = START_5.concat([
+  { if: ['lt', 'MW0', 500], do: [{ op: 'set', a: 'Q0' }] },
+  { if: ['gt', 'MW0', 4300], do: [{ op: 'reset', a: 'Q0' }] },
+]);
+LEVELS_V2.push({
+  id: 'c42-colonnina', code: 'c42', n: 0, ...IND, flow: 'onDemand',
+  name: 'La colonnina', title: 'La colonnina',
+  blurb: 'Ricaricare l’auto senza far saltare il contatore: il PLC stacca la colonnina prima del limite.',
+  goal: 'La colonnina di ricarica assorbe 3,7 kW e il contatore stacca tutta la casa se la potenza prelevata supera 4,5 kW per più di 20 secondi. Dal tardo pomeriggio la sera i consumi della casa salgono. Scrivi il programma perché la colonnina parta quando c’è margine e si stacchi prima del limite, senza accendersi e spegnersi di continuo: l’auto deve comunque caricarsi.',
+  fixed: W42,
+  comps: [Q3, PLC_5('PLC (programma da scrivere)', { Q0: 'Colonnina' }), GRID_TX(), C('HE', 'spia', 'Colonnina', 'Auto in ricarica', T('X1', 'X2'))],
+  process: {
+    model: 'energia', title: 'La serata', alt: 'La casa con i pannelli, il contatore e l’auto in ricarica nel tardo pomeriggio',
+    params: { pvKw: 4, cloud: 0, limit: 4.5 }, init: { hour: 17 }, speed: 40,
+    actuators: { ev: { load: 'HE' }, house: { value: 1 } },
+    trace: ['pv', 'load', 'grid', 'PLC.Q0'], labels: { grid: 'La potenza della rete', eEv: 'L’energia caricata nell’auto (kWh)' },
+    graph: GRAPH_5([{ value: 4.5, label: 'limite del contatore', var: 'grid' }]),
+  },
+  demoDo: [{ do: ['wait 240'], say: '' }],
+  checks: [
+    { id: 'limite', label: 'La potenza prelevata non supera mai il limite e il contatore non stacca', do: ['wait 420'], expect: { process: { blackout: false }, trace: [{ v: 'grid', max: 4.5 }] } },
+    { id: 'ricarica', label: 'L’auto si carica: almeno 3 kWh', do: ['wait 420'], expect: { process: { eEv: [3, 100] } } },
+    { id: 'commutazioni', label: 'La colonnina non si accende e si spegne di continuo', do: ['wait 420'], expect: { trace: [{ v: 'PLC.Q0', maxSwitches: 6 }] } },
+  ],
+  safety: { coilReturn: ['PLC'] },
+  solution: W42,
+  solutionPrograms: { PLC: PROG_42 },
+  hints: [
+    'La potenza della rete è in MW0, in watt. La colonnina può partire quando la casa preleva poco: se la potenza è sotto una soglia bassa (per esempio 500 W) c’è margine per 3,7 kW.',
+    'Primo gradino: confronto MW0 minore di 500 (con la colonnina accesa la potenza sale a più di 3,7 kW, quindi non si riaccende da sola), uscita Set su Q0.',
+    'Secondo gradino: se la potenza supera una soglia alta, poco sotto il limite (per esempio 4300 W) bisogna staccarla: confronto MW0 maggiore di 4300, uscita Reset su Q0. Le due soglie devono stare distanti almeno quanto assorbe la colonnina (3,7 kW): altrimenti, appena staccata, la casa sembra avere margine e la colonnina riparte subito.',
+  ],
+});

@@ -11,6 +11,9 @@ const clamp = (x, lo, hi) => Math.max(lo, Math.min(hi, x));
 // Gli attuatori arrivano gia' come frazione 0-1 (digitale: 0 o 1; analogico: percentuale / 100), vedi sim.js.
 const frac = x => clamp(Number(x) || 0, 0, 1);
 
+// Altezza del sole 0-1: campana tra alba e tramonto, 0 di notte.
+const sunShape = (hour, p) => (hour <= p.sunrise || hour >= p.sunset ? 0 : Math.sin(Math.PI * (hour - p.sunrise) / (p.sunset - p.sunrise)));
+
 export const MODELS = {
   // Serbatoio: livello h in % del volume. Portate in % al minuto.
   serbatoio: {
@@ -37,6 +40,41 @@ export const MODELS = {
       return { T, Tw };
     },
     expose: s => ({ T: s.T, Tw: s.Tw }),
+  },
+
+  // Casa con fotovoltaico, batteria, contatore e carichi (Modulo 5A). Potenze in kW, energie in kWh, tempo in ore del giorno.
+  // Una giornata dura `dayLen` secondi simulati. La produzione segue il sole (curva a campana tra alba e tramonto) e la nuvolosita';
+  // il consumo ha una base con il picco della sera piu' i carichi accesi (scaldabagno, auto). La batteria, se collegata, assorbe l'eccedenza
+  // e copre il mancante. grid > 0 e' prelievo dalla rete, grid < 0 immissione. Oltre `limit` kW per `tripAfter` secondi il contatore stacca.
+  energia: {
+    init: { hour: 8, soc: 20, eImp: 0, eExp: 0, eProd: 0, eEv: 0, over: 0, blackout: 0, pv: 0, load: 0, grid: 0, pb: 0 },
+    params: { dayLen: 1440, sunrise: 6, sunset: 20, pvKw: 4, cloud: 0, baseKw: 0.4, eveningKw: 1.1, boilerKw: 2, evKw: 3.7, batCap: 10, batKw: 3, limit: 4.5, tripAfter: 20 },
+    acts: { pv: 1, house: 1, batt: 0, boiler: 0, ev: 0 },
+    step(s, a, p, dt) {
+      const hour = (s.hour + dt * 24 / p.dayLen) % 24;
+      const sun = sunShape(hour, p) * (1 - clamp(p.cloud, 0, 1));
+      const pv = p.pvKw * sun * frac(a.pv);
+      const evening = Math.exp(-(((hour - 20.5 + 12) % 24 - 12) ** 2) / 4.5);   // picco attorno alle 20:30
+      const load = frac(a.house) * (p.baseKw + p.eveningKw * evening) + p.boilerKw * frac(a.boiler) + p.evKw * frac(a.ev);
+      const dh = dt * 24 / p.dayLen;   // ore simulate trascorse
+      let pb = 0;
+      if (frac(a.batt)) {
+        const surplus = pv - load;
+        if (surplus > 0) pb = Math.min(surplus, p.batKw, (100 - s.soc) / 100 * p.batCap / dh);
+        else pb = -Math.min(-surplus, p.batKw, s.soc / 100 * p.batCap / dh);
+      }
+      const soc = clamp(s.soc + pb * dh / p.batCap * 100, 0, 100);
+      let grid = load - pv + pb;
+      const blackout = s.blackout || (s.over + (grid > p.limit ? dt : 0) >= p.tripAfter ? 1 : 0);
+      if (blackout) grid = 0;
+      const over = grid > p.limit ? s.over + dt : Math.max(0, s.over - dt);
+      return {
+        hour, soc, over, blackout, pv, load: blackout ? 0 : load, grid, pb,
+        eImp: s.eImp + Math.max(0, grid) * dh, eExp: s.eExp + Math.max(0, -grid) * dh, eProd: s.eProd + pv * dh,
+        eEv: s.eEv + (blackout ? 0 : p.evKw * frac(a.ev) * dh),
+      };
+    },
+    expose: (s, p) => ({ ...s, sun: sunShape(s.hour, p) * (1 - clamp(p.cloud, 0, 1)), blackout: !!s.blackout, over: s.over, battKwh: s.soc / 100 * p.batCap }),
   },
 
   // Nastro con variatore di frequenza: f va verso ref·fmax con la rampa (Hz/s) se `run`, altrimenti scende a 0.

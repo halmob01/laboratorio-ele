@@ -168,12 +168,13 @@ function analyseDC(sim, open) {
   const { level } = sim;
   const uf = connect(sim, open);
   const els = [];
+  const vars = processVars(sim);
   sim.wires.forEach(w => els.push({ id: 'w' + w.id, type: 'W', a: w.a, b: w.b }));
   level.comps.forEach(c => {
     const p = partOf(c);
     p.contacts(c, sim.parts[c.id] || {}).forEach(([x, y]) => els.push({ id: c.id + ':' + x, type: 'W', a: c.id + '.' + x, b: c.id + '.' + y }));
     // dopo un cortocircuito il fusibile delle batterie e' bruciato: niente sorgenti finche' non si rifa' il cablaggio
-    if (p.dc) p.dc(c, sim.parts[c.id] || {}).forEach(e => { if (e.type !== 'V' || (sim.supply && !sim.mainTrip)) els.push(e); });
+    if (p.dc) p.dc(c, sim.parts[c.id] || {}, vars).forEach(e => { if (e.type !== 'V' || (sim.supply && !sim.mainTrip)) els.push(e); });
   });
   const firstV = els.find(e => e.type === 'V');
   const r = solveDC({ elements: els, ground: firstV ? firstV.b : (els[0] && els[0].a) });
@@ -187,7 +188,10 @@ function analyseDC(sim, open) {
     if (!p.dcLoad) return;
     let st = 'off';
     if (c.type === 'led') st = r.ok && (r.i[c.id] || 0) > 0.002 ? 'on' : 'off';
-    else {
+    else if (c.type === 'invfv') {
+      const V = Math.abs(vOf(c.id + '.+') - vOf(c.id + '.-'));
+      st = V > (c.vmax || 60) ? 'burnt' : V >= (c.vmin || 30) ? 'on' : V > 5 ? 'weak' : 'off';
+    } else {
       const V = Math.abs(vOf(c.id + '.' + p.dcLoad[0]) - vOf(c.id + '.' + p.dcLoad[1])), vn = c.volt || 12;
       st = V > vn * 1.3 ? 'burnt' : V >= vn * 0.85 ? 'on' : V > vn * 0.2 ? 'weak' : 'off';
     }
