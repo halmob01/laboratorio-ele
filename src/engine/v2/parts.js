@@ -79,6 +79,14 @@ export const PARTS = {
     init: () => ({ q: {}, aq: {}, mem: null, coil: false, rungs: [], inputs: {}, ai: {} }),
   },
 
+  // corrente continua (level.dc, docs/SPEC-PROCESSI.md sezione 7): ogni pezzo da' i suoi elementi al risolutore (dc.js)
+  // batteria: + e -, tensione `v` (V), resistenza interna `r` (ohm), corrente oltre la quale il fusibile brucia `imax` (A)
+  batt: { contacts: () => [], dc: c => [{ id: c.id, type: 'V', a: c.id + '.+', b: c.id + '.-', v: c.v || 6, r: c.r ?? 0.1 }] },
+  // lampada a incandescenza in continua: non ha verso; resistenza dalla targa (volt^2 / watt)
+  dcl: { contacts: () => [], dcLoad: ['A', 'B'], dc: c => [{ id: c.id, type: 'R', a: c.id + '.A', b: c.id + '.B', r: (c.volt || 12) ** 2 / (c.w || 6) }] },
+  // LED con la sua resistenza: conduce solo dall'anodo A al catodo K
+  led: { contacts: () => [], dcLoad: ['A', 'K'], dc: c => [{ id: c.id, type: 'D', a: c.id + '.A', b: c.id + '.K', vf: c.vf || 2, rd: c.rint || 470 }] },
+
   // sorgente derivata
   trafo: { contacts: () => [], primary: ['1', '2'], secondary: ['3', '4'] },
 

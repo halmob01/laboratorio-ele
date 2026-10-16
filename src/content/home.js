@@ -61,6 +61,20 @@ export const MODULES = [
     milestone: { soon: true, art: 'plc', kick: 'Nastro con il PLC', name: 'Un nastro che si comanda da programma', text: 'Fotocellula, conteggio dei pacchi, emergenza e termico che restano cablati.' },
   },
   {
+    tag: 'MODULO 5',
+    title: 'Impianti del futuro',
+    levels: [
+      'c38-continua',
+      { soon: true, title: 'Il pannello fotovoltaico', blurb: 'Stringa, inverter e produzione nella giornata.' },
+      { soon: true, title: 'Il contatore e lo scambio', blurb: 'Consumo, produzione e immissione in rete.' },
+      { soon: true, title: 'L’accumulo', blurb: 'La batteria si carica di giorno e si scarica la sera.' },
+      { soon: true, title: 'La colonnina', blurb: 'Ricarica dell’auto e limite del contatore.' },
+      { soon: true, title: 'Il sensore e l’attuatore', blurb: 'Sensore di presenza, tapparella, comando a bassa tensione.' },
+      { soon: true, title: 'La casa col PLC', blurb: 'Luci e tapparelle da programma, le scene.' },
+    ],
+    milestone: { soon: true, art: 'casa', kick: 'Casa del futuro', name: 'Luci, tapparelle, sole e batteria', text: 'La casa che si comanda da sola e produce la sua energia.' },
+  },
+  {
     tag: 'MODULO 6',
     title: 'La fabbrica',
     levels: [
@@ -90,13 +104,7 @@ export const TRILOCALE = {
 
 // Prove dei moduli ancora da costruire, mostrate in fondo alla mappa.
 // `levels` elenca i livelli previsti; `project` e' il progetto 3D che chiude il modulo (stessa scheda degli altri moduli).
-export const UPCOMING = [
-  {
-    tag: 'MODULO 5', title: 'Impianti del futuro', note: 'Casa automatica, fotovoltaico e ricarica: un ramo facoltativo del percorso.',
-    levels: ['Il sensore e l’attuatore', 'La casa col PLC', 'La corrente continua', 'Il pannello fotovoltaico', 'Il contatore e lo scambio', 'L’accumulo', 'La colonnina'],
-    project: { art: 'casa', kick: 'Casa del futuro', name: 'Luci, tapparelle, sole e batteria', text: 'La casa che si comanda da sola e produce la sua energia.' },
-  },
-];
+export const UPCOMING = [];
 
 // Introduzione animata: una scena per voce. `art` e' la chiave del disegno (src/ui2d/art.js).
 export const INTRO = [

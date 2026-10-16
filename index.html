@@ -1576,6 +1576,13 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
       contacts: (c2, s) => Object.keys(s.q || {}).filter((k) => s.q[k] && c2.terms && c2.terms[k + "A"] && c2.terms[k + "B"]).map((k) => [k + "A", k + "B"]),
       init: () => ({ q: {}, aq: {}, mem: null, coil: false, rungs: [], inputs: {}, ai: {} })
     },
+    // corrente continua (level.dc, docs/SPEC-PROCESSI.md sezione 7): ogni pezzo da' i suoi elementi al risolutore (dc.js)
+    // batteria: + e -, tensione `v` (V), resistenza interna `r` (ohm), corrente oltre la quale il fusibile brucia `imax` (A)
+    batt: { contacts: () => [], dc: (c2) => [{ id: c2.id, type: "V", a: c2.id + ".+", b: c2.id + ".-", v: c2.v || 6, r: c2.r ?? 0.1 }] },
+    // lampada a incandescenza in continua: non ha verso; resistenza dalla targa (volt^2 / watt)
+    dcl: { contacts: () => [], dcLoad: ["A", "B"], dc: (c2) => [{ id: c2.id, type: "R", a: c2.id + ".A", b: c2.id + ".B", r: (c2.volt || 12) ** 2 / (c2.w || 6) }] },
+    // LED con la sua resistenza: conduce solo dall'anodo A al catodo K
+    led: { contacts: () => [], dcLoad: ["A", "K"], dc: (c2) => [{ id: c2.id, type: "D", a: c2.id + ".A", b: c2.id + ".K", vf: c2.vf || 2, rd: c2.rint || 470 }] },
     // sorgente derivata
     trafo: { contacts: () => [], primary: ["1", "2"], secondary: ["3", "4"] },
     // carichi
@@ -1839,6 +1846,138 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
     });
   }
 
+  // src/engine/v2/dc.js
+  var GMIN = 1e-9;
+  var PIVOT = 1e-12;
+  var MAX_DIODE_ITER = 20;
+  function solveDC({ elements = [], ground }) {
+    const uf = makeUF();
+    const all = /* @__PURE__ */ new Set();
+    elements.forEach((e) => {
+      all.add(e.a);
+      all.add(e.b);
+    });
+    if (ground) all.add(ground);
+    elements.forEach((e) => {
+      if (e.type === "W" || e.type === "S" && e.on) uf.u(e.a, e.b);
+    });
+    const g = ground ? uf.f(ground) : null;
+    for (const e of elements) if (e.type === "V" && !(e.r > 0) && uf.f(e.a) === uf.f(e.b)) return fail("shortSource", e.id);
+    const diodes = elements.filter((e) => e.type === "D");
+    const on = Object.fromEntries(diodes.map((d) => [d.id, true]));
+    let res = null;
+    for (let it = 0; it < MAX_DIODE_ITER; it++) {
+      res = solveLinear(elements, uf, g, on);
+      if (!res.ok) return res;
+      let changed = false;
+      diodes.forEach((d) => {
+        const vf = d.vf ?? 0.7;
+        if (on[d.id] && res.i[d.id] < -1e-9) {
+          on[d.id] = false;
+          changed = true;
+        } else if (!on[d.id] && res.vNode(d.a) - res.vNode(d.b) > vf + 1e-9) {
+          on[d.id] = true;
+          changed = true;
+        }
+      });
+      if (!changed) {
+        const v = {};
+        all.forEach((n) => v[n] = round(res.vNode(n)));
+        const i = {};
+        Object.entries(res.i).forEach(([k, x]) => i[k] = round(x));
+        return { ok: true, v, i, on: { ...on } };
+      }
+    }
+    return fail("diodes");
+  }
+  var round = (x) => Math.round(x * 1e9) / 1e9 + 0;
+  var fail = (error, comp) => ({ ok: false, error, ...comp ? { comp } : {}, v: {}, i: {}, on: {} });
+  function solveLinear(elements, uf, g, dOn) {
+    const idx = /* @__PURE__ */ new Map();
+    const node = (n2) => {
+      const r = typeof n2 === "string" && n2.startsWith("#") ? n2 : uf.f(n2);
+      if (r === g) return -1;
+      if (!idx.has(r)) idx.set(r, idx.size);
+      return idx.get(r);
+    };
+    const conds = [], srcs = [];
+    const outI = {};
+    elements.forEach((e) => {
+      if (e.type === "R") {
+        if (!(e.r > 0)) {
+          conds.push({ a: node(e.a), b: node(e.b), g: 1e9, id: e.id });
+          return;
+        }
+        conds.push({ a: node(e.a), b: node(e.b), g: 1 / e.r, id: e.id });
+      } else if (e.type === "V") {
+        if (e.r > 0) {
+          const k = node("#" + e.id);
+          srcs.push({ p: k, n: node(e.b), v: e.v, id: e.id });
+          conds.push({ a: k, b: node(e.a), g: 1 / e.r, id: "#" + e.id });
+        } else srcs.push({ p: node(e.a), n: node(e.b), v: e.v, id: e.id });
+      } else if (e.type === "D" && dOn[e.id]) {
+        const k = node("#" + e.id);
+        srcs.push({ p: node(e.a), n: k, v: e.vf ?? 0.7, id: e.id, diode: true });
+        conds.push({ a: k, b: node(e.b), g: 1 / (e.rd ?? 0.05), id: "#d" + e.id });
+      } else if (e.type === "D") outI[e.id] = 0;
+    });
+    const n = idx.size, m = srcs.length, N = n + m;
+    const A = Array.from({ length: N }, () => new Float64Array(N));
+    const z = new Float64Array(N);
+    for (let k = 0; k < n; k++) A[k][k] += GMIN;
+    conds.forEach(({ a, b, g: c2 }) => {
+      if (a >= 0) A[a][a] += c2;
+      if (b >= 0) A[b][b] += c2;
+      if (a >= 0 && b >= 0) {
+        A[a][b] -= c2;
+        A[b][a] -= c2;
+      }
+    });
+    srcs.forEach((s, k) => {
+      const r = n + k;
+      if (s.p >= 0) {
+        A[s.p][r] += 1;
+        A[r][s.p] += 1;
+      }
+      if (s.n >= 0) {
+        A[s.n][r] -= 1;
+        A[r][s.n] -= 1;
+      }
+      z[r] = s.v;
+    });
+    const x = gauss(A, z);
+    if (!x) return fail("sourceLoop");
+    const vOf = (k) => k < 0 ? 0 : x[k];
+    const i = { ...outI };
+    conds.forEach((c2) => {
+      if (!String(c2.id).startsWith("#")) i[c2.id] = (vOf(c2.a) - vOf(c2.b)) * c2.g;
+    });
+    srcs.forEach((s, k) => {
+      i[s.id] = s.diode ? x[n + k] : -x[n + k];
+    });
+    return { ok: true, i, vNode: (name) => vOf(node(name)) };
+  }
+  function gauss(A, z) {
+    const N = z.length;
+    const M2 = A.map((row, k) => {
+      const r = Array.from(row);
+      r.push(z[k]);
+      return r;
+    });
+    for (let c2 = 0; c2 < N; c2++) {
+      let p = c2;
+      for (let r = c2 + 1; r < N; r++) if (Math.abs(M2[r][c2]) > Math.abs(M2[p][c2])) p = r;
+      if (Math.abs(M2[p][c2]) < PIVOT) return null;
+      [M2[c2], M2[p]] = [M2[p], M2[c2]];
+      for (let r = 0; r < N; r++) {
+        if (r === c2) continue;
+        const f = M2[r][c2] / M2[c2][c2];
+        if (f) for (let k = c2; k <= N; k++) M2[r][k] -= f * M2[c2][k];
+      }
+    }
+    return M2.map((row, k) => row[N] / row[k]);
+  }
+
   // src/engine/v2/process.js
   var clamp2 = (x, lo, hi) => Math.max(lo, Math.min(hi, x));
   var frac = (x) => clamp2(Number(x) || 0, 0, 1);
@@ -2090,7 +2229,59 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
     if (isPhase(p) || isPhase(q)) return 230;
     return 0;
   }
+  function analyseDC(sim, open) {
+    const { level } = sim;
+    const uf = connect2(sim, open);
+    const els = [];
+    sim.wires.forEach((w) => els.push({ id: "w" + w.id, type: "W", a: w.a, b: w.b }));
+    level.comps.forEach((c2) => {
+      const p = partOf(c2);
+      p.contacts(c2, sim.parts[c2.id] || {}).forEach(([x, y]) => els.push({ id: c2.id + ":" + x, type: "W", a: c2.id + "." + x, b: c2.id + "." + y }));
+      if (p.dc) p.dc(c2, sim.parts[c2.id] || {}).forEach((e) => {
+        if (e.type !== "V" || sim.supply && !sim.mainTrip) els.push(e);
+      });
+    });
+    const firstV = els.find((e) => e.type === "V");
+    const r = solveDC({ elements: els, ground: firstV ? firstV.b : els[0] && els[0].a });
+    const vOf = (t) => r.ok ? r.v[t] || 0 : 0;
+    const faults = [];
+    if (!r.ok) faults.push({ code: "corto" });
+    level.comps.forEach((c2) => {
+      if (c2.type === "batt" && r.ok && Math.abs(r.i[c2.id] || 0) > (c2.imax || 20)) faults.push({ code: "corto", comp: c2.id });
+    });
+    const loads = {}, burntNow = [];
+    level.comps.forEach((c2) => {
+      const p = partOf(c2);
+      if (!p.dcLoad) return;
+      let st = "off";
+      if (c2.type === "led") st = r.ok && (r.i[c2.id] || 0) > 2e-3 ? "on" : "off";
+      else {
+        const V = Math.abs(vOf(c2.id + "." + p.dcLoad[0]) - vOf(c2.id + "." + p.dcLoad[1])), vn = c2.volt || 12;
+        st = V > vn * 1.3 ? "burnt" : V >= vn * 0.85 ? "on" : V > vn * 0.2 ? "weak" : "off";
+      }
+      if (sim.burnt[c2.id]) st = "burnt";
+      loads[c2.id] = st;
+    });
+    return {
+      uf,
+      pots: {},
+      potAt: () => null,
+      volt: (x, y) => Math.abs(vOf(x) - vOf(y)),
+      faults,
+      loads,
+      coils: {},
+      motors: {},
+      modes: {},
+      plcIn: {},
+      plcAi: {},
+      trafoOn: {},
+      burntNow,
+      leaks: [],
+      dc: r
+    };
+  }
   function analyse2(sim, open) {
+    if (sim.level.dc) return analyseDC(sim, open);
     const { level } = sim;
     const uf = connect2(sim, open);
     const pots = {};
@@ -2255,7 +2446,7 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
         return true;
       }
       sim.mainTrip = true;
-      sim.mainTripCause = "corto";
+      sim.mainTripCause = sim.level.dc ? "cortoDC" : "corto";
       return true;
     }
     if (hasFault(an, ["faseterra", "neutroterra"])) {
@@ -2663,6 +2854,7 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
   }
   function measure(sim, a, b, mode = "V") {
     const an = analyse2(sim);
+    if (sim.level.dc && mode === "V") return { kind: "v", value: an.dc.ok ? Math.round(((an.dc.v[a] || 0) - (an.dc.v[b] || 0)) * 100) / 100 : null, ac: false };
     const roots = /* @__PURE__ */ new Map();
     const wd = windings(sim);
     const terms = [a, b];
@@ -2793,24 +2985,24 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
     for (const r of rules || []) {
       const from = r.from ?? 0, to = r.to ?? Infinity;
       const win = rows.filter((x) => x.t >= from - 1e-9 && x.t <= to + 1e-9 && r.v in x);
-      const fail = (rule, want, got, at) => ({ comp: "trace." + r.v, rule, want, got: typeof got === "number" ? round1(got) : got, at });
-      if (!win.length) return fail("noData", null, null, from);
+      const fail2 = (rule, want, got, at) => ({ comp: "trace." + r.v, rule, want, got: typeof got === "number" ? round1(got) : got, at });
+      if (!win.length) return fail2("noData", null, null, from);
       if (r.within) {
         const bad = win.find((x) => x[r.v] < r.within[0] || x[r.v] > r.within[1]);
-        if (bad) return fail("within", r.within.join("-"), bad[r.v], bad.t);
+        if (bad) return fail2("within", r.within.join("-"), bad[r.v], bad.t);
       }
       if (r.min !== void 0) {
         const bad = win.find((x) => x[r.v] < r.min);
-        if (bad) return fail("min", r.min, bad[r.v], bad.t);
+        if (bad) return fail2("min", r.min, bad[r.v], bad.t);
       }
       if (r.max !== void 0) {
         const bad = win.reduce((a, x) => x[r.v] > r.max && (!a || x[r.v] > a[r.v]) ? x : a, null);
-        if (bad) return fail("max", r.max, bad[r.v], bad.t);
+        if (bad) return fail2("max", r.max, bad[r.v], bad.t);
       }
       if (r.maxSwitches !== void 0) {
         let n = 0;
         for (let k = 1; k < win.length; k++) if (!!win[k][r.v] !== !!win[k - 1][r.v]) n++;
-        if (n > r.maxSwitches) return fail("maxSwitches", r.maxSwitches, n);
+        if (n > r.maxSwitches) return fail2("maxSwitches", r.maxSwitches, n);
       }
       if (r.reaches !== void 0 || r.drops !== void 0) {
         const by = r.by ?? Infinity;
@@ -2818,14 +3010,14 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
         const hit = r.reaches !== void 0 ? part2.some((x) => x[r.v] >= r.reaches) : part2.some((x) => x[r.v] <= r.drops);
         if (!hit) {
           const vals = part2.map((x) => x[r.v]);
-          return r.reaches !== void 0 ? fail("reaches", r.reaches, Math.max(...vals), by) : fail("drops", r.drops, Math.min(...vals), by);
+          return r.reaches !== void 0 ? fail2("reaches", r.reaches, Math.max(...vals), by) : fail2("drops", r.drops, Math.min(...vals), by);
         }
       }
     }
     return null;
   }
   var BLOCKING = { corto: "work.short", faseterra: "work.phaseToEarth", secondarioMisto: "work.secondaryMixed", instabile: "work.unstable", caricoTerra: "work.loadOnEarth" };
-  var QUADRO = { corto: "work.short", faseterra: "work.phaseToEarth" };
+  var QUADRO = { corto: "work.short", faseterra: "work.phaseToEarth", cortoDC: "work.shortDC" };
   function blockingOf(o, allowTrip) {
     if (o.cable && o.cable.burnt) return { code: "work.cableBurnt" };
     const q = o.faults.find((x) => x.code === "quadro");
@@ -2879,7 +3071,21 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
     if (c2.type === "ft") return ["95", "96", "97", "98"].includes(t);
     return false;
   }
+  function wireRolesDC(level, wires) {
+    const uf = makeUF();
+    wires.forEach((w) => uf.u(w.a, w.b));
+    const pos = /* @__PURE__ */ new Set(), neg = /* @__PURE__ */ new Set();
+    level.comps.filter((c2) => c2.type === "batt").forEach((c2) => {
+      pos.add(uf.f(c2.id + ".+"));
+      neg.add(uf.f(c2.id + ".-"));
+    });
+    return wires.map((w) => {
+      const k = uf.f(w.a);
+      return pos.has(k) && !neg.has(k) ? "dcpos" : neg.has(k) && !pos.has(k) ? "dcneg" : "dc";
+    });
+  }
   function wireRoles(level, wires) {
+    if (level.dc) return wireRolesDC(level, wires);
     const uf = makeUF();
     wires.forEach((w) => uf.u(w.a, w.b));
     level.comps.forEach((c2) => {
@@ -2914,6 +3120,9 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
   }
   function allowedColorsV2(level, role, wire) {
     const red = level.controlColor === "rosso" && (isCtlTerm(level, wire.a) || isCtlTerm(level, wire.b)) ? ["rosso"] : [];
+    if (role === "dcpos") return ["rosso"];
+    if (role === "dcneg") return ["nero"];
+    if (role === "dc") return ["rosso", "nero"];
     if (role === "neutro") return ["blu"];
     if (role === "terra") return ["gv"];
     if (role === "bassa") return ["marrone", "nero", "grigio", "rosso", "bianco"];
@@ -2969,7 +3178,7 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
     });
     if (!bad.length) {
       out.color.ok = true;
-      add("color", "color.ok", { earth: !!(level.safety && level.safety.earth) });
+      add("color", "color.ok", level.dc ? { dc: true } : { earth: !!(level.safety && level.safety.earth) });
     } else {
       bad.slice(0, 3).forEach((b) => out.color.items.push(b));
       if (bad.length > 3) add("color", "color.more", { n: bad.length - 3 });
@@ -2979,7 +3188,7 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
       const S2 = level.safety || {};
       const states = runs.flatMap((x) => x.r.states);
       let ok = true;
-      const fail = (code, params) => {
+      const fail2 = (code, params) => {
         ok = false;
         add("safe", code, params);
       };
@@ -2993,22 +3202,22 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
           const ts = (p.load || p.coil || []).map((t) => id + "." + t);
           return !pots.every((o) => o.loads[id] === "on" || o.coils[id] === true || !ts.some((t) => PH3.includes(o.potential(t))));
         });
-        if (broken) fail("safe.neutralBroken");
+        if (broken) fail2("safe.neutralBroken");
       }
       if (S2.pol) {
         const PHS = ["F", "L1", "L2", "L3"];
         const [l, n] = S2.pol;
         const swapped = [observe(createSim(level, wires))].concat(states).some((o) => o.potential(l) === "N" || PHS.includes(o.potential(n)));
-        if (swapped) fail("safe.socketPolarity");
+        if (swapped) fail2("safe.socketPolarity");
       }
       if (S2.earth) {
         const uf = makeUF();
         wires.forEach((w) => uf.u(w.a, w.b));
         S2.earth.forEach(([x, y]) => {
-          if (uf.f(x) !== uf.f(y)) fail("safe.noEarth", { comp: x.split(".")[0] });
+          if (uf.f(x) !== uf.f(y)) fail2("safe.noEarth", { comp: x.split(".")[0] });
         });
       }
-      if (S2.deadWork && (ctx2.liveEdits || []).length) fail("safe.liveWork", { comp: S2.deadWork[0] });
+      if (S2.deadWork && (ctx2.liveEdits || []).length) fail2("safe.liveWork", { comp: S2.deadWork[0] });
       if (S2.never) {
         const both = runs.some((x) => x.r.sim.kmHistory.some((on) => S2.never.some((pair) => pair.every((id) => on.includes(id)))));
         const sim = createSim(level, wires);
@@ -3024,7 +3233,7 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
           act(s3, "press", b.id);
           if (s3.kmHistory.some((on) => S2.never.some((pair) => pair.every((id) => on.includes(id))))) both3 = true;
         }));
-        if (both || both2 || both3) fail("safe.interlock");
+        if (both || both2 || both3) fail2("safe.interlock");
       }
       if (S2.emergencyHardwired) {
         const { stop, start = [] } = S2.emergencyHardwired;
@@ -3038,11 +3247,11 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
         act(sim, "toggle", stop);
         const o = observe(sim);
         const contactorOn = level.comps.some((c2) => c2.type === "km" && o.coils[c2.id]);
-        if (Object.values(o.motors).some((m) => m !== "off") || contactorOn) fail("safe.emergencyInProgram");
+        if (Object.values(o.motors).some((m) => m !== "off") || contactorOn) fail2("safe.emergencyInProgram");
       }
       if (S2.outputsNeverTogether) {
         const bad2 = runs.some((x) => x.r.sim.qHistory.some((on) => S2.outputsNeverTogether.some((pair) => pair.every((id) => on.includes(id)))));
-        if (bad2) fail("safe.outputsTogether");
+        if (bad2) fail2("safe.outputsTogether");
       }
       if (S2.weldedInterlock) {
         const { pairs, start = [], stop = [] } = S2.weldedInterlock;
@@ -3059,14 +3268,14 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
           advance(sim, 10);
           if (sim.kmHistory.some((on) => on.includes(x) && on.includes(y)) || sim.parts[y].on) bad2 = true;
         }));
-        if (bad2) fail("safe.interlock");
+        if (bad2) fail2("safe.interlock");
       }
       if (S2.coilReturn) {
         const uf = makeUF();
         wires.forEach((w) => uf.u(w.a, w.b));
         const n = sourcesOf(level).N;
         S2.coilReturn.forEach((id) => {
-          if (uf.f(id + ".A2") !== uf.f(n)) fail("safe.coilReturn", { comp: id });
+          if (uf.f(id + ".A2") !== uf.f(n)) fail2("safe.coilReturn", { comp: id });
         });
       }
       if (level.comps.some((c2) => c2.type === "motor3" || c2.type === "motor6")) {
@@ -3075,7 +3284,7 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
         const o = observe(sim);
         const PH3 = ["L1", "L2", "L3"];
         const live = level.comps.filter((c2) => c2.type === "motor3" || c2.type === "motor6").find((c2) => partOf(c2).motor.some((t) => PH3.includes(o.potential(c2.id + "." + t))));
-        if (live) fail("safe.motorLive", { comp: live.id });
+        if (live) fail2("safe.motorLive", { comp: live.id });
       }
       if (S2.stopWins) {
         const sim = createSim(level, wires);
@@ -3088,7 +3297,7 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
           act(sim, "release", c2.id);
         });
         act(sim, "release", S2.stopWins);
-        if (bad2 || running2(observe(sim))) fail("safe.stopNotPriority");
+        if (bad2 || running2(observe(sim))) fail2("safe.stopNotPriority");
       }
       if (S2.emergency) {
         const sim = createSim(level, wires);
@@ -3100,17 +3309,17 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
         act(sim, "toggle", S2.emergency);
         starts.forEach((c2) => act(sim, "press", c2.id));
         let o = observe(sim);
-        if (Object.values(o.motors).some((m) => m !== "off") || Object.values(o.coils).some(Boolean)) fail("safe.emergency");
+        if (Object.values(o.motors).some((m) => m !== "off") || Object.values(o.coils).some(Boolean)) fail2("safe.emergency");
         starts.forEach((c2) => act(sim, "release", c2.id));
         act(sim, "toggle", S2.emergency);
         o = observe(sim);
-        if (Object.values(o.motors).some((m) => m !== "off")) fail("safe.restartAfterEmergency");
+        if (Object.values(o.motors).some((m) => m !== "off")) fail2("safe.restartAfterEmergency");
       }
       if (S2.dualChannel) {
         const uf = makeUF();
         wires.forEach((w) => uf.u(w.a, w.b));
         S2.dualChannel.forEach(([a, b]) => {
-          if (uf.f(a) === uf.f(b)) fail("safe.singleChannel", { comp: a.split(".")[0] });
+          if (uf.f(a) === uf.f(b)) fail2("safe.singleChannel", { comp: a.split(".")[0] });
         });
       }
       if (S2.redundant) {
@@ -3121,7 +3330,7 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
           act(sim, "weld", stuck);
           act(sim, "toggle", stop);
           const o = observe(sim);
-          if (o.loads[load] === "on" || o.motors[load] && o.motors[load] !== "off") fail("safe.notRedundant", { comp: stuck });
+          if (o.loads[load] === "on" || o.motors[load] && o.motors[load] !== "off") fail2("safe.notRedundant", { comp: stuck });
         });
       }
       if (S2.restartNeedsReset) {
@@ -3142,13 +3351,13 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
           });
           if (!running2()) return;
           act(sim, "toggle", stop);
-          if (running2()) fail("safe.stopNotHeld");
+          if (running2()) fail2("safe.stopNotHeld");
           act(sim, "toggle", stop);
-          if (running2()) fail("safe.restartByItself");
+          if (running2()) fail2("safe.restartByItself");
           if (reset) {
             act(sim, "press", reset);
             act(sim, "release", reset);
-            if (!running2()) fail("safe.noRestart");
+            if (!running2()) fail2("safe.noRestart");
           }
         });
       }
@@ -3156,13 +3365,13 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
         const uf = makeUF();
         wires.forEach((w) => uf.u(w.a, w.b));
         S2.outputsSeries.forEach((id) => {
-          if (uf.f(id + ".13") === uf.f(id + ".23")) fail("safe.outputsParallel", { comp: id });
+          if (uf.f(id + ".13") === uf.f(id + ".23")) fail2("safe.outputsParallel", { comp: id });
         });
       }
       if (S2.allContacts) {
         S2.allContacts.forEach((id) => {
           const unused = ["1", "2", "3", "4"].some((t) => !wires.some((w) => w.a === id + "." + t || w.b === id + "." + t));
-          if (unused) fail("safe.contactUnused", { comp: id });
+          if (unused) fail2("safe.contactUnused", { comp: id });
         });
       }
       if (S2.feedbackMonitored) {
@@ -3175,7 +3384,7 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
         act(sim, "toggle", stop);
         act(sim, "press", reset);
         act(sim, "release", reset);
-        if (sim.parts[rs].on) fail("safe.noFeedback", { comp: km });
+        if (sim.parts[rs].on) fail2("safe.noFeedback", { comp: km });
       }
       if (S2.rcdCovers) {
         const rcds = level.comps.filter((c2) => c2.type === "rcd").map((c2) => c2.id);
@@ -3184,7 +3393,7 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
             const o = observe(x.r.sim);
             return o.loads[id] === "on" || o.coils[id];
           });
-          if (!run || stillOnIfOpen(run.r.sim, id, rcds)) fail("safe.notCovered", { comp: id });
+          if (!run || stillOnIfOpen(run.r.sim, id, rcds)) fail2("safe.notCovered", { comp: id });
         });
       }
       if (S2.protectedBy) {
@@ -3193,10 +3402,10 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
             const o = observe(x.r.sim);
             return o.loads[id] === "on" || o.coils[id] || o.motors[id] && o.motors[id] !== "off";
           });
-          if (!run || stillOnIfOpen(run.r.sim, id, [prot])) fail("safe.notProtected", { comp: id, by: prot });
+          if (!run || stillOnIfOpen(run.r.sim, id, [prot])) fail2("safe.notProtected", { comp: id, by: prot });
         });
       }
-      if (states.some((o) => o.faults.some((f) => f.code === "neutroterra"))) fail("safe.neutralEarth");
+      if (states.some((o) => o.faults.some((f) => f.code === "neutroterra"))) fail2("safe.neutralEarth");
       if (ok) {
         out.safe.ok = true;
         add("safe", "safe.ok", { variant: level.safetyVariant || "v2" });
@@ -6961,6 +7170,47 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
       "Il livello troppo basso: confronto MW0 minore di 10, bobina M2."
     ]
   });
+  var W38 = [
+    ["B1.+", "B2.-", "rosso"],
+    ["B2.+", "S.a", "rosso"],
+    ["S.b", "L.A", "rosso"],
+    ["L.B", "B1.-", "nero"],
+    ["S.b", "H.A", "rosso"],
+    ["H.K", "B1.-", "nero"]
+  ];
+  LEVELS_V2.push({
+    id: "c38-continua",
+    code: "c38",
+    n: 0,
+    engine: 2,
+    dc: true,
+    quadroOnly: true,
+    supply: "protezioni",
+    meter: true,
+    palette: ["rosso", "nero"],
+    name: "La corrente continua",
+    title: "La corrente continua",
+    blurb: "Batterie, polarit\xE0, serie e parallelo: una lampada da 12 V con due batterie da 6 V.",
+    goal: "Due batterie da 6 V, un interruttore, una lampada da 12 V e un LED che fa da spia. Collega le batterie in modo che la lampada abbia i suoi 12 V, con l\u2019interruttore che la accende e la spegne. Il LED, in parallelo alla lampada, deve accendersi con lei: ha un verso. In continua il positivo \xE8 rosso, il negativo nero.",
+    comps: [
+      C("B1", "batt", "Batteria 1", "Batteria da 6 V", T("+", "-"), { v: 6, r: 0.1, imax: 20 }),
+      C("B2", "batt", "Batteria 2", "Batteria da 6 V", T("+", "-"), { v: 6, r: 0.1, imax: 20 }),
+      C("S", "sw", "Interruttore", "Interruttore", T("a", "b")),
+      C("L", "dcl", "Lampada", "Lampada da 12 V, 6 W", T("B", "A"), { volt: 12, w: 6 }),
+      C("H", "led", "LED", "LED spia (A anodo, K catodo)", T("A", "K"))
+    ],
+    controls: ["S"],
+    checks: [
+      { id: "spento", label: "Con l\u2019interruttore aperto lampada e LED sono spenti", do: [], expect: { loads: { L: "off", H: "off" } } },
+      { id: "acceso", label: "Chiudendo l\u2019interruttore la lampada si accende piena e il LED con lei", do: ["toggle S"], expect: { loads: { L: "on", H: "on" } } }
+    ],
+    solution: W38,
+    hints: [
+      "Una batteria sola da 6 V non basta per una lampada da 12 V: si accende appena. Due batterie in serie sommano le tensioni: il + della prima va al \u2212 della seconda.",
+      "Dal + libero della serie passa l\u2019interruttore e si arriva alla lampada; dall\u2019altro capo della lampada si torna al \u2212 libero, in nero.",
+      "Il LED conduce solo dall\u2019anodo (A) al catodo (K): A verso il positivo, K verso il negativo. Se \xE8 al contrario resta spento."
+    ]
+  });
 
   // src/content/units-v2.js
   var UNITS_V2 = {
@@ -10597,6 +10847,90 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
         },
         fixSay: "Ricollega il cavo di rete del pannello (tocca il pannello sul banco). Poi premi Verifica."
       }
+    },
+    "c38-continua": {
+      support: "passi",
+      lesson: {
+        pages: [
+          {
+            type: "spiegazione",
+            title: "Alternata e continua",
+            paras: [
+              "La rete di casa \xE8 in corrente alternata: la tensione cambia verso cinquanta volte al secondo, e per questo fase e neutro non hanno un \u201Cpi\xF9\u201D e un \u201Cmeno\u201D. Una batteria, un pannello solare, il caricatore del telefono danno invece corrente continua: la tensione ha sempre lo stesso verso.",
+              "In continua i due morsetti hanno un nome fisso: il positivo (+) e il negativo (\u2212). La corrente esce dal + della sorgente, attraversa il carico e torna al \u2212. Per distinguerli i fili hanno un colore: rosso il positivo, nero il negativo."
+            ]
+          },
+          {
+            type: "spiegazione",
+            title: "Serie: le tensioni si sommano",
+            paras: [
+              "Due batterie in serie si collegano una dopo l\u2019altra: il + della prima va al \u2212 della seconda. Le tensioni si sommano: due batterie da 6 V danno 12 V tra il \u2212 libero della prima e il + libero della seconda.",
+              "In parallelo invece si collegano + con + e \u2212 con \u2212: la tensione resta quella di una batteria sola (6 V), ma la corrente si divide tra le due, che durano di pi\xF9. Una lampada da 12 V con 6 V si accende appena."
+            ],
+            table: {
+              head: ["Due batterie da 6 V", "Tensione", "A che cosa serve"],
+              rows: [
+                ["In serie (+ della prima al \u2212 della seconda)", "12 V", "arrivare alla tensione del carico"],
+                ["In parallelo (+ con +, \u2212 con \u2212)", "6 V", "pi\xF9 corrente, pi\xF9 durata"]
+              ]
+            }
+          },
+          {
+            type: "spiegazione",
+            title: "La polarit\xE0 e il LED",
+            paras: [
+              "A una lampada a incandescenza non importa il verso: \xE8 un filo che scalda e si accende comunque. Un LED invece \xE8 un diodo: lascia passare la corrente in un solo verso, dall\u2019anodo (A) al catodo (K). L\u2019anodo va verso il positivo, il catodo verso il negativo. Al contrario resta spento.",
+              "Per questo nei circuiti in continua la polarit\xE0 conta: un dispositivo collegato al contrario non funziona, e alcuni si rompono."
+            ]
+          },
+          {
+            type: "spiegazione",
+            title: "Il cortocircuito in continua",
+            paras: [
+              "Se il + e il \u2212 di una batteria si toccano con un filo, senza un carico in mezzo, la corrente \xE8 limitata solo dalla piccola resistenza interna della batteria: centinaia di ampere. Il filo scalda, la batteria si rovina. Per questo le batterie hanno un fusibile, che qui brucia appena c\u2019\xE8 un corto."
+            ],
+            warn: "Anche se 12 V non sono pericolosi da toccare, un cortocircuito su una batteria pu\xF2 bruciare i fili e dare fuoco."
+          },
+          {
+            type: "previsione",
+            question: "Collego le due batterie da 6 V in parallelo e poi alla lampada da 12 V. Che cosa succede?",
+            options: [
+              { id: "a", text: "La lampada si accende piena: le batterie sono due." },
+              { id: "b", text: "La lampada si accende appena: in parallelo la tensione resta 6 V." },
+              { id: "c", text: "La lampada brucia." }
+            ],
+            correct: "b",
+            why: "In parallelo le batterie danno la stessa tensione di una sola, 6 V. Alla lampada da 12 V ne serve il doppio: per sommare le tensioni vanno in serie."
+          },
+          {
+            type: "previsione",
+            question: "Con il multimetro metto il puntale rosso sul \u2212 e il nero sul + di una batteria da 6 V. Che cosa leggo?",
+            options: [
+              { id: "a", text: "6 V." },
+              { id: "b", text: "\u22126 V: in continua il segno dice da che parte sta il positivo." },
+              { id: "c", text: "0 V." }
+            ],
+            correct: "b",
+            why: "In continua il multimetro legge la tensione con il segno: positivo se il puntale rosso sta sul +, negativo se \xE8 al contrario. \xC8 il modo pi\xF9 semplice di trovare la polarit\xE0."
+          },
+          { type: "sintesi", title: "Da ricordare" }
+        ]
+      },
+      steps: [
+        { kind: "wire", from: "B1.+", to: ["B2.-"], color: "rosso", short: "1 Serie", title: "Le batterie in serie", text: "Un filo dal + della batteria 1 al \u2212 della batteria 2. Perch\xE9: in serie le tensioni si sommano, 6 V pi\xF9 6 V fanno 12 V." },
+        { kind: "wire", from: "B2.+", to: ["S.a"], color: "rosso", short: "2 Interruttore", title: "Il positivo all\u2019interruttore", text: "Dal + libero della batteria 2 all\u2019interruttore, in rosso. Perch\xE9: l\u2019interruttore apre e chiude il positivo verso i carichi." },
+        { kind: "wire", from: "S.b", to: ["L.A"], color: "rosso", short: "3 Lampada", title: "Dall\u2019interruttore alla lampada", text: "Dall\u2019altro morsetto dell\u2019interruttore a un capo della lampada, in rosso; dall\u2019altro capo della lampada al \u2212 della batteria 1, in nero. Perch\xE9: la corrente deve tornare al negativo per chiudere il giro." },
+        { kind: "wire", from: "S.b", to: ["H.A"], color: "rosso", short: "4 LED", title: "Il LED in parallelo", text: "Dall\u2019interruttore all\u2019anodo A del LED, in rosso; dal catodo K al \u2212 della batteria 1, in nero. Perch\xE9: il LED conduce solo dall\u2019anodo al catodo." },
+        { kind: "control", id: "S", short: "5 Prova", title: "Accendi", text: "Chiudi l\u2019interruttore: la lampada si accende piena e il LED con lei. Se vuoi, misura con il multimetro la tensione sulla lampada." },
+        { kind: "verify", short: "6 Verifica", title: "Controlla il circuito", text: "Premi Verifica." }
+      ],
+      summary: [
+        "In continua la tensione ha un verso fisso: il positivo (+, filo rosso) e il negativo (\u2212, filo nero).",
+        "In serie (il + di una al \u2212 dell\u2019altra) le tensioni delle batterie si sommano; in parallelo la tensione resta quella di una sola.",
+        "Il LED conduce solo dall\u2019anodo (verso il +) al catodo (verso il \u2212): la polarit\xE0 conta.",
+        "Un cortocircuito su una batteria d\xE0 una corrente enorme: per questo c\u2019\xE8 il fusibile.",
+        "Il multimetro in continua legge la tensione con il segno: dice da che parte sta il positivo."
+      ]
     }
   };
 
@@ -10662,8 +10996,8 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
     const t = c2.short[0].toLowerCase() + c2.short.slice(1);
     return (c2.type === "dev" ? "Il " : "L\u2019") + t;
   }
-  var ROLE_OF = { neutro: "del neutro", terra: "di terra", fase: "di fase", bassa: "a bassa tensione", comando: "di comando" };
-  var COLOR_NEEDED = { neutro: "blu", terra: "giallo-verde", fase: "marrone, nero o grigio", bassa: "di un colore diverso da blu e giallo-verde", comando: "rosso, marrone, nero o grigio" };
+  var ROLE_OF = { neutro: "del neutro", terra: "di terra", fase: "di fase", bassa: "a bassa tensione", comando: "di comando", dcpos: "del positivo", dcneg: "del negativo", dc: "in continua" };
+  var COLOR_NEEDED = { neutro: "blu", terra: "giallo-verde", fase: "marrone, nero o grigio", bassa: "di un colore diverso da blu e giallo-verde", comando: "rosso, marrone, nero o grigio", dcpos: "rosso", dcneg: "nero", dc: "rosso o nero" };
   var nameOf = (level, id) => {
     const c2 = findComp(level, id);
     return c2 ? c2.short : id;
@@ -10770,6 +11104,8 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
         return "E altre " + item.n + " prove non superate.";
       case "work.secondaryMixed":
         return "Il secondario del trasformatore \xE8 collegato alla rete: la bassa tensione non \xE8 pi\xF9 separata dai 230 V.";
+      case "work.shortDC":
+        return "Cortocircuito: il + e il \u2212 di una batteria sono collegati senza un carico in mezzo. La corrente diventa enorme e il fusibile della batteria brucia. Togli il filo che chiude il corto.";
       case "work.hmiOffline":
         return "Il pannello operatore non \xE8 collegato al PLC: i valori che mostra sono vecchi e gli allarmi non arrivano. Ricollega il cavo di rete del pannello.";
       case "work.unstablePlc":
@@ -10793,6 +11129,7 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
       case "color.more":
         return "E altri " + item.n + " fili con il colore sbagliato.";
       case "color.ok":
+        if (item.dc) return "Il rosso \xE8 sul positivo e il nero sul negativo.";
         return item.earth ? "Fase, neutro e terra hanno i colori giusti." : "Il blu \xE8 solo sul neutro, gli altri fili hanno colori da fase.";
       case "safe.skipped":
         return "Si controlla quando il circuito funziona.";
@@ -11140,6 +11477,20 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
       milestone: { soon: true, art: "plc", kick: "Nastro con il PLC", name: "Un nastro che si comanda da programma", text: "Fotocellula, conteggio dei pacchi, emergenza e termico che restano cablati." }
     },
     {
+      tag: "MODULO 5",
+      title: "Impianti del futuro",
+      levels: [
+        "c38-continua",
+        { soon: true, title: "Il pannello fotovoltaico", blurb: "Stringa, inverter e produzione nella giornata." },
+        { soon: true, title: "Il contatore e lo scambio", blurb: "Consumo, produzione e immissione in rete." },
+        { soon: true, title: "L\u2019accumulo", blurb: "La batteria si carica di giorno e si scarica la sera." },
+        { soon: true, title: "La colonnina", blurb: "Ricarica dell\u2019auto e limite del contatore." },
+        { soon: true, title: "Il sensore e l\u2019attuatore", blurb: "Sensore di presenza, tapparella, comando a bassa tensione." },
+        { soon: true, title: "La casa col PLC", blurb: "Luci e tapparelle da programma, le scene." }
+      ],
+      milestone: { soon: true, art: "casa", kick: "Casa del futuro", name: "Luci, tapparelle, sole e batteria", text: "La casa che si comanda da sola e produce la sua energia." }
+    },
+    {
       tag: "MODULO 6",
       title: "La fabbrica",
       levels: [
@@ -11167,15 +11518,7 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
     cta: "Entra nel trilocale",
     again: "Continua nel trilocale"
   };
-  var UPCOMING = [
-    {
-      tag: "MODULO 5",
-      title: "Impianti del futuro",
-      note: "Casa automatica, fotovoltaico e ricarica: un ramo facoltativo del percorso.",
-      levels: ["Il sensore e l\u2019attuatore", "La casa col PLC", "La corrente continua", "Il pannello fotovoltaico", "Il contatore e lo scambio", "L\u2019accumulo", "La colonnina"],
-      project: { art: "casa", kick: "Casa del futuro", name: "Luci, tapparelle, sole e batteria", text: "La casa che si comanda da sola e produce la sua energia." }
-    }
-  ];
+  var UPCOMING = [];
   var INTRO = [
     { art: "lampada", text: ["Una lampada, un interruttore, due fili nel muro. Per farla funzionare serve capire dove passa la corrente."] },
     { art: "giro", text: ["La corrente circola in un percorso chiuso: esce dalla rete, attraversa la lampada e torna indietro."] },
@@ -11338,6 +11681,9 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
     tmr: [HALF, 130, ["A1", "A2"], ["1", "2"]],
     gu: [HALF, 112, [], []],
     hmi: [HALF, 112, [], []],
+    batt: [HALF, 110, ["+"], ["-"]],
+    dcl: [HALF, 100, ["B", "A"], []],
+    led: [HALF, 100, ["A", "K"], []],
     rel: [HALF, 150, ["A1", "A2", "11"], ["12", "14"]],
     kt: [HALF, 150, ["A1", "A2", "15"], ["16", "18"]],
     plc: [FULL, 200, ["A1", "A2", "I0", "I1", "I2", "I3", "IC", "AI0+", "AI0-", "AI1+", "AI1-"], ["Q0A", "Q0B", "Q1A", "Q1B", "Q2A", "Q2B"]],
@@ -11715,6 +12061,22 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
         o += lab(cx + 45, 82, on ? "verso terra" : "tocca il pannello");
         break;
       }
+      case "batt": {
+        const xp = w * c2.terms["+"].f, xm = w * c2.terms["-"].f, cy = mid;
+        o += ln(xp, 22, xp, cy - 10, L("+")) + ln(xm, cy + 10, xm, h - 22, L("-"));
+        o += `<line x1="${xp - 22}" y1="${cy - 10}" x2="${xp + 22}" y2="${cy - 10}" stroke="var(--sch)" stroke-width="3"/><line x1="${xm - 12}" y1="${cy + 10}" x2="${xm + 12}" y2="${cy + 10}" stroke="var(--sch)" stroke-width="6"/>`;
+        o += lab(w - 30, cy + 4, String(c2.v || 6).replace(".", ",") + " V");
+        break;
+      }
+      case "led": {
+        const on = obs2.loads[c2.id] === "on", xa = w * c2.terms.A.f, xk = w * c2.terms.K.f, cy = 60, cx = w / 2;
+        o += ln(xa, 22, xa, cy, L("A")) + ln(xa, cy, cx - 12, cy, L("A")) + ln(xk, 22, xk, cy, L("K")) + ln(xk, cy, cx + 12, cy, L("K"));
+        o += `<path d="M${cx - 12} ${cy - 11} L${cx + 10} ${cy} L${cx - 12} ${cy + 11} Z" fill="${on ? "#FF5A5F" : "var(--bulb-off)"}" stroke="var(--comp-edge)" stroke-width="1.6"/><line x1="${cx + 11}" y1="${cy - 12}" x2="${cx + 11}" y2="${cy + 12}" stroke="var(--comp-edge)" stroke-width="2.4"/>`;
+        if (on) o += `<path d="M${cx + 2} ${cy - 16} l8 -10 m-4 0 h4 v4 M${cx + 12} ${cy - 12} l8 -10 m-4 0 h4 v4" fill="none" stroke="#E5484D" stroke-width="1.8"/>`;
+        o += lab(xa, cy + 24, "A (+)") + lab(xk, cy + 24, "K (\u2212)");
+        break;
+      }
+      case "dcl":
       case "lamp": {
         const on = obs2.loads[c2.id] === "on", burnt = obs2.loads[c2.id] === "burnt";
         const cx = w / 2, cy = 58;
@@ -11769,8 +12131,8 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
     }
     return o;
   }
-  var V2_TYPES = /* @__PURE__ */ new Set(["quadro", "mt", "rcd", "mt3", "sez", "pb", "pbnc", "fungo", "port", "rs", "ri", "rel", "tmr", "km", "ft", "fc", "sens", "tx", "hmi", "trafo", "bell", "spia", "lamp", "presa", "motor3", "motor6", "kt", "plc", "gu"]);
-  var DEV = /* @__PURE__ */ new Set(["lamp", "spia", "bell", "presa", "motor3", "motor6"]);
+  var V2_TYPES = /* @__PURE__ */ new Set(["quadro", "mt", "rcd", "mt3", "sez", "pb", "pbnc", "fungo", "port", "rs", "ri", "rel", "tmr", "km", "ft", "fc", "sens", "tx", "hmi", "trafo", "bell", "spia", "lamp", "batt", "dcl", "led", "presa", "motor3", "motor6", "kt", "plc", "gu"]);
+  var DEV = /* @__PURE__ */ new Set(["lamp", "spia", "bell", "presa", "motor3", "motor6", "dcl", "led"]);
   var WALLCTL = { sw: "tog", dev: "tog", inv: "tog", pb: "hold", pbnc: "hold", fungo: "mush", port: "tog" };
   function roomV2HTML(level) {
     const m = level.machine;
@@ -11782,11 +12144,11 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
     devs.forEach((c2, i) => {
       const x = Math.round(400 * (i + 0.5) / Math.max(1, n)), y = m ? 40 : 52;
       o += `<g data-dev="${c2.id}">`;
-      if (c2.type === "lamp" || c2.type === "spia") {
+      if (c2.type === "lamp" || c2.type === "spia" || c2.type === "dcl" || c2.type === "led") {
         o += `<line x1="${x}" y1="0" x2="${x}" y2="${y - 22}" stroke="var(--ink)" stroke-width="2.5" opacity=".7"/>`;
         o += `<circle id="gl-${c2.id}" class="glowc" cx="${x}" cy="${y}" r="70" fill="url(#glow2)" opacity="0"/>`;
-        o += `<circle id="ld-${c2.id}" class="bulb" cx="${x}" cy="${y}" r="${c2.type === "spia" ? 9 : 13}"/>`;
-        if (c2.type === "lamp") o += `<path class="shade" d="M${x - 30} ${y - 10} Q${x} ${y - 50} ${x + 30} ${y - 10} Z"/>`;
+        o += `<circle id="ld-${c2.id}" class="bulb" cx="${x}" cy="${y}" r="${c2.type === "spia" || c2.type === "led" ? 9 : 13}"/>`;
+        if (c2.type === "lamp" || c2.type === "dcl") o += `<path class="shade" d="M${x - 30} ${y - 10} Q${x} ${y - 50} ${x + 30} ${y - 10} Z"/>`;
       } else if (c2.type === "bell") {
         o += `<path id="ld-${c2.id}" class="bellb" d="M${x - 18} ${y + 14} Q${x - 18} ${y - 16} ${x} ${y - 16} Q${x + 18} ${y - 16} ${x + 18} ${y + 14} Z" fill="#C8A04A" stroke="#7A5E1C" stroke-width="2"/><circle cx="${x}" cy="${y + 18}" r="4" fill="#7A5E1C"/>`;
       } else if (c2.type === "presa") {
@@ -11834,7 +12196,7 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
     };
     level.comps.forEach((c2) => {
       const st = o.loads[c2.id];
-      if (c2.type === "lamp" || c2.type === "spia") {
+      if (c2.type === "lamp" || c2.type === "spia" || c2.type === "dcl" || c2.type === "led") {
         const on = st === "on";
         set("ld-" + c2.id, "bulb" + (on ? " on" : ""));
         const g = root.querySelector("#gl-" + c2.id);
@@ -16683,9 +17045,82 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
     "vera": "\u0635\u062D\u064A\u062D"
   };
 
+  // src/i18n/ar-28.js
+  var ar_28_default = {
+    "A (+)": "A (+)",
+    "A che cosa serve": "\u0644\u0645\u0627\u0630\u0627 \u064A\u064F\u0633\u062A\u062E\u062F\u0645",
+    "A una lampada a incandescenza non importa il verso: \xE8 un filo che scalda e si accende comunque. Un LED invece \xE8 un diodo: lascia passare la corrente in un solo verso, dall\u2019anodo (A) al catodo (K). L\u2019anodo va verso il positivo, il catodo verso il negativo. Al contrario resta spento.": "\u0644\u0627 \u064A\u0647\u0645\u0651 \u0627\u0644\u0645\u0635\u0628\u0627\u062D\u064E \u0627\u0644\u0645\u062A\u0648\u0647\u062C \u0627\u0644\u0627\u062A\u062C\u0627\u0647: \u0625\u0646\u0647 \u0633\u0644\u0643 \u064A\u0633\u062E\u0646 \u0648\u064A\u0636\u064A\u0621 \u0641\u064A \u0643\u0644 \u0627\u0644\u0623\u062D\u0648\u0627\u0644. \u0623\u0645\u0627 \u0627\u0644\u0640LED \u0641\u0647\u0648 \u0635\u0645\u0627\u0645 \u062B\u0646\u0627\u0626\u064A: \u064A\u0633\u0645\u062D \u0628\u0645\u0631\u0648\u0631 \u0627\u0644\u062A\u064A\u0627\u0631 \u0641\u064A \u0627\u062A\u062C\u0627\u0647 \u0648\u0627\u062D\u062F \u0641\u0642\u0637\u060C \u0645\u0646 \u0627\u0644\u0645\u0635\u0639\u062F (A) \u0625\u0644\u0649 \u0627\u0644\u0645\u0647\u0628\u0637 (K). \u0627\u0644\u0645\u0635\u0639\u062F \u0646\u062D\u0648 \u0627\u0644\u0645\u0648\u062C\u0628 \u0648\u0627\u0644\u0645\u0647\u0628\u0637 \u0646\u062D\u0648 \u0627\u0644\u0633\u0627\u0644\u0628. \u0648\u0628\u0627\u0644\u0639\u0643\u0633 \u064A\u0628\u0642\u0649 \u0645\u0637\u0641\u0623\u064B.",
+    "Alternata e continua": "\u0627\u0644\u0645\u062A\u0646\u0627\u0648\u0628 \u0648\u0627\u0644\u0645\u0633\u062A\u0645\u0631",
+    "Anche se 12 V non sono pericolosi da toccare, un cortocircuito su una batteria pu\xF2 bruciare i fili e dare fuoco.": "\u0645\u0639 \u0623\u0646 12 \u0641\u0648\u0644\u062A \u0644\u064A\u0633\u062A \u062E\u0637\u0631\u0629 \u0639\u0646\u062F \u0627\u0644\u0644\u0645\u0633\u060C \u0641\u0625\u0646 \u0642\u0635\u0631\u064B\u0627 \u0639\u0644\u0649 \u0628\u0637\u0627\u0631\u064A\u0629 \u0642\u062F \u064A\u062D\u0631\u0642 \u0627\u0644\u0623\u0633\u0644\u0627\u0643 \u0648\u064A\u0634\u0639\u0644 \u062D\u0631\u064A\u0642\u064B\u0627.",
+    "Batteria 1": "\u0627\u0644\u0628\u0637\u0627\u0631\u064A\u0629 1",
+    "Batteria 2": "\u0627\u0644\u0628\u0637\u0627\u0631\u064A\u0629 2",
+    "Batteria da 6 V": "\u0628\u0637\u0627\u0631\u064A\u0629 6 \u0641\u0648\u0644\u062A",
+    "Batterie, polarit\xE0, serie e parallelo: una lampada da 12 V con due batterie da 6 V.": "\u0628\u0637\u0627\u0631\u064A\u0627\u062A \u0648\u0642\u0637\u0628\u064A\u0629 \u0648\u062A\u0648\u0627\u0644\u064D \u0648\u062A\u0648\u0627\u0632\u064D: \u0645\u0635\u0628\u0627\u062D 12 \u0641\u0648\u0644\u062A \u0645\u0639 \u0628\u0637\u0627\u0631\u064A\u062A\u064A\u0646 \u0645\u0646 6 \u0641\u0648\u0644\u062A.",
+    "Chiudendo l\u2019interruttore la lampada si accende piena e il LED con lei": "\u0639\u0646\u062F \u0625\u063A\u0644\u0627\u0642 \u0627\u0644\u0645\u0641\u062A\u0627\u062D \u064A\u0636\u064A\u0621 \u0627\u0644\u0645\u0635\u0628\u0627\u062D \u0628\u0643\u0627\u0645\u0644 \u0642\u0648\u062A\u0647 \u0648\u064A\u0636\u064A\u0621 \u0627\u0644\u0640LED \u0645\u0639\u0647",
+    "Chiudi l\u2019interruttore: la lampada si accende piena e il LED con lei. Se vuoi, misura con il multimetro la tensione sulla lampada.": "\u0623\u063A\u0644\u0642 \u0627\u0644\u0645\u0641\u062A\u0627\u062D: \u064A\u0636\u064A\u0621 \u0627\u0644\u0645\u0635\u0628\u0627\u062D \u0628\u0643\u0627\u0645\u0644 \u0642\u0648\u062A\u0647 \u0648\u0627\u0644\u0640LED \u0645\u0639\u0647. \u0625\u0646 \u0634\u0626\u062A\u060C \u0642\u0650\u0633 \u0628\u0627\u0644\u0645\u0642\u064A\u0627\u0633 \u0627\u0644\u0645\u062A\u0639\u062F\u062F \u0627\u0644\u062C\u0647\u062F \u0639\u0644\u0649 \u0627\u0644\u0645\u0635\u0628\u0627\u062D.",
+    "Collego le due batterie da 6 V in parallelo e poi alla lampada da 12 V. Che cosa succede?": "\u0623\u0648\u0635\u0644 \u0627\u0644\u0628\u0637\u0627\u0631\u064A\u062A\u064A\u0646 \u0645\u0646 6 \u0641\u0648\u0644\u062A \u0639\u0644\u0649 \u0627\u0644\u062A\u0648\u0627\u0632\u064A \u062B\u0645 \u0628\u0627\u0644\u0645\u0635\u0628\u0627\u062D 12 \u0641\u0648\u0644\u062A. \u0645\u0627\u0630\u0627 \u064A\u062D\u062F\u062B\u061F",
+    "Con il multimetro metto il puntale rosso sul \u2212 e il nero sul + di una batteria da 6 V. Che cosa leggo?": "\u0628\u0627\u0644\u0645\u0642\u064A\u0627\u0633 \u0627\u0644\u0645\u062A\u0639\u062F\u062F \u0623\u0636\u0639 \u0627\u0644\u0645\u062C\u0633 \u0627\u0644\u0623\u062D\u0645\u0631 \u0639\u0644\u0649 \u2212 \u0648\u0627\u0644\u0623\u0633\u0648\u062F \u0639\u0644\u0649 + \u0644\u0628\u0637\u0627\u0631\u064A\u0629 6 \u0641\u0648\u0644\u062A. \u0645\u0627\u0630\u0627 \u0623\u0642\u0631\u0623\u061F",
+    "Con l\u2019interruttore aperto lampada e LED sono spenti": "\u0648\u0627\u0644\u0645\u0641\u062A\u0627\u062D \u0645\u0641\u062A\u0648\u062D \u064A\u0643\u0648\u0646 \u0627\u0644\u0645\u0635\u0628\u0627\u062D \u0648\u0627\u0644\u0640LED \u0645\u0637\u0641\u0623\u064A\u0646",
+    "Consumo, produzione e immissione in rete.": "\u0627\u0644\u0627\u0633\u062A\u0647\u0644\u0627\u0643 \u0648\u0627\u0644\u0625\u0646\u062A\u0627\u062C \u0648\u0627\u0644\u0636\u062E \u0625\u0644\u0649 \u0627\u0644\u0634\u0628\u0643\u0629.",
+    "Controlla il circuito": "\u062A\u062D\u0642\u0642 \u0645\u0646 \u0627\u0644\u062F\u0627\u0631\u0629",
+    "Cortocircuito: il + e il \u2212 di una batteria sono collegati senza un carico in mezzo. La corrente diventa enorme e il fusibile della batteria brucia. Togli il filo che chiude il corto.": "\u0642\u0635\u0631: + \u0648\u2212 \u0628\u0637\u0627\u0631\u064A\u0629 \u0645\u0648\u0635\u0648\u0644\u0627\u0646 \u062F\u0648\u0646 \u062D\u0645\u0644 \u0628\u064A\u0646\u0647\u0645\u0627. \u064A\u0635\u0628\u062D \u0627\u0644\u062A\u064A\u0627\u0631 \u0647\u0627\u0626\u0644\u064B\u0627 \u0648\u062A\u062D\u062A\u0631\u0642 \u0635\u0645\u0627\u0645\u0629 \u0627\u0644\u0628\u0637\u0627\u0631\u064A\u0629. \u0627\u0646\u0632\u0639 \u0627\u0644\u0633\u0644\u0643 \u0627\u0644\u0630\u064A \u064A\u064F\u062D\u062F\u062B \u0627\u0644\u0642\u0635\u0631.",
+    "Dal + libero della batteria 2 all\u2019interruttore, in rosso. Perch\xE9: l\u2019interruttore apre e chiude il positivo verso i carichi.": "\u0645\u0646 + \u0627\u0644\u062D\u0631 \u0644\u0644\u0628\u0637\u0627\u0631\u064A\u0629 2 \u0625\u0644\u0649 \u0627\u0644\u0645\u0641\u062A\u0627\u062D\u060C \u0628\u0627\u0644\u0623\u062D\u0645\u0631. \u0627\u0644\u0633\u0628\u0628: \u064A\u0641\u062A\u062D \u0627\u0644\u0645\u0641\u062A\u0627\u062D \u0648\u064A\u063A\u0644\u0642 \u0627\u0644\u0645\u0648\u062C\u0628 \u0646\u062D\u0648 \u0627\u0644\u0623\u062D\u0645\u0627\u0644.",
+    "Dal + libero della serie passa l\u2019interruttore e si arriva alla lampada; dall\u2019altro capo della lampada si torna al \u2212 libero, in nero.": "\u0645\u0646 + \u0627\u0644\u062D\u0631 \u0644\u0644\u062A\u0648\u0627\u0644\u064A \u064A\u0645\u0631 \u0627\u0644\u0645\u0641\u062A\u0627\u062D \u0648\u0646\u0635\u0644 \u0625\u0644\u0649 \u0627\u0644\u0645\u0635\u0628\u0627\u062D\u061B \u0648\u0645\u0646 \u0627\u0644\u0637\u0631\u0641 \u0627\u0644\u0622\u062E\u0631 \u0644\u0644\u0645\u0635\u0628\u0627\u062D \u0646\u0639\u0648\u062F \u0625\u0644\u0649 \u2212 \u0627\u0644\u062D\u0631\u060C \u0628\u0627\u0644\u0623\u0633\u0648\u062F.",
+    "Dall\u2019altro morsetto dell\u2019interruttore a un capo della lampada, in rosso; dall\u2019altro capo della lampada al \u2212 della batteria 1, in nero. Perch\xE9: la corrente deve tornare al negativo per chiudere il giro.": "\u0645\u0646 \u0627\u0644\u0645\u0631\u0628\u0637 \u0627\u0644\u0622\u062E\u0631 \u0644\u0644\u0645\u0641\u062A\u0627\u062D \u0625\u0644\u0649 \u0637\u0631\u0641 \u0627\u0644\u0645\u0635\u0628\u0627\u062D\u060C \u0628\u0627\u0644\u0623\u062D\u0645\u0631\u061B \u0648\u0645\u0646 \u0627\u0644\u0637\u0631\u0641 \u0627\u0644\u0622\u062E\u0631 \u0644\u0644\u0645\u0635\u0628\u0627\u062D \u0625\u0644\u0649 \u2212 \u0627\u0644\u0628\u0637\u0627\u0631\u064A\u0629 1\u060C \u0628\u0627\u0644\u0623\u0633\u0648\u062F. \u0627\u0644\u0633\u0628\u0628: \u064A\u062C\u0628 \u0623\u0646 \u064A\u0639\u0648\u062F \u0627\u0644\u062A\u064A\u0627\u0631 \u0625\u0644\u0649 \u0627\u0644\u0633\u0627\u0644\u0628 \u0644\u0625\u063A\u0644\u0627\u0642 \u0627\u0644\u062F\u0627\u0631\u0629.",
+    "Dall\u2019interruttore all\u2019anodo A del LED, in rosso; dal catodo K al \u2212 della batteria 1, in nero. Perch\xE9: il LED conduce solo dall\u2019anodo al catodo.": "\u0645\u0646 \u0627\u0644\u0645\u0641\u062A\u0627\u062D \u0625\u0644\u0649 \u0627\u0644\u0645\u0635\u0639\u062F A \u0644\u0644\u0640LED\u060C \u0628\u0627\u0644\u0623\u062D\u0645\u0631\u061B \u0648\u0645\u0646 \u0627\u0644\u0645\u0647\u0628\u0637 K \u0625\u0644\u0649 \u2212 \u0627\u0644\u0628\u0637\u0627\u0631\u064A\u0629 1\u060C \u0628\u0627\u0644\u0623\u0633\u0648\u062F. \u0627\u0644\u0633\u0628\u0628: \u0644\u0627 \u064A\u0648\u0635\u0644 \u0627\u0644\u0640LED \u0625\u0644\u0627 \u0645\u0646 \u0627\u0644\u0645\u0635\u0639\u062F \u0625\u0644\u0649 \u0627\u0644\u0645\u0647\u0628\u0637.",
+    "Due batterie da 6 V": "\u0628\u0637\u0627\u0631\u064A\u062A\u0627\u0646 \u0645\u0646 6 \u0641\u0648\u0644\u062A",
+    "Due batterie da 6 V, un interruttore, una lampada da 12 V e un LED che fa da spia. Collega le batterie in modo che la lampada abbia i suoi 12 V, con l\u2019interruttore che la accende e la spegne. Il LED, in parallelo alla lampada, deve accendersi con lei: ha un verso. In continua il positivo \xE8 rosso, il negativo nero.": "\u0628\u0637\u0627\u0631\u064A\u062A\u0627\u0646 \u0645\u0646 6 \u0641\u0648\u0644\u062A \u0648\u0645\u0641\u062A\u0627\u062D \u0648\u0645\u0635\u0628\u0627\u062D 12 \u0641\u0648\u0644\u062A \u0648LED \u064A\u0639\u0645\u0644 \u0643\u0645\u0635\u0628\u0627\u062D \u0628\u064A\u0627\u0646. \u0635\u0650\u0644 \u0627\u0644\u0628\u0637\u0627\u0631\u064A\u062A\u064A\u0646 \u0628\u062D\u064A\u062B \u064A\u0646\u0627\u0644 \u0627\u0644\u0645\u0635\u0628\u0627\u062D 12 \u0641\u0648\u0644\u062A\u060C \u0648\u0627\u0644\u0645\u0641\u062A\u0627\u062D \u064A\u0634\u0639\u0644\u0647 \u0648\u064A\u0637\u0641\u0626\u0647. \u064A\u062C\u0628 \u0623\u0646 \u064A\u0636\u064A\u0621 \u0627\u0644\u0640LED\u060C \u0627\u0644\u0645\u0648\u0635\u0648\u0644 \u0639\u0644\u0649 \u0627\u0644\u062A\u0648\u0627\u0632\u064A \u0645\u0639 \u0627\u0644\u0645\u0635\u0628\u0627\u062D\u060C \u0645\u0639\u0647: \u0644\u0647 \u0627\u062A\u062C\u0627\u0647. \u0641\u064A \u0627\u0644\u062A\u064A\u0627\u0631 \u0627\u0644\u0645\u0633\u062A\u0645\u0631 \u0627\u0644\u0645\u0648\u062C\u0628 \u0623\u062D\u0645\u0631 \u0648\u0627\u0644\u0633\u0627\u0644\u0628 \u0623\u0633\u0648\u062F.",
+    "Due batterie in serie si collegano una dopo l\u2019altra: il + della prima va al \u2212 della seconda. Le tensioni si sommano: due batterie da 6 V danno 12 V tra il \u2212 libero della prima e il + libero della seconda.": "\u062A\u0648\u0635\u0644 \u0628\u0637\u0627\u0631\u064A\u062A\u0627\u0646 \u0639\u0644\u0649 \u0627\u0644\u062A\u0648\u0627\u0644\u064A \u0625\u062D\u062F\u0627\u0647\u0645\u0627 \u0628\u0639\u062F \u0627\u0644\u0623\u062E\u0631\u0649: + \u0627\u0644\u0623\u0648\u0644\u0649 \u0625\u0644\u0649 \u2212 \u0627\u0644\u062B\u0627\u0646\u064A\u0629. \u062A\u064F\u062C\u0645\u0639 \u0627\u0644\u062C\u0647\u0648\u062F: \u0628\u0637\u0627\u0631\u064A\u062A\u0627\u0646 \u0645\u0646 6 \u0641\u0648\u0644\u062A \u062A\u0639\u0637\u064A\u0627\u0646 12 \u0641\u0648\u0644\u062A \u0628\u064A\u0646 \u2212 \u0627\u0644\u062D\u0631 \u0644\u0644\u0623\u0648\u0644\u0649 \u0648+ \u0627\u0644\u062D\u0631 \u0644\u0644\u062B\u0627\u0646\u064A\u0629.",
+    "Il LED conduce solo dall\u2019anodo (A) al catodo (K): A verso il positivo, K verso il negativo. Se \xE8 al contrario resta spento.": "\u0644\u0627 \u064A\u0648\u0635\u0644 \u0627\u0644\u0640LED \u0625\u0644\u0627 \u0645\u0646 \u0627\u0644\u0645\u0635\u0639\u062F (A) \u0625\u0644\u0649 \u0627\u0644\u0645\u0647\u0628\u0637 (K): A \u0646\u062D\u0648 \u0627\u0644\u0645\u0648\u062C\u0628 \u0648K \u0646\u062D\u0648 \u0627\u0644\u0633\u0627\u0644\u0628. \u0625\u0630\u0627 \u0643\u0627\u0646 \u0645\u0639\u0643\u0648\u0633\u064B\u0627 \u064A\u0628\u0642\u0649 \u0645\u0637\u0641\u0623\u064B.",
+    "Il LED conduce solo dall\u2019anodo (verso il +) al catodo (verso il \u2212): la polarit\xE0 conta.": "\u0644\u0627 \u064A\u0648\u0635\u0644 \u0627\u0644\u0640LED \u0625\u0644\u0627 \u0645\u0646 \u0627\u0644\u0645\u0635\u0639\u062F (\u0646\u062D\u0648 +) \u0625\u0644\u0649 \u0627\u0644\u0645\u0647\u0628\u0637 (\u0646\u062D\u0648 \u2212): \u0627\u0644\u0642\u0637\u0628\u064A\u0629 \u0645\u0647\u0645\u0629.",
+    "Il LED in parallelo": "\u0627\u0644\u0640LED \u0639\u0644\u0649 \u0627\u0644\u062A\u0648\u0627\u0632\u064A",
+    "Il cortocircuito in continua": "\u0627\u0644\u0642\u0635\u0631 \u0641\u064A \u0627\u0644\u062A\u064A\u0627\u0631 \u0627\u0644\u0645\u0633\u062A\u0645\u0631",
+    "Il multimetro in continua legge la tensione con il segno: dice da che parte sta il positivo.": "\u064A\u0642\u0631\u0623 \u0627\u0644\u0645\u0642\u064A\u0627\u0633 \u0627\u0644\u0645\u062A\u0639\u062F\u062F \u0641\u064A \u0627\u0644\u062A\u064A\u0627\u0631 \u0627\u0644\u0645\u0633\u062A\u0645\u0631 \u0627\u0644\u062C\u0647\u062F \u0645\u0639 \u0625\u0634\u0627\u0631\u062A\u0647: \u064A\u062F\u0644 \u0639\u0644\u0649 \u062C\u0647\u0629 \u0627\u0644\u0645\u0648\u062C\u0628.",
+    "Il positivo all\u2019interruttore": "\u0627\u0644\u0645\u0648\u062C\u0628 \u0625\u0644\u0649 \u0627\u0644\u0645\u0641\u062A\u0627\u062D",
+    "Il rosso \xE8 sul positivo e il nero sul negativo.": "\u0627\u0644\u0623\u062D\u0645\u0631 \u0639\u0644\u0649 \u0627\u0644\u0645\u0648\u062C\u0628 \u0648\u0627\u0644\u0623\u0633\u0648\u062F \u0639\u0644\u0649 \u0627\u0644\u0633\u0627\u0644\u0628.",
+    "In continua i due morsetti hanno un nome fisso: il positivo (+) e il negativo (\u2212). La corrente esce dal + della sorgente, attraversa il carico e torna al \u2212. Per distinguerli i fili hanno un colore: rosso il positivo, nero il negativo.": "\u0641\u064A \u0627\u0644\u062A\u064A\u0627\u0631 \u0627\u0644\u0645\u0633\u062A\u0645\u0631 \u0644\u0644\u0645\u0631\u0628\u0637\u064A\u0646 \u0627\u0633\u0645 \u062B\u0627\u0628\u062A: \u0627\u0644\u0645\u0648\u062C\u0628 (+) \u0648\u0627\u0644\u0633\u0627\u0644\u0628 (\u2212). \u064A\u062E\u0631\u062C \u0627\u0644\u062A\u064A\u0627\u0631 \u0645\u0646 + \u0627\u0644\u0645\u0635\u062F\u0631 \u0648\u064A\u0639\u0628\u0631 \u0627\u0644\u062D\u0645\u0644 \u0648\u064A\u0639\u0648\u062F \u0625\u0644\u0649 \u2212. \u0648\u0644\u062A\u0645\u064A\u064A\u0632\u0647\u0645\u0627 \u0644\u0644\u0623\u0633\u0644\u0627\u0643 \u0644\u0648\u0646: \u0627\u0644\u0623\u062D\u0645\u0631 \u0644\u0644\u0645\u0648\u062C\u0628 \u0648\u0627\u0644\u0623\u0633\u0648\u062F \u0644\u0644\u0633\u0627\u0644\u0628.",
+    "In continua il multimetro legge la tensione con il segno: positivo se il puntale rosso sta sul +, negativo se \xE8 al contrario. \xC8 il modo pi\xF9 semplice di trovare la polarit\xE0.": "\u0641\u064A \u0627\u0644\u062A\u064A\u0627\u0631 \u0627\u0644\u0645\u0633\u062A\u0645\u0631 \u064A\u0642\u0631\u0623 \u0627\u0644\u0645\u0642\u064A\u0627\u0633 \u0627\u0644\u0645\u062A\u0639\u062F\u062F \u0627\u0644\u062C\u0647\u062F \u0645\u0639 \u0625\u0634\u0627\u0631\u062A\u0647: \u0645\u0648\u062C\u0628 \u0625\u0630\u0627 \u0643\u0627\u0646 \u0627\u0644\u0645\u062C\u0633 \u0627\u0644\u0623\u062D\u0645\u0631 \u0639\u0644\u0649 +\u060C \u0648\u0633\u0627\u0644\u0628 \u0625\u0630\u0627 \u0643\u0627\u0646 \u0628\u0627\u0644\u0639\u0643\u0633. \u0625\u0646\u0647\u0627 \u0623\u0628\u0633\u0637 \u0637\u0631\u064A\u0642\u0629 \u0644\u0645\u0639\u0631\u0641\u0629 \u0627\u0644\u0642\u0637\u0628\u064A\u0629.",
+    "In continua la tensione ha un verso fisso: il positivo (+, filo rosso) e il negativo (\u2212, filo nero).": "\u0641\u064A \u0627\u0644\u062A\u064A\u0627\u0631 \u0627\u0644\u0645\u0633\u062A\u0645\u0631 \u0644\u0644\u062C\u0647\u062F \u0627\u062A\u062C\u0627\u0647 \u062B\u0627\u0628\u062A: \u0627\u0644\u0645\u0648\u062C\u0628 (+\u060C \u0633\u0644\u0643 \u0623\u062D\u0645\u0631) \u0648\u0627\u0644\u0633\u0627\u0644\u0628 (\u2212\u060C \u0633\u0644\u0643 \u0623\u0633\u0648\u062F).",
+    "In parallelo (+ con +, \u2212 con \u2212)": "\u0639\u0644\u0649 \u0627\u0644\u062A\u0648\u0627\u0632\u064A (+ \u0645\u0639 +\u060C \u2212 \u0645\u0639 \u2212)",
+    "In parallelo invece si collegano + con + e \u2212 con \u2212: la tensione resta quella di una batteria sola (6 V), ma la corrente si divide tra le due, che durano di pi\xF9. Una lampada da 12 V con 6 V si accende appena.": "\u0623\u0645\u0627 \u0639\u0644\u0649 \u0627\u0644\u062A\u0648\u0627\u0632\u064A \u0641\u064A\u0648\u0635\u0644 + \u0645\u0639 + \u0648\u2212 \u0645\u0639 \u2212: \u064A\u0628\u0642\u0649 \u0627\u0644\u062C\u0647\u062F \u062C\u0647\u062F \u0628\u0637\u0627\u0631\u064A\u0629 \u0648\u0627\u062D\u062F\u0629 (6 \u0641\u0648\u0644\u062A)\u060C \u0644\u0643\u0646 \u0627\u0644\u062A\u064A\u0627\u0631 \u064A\u062A\u0648\u0632\u0639 \u0628\u064A\u0646\u0647\u0645\u0627 \u0641\u062A\u062F\u0648\u0645\u0627\u0646 \u0623\u0637\u0648\u0644. \u0645\u0635\u0628\u0627\u062D 12 \u0641\u0648\u0644\u062A \u0645\u0639 6 \u0641\u0648\u0644\u062A \u064A\u0636\u064A\u0621 \u0628\u0627\u0644\u0643\u0627\u062F.",
+    "In parallelo le batterie danno la stessa tensione di una sola, 6 V. Alla lampada da 12 V ne serve il doppio: per sommare le tensioni vanno in serie.": "\u0639\u0644\u0649 \u0627\u0644\u062A\u0648\u0627\u0632\u064A \u062A\u0639\u0637\u064A \u0627\u0644\u0628\u0637\u0627\u0631\u064A\u062A\u0627\u0646 \u062C\u0647\u062F \u0628\u0637\u0627\u0631\u064A\u0629 \u0648\u0627\u062D\u062F\u0629\u060C 6 \u0641\u0648\u0644\u062A. \u0648\u064A\u062D\u062A\u0627\u062C \u0645\u0635\u0628\u0627\u062D 12 \u0641\u0648\u0644\u062A \u0625\u0644\u0649 \u0627\u0644\u0636\u0639\u0641: \u0644\u062C\u0645\u0639 \u0627\u0644\u062C\u0647\u0648\u062F \u062A\u0648\u0635\u0644\u0627\u0646 \u0639\u0644\u0649 \u0627\u0644\u062A\u0648\u0627\u0644\u064A.",
+    "In serie (+ della prima al \u2212 della seconda)": "\u0639\u0644\u0649 \u0627\u0644\u062A\u0648\u0627\u0644\u064A (+ \u0627\u0644\u0623\u0648\u0644\u0649 \u0625\u0644\u0649 \u2212 \u0627\u0644\u062B\u0627\u0646\u064A\u0629)",
+    "In serie (il + di una al \u2212 dell\u2019altra) le tensioni delle batterie si sommano; in parallelo la tensione resta quella di una sola.": "\u0639\u0644\u0649 \u0627\u0644\u062A\u0648\u0627\u0644\u064A (+ \u0625\u062D\u062F\u0627\u0647\u0645\u0627 \u0625\u0644\u0649 \u2212 \u0627\u0644\u0623\u062E\u0631\u0649) \u062A\u064F\u062C\u0645\u0639 \u062C\u0647\u0648\u062F \u0627\u0644\u0628\u0637\u0627\u0631\u064A\u0627\u062A\u061B \u0648\u0639\u0644\u0649 \u0627\u0644\u062A\u0648\u0627\u0632\u064A \u064A\u0628\u0642\u0649 \u0627\u0644\u062C\u0647\u062F \u062C\u0647\u062F \u0648\u0627\u062D\u062F\u0629.",
+    "K (\u2212)": "K (\u2212)",
+    "LED": "LED",
+    "LED spia (A anodo, K catodo)": "LED \u0628\u064A\u0627\u0646 (A \u0645\u0635\u0639\u062F\u060C K \u0645\u0647\u0628\u0637)",
+    "La batteria si carica di giorno e si scarica la sera.": "\u062A\u064F\u0634\u062D\u0646 \u0627\u0644\u0628\u0637\u0627\u0631\u064A\u0629 \u0646\u0647\u0627\u0631\u064B\u0627 \u0648\u062A\u064F\u0641\u0631\u063A \u0645\u0633\u0627\u0621\u064B.",
+    "La lampada brucia.": "\u064A\u062D\u062A\u0631\u0642 \u0627\u0644\u0645\u0635\u0628\u0627\u062D.",
+    "La lampada si accende appena: in parallelo la tensione resta 6 V.": "\u064A\u0636\u064A\u0621 \u0627\u0644\u0645\u0635\u0628\u0627\u062D \u0628\u0627\u0644\u0643\u0627\u062F: \u0639\u0644\u0649 \u0627\u0644\u062A\u0648\u0627\u0632\u064A \u064A\u0628\u0642\u0649 \u0627\u0644\u062C\u0647\u062F 6 \u0641\u0648\u0644\u062A.",
+    "La lampada si accende piena: le batterie sono due.": "\u064A\u0636\u064A\u0621 \u0627\u0644\u0645\u0635\u0628\u0627\u062D \u0628\u0643\u0627\u0645\u0644 \u0642\u0648\u062A\u0647: \u0627\u0644\u0628\u0637\u0627\u0631\u064A\u062A\u0627\u0646 \u0627\u062B\u0646\u062A\u0627\u0646.",
+    "La polarit\xE0 e il LED": "\u0627\u0644\u0642\u0637\u0628\u064A\u0629 \u0648\u0627\u0644\u0640LED",
+    "La rete di casa \xE8 in corrente alternata: la tensione cambia verso cinquanta volte al secondo, e per questo fase e neutro non hanno un \u201Cpi\xF9\u201D e un \u201Cmeno\u201D. Una batteria, un pannello solare, il caricatore del telefono danno invece corrente continua: la tensione ha sempre lo stesso verso.": "\u0634\u0628\u0643\u0629 \u0627\u0644\u0628\u064A\u062A \u062A\u064A\u0627\u0631 \u0645\u062A\u0646\u0627\u0648\u0628: \u064A\u063A\u064A\u0651\u0631 \u0627\u0644\u062C\u0647\u062F \u0627\u062A\u062C\u0627\u0647\u0647 \u062E\u0645\u0633\u064A\u0646 \u0645\u0631\u0629 \u0641\u064A \u0627\u0644\u062B\u0627\u0646\u064A\u0629\u060C \u0648\u0644\u0630\u0644\u0643 \u0644\u0627 \u064A\u0648\u062C\u062F \u0644\u0644\u0637\u0648\u0631 \u0648\u0627\u0644\u0645\u062D\u0627\u064A\u062F \xAB\u0645\u0648\u062C\u0628\xBB \u0648\xAB\u0633\u0627\u0644\u0628\xBB. \u0623\u0645\u0627 \u0627\u0644\u0628\u0637\u0627\u0631\u064A\u0629 \u0648\u0627\u0644\u0644\u0648\u062D \u0627\u0644\u0634\u0645\u0633\u064A \u0648\u0634\u0627\u062D\u0646 \u0627\u0644\u0647\u0627\u062A\u0641 \u0641\u062A\u0639\u0637\u064A \u062A\u064A\u0627\u0631\u064B\u0627 \u0645\u0633\u062A\u0645\u0631\u064B\u0627: \u0644\u0644\u062C\u0647\u062F \u062F\u0627\u0626\u0645\u064B\u0627 \u0627\u0644\u0627\u062A\u062C\u0627\u0647 \u0646\u0641\u0633\u0647.",
+    "Lampada da 12 V, 6 W": "\u0645\u0635\u0628\u0627\u062D 12 \u0641\u0648\u0644\u062A\u060C 6 \u0648\u0627\u0637",
+    "Le batterie in serie": "\u0627\u0644\u0628\u0637\u0627\u0631\u064A\u062A\u0627\u0646 \u0639\u0644\u0649 \u0627\u0644\u062A\u0648\u0627\u0644\u064A",
+    "Luci e tapparelle da programma, le scene.": "\u0623\u0636\u0648\u0627\u0621 \u0648\u0645\u0635\u0627\u0631\u064A\u0639 \u0645\u0646 \u0627\u0644\u0628\u0631\u0646\u0627\u0645\u062C\u060C \u0648\u0627\u0644\u0645\u0634\u0627\u0647\u062F.",
+    "Morsetto Batteria 1 +": "\u0627\u0644\u0645\u0631\u0628\u0637 + \u0641\u064A \u0627\u0644\u0628\u0637\u0627\u0631\u064A\u0629 1",
+    "Morsetto Batteria 1 -": "\u0627\u0644\u0645\u0631\u0628\u0637 \u2212 \u0641\u064A \u0627\u0644\u0628\u0637\u0627\u0631\u064A\u0629 1",
+    "Morsetto Batteria 2 +": "\u0627\u0644\u0645\u0631\u0628\u0637 + \u0641\u064A \u0627\u0644\u0628\u0637\u0627\u0631\u064A\u0629 2",
+    "Morsetto Batteria 2 -": "\u0627\u0644\u0645\u0631\u0628\u0637 \u2212 \u0641\u064A \u0627\u0644\u0628\u0637\u0627\u0631\u064A\u0629 2",
+    "Morsetto Interruttore a": "\u0627\u0644\u0645\u0631\u0628\u0637 a \u0641\u064A \u0627\u0644\u0645\u0641\u062A\u0627\u062D",
+    "Morsetto Interruttore b": "\u0627\u0644\u0645\u0631\u0628\u0637 b \u0641\u064A \u0627\u0644\u0645\u0641\u062A\u0627\u062D",
+    "Per questo nei circuiti in continua la polarit\xE0 conta: un dispositivo collegato al contrario non funziona, e alcuni si rompono.": "\u0644\u0630\u0644\u0643 \u0627\u0644\u0642\u0637\u0628\u064A\u0629 \u0645\u0647\u0645\u0629 \u0641\u064A \u062F\u0627\u0631\u0627\u062A \u0627\u0644\u062A\u064A\u0627\u0631 \u0627\u0644\u0645\u0633\u062A\u0645\u0631: \u0627\u0644\u062C\u0647\u0627\u0632 \u0627\u0644\u0645\u0648\u0635\u0648\u0644 \u0628\u0627\u0644\u0639\u0643\u0633 \u0644\u0627 \u064A\u0639\u0645\u0644\u060C \u0648\u0628\u0639\u0636\u0647\u0627 \u064A\u062A\u0644\u0641.",
+    "Ricarica dell\u2019auto e limite del contatore.": "\u0634\u062D\u0646 \u0627\u0644\u0633\u064A\u0627\u0631\u0629 \u0648\u062D\u062F\u0651 \u0627\u0644\u0639\u062F\u0651\u0627\u062F.",
+    "Se il + e il \u2212 di una batteria si toccano con un filo, senza un carico in mezzo, la corrente \xE8 limitata solo dalla piccola resistenza interna della batteria: centinaia di ampere. Il filo scalda, la batteria si rovina. Per questo le batterie hanno un fusibile, che qui brucia appena c\u2019\xE8 un corto.": "\u0625\u0630\u0627 \u062A\u0644\u0627\u0645\u0633 + \u0648\u2212 \u0628\u0637\u0627\u0631\u064A\u0629 \u0628\u0633\u0644\u0643 \u062F\u0648\u0646 \u062D\u0645\u0644 \u0628\u064A\u0646\u0647\u0645\u0627 \u0641\u0644\u0627 \u064A\u062D\u062F \u0627\u0644\u062A\u064A\u0627\u0631 \u0625\u0644\u0627 \u0627\u0644\u0645\u0642\u0627\u0648\u0645\u0629 \u0627\u0644\u062F\u0627\u062E\u0644\u064A\u0629 \u0627\u0644\u0635\u063A\u064A\u0631\u0629 \u0644\u0644\u0628\u0637\u0627\u0631\u064A\u0629: \u0645\u0626\u0627\u062A \u0627\u0644\u0623\u0645\u0628\u064A\u0631\u0627\u062A. \u064A\u0633\u062E\u0646 \u0627\u0644\u0633\u0644\u0643 \u0648\u062A\u062A\u0644\u0641 \u0627\u0644\u0628\u0637\u0627\u0631\u064A\u0629. \u0644\u0630\u0644\u0643 \u0644\u0644\u0628\u0637\u0627\u0631\u064A\u0627\u062A \u0635\u0645\u0627\u0645\u0629 \u062A\u062D\u062A\u0631\u0642 \u0647\u0646\u0627 \u0628\u0645\u062C\u0631\u062F \u062D\u062F\u0648\u062B \u0642\u0635\u0631.",
+    "Sensore di presenza, tapparella, comando a bassa tensione.": "\u0645\u0633\u062A\u0634\u0639\u0631 \u062D\u0636\u0648\u0631 \u0648\u0645\u0635\u0631\u0627\u0639 \u0648\u062A\u062D\u0643\u0645 \u0628\u062C\u0647\u062F \u0645\u0646\u062E\u0641\u0636.",
+    "Serie: le tensioni si sommano": "\u0627\u0644\u062A\u0648\u0627\u0644\u064A: \u0627\u0644\u062C\u0647\u0648\u062F \u062A\u064F\u062C\u0645\u0639",
+    "Stringa, inverter e produzione nella giornata.": "\u0627\u0644\u0633\u0644\u0633\u0644\u0629 \u0648\u0627\u0644\u0639\u0627\u0643\u0633 \u0648\u0627\u0644\u0625\u0646\u062A\u0627\u062C \u062E\u0644\u0627\u0644 \u0627\u0644\u064A\u0648\u0645.",
+    "Un cortocircuito su una batteria d\xE0 una corrente enorme: per questo c\u2019\xE8 il fusibile.": "\u0627\u0644\u0642\u0635\u0631 \u0639\u0644\u0649 \u0628\u0637\u0627\u0631\u064A\u0629 \u064A\u0639\u0637\u064A \u062A\u064A\u0627\u0631\u064B\u0627 \u0647\u0627\u0626\u0644\u064B\u0627: \u0644\u0630\u0644\u0643 \u062A\u0648\u062C\u062F \u0627\u0644\u0635\u0645\u0627\u0645\u0629.",
+    "Un filo dal + della batteria 1 al \u2212 della batteria 2. Perch\xE9: in serie le tensioni si sommano, 6 V pi\xF9 6 V fanno 12 V.": "\u0633\u0644\u0643 \u0645\u0646 + \u0627\u0644\u0628\u0637\u0627\u0631\u064A\u0629 1 \u0625\u0644\u0649 \u2212 \u0627\u0644\u0628\u0637\u0627\u0631\u064A\u0629 2. \u0627\u0644\u0633\u0628\u0628: \u0639\u0644\u0649 \u0627\u0644\u062A\u0648\u0627\u0644\u064A \u062A\u064F\u062C\u0645\u0639 \u0627\u0644\u062C\u0647\u0648\u062F\u060C 6 \u0641\u0648\u0644\u062A \u0632\u0627\u0626\u062F 6 \u0641\u0648\u0644\u062A \u062A\u0633\u0627\u0648\u064A 12 \u0641\u0648\u0644\u062A.",
+    "Una batteria sola da 6 V non basta per una lampada da 12 V: si accende appena. Due batterie in serie sommano le tensioni: il + della prima va al \u2212 della seconda.": "\u0628\u0637\u0627\u0631\u064A\u0629 \u0648\u0627\u062D\u062F\u0629 \u0645\u0646 6 \u0641\u0648\u0644\u062A \u0644\u0627 \u062A\u0643\u0641\u064A \u0644\u0645\u0635\u0628\u0627\u062D 12 \u0641\u0648\u0644\u062A: \u064A\u0636\u064A\u0621 \u0628\u0627\u0644\u0643\u0627\u062F. \u0628\u0637\u0627\u0631\u064A\u062A\u0627\u0646 \u0639\u0644\u0649 \u0627\u0644\u062A\u0648\u0627\u0644\u064A \u062A\u062C\u0645\u0639\u0627\u0646 \u0627\u0644\u062C\u0647\u0648\u062F: + \u0627\u0644\u0623\u0648\u0644\u0649 \u0625\u0644\u0649 \u2212 \u0627\u0644\u062B\u0627\u0646\u064A\u0629.",
+    "arrivare alla tensione del carico": "\u0628\u0644\u0648\u063A \u062C\u0647\u062F \u0627\u0644\u062D\u0645\u0644",
+    "pi\xF9 corrente, pi\xF9 durata": "\u062A\u064A\u0627\u0631 \u0623\u0643\u0628\u0631 \u0648\u0645\u062F\u0629 \u0623\u0637\u0648\u0644",
+    "\u22126 V: in continua il segno dice da che parte sta il positivo.": "\u22126 \u0641\u0648\u0644\u062A: \u0641\u064A \u0627\u0644\u062A\u064A\u0627\u0631 \u0627\u0644\u0645\u0633\u062A\u0645\u0631 \u062A\u062F\u0644 \u0627\u0644\u0625\u0634\u0627\u0631\u0629 \u0639\u0644\u0649 \u062C\u0647\u0629 \u0627\u0644\u0645\u0648\u062C\u0628."
+  };
+
   // src/i18n/ar.js
-  var ROLE = { "del neutro": "\u0627\u0644\u0645\u062D\u0627\u064A\u062F", "di terra": "\u0627\u0644\u0623\u0631\u0636\u064A", "di fase": "\u0627\u0644\u0637\u0648\u0631", "a bassa tensione": "\u0627\u0644\u062C\u0647\u062F \u0627\u0644\u0645\u0646\u062E\u0641\u0636", "di comando": "\u0627\u0644\u062A\u062D\u0643\u0645" };
-  var COLORI = { "blu": "\u0623\u0632\u0631\u0642", "giallo-verde": "\u0623\u0635\u0641\u0631-\u0623\u062E\u0636\u0631", "marrone, nero o grigio": "\u0628\u0646\u064A\u064B\u0651\u0627 \u0623\u0648 \u0623\u0633\u0648\u062F \u0623\u0648 \u0631\u0645\u0627\u062F\u064A\u064B\u0651\u0627", "rosso, marrone, nero o grigio": "\u0623\u062D\u0645\u0631 \u0623\u0648 \u0628\u0646\u064A\u064B\u0651\u0627 \u0623\u0648 \u0623\u0633\u0648\u062F \u0623\u0648 \u0631\u0645\u0627\u062F\u064A\u064B\u0651\u0627", "di un colore diverso da blu e giallo-verde": "\u0628\u0644\u0648\u0646 \u0645\u062E\u062A\u0644\u0641 \u0639\u0646 \u0627\u0644\u0623\u0632\u0631\u0642 \u0648\u0627\u0644\u0623\u0635\u0641\u0631-\u0627\u0644\u0623\u062E\u0636\u0631" };
+  var ROLE = { "del neutro": "\u0627\u0644\u0645\u062D\u0627\u064A\u062F", "di terra": "\u0627\u0644\u0623\u0631\u0636\u064A", "di fase": "\u0627\u0644\u0637\u0648\u0631", "a bassa tensione": "\u0627\u0644\u062C\u0647\u062F \u0627\u0644\u0645\u0646\u062E\u0641\u0636", "di comando": "\u0627\u0644\u062A\u062D\u0643\u0645", "del positivo": "\u0627\u0644\u0645\u0648\u062C\u0628", "del negativo": "\u0627\u0644\u0633\u0627\u0644\u0628", "in continua": "\u0627\u0644\u062A\u064A\u0627\u0631 \u0627\u0644\u0645\u0633\u062A\u0645\u0631" };
+  var COLORI = { "blu": "\u0623\u0632\u0631\u0642", "giallo-verde": "\u0623\u0635\u0641\u0631-\u0623\u062E\u0636\u0631", "marrone, nero o grigio": "\u0628\u0646\u064A\u064B\u0651\u0627 \u0623\u0648 \u0623\u0633\u0648\u062F \u0623\u0648 \u0631\u0645\u0627\u062F\u064A\u064B\u0651\u0627", "rosso, marrone, nero o grigio": "\u0623\u062D\u0645\u0631 \u0623\u0648 \u0628\u0646\u064A\u064B\u0651\u0627 \u0623\u0648 \u0623\u0633\u0648\u062F \u0623\u0648 \u0631\u0645\u0627\u062F\u064A\u064B\u0651\u0627", "di un colore diverso da blu e giallo-verde": "\u0628\u0644\u0648\u0646 \u0645\u062E\u062A\u0644\u0641 \u0639\u0646 \u0627\u0644\u0623\u0632\u0631\u0642 \u0648\u0627\u0644\u0623\u0635\u0641\u0631-\u0627\u0644\u0623\u062E\u0636\u0631", "rosso": "\u0623\u062D\u0645\u0631", "nero": "\u0623\u0633\u0648\u062F", "rosso o nero": "\u0623\u062D\u0645\u0631 \u0623\u0648 \u0623\u0633\u0648\u062F" };
   var cap = (s) => s[0].toUpperCase() + s.slice(1);
   var PAT = [
     [/^Casa vista dall’alto\. Stanze con la luce accesa: (.+)$/, (m, t) => `\u0645\u0646\u0632\u0644 \u0645\u0646 \u0627\u0644\u0623\u0639\u0644\u0649. \u0627\u0644\u063A\u0631\u0641 \u0627\u0644\u0645\u0636\u0627\u0621\u0629: ${m[1].split(", ").map((x) => t(x)).join("\u060C ")}`],
@@ -16740,7 +17175,7 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
     [/^(.+) · dal contatore$/, (m, t) => `${t(m[1])} \xB7 \u0645\u0646 \u0627\u0644\u0639\u062F\u0627\u062F`],
     [/^(.+) · prova di salto$/, (m, t) => `${t(m[1])} \xB7 \u0627\u062E\u062A\u0628\u0627\u0631 \u062A\u062E\u0637\u064D\u0651`],
     [
-      /^Il filo (.+) → (.+) è un filo (del neutro|di terra|di fase|a bassa tensione|di comando): deve essere (.+)\.$/,
+      /^Il filo (.+) → (.+) è un filo (del neutro|di terra|di fase|a bassa tensione|di comando|del positivo|del negativo|in continua): deve essere (.+)\.$/,
       (m, t) => `\u0627\u0644\u0633\u0644\u0643 ${t(m[1])} \u2190 ${t(m[2])} \u0647\u0648 \u0633\u0644\u0643 ${ROLE[m[3]]}: \u064A\u062C\u0628 \u0623\u0646 \u064A\u0643\u0648\u0646 ${COLORI[m[4]] || t(m[4])}.`
     ],
     [/^E altri (\d+) fili con il colore sbagliato\.$/, (m) => m[1] === "2" ? "\u0648\u0633\u0644\u0643\u0627\u0646 \u0622\u062E\u0631\u0627\u0646 \u0628\u0644\u0648\u0646 \u062E\u0627\u0637\u0626." : `\u0648${iso(m[1])} \u0623\u0633\u0644\u0627\u0643 \u0623\u062E\u0631\u0649 \u0628\u0644\u0648\u0646 \u062E\u0627\u0637\u0626.`],
@@ -16779,7 +17214,7 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
     [/^Portata (.+): (\d+) ampere\. Tocca per cambiarla$/, (m, t) => `\u0627\u0644\u0633\u0639\u0629 ${t(m[1])}: ${m[2]} \u0623\u0645\u0628\u064A\u0631. \u0627\u0644\u0645\u0633 \u0644\u062A\u063A\u064A\u064A\u0631\u0647\u0627`],
     [/^Protezioni scattate: (.+)\.$/, (m, t) => `\u062D\u0645\u0627\u064A\u0627\u062A \u0641\u0635\u0644\u062A: ${t(m[1])}.`]
   ];
-  registerLang("ar", { ...ar_1_default, ...ar_2_default, ...ar_3_default, ...ar_4_default, ...ar_5_default, ...ar_6_default, ...ar_7_default, ...ar_8_default, ...ar_9_default, ...ar_10_default, ...ar_11_default, ...ar_12_default, ...ar_13_default, ...ar_14_default, ...ar_15_default, ...ar_16_default, ...ar_17_default, ...ar_18_default, ...ar_19_default, ...ar_20_default, ...ar_21_default, ...ar_22_default, ...ar_23_default, ...ar_24_default, ...ar_25_default, ...ar_26_default, ...ar_27_default }, PAT);
+  registerLang("ar", { ...ar_1_default, ...ar_2_default, ...ar_3_default, ...ar_4_default, ...ar_5_default, ...ar_6_default, ...ar_7_default, ...ar_8_default, ...ar_9_default, ...ar_10_default, ...ar_11_default, ...ar_12_default, ...ar_13_default, ...ar_14_default, ...ar_15_default, ...ar_16_default, ...ar_17_default, ...ar_18_default, ...ar_19_default, ...ar_20_default, ...ar_21_default, ...ar_22_default, ...ar_23_default, ...ar_24_default, ...ar_25_default, ...ar_26_default, ...ar_27_default, ...ar_28_default }, PAT);
 
   // src/trilocale/house.js
   function houseState(session2, on = true) {

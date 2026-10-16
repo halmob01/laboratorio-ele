@@ -72,8 +72,8 @@ function compName(level, id) {
   return (c.type === 'dev' ? 'Il ' : 'L’') + t;
 }
 
-const ROLE_OF = { neutro: 'del neutro', terra: 'di terra', fase: 'di fase', bassa: 'a bassa tensione', comando: 'di comando' };
-const COLOR_NEEDED = { neutro: 'blu', terra: 'giallo-verde', fase: 'marrone, nero o grigio', bassa: 'di un colore diverso da blu e giallo-verde', comando: 'rosso, marrone, nero o grigio' };
+const ROLE_OF = { neutro: 'del neutro', terra: 'di terra', fase: 'di fase', bassa: 'a bassa tensione', comando: 'di comando', dcpos: 'del positivo', dcneg: 'del negativo', dc: 'in continua' };
+const COLOR_NEEDED = { neutro: 'blu', terra: 'giallo-verde', fase: 'marrone, nero o grigio', bassa: 'di un colore diverso da blu e giallo-verde', comando: 'rosso, marrone, nero o grigio', dcpos: 'rosso', dcneg: 'nero', dc: 'rosso o nero' };
 
 // Motore v2: nome di un componente nei messaggi ("Contattore KM").
 const nameOf = (level, id) => { const c = findComp(level, id); return c ? c.short : id; };
@@ -158,6 +158,7 @@ export function itemText(item, level) {
     case 'work.measureMissing': return 'Prima di verificare serve ancora una misura con il multimetro: ' + item.label + '.';
     case 'work.checkMore': return 'E altre ' + item.n + ' prove non superate.';
     case 'work.secondaryMixed': return 'Il secondario del trasformatore è collegato alla rete: la bassa tensione non è più separata dai 230 V.';
+    case 'work.shortDC': return 'Cortocircuito: il + e il − di una batteria sono collegati senza un carico in mezzo. La corrente diventa enorme e il fusibile della batteria brucia. Togli il filo che chiude il corto.';
     case 'work.hmiOffline': return 'Il pannello operatore non è collegato al PLC: i valori che mostra sono vecchi e gli allarmi non arrivano. Ricollega il cavo di rete del pannello.';
     case 'work.unstablePlc': return 'Un’uscita del PLC si accende e si spegne a ogni ciclo: il programma si contraddice (per esempio un’uscita comandata dal suo stesso contatto negato).';
     case 'work.unstable': return 'Un relè si apre e si chiude da solo: la sua bobina è alimentata attraverso il suo stesso contatto NC.';
@@ -172,6 +173,7 @@ export function itemText(item, level) {
       return 'Il filo ' + termName(level, item.a) + ' → ' + termName(level, item.b) + ' è un filo ' + ROLE_OF[item.role] + ': deve essere ' + COLOR_NEEDED[item.role] + '.';
     case 'color.more': return 'E altri ' + item.n + ' fili con il colore sbagliato.';
     case 'color.ok':
+      if (item.dc) return 'Il rosso è sul positivo e il nero sul negativo.';
       return item.earth ? 'Fase, neutro e terra hanno i colori giusti.' : 'Il blu è solo sul neutro, gli altri fili hanno colori da fase.';
 
     case 'safe.skipped': return 'Si controlla quando il circuito funziona.';

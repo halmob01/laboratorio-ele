@@ -8,6 +8,7 @@
 import { makeUF } from '../circuit.js';
 import { PARTS, partOf, loadVolt } from './parts.js';
 import { scan, newMem } from './plc.js';
+import { solveDC } from './dc.js';
 import { newProcess, stepProcess, exposeProcess, senseDigital, senseAnalog, tunedValues, clampTune } from './process.js';
 
 const PHASES = ['F', 'L1', 'L2', 'L3'];
@@ -162,7 +163,44 @@ export function voltage(p, q) {
   return 0;
 }
 
+// Livelli in corrente continua (level.dc): stessa forma dell'analisi in alternata, calcolata con il risolutore nodale.
+function analyseDC(sim, open) {
+  const { level } = sim;
+  const uf = connect(sim, open);
+  const els = [];
+  sim.wires.forEach(w => els.push({ id: 'w' + w.id, type: 'W', a: w.a, b: w.b }));
+  level.comps.forEach(c => {
+    const p = partOf(c);
+    p.contacts(c, sim.parts[c.id] || {}).forEach(([x, y]) => els.push({ id: c.id + ':' + x, type: 'W', a: c.id + '.' + x, b: c.id + '.' + y }));
+    // dopo un cortocircuito il fusibile delle batterie e' bruciato: niente sorgenti finche' non si rifa' il cablaggio
+    if (p.dc) p.dc(c, sim.parts[c.id] || {}).forEach(e => { if (e.type !== 'V' || (sim.supply && !sim.mainTrip)) els.push(e); });
+  });
+  const firstV = els.find(e => e.type === 'V');
+  const r = solveDC({ elements: els, ground: firstV ? firstV.b : (els[0] && els[0].a) });
+  const vOf = t => (r.ok ? r.v[t] || 0 : 0);
+  const faults = [];
+  if (!r.ok) faults.push({ code: 'corto' });
+  level.comps.forEach(c => { if (c.type === 'batt' && r.ok && Math.abs(r.i[c.id] || 0) > (c.imax || 20)) faults.push({ code: 'corto', comp: c.id }); });
+  const loads = {}, burntNow = [];
+  level.comps.forEach(c => {
+    const p = partOf(c);
+    if (!p.dcLoad) return;
+    let st = 'off';
+    if (c.type === 'led') st = r.ok && (r.i[c.id] || 0) > 0.002 ? 'on' : 'off';
+    else {
+      const V = Math.abs(vOf(c.id + '.' + p.dcLoad[0]) - vOf(c.id + '.' + p.dcLoad[1])), vn = c.volt || 12;
+      st = V > vn * 1.3 ? 'burnt' : V >= vn * 0.85 ? 'on' : V > vn * 0.2 ? 'weak' : 'off';
+    }
+    if (sim.burnt[c.id]) st = 'burnt';
+    loads[c.id] = st;
+  });
+  return {
+    uf, pots: {}, potAt: () => null, volt: (x, y) => Math.abs(vOf(x) - vOf(y)), faults, loads, coils: {}, motors: {}, modes: {}, plcIn: {}, plcAi: {}, trafoOn: {}, burntNow, leaks: [], dc: r,
+  };
+}
+
 function analyse(sim, open) {
+  if (sim.level.dc) return analyseDC(sim, open);
   const { level } = sim;
   const uf = connect(sim, open);
   const pots = {};   // radice -> Set di potenziali
@@ -341,7 +379,7 @@ function protect(sim, an) {
     const c = pick(closedProtections(sim, 'corto'), a => hasFault(a, ['corto']));
     if (c) { trip(sim, c); return true; }
     sim.mainTrip = true;
-    sim.mainTripCause = 'corto';
+    sim.mainTripCause = sim.level.dc ? 'cortoDC' : 'corto';
     return true;
   }
   // fase a terra, neutro a terra: differenziale
@@ -728,6 +766,8 @@ function windings(sim) {
  */
 export function measure(sim, a, b, mode = 'V') {
   const an = analyse(sim);
+  // in continua il multimetro legge una tensione con il segno: rosso sul + e nero sul - da' un valore positivo
+  if (sim.level.dc && mode === 'V') return { kind: 'v', value: an.dc.ok ? Math.round(((an.dc.v[a] || 0) - (an.dc.v[b] || 0)) * 100) / 100 : null, ac: false };
   const roots = new Map();   // radice -> potenziale
   const wd = windings(sim);
   const terms = [a, b];

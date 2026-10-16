@@ -1292,3 +1292,35 @@ LEVELS_V2.push({
     'Il livello troppo basso: confronto MW0 minore di 10, bobina M2.',
   ],
 });
+
+// c38: la corrente continua (Modulo 5A). Due batterie da 6 V, una lampada da 12 V e un LED: polarita', serie e parallelo.
+const W38 = [
+  ['B1.+', 'B2.-', 'rosso'], ['B2.+', 'S.a', 'rosso'],
+  ['S.b', 'L.A', 'rosso'], ['L.B', 'B1.-', 'nero'],
+  ['S.b', 'H.A', 'rosso'], ['H.K', 'B1.-', 'nero'],
+];
+LEVELS_V2.push({
+  id: 'c38-continua', code: 'c38', n: 0, engine: 2, dc: true, quadroOnly: true, supply: 'protezioni', meter: true,
+  palette: ['rosso', 'nero'],
+  name: 'La corrente continua', title: 'La corrente continua',
+  blurb: 'Batterie, polarità, serie e parallelo: una lampada da 12 V con due batterie da 6 V.',
+  goal: 'Due batterie da 6 V, un interruttore, una lampada da 12 V e un LED che fa da spia. Collega le batterie in modo che la lampada abbia i suoi 12 V, con l’interruttore che la accende e la spegne. Il LED, in parallelo alla lampada, deve accendersi con lei: ha un verso. In continua il positivo è rosso, il negativo nero.',
+  comps: [
+    C('B1', 'batt', 'Batteria 1', 'Batteria da 6 V', T('+', '-'), { v: 6, r: 0.1, imax: 20 }),
+    C('B2', 'batt', 'Batteria 2', 'Batteria da 6 V', T('+', '-'), { v: 6, r: 0.1, imax: 20 }),
+    C('S', 'sw', 'Interruttore', 'Interruttore', T('a', 'b')),
+    C('L', 'dcl', 'Lampada', 'Lampada da 12 V, 6 W', T('B', 'A'), { volt: 12, w: 6 }),
+    C('H', 'led', 'LED', 'LED spia (A anodo, K catodo)', T('A', 'K')),
+  ],
+  controls: ['S'],
+  checks: [
+    { id: 'spento', label: 'Con l’interruttore aperto lampada e LED sono spenti', do: [], expect: { loads: { L: 'off', H: 'off' } } },
+    { id: 'acceso', label: 'Chiudendo l’interruttore la lampada si accende piena e il LED con lei', do: ['toggle S'], expect: { loads: { L: 'on', H: 'on' } } },
+  ],
+  solution: W38,
+  hints: [
+    'Una batteria sola da 6 V non basta per una lampada da 12 V: si accende appena. Due batterie in serie sommano le tensioni: il + della prima va al − della seconda.',
+    'Dal + libero della serie passa l’interruttore e si arriva alla lampada; dall’altro capo della lampada si torna al − libero, in nero.',
+    'Il LED conduce solo dall’anodo (A) al catodo (K): A verso il positivo, K verso il negativo. Se è al contrario resta spento.',
+  ],
+});

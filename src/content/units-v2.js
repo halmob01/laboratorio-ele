@@ -3354,4 +3354,88 @@ export const UNITS_V2 = {
       fixSay: 'Ricollega il cavo di rete del pannello (tocca il pannello sul banco). Poi premi Verifica.',
     },
   },
+  'c38-continua': {
+    support: 'passi',
+    lesson: {
+      pages: [
+        {
+          type: 'spiegazione',
+          title: 'Alternata e continua',
+          paras: [
+            'La rete di casa è in corrente alternata: la tensione cambia verso cinquanta volte al secondo, e per questo fase e neutro non hanno un “più” e un “meno”. Una batteria, un pannello solare, il caricatore del telefono danno invece corrente continua: la tensione ha sempre lo stesso verso.',
+            'In continua i due morsetti hanno un nome fisso: il positivo (+) e il negativo (−). La corrente esce dal + della sorgente, attraversa il carico e torna al −. Per distinguerli i fili hanno un colore: rosso il positivo, nero il negativo.',
+          ],
+        },
+        {
+          type: 'spiegazione',
+          title: 'Serie: le tensioni si sommano',
+          paras: [
+            'Due batterie in serie si collegano una dopo l’altra: il + della prima va al − della seconda. Le tensioni si sommano: due batterie da 6 V danno 12 V tra il − libero della prima e il + libero della seconda.',
+            'In parallelo invece si collegano + con + e − con −: la tensione resta quella di una batteria sola (6 V), ma la corrente si divide tra le due, che durano di più. Una lampada da 12 V con 6 V si accende appena.',
+          ],
+          table: {
+            head: ['Due batterie da 6 V', 'Tensione', 'A che cosa serve'],
+            rows: [
+              ['In serie (+ della prima al − della seconda)', '12 V', 'arrivare alla tensione del carico'],
+              ['In parallelo (+ con +, − con −)', '6 V', 'più corrente, più durata'],
+            ],
+          },
+        },
+        {
+          type: 'spiegazione',
+          title: 'La polarità e il LED',
+          paras: [
+            'A una lampada a incandescenza non importa il verso: è un filo che scalda e si accende comunque. Un LED invece è un diodo: lascia passare la corrente in un solo verso, dall’anodo (A) al catodo (K). L’anodo va verso il positivo, il catodo verso il negativo. Al contrario resta spento.',
+            'Per questo nei circuiti in continua la polarità conta: un dispositivo collegato al contrario non funziona, e alcuni si rompono.',
+          ],
+        },
+        {
+          type: 'spiegazione',
+          title: 'Il cortocircuito in continua',
+          paras: [
+            'Se il + e il − di una batteria si toccano con un filo, senza un carico in mezzo, la corrente è limitata solo dalla piccola resistenza interna della batteria: centinaia di ampere. Il filo scalda, la batteria si rovina. Per questo le batterie hanno un fusibile, che qui brucia appena c’è un corto.',
+          ],
+          warn: 'Anche se 12 V non sono pericolosi da toccare, un cortocircuito su una batteria può bruciare i fili e dare fuoco.',
+        },
+        {
+          type: 'previsione',
+          question: 'Collego le due batterie da 6 V in parallelo e poi alla lampada da 12 V. Che cosa succede?',
+          options: [
+            { id: 'a', text: 'La lampada si accende piena: le batterie sono due.' },
+            { id: 'b', text: 'La lampada si accende appena: in parallelo la tensione resta 6 V.' },
+            { id: 'c', text: 'La lampada brucia.' },
+          ],
+          correct: 'b',
+          why: 'In parallelo le batterie danno la stessa tensione di una sola, 6 V. Alla lampada da 12 V ne serve il doppio: per sommare le tensioni vanno in serie.',
+        },
+        {
+          type: 'previsione',
+          question: 'Con il multimetro metto il puntale rosso sul − e il nero sul + di una batteria da 6 V. Che cosa leggo?',
+          options: [
+            { id: 'a', text: '6 V.' },
+            { id: 'b', text: '−6 V: in continua il segno dice da che parte sta il positivo.' },
+            { id: 'c', text: '0 V.' },
+          ],
+          correct: 'b',
+          why: 'In continua il multimetro legge la tensione con il segno: positivo se il puntale rosso sta sul +, negativo se è al contrario. È il modo più semplice di trovare la polarità.',
+        },
+        { type: 'sintesi', title: 'Da ricordare' },
+      ],
+    },
+    steps: [
+      { kind: 'wire', from: 'B1.+', to: ['B2.-'], color: 'rosso', short: '1 Serie', title: 'Le batterie in serie', text: 'Un filo dal + della batteria 1 al − della batteria 2. Perché: in serie le tensioni si sommano, 6 V più 6 V fanno 12 V.' },
+      { kind: 'wire', from: 'B2.+', to: ['S.a'], color: 'rosso', short: '2 Interruttore', title: 'Il positivo all’interruttore', text: 'Dal + libero della batteria 2 all’interruttore, in rosso. Perché: l’interruttore apre e chiude il positivo verso i carichi.' },
+      { kind: 'wire', from: 'S.b', to: ['L.A'], color: 'rosso', short: '3 Lampada', title: 'Dall’interruttore alla lampada', text: 'Dall’altro morsetto dell’interruttore a un capo della lampada, in rosso; dall’altro capo della lampada al − della batteria 1, in nero. Perché: la corrente deve tornare al negativo per chiudere il giro.' },
+      { kind: 'wire', from: 'S.b', to: ['H.A'], color: 'rosso', short: '4 LED', title: 'Il LED in parallelo', text: 'Dall’interruttore all’anodo A del LED, in rosso; dal catodo K al − della batteria 1, in nero. Perché: il LED conduce solo dall’anodo al catodo.' },
+      { kind: 'control', id: 'S', short: '5 Prova', title: 'Accendi', text: 'Chiudi l’interruttore: la lampada si accende piena e il LED con lei. Se vuoi, misura con il multimetro la tensione sulla lampada.' },
+      { kind: 'verify', short: '6 Verifica', title: 'Controlla il circuito', text: 'Premi Verifica.' },
+    ],
+    summary: [
+      'In continua la tensione ha un verso fisso: il positivo (+, filo rosso) e il negativo (−, filo nero).',
+      'In serie (il + di una al − dell’altra) le tensioni delle batterie si sommano; in parallelo la tensione resta quella di una sola.',
+      'Il LED conduce solo dall’anodo (verso il +) al catodo (verso il −): la polarità conta.',
+      'Un cortocircuito su una batteria dà una corrente enorme: per questo c’è il fusibile.',
+      'Il multimetro in continua legge la tensione con il segno: dice da che parte sta il positivo.',
+    ],
+  },
 };
