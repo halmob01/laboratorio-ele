@@ -582,22 +582,23 @@ function hmiReport(sim, an) {
 }
 
 /* ---------- turno con guasti a tempo (level.scenario) ---------- */
-// level.scenario = { duration, faults: [{ id, at, do: 'cut TT', label, fixed: { part, prop, is }, maxDelay }], expect? }
+// level.scenario = { duration, faults: [{ id, at, do: 'cut TT', label, fixed: { part, prop, is }, maxDelay, fix: [azioni] }], expect? }
+// `fix` (le azioni che riparano, nell'ordine) non serve al gioco: lo usano i test per giocare il turno e documenta la riparazione.
 // A `at` secondi simulati dall'accensione scatta il guasto (un'azione del banco: cut, jam, toggle, weld...); l'allievo lo ripara
 // con gli stessi comandi. Il guasto e' riparato quando la proprieta' di quel pezzo torna al valore giusto.
 function scenarioTick(sim) {
   const sc = sim.level.scenario, S = sim.scenario;
   if (!sc || !S) return;
+  const healthy = f => { const part = sim.parts[f.fixed.part]; return !!part && !!part[f.fixed.prop] === !!f.fixed.is; };
   sc.faults.forEach(f => {
     if (S.firedAt[f.id] === undefined && sim.t >= f.at) {
       const [a, x] = f.do.split(/\s+/);
       S.firedAt[f.id] = sim.t;       // prima dell'azione: act() richiama questo controllo
-      try { act(sim, a, x); } catch (e) { /* azione non valida per il pezzo: il livello e' scritto male, si ignora */ }
+      // si guasta solo un pezzo a posto: un `toggle` su un pezzo gia' staccato dall'allievo lo riparerebbe da solo
+      if (healthy(f)) try { act(sim, a, x); } catch (e) { /* azione non valida per il pezzo: lo segnala il test sui livelli */ }
     }
-    if (S.firedAt[f.id] !== undefined && S.fixedAt[f.id] === undefined) {
-      const part = sim.parts[f.fixed.part];
-      if (part && !!part[f.fixed.prop] === !!f.fixed.is) S.fixedAt[f.id] = sim.t;
-    }
+    // a turno finito non si ripara piu': il guasto resta aperto
+    if (S.firedAt[f.id] !== undefined && S.fixedAt[f.id] === undefined && sim.t < sc.duration && healthy(f)) S.fixedAt[f.id] = sim.t;
   });
 }
 
@@ -757,8 +758,8 @@ export function observe(sim) {
     plc: Object.fromEntries(sim.level.comps.filter(c => c.type === 'plc').map(c => [c.id, { powered: !!an.coils[c.id], inputs: an.plcIn[c.id], ai: { ...an.plcAi[c.id] }, q: { ...sim.parts[c.id].q }, aq: { ...sim.parts[c.id].aq }, rungs: sim.parts[c.id].rungs.slice(), bits: { ...((sim.parts[c.id].mem && sim.parts[c.id].mem.bits) || {}) }, words: { ...((sim.parts[c.id].mem && sim.parts[c.id].mem.words) || {}) }, timers: { ...((sim.parts[c.id].mem && sim.parts[c.id].mem.timers) || {}) }, counters: { ...((sim.parts[c.id].mem && sim.parts[c.id].mem.counters) || {}) } }])),
     process: sim.process ? { ...processVars(sim) } : null,
     processAct: sim.process ? actuatorsOf(sim, an) : null,   // comandi che il processo sta ricevendo (0-1), per il disegno
-    hmi: hmiReport(sim, an),
-    scenario: scenarioReport(sim),   // pannello operatore (level.hmi): collegamento, valori con l'eta', allarmi
+    hmi: hmiReport(sim, an),   // pannello operatore (level.hmi): collegamento, valori con l'eta', allarmi
+    scenario: scenarioReport(sim),   // turno a guasti (level.scenario): tempo, guasti scattati e riparati
     coils: Object.fromEntries(Object.entries(an.coils).filter(([id]) => !sim.level.comps.some(c => c.id === id && c.type === 'plc'))),
     parts,
     machine: sim.level.machine ? { pos: sim.pos, atStart: sim.pos <= 0, atEnd: sim.pos >= sim.level.machine.length } : null,

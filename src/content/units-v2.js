@@ -3687,7 +3687,7 @@ export const UNITS_V2 = {
           type: 'spiegazione',
           title: 'Un marcatore per ogni passo',
           paras: [
-            'Si programma una sequenza con un marcatore per ogni passo: M1 “scendi”, M2 “prendi”, M3 “sali”, e così via. Solo un marcatore alla volta è acceso: dice a che punto del ciclo siamo.',
+            'Si programma una sequenza con un marcatore per ogni passo: M1 “scendi”, M2 “prendi”, M3 “sali”, e così via. Dei marcatori dei passi (da M1 a M8) uno solo alla volta è acceso: dice a che punto del ciclo siamo.',
             'Le uscite non guardano più i sensori ma il passo attuale: il motore che fa scendere il braccio (Q0) è acceso nei passi in cui il braccio deve scendere; la pinza (Q2) è chiusa nei passi in cui deve tenere il pezzo. Così le uscite sono semplici e tutta la logica sta nelle transizioni.',
           ],
           table: {
@@ -3709,7 +3709,7 @@ export const UNITS_V2 = {
           title: 'La transizione: passo attuale più “fatto”',
           paras: [
             'Passare da un passo al successivo è un gradino: il contatto del passo attuale, in serie con il segnale che dice “ho finito” (un finecorsa o un tempo). Come uscite, Reset del passo che finisce e Set del successivo. Così un solo marcatore resta acceso.',
-            'Il segnale “ho finito” va sempre guardato, non indovinato: il braccio non si sposta finché un finecorsa non dice che è salito. È il perché della sicurezza di una sequenza: se si salta un controllo, la macchina fa il passo dopo con il passo prima ancora in corso.',
+            'Il segnale “ho finito” va sempre guardato, non indovinato: il braccio non si sposta finché un finecorsa non dice che è salito. Una sequenza è sicura per questo: se si salta un controllo, la macchina comincia il passo dopo mentre quello prima è ancora in corso.',
           ],
           warn: 'Se il braccio si sposta di lato quando è ancora giù, urta il pezzo o il montante: nella scena compare “URTO”. Il finecorsa “braccio su” serve proprio a evitarlo.',
         },
@@ -3718,7 +3718,7 @@ export const UNITS_V2 = {
           title: 'Quando serve un tempo, e il ciclo che finisce sempre',
           paras: [
             'La pinza non ha un sensore: per sapere che si è chiusa si aspetta un tempo (T1 per chiudere, T2 per aprire). Dove c’è un sensore si usa il sensore; dove manca, un temporizzatore.',
-            'Il marcatore M9 dice “ciclo in corso”: il ciclo parte solo se non ce n’è uno in corso, e finisce sempre. Premendo Arresto si impedisce di cominciare il ciclo successivo, ma quello in corso si conclude: fermare una macchina a metà sequenza, con il pezzo in aria, lascerebbe tutto in uno stato pericoloso.',
+            'Il marcatore M9 dice “ciclo in corso”: il ciclo parte solo se non ce n’è uno in corso, e finisce sempre. Arresto spegne la marcia (M0): il ciclo successivo non comincia, ma quello in corso si conclude e il robot si ferma al prelievo. Fermare il programma a metà sequenza, con il pezzo in aria, lascerebbe la macchina in uno stato da cui è difficile ripartire.',
           ],
         },
         {
@@ -3741,7 +3741,7 @@ export const UNITS_V2 = {
             { id: 'c', text: 'Aprire la pinza e lasciar cadere il pezzo.' },
           ],
           correct: 'b',
-          why: 'Fermare la sequenza a metà con il pezzo in aria, o far cadere il pezzo, sono entrambi stati pericolosi. L’arresto normale fa finire il ciclo in corso; per fermare subito si usa il fungo, nei fili.',
+          why: 'Fermare la sequenza a metà con il pezzo in aria, o far cadere il pezzo, lascia la macchina in uno stato pericoloso. L’arresto normale fa finire il ciclo in corso. Quando c’è un pericolo si usa invece il fungo di emergenza, cablato nei fili: toglie la potenza subito, e lo vedrai nella fabbrica.',
         },
         { type: 'sintesi', title: 'Da ricordare' },
       ],
@@ -3783,7 +3783,7 @@ export const UNITS_V2 = {
             head: ['Che cosa vedi', 'Che cosa significa', 'Dove guardare'],
             rows: [
               ['“Guasto del sensore di livello” (corrente sotto 3,6 mA)', 'l’anello del trasmettitore non porta corrente', 'il filo del trasmettitore'],
-              ['Il livello sale oltre il 90 % con la pompa che non si ferma', 'il galleggiante alto non scatta', 'i galleggianti sul banco'],
+              ['Il livello supera l’80 % e la pompa resta in marcia (più tardi “Livello troppo alto”)', 'il galleggiante alto non scatta', 'i galleggianti sul banco'],
               ['Valori grigi e “collegamento perso”', 'il pannello non parla più con il PLC', 'il cavo di rete del pannello'],
             ],
           },
@@ -3793,13 +3793,13 @@ export const UNITS_V2 = {
           title: 'Riconoscere non è riparare',
           paras: [
             'Il tasto di riconoscimento del pannello ferma la sirena, ma non cambia niente nell’impianto: il guasto resta. Riparare vuol dire intervenire sul pezzo, e vale solo quando l’impianto torna a funzionare. Nel gioco lo fai dal banco: il pezzo guasto mostra un tasto per rimetterlo a posto.',
-            'Ogni guasto ha un tempo massimo di intervento. Più aspetti, più il danno cresce: un galleggiante bloccato non ferma la pompa e il serbatoio, se aspetti troppo, trabocca. Con più allarmi contemporanei si comincia da quello di priorità più alta.',
+            'Ogni guasto ha un tempo massimo di intervento. Più aspetti, più il danno cresce: un galleggiante bloccato non ferma la pompa e il serbatoio, se aspetti troppo, trabocca. Non tutti i guasti danno subito un allarme: il galleggiante bloccato si vede prima dai valori (il livello passa l’80 % e la pompa non si ferma) che dall’allarme, che arriva quando manca poco al traboccamento. Con più allarmi contemporanei si comincia da quello di priorità più alta.',
           ],
           warn: 'Se in una riparazione sbagli pezzo, perdi tempo. Prima di toccare il banco guarda gli indizi: quello che cambia per quel guasto.',
         },
         {
           type: 'previsione',
-          question: 'Il pannello mostra tutti i valori grigi con “collegamento perso”, nessun allarme nuovo, e il serbatoio sul banco intanto continua a cambiare livello. Che cosa fai?',
+          question: 'Il pannello mostra tutti i valori grigi con “collegamento perso”, nessun allarme nuovo, e il serbatoio nella scena intanto continua a cambiare livello. Che cosa fai?',
           options: [
             { id: 'a', text: 'Niente: senza allarmi l’impianto è a posto.' },
             { id: 'b', text: 'Cerco il guasto di comunicazione: il cavo di rete del pannello. Con il collegamento perso gli allarmi non arrivano più.' },
@@ -3823,7 +3823,7 @@ export const UNITS_V2 = {
       ],
     },
     steps: [
-      { kind: 'power', short: '1 Corrente', title: 'Dai corrente e comincia il turno', text: 'Tocca la levetta del quadro: il turno parte e il tempo corre. Guarda il pannello operatore e il grafico.' },
+      { kind: 'power', short: '1 Corrente', title: 'Dai corrente e comincia il turno', text: 'Tocca la levetta del quadro: il turno parte e il tempo corre, anche se poi togli la corrente. Guarda il pannello operatore e il grafico.' },
       { kind: 'verify', short: '2 Turno', title: 'Gestisci i guasti e consegna', text: 'Quando scatta un guasto leggi il pannello, cerca il pezzo sul banco e ripara. Alla fine del turno premi Verifica.' },
     ],
     summary: [
@@ -3851,7 +3851,7 @@ export const UNITS_V2 = {
           title: 'La sicurezza viene prima del programma',
           paras: [
             'Il robot riceve potenza solo dal contattore KM, e KM si eccita solo se il relè di sicurezza KS è armato. KS ha i due canali di fungo e portella e un riarmo che passa dal contatto NC di KM. Tutto nei fili: se il PLC si blocca o ha un errore, premere il fungo toglie comunque la potenza.',
-            'Il PLC ascolta la sicurezza con un ingresso (I7, il contatto ausiliario di KM): non decide niente, ma sa quando le sicurezze sono aperte. Così può dare l’allarme “Sicurezze aperte” e può sospendere i suoi tempi.',
+            'Il PLC ascolta la sicurezza con un ingresso (I7, il contatto ausiliario di KM): non decide niente, ma sa quando le sicurezze sono aperte. Così può dare l’allarme “Sicurezze aperte”, sospendere i suoi tempi e lasciar cadere la marcia: dopo il riarmo il robot finisce il ciclo interrotto, poi per ripartire serve di nuovo Marcia.',
           ],
         },
         {
@@ -3861,13 +3861,13 @@ export const UNITS_V2 = {
             'Se il robot resta senza potenza (fungo premuto) mentre sta aprendo la pinza, il tempo di apertura nel programma continuerebbe a scorrere: scaduto il tempo il programma passa al passo dopo e comanda di salire, ma la pinza non si è mai aperta. Al riarmo il robot parte con il passo sbagliato e fa cadere il pezzo.',
             'Per questo i tempi del programma contano solo con le sicurezze a posto: I7 è in serie al contatto del temporizzatore. Quando la potenza torna, il tempo riparte da zero e il passo si completa davvero.',
           ],
-          warn: 'Una macchina senza potenza non “aspetta”: è nel mondo, ma il programma continua a funzionare. Le sicurezze vanno sempre considerate nei tempi e nelle sequenze.',
+          warn: 'Togliere la potenza ferma il robot, non il programma: il PLC continua a girare e i suoi tempi a scorrere. Per questo le sicurezze vanno considerate anche nei tempi e nelle sequenze.',
         },
         {
           type: 'spiegazione',
           title: 'Il turno: leggere, trovare, riparare',
           paras: [
-            'Durante il turno arrivano quattro guasti: un finecorsa che non risponde (il ciclo si blocca e dopo 40 secondi scatta “Ciclo bloccato”), il fungo premuto da un operatore, la portella aperta e il cavo di rete del pannello. Per fungo e portella si riarma dopo aver richiuso: prima si rimette a posto il dispositivo, poi si preme il riarmo.',
+            'Durante il turno arrivano quattro guasti: un finecorsa che non risponde (il ciclo si blocca e dopo 40 secondi scatta “Ciclo bloccato”), il fungo premuto da un operatore, la portella aperta e il cavo di rete del pannello. Per fungo e portella l’ordine è: prima si rimette a posto il dispositivo, poi si preme il riarmo, poi Marcia.',
             'Ogni guasto ha un tempo massimo e devi consegnare almeno 20 pezzi senza urti né cadute. Se le riparazioni arrivano tardi, la produzione cala.',
           ],
         },
@@ -3891,7 +3891,7 @@ export const UNITS_V2 = {
             { id: 'c', text: 'Un nuovo comando di Marcia dal PLC.' },
           ],
           correct: 'b',
-          why: 'È la regola che hai imparato con il relè di sicurezza: dopo un arresto di sicurezza la macchina non riparte da sola. Il riarmo si dà con la portella chiusa e i canali a posto.',
+          why: 'È la regola che hai imparato con il relè di sicurezza: dopo un arresto di sicurezza la macchina non riparte da sola. Il riarmo si dà con la portella chiusa e i canali a posto. Dopo il riarmo il robot finisce il ciclo interrotto; per i pezzi successivi serve anche Marcia, perché il PLC ha perso la marcia quando le sicurezze si sono aperte.',
         },
         { type: 'sintesi', title: 'Da ricordare' },
       ],
@@ -3902,11 +3902,14 @@ export const UNITS_V2 = {
       { kind: 'wire', from: 'SBR.4', to: ['KS.R'], color: 'marrone', short: '3 Riarmo', title: 'Il riarmo passa dal contatto NC di KM', text: 'Dalla fase al contatto NC 21-22 di KM, poi al pulsante di riarmo, poi al morsetto R del relè. Perché: se KM resta incollato il relè non si riarma.' },
       { kind: 'program', plc: 'PLC', min: 17, short: '4 Transizioni', title: 'Le transizioni dei passi', text: 'Come nella linea: un gradino per ogni passo (M1-M8), con Reset del passo e Set del successivo, più il gradino di partenza del ciclo.' },
       { kind: 'program', plc: 'PLC', min: 19, short: '5 Allarmi', title: 'I due allarmi', text: 'T3 con la bobina M10 (ciclo bloccato) e I7 normalmente chiuso con la bobina M11 (sicurezze aperte).' },
-      { kind: 'verify', short: '6 Cablaggio', title: 'Controlla il cablaggio e il programma', text: 'Premi Verifica: le prove sul cablaggio e sulla sicurezza devono passare. Poi dai corrente e gestisci il turno.' },
+      { kind: 'power', short: '6 Corrente', title: 'Dai corrente: comincia il turno', text: 'Prima puoi premere Verifica: controlla il cablaggio, il programma e la sicurezza anche a turno non cominciato. Poi tocca la levetta del quadro: da quel momento il tempo del turno corre.' },
+      { kind: 'control', id: 'SBR', short: '7 Riarmo', title: 'Riarma il relè di sicurezza', text: 'Premi il riarmo: KS si arma, KM dà potenza al robot e la spia del robot alimentato si accende.' },
+      { kind: 'control', id: 'SB1', short: '8 Marcia', title: 'Premi Marcia', text: 'Il robot comincia a portare i pezzi. Da qui gestisci i guasti: leggi il pannello, guarda il robot, ripara.' },
+      { kind: 'verify', short: '9 Turno', title: 'Consegna il turno', text: 'Alla fine del turno premi Verifica: guasti riparati in tempo e almeno 20 pezzi depositati, senza urti né cadute.' },
     ],
     summary: [
       'La sicurezza sta nei fili, a due canali, con il riarmo manuale e il controllo del contatto NC del contattore: il programma non la sostituisce.',
-      'Il PLC ascolta lo stato della sicurezza con un ingresso: dà l’allarme e sospende i tempi.',
+      'Il PLC ascolta lo stato della sicurezza con un ingresso: dà l’allarme, sospende i tempi e perde la marcia.',
       'Un tempo del programma che scorre a macchina senza potenza fa passare al passo sbagliato: i tempi contano solo con le sicurezze a posto.',
       'Un guasto si trova leggendo insieme allarmi, valori e banco; si ripara in tempo e dopo un arresto di sicurezza si riarma.',
       'Una cella completa riunisce cablaggio, programma, sicurezza e gestione dei guasti.',

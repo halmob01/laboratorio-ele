@@ -270,7 +270,7 @@ export function evaluateV2(level, wires, ctx = {}) {
     // turno a guasti: si giudica la partita vera (la simulazione viva della sessione), non una prova scritta
     const rep = ctx.liveSim && scenarioReport(ctx.liveSim);
     if (failed.length) failed.slice(0, 3).forEach(({ ch, r }) => add('work', 'work.checkFail', { check: ch.id, label: ch.label, cause: r.fail.code, want: r.fail.want, got: r.fail.got, comp: r.fail.comp }));
-    else if (!rep) add('work', 'work.scenarioNone');
+    else if (!rep || rep.t === 0) add('work', 'work.scenarioNone');
     else if (!rep.done) add('work', 'work.scenarioRunning', { left: Math.ceil(rep.duration - rep.t) });
     else {
       const open = rep.faults.find(f => f.open), late = rep.faults.find(f => f.late);

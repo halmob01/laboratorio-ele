@@ -35,6 +35,7 @@ import p31 from './ar-31.js';
 import p32 from './ar-32.js';
 import p33 from './ar-33.js';
 import p34 from './ar-34.js';
+import p35 from './ar-35.js';
 
 const ROLE = { 'del neutro': 'المحايد', 'di terra': 'الأرضي', 'di fase': 'الطور', 'a bassa tensione': 'الجهد المنخفض', 'di comando': 'التحكم', 'del positivo': 'الموجب', 'del negativo': 'السالب', 'in continua': 'التيار المستمر' };
 const COLORI = { 'blu': 'أزرق', 'giallo-verde': 'أصفر-أخضر', 'marrone, nero o grigio': 'بنيًّا أو أسود أو رماديًّا', 'rosso, marrone, nero o grigio': 'أحمر أو بنيًّا أو أسود أو رماديًّا', 'di un colore diverso da blu e giallo-verde': 'بلون مختلف عن الأزرق والأصفر-الأخضر', 'rosso': 'أحمر', 'nero': 'أسود', 'rosso o nero': 'أحمر أو أسود' };
@@ -57,7 +58,7 @@ const PAT = [
   [/^in ritardo: (\d+)$/, m => `متأخر: ${iso(m[1])}`],
   [/^Il turno non è finito: mancano (\d+) secondi\. Continua a gestire gli allarmi, poi premi Verifica\.$/, m => `لم تنتهِ المناوبة بعد: تبقّت ${iso(m[1])} ثانية. واصل التعامل مع الإنذارات ثم اضغط «تحقق».`],
   [/^Un guasto è ancora aperto: (.+)\. Trovalo e riparalo prima di consegnare il turno\.$/, (m, t) => `ما زال عطل مفتوحًا: ${t(m[1])}. اعثر عليه وأصلحه قبل تسليم المناوبة.`],
-  [/^Hai riparato troppo tardi: (.+) è rimasto fermo (\d+) secondi, il massimo era (\d+)\.$/, (m, t) => `أصلحت متأخرًا جدًا: ${t(m[1])} بقي معطلًا ${iso(m[2])} ثانية والحد الأقصى كان ${iso(m[3])}.`],
+  [/^Riparazione arrivata tardi: (.+)\. Il guasto è durato (\d+) secondi, il massimo era (\d+)\.$/, (m, t) => `جاء الإصلاح متأخرًا: ${t(m[1])}. استمر العطل ${iso(m[2])} ثانية والحد الأقصى كان ${iso(m[3])}.`],
   [/^Turno consegnato: tutti i (\d+) guasti riparati in tempo\.$/, m => `سُلّمت المناوبة: أُصلحت الأعطال الـ${iso(m[1])} كلها في الوقت.`],
   // pannello operatore: stato degli allarmi con l'ora, eta' dei dati vecchi, motivi delle prove
   [/^(da riconoscere|riconosciuto|rientrato, da riconoscere) · a (\d+) s$/, (m, t) => `${t(m[1])} · عند ${iso(m[2])} ث`],
@@ -147,4 +148,4 @@ const PAT = [
   [/^Protezioni scattate: (.+)\.$/, (m, t) => `حمايات فصلت: ${t(m[1])}.`],
 ];
 
-registerLang('ar', { ...p1, ...p2, ...p3, ...p4, ...p5, ...p6, ...p7, ...p8, ...p9, ...p10, ...p11, ...p12, ...p13, ...p14, ...p15, ...p16, ...p17, ...p18, ...p19, ...p20, ...p21, ...p22, ...p23, ...p24, ...p25, ...p26, ...p27, ...p28, ...p29, ...p30, ...p31, ...p32, ...p33, ...p34 }, PAT);
+registerLang('ar', { ...p1, ...p2, ...p3, ...p4, ...p5, ...p6, ...p7, ...p8, ...p9, ...p10, ...p11, ...p12, ...p13, ...p14, ...p15, ...p16, ...p17, ...p18, ...p19, ...p20, ...p21, ...p22, ...p23, ...p24, ...p25, ...p26, ...p27, ...p28, ...p29, ...p30, ...p31, ...p32, ...p33, ...p34, ...p35 }, PAT);

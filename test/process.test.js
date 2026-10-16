@@ -7,6 +7,7 @@ import { createSim, act, advance, observe, tune, setProgram } from '../src/engin
 import { runCheck, evaluateV2, traceMismatch } from '../src/engine/v2/checks.js';
 import { needsClock } from '../src/engine/v2/view.js';
 import { scan, newMem, validateProgram, sanitizeProgram } from '../src/engine/v2/plc.js';
+import { playShift, wiresOf, withSolutionPrograms } from './turno.js';
 
 const T = (...ids) => Object.fromEntries(ids.map(i => [i, { l: i }]));
 const C = (id, type, terms, extra = {}) => ({ id, type, short: id, title: id, terms: T(...terms), ...extra });
@@ -412,27 +413,16 @@ test('motivo di un intervallo con numeri negativi si legge bene', async () => {
 
 /* ---------- turno a guasti (c44) ---------- */
 const L44 = levels.find(l => l.id === 'c44-guasti');
-const W44 = L44.solution.map(([a, b, c], k) => ({ id: k + 1, a, b, c }));
-function play(fixes, { skip } = {}) {
-  const lv = L44;
-  const sim = createSim(lv, W44);
-  let t = 0;
-  const todo = fixes.filter(f => !(skip || []).includes(f.do)).slice();
-  while (t < lv.scenario.duration + 5) {
-    advance(sim, 5); t += 5;
-    while (todo.length && todo[0].at <= t) { const [a, x] = todo.shift().do.split(' '); act(sim, a, x); }
-  }
-  return sim;
-}
+const W44 = wiresOf(L44);
 
 test('c44: ripari in tempo i tre guasti e il turno e\' consegnato', () => {
-  const sim = play(L44.solutionPlay);
+  const sim = playShift(L44, { react: () => 15 });
   const r = evaluateV2(L44, W44, { liveSim: sim });
   assert.equal(r.pass, true, JSON.stringify(r.work.items));
 });
 
 test('c44: i guasti scattano da soli ai tempi dichiarati e senza far niente restano aperti e il serbatoio trabocca', () => {
-  const sim = play([]);
+  const sim = playShift(L44, { react: () => null });
   const rep = observe(sim).scenario;
   assert.deepEqual(rep.faults.map(f => f.firedAt !== null && f.fixedAt === null), [true, true, true]);
   const r = evaluateV2(L44, W44, { liveSim: sim });
@@ -440,15 +430,58 @@ test('c44: i guasti scattano da soli ai tempi dichiarati e senza far niente rest
   assert.ok(Math.max(...sim.trace.map(x => x.h)) >= 99.9, 'il galleggiante bloccato fa traboccare il serbatoio');
 });
 
-test('c44: riparare troppo tardi (oltre il massimo) non basta', () => {
-  const sim = play([{ at: 90, do: 'cut TT' }, { at: 480, do: 'jam LH' }, { at: 520, do: 'toggle HMI' }]);
-  const r = evaluateV2(L44, W44, { liveSim: sim });
-  assert.equal(r.work.ok, false);
+test('c44: il tempo massimo del galleggiante bloccato viene prima del traboccamento', () => {
+  // riparando all'ultimo secondo utile il serbatoio non trabocca: il "troppo tardi" e il traboccamento non si contraddicono
+  const sim = playShift(L44, { react: f => f.maxDelay - 1 });
+  assert.ok(Math.max(...sim.trace.map(x => x.h)) < 99.9);
+  assert.equal(evaluateV2(L44, W44, { liveSim: sim }).pass, true);
 });
 
-test('c44: prima della fine del turno la verifica dice di aspettare; senza simulazione viva, di cominciare', () => {
+test('c44: riparare troppo tardi (oltre il massimo) non basta', () => {
+  const sim = playShift(L44, { react: f => (f.id === 'f2' ? f.maxDelay + 5 : 15) });
+  const r = evaluateV2(L44, W44, { liveSim: sim });
+  assert.equal(r.work.ok, false);
+  assert.equal(r.work.items[0].code, 'work.scenarioLate');
+});
+
+test('c44: prima di dare corrente la verifica dice di cominciare; durante il turno, di aspettare', () => {
   const sim = createSim(L44, W44);
+  assert.equal(evaluateV2(L44, W44, { liveSim: sim }).work.items[0].code, 'work.scenarioNone');
+  assert.equal(evaluateV2(L44, W44, {}).work.items[0].code, 'work.scenarioNone');
   advance(sim, 100);
   assert.equal(evaluateV2(L44, W44, { liveSim: sim }).work.items[0].code, 'work.scenarioRunning');
-  assert.equal(evaluateV2(L44, W44, {}).work.items[0].code, 'work.scenarioNone');
+});
+
+test('turno: un guasto che "toglie" un pezzo gia\' staccato dall\'allievo non lo ricollega', () => {
+  const sim = createSim(L44, W44);
+  act(sim, 'toggle', 'HMI');                 // l'allievo stacca il cavo del pannello prima del guasto
+  advance(sim, 510);
+  const f3 = observe(sim).scenario.faults.find(f => f.id === 'f3');
+  assert.equal(observe(sim).parts.HMI.on, false);
+  assert.equal(f3.open, true);
+});
+
+test('turno: a turno finito una riparazione non conta piu\'', () => {
+  const sim = playShift(L44, { react: f => (f.id === 'f3' ? null : 15) });
+  act(sim, 'toggle', 'HMI');
+  assert.equal(observe(sim).scenario.faults.find(f => f.id === 'f3').open, true);
+});
+
+test('turno: in ogni livello a guasti le azioni del guasto e della riparazione sono valide, e il guasto rompe davvero qualcosa', () => {
+  levels.filter(l => l.scenario).forEach(l => {
+    l.scenario.faults.forEach(f => {
+      const sim = createSim(withSolutionPrograms(l), wiresOf(l));
+      const ok = () => !!sim.parts[f.fixed.part][f.fixed.prop] === !!f.fixed.is;
+      assert.ok(sim.parts[f.fixed.part], l.id + ' ' + f.id);
+      (l.solutionStart || []).forEach(d => { const [a, x] = d.split(' '); act(sim, a, x); advance(sim, 1); });
+      assert.equal(ok(), true, l.id + ' ' + f.id + ': a turno appena cominciato il pezzo e\' a posto');
+      const [a, x] = f.do.split(' ');
+      act(sim, a, x);
+      assert.equal(ok(), false, l.id + ' ' + f.id + ': il guasto rompe il pezzo');
+      assert.ok(Array.isArray(f.fix) && f.fix.length, l.id + ' ' + f.id + ': riparazione scritta');
+      f.fix.forEach(d => { const [b, y] = d.split(' '); act(sim, b, y); });
+      assert.equal(ok(), true, l.id + ' ' + f.id + ': la riparazione rimette a posto');
+      assert.ok(f.at + f.maxDelay < l.scenario.duration, l.id + ' ' + f.id + ': il tempo massimo scade prima della fine del turno');
+    });
+  });
 });
