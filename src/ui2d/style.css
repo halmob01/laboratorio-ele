@@ -262,6 +262,19 @@ button:disabled{cursor:default}
   .tab[aria-current="page"]{color:var(--ink);font-weight:600}
   .tab.dis{opacity:.5}
 }
+/* firma del telefono: i fili attraversano la pagina e salgono nella torre (src/ui2d/tower.js) */
+.fmini{display:none}
+@media (max-width:919px){
+  .sitefooter{display:block;margin-top:28px}
+  .fwrap{display:none}
+  .fmini{display:block;margin-inline:-16px;overflow:hidden}
+  .fmini .tw{width:100%}
+  /* prima i fili corrono dai bordi verso il centro, poi salgono nella torre */
+  .fmini .tw.draw.go .tw-lead{animation-duration:.7s;animation-delay:0s}
+  .fmini .tw.draw.go .tw-w:not(.tw-lead){animation-delay:.6s}
+  .fmini .tw.draw.go .tw-neutro:not(.tw-lead){animation-delay:.75s}
+  .fmini .tw.draw.go .tw-spark{animation-delay:2.8s}
+}
 @media (min-width:920px){
   .sitefooter{display:block;border-top:1.5px solid var(--ink);padding-top:28px;margin-top:24px}
   .fwrap{display:flex;flex-wrap:wrap;gap:32px 64px;justify-content:space-between}

@@ -272,6 +272,19 @@ button:disabled{cursor:default}
   .tab[aria-current="page"]{color:var(--ink);font-weight:600}
   .tab.dis{opacity:.5}
 }
+/* firma del telefono: i fili attraversano la pagina e salgono nella torre (src/ui2d/tower.js) */
+.fmini{display:none}
+@media (max-width:919px){
+  .sitefooter{display:block;margin-top:28px}
+  .fwrap{display:none}
+  .fmini{display:block;margin-inline:-16px;overflow:hidden}
+  .fmini .tw{width:100%}
+  /* prima i fili corrono dai bordi verso il centro, poi salgono nella torre */
+  .fmini .tw.draw.go .tw-lead{animation-duration:.7s;animation-delay:0s}
+  .fmini .tw.draw.go .tw-w:not(.tw-lead){animation-delay:.6s}
+  .fmini .tw.draw.go .tw-neutro:not(.tw-lead){animation-delay:.75s}
+  .fmini .tw.draw.go .tw-spark{animation-delay:2.8s}
+}
 @media (min-width:920px){
   .sitefooter{display:block;border-top:1.5px solid var(--ink);padding-top:28px;margin-top:24px}
   .fwrap{display:flex;flex-wrap:wrap;gap:32px 64px;justify-content:space-between}
@@ -12727,7 +12740,7 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
       { y: 31, rx: 10, from: 35 }
     ];
     const build = (side) => {
-      let d = o.lead ? `M${CX + side * 46} 152L${CX + side * GAP} 152` : `M${CX + side * GAP} 152`;
+      let d = o.lead ? `M${CX + side * 50} 152L${CX + side * GAP} 152` : `M${CX + side * GAP} 152`;
       d += trunk(side);
       let top = null;
       for (const k of discs) {
@@ -12754,7 +12767,13 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
     const [, , w, h] = g.box.split(" ").map(Number);
     const size2 = o.size || h;
     const a11y = o.label ? `role="img" aria-label="${o.label}"` : 'aria-hidden="true"';
-    return `<svg class="tw tw-${variant} ${mode}" viewBox="${g.box}" width="${f(size2 * w / h)}" height="${size2}" ${a11y}>` + (variant === "spira" && mode === "loop" ? `<g class="tw-ghost"><path d="${g.fase}"/><path d="${g.neutro}"/></g>` : "") + `<g fill="none" stroke-width="${g.width}" stroke-linecap="round" stroke-linejoin="round"><path class="tw-w tw-fase" pathLength="1" d="${g.fase}"/><path class="tw-w tw-neutro" pathLength="1" d="${g.neutro}"/></g><circle class="tw-spark" cx="${g.spark[0]}" cy="${g.spark[1]}" r="2.6"/></svg>`;
+    return `<svg class="tw tw-${variant} ${mode}" viewBox="${g.box}" width="${f(size2 * w / h)}" height="${size2}" ${a11y}>` + (variant === "spira" && mode === "loop" ? `<g class="tw-ghost"><path d="${g.fase}"/><path d="${g.neutro}"/></g>` : "") + `<g fill="none" stroke-width="${o.stroke ? f(o.stroke * h / size2) : g.width}" stroke-linecap="round" stroke-linejoin="round"><path class="tw-w tw-fase" pathLength="1" d="${g.fase}"/><path class="tw-w tw-neutro" pathLength="1" d="${g.neutro}"/></g><circle class="tw-spark" cx="${g.spark[0]}" cy="${g.spark[1]}" r="2.6"/></svg>`;
+  }
+  function groundSVG(size2 = 72, stroke = 1.5) {
+    const g = spira({});
+    const h = 160, sw = f(stroke * h / size2), far = Math.ceil(460 * h / size2);
+    const lead = (side) => `M${CX + side * far} 152L${CX + side * GAP} 152`;
+    return `<svg class="tw tw-spira tw-ground draw" width="100%" height="${size2}" aria-hidden="true"><svg x="50%" width="${f(size2 * 60 / h)}" height="${size2}" viewBox="${CX} 0 60 ${h}" overflow="visible"><g fill="none" stroke-width="${sw}" stroke-linecap="round" stroke-linejoin="round"><path class="tw-w tw-lead tw-fase" pathLength="1" d="${lead(-1)}"/><path class="tw-w tw-lead tw-neutro" pathLength="1" d="${lead(1)}"/><path class="tw-w tw-fase" pathLength="1" d="${g.fase}"/><path class="tw-w tw-neutro" pathLength="1" d="${g.neutro}"/></g><circle class="tw-spark" cx="${g.spark[0]}" cy="${g.spark[1]}" r="2.6"/></svg></svg>`;
   }
   function loaderHTML(text2) {
     return towerSVG("spira", { mode: "loop", size: 56 }) + `<span>${text2}</span>`;
@@ -13081,7 +13100,8 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
       }).join("");
       return items ? `<nav class="fcol" aria-label="${col.title}"><div class="ftitle">${col.title}</div>${items}</nav>` : "";
     }).join("");
-    return `<div class="fwrap"><div class="fabout"><div class="ftower">${towerSVG("spira", { size: 110 })}<div class="wordmark" data-notr>Fase <i>e</i> Neutro</div></div><p>Laboratorio di impianti elettrici per chi parte da zero.</p>${trNoteHTML()}</div><div class="fcols">${cols}</div></div>`;
+    const mini = `<div class="fmini">${groundSVG(72, 1.5)}</div>`;
+    return mini + `<div class="fwrap"><div class="fabout"><div class="ftower">${towerSVG("spira", { size: 110 })}<div class="wordmark" data-notr>Fase <i>e</i> Neutro</div></div><p>Laboratorio di impianti elettrici per chi parte da zero.</p>${trNoteHTML()}</div><div class="fcols">${cols}</div></div>`;
   }
   function modalHTML(kind) {
     let title = "", body = "";

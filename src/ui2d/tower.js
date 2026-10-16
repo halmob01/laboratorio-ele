@@ -27,7 +27,7 @@ function spira(o) {
     { y: 31, rx: 10, from: 35 },
   ];
   const build = side => {
-    let d = o.lead ? `M${CX + side * 46} 152L${CX + side * GAP} 152` : `M${CX + side * GAP} 152`;
+    let d = o.lead ? `M${CX + side * 50} 152L${CX + side * GAP} 152` : `M${CX + side * GAP} 152`;
     d += trunk(side);
     let top = null;
     for (const k of discs) {
@@ -53,7 +53,8 @@ const BUILD = { spira };
 
 /**
  * @param {'spira'} variant
- * @param {{ mode?: 'draw'|'loop'|'still', lead?: boolean, size?: number, label?: string }} o
+ * @param {{ mode?: 'draw'|'loop'|'still', lead?: boolean, size?: number, stroke?: number, label?: string }} o
+ *   stroke: spessore del filo in px sullo schermo (a dimensioni piccole il tratto di base diventerebbe sottilissimo)
  */
 export function towerSVG(variant = 'spira', o = {}) {
   const g = (BUILD[variant] || spira)(o);
@@ -64,10 +65,27 @@ export function towerSVG(variant = 'spira', o = {}) {
   // Il blu parte con un po' di ritardo: i due fili salgono quasi insieme, non a specchio perfetto.
   return `<svg class="tw tw-${variant} ${mode}" viewBox="${g.box}" width="${f(size * w / h)}" height="${size}" ${a11y}>` +
     (variant === 'spira' && mode === 'loop' ? `<g class="tw-ghost"><path d="${g.fase}"/><path d="${g.neutro}"/></g>` : '') +
-    `<g fill="none" stroke-width="${g.width}" stroke-linecap="round" stroke-linejoin="round">` +
+    `<g fill="none" stroke-width="${o.stroke ? f(o.stroke * h / size) : g.width}" stroke-linecap="round" stroke-linejoin="round">` +
     `<path class="tw-w tw-fase" pathLength="1" d="${g.fase}"/>` +
     `<path class="tw-w tw-neutro" pathLength="1" d="${g.neutro}"/></g>` +
     `<circle class="tw-spark" cx="${g.spark[0]}" cy="${g.spark[1]}" r="2.6"/></svg>`;
+}
+
+// Torre al centro di una linea di terra larga quanto il contenitore: i due fili arrivano dai bordi.
+// Linee e torre stanno nello stesso SVG annidato, cosi' si incontrano senza scalini di arrotondamento.
+export function groundSVG(size = 72, stroke = 1.5) {
+  const g = spira({});
+  // far: meta' del telefono piu' largo (919px), in unita' della viewBox: i fili entrano sempre dal bordo
+  const h = 160, sw = f(stroke * h / size), far = Math.ceil(460 * h / size);
+  const lead = side => `M${CX + side * far} 152L${CX + side * GAP} 152`;
+  return `<svg class="tw tw-spira tw-ground draw" width="100%" height="${size}" aria-hidden="true">` +
+    `<svg x="50%" width="${f(size * 60 / h)}" height="${size}" viewBox="${CX} 0 60 ${h}" overflow="visible">` +
+    `<g fill="none" stroke-width="${sw}" stroke-linecap="round" stroke-linejoin="round">` +
+    `<path class="tw-w tw-lead tw-fase" pathLength="1" d="${lead(-1)}"/>` +
+    `<path class="tw-w tw-lead tw-neutro" pathLength="1" d="${lead(1)}"/>` +
+    `<path class="tw-w tw-fase" pathLength="1" d="${g.fase}"/>` +
+    `<path class="tw-w tw-neutro" pathLength="1" d="${g.neutro}"/></g>` +
+    `<circle class="tw-spark" cx="${g.spark[0]}" cy="${g.spark[1]}" r="2.6"/></svg></svg>`;
 }
 
 // Riquadro di caricamento: torre in ciclo e testo.
