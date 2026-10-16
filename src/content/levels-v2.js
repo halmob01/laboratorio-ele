@@ -1478,3 +1478,82 @@ LEVELS_V2.push({
     'Secondo gradino: se la potenza supera una soglia alta, poco sotto il limite (per esempio 4300 W) bisogna staccarla: confronto MW0 maggiore di 4300, uscita Reset su Q0. Le due soglie devono stare distanti almeno quanto assorbe la colonnina (3,7 kW): altrimenti, appena staccata, la casa sembra avere margine e la colonnina riparte subito.',
   ],
 });
+
+// c43: la linea (Modulo 6). Un robot prende il pezzo al prelievo e lo porta al deposito: una sequenza di passi con i marcatori.
+// Impianto cablato; il programma parte con l'autoritenuta di marcia, i tempi e le uscite: l'allievo scrive le transizioni tra i passi.
+//   passi: M1 scendi al prelievo, M2 chiudi la pinza, M3 sali, M4 vai al deposito, M5 scendi, M6 apri la pinza, M7 sali, M8 torna al prelievo
+//   M0 = marcia (il ciclo in corso finisce sempre), M9 = ciclo in corso
+const W43 = [
+  ['Q.L1', 'PLC.A1', 'rosso'], ['PLC.A2', 'Q.N', 'blu'], ['PLC.IC', 'Q.N', 'blu'],
+  ['Q.L1', 'SB0.1', 'rosso'], ['SB0.2', 'PLC.I0', 'rosso'],
+  ['Q.L1', 'SB1.3', 'rosso'], ['SB1.4', 'PLC.I1', 'rosso'],
+  ['Q.L1', 'PR.3', 'rosso'], ['PR.4', 'PLC.I2', 'rosso'],
+  ['Q.L1', 'ZU.3', 'rosso'], ['ZU.4', 'PLC.I3', 'rosso'],
+  ['Q.L1', 'ZD.3', 'rosso'], ['ZD.4', 'PLC.I4', 'rosso'],
+  ['Q.L1', 'XP.3', 'rosso'], ['XP.4', 'PLC.I5', 'rosso'],
+  ['Q.L1', 'XL.3', 'rosso'], ['XL.4', 'PLC.I6', 'rosso'],
+  ['Q.L1', 'PLC.Q3A', 'rosso'], ['PLC.Q3B', 'HC.X1', 'rosso'], ['HC.X2', 'Q.N', 'blu'],
+];
+const START_43 = [
+  { if: ['and', ['or', 'I1', 'M0'], 'I0'], do: [{ op: 'coil', a: 'M0' }] },
+  { if: 'M2', do: [{ op: 'ton', id: 'T1', pt: 2 }] },
+  { if: 'M6', do: [{ op: 'ton', id: 'T2', pt: 2 }] },
+  { if: ['or', 'M1', 'M2', 'M5', 'M6'], do: [{ op: 'coil', a: 'Q0' }] },
+  { if: ['or', 'M4', 'M5', 'M6', 'M7'], do: [{ op: 'coil', a: 'Q1' }] },
+  { if: ['or', 'M2', 'M3', 'M4', 'M5'], do: [{ op: 'coil', a: 'Q2' }] },
+  { if: 'M9', do: [{ op: 'coil', a: 'Q3' }] },
+];
+const TRANS_43 = [
+  { if: ['and', 'M0', 'I2', 'I3', 'I5', ['not', 'M9']], do: [{ op: 'set', a: 'M1' }, { op: 'set', a: 'M9' }] },
+  { if: ['and', 'M1', 'I4'], do: [{ op: 'reset', a: 'M1' }, { op: 'set', a: 'M2' }] },
+  { if: ['and', 'M2', 'T1'], do: [{ op: 'reset', a: 'M2' }, { op: 'set', a: 'M3' }] },
+  { if: ['and', 'M3', 'I3'], do: [{ op: 'reset', a: 'M3' }, { op: 'set', a: 'M4' }] },
+  { if: ['and', 'M4', 'I6'], do: [{ op: 'reset', a: 'M4' }, { op: 'set', a: 'M5' }] },
+  { if: ['and', 'M5', 'I4'], do: [{ op: 'reset', a: 'M5' }, { op: 'set', a: 'M6' }] },
+  { if: ['and', 'M6', 'T2'], do: [{ op: 'reset', a: 'M6' }, { op: 'set', a: 'M7' }] },
+  { if: ['and', 'M7', 'I3'], do: [{ op: 'reset', a: 'M7' }, { op: 'set', a: 'M8' }] },
+  { if: ['and', 'M8', 'I5'], do: [{ op: 'reset', a: 'M8' }, { op: 'reset', a: 'M9' }] },
+];
+LEVELS_V2.push({
+  id: 'c43-linea', code: 'c43', n: 0, ...IND, flow: 'onDemand',
+  name: 'La linea', title: 'La linea',
+  blurb: 'Una sequenza: aspetta il pezzo, prendilo, portalo al deposito e torna. Un passo alla volta.',
+  goal: 'Un robot prende i pezzi dal punto di prelievo e li porta al deposito: scende, chiude la pinza, sale, si sposta, scende, apre la pinza, sale e torna. L’impianto è cablato: gli ingressi sono i pulsanti Arresto (I0) e Marcia (I1) e i sensori di pezzo pronto (I2), braccio su (I3), braccio giù (I4), posizione di prelievo (I5) e di deposito (I6). Il programma ha già la marcia, i tempi e le uscite: scrivi tu le transizioni da un passo al successivo. Il ciclo in corso finisce sempre.',
+  fixed: W43,
+  comps: [
+    Q3,
+    C('PLC', 'plc', 'PLC', 'PLC (transizioni da scrivere)', T('A1', 'A2', 'I0', 'I1', 'I2', 'I3', 'I4', 'I5', 'I6', 'IC', 'Q0A', 'Q0B', 'Q1A', 'Q1B', 'Q2A', 'Q2B', 'Q3A', 'Q3B'), {
+      symbols: { I0: 'Arresto', I1: 'Marcia', I2: 'Pezzo pronto', I3: 'Braccio su', I4: 'Braccio giù', I5: 'Al prelievo', I6: 'Al deposito', Q0: 'Scendi', Q1: 'Vai al deposito', Q2: 'Chiudi pinza', Q3: 'Spia ciclo', M0: 'Marcia', M1: '1 Scendi', M2: '2 Prendi', M3: '3 Sali', M4: '4 Vai', M5: '5 Scendi', M6: '6 Lascia', M7: '7 Sali', M8: '8 Torna', M9: 'Ciclo in corso', T1: 'Pinza chiusa', T2: 'Pinza aperta' },
+      edit: { start: START_43, markers: 10, timers: 2, counters: 0, ops: ['set', 'reset'] },
+    }),
+    C('SB0', 'pbnc', 'Arresto', 'Pulsante di arresto (NC)', T('1', '2')),
+    C('SB1', 'pb', 'Marcia', 'Pulsante di marcia (NA)', T('3', '4')),
+    C('HC', 'spia', 'Ciclo in corso', 'Spia di ciclo in corso', T('X1', 'X2')),
+    C('PR', 'sens', 'Pezzo pronto', 'Sensore: pezzo pronto al prelievo', T('1', '2', '3', '4'), { sense: { v: 'partReady' } }),
+    C('ZU', 'sens', 'Braccio su', 'Finecorsa: braccio in alto', T('1', '2', '3', '4'), { sense: { v: 'zUp' } }),
+    C('ZD', 'sens', 'Braccio giù', 'Finecorsa: braccio in basso', T('1', '2', '3', '4'), { sense: { v: 'zDown' } }),
+    C('XP', 'sens', 'Al prelievo', 'Finecorsa: braccio sul punto di prelievo', T('1', '2', '3', '4'), { sense: { v: 'atPick' } }),
+    C('XL', 'sens', 'Al deposito', 'Finecorsa: braccio sul punto di deposito', T('1', '2', '3', '4'), { sense: { v: 'atPlace' } }),
+  ],
+  controls: ['SB0', 'SB1'],
+  process: {
+    model: 'linea', title: 'La linea', alt: 'Il robot che porta i pezzi dal prelievo al deposito', speed: 4,
+    actuators: { down: { plc: 'PLC.Q0' }, shift: { plc: 'PLC.Q1' }, grip: { plc: 'PLC.Q2' } },
+    trace: ['out', 'z', 'x'], labels: { out: 'I pezzi depositati', crash: 'Il braccio', dropped: 'I pezzi caduti' },
+  },
+  demoDo: [{ do: press('SB1').concat(['wait 20']), say: '' }],
+  checks: [
+    { id: 'attesa', label: 'Senza Marcia il robot sta fermo', do: ['wait 20'], expect: { process: { out: [0, 0], z: [0, 0.01] } } },
+    { id: 'ciclo', label: 'Con Marcia il robot deposita i pezzi uno dopo l’altro, senza urti e senza far cadere niente', do: press('SB1').concat(['wait 90']), expect: { process: { out: [4, 99], crash: false, dropped: [0, 0] } } },
+    { id: 'arresto', label: 'Con Arresto il robot finisce il ciclo in corso e poi si ferma', steps: [{ do: press('SB1').concat(['wait 6']), expect: { process: { crash: false } } }, { do: press('SB0').concat(['wait 60']), expect: { process: { out: [1, 1], crash: false, dropped: [0, 0], z: [0, 0.01] } } }] },
+  ],
+  safety: { coilReturn: ['PLC'], stopWins: 'SB0' },
+  solution: W43,
+  solutionPrograms: { PLC: START_43.concat(TRANS_43) },
+  hints: [
+    'Ogni passo è un marcatore: M1 scendi, M2 prendi, M3 sali, M4 vai, M5 scendi, M6 lascia, M7 sali, M8 torna. Un gradino di transizione ha come condizione il passo attuale e il sensore che dice “fatto”, e come uscite Reset del passo e Set del successivo.',
+    'Per esempio, da M1 si passa a M2 quando il braccio è giù: contatto M1 in serie con I4 (braccio giù); uscite Reset M1 e Set M2.',
+    'Dalla pinza chiusa (M2) si passa a M3 quando è finito il tempo T1; da M6 a M7 con T2; M3 e M7 aspettano il braccio su (I3); M4 aspetta il deposito (I6); M5 aspetta il braccio giù (I4); M8 aspetta il prelievo (I5).',
+    'Il primo gradino parte il ciclo: serve Marcia (M0), un pezzo pronto (I2), braccio su (I3), al prelievo (I5) e nessun ciclo in corso (M9 normalmente chiuso). Uscite: Set M1 e Set M9. L’ultimo gradino, da M8 con I5, fa Reset M8 e Reset M9.',
+  ],
+});

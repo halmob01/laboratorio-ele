@@ -2171,6 +2171,54 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
       },
       expose: (s, p) => ({ ...s, sun: sunShape(s.hour, p) * (1 - clamp2(p.cloud, 0, 1)), blackout: !!s.blackout, over: s.over, battKwh: s.soc / 100 * p.batCap })
     },
+    // Linea di prelievo e deposito (Modulo 6): un robot a tre movimenti prende il pezzo dal punto di prelievo e lo porta al deposito.
+    //   down  (1 = braccio giu', 0 = su)   shift (1 = verso il deposito, 0 = verso il prelievo)   grip (1 = pinza chiusa)
+    // Posizioni da 0 a 1; i sensori scattano agli estremi. Ogni `feedEvery` secondi arriva un pezzo se il punto di prelievo e' libero.
+    // crash: il braccio si muove in orizzontale mentre e' giu'. dropped: la pinza si apre con il pezzo lontano dal deposito.
+    linea: {
+      init: { z: 0, x: 0, grip: 0, feed: 1, wait: 0, holding: 0, out: 0, dropped: 0, crash: 0 },
+      params: { vz: 0.5, vx: 0.4, vg: 1, feedEvery: 5 },
+      acts: { down: 0, shift: 0, grip: 0 },
+      step(s, a, p, dt) {
+        const mv = (v, on, sp) => clamp2(v + (on ? 1 : -1) * sp * dt, 0, 1);
+        let { z, x, grip, feed, wait, holding, out, dropped, crash } = s;
+        z = mv(z, frac(a.down) > 0, p.vz);
+        x = mv(x, frac(a.shift) > 0, p.vx);
+        const g0 = grip;
+        grip = mv(grip, frac(a.grip) > 0, p.vg);
+        if (z > 0.25 && x > 0.02 && x < 0.98) crash = 1;
+        if (!feed && !holding) {
+          wait += dt;
+          if (wait >= p.feedEvery) {
+            feed = 1;
+            wait = 0;
+          }
+        }
+        if (!holding && grip >= 0.95 && feed && z >= 0.98 && x <= 0.02) {
+          holding = 1;
+          feed = 0;
+          wait = 0;
+        }
+        if (holding && g0 > 0.05 && grip <= 0.05) {
+          if (z >= 0.98 && x >= 0.98) out += 1;
+          else dropped += 1;
+          holding = 0;
+        }
+        return { z, x, grip, feed, wait, holding, out, dropped, crash };
+      },
+      expose: (s) => ({
+        ...s,
+        crash: !!s.crash,
+        holding: !!s.holding,
+        zUp: s.z <= 0.02,
+        zDown: s.z >= 0.98,
+        atPick: s.x <= 0.02,
+        atPlace: s.x >= 0.98,
+        gripClosed: s.grip >= 0.95,
+        gripOpen: s.grip <= 0.05,
+        partReady: !!s.feed && !s.holding
+      })
+    },
     // Nastro con variatore di frequenza: f va verso ref·fmax con la rampa (Hz/s) se `run`, altrimenti scende a 0.
     // v (velocita' in % della nominale, a fNom) segue f con una costante di tempo breve. `load` frena (parametro).
     nastro: {
@@ -7585,6 +7633,100 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
       "Secondo gradino: se la potenza supera una soglia alta, poco sotto il limite (per esempio 4300 W) bisogna staccarla: confronto MW0 maggiore di 4300, uscita Reset su Q0. Le due soglie devono stare distanti almeno quanto assorbe la colonnina (3,7 kW): altrimenti, appena staccata, la casa sembra avere margine e la colonnina riparte subito."
     ]
   });
+  var W43 = [
+    ["Q.L1", "PLC.A1", "rosso"],
+    ["PLC.A2", "Q.N", "blu"],
+    ["PLC.IC", "Q.N", "blu"],
+    ["Q.L1", "SB0.1", "rosso"],
+    ["SB0.2", "PLC.I0", "rosso"],
+    ["Q.L1", "SB1.3", "rosso"],
+    ["SB1.4", "PLC.I1", "rosso"],
+    ["Q.L1", "PR.3", "rosso"],
+    ["PR.4", "PLC.I2", "rosso"],
+    ["Q.L1", "ZU.3", "rosso"],
+    ["ZU.4", "PLC.I3", "rosso"],
+    ["Q.L1", "ZD.3", "rosso"],
+    ["ZD.4", "PLC.I4", "rosso"],
+    ["Q.L1", "XP.3", "rosso"],
+    ["XP.4", "PLC.I5", "rosso"],
+    ["Q.L1", "XL.3", "rosso"],
+    ["XL.4", "PLC.I6", "rosso"],
+    ["Q.L1", "PLC.Q3A", "rosso"],
+    ["PLC.Q3B", "HC.X1", "rosso"],
+    ["HC.X2", "Q.N", "blu"]
+  ];
+  var START_43 = [
+    { if: ["and", ["or", "I1", "M0"], "I0"], do: [{ op: "coil", a: "M0" }] },
+    { if: "M2", do: [{ op: "ton", id: "T1", pt: 2 }] },
+    { if: "M6", do: [{ op: "ton", id: "T2", pt: 2 }] },
+    { if: ["or", "M1", "M2", "M5", "M6"], do: [{ op: "coil", a: "Q0" }] },
+    { if: ["or", "M4", "M5", "M6", "M7"], do: [{ op: "coil", a: "Q1" }] },
+    { if: ["or", "M2", "M3", "M4", "M5"], do: [{ op: "coil", a: "Q2" }] },
+    { if: "M9", do: [{ op: "coil", a: "Q3" }] }
+  ];
+  var TRANS_43 = [
+    { if: ["and", "M0", "I2", "I3", "I5", ["not", "M9"]], do: [{ op: "set", a: "M1" }, { op: "set", a: "M9" }] },
+    { if: ["and", "M1", "I4"], do: [{ op: "reset", a: "M1" }, { op: "set", a: "M2" }] },
+    { if: ["and", "M2", "T1"], do: [{ op: "reset", a: "M2" }, { op: "set", a: "M3" }] },
+    { if: ["and", "M3", "I3"], do: [{ op: "reset", a: "M3" }, { op: "set", a: "M4" }] },
+    { if: ["and", "M4", "I6"], do: [{ op: "reset", a: "M4" }, { op: "set", a: "M5" }] },
+    { if: ["and", "M5", "I4"], do: [{ op: "reset", a: "M5" }, { op: "set", a: "M6" }] },
+    { if: ["and", "M6", "T2"], do: [{ op: "reset", a: "M6" }, { op: "set", a: "M7" }] },
+    { if: ["and", "M7", "I3"], do: [{ op: "reset", a: "M7" }, { op: "set", a: "M8" }] },
+    { if: ["and", "M8", "I5"], do: [{ op: "reset", a: "M8" }, { op: "reset", a: "M9" }] }
+  ];
+  LEVELS_V2.push({
+    id: "c43-linea",
+    code: "c43",
+    n: 0,
+    ...IND,
+    flow: "onDemand",
+    name: "La linea",
+    title: "La linea",
+    blurb: "Una sequenza: aspetta il pezzo, prendilo, portalo al deposito e torna. Un passo alla volta.",
+    goal: "Un robot prende i pezzi dal punto di prelievo e li porta al deposito: scende, chiude la pinza, sale, si sposta, scende, apre la pinza, sale e torna. L\u2019impianto \xE8 cablato: gli ingressi sono i pulsanti Arresto (I0) e Marcia (I1) e i sensori di pezzo pronto (I2), braccio su (I3), braccio gi\xF9 (I4), posizione di prelievo (I5) e di deposito (I6). Il programma ha gi\xE0 la marcia, i tempi e le uscite: scrivi tu le transizioni da un passo al successivo. Il ciclo in corso finisce sempre.",
+    fixed: W43,
+    comps: [
+      Q3,
+      C("PLC", "plc", "PLC", "PLC (transizioni da scrivere)", T("A1", "A2", "I0", "I1", "I2", "I3", "I4", "I5", "I6", "IC", "Q0A", "Q0B", "Q1A", "Q1B", "Q2A", "Q2B", "Q3A", "Q3B"), {
+        symbols: { I0: "Arresto", I1: "Marcia", I2: "Pezzo pronto", I3: "Braccio su", I4: "Braccio gi\xF9", I5: "Al prelievo", I6: "Al deposito", Q0: "Scendi", Q1: "Vai al deposito", Q2: "Chiudi pinza", Q3: "Spia ciclo", M0: "Marcia", M1: "1 Scendi", M2: "2 Prendi", M3: "3 Sali", M4: "4 Vai", M5: "5 Scendi", M6: "6 Lascia", M7: "7 Sali", M8: "8 Torna", M9: "Ciclo in corso", T1: "Pinza chiusa", T2: "Pinza aperta" },
+        edit: { start: START_43, markers: 10, timers: 2, counters: 0, ops: ["set", "reset"] }
+      }),
+      C("SB0", "pbnc", "Arresto", "Pulsante di arresto (NC)", T("1", "2")),
+      C("SB1", "pb", "Marcia", "Pulsante di marcia (NA)", T("3", "4")),
+      C("HC", "spia", "Ciclo in corso", "Spia di ciclo in corso", T("X1", "X2")),
+      C("PR", "sens", "Pezzo pronto", "Sensore: pezzo pronto al prelievo", T("1", "2", "3", "4"), { sense: { v: "partReady" } }),
+      C("ZU", "sens", "Braccio su", "Finecorsa: braccio in alto", T("1", "2", "3", "4"), { sense: { v: "zUp" } }),
+      C("ZD", "sens", "Braccio gi\xF9", "Finecorsa: braccio in basso", T("1", "2", "3", "4"), { sense: { v: "zDown" } }),
+      C("XP", "sens", "Al prelievo", "Finecorsa: braccio sul punto di prelievo", T("1", "2", "3", "4"), { sense: { v: "atPick" } }),
+      C("XL", "sens", "Al deposito", "Finecorsa: braccio sul punto di deposito", T("1", "2", "3", "4"), { sense: { v: "atPlace" } })
+    ],
+    controls: ["SB0", "SB1"],
+    process: {
+      model: "linea",
+      title: "La linea",
+      alt: "Il robot che porta i pezzi dal prelievo al deposito",
+      speed: 4,
+      actuators: { down: { plc: "PLC.Q0" }, shift: { plc: "PLC.Q1" }, grip: { plc: "PLC.Q2" } },
+      trace: ["out", "z", "x"],
+      labels: { out: "I pezzi depositati", crash: "Il braccio", dropped: "I pezzi caduti" }
+    },
+    demoDo: [{ do: press("SB1").concat(["wait 20"]), say: "" }],
+    checks: [
+      { id: "attesa", label: "Senza Marcia il robot sta fermo", do: ["wait 20"], expect: { process: { out: [0, 0], z: [0, 0.01] } } },
+      { id: "ciclo", label: "Con Marcia il robot deposita i pezzi uno dopo l\u2019altro, senza urti e senza far cadere niente", do: press("SB1").concat(["wait 90"]), expect: { process: { out: [4, 99], crash: false, dropped: [0, 0] } } },
+      { id: "arresto", label: "Con Arresto il robot finisce il ciclo in corso e poi si ferma", steps: [{ do: press("SB1").concat(["wait 6"]), expect: { process: { crash: false } } }, { do: press("SB0").concat(["wait 60"]), expect: { process: { out: [1, 1], crash: false, dropped: [0, 0], z: [0, 0.01] } } }] }
+    ],
+    safety: { coilReturn: ["PLC"], stopWins: "SB0" },
+    solution: W43,
+    solutionPrograms: { PLC: START_43.concat(TRANS_43) },
+    hints: [
+      "Ogni passo \xE8 un marcatore: M1 scendi, M2 prendi, M3 sali, M4 vai, M5 scendi, M6 lascia, M7 sali, M8 torna. Un gradino di transizione ha come condizione il passo attuale e il sensore che dice \u201Cfatto\u201D, e come uscite Reset del passo e Set del successivo.",
+      "Per esempio, da M1 si passa a M2 quando il braccio \xE8 gi\xF9: contatto M1 in serie con I4 (braccio gi\xF9); uscite Reset M1 e Set M2.",
+      "Dalla pinza chiusa (M2) si passa a M3 quando \xE8 finito il tempo T1; da M6 a M7 con T2; M3 e M7 aspettano il braccio su (I3); M4 aspetta il deposito (I6); M5 aspetta il braccio gi\xF9 (I4); M8 aspetta il prelievo (I5).",
+      "Il primo gradino parte il ciclo: serve Marcia (M0), un pezzo pronto (I2), braccio su (I3), al prelievo (I5) e nessun ciclo in corso (M9 normalmente chiuso). Uscite: Set M1 e Set M9. L\u2019ultimo gradino, da M8 con I5, fa Reset M8 e Reset M9."
+    ]
+  });
 
   // src/content/units-v2.js
   var UNITS_V2 = {
@@ -11538,6 +11680,96 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
         "Le due soglie (parti e fermati) devono stare distanti almeno quanto assorbe il carico, altrimenti riparte subito.",
         "Se il PLC sbaglia e il contatore scatta, tutta la casa resta senza corrente: il limite si rispetta con il programma, prima che scatti."
       ]
+    },
+    "c43-linea": {
+      support: "passi",
+      lesson: {
+        pages: [
+          {
+            type: "spiegazione",
+            title: "Una macchina che fa una cosa dopo l\u2019altra",
+            paras: [
+              "Finora il programma rispondeva a una condizione: se premi, parti; se il livello \xE8 alto, spegni. Una linea di produzione invece segue una sequenza: prima scende, poi chiude la pinza, poi sale, poi si sposta. L\u2019ordine conta, e ogni passo deve cominciare solo quando il precedente \xE8 finito.",
+              "Il robot di questo livello prende un pezzo dal punto di prelievo e lo porta al deposito: otto passi uno dopo l\u2019altro. Nella scena vedi il braccio che scende, la pinza che si chiude e il pezzo che viaggia."
+            ]
+          },
+          {
+            type: "spiegazione",
+            title: "Un marcatore per ogni passo",
+            paras: [
+              "Si programma una sequenza con un marcatore per ogni passo: M1 \u201Cscendi\u201D, M2 \u201Cprendi\u201D, M3 \u201Csali\u201D, e cos\xEC via. Solo un marcatore alla volta \xE8 acceso: dice a che punto del ciclo siamo.",
+              "Le uscite non guardano pi\xF9 i sensori ma il passo attuale: il motore che fa scendere il braccio (Q0) \xE8 acceso nei passi in cui il braccio deve scendere; la pinza (Q2) \xE8 chiusa nei passi in cui deve tenere il pezzo. Cos\xEC le uscite sono semplici e tutta la logica sta nelle transizioni."
+            ],
+            table: {
+              head: ["Passo", "Che cosa fa", "Finisce quando"],
+              rows: [
+                ["M1 Scendi", "il braccio scende al prelievo", "il braccio \xE8 gi\xF9 (I4)"],
+                ["M2 Prendi", "chiude la pinza", "\xE8 passato il tempo T1"],
+                ["M3 Sali", "il braccio sale con il pezzo", "il braccio \xE8 su (I3)"],
+                ["M4 Vai", "si sposta verso il deposito", "\xE8 al deposito (I6)"],
+                ["M5 Scendi", "scende sul deposito", "il braccio \xE8 gi\xF9 (I4)"],
+                ["M6 Lascia", "apre la pinza", "\xE8 passato il tempo T2"],
+                ["M7 Sali", "risale", "il braccio \xE8 su (I3)"],
+                ["M8 Torna", "torna al prelievo", "\xE8 al prelievo (I5)"]
+              ]
+            }
+          },
+          {
+            type: "spiegazione",
+            title: "La transizione: passo attuale pi\xF9 \u201Cfatto\u201D",
+            paras: [
+              "Passare da un passo al successivo \xE8 un gradino: il contatto del passo attuale, in serie con il segnale che dice \u201Cho finito\u201D (un finecorsa o un tempo). Come uscite, Reset del passo che finisce e Set del successivo. Cos\xEC un solo marcatore resta acceso.",
+              "Il segnale \u201Cho finito\u201D va sempre guardato, non indovinato: il braccio non si sposta finch\xE9 un finecorsa non dice che \xE8 salito. \xC8 il perch\xE9 della sicurezza di una sequenza: se si salta un controllo, la macchina fa il passo dopo con il passo prima ancora in corso."
+            ],
+            warn: "Se il braccio si sposta di lato quando \xE8 ancora gi\xF9, urta il pezzo o il montante: nella scena compare \u201CURTO\u201D. Il finecorsa \u201Cbraccio su\u201D serve proprio a evitarlo."
+          },
+          {
+            type: "spiegazione",
+            title: "Quando serve un tempo, e il ciclo che finisce sempre",
+            paras: [
+              "La pinza non ha un sensore: per sapere che si \xE8 chiusa si aspetta un tempo (T1 per chiudere, T2 per aprire). Dove c\u2019\xE8 un sensore si usa il sensore; dove manca, un temporizzatore.",
+              "Il marcatore M9 dice \u201Cciclo in corso\u201D: il ciclo parte solo se non ce n\u2019\xE8 uno in corso, e finisce sempre. Premendo Arresto si impedisce di cominciare il ciclo successivo, ma quello in corso si conclude: fermare una macchina a met\xE0 sequenza, con il pezzo in aria, lascerebbe tutto in uno stato pericoloso."
+            ]
+          },
+          {
+            type: "previsione",
+            question: "Nella transizione dal passo \u201Csali\u201D (M3) al passo \u201Cvai\u201D (M4) dimentico il segnale \u201Cbraccio su\u201D. Che cosa succede?",
+            options: [
+              { id: "a", text: "Niente: il braccio sale comunque in fretta." },
+              { id: "b", text: "Il passo M4 comincia subito e il braccio si sposta mentre \xE8 ancora gi\xF9: urto." },
+              { id: "c", text: "Il ciclo non parte." }
+            ],
+            correct: "b",
+            why: "Senza il finecorsa la transizione scatta nello stesso istante in cui M3 si accende. Il braccio comincia a spostarsi mentre sta ancora salendo, ed \xE8 ancora gi\xF9."
+          },
+          {
+            type: "previsione",
+            question: "Premi Arresto a met\xE0 ciclo, con il pezzo nella pinza. Che cosa deve fare la macchina?",
+            options: [
+              { id: "a", text: "Fermarsi subito dove si trova." },
+              { id: "b", text: "Finire il ciclo, depositare il pezzo e poi fermarsi." },
+              { id: "c", text: "Aprire la pinza e lasciar cadere il pezzo." }
+            ],
+            correct: "b",
+            why: "Fermare la sequenza a met\xE0 con il pezzo in aria, o far cadere il pezzo, sono entrambi stati pericolosi. L\u2019arresto normale fa finire il ciclo in corso; per fermare subito si usa il fungo, nei fili."
+          },
+          { type: "sintesi", title: "Da ricordare" }
+        ]
+      },
+      steps: [
+        { kind: "program", plc: "PLC", min: 8, short: "1 Avvio", title: "Il gradino di partenza del ciclo", text: "Nuovo gradino: contatti M0 (marcia), I2 (pezzo pronto), I3 (braccio su), I5 (al prelievo) e M9 normalmente chiuso; uscite Set M1 e Set M9. Perch\xE9: il ciclo parte solo se c\u2019\xE8 un pezzo, il robot \xE8 fermo al punto giusto e non c\u2019\xE8 gi\xE0 un ciclo." },
+        { kind: "program", plc: "PLC", min: 15, short: "2 Transizioni", title: "Le transizioni dei passi", text: "Per ogni passo da M1 a M7: un gradino con il passo e il suo \u201Cfatto\u201D (I4, T1, I3, I6, I4, T2, I3), uscite Reset del passo e Set del successivo. Perch\xE9: un solo passo alla volta resta acceso e ciascuno comincia solo a passo precedente finito." },
+        { kind: "program", plc: "PLC", min: 16, short: "3 Fine ciclo", title: "Il ritorno e la fine del ciclo", text: "Ultimo gradino: M8 con I5 (al prelievo); uscite Reset M8 e Reset M9. Perch\xE9: il ciclo \xE8 finito e il successivo pu\xF2 partire." },
+        { kind: "control", id: "SB1", short: "4 Prova", title: "Premi Marcia", text: "Premi Marcia e guarda il robot: porta un pezzo al deposito dopo l\u2019altro. Premi Arresto: finisce il ciclo e si ferma." },
+        { kind: "verify", short: "5 Verifica", title: "Controlla la sequenza", text: "Premi Verifica." }
+      ],
+      summary: [
+        "Una sequenza si programma con un marcatore per ogni passo: solo uno \xE8 acceso e dice a che punto del ciclo siamo.",
+        "Le uscite dipendono dal passo, non dai sensori; la logica sta nelle transizioni.",
+        "Una transizione \xE8 il passo attuale in serie con il segnale \u201Cfatto\u201D (un finecorsa o un tempo), con Reset del passo e Set del successivo.",
+        "Il segnale \u201Cfatto\u201D non si salta: senza il finecorsa il passo successivo parte troppo presto e la macchina urta.",
+        "Il ciclo in corso finisce sempre: Arresto impedisce di cominciare il successivo, non ferma la macchina a met\xE0."
+      ]
     }
   };
 
@@ -12115,7 +12347,7 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
         "c35-serbatoio",
         "c36-pid",
         "c37-pannello",
-        { soon: true, title: "La linea", blurb: "Una sequenza: attesa, prelievo, deposito." },
+        "c43-linea",
         { soon: true, title: "Gestione guasti", blurb: "Tre guasti da risolvere a tempo." }
       ],
       milestone: { soon: true, art: "fabbrica", kick: "Fabbrica", name: "Una linea da cablare, programmare e mettere in sicurezza", text: "Il progetto finale: un turno di lavoro con guasti da gestire." }
@@ -14120,7 +14352,23 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
     }
     return o;
   }
-  var SCENES = { serbatoio: tankScene, forno: ovenScene, nastro: beltScene, energia: houseScene };
+  function lineScene(level, s) {
+    const p = s.obs.process;
+    const x0 = 80, x1 = 300, bx = x0 + (x1 - x0) * p.x, top = 34, zy = top + 62 * p.z;
+    let o = `<rect x="20" y="118" width="360" height="10" rx="3" fill="#4A4F57"/>`;
+    o += `<rect x="${x0 - 28}" y="100" width="56" height="18" rx="3" fill="#EDE7D4" stroke="var(--comp-edge)" stroke-width="1.6"/><text x="${x0}" y="140" text-anchor="middle" style="font:600 10px 'IBM Plex Mono',monospace;fill:var(--ink2)">prelievo</text>`;
+    o += `<rect x="${x1 - 28}" y="100" width="56" height="18" rx="3" fill="#EDE7D4" stroke="var(--comp-edge)" stroke-width="1.6"/><text x="${x1}" y="140" text-anchor="middle" style="font:600 10px 'IBM Plex Mono',monospace;fill:var(--ink2)">deposito: ${p.out}</text>`;
+    if (p.feed && !p.holding) o += `<rect x="${x0 - 11}" y="86" width="22" height="14" rx="2" fill="#C98A3E" stroke="#7E5420" stroke-width="1.6"/>`;
+    o += `<line x1="30" y1="${top - 12}" x2="370" y2="${top - 12}" stroke="var(--ink2)" stroke-width="5"/>`;
+    o += `<line x1="${bx}" y1="${top - 12}" x2="${bx}" y2="${zy}" stroke="var(--ink2)" stroke-width="4"/>`;
+    const open = 8 + 6 * (1 - p.grip);
+    o += `<path d="M${bx - open} ${zy + 14} V${zy} H${bx + open} V${zy + 14}" fill="none" stroke="${p.crash ? "#C0262D" : "var(--comp-edge)"}" stroke-width="4" stroke-linecap="round"/>`;
+    if (p.holding) o += `<rect x="${bx - 11}" y="${zy + 2}" width="22" height="14" rx="2" fill="#C98A3E" stroke="#7E5420" stroke-width="1.6"/>`;
+    if (p.crash) o += `<text x="200" y="22" text-anchor="middle" style="font:700 12px 'IBM Plex Mono',monospace;fill:#C0262D">URTO: il braccio si \xE8 mosso da basso</text>`;
+    else if (p.dropped) o += `<text x="200" y="22" text-anchor="middle" style="font:700 11px 'IBM Plex Mono',monospace;fill:#C0262D">pezzi caduti: ${p.dropped}</text>`;
+    return o;
+  }
+  var SCENES = { serbatoio: tankScene, forno: ovenScene, nastro: beltScene, energia: houseScene, linea: lineScene };
   function graphSVG(level, s) {
     const gr = level.process.graph;
     if (!gr) return "";
@@ -18134,6 +18382,132 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
     "\xC8 mezzogiorno, la casa immette 3 kW e lo scaldabagno si accende. Quanto immette adesso?": "\u0625\u0646\u0647\u0627 \u0627\u0644\u0638\u0647\u064A\u0631\u0629\u060C \u064A\u0636\u062E \u0627\u0644\u0628\u064A\u062A 3 \u0643\u064A\u0644\u0648\u0648\u0627\u0637 \u0648\u064A\u0639\u0645\u0644 \u0633\u062E\u0651\u0627\u0646 \u0627\u0644\u0645\u064A\u0627\u0647. \u0643\u0645 \u064A\u0636\u062E \u0627\u0644\u0622\u0646\u061F"
   };
 
+  // src/i18n/ar-32.js
+  var ar_32_default = {
+    "Al deposito": "\u0639\u0646\u062F \u0627\u0644\u0625\u064A\u062F\u0627\u0639",
+    "Al prelievo": "\u0639\u0646\u062F \u0627\u0644\u0627\u0644\u062A\u0642\u0627\u0637",
+    "Aprire la pinza e lasciar cadere il pezzo.": "\u0641\u062A\u062D \u0627\u0644\u0645\u0644\u0642\u0637 \u0648\u062A\u0631\u0643 \u0627\u0644\u0642\u0637\u0639\u0629 \u062A\u0633\u0642\u0637.",
+    "Avvio": "\u0627\u0644\u0628\u062F\u0621",
+    "Braccio gi\xF9": "\u0627\u0644\u0630\u0631\u0627\u0639 \u0644\u0644\u0623\u0633\u0641\u0644",
+    "Braccio su": "\u0627\u0644\u0630\u0631\u0627\u0639 \u0644\u0644\u0623\u0639\u0644\u0649",
+    "Che cosa fa": "\u0645\u0627\u0630\u0627 \u064A\u0641\u0639\u0644",
+    "Chiudi pinza": "\u0623\u063A\u0644\u0642 \u0627\u0644\u0645\u0644\u0642\u0637",
+    "Ciclo in corso": "\u062F\u0648\u0631\u0629 \u062C\u0627\u0631\u064A\u0629",
+    "Con Arresto il robot finisce il ciclo in corso e poi si ferma": "\u0645\u0639 \u0627\u0644\u0625\u064A\u0642\u0627\u0641 \u064A\u0646\u0647\u064A \u0627\u0644\u0631\u0648\u0628\u0648\u062A \u0627\u0644\u062F\u0648\u0631\u0629 \u0627\u0644\u062C\u0627\u0631\u064A\u0629 \u062B\u0645 \u064A\u062A\u0648\u0642\u0641",
+    "Con Marcia il robot deposita i pezzi uno dopo l\u2019altro, senza urti e senza far cadere niente": "\u0645\u0639 \u0627\u0644\u062A\u0634\u063A\u064A\u0644 \u064A\u0648\u062F\u0639 \u0627\u0644\u0631\u0648\u0628\u0648\u062A \u0627\u0644\u0642\u0637\u0639 \u0648\u0627\u062D\u062F\u0629 \u0628\u0639\u062F \u0627\u0644\u0623\u062E\u0631\u0649\u060C \u062F\u0648\u0646 \u0627\u0635\u0637\u062F\u0627\u0645 \u0648\u062F\u0648\u0646 \u0623\u0646 \u064A\u064F\u0633\u0642\u0637 \u0634\u064A\u0626\u064B\u0627",
+    "Contatto 1 Scendi": "\u062A\u0644\u0627\u0645\u0633 1 \u0627\u0646\u0632\u0644",
+    "Contatto 2 Prendi": "\u062A\u0644\u0627\u0645\u0633 2 \u0623\u0645\u0633\u0643",
+    "Contatto 3 Sali": "\u062A\u0644\u0627\u0645\u0633 3 \u0627\u0635\u0639\u062F",
+    "Contatto 4 Vai": "\u062A\u0644\u0627\u0645\u0633 4 \u0627\u0630\u0647\u0628",
+    "Contatto 5 Scendi": "\u062A\u0644\u0627\u0645\u0633 5 \u0627\u0646\u0632\u0644",
+    "Contatto 6 Lascia": "\u062A\u0644\u0627\u0645\u0633 6 \u0623\u0641\u0644\u062A",
+    "Contatto 7 Sali": "\u062A\u0644\u0627\u0645\u0633 7 \u0627\u0635\u0639\u062F",
+    "Contatto Ciclo in corso": "\u062A\u0644\u0627\u0645\u0633 \u062F\u0648\u0631\u0629 \u062C\u0627\u0631\u064A\u0629",
+    "Controlla la sequenza": "\u062A\u062D\u0642\u0642 \u0645\u0646 \u0627\u0644\u062A\u0633\u0644\u0633\u0644",
+    "Dalla pinza chiusa (M2) si passa a M3 quando \xE8 finito il tempo T1; da M6 a M7 con T2; M3 e M7 aspettano il braccio su (I3); M4 aspetta il deposito (I6); M5 aspetta il braccio gi\xF9 (I4); M8 aspetta il prelievo (I5).": "\u0645\u0646 \u0627\u0644\u0645\u0644\u0642\u0637 \u0627\u0644\u0645\u063A\u0644\u0642 (M2) \u0646\u0646\u062A\u0642\u0644 \u0625\u0644\u0649 M3 \u0639\u0646\u062F \u0627\u0646\u062A\u0647\u0627\u0621 \u0627\u0644\u0632\u0645\u0646 T1\u061B \u0648\u0645\u0646 M6 \u0625\u0644\u0649 M7 \u0628\u0627\u0644\u0632\u0645\u0646 T2\u061B \u0648\u062A\u0646\u062A\u0638\u0631 M3 \u0648M7 \u0627\u0644\u0630\u0631\u0627\u0639 \u0644\u0644\u0623\u0639\u0644\u0649 (I3)\u061B \u0648\u062A\u0646\u062A\u0638\u0631 M4 \u0627\u0644\u0625\u064A\u062F\u0627\u0639 (I6)\u061B \u0648\u062A\u0646\u062A\u0638\u0631 M5 \u0627\u0644\u0630\u0631\u0627\u0639 \u0644\u0644\u0623\u0633\u0641\u0644 (I4)\u061B \u0648\u062A\u0646\u062A\u0638\u0631 M8 \u0627\u0644\u0627\u0644\u062A\u0642\u0627\u0637 (I5).",
+    "Fermare la sequenza a met\xE0 con il pezzo in aria, o far cadere il pezzo, sono entrambi stati pericolosi. L\u2019arresto normale fa finire il ciclo in corso; per fermare subito si usa il fungo, nei fili.": "\u0625\u064A\u0642\u0627\u0641 \u0627\u0644\u062A\u0633\u0644\u0633\u0644 \u0641\u064A \u0627\u0644\u0645\u0646\u062A\u0635\u0641 \u0648\u0627\u0644\u0642\u0637\u0639\u0629 \u0641\u064A \u0627\u0644\u0647\u0648\u0627\u0621\u060C \u0623\u0648 \u0625\u0633\u0642\u0627\u0637 \u0627\u0644\u0642\u0637\u0639\u0629\u060C \u0643\u0644\u0627\u0647\u0645\u0627 \u062D\u0627\u0644\u062A\u0627\u0646 \u062E\u0637\u064A\u0631\u062A\u0627\u0646. \u0627\u0644\u0625\u064A\u0642\u0627\u0641 \u0627\u0644\u0639\u0627\u062F\u064A \u064A\u062C\u0639\u0644 \u0627\u0644\u062F\u0648\u0631\u0629 \u0627\u0644\u062C\u0627\u0631\u064A\u0629 \u062A\u0646\u062A\u0647\u064A\u061B \u0648\u0644\u0625\u064A\u0642\u0627\u0641 \u0641\u0648\u0631\u064A \u064A\u064F\u0633\u062A\u062E\u062F\u0645 \u0632\u0631 \u0627\u0644\u0637\u0648\u0627\u0631\u0626\u060C \u0639\u0628\u0631 \u0627\u0644\u0623\u0633\u0644\u0627\u0643.",
+    "Fermarsi subito dove si trova.": "\u0627\u0644\u062A\u0648\u0642\u0641 \u0641\u0648\u0631\u064B\u0627 \u062D\u064A\u062B \u0647\u0648.",
+    "Fine ciclo": "\u0646\u0647\u0627\u064A\u0629 \u0627\u0644\u062F\u0648\u0631\u0629",
+    "Finecorsa: braccio in alto": "\u0646\u0647\u0627\u064A\u0629 \u0634\u0648\u0637: \u0627\u0644\u0630\u0631\u0627\u0639 \u0641\u064A \u0627\u0644\u0623\u0639\u0644\u0649",
+    "Finecorsa: braccio in basso": "\u0646\u0647\u0627\u064A\u0629 \u0634\u0648\u0637: \u0627\u0644\u0630\u0631\u0627\u0639 \u0641\u064A \u0627\u0644\u0623\u0633\u0641\u0644",
+    "Finecorsa: braccio sul punto di deposito": "\u0646\u0647\u0627\u064A\u0629 \u0634\u0648\u0637: \u0627\u0644\u0630\u0631\u0627\u0639 \u0639\u0646\u062F \u0646\u0642\u0637\u0629 \u0627\u0644\u0625\u064A\u062F\u0627\u0639",
+    "Finecorsa: braccio sul punto di prelievo": "\u0646\u0647\u0627\u064A\u0629 \u0634\u0648\u0637: \u0627\u0644\u0630\u0631\u0627\u0639 \u0639\u0646\u062F \u0646\u0642\u0637\u0629 \u0627\u0644\u0627\u0644\u062A\u0642\u0627\u0637",
+    "Finire il ciclo, depositare il pezzo e poi fermarsi.": "\u0625\u0646\u0647\u0627\u0621 \u0627\u0644\u062F\u0648\u0631\u0629 \u0648\u0625\u064A\u062F\u0627\u0639 \u0627\u0644\u0642\u0637\u0639\u0629 \u062B\u0645 \u0627\u0644\u062A\u0648\u0642\u0641.",
+    "Finisce quando": "\u062A\u0646\u062A\u0647\u064A \u0639\u0646\u062F\u0645\u0627",
+    "Finora il programma rispondeva a una condizione: se premi, parti; se il livello \xE8 alto, spegni. Una linea di produzione invece segue una sequenza: prima scende, poi chiude la pinza, poi sale, poi si sposta. L\u2019ordine conta, e ogni passo deve cominciare solo quando il precedente \xE8 finito.": "\u062D\u062A\u0649 \u0627\u0644\u0622\u0646 \u0643\u0627\u0646 \u0627\u0644\u0628\u0631\u0646\u0627\u0645\u062C \u064A\u0633\u062A\u062C\u064A\u0628 \u0644\u0634\u0631\u0637: \u0625\u0630\u0627 \u0636\u063A\u0637\u062A \u064A\u0628\u062F\u0623\u061B \u0648\u0625\u0630\u0627 \u0643\u0627\u0646 \u0627\u0644\u0645\u0633\u062A\u0648\u0649 \u0645\u0631\u062A\u0641\u0639\u064B\u0627 \u064A\u062A\u0648\u0642\u0641. \u0623\u0645\u0627 \u062E\u0637 \u0627\u0644\u0625\u0646\u062A\u0627\u062C \u0641\u064A\u062A\u0628\u0639 \u062A\u0633\u0644\u0633\u0644\u064B\u0627: \u0623\u0648\u0644\u064B\u0627 \u064A\u0646\u0632\u0644\u060C \u062B\u0645 \u064A\u063A\u0644\u0642 \u0627\u0644\u0645\u0644\u0642\u0637\u060C \u062B\u0645 \u064A\u0635\u0639\u062F\u060C \u062B\u0645 \u064A\u0646\u062A\u0642\u0644. \u0627\u0644\u062A\u0631\u062A\u064A\u0628 \u0645\u0647\u0645\u060C \u0648\u0643\u0644 \u062E\u0637\u0648\u0629 \u064A\u062C\u0628 \u0623\u0644\u0627 \u062A\u0628\u062F\u0623 \u0625\u0644\u0627 \u0628\u0639\u062F \u0627\u0646\u062A\u0647\u0627\u0621 \u0627\u0644\u0633\u0627\u0628\u0642\u0629.",
+    "I pezzi caduti": "\u0627\u0644\u0642\u0637\u0639 \u0627\u0644\u0633\u0627\u0642\u0637\u0629",
+    "I pezzi depositati": "\u0627\u0644\u0642\u0637\u0639 \u0627\u0644\u0645\u0648\u062F\u064E\u0639\u0629",
+    "Il braccio": "\u0627\u0644\u0630\u0631\u0627\u0639",
+    "Il ciclo in corso finisce sempre: Arresto impedisce di cominciare il successivo, non ferma la macchina a met\xE0.": "\u0627\u0644\u062F\u0648\u0631\u0629 \u0627\u0644\u062C\u0627\u0631\u064A\u0629 \u062A\u0646\u062A\u0647\u064A \u062F\u0627\u0626\u0645\u064B\u0627: \u0627\u0644\u0625\u064A\u0642\u0627\u0641 \u064A\u0645\u0646\u0639 \u0628\u062F\u0621 \u0627\u0644\u062A\u0627\u0644\u064A\u0629\u060C \u0648\u0644\u0627 \u064A\u0648\u0642\u0641 \u0627\u0644\u0622\u0644\u0629 \u0641\u064A \u0627\u0644\u0645\u0646\u062A\u0635\u0641.",
+    "Il ciclo non parte.": "\u0644\u0627 \u062A\u0628\u062F\u0623 \u0627\u0644\u062F\u0648\u0631\u0629.",
+    "Il gradino di partenza del ciclo": "\u062F\u0631\u062C\u0629 \u0628\u062F\u0621 \u0627\u0644\u062F\u0648\u0631\u0629",
+    "Il marcatore M9 dice \u201Cciclo in corso\u201D: il ciclo parte solo se non ce n\u2019\xE8 uno in corso, e finisce sempre. Premendo Arresto si impedisce di cominciare il ciclo successivo, ma quello in corso si conclude: fermare una macchina a met\xE0 sequenza, con il pezzo in aria, lascerebbe tutto in uno stato pericoloso.": "\u062A\u0642\u0648\u0644 \u0627\u0644\u0639\u0644\u0627\u0645\u0629 M9 \xAB\u062F\u0648\u0631\u0629 \u062C\u0627\u0631\u064A\u0629\xBB: \u0644\u0627 \u062A\u0628\u062F\u0623 \u0627\u0644\u062F\u0648\u0631\u0629 \u0625\u0644\u0627 \u0625\u0630\u0627 \u0644\u0645 \u062A\u0643\u0646 \u0647\u0646\u0627\u0643 \u062F\u0648\u0631\u0629 \u062C\u0627\u0631\u064A\u0629\u060C \u0648\u0647\u064A \u062A\u0646\u062A\u0647\u064A \u062F\u0627\u0626\u0645\u064B\u0627. \u0628\u0627\u0644\u0636\u063A\u0637 \u0639\u0644\u0649 \u0627\u0644\u0625\u064A\u0642\u0627\u0641 \u0646\u0645\u0646\u0639 \u0628\u062F\u0621 \u0627\u0644\u062F\u0648\u0631\u0629 \u0627\u0644\u062A\u0627\u0644\u064A\u0629 \u0644\u0643\u0646 \u0627\u0644\u062C\u0627\u0631\u064A\u0629 \u062A\u0646\u062A\u0647\u064A: \u0625\u064A\u0642\u0627\u0641 \u0627\u0644\u0622\u0644\u0629 \u0641\u064A \u0645\u0646\u062A\u0635\u0641 \u0627\u0644\u062A\u0633\u0644\u0633\u0644 \u0648\u0627\u0644\u0642\u0637\u0639\u0629 \u0641\u064A \u0627\u0644\u0647\u0648\u0627\u0621 \u0633\u064A\u062A\u0631\u0643 \u0643\u0644 \u0634\u064A\u0621 \u0641\u064A \u062D\u0627\u0644\u0629 \u062E\u0637\u0631\u0629.",
+    "Il passo M4 comincia subito e il braccio si sposta mentre \xE8 ancora gi\xF9: urto.": "\u062A\u0628\u062F\u0623 \u0627\u0644\u062E\u0637\u0648\u0629 M4 \u0641\u0648\u0631\u064B\u0627 \u0648\u062A\u0646\u062A\u0642\u0644 \u0627\u0644\u0630\u0631\u0627\u0639 \u0648\u0647\u064A \u0645\u0627 \u0632\u0627\u0644\u062A \u0641\u064A \u0627\u0644\u0623\u0633\u0641\u0644: \u0627\u0635\u0637\u062F\u0627\u0645.",
+    "Il primo gradino parte il ciclo: serve Marcia (M0), un pezzo pronto (I2), braccio su (I3), al prelievo (I5) e nessun ciclo in corso (M9 normalmente chiuso). Uscite: Set M1 e Set M9. L\u2019ultimo gradino, da M8 con I5, fa Reset M8 e Reset M9.": "\u0627\u0644\u062F\u0631\u062C\u0629 \u0627\u0644\u0623\u0648\u0644\u0649 \u062A\u0628\u062F\u0623 \u0627\u0644\u062F\u0648\u0631\u0629: \u064A\u0644\u0632\u0645 \u0627\u0644\u062A\u0634\u063A\u064A\u0644 (M0) \u0648\u0642\u0637\u0639\u0629 \u062C\u0627\u0647\u0632\u0629 (I2) \u0648\u0627\u0644\u0630\u0631\u0627\u0639 \u0644\u0644\u0623\u0639\u0644\u0649 (I3) \u0648\u0639\u0646\u062F \u0627\u0644\u0627\u0644\u062A\u0642\u0627\u0637 (I5) \u0648\u0623\u0644\u0651\u0627 \u062A\u0648\u062C\u062F \u062F\u0648\u0631\u0629 \u062C\u0627\u0631\u064A\u0629 (M9 \u0645\u063A\u0644\u0642 \u0641\u064A \u0627\u0644\u062D\u0627\u0644\u0629 \u0627\u0644\u0639\u0627\u062F\u064A\u0629). \u0627\u0644\u0645\u062E\u0631\u062C\u0627\u0646: Set M1 \u0648Set M9. \u0648\u0627\u0644\u062F\u0631\u062C\u0629 \u0627\u0644\u0623\u062E\u064A\u0631\u0629\u060C \u0645\u0646 M8 \u0645\u0639 I5\u060C \u062A\u0641\u0639\u0644 Reset M8 \u0648Reset M9.",
+    "Il ritorno e la fine del ciclo": "\u0627\u0644\u0639\u0648\u062F\u0629 \u0648\u0646\u0647\u0627\u064A\u0629 \u0627\u0644\u062F\u0648\u0631\u0629",
+    "Il robot che porta i pezzi dal prelievo al deposito": "\u0627\u0644\u0631\u0648\u0628\u0648\u062A \u0627\u0644\u0630\u064A \u064A\u0646\u0642\u0644 \u0627\u0644\u0642\u0637\u0639 \u0645\u0646 \u0627\u0644\u0627\u0644\u062A\u0642\u0627\u0637 \u0625\u0644\u0649 \u0627\u0644\u0625\u064A\u062F\u0627\u0639",
+    "Il robot di questo livello prende un pezzo dal punto di prelievo e lo porta al deposito: otto passi uno dopo l\u2019altro. Nella scena vedi il braccio che scende, la pinza che si chiude e il pezzo che viaggia.": "\u064A\u0644\u062A\u0642\u0637 \u0631\u0648\u0628\u0648\u062A \u0647\u0630\u0627 \u0627\u0644\u0645\u0633\u062A\u0648\u0649 \u0642\u0637\u0639\u0629 \u0645\u0646 \u0646\u0642\u0637\u0629 \u0627\u0644\u0627\u0644\u062A\u0642\u0627\u0637 \u0648\u064A\u0646\u0642\u0644\u0647\u0627 \u0625\u0644\u0649 \u0627\u0644\u0625\u064A\u062F\u0627\u0639: \u062B\u0645\u0627\u0646\u064A \u062E\u0637\u0648\u0627\u062A \u0627\u0644\u0648\u0627\u062D\u062F\u0629 \u0628\u0639\u062F \u0627\u0644\u0623\u062E\u0631\u0649. \u0641\u064A \u0627\u0644\u0645\u0634\u0647\u062F \u062A\u0631\u0649 \u0627\u0644\u0630\u0631\u0627\u0639 \u064A\u0646\u0632\u0644 \u0648\u0627\u0644\u0645\u0644\u0642\u0637 \u064A\u064F\u063A\u0644\u0642 \u0648\u0627\u0644\u0642\u0637\u0639\u0629 \u062A\u0633\u0627\u0641\u0631.",
+    "Il segnale \u201Cfatto\u201D non si salta: senza il finecorsa il passo successivo parte troppo presto e la macchina urta.": "\u0625\u0634\u0627\u0631\u0629 \xAB\u062A\u0645\xBB \u0644\u0627 \u062A\u064F\u062A\u062C\u0627\u0648\u0632: \u062F\u0648\u0646 \u0646\u0647\u0627\u064A\u0629 \u0627\u0644\u0634\u0648\u0637 \u062A\u0628\u062F\u0623 \u0627\u0644\u062E\u0637\u0648\u0629 \u0627\u0644\u062A\u0627\u0644\u064A\u0629 \u0645\u0628\u0643\u0631\u064B\u0627 \u062C\u062F\u064B\u0627 \u0648\u062A\u0635\u0637\u062F\u0645 \u0627\u0644\u0622\u0644\u0629.",
+    "Il segnale \u201Cho finito\u201D va sempre guardato, non indovinato: il braccio non si sposta finch\xE9 un finecorsa non dice che \xE8 salito. \xC8 il perch\xE9 della sicurezza di una sequenza: se si salta un controllo, la macchina fa il passo dopo con il passo prima ancora in corso.": "\u0625\u0634\u0627\u0631\u0629 \xAB\u0627\u0646\u062A\u0647\u064A\u062A\xBB \u062A\u064F\u0631\u0627\u0642\u064E\u0628 \u062F\u0627\u0626\u0645\u064B\u0627 \u0648\u0644\u0627 \u062A\u064F\u062E\u0645\u064E\u0651\u0646: \u0644\u0627 \u062A\u0646\u062A\u0642\u0644 \u0627\u0644\u0630\u0631\u0627\u0639 \u062D\u062A\u0649 \u062A\u0642\u0648\u0644 \u0646\u0647\u0627\u064A\u0629 \u0627\u0644\u0634\u0648\u0637 \u0625\u0646\u0647\u0627 \u0635\u0639\u062F\u062A. \u0644\u0630\u0644\u0643 \u0627\u0644\u062A\u0633\u0644\u0633\u0644 \u0623\u0643\u062B\u0631 \u0623\u0645\u0627\u0646\u064B\u0627: \u0644\u0648 \u062A\u064F\u062C\u0627\u0648\u0632 \u0641\u062D\u0635 \u0644\u0642\u0627\u0645\u062A \u0627\u0644\u0622\u0644\u0629 \u0628\u0627\u0644\u062E\u0637\u0648\u0629 \u0627\u0644\u062A\u0627\u0644\u064A\u0629 \u0648\u0627\u0644\u062E\u0637\u0648\u0629 \u0627\u0644\u0633\u0627\u0628\u0642\u0629 \u0645\u0627 \u0632\u0627\u0644\u062A \u062C\u0627\u0631\u064A\u0629.",
+    "La pinza non ha un sensore: per sapere che si \xE8 chiusa si aspetta un tempo (T1 per chiudere, T2 per aprire). Dove c\u2019\xE8 un sensore si usa il sensore; dove manca, un temporizzatore.": "\u0644\u064A\u0633 \u0644\u0644\u0645\u0644\u0642\u0637 \u0645\u0633\u062A\u0634\u0639\u0631: \u0644\u0645\u0639\u0631\u0641\u0629 \u0623\u0646\u0647 \u0623\u064F\u063A\u0644\u0642 \u0646\u0646\u062A\u0638\u0631 \u0632\u0645\u0646\u064B\u0627 (T1 \u0644\u0644\u0625\u063A\u0644\u0627\u0642 \u0648T2 \u0644\u0644\u0641\u062A\u062D). \u062D\u064A\u062B \u064A\u0648\u062C\u062F \u0645\u0633\u062A\u0634\u0639\u0631 \u0646\u0633\u062A\u062E\u062F\u0645 \u0627\u0644\u0645\u0633\u062A\u0634\u0639\u0631\u061B \u0648\u062D\u064A\u062B \u0644\u0627 \u064A\u0648\u062C\u062F\u060C \u0645\u0624\u0642\u062A\u064B\u0627.",
+    "La transizione: passo attuale pi\xF9 \u201Cfatto\u201D": "\u0627\u0644\u0627\u0646\u062A\u0642\u0627\u0644: \u0627\u0644\u062E\u0637\u0648\u0629 \u0627\u0644\u062D\u0627\u0644\u064A\u0629 \u0645\u0639 \xAB\u062A\u0645\xBB",
+    "Le transizioni dei passi": "\u0627\u0646\u062A\u0642\u0627\u0644\u0627\u062A \u0627\u0644\u062E\u0637\u0648\u0627\u062A",
+    "Le uscite dipendono dal passo, non dai sensori; la logica sta nelle transizioni.": "\u0627\u0644\u0645\u062E\u0627\u0631\u062C \u062A\u0639\u062A\u0645\u062F \u0639\u0644\u0649 \u0627\u0644\u062E\u0637\u0648\u0629 \u0644\u0627 \u0639\u0644\u0649 \u0627\u0644\u0645\u0633\u062A\u0634\u0639\u0631\u0627\u062A\u061B \u0648\u0627\u0644\u0645\u0646\u0637\u0642 \u0643\u0644\u0647 \u0641\u064A \u0627\u0644\u0627\u0646\u062A\u0642\u0627\u0644\u0627\u062A.",
+    "Le uscite non guardano pi\xF9 i sensori ma il passo attuale: il motore che fa scendere il braccio (Q0) \xE8 acceso nei passi in cui il braccio deve scendere; la pinza (Q2) \xE8 chiusa nei passi in cui deve tenere il pezzo. Cos\xEC le uscite sono semplici e tutta la logica sta nelle transizioni.": "\u0644\u0645 \u062A\u0639\u062F \u0627\u0644\u0645\u062E\u0627\u0631\u062C \u062A\u0646\u0638\u0631 \u0625\u0644\u0649 \u0627\u0644\u0645\u0633\u062A\u0634\u0639\u0631\u0627\u062A \u0628\u0644 \u0625\u0644\u0649 \u0627\u0644\u062E\u0637\u0648\u0629 \u0627\u0644\u062D\u0627\u0644\u064A\u0629: \u0627\u0644\u0645\u062D\u0631\u0643 \u0627\u0644\u0630\u064A \u064A\u0646\u0632\u0651\u0644 \u0627\u0644\u0630\u0631\u0627\u0639 (Q0) \u064A\u0639\u0645\u0644 \u0641\u064A \u0627\u0644\u062E\u0637\u0648\u0627\u062A \u0627\u0644\u062A\u064A \u064A\u062C\u0628 \u0623\u0646 \u062A\u0646\u0632\u0644 \u0641\u064A\u0647\u0627 \u0627\u0644\u0630\u0631\u0627\u0639\u061B \u0648\u0627\u0644\u0645\u0644\u0642\u0637 (Q2) \u0645\u063A\u0644\u0642 \u0641\u064A \u0627\u0644\u062E\u0637\u0648\u0627\u062A \u0627\u0644\u062A\u064A \u064A\u062C\u0628 \u0623\u0646 \u064A\u0645\u0633\u0643 \u0641\u064A\u0647\u0627 \u0627\u0644\u0642\u0637\u0639\u0629. \u0647\u0643\u0630\u0627 \u062A\u0643\u0648\u0646 \u0627\u0644\u0645\u062E\u0627\u0631\u062C \u0628\u0633\u064A\u0637\u0629 \u0648\u064A\u0643\u0648\u0646 \u0643\u0644 \u0627\u0644\u0645\u0646\u0637\u0642 \u0641\u064A \u0627\u0644\u0627\u0646\u062A\u0642\u0627\u0644\u0627\u062A.",
+    "M1 Scendi": "M1 \u0627\u0646\u0632\u0644",
+    "M2 Prendi": "M2 \u0623\u0645\u0633\u0643",
+    "M3 Sali": "M3 \u0627\u0635\u0639\u062F",
+    "M4 Vai": "M4 \u0627\u0630\u0647\u0628",
+    "M5 Scendi": "M5 \u0627\u0646\u0632\u0644",
+    "M6 Lascia": "M6 \u0623\u0641\u0644\u062A",
+    "M7 Sali": "M7 \u0627\u0635\u0639\u062F",
+    "M8 Torna": "M8 \u0627\u0631\u062C\u0639",
+    "Morsetto PLC Q3A": "\u0627\u0644\u0645\u0631\u0628\u0637 Q3A \u0641\u064A \u0627\u0644\u0640PLC",
+    "Morsetto PLC Q3B": "\u0627\u0644\u0645\u0631\u0628\u0637 Q3B \u0641\u064A \u0627\u0644\u0640PLC",
+    "Nella transizione dal passo \u201Csali\u201D (M3) al passo \u201Cvai\u201D (M4) dimentico il segnale \u201Cbraccio su\u201D. Che cosa succede?": "\u0641\u064A \u0627\u0644\u0627\u0646\u062A\u0642\u0627\u0644 \u0645\u0646 \u062E\u0637\u0648\u0629 \xAB\u0627\u0635\u0639\u062F\xBB (M3) \u0625\u0644\u0649 \u062E\u0637\u0648\u0629 \xAB\u0627\u0630\u0647\u0628\xBB (M4) \u0623\u0646\u0633\u0649 \u0625\u0634\u0627\u0631\u0629 \xAB\u0627\u0644\u0630\u0631\u0627\u0639 \u0644\u0644\u0623\u0639\u0644\u0649\xBB. \u0645\u0627\u0630\u0627 \u064A\u062D\u062F\u062B\u061F",
+    "Niente: il braccio sale comunque in fretta.": "\u0644\u0627 \u0634\u064A\u0621: \u062A\u0635\u0639\u062F \u0627\u0644\u0630\u0631\u0627\u0639 \u0639\u0644\u0649 \u0623\u064A \u062D\u0627\u0644 \u0628\u0633\u0631\u0639\u0629.",
+    "Nuovo gradino: contatti M0 (marcia), I2 (pezzo pronto), I3 (braccio su), I5 (al prelievo) e M9 normalmente chiuso; uscite Set M1 e Set M9. Perch\xE9: il ciclo parte solo se c\u2019\xE8 un pezzo, il robot \xE8 fermo al punto giusto e non c\u2019\xE8 gi\xE0 un ciclo.": "\u062F\u0631\u062C\u0629 \u062C\u062F\u064A\u062F\u0629: \u0627\u0644\u062A\u0644\u0627\u0645\u0633\u0627\u062A M0 (\u062A\u0634\u063A\u064A\u0644) \u0648I2 (\u0642\u0637\u0639\u0629 \u062C\u0627\u0647\u0632\u0629) \u0648I3 (\u0627\u0644\u0630\u0631\u0627\u0639 \u0644\u0644\u0623\u0639\u0644\u0649) \u0648I5 (\u0639\u0646\u062F \u0627\u0644\u0627\u0644\u062A\u0642\u0627\u0637) \u0648M9 \u0645\u063A\u0644\u0642 \u0641\u064A \u0627\u0644\u062D\u0627\u0644\u0629 \u0627\u0644\u0639\u0627\u062F\u064A\u0629\u061B \u0627\u0644\u0645\u062E\u0631\u062C\u0627\u0646 Set M1 \u0648Set M9. \u0627\u0644\u0633\u0628\u0628: \u0644\u0627 \u062A\u0628\u062F\u0623 \u0627\u0644\u062F\u0648\u0631\u0629 \u0625\u0644\u0627 \u0625\u0630\u0627 \u0648\u064F\u062C\u062F\u062A \u0642\u0637\u0639\u0629 \u0648\u0643\u0627\u0646 \u0627\u0644\u0631\u0648\u0628\u0648\u062A \u0633\u0627\u0643\u0646\u064B\u0627 \u0641\u064A \u0627\u0644\u0645\u0643\u0627\u0646 \u0627\u0644\u0635\u062D\u064A\u062D \u0648\u0644\u0627 \u062A\u0648\u062C\u062F \u062F\u0648\u0631\u0629 \u062C\u0627\u0631\u064A\u0629.",
+    "Ogni passo \xE8 un marcatore: M1 scendi, M2 prendi, M3 sali, M4 vai, M5 scendi, M6 lascia, M7 sali, M8 torna. Un gradino di transizione ha come condizione il passo attuale e il sensore che dice \u201Cfatto\u201D, e come uscite Reset del passo e Set del successivo.": "\u0643\u0644 \u062E\u0637\u0648\u0629 \u0639\u0644\u0627\u0645\u0629: M1 \u0627\u0646\u0632\u0644\u060C M2 \u0623\u0645\u0633\u0643\u060C M3 \u0627\u0635\u0639\u062F\u060C M4 \u0627\u0630\u0647\u0628\u060C M5 \u0627\u0646\u0632\u0644\u060C M6 \u0623\u0641\u0644\u062A\u060C M7 \u0627\u0635\u0639\u062F\u060C M8 \u0627\u0631\u062C\u0639. \u062F\u0631\u062C\u0629 \u0627\u0644\u0627\u0646\u062A\u0642\u0627\u0644 \u0634\u0631\u0637\u0647\u0627 \u0627\u0644\u062E\u0637\u0648\u0629 \u0627\u0644\u062D\u0627\u0644\u064A\u0629 \u0648\u0627\u0644\u0645\u0633\u062A\u0634\u0639\u0631 \u0627\u0644\u0630\u064A \u064A\u0642\u0648\u0644 \xAB\u062A\u0645\xBB\u060C \u0648\u0645\u062E\u0631\u062C\u0627\u0647\u0627 Reset \u0644\u0644\u062E\u0637\u0648\u0629 \u0648Set \u0644\u0644\u062A\u0627\u0644\u064A\u0629.",
+    "PLC (transizioni da scrivere)": "PLC (\u0627\u0644\u0627\u0646\u062A\u0642\u0627\u0644\u0627\u062A \u0644\u0644\u0643\u062A\u0627\u0628\u0629)",
+    "PLC.I4": "PLC.I4",
+    "PLC.I5": "PLC.I5",
+    "PLC.I6": "PLC.I6",
+    "PLC.Q3A": "PLC.Q3A",
+    "PLC.Q3B": "PLC.Q3B",
+    "Passare da un passo al successivo \xE8 un gradino: il contatto del passo attuale, in serie con il segnale che dice \u201Cho finito\u201D (un finecorsa o un tempo). Come uscite, Reset del passo che finisce e Set del successivo. Cos\xEC un solo marcatore resta acceso.": "\u0627\u0644\u0627\u0646\u062A\u0642\u0627\u0644 \u0645\u0646 \u062E\u0637\u0648\u0629 \u0625\u0644\u0649 \u0627\u0644\u062A\u0627\u0644\u064A\u0629 \u062F\u0631\u062C\u0629: \u062A\u0644\u0627\u0645\u0633 \u0627\u0644\u062E\u0637\u0648\u0629 \u0627\u0644\u062D\u0627\u0644\u064A\u0629 \u0639\u0644\u0649 \u0627\u0644\u062A\u0648\u0627\u0644\u064A \u0645\u0639 \u0627\u0644\u0625\u0634\u0627\u0631\u0629 \u0627\u0644\u062A\u064A \u062A\u0642\u0648\u0644 \xAB\u0627\u0646\u062A\u0647\u064A\u062A\xBB (\u0646\u0647\u0627\u064A\u0629 \u0634\u0648\u0637 \u0623\u0648 \u0632\u0645\u0646). \u0648\u0627\u0644\u0645\u062E\u0631\u062C\u0627\u0646 Reset \u0644\u0644\u062E\u0637\u0648\u0629 \u0627\u0644\u062A\u064A \u062A\u0646\u062A\u0647\u064A \u0648Set \u0644\u0644\u062A\u0627\u0644\u064A\u0629. \u0647\u0643\u0630\u0627 \u062A\u0628\u0642\u0649 \u0639\u0644\u0627\u0645\u0629 \u0648\u0627\u062D\u062F\u0629 \u0641\u0642\u0637 \u0645\u0636\u0627\u0621\u0629.",
+    "Passo": "\u0627\u0644\u062E\u0637\u0648\u0629",
+    "Per esempio, da M1 si passa a M2 quando il braccio \xE8 gi\xF9: contatto M1 in serie con I4 (braccio gi\xF9); uscite Reset M1 e Set M2.": "\u0645\u062B\u0644\u064B\u0627\u060C \u0645\u0646 M1 \u0646\u0646\u062A\u0642\u0644 \u0625\u0644\u0649 M2 \u0639\u0646\u062F\u0645\u0627 \u064A\u0643\u0648\u0646 \u0627\u0644\u0630\u0631\u0627\u0639 \u0641\u064A \u0627\u0644\u0623\u0633\u0641\u0644: \u0627\u0644\u062A\u0644\u0627\u0645\u0633 M1 \u0639\u0644\u0649 \u0627\u0644\u062A\u0648\u0627\u0644\u064A \u0645\u0639 I4 (\u0627\u0644\u0630\u0631\u0627\u0639 \u0644\u0644\u0623\u0633\u0641\u0644)\u061B \u0648\u0627\u0644\u0645\u062E\u0631\u062C\u0627\u0646 Reset M1 \u0648Set M2.",
+    "Per ogni passo da M1 a M7: un gradino con il passo e il suo \u201Cfatto\u201D (I4, T1, I3, I6, I4, T2, I3), uscite Reset del passo e Set del successivo. Perch\xE9: un solo passo alla volta resta acceso e ciascuno comincia solo a passo precedente finito.": "\u0644\u0643\u0644 \u062E\u0637\u0648\u0629 \u0645\u0646 M1 \u0625\u0644\u0649 M7: \u062F\u0631\u062C\u0629 \u0628\u0627\u0644\u062E\u0637\u0648\u0629 \u0648\xAB\u062A\u0645\u0651\u0647\u0627\xBB (I4 \u0648T1 \u0648I3 \u0648I6 \u0648I4 \u0648T2 \u0648I3)\u060C \u0648\u0627\u0644\u0645\u062E\u0631\u062C\u0627\u0646 Reset \u0644\u0644\u062E\u0637\u0648\u0629 \u0648Set \u0644\u0644\u062A\u0627\u0644\u064A\u0629. \u0627\u0644\u0633\u0628\u0628: \u062A\u0628\u0642\u0649 \u062E\u0637\u0648\u0629 \u0648\u0627\u062D\u062F\u0629 \u0641\u0642\u0637 \u0645\u0636\u0627\u0621\u0629 \u0648\u062A\u0628\u062F\u0623 \u0643\u0644 \u0645\u0646\u0647\u0627 \u0628\u0639\u062F \u0627\u0646\u062A\u0647\u0627\u0621 \u0627\u0644\u0633\u0627\u0628\u0642\u0629.",
+    "Pezzo pronto": "\u0642\u0637\u0639\u0629 \u062C\u0627\u0647\u0632\u0629",
+    "Pinza aperta": "\u0627\u0644\u0645\u0644\u0642\u0637 \u0645\u0641\u062A\u0648\u062D",
+    "Pinza chiusa": "\u0627\u0644\u0645\u0644\u0642\u0637 \u0645\u063A\u0644\u0642",
+    "Premi Arresto a met\xE0 ciclo, con il pezzo nella pinza. Che cosa deve fare la macchina?": "\u062A\u0636\u063A\u0637 \u0627\u0644\u0625\u064A\u0642\u0627\u0641 \u0641\u064A \u0645\u0646\u062A\u0635\u0641 \u0627\u0644\u062F\u0648\u0631\u0629 \u0648\u0627\u0644\u0642\u0637\u0639\u0629 \u0641\u064A \u0627\u0644\u0645\u0644\u0642\u0637. \u0645\u0627\u0630\u0627 \u064A\u062C\u0628 \u0623\u0646 \u062A\u0641\u0639\u0644 \u0627\u0644\u0622\u0644\u0629\u061F",
+    "Premi Marcia": "\u0627\u0636\u063A\u0637 \u0627\u0644\u062A\u0634\u063A\u064A\u0644",
+    "Premi Marcia e guarda il robot: porta un pezzo al deposito dopo l\u2019altro. Premi Arresto: finisce il ciclo e si ferma.": "\u0627\u0636\u063A\u0637 \u0627\u0644\u062A\u0634\u063A\u064A\u0644 \u0648\u0631\u0627\u0642\u0628 \u0627\u0644\u0631\u0648\u0628\u0648\u062A: \u064A\u0646\u0642\u0644 \u0642\u0637\u0639\u0629 \u0628\u0639\u062F \u0623\u062E\u0631\u0649 \u0625\u0644\u0649 \u0627\u0644\u0625\u064A\u062F\u0627\u0639. \u0627\u0636\u063A\u0637 \u0627\u0644\u0625\u064A\u0642\u0627\u0641: \u064A\u0646\u0647\u064A \u0627\u0644\u062F\u0648\u0631\u0629 \u0648\u064A\u062A\u0648\u0642\u0641.",
+    "Quando serve un tempo, e il ciclo che finisce sempre": "\u0645\u062A\u0649 \u064A\u0644\u0632\u0645 \u0632\u0645\u0646\u060C \u0648\u0627\u0644\u062F\u0648\u0631\u0629 \u0627\u0644\u062A\u064A \u062A\u0646\u062A\u0647\u064A \u062F\u0627\u0626\u0645\u064B\u0627",
+    "Scendi": "\u0627\u0646\u0632\u0644",
+    "Se il braccio si sposta di lato quando \xE8 ancora gi\xF9, urta il pezzo o il montante: nella scena compare \u201CURTO\u201D. Il finecorsa \u201Cbraccio su\u201D serve proprio a evitarlo.": "\u0625\u0630\u0627 \u0627\u0646\u062A\u0642\u0644\u062A \u0627\u0644\u0630\u0631\u0627\u0639 \u062C\u0627\u0646\u0628\u064B\u0627 \u0648\u0647\u064A \u0645\u0627 \u0632\u0627\u0644\u062A \u0641\u064A \u0627\u0644\u0623\u0633\u0641\u0644 \u0641\u0625\u0646\u0647\u0627 \u062A\u0635\u0637\u062F\u0645 \u0628\u0627\u0644\u0642\u0637\u0639\u0629 \u0623\u0648 \u0628\u0627\u0644\u0639\u0645\u0648\u062F: \u064A\u0638\u0647\u0631 \u0641\u064A \u0627\u0644\u0645\u0634\u0647\u062F \xABURTO\xBB. \u0646\u0647\u0627\u064A\u0629 \u0627\u0644\u0634\u0648\u0637 \xAB\u0627\u0644\u0630\u0631\u0627\u0639 \u0644\u0644\u0623\u0639\u0644\u0649\xBB \u0645\u0648\u062C\u0648\u062F\u0629 \u0644\u062A\u062C\u0646\u0628 \u0630\u0644\u0643.",
+    "Sensore: pezzo pronto al prelievo": "\u0645\u0633\u062A\u0634\u0639\u0631: \u0642\u0637\u0639\u0629 \u062C\u0627\u0647\u0632\u0629 \u0639\u0646\u062F \u0627\u0644\u0627\u0644\u062A\u0642\u0627\u0637",
+    "Senza Marcia il robot sta fermo": "\u0645\u0646 \u062F\u0648\u0646 \u0627\u0644\u062A\u0634\u063A\u064A\u0644 \u064A\u0628\u0642\u0649 \u0627\u0644\u0631\u0648\u0628\u0648\u062A \u0633\u0627\u0643\u0646\u064B\u0627",
+    "Senza il finecorsa la transizione scatta nello stesso istante in cui M3 si accende. Il braccio comincia a spostarsi mentre sta ancora salendo, ed \xE8 ancora gi\xF9.": "\u0645\u0646 \u062F\u0648\u0646 \u0646\u0647\u0627\u064A\u0629 \u0627\u0644\u0634\u0648\u0637 \u064A\u062D\u062F\u062B \u0627\u0644\u0627\u0646\u062A\u0642\u0627\u0644 \u0641\u064A \u0627\u0644\u0644\u062D\u0638\u0629 \u0646\u0641\u0633\u0647\u0627 \u0627\u0644\u062A\u064A \u062A\u0639\u0645\u0644 \u0641\u064A\u0647\u0627 M3. \u062A\u0628\u062F\u0623 \u0627\u0644\u0630\u0631\u0627\u0639 \u0628\u0627\u0644\u0627\u0646\u062A\u0642\u0627\u0644 \u0648\u0647\u064A \u0645\u0627 \u0632\u0627\u0644\u062A \u062A\u0635\u0639\u062F\u060C \u0648\u0647\u064A \u0644\u0627 \u062A\u0632\u0627\u0644 \u0641\u064A \u0627\u0644\u0623\u0633\u0641\u0644.",
+    "Si programma una sequenza con un marcatore per ogni passo: M1 \u201Cscendi\u201D, M2 \u201Cprendi\u201D, M3 \u201Csali\u201D, e cos\xEC via. Solo un marcatore alla volta \xE8 acceso: dice a che punto del ciclo siamo.": "\u064A\u064F\u0628\u0631\u0645\u062C \u0627\u0644\u062A\u0633\u0644\u0633\u0644 \u0628\u0639\u0644\u0627\u0645\u0629 \u0644\u0643\u0644 \u062E\u0637\u0648\u0629: M1 \xAB\u0627\u0646\u0632\u0644\xBB \u0648M2 \xAB\u0623\u0645\u0633\u0643\xBB \u0648M3 \xAB\u0627\u0635\u0639\u062F\xBB \u0648\u0647\u0643\u0630\u0627. \u0639\u0644\u0627\u0645\u0629 \u0648\u0627\u062D\u062F\u0629 \u0641\u0642\u0637 \u0645\u0636\u0627\u0621\u0629 \u0641\u064A \u0643\u0644 \u0645\u0631\u0629: \u062A\u0642\u0648\u0644 \u0641\u064A \u0623\u064A \u0646\u0642\u0637\u0629 \u0645\u0646 \u0627\u0644\u062F\u0648\u0631\u0629 \u0646\u062D\u0646.",
+    "Spia ciclo": "\u0645\u0635\u0628\u0627\u062D \u0627\u0644\u062F\u0648\u0631\u0629",
+    "Spia di ciclo in corso": "\u0645\u0635\u0628\u0627\u062D \u0627\u0644\u062F\u0648\u0631\u0629 \u0627\u0644\u062C\u0627\u0631\u064A\u0629",
+    "TON 2 s": "TON 2 \u062B",
+    "Transizioni": "\u0627\u0644\u0627\u0646\u062A\u0642\u0627\u0644\u0627\u062A",
+    "Ultimo gradino: M8 con I5 (al prelievo); uscite Reset M8 e Reset M9. Perch\xE9: il ciclo \xE8 finito e il successivo pu\xF2 partire.": "\u0627\u0644\u062F\u0631\u062C\u0629 \u0627\u0644\u0623\u062E\u064A\u0631\u0629: M8 \u0645\u0639 I5 (\u0639\u0646\u062F \u0627\u0644\u0627\u0644\u062A\u0642\u0627\u0637)\u061B \u0627\u0644\u0645\u062E\u0631\u062C\u0627\u0646 Reset M8 \u0648Reset M9. \u0627\u0644\u0633\u0628\u0628: \u0627\u0646\u062A\u0647\u062A \u0627\u0644\u062F\u0648\u0631\u0629 \u0648\u064A\u0645\u0643\u0646 \u0623\u0646 \u062A\u0628\u062F\u0623 \u0627\u0644\u062A\u0627\u0644\u064A\u0629.",
+    "Un marcatore per ogni passo": "\u0639\u0644\u0627\u0645\u0629 \u0644\u0643\u0644 \u062E\u0637\u0648\u0629",
+    "Un robot prende i pezzi dal punto di prelievo e li porta al deposito: scende, chiude la pinza, sale, si sposta, scende, apre la pinza, sale e torna. L\u2019impianto \xE8 cablato: gli ingressi sono i pulsanti Arresto (I0) e Marcia (I1) e i sensori di pezzo pronto (I2), braccio su (I3), braccio gi\xF9 (I4), posizione di prelievo (I5) e di deposito (I6). Il programma ha gi\xE0 la marcia, i tempi e le uscite: scrivi tu le transizioni da un passo al successivo. Il ciclo in corso finisce sempre.": "\u0631\u0648\u0628\u0648\u062A \u064A\u0623\u062E\u0630 \u0627\u0644\u0642\u0637\u0639 \u0645\u0646 \u0646\u0642\u0637\u0629 \u0627\u0644\u0627\u0644\u062A\u0642\u0627\u0637 \u0648\u064A\u0646\u0642\u0644\u0647\u0627 \u0625\u0644\u0649 \u0627\u0644\u0625\u064A\u062F\u0627\u0639: \u064A\u0646\u0632\u0644 \u0648\u064A\u063A\u0644\u0642 \u0627\u0644\u0645\u0644\u0642\u0637 \u0648\u064A\u0635\u0639\u062F \u0648\u064A\u0646\u062A\u0642\u0644 \u0648\u064A\u0646\u0632\u0644 \u0648\u064A\u0641\u062A\u062D \u0627\u0644\u0645\u0644\u0642\u0637 \u0648\u064A\u0635\u0639\u062F \u0648\u064A\u0639\u0648\u062F. \u0627\u0644\u062A\u0645\u062F\u064A\u062F \u062C\u0627\u0647\u0632: \u0627\u0644\u0645\u062F\u0627\u062E\u0644 \u0647\u064A \u0632\u0631\u0627 \u0627\u0644\u0625\u064A\u0642\u0627\u0641 (I0) \u0648\u0627\u0644\u062A\u0634\u063A\u064A\u0644 (I1) \u0648\u0645\u0633\u062A\u0634\u0639\u0631\u0627\u062A \u0642\u0637\u0639\u0629 \u062C\u0627\u0647\u0632\u0629 (I2) \u0648\u0627\u0644\u0630\u0631\u0627\u0639 \u0644\u0644\u0623\u0639\u0644\u0649 (I3) \u0648\u0627\u0644\u0630\u0631\u0627\u0639 \u0644\u0644\u0623\u0633\u0641\u0644 (I4) \u0648\u0646\u0642\u0637\u0629 \u0627\u0644\u0627\u0644\u062A\u0642\u0627\u0637 (I5) \u0648\u0646\u0642\u0637\u0629 \u0627\u0644\u0625\u064A\u062F\u0627\u0639 (I6). \u0644\u0644\u0628\u0631\u0646\u0627\u0645\u062C \u0645\u0633\u0628\u0642\u064B\u0627 \u0627\u0644\u062A\u0634\u063A\u064A\u0644 \u0648\u0627\u0644\u0623\u0632\u0645\u0646\u0629 \u0648\u0627\u0644\u0645\u062E\u0627\u0631\u062C: \u0627\u0643\u062A\u0628 \u0623\u0646\u062A \u0627\u0644\u0627\u0646\u062A\u0642\u0627\u0644\u0627\u062A \u0645\u0646 \u062E\u0637\u0648\u0629 \u0625\u0644\u0649 \u0627\u0644\u062A\u0627\u0644\u064A\u0629. \u0627\u0644\u062F\u0648\u0631\u0629 \u0627\u0644\u062C\u0627\u0631\u064A\u0629 \u062A\u0646\u062A\u0647\u064A \u062F\u0627\u0626\u0645\u064B\u0627.",
+    "Una macchina che fa una cosa dopo l\u2019altra": "\u0622\u0644\u0629 \u062A\u0641\u0639\u0644 \u0634\u064A\u0626\u064B\u0627 \u0628\u0639\u062F \u0622\u062E\u0631",
+    "Una sequenza si programma con un marcatore per ogni passo: solo uno \xE8 acceso e dice a che punto del ciclo siamo.": "\u064A\u064F\u0628\u0631\u0645\u062C \u0627\u0644\u062A\u0633\u0644\u0633\u0644 \u0628\u0639\u0644\u0627\u0645\u0629 \u0644\u0643\u0644 \u062E\u0637\u0648\u0629: \u0648\u0627\u062D\u062F\u0629 \u0641\u0642\u0637 \u0645\u0636\u0627\u0621\u0629 \u0648\u062A\u0642\u0648\u0644 \u0641\u064A \u0623\u064A \u0646\u0642\u0637\u0629 \u0645\u0646 \u0627\u0644\u062F\u0648\u0631\u0629 \u0646\u062D\u0646.",
+    "Una sequenza: aspetta il pezzo, prendilo, portalo al deposito e torna. Un passo alla volta.": "\u062A\u0633\u0644\u0633\u0644: \u0627\u0646\u062A\u0638\u0631 \u0627\u0644\u0642\u0637\u0639\u0629\u060C \u0623\u0645\u0633\u0643\u0647\u0627\u060C \u0627\u0646\u0642\u0644\u0647\u0627 \u0625\u0644\u0649 \u0627\u0644\u0625\u064A\u062F\u0627\u0639 \u0648\u0639\u062F. \u062E\u0637\u0648\u0629 \u0648\u0627\u062D\u062F\u0629 \u0641\u064A \u0643\u0644 \u0645\u0631\u0629.",
+    "Una transizione \xE8 il passo attuale in serie con il segnale \u201Cfatto\u201D (un finecorsa o un tempo), con Reset del passo e Set del successivo.": "\u0627\u0644\u0627\u0646\u062A\u0642\u0627\u0644 \u0647\u0648 \u0627\u0644\u062E\u0637\u0648\u0629 \u0627\u0644\u062D\u0627\u0644\u064A\u0629 \u0639\u0644\u0649 \u0627\u0644\u062A\u0648\u0627\u0644\u064A \u0645\u0639 \u0625\u0634\u0627\u0631\u0629 \xAB\u062A\u0645\xBB (\u0646\u0647\u0627\u064A\u0629 \u0634\u0648\u0637 \u0623\u0648 \u0632\u0645\u0646)\u060C \u0645\u0639 Reset \u0644\u0644\u062E\u0637\u0648\u0629 \u0648Set \u0644\u0644\u062A\u0627\u0644\u064A\u0629.",
+    "Uscita Chiudi pinza": "\u0645\u062E\u0631\u062C \u0625\u063A\u0644\u0627\u0642 \u0627\u0644\u0645\u0644\u0642\u0637",
+    "Uscita Marcia": "\u0645\u062E\u0631\u062C \u0627\u0644\u062A\u0634\u063A\u064A\u0644",
+    "Uscita Pinza aperta": "\u0645\u062E\u0631\u062C \u0627\u0644\u0645\u0644\u0642\u0637 \u0645\u0641\u062A\u0648\u062D",
+    "Uscita Pinza chiusa": "\u0645\u062E\u0631\u062C \u0627\u0644\u0645\u0644\u0642\u0637 \u0645\u063A\u0644\u0642",
+    "Uscita Scendi": "\u0645\u062E\u0631\u062C \u0627\u0646\u0632\u0644",
+    "Uscita Spia ciclo": "\u0645\u062E\u0631\u062C \u0645\u0635\u0628\u0627\u062D \u0627\u0644\u062F\u0648\u0631\u0629",
+    "Uscita Vai al deposito": "\u0645\u062E\u0631\u062C \u0627\u0630\u0647\u0628 \u0625\u0644\u0649 \u0627\u0644\u0625\u064A\u062F\u0627\u0639",
+    "Vai al deposito": "\u0627\u0630\u0647\u0628 \u0625\u0644\u0649 \u0627\u0644\u0625\u064A\u062F\u0627\u0639",
+    "apre la pinza": "\u064A\u0641\u062A\u062D \u0627\u0644\u0645\u0644\u0642\u0637",
+    "chiude la pinza": "\u064A\u063A\u0644\u0642 \u0627\u0644\u0645\u0644\u0642\u0637",
+    "deposito: 0": "\u0625\u064A\u062F\u0627\u0639: 0",
+    "il braccio sale con il pezzo": "\u064A\u0635\u0639\u062F \u0627\u0644\u0630\u0631\u0627\u0639 \u0645\u0639 \u0627\u0644\u0642\u0637\u0639\u0629",
+    "il braccio scende al prelievo": "\u064A\u0646\u0632\u0644 \u0627\u0644\u0630\u0631\u0627\u0639 \u0625\u0644\u0649 \u0627\u0644\u0627\u0644\u062A\u0642\u0627\u0637",
+    "il braccio \xE8 gi\xF9 (I4)": "\u0627\u0644\u0630\u0631\u0627\u0639 \u0641\u064A \u0627\u0644\u0623\u0633\u0641\u0644 (I4)",
+    "il braccio \xE8 su (I3)": "\u0627\u0644\u0630\u0631\u0627\u0639 \u0641\u064A \u0627\u0644\u0623\u0639\u0644\u0649 (I3)",
+    "prelievo": "\u0627\u0644\u062A\u0642\u0627\u0637",
+    "risale": "\u064A\u0635\u0639\u062F \u0645\u0646 \u062C\u062F\u064A\u062F",
+    "scende sul deposito": "\u064A\u0646\u0632\u0644 \u0639\u0644\u0649 \u0627\u0644\u0625\u064A\u062F\u0627\u0639",
+    "si sposta verso il deposito": "\u064A\u0646\u062A\u0642\u0644 \u0646\u062D\u0648 \u0627\u0644\u0625\u064A\u062F\u0627\u0639",
+    "torna al prelievo": "\u064A\u0639\u0648\u062F \u0625\u0644\u0649 \u0627\u0644\u0627\u0644\u062A\u0642\u0627\u0637",
+    "\xE8 al deposito (I6)": "\u0639\u0646\u062F \u0627\u0644\u0625\u064A\u062F\u0627\u0639 (I6)",
+    "\xE8 al prelievo (I5)": "\u0639\u0646\u062F \u0627\u0644\u0627\u0644\u062A\u0642\u0627\u0637 (I5)",
+    "\xE8 passato il tempo T1": "\u0627\u0646\u0642\u0636\u0649 \u0627\u0644\u0632\u0645\u0646 T1",
+    "\xE8 passato il tempo T2": "\u0627\u0646\u0642\u0636\u0649 \u0627\u0644\u0632\u0645\u0646 T2"
+  };
+
   // src/i18n/ar.js
   var ROLE = { "del neutro": "\u0627\u0644\u0645\u062D\u0627\u064A\u062F", "di terra": "\u0627\u0644\u0623\u0631\u0636\u064A", "di fase": "\u0627\u0644\u0637\u0648\u0631", "a bassa tensione": "\u0627\u0644\u062C\u0647\u062F \u0627\u0644\u0645\u0646\u062E\u0641\u0636", "di comando": "\u0627\u0644\u062A\u062D\u0643\u0645", "del positivo": "\u0627\u0644\u0645\u0648\u062C\u0628", "del negativo": "\u0627\u0644\u0633\u0627\u0644\u0628", "in continua": "\u0627\u0644\u062A\u064A\u0627\u0631 \u0627\u0644\u0645\u0633\u062A\u0645\u0631" };
   var COLORI = { "blu": "\u0623\u0632\u0631\u0642", "giallo-verde": "\u0623\u0635\u0641\u0631-\u0623\u062E\u0636\u0631", "marrone, nero o grigio": "\u0628\u0646\u064A\u064B\u0651\u0627 \u0623\u0648 \u0623\u0633\u0648\u062F \u0623\u0648 \u0631\u0645\u0627\u062F\u064A\u064B\u0651\u0627", "rosso, marrone, nero o grigio": "\u0623\u062D\u0645\u0631 \u0623\u0648 \u0628\u0646\u064A\u064B\u0651\u0627 \u0623\u0648 \u0623\u0633\u0648\u062F \u0623\u0648 \u0631\u0645\u0627\u062F\u064A\u064B\u0651\u0627", "di un colore diverso da blu e giallo-verde": "\u0628\u0644\u0648\u0646 \u0645\u062E\u062A\u0644\u0641 \u0639\u0646 \u0627\u0644\u0623\u0632\u0631\u0642 \u0648\u0627\u0644\u0623\u0635\u0641\u0631-\u0627\u0644\u0623\u062E\u0636\u0631", "rosso": "\u0623\u062D\u0645\u0631", "nero": "\u0623\u0633\u0648\u062F", "rosso o nero": "\u0623\u062D\u0645\u0631 \u0623\u0648 \u0623\u0633\u0648\u062F" };
@@ -18238,7 +18612,7 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
     [/^Portata (.+): (\d+) ampere\. Tocca per cambiarla$/, (m, t) => `\u0627\u0644\u0633\u0639\u0629 ${t(m[1])}: ${m[2]} \u0623\u0645\u0628\u064A\u0631. \u0627\u0644\u0645\u0633 \u0644\u062A\u063A\u064A\u064A\u0631\u0647\u0627`],
     [/^Protezioni scattate: (.+)\.$/, (m, t) => `\u062D\u0645\u0627\u064A\u0627\u062A \u0641\u0635\u0644\u062A: ${t(m[1])}.`]
   ];
-  registerLang("ar", { ...ar_1_default, ...ar_2_default, ...ar_3_default, ...ar_4_default, ...ar_5_default, ...ar_6_default, ...ar_7_default, ...ar_8_default, ...ar_9_default, ...ar_10_default, ...ar_11_default, ...ar_12_default, ...ar_13_default, ...ar_14_default, ...ar_15_default, ...ar_16_default, ...ar_17_default, ...ar_18_default, ...ar_19_default, ...ar_20_default, ...ar_21_default, ...ar_22_default, ...ar_23_default, ...ar_24_default, ...ar_25_default, ...ar_26_default, ...ar_27_default, ...ar_28_default, ...ar_29_default, ...ar_30_default, ...ar_31_default }, PAT);
+  registerLang("ar", { ...ar_1_default, ...ar_2_default, ...ar_3_default, ...ar_4_default, ...ar_5_default, ...ar_6_default, ...ar_7_default, ...ar_8_default, ...ar_9_default, ...ar_10_default, ...ar_11_default, ...ar_12_default, ...ar_13_default, ...ar_14_default, ...ar_15_default, ...ar_16_default, ...ar_17_default, ...ar_18_default, ...ar_19_default, ...ar_20_default, ...ar_21_default, ...ar_22_default, ...ar_23_default, ...ar_24_default, ...ar_25_default, ...ar_26_default, ...ar_27_default, ...ar_28_default, ...ar_29_default, ...ar_30_default, ...ar_31_default, ...ar_32_default }, PAT);
 
   // src/trilocale/house.js
   function houseState(session2, on = true) {

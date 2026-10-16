@@ -3671,4 +3671,94 @@ export const UNITS_V2 = {
       'Se il PLC sbaglia e il contatore scatta, tutta la casa resta senza corrente: il limite si rispetta con il programma, prima che scatti.',
     ],
   },
+  'c43-linea': {
+    support: 'passi',
+    lesson: {
+      pages: [
+        {
+          type: 'spiegazione',
+          title: 'Una macchina che fa una cosa dopo l’altra',
+          paras: [
+            'Finora il programma rispondeva a una condizione: se premi, parti; se il livello è alto, spegni. Una linea di produzione invece segue una sequenza: prima scende, poi chiude la pinza, poi sale, poi si sposta. L’ordine conta, e ogni passo deve cominciare solo quando il precedente è finito.',
+            'Il robot di questo livello prende un pezzo dal punto di prelievo e lo porta al deposito: otto passi uno dopo l’altro. Nella scena vedi il braccio che scende, la pinza che si chiude e il pezzo che viaggia.',
+          ],
+        },
+        {
+          type: 'spiegazione',
+          title: 'Un marcatore per ogni passo',
+          paras: [
+            'Si programma una sequenza con un marcatore per ogni passo: M1 “scendi”, M2 “prendi”, M3 “sali”, e così via. Solo un marcatore alla volta è acceso: dice a che punto del ciclo siamo.',
+            'Le uscite non guardano più i sensori ma il passo attuale: il motore che fa scendere il braccio (Q0) è acceso nei passi in cui il braccio deve scendere; la pinza (Q2) è chiusa nei passi in cui deve tenere il pezzo. Così le uscite sono semplici e tutta la logica sta nelle transizioni.',
+          ],
+          table: {
+            head: ['Passo', 'Che cosa fa', 'Finisce quando'],
+            rows: [
+              ['M1 Scendi', 'il braccio scende al prelievo', 'il braccio è giù (I4)'],
+              ['M2 Prendi', 'chiude la pinza', 'è passato il tempo T1'],
+              ['M3 Sali', 'il braccio sale con il pezzo', 'il braccio è su (I3)'],
+              ['M4 Vai', 'si sposta verso il deposito', 'è al deposito (I6)'],
+              ['M5 Scendi', 'scende sul deposito', 'il braccio è giù (I4)'],
+              ['M6 Lascia', 'apre la pinza', 'è passato il tempo T2'],
+              ['M7 Sali', 'risale', 'il braccio è su (I3)'],
+              ['M8 Torna', 'torna al prelievo', 'è al prelievo (I5)'],
+            ],
+          },
+        },
+        {
+          type: 'spiegazione',
+          title: 'La transizione: passo attuale più “fatto”',
+          paras: [
+            'Passare da un passo al successivo è un gradino: il contatto del passo attuale, in serie con il segnale che dice “ho finito” (un finecorsa o un tempo). Come uscite, Reset del passo che finisce e Set del successivo. Così un solo marcatore resta acceso.',
+            'Il segnale “ho finito” va sempre guardato, non indovinato: il braccio non si sposta finché un finecorsa non dice che è salito. È il perché della sicurezza di una sequenza: se si salta un controllo, la macchina fa il passo dopo con il passo prima ancora in corso.',
+          ],
+          warn: 'Se il braccio si sposta di lato quando è ancora giù, urta il pezzo o il montante: nella scena compare “URTO”. Il finecorsa “braccio su” serve proprio a evitarlo.',
+        },
+        {
+          type: 'spiegazione',
+          title: 'Quando serve un tempo, e il ciclo che finisce sempre',
+          paras: [
+            'La pinza non ha un sensore: per sapere che si è chiusa si aspetta un tempo (T1 per chiudere, T2 per aprire). Dove c’è un sensore si usa il sensore; dove manca, un temporizzatore.',
+            'Il marcatore M9 dice “ciclo in corso”: il ciclo parte solo se non ce n’è uno in corso, e finisce sempre. Premendo Arresto si impedisce di cominciare il ciclo successivo, ma quello in corso si conclude: fermare una macchina a metà sequenza, con il pezzo in aria, lascerebbe tutto in uno stato pericoloso.',
+          ],
+        },
+        {
+          type: 'previsione',
+          question: 'Nella transizione dal passo “sali” (M3) al passo “vai” (M4) dimentico il segnale “braccio su”. Che cosa succede?',
+          options: [
+            { id: 'a', text: 'Niente: il braccio sale comunque in fretta.' },
+            { id: 'b', text: 'Il passo M4 comincia subito e il braccio si sposta mentre è ancora giù: urto.' },
+            { id: 'c', text: 'Il ciclo non parte.' },
+          ],
+          correct: 'b',
+          why: 'Senza il finecorsa la transizione scatta nello stesso istante in cui M3 si accende. Il braccio comincia a spostarsi mentre sta ancora salendo, ed è ancora giù.',
+        },
+        {
+          type: 'previsione',
+          question: 'Premi Arresto a metà ciclo, con il pezzo nella pinza. Che cosa deve fare la macchina?',
+          options: [
+            { id: 'a', text: 'Fermarsi subito dove si trova.' },
+            { id: 'b', text: 'Finire il ciclo, depositare il pezzo e poi fermarsi.' },
+            { id: 'c', text: 'Aprire la pinza e lasciar cadere il pezzo.' },
+          ],
+          correct: 'b',
+          why: 'Fermare la sequenza a metà con il pezzo in aria, o far cadere il pezzo, sono entrambi stati pericolosi. L’arresto normale fa finire il ciclo in corso; per fermare subito si usa il fungo, nei fili.',
+        },
+        { type: 'sintesi', title: 'Da ricordare' },
+      ],
+    },
+    steps: [
+      { kind: 'program', plc: 'PLC', min: 8, short: '1 Avvio', title: 'Il gradino di partenza del ciclo', text: 'Nuovo gradino: contatti M0 (marcia), I2 (pezzo pronto), I3 (braccio su), I5 (al prelievo) e M9 normalmente chiuso; uscite Set M1 e Set M9. Perché: il ciclo parte solo se c’è un pezzo, il robot è fermo al punto giusto e non c’è già un ciclo.' },
+      { kind: 'program', plc: 'PLC', min: 15, short: '2 Transizioni', title: 'Le transizioni dei passi', text: 'Per ogni passo da M1 a M7: un gradino con il passo e il suo “fatto” (I4, T1, I3, I6, I4, T2, I3), uscite Reset del passo e Set del successivo. Perché: un solo passo alla volta resta acceso e ciascuno comincia solo a passo precedente finito.' },
+      { kind: 'program', plc: 'PLC', min: 16, short: '3 Fine ciclo', title: 'Il ritorno e la fine del ciclo', text: 'Ultimo gradino: M8 con I5 (al prelievo); uscite Reset M8 e Reset M9. Perché: il ciclo è finito e il successivo può partire.' },
+      { kind: 'control', id: 'SB1', short: '4 Prova', title: 'Premi Marcia', text: 'Premi Marcia e guarda il robot: porta un pezzo al deposito dopo l’altro. Premi Arresto: finisce il ciclo e si ferma.' },
+      { kind: 'verify', short: '5 Verifica', title: 'Controlla la sequenza', text: 'Premi Verifica.' },
+    ],
+    summary: [
+      'Una sequenza si programma con un marcatore per ogni passo: solo uno è acceso e dice a che punto del ciclo siamo.',
+      'Le uscite dipendono dal passo, non dai sensori; la logica sta nelle transizioni.',
+      'Una transizione è il passo attuale in serie con il segnale “fatto” (un finecorsa o un tempo), con Reset del passo e Set del successivo.',
+      'Il segnale “fatto” non si salta: senza il finecorsa il passo successivo parte troppo presto e la macchina urta.',
+      'Il ciclo in corso finisce sempre: Arresto impedisce di cominciare il successivo, non ferma la macchina a metà.',
+    ],
+  },
 };

@@ -86,7 +86,7 @@ export const MODULES = [
       'c35-serbatoio',
       'c36-pid',
       'c37-pannello',
-      { soon: true, title: 'La linea', blurb: 'Una sequenza: attesa, prelievo, deposito.' },
+      'c43-linea',
       { soon: true, title: 'Gestione guasti', blurb: 'Tre guasti da risolvere a tempo.' },
     ],
     milestone: { soon: true, art: 'fabbrica', kick: 'Fabbrica', name: 'Una linea da cablare, programmare e mettere in sicurezza', text: 'Il progetto finale: un turno di lavoro con guasti da gestire.' },
