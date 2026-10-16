@@ -1,6 +1,12 @@
 # Progetto: "Il turno parte alle 7", la prova dell'officina (Modulo 3)
 
-**Stato: progetto, non realizzato.** Da cominciare dopo la fase P6.
+**Stato: progetto, non realizzato.**
+
+Decisioni prese:
+- **Orologio finto**: dalle 6:40 alle 7:00, solo atmosfera. Nessuna penalità, nessun bonus, nessun conto alla rovescia.
+- **Un solo guasto**, quello del termico. Una variante (per esempio il finecorsa fuori dalla serie) chiederebbe al
+  motore di scegliere tra più guasti, mentre oggi ogni livello ne ha uno solo (`unit.fault`, letto da
+  `loadFaultPlant` in `src/engine/session.js`): toccherebbe le regole, quindi non si fa.
 
 Questo documento è per chi lo realizza. La prova c24 oggi non ha cornice: la scena 3D sta accanto al banco, come le
 prove senza voce in `PROVE`. Qui la si porta allo stesso livello delle altre due (`docs/PROGETTO-APPARTAMENTO.md`,
@@ -262,7 +268,7 @@ bene; con la fila di pacchi del finale e la passerella diventerebbe la scena pi�
 
 ## Testi
 
-Tutti i testi nuovi, pronti da copiare. A destra la bozza in arabo per `src/i18n/ar-21.js`
+Tutti i testi nuovi, pronti da copiare. A destra la bozza in arabo per un nuovo `src/i18n/ar-27.js` (P6 è arrivata fino ad `ar-26.js`)
 (da ricontrollare con `node scripts/check-lang.mjs ar` dopo l'inserimento).
 
 | Italiano | Arabo |

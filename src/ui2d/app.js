@@ -253,7 +253,9 @@ function renderLadder() {
   let html = head + `<div class="ladscroll">${ladderHTML(prog, st, names, { edit: ed, sel: LADSEL })}</div>`;
   if (ed) {
     const addrs = addressesFor(plc, plc.edit);
-    const errors = validateProgram(prog, { I: addrs.inputs.length, Q: addrs.outputs.length });
+    // ingressi analogici: i morsetti AIk+; uscite analogiche: quelle che il processo del livello legge (non hanno morsetti)
+    const aq = Object.values((S.level.process && S.level.process.actuators) || {}).map(a => a.analog && a.analog.startsWith(plc.id + '.AQ') ? Number(a.analog.slice(plc.id.length + 3)) + 1 : 0);
+    const errors = validateProgram(prog, { I: addrs.inputs.length, Q: addrs.outputs.length, AI: Object.keys(plc.terms).filter(t => /^AI\d+\+$/.test(t)).length, AQ: Math.max(0, ...aq) });
     if (LADSEL && !prog[LADSEL.r]) LADSEL = null;
     html += editorPanelHTML(prog, LADSEL, names, addrs, plc.edit.ops || ['coil'], errors, e => progText(e));
     if (S.solutionShown && S.level.solutionPrograms && S.level.solutionPrograms[plc.id]) {

@@ -121,3 +121,21 @@ test('Ti = 0 vuol dire senza integrale', () => {
   assert.equal(st.i, 0);
   assert.equal(st.u, 10);
 });
+
+test('solo P con l\'uscita satura all\'avvio: l\'integrale non resta bloccato (revisione P6)', () => {
+  // in manuale a 0 %, poi automatico con Kp 3 e Ti 0: l'errore di 40 satura l'uscita, che deve andare al 100 %
+  let st = pidStep(newPid(), { pv: 20, sp: 60, kp: 3, ti: 0, td: 0, dt: 0.5, track: 0 }).state;
+  const r = pidStep(st, { pv: 20, sp: 60, kp: 3, ti: 0, td: 0, dt: 0.5 });
+  assert.equal(r.u, 100);
+  assert.equal(r.state.i, 0);
+  // Ti tolto con l'uscita satura: l'integrale accumulato prima sparisce
+  st = { ...newPid(), i: -40, lastPv: 20 };
+  assert.equal(pidStep(st, { pv: 20, sp: 60, kp: 5, ti: 0, td: 0, dt: 0.5 }).u, 100);
+});
+
+test('cambiare Kp con la regolazione accesa non fa saltare l\'uscita', () => {
+  let st = newPid(), u;
+  for (let k = 0; k < 20; k++) ({ state: st, u } = pidStep(st, { pv: 40, sp: 60, kp: 1, ti: 100, td: 0, dt: 0.5 }));
+  const r = pidStep(st, { pv: 40, sp: 60, kp: 4, ti: 100, td: 0, dt: 0.5 });
+  assert.ok(Math.abs(r.u - u) < 0.5, 'prima ' + u + ', dopo ' + r.u);
+});

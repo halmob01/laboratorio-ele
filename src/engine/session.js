@@ -14,7 +14,7 @@ import { evaluate } from './evaluate.js';
 import { flowOf } from './flow.js';
 import { stepsState, ghostFor } from './steps.js';
 import { attemptBase, migrateProgress, rankOf, totalXp, xpOf } from './progress.js';
-import { createSim, observe, settle as settleSim, measure as measureSim, setWires as setWires2, setSupply, act, advance, rewind as rewindSim, evaluateV2, isV2, selfPowered, viewOf, HOLD, sanitizeProgram, tune as tuneSim, withTuned, tunedValues } from './v2/index.js';
+import { createSim, observe, settle as settleSim, measure as measureSim, setWires as setWires2, setSupply, act, advance, rewind as rewindSim, evaluateV2, isV2, selfPowered, viewOf, HOLD, sanitizeProgram, tune as tuneSim, withTuned, tunedValues, clampTune } from './v2/index.js';
 
 function memoryStorage() {
   let data = {};
@@ -289,15 +289,17 @@ export function createSession({ levels, deriveFull, storage = memoryStorage(), i
     l.comps.forEach(c => { if (rs[c.id] && rs[c.id] !== c.in) rt[c.id] = rs[c.id]; });
     const ms = (measuredBy[keyOf()] || []).slice(0, 100);
     const pg = programsByKey[keyOf()] || {};     // si salva solo cio' che l'allievo ha cambiato
+    const tn = tunedByKey[keyOf()] || {};        // cursori del pannello di regolazione (process.tunable)
     const lv_ = (liveEditsBy[keyOf()] || []).slice(0, 20);
     const iso_ = mode === 'quadro' ? isoOf() : {};
-    if (ws.length || Object.keys(st).length || Object.keys(rt).length || ms.length || lv_.length || Object.keys(iso_).length || Object.keys(pg).length) {
+    if (ws.length || Object.keys(st).length || Object.keys(rt).length || ms.length || lv_.length || Object.keys(iso_).length || Object.keys(pg).length || Object.keys(tn).length) {
       const e = { wires: ws, states: st };
       if (Object.keys(rt).length) e.ratings = rt;
       if (ms.length) e.measured = ms;
       if (lv_.length) e.live = lv_;
       if (Object.keys(iso_).length) e.iso = iso_;
       if (Object.keys(pg).length) e.programs = pg;
+      if (Object.keys(tn).length) e.tuned = { ...tn };
       work.w[workKeyOf(levelIndex, mode)] = e;
     } else delete work.w[workKeyOf(levelIndex, mode)];
     if (u && l.unit) {
@@ -348,6 +350,12 @@ export function createSession({ levels, deriveFull, storage = memoryStorage(), i
           lv.comps.forEach(c => { if (c.type === 'plc' && c.edit && Array.isArray(e.programs[c.id])) pr[c.id] = sanitizeProgram(e.programs[c.id]); });
           if (Object.keys(pr).length) { programsByKey[keyOf(i, m)] = pr; entry.programs = JSON.parse(JSON.stringify(pr)); }
         }
+        if (isObj(e.tuned) && lv.process && lv.process.tunable) {
+          // solo i nomi regolabili, riportati nei limiti del cursore
+          const tn = {};
+          Object.entries(lv.process.tunable).forEach(([name, d]) => { if (Number.isFinite(e.tuned[name])) tn[name] = clampTune(d, e.tuned[name]); });
+          if (Object.keys(tn).length) { tunedByKey[keyOf(i, m)] = tn; entry.tuned = { ...tn }; }
+        }
         if (Array.isArray(e.measured)) {
           const ms = e.measured.slice(0, 100).filter(x => isObj(x) && typeof x.a === 'string' && typeof x.b === 'string' && typeof x.mode === 'string' && typeof x.kind === 'string' && known.has(x.a) && known.has(x.b))
             .map(x => ({ a: x.a, b: x.b, mode: x.mode, kind: x.kind, value: typeof x.value === 'number' ? x.value : null, ohm: typeof x.ohm === 'number' ? x.ohm : null, live: !!x.live }));
@@ -362,7 +370,7 @@ export function createSession({ levels, deriveFull, storage = memoryStorage(), i
           const lv2 = e.live.slice(0, 20).filter(x => typeof x === 'string' && known.has(x));
           if (lv2.length) { liveEditsBy[keyOf(i, m)] = lv2; entry.live = lv2.slice(); }
         }
-        if (ws.length || Object.keys(st).length || entry.ratings || entry.measured || entry.live || entry.iso) work.w[workKeyOf(i, m)] = entry;
+        if (ws.length || Object.keys(st).length || entry.ratings || entry.measured || entry.live || entry.iso || entry.tuned) work.w[workKeyOf(i, m)] = entry;
       });
       const e = isObj(data.u) ? data.u[l.id] : null;
       if (!isObj(e) || !l.unit || !['lesson', 'build', 'done'].includes(e.phase)) return;
@@ -458,8 +466,8 @@ export function createSession({ levels, deriveFull, storage = memoryStorage(), i
   const verifyStash = {};
   function stashForVerify() {
     const k = keyOf();
-    verifyStash[levelIndex] = { key: k, wires: (wiresByKey[k] || []).slice(), states: { ...(statesByKey[k] || {}) }, result: resultsByKey[k] || null, usage: usageByKey[k] || null, unit: unitByKey[levelIndex] || null, measured: (measuredBy[k] || []).slice(), live: (liveEditsBy[k] || []).slice(), ratings: ratingsOf(), iso: isoOf(), programs: JSON.parse(JSON.stringify(programsByKey[k] || {})) };
-    delete programsByKey[k];
+    verifyStash[levelIndex] = { key: k, wires: (wiresByKey[k] || []).slice(), states: { ...(statesByKey[k] || {}) }, result: resultsByKey[k] || null, usage: usageByKey[k] || null, unit: unitByKey[levelIndex] || null, measured: (measuredBy[k] || []).slice(), live: (liveEditsBy[k] || []).slice(), ratings: ratingsOf(), iso: isoOf(), programs: JSON.parse(JSON.stringify(programsByKey[k] || {})), tuned: tunedByKey[k] || null };
+    delete programsByKey[k]; delete tunedByKey[k];
     delete measuredBy[k]; delete liveEditsBy[k]; delete ratingsSaved[k]; delete isoSaved[k];
   }
   function unstashFromVerify() {
@@ -468,6 +476,7 @@ export function createSession({ levels, deriveFull, storage = memoryStorage(), i
     wiresByKey[st.key] = st.wires; statesByKey[st.key] = st.states; resultsByKey[st.key] = st.result;
     measuredBy[st.key] = st.measured; liveEditsBy[st.key] = st.live;
     if (st.programs && Object.keys(st.programs).length) programsByKey[st.key] = st.programs; else delete programsByKey[st.key];
+    if (st.tuned) tunedByKey[st.key] = st.tuned; else delete tunedByKey[st.key];
     delete ratingsSaved[st.key]; delete isoSaved[st.key];
     if (Object.keys(st.ratings).length) ratingsSaved[st.key] = st.ratings;
     if (Object.keys(st.iso).length) isoSaved[st.key] = st.iso;
@@ -688,8 +697,9 @@ export function createSession({ levels, deriveFull, storage = memoryStorage(), i
     },
     clear() {
       if (!inBuildOrFault()) return;
-      if (!wires().some(w => !w.fixed) && !Object.keys(programsOf()).length) { delete liveEditsBy[keyOf()]; return; }
+      if (!wires().some(w => !w.fixed) && !Object.keys(programsOf()).length && !tunedByKey[keyOf()]) { delete liveEditsBy[keyOf()]; return; }
       delete programsByKey[keyOf()];
+      delete tunedByKey[keyOf()];   // anche i cursori del pannello tornano ai valori di partenza
       wiresChanged();
       delete liveEditsBy[keyOf()];   // si ricomincia da capo
       wiresByKey[keyOf()] = blank();

@@ -20,7 +20,7 @@ export default {
 "D anticipa: frena quando la misura sale in fretta e riduce il superamento.": "D يستبق: يكبح عندما ترتفع القيمة المقيسة بسرعة ويقلل التجاوز.",
 "D: quanto in fretta mi sto avvicinando?": "D: بأي سرعة أقترب؟",
 "Da dove viene": "من أين يأتي",
-"Dopo 10 secondi la velocità è quella voluta": "بعد 10 ثوانٍ تكون السرعة هي المطلوبة",
+"Con la velocità voluta al 60 %, dopo 10 secondi il nastro è a regime": "مع سرعة مطلوبة عند 60٪، يبلغ السير حالة الاستقرار بعد 10 ثوانٍ",
 "Due galleggianti, due sensori digitali, dicono al PLC dove sta il livello: uno scatta sotto il 20 %, l’altro sopra l’80 %. Come il finecorsa del nastro, sono contatti che chiudono quando la condizione è vera.": "عوّامتان، أي مستشعران رقميان، تخبران الـPLC أين المستوى: واحدة تعمل تحت 20٪ والأخرى فوق 80٪. مثل نهاية شوط السير، هما تلامسان يُغلقان عندما يتحقق الشرط.",
 "Due segnali, due strade": "إشارتان وطريقان",
 "Due soglie e una pompa: perché un solo galleggiante non basta.": "عتبتان ومضخة: لماذا لا تكفي عوّامة واحدة.",

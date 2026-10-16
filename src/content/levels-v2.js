@@ -1042,7 +1042,7 @@ LEVELS_V2.push({
   },
   demoDo: [{ do: ['toggle SA'], say: '' }],
   checks: [
-    { id: 'riposo', label: 'Serbatoio a metà e pompa ferma: nessuna lampada di allarme', do: [], expect: { loads: { HH: 'off', HF: 'off', HP: 'off' }, process: { h: [29, 31] } } },
+    { id: 'riposo', label: 'Serbatoio al 30 % e pompa ferma: nessuna lampada di allarme', do: [], expect: { loads: { HH: 'off', HF: 'off', HP: 'off' }, process: { h: [29, 31] } } },
     { id: 'pieno', label: 'Accendi la pompa: il livello sale e sopra l’80 % si accende “Livello alto”', do: ['toggle SA', 'wait 200'], expect: { loads: { HP: 'on', HH: 'on', HF: 'off' }, process: { h: [95, 100] } } },
     { id: 'sale', label: 'Il trasmettitore segue il livello: dopo 60 secondi di pompa non c’è ancora l’allarme', do: ['toggle SA', 'wait 60'], expect: { loads: { HH: 'off', HF: 'off' } } },
   ],
@@ -1095,9 +1095,9 @@ LEVELS_V2.push({
   demoDo: [{ do: ['toggle SA'], say: '' }],
   checks: [
     { id: 'fermo', label: 'Con l’interruttore aperto il nastro è fermo', do: ['wait 5'], expect: { loads: { HV: 'off' }, process: { v: [0, 1] } } },
-    { id: 'rampa', label: 'All’avvio la velocità sale con una rampa: dopo 2 secondi non è ancora a regime', do: ['toggle SA', 'wait 2'], expect: { loads: { HV: 'on' }, trace: [{ v: 'v', max: 50, to: 2.5 }, { v: 'v', min: 1, from: 1.5 }] } },
-    { id: 'regime', label: 'Dopo 10 secondi la velocità è quella voluta', do: ['toggle SA', 'wait 10'], expect: { trace: [{ v: 'v', within: [55, 65], from: 9 }] } },
-    { id: 'stop', label: 'Spegnendo, la velocità scende con la rampa e il nastro si ferma', steps: [{ do: ['toggle SA', 'wait 10'], expect: { trace: [{ v: 'v', min: 55, from: 9 }] } }, { do: ['toggle SA', 'wait 2'], expect: { trace: [{ v: 'v', min: 5, from: 10, to: 12.5 }] } }] },
+    { id: 'rampa', label: 'All’avvio la velocità sale con una rampa: dopo 2 secondi non è ancora a regime', tuned: { vel: 60 }, do: ['toggle SA', 'wait 2'], expect: { loads: { HV: 'on' }, trace: [{ v: 'v', max: 50, to: 2.5 }, { v: 'v', min: 1, from: 1.5 }] } },
+    { id: 'regime', label: 'Con la velocità voluta al 60 %, dopo 10 secondi il nastro è a regime', tuned: { vel: 60 }, do: ['toggle SA', 'wait 10'], expect: { trace: [{ v: 'v', within: [55, 65], from: 9 }] } },
+    { id: 'stop', label: 'Spegnendo, la velocità scende con la rampa e il nastro si ferma', tuned: { vel: 60 }, steps: [{ do: ['toggle SA', 'wait 10'], expect: { trace: [{ v: 'v', min: 55, from: 9 }] } }, { do: ['toggle SA', 'wait 2'], expect: { trace: [{ v: 'v', min: 5, from: 10, to: 12.5 }] } }] },
   ],
   safety: { coilReturn: ['PLC'] },
   solution: W34_FIXED.concat(W34_RUN),

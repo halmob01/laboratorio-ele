@@ -140,6 +140,8 @@ function blockingOf(o, allowTrip) {
 
 // Esegue una prova. Ritorna { ok, sim, fail?: { code, ... }, states: [observe...] }.
 export function runCheck(level, wires, check) {
+  // una prova puo' fissare i cursori del pannello (check.tuned): vale per le prove che non devono dipendere da dove l'allievo li ha lasciati
+  if (check.tuned && level.process) level = withTuned(level, check.tuned);
   const sim = createSim(level, wires);
   if (level.process) {
     sim.traceNames = traceNamesOf(level, check);

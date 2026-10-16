@@ -87,8 +87,8 @@ export function traceValue(sim, name, vars = processVars(sim)) {
     if (/^Q\d+$/.test(k)) return num(!!s.q[k]);
     if (/^AQ\d+$/.test(k)) return num(s.aq[k]);
     if (/^AI\d+$/.test(k)) return num(s.ai[k]);
-    if (/^(MW|AI|AQ)\d+$/.test(k)) return num(s.mem && s.mem.words ? s.mem.words[k] : 0);
-    return num(!!(s.mem && s.mem.bits && s.mem.bits[k]));
+    const m = s.mem || {};
+    return num(/^(AI|AQ|MW)\d+$/.test(k) ? (m.words || {})[k] : (m.bits || {})[k]);
   }
   if (c.type === 'tx') return num(s.mA);
   return num(s.run !== undefined ? s.run : s.on !== undefined ? s.on : s.act);
@@ -715,8 +715,8 @@ export function observe(sim) {
     modes: an.modes,
     plc: Object.fromEntries(sim.level.comps.filter(c => c.type === 'plc').map(c => [c.id, { powered: !!an.coils[c.id], inputs: an.plcIn[c.id], ai: { ...an.plcAi[c.id] }, q: { ...sim.parts[c.id].q }, aq: { ...sim.parts[c.id].aq }, rungs: sim.parts[c.id].rungs.slice(), bits: { ...((sim.parts[c.id].mem && sim.parts[c.id].mem.bits) || {}) }, words: { ...((sim.parts[c.id].mem && sim.parts[c.id].mem.words) || {}) }, timers: { ...((sim.parts[c.id].mem && sim.parts[c.id].mem.timers) || {}) }, counters: { ...((sim.parts[c.id].mem && sim.parts[c.id].mem.counters) || {}) } }])),
     process: sim.process ? { ...processVars(sim) } : null,
-    processAct: sim.process ? actuatorsOf(sim, an) : null,
-    hmi: hmiReport(sim, an),   // comandi che il processo sta ricevendo (0-1), per il disegno
+    processAct: sim.process ? actuatorsOf(sim, an) : null,   // comandi che il processo sta ricevendo (0-1), per il disegno
+    hmi: hmiReport(sim, an),   // pannello operatore (level.hmi): collegamento, valori con l'eta', allarmi
     coils: Object.fromEntries(Object.entries(an.coils).filter(([id]) => !sim.level.comps.some(c => c.id === id && c.type === 'plc'))),
     parts,
     machine: sim.level.machine ? { pos: sim.pos, atStart: sim.pos <= 0, atEnd: sim.pos >= sim.level.machine.length } : null,

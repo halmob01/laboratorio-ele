@@ -6,8 +6,9 @@
 //
 // Anti-windup: con l'uscita satura e l'errore che spinge ancora oltre, l'integrale non cresce (si puo' spegnere per farlo vedere).
 // Manuale -> automatico senza scosse: con `track` l'integrale si allinea all'uscita data.
+// Cambio di Kp senza scosse: con l'integrale attivo, quando Kp cambia l'integrale si riallinea e l'uscita non salta.
 
-export const newPid = () => ({ i: 0, d: 0, lastPv: null, u: 0 });
+export const newPid = () => ({ i: 0, d: 0, lastPv: null, u: 0, kp: null });
 
 const clamp = (x, lo, hi) => Math.max(lo, Math.min(hi, x));
 
@@ -25,12 +26,17 @@ export function pidStep(st, p) {
   if (p.track !== undefined) {
     // manuale: l'uscita la decide qualcun altro; l'integrale si prepara a ripartire da li'
     s.u = clamp(p.track, lo, hi);
-    s.i = kp > 0 ? s.u / kp - e : 0;
+    // senza integrale (Ti = 0) non c'e' niente da allineare: il passaggio al solo P da' il salto, come in un regolatore vero
+    s.i = kp > 0 && p.ti > 0 ? s.u / kp - e : 0;
     s.d = 0;
     s.lastPv = p.pv;
+    s.kp = kp;
     return { state: s, u: s.u };
   }
   const dt = p.dt > 0 ? p.dt : 0;
+  // Kp cambiato (dal pannello): l'integrale assorbe la differenza, cosi' l'uscita riparte da dove era
+  if (p.ti > 0 && kp > 0 && s.kp > 0 && s.kp !== kp) s.i = s.kp * (e + s.i + s.d) / kp - e - s.d;
+  s.kp = kp;
   // derivativa sulla misura, con un filtro del primo ordine (costante Td/8)
   if (p.td > 0 && dt > 0 && s.lastPv !== null) {
     const raw = -p.td * (p.pv - s.lastPv) / dt;
@@ -39,12 +45,15 @@ export function pidStep(st, p) {
   } else if (!(p.td > 0)) s.d = 0;
   if (dt > 0 || s.lastPv === null) s.lastPv = p.pv;
   // integrale, con il blocco quando l'uscita e' satura nella stessa direzione dell'errore
-  let iNext = s.i;
-  if (p.ti > 0 && dt > 0) iNext = s.i + e * dt / p.ti;
-  if (!(p.ti > 0)) iNext = 0;
-  const uFree = kp * (e + iNext + s.d);
-  const saturatedSameWay = (uFree > hi && e > 0) || (uFree < lo && e < 0);
-  if (!(saturatedSameWay && !p.windup)) s.i = iNext;
+  // senza integrale (Ti = 0) l'integrale e' zero sempre, anche con l'uscita satura: un valore rimasto bloccato
+  // (dal manuale o da un Ti di prima) terrebbe l'uscita a zero per sempre
+  if (!(p.ti > 0)) s.i = 0;
+  else {
+    const iNext = dt > 0 ? s.i + e * dt / p.ti : s.i;
+    const uFree = kp * (e + iNext + s.d);
+    const saturatedSameWay = (uFree > hi && e > 0) || (uFree < lo && e < 0);
+    if (!(saturatedSameWay && !p.windup)) s.i = iNext;
+  }
   s.u = clamp(kp * (e + s.i + s.d), lo, hi);
   return { state: s, u: s.u };
 }
