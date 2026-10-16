@@ -4,6 +4,11 @@
 Nessun codice della prova scritto. Sostituisce la sezione 3 di `docs/PROGETTO-PROVE-CASA-FABBRICA.md` (proposta del 16
 ottobre mattina). Il piano di lavoro per due sessioni in parallelo e' in `docs/PIANO-CASA.md`.
 
+**E' il traguardo del Modulo 5, non un livello in piu'.** Come c46 (Modulo 4) e c51 (Modulo 6): un livello con
+`prova: { scene: 'casa' }` che la mappa mostra come la scheda grande del modulo (`milestone` in `src/content/home.js`, oggi
+`soon: true`), si apre nella scena 3D con la cornice delle prove e chiude il modulo. Mette insieme quello che l'allievo ha
+imparato nei livelli c47-c54; non insegna niente di nuovo, se non che in una casa intelligente contano le regole.
+
 Regole che valgono sempre: `CLAUDE.md`, `docs/PROCEDURA-UNIONE.md`, `docs/SPEC-SCENE-3D.md` (fluidita'), `docs/MILESTONE.md`
 (cornice delle prove). Nessuna regola nella scena. La prova non si chiama "finale": il percorso potra' crescere.
 
@@ -80,7 +85,7 @@ Un modello che contiene i due esistenti senza copiarne il codice: `step` chiama 
 (`events: [{ id, label, at, firedAt }]`) per il registro e il verbale. Si scrive accanto a `faults` in `scenarioTick` e
 `scenarioReport`, con un test; `faults` e `pick` restano come sono (la fabbrica non cambia).
 
-### 4.3 Livello c55 "Una sera d'inverno" (`src/content/levels-v2.js`)
+### 4.3 Livello c55 "Una sera d'inverno" (il traguardo) (`src/content/levels-v2.js`)
 - `prova: { scene: 'casa' }`, `scenario: { duration: 390, startWhen: { coil: 'QG' }, events, faults: [allagamento],
   expect }` (390 s con `dayLen` 1440 = 6,5 ore). Si comincia chiudendo il generale.
 - `process: { model: 'casa', init: { hour: 16.5, T1: 17, T2: 17, soc: 60 }, params: { n: 2, ovenKw: 3.5, limit: 6, ... } }`.
@@ -127,7 +132,7 @@ Sopra il trilocale (`createScene` con `night: false`, `bare`, `extend`), come l'
 - Il trilocale (Modulo 1) e l'appartamento (Modulo 2) non cambiano: se servono opzioni nuove in `scene.js` sono solo
   aggiunte, con le schermate prima e dopo.
 
-## 7. Decisioni per Gianluca (con la proposta che si usa se non dici altro)
+## 7. Decisioni (approvate da Gianluca il 16 ottobre: valgono le proposte)
 
 1. **Il guasto**: soglia sopra il limite del contatore (proposta) oppure ordine di distacco al contrario (senza buio).
 2. **Fuori dalla prova** videocitofono, luce automatica e scene (proposta) oppure dentro come eventi con un pezzo da toccare.

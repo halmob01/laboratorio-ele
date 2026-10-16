@@ -1,7 +1,8 @@
 # Piano operativo: la prova della casa intelligente in due sessioni
 
 Scritto il 16 ottobre 2026. Due sessioni Claude lavorano **insieme** sulla prova del Modulo 5 senza scontrarsi:
-ognuna ha il suo ramo, i suoi file e i suoi numeri. Cosa si costruisce: `docs/PROGETTO-CASA.md` (leggerlo tutto).
+ognuna ha il suo ramo, i suoi file e i suoi numeri. Cosa si costruisce: `docs/PROGETTO-CASA.md` (leggerlo tutto). E' il **traguardo** del Modulo 5 (la scheda grande in mappa,
+come la fabbrica c51 per il Modulo 6), non un livello qualsiasi: va curato come le altre prove 3D.
 
 Per avviarle, scrivere in due chat diverse:
 - **Sessione A**: «Fai la sessione A della casa: segui `docs/PIANO-CASA.md`.»
@@ -117,7 +118,9 @@ che supera gli obiettivi. Fine fase: commit, push, STATO con i numeri.
 - `git fetch origin && git merge origin/main` nel ramo `casa-scena-3d`, conflitti secondo `PROCEDURA-UNIONE.md`.
 - La scena con lo stato vero: aprire `#/livello/c55-sera-inverno`, giocare la serata con il guasto e senza. Se manca un
   campo nel contratto lo si chiede ad A scrivendolo nello STATO, o lo si aggiunge in `state.js` se A ha finito (solo aggiunta).
-- Scheda del Modulo 5 in `home.js` con `level: 'c55-sera-inverno'` e la foto `assets/milestone/casa.jpg` (schermata della
+- Traguardo del Modulo 5 in `home.js`, come quello della fabbrica: `c55-sera-inverno` in fondo ai livelli del modulo e la
+  scheda `milestone` senza `soon`, con `level: 'c55-sera-inverno'`, `kick`, `name` "Una sera d'inverno", `text`, `alt`,
+  `tools`, `cta`, `again` e la foto `assets/milestone/casa.jpg` (schermata della
   scena), testo in arabo in `ar-47`.
 - Unione in `main` con la procedura; tabella dei numeri aggiornata.
 
