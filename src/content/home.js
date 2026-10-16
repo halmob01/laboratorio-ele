@@ -71,7 +71,7 @@ export const MODULES = [
       'c34-variatore',
       'c35-serbatoio',
       'c36-pid',
-      { soon: true, title: 'Il pannello operatore', blurb: 'Stati, allarmi e dati vecchi.' },
+      'c37-pannello',
       { soon: true, title: 'La linea', blurb: 'Una sequenza: attesa, prelievo, deposito.' },
       { soon: true, title: 'Gestione guasti', blurb: 'Tre guasti da risolvere a tempo.' },
     ],

@@ -325,3 +325,79 @@ test('setProgram azzera anche le uscite analogiche', () => {
   setProgram(sim, 'PLC', [{ if: 'I0', do: [{ op: 'move', v: 20, out: 'AQ0' }] }]);
   assert.equal(observe(sim).plc.PLC.aq.AQ0, 20);
 });
+
+/* ---------- pannello operatore (c37) ---------- */
+import { levels } from '../src/content/index.js';
+const L37 = levels.find(l => l.id === 'c37-pannello');
+const sim37 = () => createSim({ ...L37, comps: L37.comps.map(c => (c.type === 'plc' ? { ...c, program: L37.solutionPrograms.PLC } : c)) }, W(L37.solution));
+const alarm = (o, id) => ((o.hmi.alarms.find(a => a.id === id) || {}).state || 'off');
+
+test('pannello: ciclo di un allarme (attivo, riconosciuto, rientrato, off) e sirena', () => {
+  const s = sim37();
+  act(s, 'cut', 'TT'); advance(s, 1);
+  let o = observe(s);
+  assert.equal(alarm(o, 'A2'), 'attivo'); assert.equal(o.hmi.horn, true);
+  act(s, 'ack', 'HMI'); o = observe(s);
+  assert.equal(alarm(o, 'A2'), 'riconosciuto'); assert.equal(o.hmi.horn, false);
+  act(s, 'cut', 'TT'); advance(s, 1); o = observe(s);
+  assert.equal(alarm(o, 'A2'), 'off', 'riconosciuto e rientrato: sparisce');
+  act(s, 'cut', 'TT'); advance(s, 1); act(s, 'cut', 'TT'); advance(s, 1); o = observe(s);
+  assert.equal(alarm(o, 'A2'), 'rientrato'); assert.equal(o.hmi.horn, true);
+  act(s, 'cut', 'TT'); advance(s, 1); o = observe(s);
+  assert.equal(alarm(o, 'A2'), 'attivo', 'rientrato che ritorna: di nuovo attivo');
+});
+
+test('pannello: elenco per priorità, poi il più recente in alto', () => {
+  const s = sim37();
+  act(s, 'jam', 'LL'); advance(s, 600);          // si svuota: troppo basso (media)
+  act(s, 'cut', 'TT'); advance(s, 1);            // poi guasto sensore (alta)
+  const o = observe(s);
+  assert.deepEqual(o.hmi.alarms.map(a => a.id), ['A2', 'A3']);
+});
+
+test('pannello: senza collegamento i valori restano fermi e dopo 3 secondi sono vecchi; il riconoscimento non arriva', () => {
+  const s = sim37();
+  advance(s, 10);
+  const before = observe(s).hmi.values.find(v => v.id === 'V1');
+  assert.equal(before.stale, false);
+  act(s, 'toggle', 'HMI');
+  advance(s, 2);
+  let v = observe(s).hmi.values.find(x => x.id === 'V1');
+  assert.equal(v.stale, false, 'nei primi secondi sembra ancora buono');
+  assert.equal(v.v, before.v);
+  advance(s, 60);
+  const o = observe(s);
+  v = o.hmi.values.find(x => x.id === 'V1');
+  assert.deepEqual([o.hmi.link, v.stale, v.v], [false, true, before.v]);
+  assert.ok(Math.abs(o.process.h - before.v) > 5, 'il serbatoio intanto e\' cambiato');
+  act(s, 'cut', 'TT'); advance(s, 1);
+  assert.equal(alarm(observe(s), 'A2'), 'off', 'senza collegamento l\'allarme non arriva');
+  act(s, 'toggle', 'HMI'); advance(s, 1);
+  assert.equal(alarm(observe(s), 'A2'), 'attivo');
+  assert.equal(observe(s).hmi.values.find(x => x.id === 'V1').stale, false);
+});
+
+test('pannello: PLC spento = nessun collegamento', () => {
+  const s = sim37();
+  s.supply = false; advance(s, 10);
+  assert.equal(observe(s).hmi.link, false);
+});
+
+test('pannello: galleggiante bloccato e filo interrotto (guasti simulati)', () => {
+  const s = sim37();
+  act(s, 'jam', 'LH'); advance(s, 600);
+  const o = observe(s);
+  assert.ok(o.process.h > 90 && o.parts.LH.act === false);
+  assert.equal(alarm(o, 'A1'), 'attivo');
+  act(s, 'cut', 'TT'); advance(s, 1);
+  assert.equal(observe(s).plc.PLC.ai.AI0, 0);
+});
+
+test('c37: la verifica rifiuta il pannello scollegato', () => {
+  const ws = L37.solution.map(([a, b, c], k) => ({ id: k + 1, a, b, c }));
+  const ok = evaluateV2(L37, ws, { programs: L37.solutionPrograms });
+  assert.equal(ok.pass, true, JSON.stringify(ok.work.items));
+  const off = evaluateV2(L37, ws, { programs: L37.solutionPrograms, hmiOff: ['HMI'] });
+  assert.equal(off.work.items.some(i => i.code === 'work.hmiOffline'), true);
+  assert.equal(off.pass, false);
+});

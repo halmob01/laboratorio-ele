@@ -5,11 +5,14 @@
 // un'espressione piu' annidata non e' modificabile (toCells torna null) ma si disegna lo stesso.
 //
 //   contatto: { a: 'I0', not?: true, rise?: true }       cella: { alts: [contatto, ...] }
+//   confronto: { cmp: 'gt'|'lt'|'ge'|'le', a: 'MW0', b: 80 }   (a e' una parola, b un numero)
 
-export const contactExpr = c => (c.rise ? ['rise', c.a] : c.not ? ['not', c.a] : c.a);
+export const CMPS = ['gt', 'lt', 'ge', 'le'];
+export const contactExpr = c => (c.cmp ? [c.cmp, c.a, c.b] : c.rise ? ['rise', c.a] : c.not ? ['not', c.a] : c.a);
 
 export function parseContact(e) {
   if (typeof e === 'string') return { a: e };
+  if (Array.isArray(e) && e.length === 3 && CMPS.includes(e[0]) && typeof e[1] === 'string' && typeof e[2] === 'number') return { cmp: e[0], a: e[1], b: e[2] };
   if (Array.isArray(e) && e.length === 2 && typeof e[1] === 'string') {
     if (e[0] === 'not') return { a: e[1], not: true };
     if (e[0] === 'rise') return { a: e[1], rise: true };
@@ -89,11 +92,12 @@ export function setOut(p, i, k, ins) { const q = clone(p); if (q[i] && q[i].do[k
 export function addOut(p, i, ins) { const q = clone(p); if (q[i]) q[i].do.push(ins); return q; }
 export function removeOut(p, i, k) { const q = clone(p); if (q[i]) q[i].do = q[i].do.filter((_, n) => n !== k); return q; }
 
-// Indirizzi che l'allievo puo' scegliere in un livello: { inputs, outputs, markers, timers, counters } come elenchi di indirizzi.
+// Indirizzi che l'allievo puo' scegliere in un livello: { inputs, outputs, markers, timers, counters, words } come elenchi di indirizzi.
+// `words` (parole da confrontare) si danno per nome nel livello: edit.words = ['AI0', 'MW0'].
 export function addressesFor(plcComp, opts = {}) {
   const terms = Object.keys((plcComp && plcComp.terms) || {});
   const inputs = terms.filter(t => /^I\d+$/.test(t)).sort();
   const outputs = terms.filter(t => /^Q\d+A$/.test(t)).map(t => t.slice(0, -1)).sort();
   const n = k => Array.from({ length: opts[k] || 0 }, (_, i) => (k === 'markers' ? 'M' : k === 'timers' ? 'T' : 'C') + (k === 'markers' ? i : i + 1));
-  return { inputs, outputs, markers: n('markers'), timers: n('timers'), counters: n('counters') };
+  return { inputs, outputs, markers: n('markers'), timers: n('timers'), counters: n('counters'), words: (opts.words || []).slice() };
 }

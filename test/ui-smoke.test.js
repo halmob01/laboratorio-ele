@@ -68,6 +68,13 @@ function programUI(w, d, level) {
   const setSel = (sel, v) => { sel.value = v; sel.dispatchEvent(new w.Event('change', { bubbles: true })); };
   const lac = (a, v) => click(w, q(d, v ? `[data-lac="${a}"][data-v="${v}"]` : `[data-lac="${a}"]`));
   const contact = (c, first) => {
+    if (c.cmp) {
+      lac('type', 'cmp');
+      setSel(q(d, 'select[data-lac="addr"]'), c.a);
+      setSel(q(d, 'select[data-lac="cmpop"]'), c.cmp);
+      setSel(q(d, 'input[data-lac="cmpb"]'), String(c.b));
+      return;
+    }
     if (c.rise) lac('type', 'rise'); else if (c.not) lac('type', 'not');
     setSel(q(d, 'select[data-lac="addr"]'), c.a);
   };

@@ -44,6 +44,7 @@ export function createSim(level, wires = []) {
     process: level.process ? newProcess(level.process) : null,   // modello di processo (process.js): { state, params }
     trace: [],             // righe { t, grandezza: valore } ogni passo, per le prove e il grafico (level.process.trace)
     hmi: {},               // parole dei PLC scritte dal pannello di regolazione: { idPLC: { MW0: 60 } }
+    panel: level.hmi ? { values: {}, alarms: {}, seq: 0 } : null,   // pannello operatore (level.hmi): ultime letture e stato degli allarmi
   };
   Object.entries(tunedValues(level.process)).forEach(([name, v]) => applyTune(sim, name, v));
   settle(sim);
@@ -85,7 +86,8 @@ export function traceValue(sim, name, vars = processVars(sim)) {
     if (/^Q\d+$/.test(k)) return num(!!s.q[k]);
     if (/^AQ\d+$/.test(k)) return num(s.aq[k]);
     if (/^AI\d+$/.test(k)) return num(s.ai[k]);
-    return num(s.mem && s.mem.words ? s.mem.words[k] : s.mem && s.mem.bits ? s.mem.bits[k] : 0);
+    if (/^(MW|AI|AQ)\d+$/.test(k)) return num(s.mem && s.mem.words ? s.mem.words[k] : 0);
+    return num(!!(s.mem && s.mem.bits && s.mem.bits[k]));
   }
   if (c.type === 'tx') return num(s.mA);
   return num(s.run !== undefined ? s.run : s.on !== undefined ? s.on : s.act);
@@ -377,8 +379,8 @@ function machineSwitches(sim) {
   if (sim.process) {
     const vars = processVars(sim);
     sim.level.comps.forEach(c => {
-      if (c.type === 'sens' && c.sense) sim.parts[c.id].act = senseDigital(vars, c.sense);
-      if (c.type === 'tx' && c.sense) sim.parts[c.id].mA = senseAnalog(vars, c.sense);
+      if (c.type === 'sens' && c.sense && !sim.parts[c.id].jam) sim.parts[c.id].act = senseDigital(vars, c.sense);
+      if (c.type === 'tx' && c.sense) sim.parts[c.id].mA = sim.parts[c.id].cut ? 0 : senseAnalog(vars, c.sense);
     });
   }
   const m = sim.level.machine;
@@ -475,11 +477,65 @@ export function settle(sim) {
     if (changed) break;
     }
     if (!changed && plcScan(sim, an)) { changed = true; plcFlips++; }
-    if (!changed) { sim.unstable = false; sim.unstableCause = null; return; }
+    if (!changed) { sim.unstable = false; sim.unstableCause = null; hmiPoll(sim, an); return; }
   }
   // le uscite del PLC cambiavano di continuo: il programma si contraddice (es. Q0 comandata da "non Q0")
   sim.unstable = true;
   sim.unstableCause = plcFlips > MAX_ITER / 4 ? 'plc' : null;
+}
+
+/* ---------- pannello operatore (docs/SPEC-PROCESSI.md, sezione 8c) ---------- */
+
+const hmiComp = sim => sim.level.comps.find(c => c.type === 'hmi');
+function hmiLink(sim, an) {
+  const h = hmiComp(sim), cfg = sim.level.hmi;
+  return !!(h && sim.parts[h.id].on && cfg && an.coils[cfg.plc]);
+}
+
+// Con il collegamento il pannello rilegge valori e bit d'allarme; senza, tutto resta fermo all'ultima lettura.
+function hmiPoll(sim, an) {
+  const cfg = sim.level.hmi, P = sim.panel;
+  if (!cfg || !P || !hmiLink(sim, an)) return;
+  const vars = processVars(sim);
+  (cfg.values || []).forEach(v => { P.values[v.id] = { v: traceValue(sim, v.v, vars), t: sim.t }; });
+  (cfg.alarms || []).forEach(a => {
+    const on = traceValue(sim, cfg.plc + '.' + a.bit, vars) === 1;
+    const st = P.alarms[a.id] || { state: 'off', since: null, seq: 0 };
+    let next = st.state;
+    if (on && (st.state === 'off' || st.state === 'rientrato')) next = 'attivo';
+    else if (!on && st.state === 'attivo') next = 'rientrato';
+    else if (!on && st.state === 'riconosciuto') next = 'off';
+    if (next !== st.state) {
+      P.alarms[a.id] = next === 'attivo' && st.state === 'off' ? { state: next, since: sim.t, seq: ++P.seq } : { ...st, state: next };
+    }
+  });
+}
+
+function hmiAck(sim) {
+  const P = sim.panel;
+  if (!P || !hmiLink(sim, analyse(sim))) return;
+  Object.entries(P.alarms).forEach(([id, st]) => {
+    if (st.state === 'attivo') P.alarms[id] = { ...st, state: 'riconosciuto' };
+    else if (st.state === 'rientrato') P.alarms[id] = { ...st, state: 'off' };
+  });
+}
+
+const PRIO = { alta: 0, media: 1, bassa: 2 };
+function hmiReport(sim, an) {
+  const cfg = sim.level.hmi, P = sim.panel;
+  if (!cfg || !P) return null;
+  const stale = cfg.stale || 3;
+  const values = (cfg.values || []).map(v => {
+    const r = P.values[v.id];
+    const age = r ? sim.t - r.t : null;
+    const val = r ? r.v : null;
+    const text = val === null ? '' : v.bool ? v.bool[val ? 1 : 0] : String(Math.round(val * 10) / 10).replace('.', ',') + (v.unit ? ' ' + v.unit : '');
+    return { id: v.id, label: v.label, v: val, text, age, stale: !r || age > stale };
+  });
+  const alarms = (cfg.alarms || []).map(a => ({ id: a.id, text: a.text, prio: a.prio, ...(P.alarms[a.id] || { state: 'off', since: null, seq: 0 }) }))
+    .filter(a => a.state !== 'off')
+    .sort((x, y) => PRIO[x.prio] - PRIO[y.prio] || y.seq - x.seq);
+  return { link: hmiLink(sim, an), horn: alarms.some(a => a.state === 'attivo' || a.state === 'rientrato'), values, alarms };
 }
 
 /* ---------- azioni ---------- */
@@ -505,6 +561,9 @@ export function act(sim, action, id) {
     s.heat = 0;
   } else if (action === 'weld' && (c.type === 'km' || c.type === 'rel')) { if (s.on || s.welded) s.welded = !s.welded; }
   else if (action === 'reset' && c.type === 'ft') { s.tripped = false; s.heat = 0; }
+  else if (action === 'jam' && c.type === 'sens') s.jam = !s.jam;
+  else if (action === 'cut' && c.type === 'tx') s.cut = !s.cut;
+  else if (action === 'ack' && c.type === 'hmi') hmiAck(sim);
   else if (action === 'test' && c.type === 'rcd') {
     if (s.on) {
       const an = analyse(sim);
@@ -618,7 +677,8 @@ export function observe(sim) {
     modes: an.modes,
     plc: Object.fromEntries(sim.level.comps.filter(c => c.type === 'plc').map(c => [c.id, { powered: !!an.coils[c.id], inputs: an.plcIn[c.id], ai: { ...an.plcAi[c.id] }, q: { ...sim.parts[c.id].q }, aq: { ...sim.parts[c.id].aq }, rungs: sim.parts[c.id].rungs.slice(), bits: { ...((sim.parts[c.id].mem && sim.parts[c.id].mem.bits) || {}) }, words: { ...((sim.parts[c.id].mem && sim.parts[c.id].mem.words) || {}) }, timers: { ...((sim.parts[c.id].mem && sim.parts[c.id].mem.timers) || {}) }, counters: { ...((sim.parts[c.id].mem && sim.parts[c.id].mem.counters) || {}) } }])),
     process: sim.process ? { ...processVars(sim) } : null,
-    processAct: sim.process ? actuatorsOf(sim, an) : null,   // comandi che il processo sta ricevendo (0-1), per il disegno
+    processAct: sim.process ? actuatorsOf(sim, an) : null,
+    hmi: hmiReport(sim, an),   // comandi che il processo sta ricevendo (0-1), per il disegno
     coils: Object.fromEntries(Object.entries(an.coils).filter(([id]) => !sim.level.comps.some(c => c.id === id && c.type === 'plc'))),
     parts,
     machine: sim.level.machine ? { pos: sim.pos, atStart: sim.pos <= 0, atEnd: sim.pos >= sim.level.machine.length } : null,

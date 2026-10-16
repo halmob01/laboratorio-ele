@@ -3220,4 +3220,138 @@ export const UNITS_V2 = {
       'Un sistema con ritardo, come un forno, si regola trovando un equilibrio tra reattività e stabilità.',
     ],
   },
+  'c37-pannello': {
+    support: 'passi',
+    lesson: {
+      pages: [
+        {
+          type: 'spiegazione',
+          title: 'Il pannello operatore',
+          paras: [
+            'In un impianto vero chi lo sorveglia non guarda il ladder e non apre il quadro: guarda un pannello operatore, uno schermo collegato al PLC con un cavo di rete. In inglese si chiama HMI, interfaccia uomo-macchina. Mostra i valori importanti (il livello, lo stato della pompa) e gli allarmi.',
+            'Il pannello non misura niente da solo: chiede i valori al PLC più volte al secondo e li disegna. Tutto quello che mostra passa dal PLC e dal cavo.',
+          ],
+        },
+        {
+          type: 'spiegazione',
+          title: 'Un allarme è un bit',
+          paras: [
+            'Il PLC decide quando c’è un allarme, con un gradino come gli altri: un contatto di confronto e una bobina su un merker. Per esempio, se il livello in MW0 è maggiore di 90 la bobina M0 si accende. Il pannello legge M0 e mostra “Livello troppo alto”.',
+            'Il guasto del sensore si riconosce dalla corrente, non dal livello: con il filo interrotto il PLC legge 0 mA e MW0 resta fermo all’ultimo valore calcolato. Per questo il gradino guarda AI0, i milliampere, e non MW0.',
+          ],
+        },
+        {
+          type: 'spiegazione',
+          title: 'Priorità: che cosa guardare prima',
+          paras: [
+            'Quando arrivano più allarmi insieme l’operatore deve sapere da dove cominciare. Ogni allarme ha una priorità e il pannello li mette in ordine: prima gli alti, poi i medi, poi i bassi; a parità di priorità il più recente sta in alto.',
+          ],
+          table: {
+            head: ['Priorità', 'Quando', 'Esempio'],
+            rows: [
+              ['Alta', 'pericolo per l’impianto o misura persa: intervenire subito', 'livello troppo alto, guasto del sensore'],
+              ['Media', 'processo fuori dai limiti: intervenire presto', 'livello troppo basso'],
+              ['Bassa', 'informazione o manutenzione', 'pompa accesa da più di 5 minuti'],
+            ],
+          },
+        },
+        {
+          type: 'spiegazione',
+          title: 'Riconoscere un allarme',
+          paras: [
+            'Un allarme nuovo lampeggia e fa suonare la sirena finché l’operatore non lo riconosce con il tasto. Riconoscere non spegne l’allarme e non risolve il problema: vuol dire “l’ho visto, me ne occupo”. La sirena tace, ma l’allarme resta sul pannello finché la condizione non torna normale.',
+            'Se la condizione torna normale prima che qualcuno l’abbia visto, l’allarme resta come “rientrato” finché non lo riconosci: un problema passato, che nessuno ha notato, va comunque segnalato.',
+          ],
+          table: {
+            head: ['Stato', 'Condizione', 'Riconosciuto', 'Sirena'],
+            rows: [
+              ['Da riconoscere', 'vera', 'no', 'suona'],
+              ['Riconosciuto', 'vera', 'sì', 'tace'],
+              ['Rientrato', 'tornata normale', 'no', 'suona'],
+              ['Sparito', 'tornata normale', 'sì', 'tace'],
+            ],
+          },
+        },
+        {
+          type: 'spiegazione',
+          title: 'Il dato vecchio',
+          paras: [
+            'Se il cavo tra pannello e PLC si stacca, il pannello non riceve più niente. Lo schermo però continua a mostrare l’ultimo valore letto: un livello del 45 % che sembra vero, mentre il serbatoio intanto si riempie o si svuota.',
+            'Per questo ogni valore ha l’ora dell’ultima lettura. Se è più vecchio di qualche secondo il pannello lo segna come dato vecchio (grigio, barrato, con l’età) e mostra “collegamento perso”. Un numero fermo non va mai preso per buono: prima di decidere guarda se è aggiornato.',
+          ],
+          warn: 'Senza collegamento anche gli allarmi non arrivano: un pannello senza allarmi non vuol dire un impianto senza problemi.',
+        },
+        {
+          type: 'previsione',
+          question: 'Arriva “Livello troppo alto” e lo riconosci. Che cosa succede?',
+          options: [
+            { id: 'a', text: 'L’allarme sparisce e il livello torna normale.' },
+            { id: 'b', text: 'La sirena tace, ma l’allarme resta sul pannello finché il livello è alto.' },
+            { id: 'c', text: 'Il PLC ferma la pompa.' },
+          ],
+          correct: 'b',
+          why: 'Riconoscere vuol dire “l’ho visto”. Il problema c’è ancora: l’allarme resta, riconosciuto, finché il livello non scende sotto il 90 %.',
+        },
+        {
+          type: 'previsione',
+          question: 'Il pannello mostra “Livello 45 %” da un minuto, sempre uguale, e nessun allarme. Che cosa controlli prima?',
+          options: [
+            { id: 'a', text: 'Niente: il livello è stabile e non ci sono allarmi.' },
+            { id: 'b', text: 'Se il valore è aggiornato: un numero fermo può essere un dato vecchio, con il collegamento perso.' },
+            { id: 'c', text: 'La pompa.' },
+          ],
+          correct: 'b',
+          why: 'Un valore che non cambia mai è sospetto: se il collegamento è perso il pannello mostra l’ultima lettura e nessun allarme nuovo. Prima di fidarti guarda se il dato è aggiornato.',
+        },
+        { type: 'sintesi', title: 'Da ricordare' },
+      ],
+    },
+    steps: [
+      { kind: 'program', plc: 'PLC', min: 6, short: '1 Troppo alto', title: 'L’allarme di livello alto', text: 'Nuovo gradino: tocca il contatto, scegli Confronto, MW0 maggiore di 90; uscita bobina M0. Perché: sopra il 90 % il serbatoio rischia di traboccare.' },
+      { kind: 'program', plc: 'PLC', min: 7, short: '2 Sensore', title: 'L’allarme del sensore', text: 'Nuovo gradino: confronto AI0 minore di 3,6; bobina M1. Perché: sotto 3,6 mA il filo del trasmettitore è interrotto, e MW0 non si aggiorna più.' },
+      { kind: 'program', plc: 'PLC', min: 8, short: '3 Troppo basso', title: 'L’allarme di livello basso', text: 'Nuovo gradino: confronto MW0 minore di 10; bobina M2. Perché: un serbatoio vuoto fa girare a secco chi lo usa.' },
+      { kind: 'verify', short: '4 Verifica', title: 'Prova gli allarmi', text: 'Prova a bloccare un galleggiante o a interrompere il filo del trasmettitore con i tasti sul banco, e riconosci gli allarmi sul pannello. Poi premi Verifica.' },
+    ],
+    summary: [
+      'Il pannello operatore (HMI) legge i valori e gli allarmi dal PLC attraverso un cavo di rete.',
+      'Un allarme è un bit che il PLC calcola con un gradino; il guasto del sensore si riconosce dalla corrente (sotto 3,6 mA), non dal livello.',
+      'Gli allarmi hanno una priorità (alta, media, bassa) e il pannello li ordina: si guarda prima l’alta.',
+      'Riconoscere ferma la sirena ma non l’allarme: resta finché la condizione non torna normale. Un allarme rientrato senza riconoscimento resta da riconoscere.',
+      'Senza collegamento il pannello mostra l’ultimo valore: dopo qualche secondo lo segna come dato vecchio. Un numero fermo non va preso per buono.',
+    ],
+    fault: {
+      say: 'Il pannello mostra il livello fermo e nessun allarme, ma il serbatoio intanto cambia. Guarda bene il pannello e il banco.',
+      open: ['HMI'],
+      wires: [
+        ['Q.L1', 'PLC.A1', 'rosso'], ['PLC.A2', 'Q.N', 'blu'], ['PLC.IC', 'Q.N', 'blu'],
+        ['Q.L1', 'LH.3', 'rosso'], ['LH.4', 'PLC.I0', 'rosso'],
+        ['Q.L1', 'LL.3', 'rosso'], ['LL.4', 'PLC.I1', 'rosso'],
+        ['TT.+', 'PLC.AI0+', 'rosso'], ['TT.-', 'PLC.AI0-', 'rosso'],
+        ['Q.L1', 'PLC.Q0A', 'rosso'], ['PLC.Q0B', 'HP.X1', 'rosso'], ['HP.X2', 'Q.N', 'blu'],
+      ],
+      programs: {
+        PLC: [
+          { if: 'I1', do: [{ op: 'set', a: 'Q0' }] },
+          { if: 'I0', do: [{ op: 'reset', a: 'Q0' }] },
+          { if: ['ge', 'AI0', 3.6], do: [{ op: 'scale', in: 'AI0', out: 'MW0', lo: 0, hi: 100 }] },
+          { if: 'Q0', do: [{ op: 'ton', id: 'T1', pt: 300 }] },
+          { if: 'T1', do: [{ op: 'coil', a: 'M3' }] },
+          { if: ['gt', 'MW0', 90], do: [{ op: 'coil', a: 'M0' }] },
+          { if: ['lt', 'AI0', 3.6], do: [{ op: 'coil', a: 'M1' }] },
+          { if: ['lt', 'MW0', 10], do: [{ op: 'coil', a: 'M2' }] },
+        ],
+      },
+      diagnosis: {
+        question: 'Perché il pannello mostra un livello che non cambia?',
+        options: [
+          { id: 'a', text: 'Il cavo di rete del pannello è staccato: il pannello mostra l’ultimo valore letto, ormai vecchio, e non riceve gli allarmi.' },
+          { id: 'b', text: 'Il trasmettitore di livello è guasto.' },
+          { id: 'c', text: 'Il serbatoio è davvero fermo.' },
+        ],
+        correct: 'a',
+        why: 'Il PLC continua a leggere il trasmettitore e a regolare la pompa, ma il pannello non riceve più niente: mostra l’ultimo valore, segnato come dato vecchio, e “collegamento perso”. Se fosse guasto il trasmettitore, con il cavo collegato arriverebbe l’allarme del sensore.',
+      },
+      fixSay: 'Ricollega il cavo di rete del pannello (tocca il pannello sul banco). Poi premi Verifica.',
+    },
+  },
 };

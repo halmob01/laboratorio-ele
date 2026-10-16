@@ -42,7 +42,12 @@ function draw(e, x, y, w, bits, names, on, cx, path = [], words = {}) {
   if (isCmp(e)) {
     // contatto di confronto: una scatola con la condizione (es. AI0 < 3,6), colorata se e' vera
     const v = evalBits(e, bits, words), mx = x + w / 2, bw = Math.min(w - 8, 64);
-    return `<path class="lad-wire ${on ? 'lad-on' : ''}" d="M${x} ${my}H${mx - bw / 2}M${mx + bw / 2} ${my}H${x + w}"/><rect class="lad-box ${v ? 'lad-done' : ''}" x="${mx - bw / 2}" y="${y + 9}" width="${bw}" height="${CH - 18}" rx="5"/><text class="lad-s" x="${mx}" y="${my - 1}" text-anchor="middle">${esc(numTxt(e[1]))}</text><text class="lad-s" x="${mx}" y="${my + 11}" text-anchor="middle">${CMP[e[0]]} ${esc(numTxt(e[2]))}</text>`;
+    let hit = '';
+    if (cx.edit) {
+      const t = { kind: 'c', r: cx.r, cell: path.length ? path[0] : 0, alt: path.length > 1 ? path[1] : 0 };
+      hit = `<rect class="lad-hit${same(cx.sel, t) ? ' lad-sel' : ''}" data-lad="c" data-r="${t.r}" data-cell="${t.cell}" data-alt="${t.alt}" x="${x + 4}" y="${y + 2}" width="${w - 8}" height="${CH - 4}" rx="8" tabindex="0" role="button" aria-label="Confronto ${esc(e[1])} ${CMP[e[0]]} ${esc(numTxt(e[2]))}"/>`;
+    }
+    return hit + `<path class="lad-wire ${on ? 'lad-on' : ''}" d="M${x} ${my}H${mx - bw / 2}M${mx + bw / 2} ${my}H${x + w}"/><rect class="lad-box ${v ? 'lad-done' : ''}" x="${mx - bw / 2}" y="${y + 9}" width="${bw}" height="${CH - 18}" rx="5"/><text class="lad-s" x="${mx}" y="${my - 1}" text-anchor="middle">${esc(numTxt(e[1]))}</text><text class="lad-s" x="${mx}" y="${my + 11}" text-anchor="middle">${CMP[e[0]]} ${esc(numTxt(e[2]))}</text>`;
   }
   if (isLeaf(e)) {
     const addr = typeof e === 'string' ? e : e[1], nc = Array.isArray(e) && e[0] === 'not', rise = Array.isArray(e) && e[0] === 'rise';
@@ -86,7 +91,7 @@ function draw(e, x, y, w, bits, names, on, cx, path = [], words = {}) {
 const OUT_TXT = { coil: '( )', set: '(S)', reset: '(R)' };
 function drawOut(ins, x, y, bits, names, on, cx, k) {
   const my = y + CH / 2;
-  const hit = cx.edit ? `<rect class="lad-hit${same(cx.sel, { kind: 'o', r: cx.r, out: k }) ? ' lad-sel' : ''}" data-lad="o" data-r="${cx.r}" data-out="${k}" x="${x + 6}" y="${y + 2}" width="${OUT_W - 8}" height="${CH - 4}" rx="8" tabindex="0" role="button" aria-label="Uscita ${esc(names[ins.a || ins.id] || ins.a || ins.id)}"/>` : '';
+  const hit = cx.edit ? `<rect class="lad-hit${same(cx.sel, { kind: 'o', r: cx.r, out: k }) ? ' lad-sel' : ''}" data-lad="o" data-r="${cx.r}" data-out="${k}" x="${x + 6}" y="${y + 2}" width="${OUT_W - 8}" height="${CH - 4}" rx="8" tabindex="0" role="button" aria-label="Uscita ${esc(names[ins.a || ins.id || ins.out] || ins.a || ins.id || ins.out || ins.op)}"/>` : '';
   if (ins.op === 'ton' || ins.op === 'ctu') {
     const t = ins.op === 'ton' ? `TON ${ins.pt} s` : `CTU ${ins.pv}`;
     return `<path class="lad-wire ${on ? 'lad-on' : ''}" d="M${x} ${my}H${x + 10}"/><rect class="lad-box ${bits[ins.id] ? 'lad-done' : ''}" x="${x + 10}" y="${y + 6}" width="${OUT_W - 10}" height="${CH - 12}" rx="5"/><text class="lad-s" x="${x + 10 + (OUT_W - 10) / 2}" y="${my - 1}" text-anchor="middle">${t}</text><text class="lad-a" x="${x + 10 + (OUT_W - 10) / 2}" y="${my + 12}" text-anchor="middle">${ins.id}</text>${hit}`;
@@ -165,10 +170,16 @@ export function editorPanelHTML(program, sel, names, addrs, ops, errors, text) {
     const cells = toCells(program[sel.r].if) || [];
     const c = cells[sel.cell] && cells[sel.cell].alts[sel.alt];
     if (c) {
-      const t = c.rise ? 'rise' : c.not ? 'not' : 'no';
-      body = `<div class="ladrow"><b>Contatto</b>
-        <div class="ladseg" role="group" aria-label="Tipo di contatto">${[['no', 'Normalmente aperto'], ['not', 'Normalmente chiuso'], ['rise', 'Fronte di salita']].map(([v, l]) => `<button class="chip seg" data-lac="type" data-v="${v}" aria-pressed="${t === v}">${l}</button>`).join('')}</div>
-        <label class="ladsel">Bit <select data-lac="addr">${opt(contactAddrs, c.a)}</select></label>
+      const t = c.cmp ? 'cmp' : c.rise ? 'rise' : c.not ? 'not' : 'no';
+      const types = [['no', 'Normalmente aperto'], ['not', 'Normalmente chiuso'], ['rise', 'Fronte di salita']].concat(addrs.words && addrs.words.length ? [['cmp', 'Confronto']] : []);
+      const fields = c.cmp
+        ? `<label class="ladsel">Valore <select data-lac="addr">${opt(addrs.words, c.a)}</select></label>
+        <label class="ladsel">Condizione <select data-lac="cmpop">${[['gt', 'maggiore di (>)'], ['lt', 'minore di (<)'], ['ge', 'maggiore o uguale a (≥)'], ['le', 'minore o uguale a (≤)']].map(([v, l]) => `<option value="${v}"${v === c.cmp ? ' selected' : ''}>${l}</option>`).join('')}</select></label>
+        <label class="ladsel">Numero <input type="number" inputmode="decimal" step="any" value="${c.b}" data-lac="cmpb"></label>`
+        : `<label class="ladsel">Bit <select data-lac="addr">${opt(contactAddrs, c.a)}</select></label>`;
+      body = `<div class="ladrow"><b>${c.cmp ? 'Confronto' : 'Contatto'}</b>
+        <div class="ladseg" role="group" aria-label="Tipo di contatto">${types.map(([v, l]) => `<button class="chip seg" data-lac="type" data-v="${v}" aria-pressed="${t === v}">${l}</button>`).join('')}</div>
+        ${fields}
         <div class="ladbtns"><button class="btn" data-lac="parallel">In parallelo</button><button class="btn" data-lac="delContact">Elimina contatto</button></div></div>`;
     }
   } else if (sel.kind === 'o') {

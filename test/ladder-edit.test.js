@@ -60,5 +60,21 @@ test('un gradino non modificabile resta com\'e\'', () => {
 test('indirizzi scelibili: ingressi e uscite del PLC, merker, temporizzatori e contatori se il livello li permette', () => {
   const plc = { terms: { A1: {}, A2: {}, IC: {}, I0: {}, I1: {}, Q0A: {}, Q0B: {}, Q1A: {}, Q1B: {} } };
   const a = addressesFor(plc, { markers: 2, timers: 1 });
-  assert.deepEqual(a, { inputs: ['I0', 'I1'], outputs: ['Q0', 'Q1'], markers: ['M0', 'M1'], timers: ['T1'], counters: [] });
+  assert.deepEqual(a, { inputs: ['I0', 'I1'], outputs: ['Q0', 'Q1'], markers: ['M0', 'M1'], timers: ['T1'], counters: [], words: [] });
+});
+
+test('contatti di confronto: si leggono, si scrivono e si modificano come gli altri', async () => {
+  const { toCells, fromCells, setContact, addContact, addressesFor } = await import('../src/engine/ladder-edit.js');
+  const e = ['and', ['gt', 'MW0', 90], ['not', 'I0']];
+  const cells = toCells(e);
+  assert.deepEqual(cells[0].alts[0], { cmp: 'gt', a: 'MW0', b: 90 });
+  assert.deepEqual(fromCells(cells), e);
+  let p = [{ if: ['lt', 'AI0', 3.6], do: [{ op: 'coil', a: 'M1' }] }];
+  p = setContact(p, 0, 0, 0, { cmp: 'le', a: 'AI0', b: 3.5 });
+  assert.deepEqual(p[0].if, ['le', 'AI0', 3.5]);
+  p = addContact(p, 0, { cmp: 'gt', a: 'MW0', b: 10 });
+  assert.deepEqual(p[0].if, ['and', ['le', 'AI0', 3.5], ['gt', 'MW0', 10]]);
+  // un confronto tra due parole non si modifica dall'editor (si vede soltanto)
+  assert.equal(toCells(['gt', 'MW0', 'MW1']), null);
+  assert.deepEqual(addressesFor({ terms: { I0: {}, Q0A: {} } }, { words: ['AI0', 'MW0'] }).words, ['AI0', 'MW0']);
 });

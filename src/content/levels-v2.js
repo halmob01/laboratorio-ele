@@ -1213,3 +1213,82 @@ LEVELS_V2.push({
     'La derivativa (Td) frena quando la temperatura sale in fretta: con Td di 10-20 secondi la sovraelongazione si riduce. Un Kp troppo alto fa oscillare comunque.',
   ],
 });
+
+// c37: il pannello operatore (Modulo 6). Il serbatoio di c35 con il trasmettitore di livello e un pannello operatore (HMI).
+// L'impianto e la regolazione sono fatti; l'allievo scrive i gradini degli allarmi con i confronti. Il pannello li mostra per
+// priorita', con la sirena finche' non si riconoscono, e segna come vecchi i valori quando il collegamento con il PLC cade.
+const W37 = [
+  ['Q.L1', 'PLC.A1', 'rosso'], ['PLC.A2', 'Q.N', 'blu'], ['PLC.IC', 'Q.N', 'blu'],
+  ['Q.L1', 'LH.3', 'rosso'], ['LH.4', 'PLC.I0', 'rosso'],
+  ['Q.L1', 'LL.3', 'rosso'], ['LL.4', 'PLC.I1', 'rosso'],
+  ['TT.+', 'PLC.AI0+', 'rosso'], ['TT.-', 'PLC.AI0-', 'rosso'],
+  ['Q.L1', 'PLC.Q0A', 'rosso'], ['PLC.Q0B', 'HP.X1', 'rosso'], ['HP.X2', 'Q.N', 'blu'],
+];
+const START_37 = [
+  { if: 'I1', do: [{ op: 'set', a: 'Q0' }] },
+  { if: 'I0', do: [{ op: 'reset', a: 'Q0' }] },
+  { if: ['ge', 'AI0', 3.6], do: [{ op: 'scale', in: 'AI0', out: 'MW0', lo: 0, hi: 100 }] },
+  { if: 'Q0', do: [{ op: 'ton', id: 'T1', pt: 300 }] },
+  { if: 'T1', do: [{ op: 'coil', a: 'M3' }] },
+];
+const ALARMS_37 = [
+  { if: ['gt', 'MW0', 90], do: [{ op: 'coil', a: 'M0' }] },
+  { if: ['lt', 'AI0', 3.6], do: [{ op: 'coil', a: 'M1' }] },
+  { if: ['lt', 'MW0', 10], do: [{ op: 'coil', a: 'M2' }] },
+];
+LEVELS_V2.push({
+  id: 'c37-pannello', code: 'c37', n: 0, ...IND, flow: 'onDemand',
+  name: 'Il pannello operatore', title: 'Il pannello operatore',
+  blurb: 'Allarmi con priorità, la sirena che chiede attenzione e il dato vecchio che sembra buono.',
+  goal: 'Il serbatoio di prima, con il trasmettitore di livello e un pannello operatore collegato al PLC. Il PLC regola già la pompa e calcola il livello in MW0. Aggiungi i gradini degli allarmi: M0 “Livello troppo alto” sopra il 90 %, M1 “Guasto sensore” con la corrente sotto 3,6 mA, M2 “Livello troppo basso” sotto il 10 %. Il pannello li mostra con la loro priorità.',
+  fixed: W37,
+  comps: [
+    Q3,
+    C('PLC', 'plc', 'PLC', 'PLC (allarmi da scrivere)', T('A1', 'A2', 'I0', 'I1', 'IC', 'AI0+', 'AI0-', 'Q0A', 'Q0B'), {
+      symbols: { I0: 'Livello alto', I1: 'Livello basso', Q0: 'Pompa', AI0: 'Livello (mA)', MW0: 'Livello (%)', T1: 'Pompa a lungo', M0: 'Troppo alto', M1: 'Guasto sensore', M2: 'Troppo basso', M3: 'Pompa a lungo' },
+      edit: { start: START_37, markers: 4, timers: 1, counters: 0, words: ['MW0', 'AI0'], ops: ['coil', 'set', 'reset'] },
+    }),
+    C('LH', 'sens', 'Galleggiante alto', 'Galleggiante di livello alto (80 %)', T('1', '2', '3', '4'), { sense: { v: 'h', above: 80 } }),
+    C('LL', 'sens', 'Galleggiante basso', 'Galleggiante di livello basso (20 %)', T('1', '2', '3', '4'), { sense: { v: 'h', below: 20 } }),
+    C('TT', 'tx', 'Trasmettitore', 'Trasmettitore di livello 4-20 mA', T('+', '-'), { sense: { v: 'h', lo: 0, hi: 100 } }),
+    C('HP', 'spia', 'Pompa', 'Pompa in marcia', T('X1', 'X2')),
+    C('HMI', 'hmi', 'Pannello', 'Pannello operatore collegato al PLC', {}),
+  ],
+  process: {
+    model: 'serbatoio', title: 'Il serbatoio', alt: 'Serbatoio con due galleggianti, il trasmettitore e la pompa',
+    params: { qIn: 36, qOut: 12 }, init: { h: 50 }, speed: 30,
+    actuators: { pump: { load: 'HP' }, valve: { value: 1 } },
+    trace: ['h'], labels: { h: 'Il livello' },
+    graph: { vars: [{ v: 'h', label: 'Livello %', lo: 0, hi: 100 }], window: 900, lines: [{ value: 90, label: 'troppo alto' }, { value: 10, label: 'troppo basso' }] },
+  },
+  hmi: {
+    plc: 'PLC', stale: 3,
+    values: [
+      { id: 'V1', label: 'Livello', v: 'PLC.MW0', unit: '%' },
+      { id: 'V2', label: 'Pompa', v: 'PLC.Q0', bool: ['ferma', 'in marcia'] },
+    ],
+    alarms: [
+      { id: 'A1', bit: 'M0', text: 'Livello troppo alto', prio: 'alta' },
+      { id: 'A2', bit: 'M1', text: 'Guasto del sensore di livello', prio: 'alta' },
+      { id: 'A3', bit: 'M2', text: 'Livello troppo basso', prio: 'media' },
+      { id: 'A4', bit: 'M3', text: 'Pompa accesa da più di 5 minuti', prio: 'bassa' },
+    ],
+  },
+  demoDo: [{ do: ['wait 200'], say: '' }],
+  checks: [
+    { id: 'normale', label: 'Con l’impianto a posto non c’è nessun allarme di livello', do: ['wait 900'], expect: { hmi: { link: true, alarms: { A1: 'off', A2: 'off', A3: 'off' }, stale: { V1: false } } } },
+    { id: 'alto', label: 'Galleggiante alto bloccato: il serbatoio sale oltre il 90 % e scatta “Livello troppo alto”, con la sirena', do: ['jam LH', 'wait 600'], expect: { hmi: { alarms: { A1: 'attivo' }, horn: true } } },
+    { id: 'riconosci', label: 'Riconoscendo, l’allarme resta finché il livello è alto ma la sirena tace', steps: [{ do: ['jam LH', 'wait 600'], expect: { hmi: { alarms: { A1: 'attivo' } } } }, { do: ['ack HMI'], expect: { hmi: { alarms: { A1: 'riconosciuto' }, horn: false } } }] },
+    { id: 'sensore', label: 'Filo del trasmettitore interrotto: scatta “Guasto del sensore di livello”', do: ['cut TT', 'wait 5'], expect: { hmi: { alarms: { A2: 'attivo', A3: 'off' } } } },
+    { id: 'rientro', label: 'Ricollegato il filo, l’allarme del sensore resta sul pannello come rientrato finché non lo riconosci', steps: [{ do: ['cut TT', 'wait 5'], expect: { hmi: { alarms: { A2: 'attivo' } } } }, { do: ['cut TT', 'wait 5'], expect: { hmi: { alarms: { A2: 'rientrato' }, horn: true } } }, { do: ['ack HMI'], expect: { hmi: { alarms: { A2: 'off' } } } }] },
+    { id: 'basso', label: 'Galleggiante basso bloccato: il serbatoio si svuota e scatta “Livello troppo basso”', do: ['jam LL', 'wait 600'], expect: { hmi: { alarms: { A3: 'attivo', A1: 'off' } } } },
+  ],
+  safety: { coilReturn: ['PLC'] },
+  solution: W37,
+  solutionPrograms: { PLC: START_37.concat(ALARMS_37) },
+  hints: [
+    'Un allarme è un bit: il gradino ha un contatto di confronto e, come uscita, la bobina del merker. Per esempio: confronto MW0 maggiore di 90, bobina M0.',
+    'Il guasto del sensore non si vede dal livello in percentuale ma dalla corrente: confronto AI0 minore di 3,6, bobina M1. Con il filo interrotto MW0 resta fermo all’ultimo valore.',
+    'Il livello troppo basso: confronto MW0 minore di 10, bobina M2.',
+  ],
+});

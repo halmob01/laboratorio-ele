@@ -140,9 +140,11 @@ export function createSession({ levels, deriveFull, storage = memoryStorage(), i
   const rewireSim = () => {
     const old = simsByKey[keyOf()], lv = levelAt();
     dropSim();
-    if (!old || !selfPowered(lv)) return;
+    // il cavo del pannello operatore resta com'e' anche cambiando i fili (e' un guasto da riparare a mano, non con il cablaggio)
+    const keep = (selfPowered(lv) ? ['mt', 'mt3', 'sez', 'rcd', 'sw', 'gu'] : []).concat(['hmi']);
+    if (!old || !lv.comps.some(c => keep.includes(c.type))) return;
     const sim = simFor();
-    lv.comps.forEach(c => { if (['mt', 'mt3', 'sez', 'rcd', 'sw', 'gu'].includes(c.type) && old.parts[c.id]) { Object.assign(sim.parts[c.id], JSON.parse(JSON.stringify(old.parts[c.id]))); } });
+    lv.comps.forEach(c => { if (keep.includes(c.type) && old.parts[c.id]) { Object.assign(sim.parts[c.id], JSON.parse(JSON.stringify(old.parts[c.id]))); } });
     setWires2(sim, wires());
   };
   function simFor() {
@@ -750,6 +752,10 @@ export function createSession({ levels, deriveFull, storage = memoryStorage(), i
     release(id) { this._act('release', id); },
     resetPart(id) { this._act('reset', id); },
     testPart(id) { this._act('test', id); },
+    // Pannello operatore: riconoscimento degli allarmi; guasti simulati sui sensori (galleggiante bloccato, filo del trasmettitore interrotto).
+    ackPanel(id) { this._act('ack', id); },
+    jamPart(id) { this._act('jam', id); },
+    cutPart(id) { this._act('cut', id); },
     _act(action, id) {
       if (!v2() || !inBuildOrFault()) return;
       const sim = simFor();
@@ -822,7 +828,7 @@ export function createSession({ levels, deriveFull, storage = memoryStorage(), i
       const level = levelAt();
       // nella sfida guasto i guasti da componente ancora attivi (dispersioni) vanno tolti prima di verificare
       const faultOn = v2(level) && level.unit && level.unit.fault && unitState().phase === 'fault' ? (level.unit.fault.on || []).filter(id => simFor().parts[id] && simFor().parts[id].on) : [];
-      const r = v2(level) ? evaluateV2(level, wires(), { measured: measuredBy[keyOf()] || [], ratings: ratingsOf(), programs: programsOf(), tuned: tunedByKey[keyOf()], faultOn, liveEdits: liveEditsBy[keyOf()] || [] }) : evaluate(level, wires());
+      const r = v2(level) ? evaluateV2(level, wires(), { measured: measuredBy[keyOf()] || [], ratings: ratingsOf(), programs: programsOf(), tuned: tunedByKey[keyOf()], faultOn, hmiOff: levelAt().comps.filter(c => c.type === 'hmi' && simFor().parts[c.id] && !simFor().parts[c.id].on).map(c => c.id), liveEdits: liveEditsBy[keyOf()] || [] }) : evaluate(level, wires());
       resultsByKey[keyOf()] = r;
       const u = usage();
       u.checks++;

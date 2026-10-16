@@ -59,10 +59,14 @@ export const PARTS = {
   fc: { contacts: (c, s) => (s.act ? [['3', '4']] : [['1', '2']]), init: () => ({ act: false }) },
   // sensore digitale di processo (galleggiante, termostato, sensore di velocita'): come il finecorsa, 1-2 NC e 3-4 NA.
   // `sense: { v: 'h', above: 80 }` o `{ v: 'h', below: 20 }`: azionato quando la condizione sulla grandezza del processo e' vera.
-  sens: { contacts: (c, s) => (s.act ? [['3', '4']] : [['1', '2']]), init: () => ({ act: false }) },
+  // `jam` (guasto simulato): il galleggiante resta bloccato dov'e'
+  sens: { contacts: (c, s) => (s.act ? [['3', '4']] : [['1', '2']]), init: () => ({ act: false, jam: false }), actions: ['jam'] },
   // trasmettitore 4-20 mA, morsetti + e -: anello verso un ingresso analogico del PLC (AIk+ / AIk-). `sense: { v, lo, hi }`.
   // Non e' un circuito risolto: vedi sim.js, analogIn, e docs/SPEC-PROCESSI.md, sezione 3.
-  tx: { contacts: () => [], init: () => ({ mA: 0 }) },
+  // `cut` (guasto simulato): filo del trasmettitore interrotto, l'anello porta 0 mA
+  tx: { contacts: () => [], init: () => ({ mA: 0, cut: false }), actions: ['cut'] },
+  // pannello operatore (HMI): niente morsetti, un cavo di rete verso il PLC (`on` = collegato). Configurato da level.hmi (sim.js, hmiPoll).
+  hmi: { contacts: () => [], init: () => ({ on: true }), actions: ['toggle', 'ack'] },
 
   // PLC con ingressi a 230 V e uscite a relè (come un LOGO! 230RC). A1-A2: alimentazione (e' una bobina: 230 V, si brucia con 400 V).
   // Un ingresso In vale 1 se tra In e IC ci sono 230 V. Ogni uscita Qk e' un contatto Qk A - Qk B (chiuso quando il bit di uscita e' 1).

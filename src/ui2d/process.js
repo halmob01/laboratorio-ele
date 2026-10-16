@@ -16,7 +16,7 @@ function tankScene(level, s) {
   level.comps.filter(c => c.type === 'sens' && c.sense && c.sense.v === 'h').forEach(c => {
     const lvl = c.sense.above !== undefined ? c.sense.above : c.sense.below, y = bot - (bot - top) * lvl / 100;
     const act = !!(s.obs.parts[c.id] || {}).act;
-    o += `<line x1="262" y1="${y}" x2="290" y2="${y}" stroke="${act ? '#F59F00' : 'var(--ink2)'}" stroke-width="3"/><circle cx="296" cy="${y}" r="5" fill="${act ? '#F59F00' : 'none'}" stroke="var(--ink2)" stroke-width="1.6"/><text x="306" y="${y + 4}" style="font:600 11px 'IBM Plex Mono',monospace;fill:var(--ink2)">${c.short}</text>`;
+    o += `<line x1="262" y1="${y}" x2="290" y2="${y}" stroke="${act ? '#F59F00' : 'var(--ink2)'}" stroke-width="3"/><circle cx="296" cy="${y}" r="5" fill="${act ? '#F59F00' : 'none'}" stroke="var(--ink2)" stroke-width="1.6"/><text x="306" y="${y + 4}" style="font:600 11px 'IBM Plex Mono',monospace;fill:var(--ink2)">${c.id}</text>`;
   });
   if (level.comps.some(c => c.type === 'tx' && c.sense && c.sense.v === 'h')) o += `<text x="206" y="${top - 6}" text-anchor="middle" style="font:600 11px 'IBM Plex Mono',monospace;fill:var(--ink2)">livello ${NS(h)} %</text>`;
   else o += `<text x="206" y="${top - 6}" text-anchor="middle" style="font:600 11px 'IBM Plex Mono',monospace;fill:var(--ink2)">${NS(h)} %</text>`;
@@ -95,6 +95,36 @@ function slidersHTML(level, s) {
 }
 
 // Struttura e aggiornamenti. mount: a ogni cambio di livello; update: a ogni istantanea (non tocca i cursori mentre si trascinano).
+// ---------- pannello operatore (level.hmi) ----------
+const PRIO_TXT = { alta: 'ALTA', media: 'MEDIA', bassa: 'BASSA' };
+const STATE_TXT = { attivo: 'da riconoscere', riconosciuto: 'riconosciuto', rientrato: 'rientrato, da riconoscere' };
+const ageTxt = a => (a === null ? '' : 'dato vecchio · ' + Math.round(a) + ' s');
+function hmiValuesHTML(h) {
+  return h.values.map(v => `<div class="hmival${v.stale ? ' stale' : ''}"><span>${v.label}</span><b>${v.text || '—'}</b><i>${v.stale ? ageTxt(v.age) : ''}</i></div>`).join('');
+}
+function hmiAlarmsHTML(h) {
+  if (!h.alarms.length) return '<p class="hmiempty">Nessun allarme</p>';
+  return h.alarms.map(a => `<div class="hmialm p-${a.prio} s-${a.state}"><em>${PRIO_TXT[a.prio]}</em><span>${a.text}</span><i>${STATE_TXT[a.state]}${a.since !== null ? ' · a ' + Math.round(a.since) + ' s' : ''}</i></div>`).join('');
+}
+function hmiSync(el, s) {
+  const box = el.querySelector('.hmi');
+  const h = s.obs && s.obs.hmi;
+  if (!box || !h) return;
+  const set = (sel, html) => { const e = box.querySelector(sel); if (e && e.innerHTML !== html) e.innerHTML = html; };
+  set('.hmilink', h.link ? 'collegato' : 'collegamento perso');
+  box.querySelector('.hmilink').classList.toggle('off', !h.link);
+  const horn = box.querySelector('.hmihorn');
+  horn.hidden = !h.horn;
+  set('.hmivals', hmiValuesHTML(h));
+  set('.hmialms', hmiAlarmsHTML(h));
+  const ack = box.querySelector('[data-hmiack]');
+  ack.disabled = !h.link || !h.alarms.some(a => a.state === 'attivo' || a.state === 'rientrato');
+}
+const hmiShellHTML = lv => {
+  const id = (lv.comps.find(c => c.type === 'hmi') || {}).id || 'HMI';
+  return `<div class="hmi" role="region" aria-label="Pannello operatore"><div class="hmitop"><b>PANNELLO OPERATORE</b><span class="hmilink"></span><span class="hmihorn" hidden>SIRENA</span></div><div class="hmivals"></div><div class="hmialms" aria-live="polite"></div><button class="btn hmiack" data-hmiack="${id}">Riconosci gli allarmi</button></div>`;
+};
+
 export function processMount(el, s) {
   const lv = s.level;
   if (!lv.process || !s.obs) { el.hidden = true; el.innerHTML = ''; el.dataset.key = ''; return; }
@@ -102,7 +132,7 @@ export function processMount(el, s) {
   el.dataset.key = s.levelKey;
   el.innerHTML = `<div class="ladhead"><b>${lv.process.title || 'Il processo'}</b><span data-speed>${s.speed > 1 ? 'tempo × ' + s.speed : ''}</span></div>` +
     `<svg class="procscene" viewBox="0 0 400 160" role="img" aria-label="${lv.process.alt || 'Il processo che si regola'}"></svg>` +
-    (lv.process.graph ? `<div class="procgraphbox"></div>` : '') + slidersHTML(lv, s);
+    (lv.hmi ? hmiShellHTML(lv) : '') + (lv.process.graph ? `<div class="procgraphbox"></div>` : '') + slidersHTML(lv, s);
   processUpdate(el, s);
 }
 
@@ -119,6 +149,7 @@ function processUpdate(el, s) {
   if (sc && scene) sc.innerHTML = scene(lv, s);
   const gb = el.querySelector('.procgraphbox');
   if (gb) gb.innerHTML = graphSVG(lv, s);
+  if (lv.hmi) hmiSync(el, s);
   el.querySelectorAll('[data-out]').forEach(o => {
     const name = o.dataset.out, d = lv.process.tunable[name], v = (s.tuned || {})[name];
     if (v !== undefined) o.textContent = NS(v) + (d.unit ? ' ' + d.unit : '');

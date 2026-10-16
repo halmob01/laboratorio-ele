@@ -44,6 +44,20 @@ function mismatch(obs, expect) {
       if (obs.machine[k] !== v) return { comp: 'machine.' + k, want: v, got: obs.machine[k] };
     }
   }
+  if (expect.hmi) {
+    const h = obs.hmi || {};
+    if (expect.hmi.link !== undefined && !!h.link !== expect.hmi.link) return { comp: 'hmi.link', want: expect.hmi.link, got: !!h.link };
+    for (const [id, want] of Object.entries(expect.hmi.alarms || {})) {
+      const a = (h.alarms || []).find(x => x.id === id);
+      const got = a ? a.state : 'off';
+      if (got !== want) return { comp: 'hmi.alarm.' + id, want, got };
+    }
+    if (expect.hmi.horn !== undefined && !!h.horn !== expect.hmi.horn) return { comp: 'hmi.horn', want: expect.hmi.horn, got: !!h.horn };
+    for (const [id, want] of Object.entries(expect.hmi.stale || {})) {
+      const v = (h.values || []).find(x => x.id === id);
+      if (!v || v.stale !== want) return { comp: 'hmi.stale.' + id, want, got: v ? v.stale : null };
+    }
+  }
   if (expect.process) {
     for (const [k, v] of Object.entries(expect.process)) {
       const got = obs.process ? obs.process[k] : undefined;
@@ -243,6 +257,8 @@ export function evaluateV2(level, wires, ctx = {}) {
     const missing = (level.measures || []).filter(m => !(ctx.measured || []).some(x => measureMatches(m, x)));
     if (missing.length) { out.work.ok = false; add('work', 'work.measureMissing', { label: missing[0].label, n: missing.length }); }
     if ((ctx.faultOn || []).length) { out.work.ok = false; add('work', 'work.faultActive', { comp: ctx.faultOn[0] }); }
+    // il pannello operatore scollegato mostra dati vecchi: l'impianto non si consegna cosi'
+    if ((ctx.hmiOff || []).length) { out.work.ok = false; add('work', 'work.hmiOffline', { comp: ctx.hmiOff[0] }); }
   } else {
     // un guasto che blocca tutte le prove si dice una volta sola
     const first = failed[0].r.fail;
