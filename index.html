@@ -17748,10 +17748,10 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
     const g = a.createGain();
     g.gain.value = 0;
     g.connect(master);
-    const osc = [100, 200, 300].map((f, i) => {
+    const osc = [100, 200, 300].map((f2, i) => {
       const o = a.createOscillator();
       o.type = i ? "sine" : "triangle";
-      o.frequency.value = f;
+      o.frequency.value = f2;
       const og = a.createGain();
       og.gain.value = [0.6, 0.25, 0.1][i];
       o.connect(og);
@@ -17855,15 +17855,15 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
         o.type = "sawtooth";
         o.frequency.setValueAtTime(i ? 520 : 440, t);
         o.frequency.linearRampToValueAtTime(i ? 560 : 470, t + 0.9);
-        const f = a.createBiquadFilter();
-        f.type = "lowpass";
-        f.frequency.value = 1400;
+        const f2 = a.createBiquadFilter();
+        f2.type = "lowpass";
+        f2.frequency.value = 1400;
         g.gain.setValueAtTime(1e-4, t);
         g.gain.exponentialRampToValueAtTime(0.06, t + 0.12);
         g.gain.setValueAtTime(0.06, t + 0.8);
         g.gain.exponentialRampToValueAtTime(1e-4, t + 1);
-        o.connect(f);
-        f.connect(g);
+        o.connect(f2);
+        f2.connect(g);
         g.connect(master);
         o.start(t);
         o.stop(t + 1.05);
@@ -17877,19 +17877,19 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
       for (let i = 0; i < n; i++) d[i] = (Math.random() * 2 - 1) * (0.6 + 0.4 * Math.sin(i / 90));
       const s = a.createBufferSource();
       s.buffer = b;
-      const f = a.createBiquadFilter();
-      f.type = "bandpass";
-      f.Q.value = 1.4;
+      const f2 = a.createBiquadFilter();
+      f2.type = "bandpass";
+      f2.Q.value = 1.4;
       const t = a.currentTime;
-      f.frequency.setValueAtTime(260, t);
-      f.frequency.linearRampToValueAtTime(620, t + dur);
+      f2.frequency.setValueAtTime(260, t);
+      f2.frequency.linearRampToValueAtTime(620, t + dur);
       const g = a.createGain();
       g.gain.setValueAtTime(1e-4, t);
       g.gain.exponentialRampToValueAtTime(0.22, t + 0.15);
       g.gain.setValueAtTime(0.22, t + dur - 0.2);
       g.gain.exponentialRampToValueAtTime(1e-4, t + dur);
-      s.connect(f);
-      f.connect(g);
+      s.connect(f2);
+      f2.connect(g);
       g.connect(master);
       s.start(t);
     },
