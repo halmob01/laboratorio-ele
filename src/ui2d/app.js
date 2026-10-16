@@ -12,6 +12,7 @@ import * as R from './render.js';
 import * as V from './screens.js';
 import { ladderHTML, editorPanelHTML } from './ladder.js';
 import { processSync } from './process.js';
+import { playWhenVisible } from './tower.js';
 import { addRung, removeRung, moveRung, addContact, setContact, removeContact, addParallel, addOut, setOut, removeOut, toCells, addressesFor } from '../engine/ladder-edit.js';
 import { validateProgram } from '../engine/v2/plc.js';
 import { INTRO } from '../content/home.js';
@@ -688,6 +689,7 @@ document.addEventListener('change', e => {
 /* ---------- avvio ---------- */
 setLang(detect(), document.body, false);
 $('#footer').innerHTML = V.footerHTML();
+playWhenVisible($('#footer'));
 renderPalette();
 session.start();
 applyRoute();

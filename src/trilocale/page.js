@@ -9,6 +9,7 @@ import { houseState, wires3D, roomPoint, controlPoints } from './house.js';
 import { planHTML } from './plan.js';
 import * as T from './hud.js';
 import { sound } from '../prove/sound.js';
+import { loaderHTML } from '../ui2d/tower.js';
 
 const CIRCUITS = T.CIRCUITS;
 const EXT = { tx: 4.5, tz: 4.2, ty: 0.8, yaw: -24, pitch: 22, dist: 21 };          // la casa vista da fuori
@@ -293,7 +294,7 @@ export function createHouse(host, env) {
     el.hPlan.hidden = !usePlan;
     el.hScene.hidden = usePlan || sceneState !== 'ready';
     el.hMsg.hidden = !(sceneState === 'loading' && act !== 'order');
-    el.hMsg.textContent = 'Caricamento della scena';
+    if (!el.hMsg.classList.contains('load')) { el.hMsg.classList.add('load'); el.hMsg.innerHTML = loaderHTML('Caricamento della scena'); }
     host.classList.toggle('noscene', sceneState === 'failed');
   }
 
