@@ -63,6 +63,23 @@ export const UNITS = {
           warn: 'Non collegare mai la fase direttamente al neutro: è un cortocircuito e il quadro scatta.',
         },
         {
+          type: 'spiegazione',
+          title: 'Tensione, corrente, potenza',
+          paras: [
+            'Tre parole che userai sempre. La tensione è la spinta che fa muovere la corrente. Tra fase e neutro ci sono 230 V anche quando non è acceso niente, come la pressione nel tubo dell’acqua con il rubinetto chiuso.',
+            'La corrente è quanta elettricità passa davvero, e passa solo se il giro è chiuso, come l’acqua che scorre solo a rubinetto aperto. La potenza è quanto lavoro fa un apparecchio, in luce o in calore.',
+          ],
+          table: {
+            head: ['Parola', 'Si misura in... e un esempio'],
+            rows: [
+              ['Tensione', 'Volt (V): 230 V tra fase e neutro.'],
+              ['Corrente', 'Ampere (A): una stufa da 2000 W prende circa 8,7 A.'],
+              ['Potenza', 'Watt (W): una lampada LED circa 10 W, una stufa 2000 W.'],
+            ],
+          },
+          warn: 'Più potenza vuol dire più corrente, e la corrente scalda i cavi: per questo, più avanti, ogni cavo avrà la sua protezione.',
+        },
+        {
           type: 'demo',
           title: 'Guarda come si fa',
           captions: {

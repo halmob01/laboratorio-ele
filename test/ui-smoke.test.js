@@ -252,11 +252,11 @@ test('c01: lezione, previsione, esempio guidato, corrente visibile e completamen
   assert.ok(!q(d, '#lesson').hidden);
   assert.ok(q(d, '#work').hidden);
   assert.match(q(d, '#screen-level').className, /phase-learn/);
-  assert.match(q(d, '#lesson').textContent, /1 di 7/);
+  assert.match(q(d, '#lesson').textContent, /1 di 8/);
   click(w, q(d, '[data-unit="next"]'));
-  assert.match(q(d, '#lesson').textContent, /2 di 7/);
+  assert.match(q(d, '#lesson').textContent, /2 di 8/);
   click(w, q(d, '[data-unit="back"]'));
-  for (let i = 0; i < 5; i++) click(w, q(d, '[data-unit="next"]'));
+  for (let i = 0; i < 6; i++) click(w, q(d, '[data-unit="next"]'));
   assert.match(q(d, '#lesson').textContent, /Previsione/);
   assert.ok(q(d, '[data-unit="next"]').disabled);          // senza risposta non si va avanti
   click(w, q(d, '[data-pred="a"]'));
@@ -478,14 +478,14 @@ test('lezione: "Salta la lezione" porta al cablaggio da qualsiasi pagina', () =>
   assert.ok(q(d, '#lesson').hidden);
   assert.match(q(d, '#unit').textContent, /Collega la fase alla lampada/);
   click(w, q(d, '[data-unit="lesson"]'));                  // "Rivedi la lezione" riparte dalla prima pagina
-  assert.match(q(d, '#lesson').textContent, /1 di 7/);
+  assert.match(q(d, '#lesson').textContent, /1 di 8/);
   assert.deepEqual(errors, []);
 });
 
 test('lezione: la dimostrazione avanza a passi e mostra la luce accesa', () => {
   const { w, d, errors } = openPage({ seen: true });
   go(w, '#/livello/c01-circuito-chiuso');
-  for (let i = 0; i < 4; i++) click(w, q(d, '[data-unit="next"]'));
+  for (let i = 0; i < 5; i++) click(w, q(d, '[data-unit="next"]'));   // la quinta pagina e' tensione, corrente, potenza
   assert.match(q(d, '#lesson').textContent, /Guarda come si fa/);
   click(w, q(d, '[data-demo="toggle"]'));                   // pausa (la dimostrazione parte da sola)
   click(w, q(d, '[data-demo="restart"]'));

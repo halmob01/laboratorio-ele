@@ -17,10 +17,10 @@ export const UNITS_V2 = {
         },
         {
           type: 'spiegazione',
-          title: 'Tensione, corrente, potenza',
+          title: 'Tensione, corrente, potenza: un ripasso',
           paras: [
-            'Tre parole che userai sempre. La tensione è la spinta che fa muovere la corrente. Tra fase e neutro ci sono 230 V anche quando non è acceso niente, come la pressione nel tubo dell’acqua con il rubinetto chiuso.',
-            'La corrente è quanta elettricità passa davvero, e passa solo se il giro è chiuso, come l’acqua che scorre solo a rubinetto aperto. La potenza è quanto lavoro fa un apparecchio, in luce o in calore.',
+            'Te lo ricordi dal primo livello: la tensione è la spinta e c’è anche quando non passa niente; la corrente è quanta elettricità passa davvero, solo a giro chiuso; la potenza è il lavoro che fa l’apparecchio.',
+            'Il multimetro di questo livello misura la tensione: ti dice se in un punto arriva la spinta, anche a lampada spenta. Per questo è lo strumento giusto per sapere dove c’è pericolo e dove il giro si interrompe.',
           ],
           table: {
             head: ['Parola', 'Si misura in... e un esempio'],

@@ -32,7 +32,7 @@ test('c01: lezione a pagine, previsione come pagina, poi cablaggio con i passi',
   assert.equal(s.snapshot().unit.phase, 'lesson');
   s.addWire('Q.F', 'L.A', 'marrone');                 // ignorato in lezione
   assert.equal(s.snapshot().wires.length, 0);
-  assert.equal(s.snapshot().unit.pages, 7);
+  assert.equal(s.snapshot().unit.pages, 8);
   assert.equal(s.snapshot().unit.pageData.type, 'spiegazione');
   s.unitNext();
   assert.equal(s.snapshot().unit.page, 1);

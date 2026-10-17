@@ -15,3 +15,21 @@ Gioco didattico di impianti elettrici per allievi elettricisti IeFP. Interfaccia
 Prima di creare o modificare una scena 3D leggere `docs/SPEC-SCENE-3D.md`: come sono state rese fluide e veloci da aprire
 (disegno su richiesta, ombre manuali, accorpamento, preparazione dei programmi nella variante giusta, modelli leggeri,
 pre-caricamento), la lista di cose da fare per una scena nuova e come misurare prima e dopo.
+
+## Review pedagogica delle lezioni (fase 2)
+
+Se Gianluca chiede "fai la review pedagogica del modulo N" (o di alcuni livelli), tutto quello che serve è qui:
+- **Metodo e ricetta passo per passo:** `docs/METODO-REVIEW-PEDAGOGICA.md`, §7 (cosa leggere prima, ramo, prenotazione del file arabo,
+  le prove dell'allievo finto prima e dopo, diagnosi, riscrittura, controlli, arabo, unione). Lo scopo: l'allievo deve capire *perché*
+  fa ogni collegamento e a che cosa serve, non solo collegare.
+- **Esempio finito da imitare:** `docs/review/modulo2.md` (schede dei livelli, confronto prima/dopo) e le lezioni di c17-c11 in
+  `src/content/units-v2.js`.
+- **Consegne da copiare per gli agenti:** `docs/review/CONSEGNE.md` (allievo finto con Sonnet, traduzione araba con Haiku).
+- **Script:** `scripts/review/pacchetto-allievo.mjs <modulo>` (testo per l'allievo finto; `--commit fe4fee0` per le lezioni di
+  partenza), `scripts/review/misure.mjs <modulo>` (parole per slide, lunghezza delle risposte), `scripts/review/prova-tasti.mjs <livello>`
+  (tasti della lezione nel browser), `scripts/check-review-scope.mjs` (perimetro: va lanciato dopo ogni commit).
+- **Perimetro:** nelle lezioni si cambiano spiegazioni, testi dei pezzi, previsioni, sintesi e lo stile delle lezioni; passi, sfida
+  guasto, demo e il codice di banco, motore e scene no. Un difetto che tocca il codice si chiede prima a Gianluca.
+- **Stato:** pilota sul Modulo 2 fatto; da fare Modulo 3 e Modulo 6 sicurezza (c25-c27) con c28, poi il controllo leggero del resto
+  (ordine nel §7 del metodo). Le sessioni su moduli diversi possono lavorare in parallelo.
+

@@ -98,7 +98,7 @@ richiama in modo esplicito ("come nel relè del Modulo 2, anche qui...").
 |---|---|---|---|
 | **Il giro della corrente** | c01 | "ogni carico ha bisogno di fase e neutro: senza ritorno non passa niente" | ogni bobina (A2 al neutro), anello 4-20 mA, ingressi del PLC (IC) |
 | **Si interrompe la fase** | c03 | "il comando sta sulla fase" | interruttori, pulsanti, uscite del PLC; fase e neutro si aprono *insieme* (magnetotermico), mai il neutro da solo |
-| **Tensione, corrente, potenza** | c17 | "più potenza vuol dire più corrente, e la corrente scalda i cavi" | c19 (portata dei cavi), motori, fotovoltaico, carichi |
+| **Tensione, corrente, potenza** | c01 (ripasso in c17) | "più potenza vuol dire più corrente, e la corrente scalda i cavi" | c17 (il multimetro misura la tensione), c19 (portata dei cavi), motori, fotovoltaico, carichi |
 | **Comando e potenza sono separati** | c18 | "il contatto è solo un interruttore: la tensione gliela porti tu" | c08, c09, contattore c22/c13, PLC c29 ("il PLC comanda il contattore, non il motore"), relè di sicurezza |
 | **Lo stato a riposo e il guasto sicuro** | c18 (NA/NC), c13 (arresto NC) | "NA e NC si scelgono pensando a che cosa succede se un filo si stacca" | fungo c25, 4-20 mA c33, alimentazione del PLC c29 |
 | **Qualcosa deve ricordare** | c08 | "il pulsante dà solo un impulso, a ricordare è il relè" | autoritenuta c13, Set e Reset c49, integrale c36 |
@@ -258,8 +258,8 @@ imitare: `docs/review/modulo2.md` (schede, risultati) e il ramo `review-modulo2`
 3. **Controllo leggero:** livelli con il PLC e i processi (c29-c32, c33-c45, c47-c54). Hanno già il perché: si fa la prova dell'allievo
    finto e si ritocca dove serve, soprattutto lo scopo nel lavoro vero (tipo A) e i fili rossi. In c29 una slide nuova sul PLC nel lavoro
    vero (tipo A bis).
-4. **Ultimo:** Modulo 0 (allineato ai fili rossi; quando si fa il blocco T, la slide "Tensione, corrente, potenza" si sposta all'inizio)
-   e i briefing delle prove.
+4. **Ultimo:** Modulo 0 (allineato ai fili rossi; la slide "Tensione, corrente, potenza" è già in c01, al suo posto definitivo:
+   il blocco T non la deve spostare) e i briefing delle prove.
 
 ## 8. Come si misura
 

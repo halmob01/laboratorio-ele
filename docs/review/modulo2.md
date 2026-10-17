@@ -42,6 +42,9 @@ divise per stare sotto le 90 parole circa.
 | c11 quadro | ritocco | perché il differenziale sta all'ingresso, perché ogni magnetotermico apre fase e neutro, come si trova la linea guasta (serve alla sfida) |
 | c23 appartamento | va bene | solo un richiamo: non si riarma a ripetizione |
 
+**Aggiunta del 17 ottobre:** la slide completa "Tensione, corrente, potenza" è stata spostata in c01, la prima lezione del gioco
+(decisione di Gianluca); in c17 resta un ripasso legato al multimetro.
+
 ## Fili rossi del Modulo 2 (vocabolario da usare uguale in tutte le riscritture)
 
 - **Il giro della corrente** (c01): ogni bobina, campanello o stufa è un carico come la lampada: ha bisogno di fase e neutro.
