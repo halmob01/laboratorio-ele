@@ -46,7 +46,7 @@ Scritta il 16 ottobre 2026 da Gianluca, dopo la collisione evitata tra la casa i
 | Review pedagogica, pilota sul Modulo 2 (testi delle lezioni c17-c11, c23; slide in c01) | ar-48 | review-modulo2 | in `main` |
 | Previsioni equilibrate in tutti i livelli (risposte riscritte) | ar-49 | previsioni-equilibrate | in `main` |
 | Review pedagogica del Modulo 3 (testi delle lezioni c21-c16, c52, c24; vista delle tabelle a più colonne) | ar-50 | claude/elegant-galileo-ou3t8x | in `main` |
-| Review pedagogica del Modulo 4 (c28 stella-triangolo, c29-c32, c46): c28 si fa qui, non con il Modulo 6 sicurezza | ar-51 | claude/elegant-galileo-ou3t8x | in corso |
+| Review pedagogica del Modulo 4 (c28 stella-triangolo, c29-c32, c46): c28 si fa qui, non con il Modulo 6 sicurezza | ar-51 | claude/elegant-galileo-ou3t8x | in `main` |
 
 ## Rami vecchi (non cancellare, non usare)
 
