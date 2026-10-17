@@ -6,6 +6,9 @@ import { createSession, cleanName, demoFrames, blankSnap } from '../engine/index
 import { levels, deriveFull } from '../content/index.js';
 import { HELP, termName } from '../content/it.js';
 import { composeComps } from './layout.js';
+// I pannelli con pulsanti si scrivono con writeHTML: nelle prove e nei processi lo stato cambia molte volte al secondo, e
+// riscrivere un pannello sostituiva i pulsanti tra la pressione e il rilascio: il clic andava perso (vedi press.js).
+import { writeHTML } from './press.js';
 // Su computer i livelli con molti componenti si dispongono su due colonne, per dare scala al banco.
 const colsFor = lv => (!MQ.matches && lv.engine === 2 && lv.comps.length >= 5 ? 2 : 1);
 import * as R from './render.js';
@@ -84,13 +87,13 @@ function setRoomVB() {
 function renderBench() {
   const b = $('#bench');
   b.setAttribute('viewBox', R.benchViewBox(comps));
-  b.innerHTML = R.benchHTML(S, comps, ui());
+  writeHTML(b, R.benchHTML(S, comps, ui()));
 }
 function renderStatus() {
-  $('#status').innerHTML = R.statusHTML(S);
+  writeHTML($('#status'), R.statusHTML(S));
   R.updateRoom($('#room'), S, comps);
 }
-function renderResult() { $('#result').innerHTML = R.resultHTML(S); }
+function renderResult() { writeHTML($('#result'), R.resultHTML(S)); }
 function setInfo(key, extra, open) {
   const h = HELP[key];
   $('#info').innerHTML = `<button class="x" data-x="1" aria-label="Chiudi">Chiudi</button><h3>${h[0]}</h3><p>${h[1]}</p>${extra ? `<p style="margin-top:8px"><b>Suggerimento:</b> ${extra}</p>` : ''}`;
@@ -132,8 +135,8 @@ let route = parseRoute();
 let routeApplied = null;
 
 function renderChrome() {
-  $('#appbar').innerHTML = V.appbarHTML(S, profile);
-  $('#tabbar').innerHTML = V.tabbarHTML(route, S.last);
+  writeHTML($('#appbar'), V.appbarHTML(S, profile));
+  writeHTML($('#tabbar'), V.tabbarHTML(route, S.last));
 }
 
 /* ---------- lezione: pagine e dimostrazione ---------- */
@@ -186,7 +189,7 @@ function renderLesson() {
   } else {
     demo.page = -1;
   }
-  $('#lesson').innerHTML = V.lessonHTML(S, extra);
+  writeHTML($('#lesson'), V.lessonHTML(S, extra));
   if (fresh) startDemo();
 }
 
@@ -210,10 +213,10 @@ function renderLevelScreen() {
   if (inLesson) { renderLesson(); return; }
   stopDemo();
   demo.page = -1;
-  $('#lesson').innerHTML = '';
+  writeHTML($('#lesson'), '');
   $('#work').classList.toggle('passed', !!(S.result && S.result.pass));
-  $('#unit').innerHTML = V.unitHTML(S);
-  $('#sideLinks').innerHTML = V.sideLinksHTML(S);
+  writeHTML($('#unit'), V.unitHTML(S));
+  writeHTML($('#sideLinks'), V.sideLinksHTML(S));
   const doneBefore = (S.levels.find(l => l.id === S.level.id) || {}).stars > 0;
   $('#modeBar').hidden = S.level.quadroOnly || S.playMode === 'verifica' || (!!S.unit && ph !== 'done' && !doneBefore);
   $('#bHint').hidden = $('#bSol').hidden = S.playMode === 'verifica';
@@ -230,7 +233,7 @@ function renderLevelScreen() {
   mt.hidden = !S.meter;
   mt.setAttribute('aria-pressed', String(!!(S.meter && S.meter.on)));
   mp.hidden = !(S.meter && S.meter.on);
-  mp.innerHTML = S.meter && S.meter.on ? R.meterHTML(S.meter, t => termName(S.level, t)) : '';
+  writeHTML(mp, S.meter && S.meter.on ? R.meterHTML(S.meter, t => termName(S.level, t)) : '');
   renderBench();
   renderLadder();
   processSync($('#process'), S);
@@ -247,7 +250,7 @@ function renderLadder() {
   const plc = ladPlc();
   el.hidden = !plc;
   $('#work').classList.toggle('lad-first', !!(plc && plc.edit));   // se il programma si scrive, l'editor viene prima del banco
-  if (!plc) { el.innerHTML = ''; return; }
+  if (!plc) { writeHTML(el, ''); return; }
   const st = S.obs && S.obs.plc && S.obs.plc[plc.id];
   const prog = ladProgram(plc);
   const names = plc.symbols || {};
@@ -265,7 +268,7 @@ function renderLadder() {
       html += `<div class="ladhead" style="margin-top:12px"><b>Soluzione</b></div><div class="ladscroll">${ladderHTML(S.level.solutionPrograms[plc.id], st, names)}</div>`;
     }
   }
-  el.innerHTML = html;
+  writeHTML(el, html);
 }
 // Modifica del programma: ogni azione dell'editor calcola il programma nuovo e lo consegna alla sessione.
 function ladderAct(act, data) {

@@ -178,6 +178,10 @@ Numeri di riferimento attuali (rendering software):
 - Nomi di classi CSS gia' usati altrove: `.stop` del banco ha `pointer-events: none` e rendeva intoccabile il tasto Arresto.
   Prefisso proprio per ogni cornice (`pst-`, `tst-`, ...).
 - Segnaposti HTML riscritti a ogni fotogramma: il tocco va perso. Spostarli, non riscriverli.
+- Pannelli con pulsanti (lezione, comandi della cornice, banco, barra del turno) riscritti a ogni stato della sessione: un clic
+  la cui pressione e il cui rilascio cadono a cavallo di una riscrittura va perso (Avanti nelle prove c46, c51, c55, comandi della
+  casa, comandi del banco nei processi: 17 ottobre). Si scrivono con `writeHTML` di `src/ui2d/press.js`: riscrive solo se l'HTML
+  e' cambiato e, mentre si tiene premuto un pulsante del pannello, aspetta il rilascio. Morsetti e pulsanti a impulso non aspettano.
 - Ridimensionare il contenitore della scena con una transizione CSS: a ogni fotogramma si riallocano i buffer degli effetti e
   la scena sparisce per un attimo. Cambiare dimensione in un colpo solo.
 - Confronti tra stati per riconoscere gli eventi (nell'officina): lo stato "di prima" non va azzerato quando la prova riparte,

@@ -8,6 +8,7 @@ import { provaState } from './state.js';
 import * as H from './hud.js';
 import { sound } from './sound.js';
 import { loaderHTML } from '../ui2d/tower.js';
+import { whenFree } from '../ui2d/press.js';
 
 const VIEW_LABEL = {
   insieme: 'Vista d’insieme', quadro: 'Quadro', soggiorno: 'Soggiorno', cucina: 'Cucina',
@@ -582,9 +583,12 @@ export function createProva(host, env) {
   // Si riscrive un pezzo solo se cambia, e si rimette il fuoco sul comando che lo aveva (tastiera).
   function setHTML(node, html) {
     if (!node || node._html === html) return;
-    const a = document.activeElement, keep = a && node.contains(a) ? a.getAttribute('data-pid') || a.getAttribute('data-pui') || a.getAttribute('data-pdiag') : null;
-    node.innerHTML = html; node._html = html;
-    if (keep) { const b = node.querySelector(`[data-pid="${keep}"],[data-pui="${keep}"],[data-pdiag="${keep}"]`); if (b && b.focus) b.focus({ preventScroll: true }); }
+    node._html = html;
+    whenFree(node, () => {                // tenendo premuto un comando, si riscrive al rilascio (src/ui2d/press.js)
+      const a = document.activeElement, keep = a && node.contains(a) ? a.getAttribute('data-pid') || a.getAttribute('data-pui') || a.getAttribute('data-pdiag') : null;
+      node.innerHTML = node._html;
+      if (keep) { const b = node.querySelector(`[data-pid="${keep}"],[data-pui="${keep}"],[data-pdiag="${keep}"]`); if (b && b.focus) b.focus({ preventScroll: true }); }
+    });
   }
   function renderHud() {
     const c = cfg();

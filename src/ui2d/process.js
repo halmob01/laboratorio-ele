@@ -1,6 +1,7 @@
 // Pannello del processo (P6): scena del serbatoio / forno / nastro, grafico del tracciato e cursori di regolazione.
 // Nessuna regola: legge solo l'istantanea (s.obs.process, s.trace, s.tuned) e consegna i cursori a session.tune.
 // Specifica: docs/SPEC-PROCESSI.md.
+import { writeHTML } from './press.js';
 
 const NS = v => String(Math.round(v * 10) / 10).replace('.', ',');
 const clamp = (x, a, b) => Math.max(a, Math.min(b, x));
@@ -263,7 +264,7 @@ function processUpdate(el, s) {
   if (gb) gb.innerHTML = graphSVG(lv, s);
   if (lv.hmi) hmiSync(el, s);
   const sh = el.querySelector('.shiftslot');
-  if (sh) { const html = scenarioHTML(s); if (sh.innerHTML !== html) sh.innerHTML = html; }
+  if (sh) writeHTML(sh, scenarioHTML(s));
   el.querySelectorAll('[data-out]').forEach(o => {
     const name = o.dataset.out, d = lv.process.tunable[name], v = (s.tuned || {})[name];
     if (v !== undefined) o.textContent = NS(v) + (d.unit ? ' ' + d.unit : '');

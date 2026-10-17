@@ -3344,8 +3344,8 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
         if (dir === "fwd") sim.pos = Math.min(m.length, sim.pos + v);
         if (dir === "rev") sim.pos = Math.max(0, sim.pos - v);
       }
-      const waiting = sim.scenario && sim.scenario.t0 === null;
-      if (sim.process && !waiting) sim.process = stepProcess(sim.level.process, sim.process, actuatorsOf(sim, an), STEP);
+      const waiting2 = sim.scenario && sim.scenario.t0 === null;
+      if (sim.process && !waiting2) sim.process = stepProcess(sim.level.process, sim.process, actuatorsOf(sim, an), STEP);
       sim.plcDt = STEP;
       settle(sim);
       scenarioTick(sim);
@@ -16143,6 +16143,48 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
     });
   }
 
+  // src/ui2d/press.js
+  var pressed = null;
+  var guard = null;
+  var waiting = /* @__PURE__ */ new Map();
+  function flush() {
+    if (pressed) return;
+    const w = [...waiting.values()];
+    waiting.clear();
+    w.forEach((f2) => f2());
+  }
+  function release() {
+    if (!pressed) return;
+    pressed = null;
+    clearTimeout(guard);
+    setTimeout(flush, 0);
+  }
+  if (typeof document !== "undefined") {
+    document.addEventListener("pointerdown", (e) => {
+      if (e.target.closest && e.target.closest("[data-term],[data-hold]")) return;
+      pressed = e.target;
+      clearTimeout(guard);
+      guard = setTimeout(release, 2e3);
+    }, true);
+    document.addEventListener("pointerup", release, true);
+    document.addEventListener("pointercancel", release, true);
+  }
+  function whenFree(node, write2) {
+    if (pressed && node.contains(pressed)) {
+      waiting.set(node, write2);
+      return;
+    }
+    waiting.delete(node);
+    write2();
+  }
+  function writeHTML(node, html) {
+    if (!node || node._html === html) return;
+    node._html = html;
+    whenFree(node, () => {
+      node.innerHTML = node._html;
+    });
+  }
+
   // src/ui2d/palette.js
   var WIRE_STYLE = {
     marrone: { base: "#8A5224" },
@@ -18065,10 +18107,7 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
     if (gb) gb.innerHTML = graphSVG(lv, s);
     if (lv.hmi) hmiSync(el, s);
     const sh = el.querySelector(".shiftslot");
-    if (sh) {
-      const html = scenarioHTML(s);
-      if (sh.innerHTML !== html) sh.innerHTML = html;
-    }
+    if (sh) writeHTML(sh, scenarioHTML(s));
     el.querySelectorAll("[data-out]").forEach((o) => {
       const name = o.dataset.out, d = lv.process.tunable[name], v = (s.tuned || {})[name];
       if (v !== void 0) o.textContent = NS(v) + (d.unit ? " " + d.unit : "");
@@ -24870,7 +24909,7 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
     <button class="pskip" type="button" data-tui="skip">Salta</button>`;
   }
   function topHTML(F, ui2) {
-    const t = (k, label, pressed) => `<button class="pchip" type="button" data-tui="${k}"${pressed === void 0 ? "" : ` aria-pressed="${!!pressed}"`}>${label}</button>`;
+    const t = (k, label, pressed2) => `<button class="pchip" type="button" data-tui="${k}"${pressed2 === void 0 ? "" : ` aria-pressed="${!!pressed2}"`}>${label}</button>`;
     return `<a class="pmap" href="#/home">&larr; Mappa</a>
     <div class="ptitle"><span class="pk">${esc4(F.kick)}</span><b>${esc4(F.title)}</b></div>
     <div class="ptools">${ui2.bench ? t("house", "Torna alla casa") : ""}${t("wires", "Fili", ui2.wires)}${ui2.plan !== null ? t("plan", "Pianta", ui2.plan) : ""}${t("sound", "Suono", ui2.sound)}</div>`;
@@ -25600,10 +25639,10 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
     function render2() {
       if (!mounted || !el.tTop) return;
       const h = hs();
-      el.tTop.innerHTML = topHTML(TRILOCALE_FRAME, ui2);
-      el.tSteps.innerHTML = stationsHTML(TRILOCALE_FRAME, h, lastLevel);
+      writeHTML(el.tTop, topHTML(TRILOCALE_FRAME, ui2));
+      writeHTML(el.tSteps, stationsHTML(TRILOCALE_FRAME, h, lastLevel));
       el.tSheet.hidden = sheet !== "dico";
-      el.tSheet.innerHTML = sheet === "dico" ? dicoHTML(TRILOCALE_FRAME, env.name ? env.name() : "", "Ore " + (/* @__PURE__ */ new Date()).toTimeString().slice(0, 5)) : "";
+      writeHTML(el.tSheet, sheet === "dico" ? dicoHTML(TRILOCALE_FRAME, env.name ? env.name() : "", "Ore " + (/* @__PURE__ */ new Date()).toTimeString().slice(0, 5)) : "");
       placePins();
     }
     function shown(h) {
@@ -25618,7 +25657,7 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
       if (!mounted) return;
       const h = hs();
       if (scene) scene.update(shown(h));
-      el.hPlan.innerHTML = planHTML(h, { select: lastLevel });
+      writeHTML(el.hPlan, planHTML(h, { select: lastLevel }));
       const w = wireSet();
       if (w && lastSnap) {
         const list = wires3D(lastLevel, (lastSnap.wires || []).filter((x) => !x.fixed));
@@ -26348,14 +26387,14 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
     const L = PROVE.automatico.log, ev2 = [];
     const id = action && action.id;
     const kind = action && action.kind;
-    const pressed = kind === "press" || kind === "toggle";
-    if (id === "SB1" && pressed) {
+    const pressed2 = kind === "press" || kind === "toggle";
+    if (id === "SB1" && pressed2) {
       if (before.lamp && !running2(before)) {
         if (running2(after)) ev2.push({ kind: "nuovo", text: L.nuovo, test: "nuovo", result: "ok", good: true });
         else ev2.push({ kind: "nuovoKo", text: L.nuovoKo, test: "nuovo", result: "ko", trip: true });
       } else if (!running2(before) && running2(after)) ev2.push({ kind: "marcia", text: L.marcia, test: "marcia", result: "ok", good: true });
       else if (!running2(after)) ev2.push({ kind: "marciaNo", text: L.marciaNo });
-    } else if (id === "SB0" && pressed) {
+    } else if (id === "SB0" && pressed2) {
       if (running2(before) && !running2(after)) ev2.push({ kind: "arresto", text: L.arresto, test: "arresto", result: "ok", good: true });
       else ev2.push({ kind: "arrestoIdle", text: L.arrestoIdle });
     } else if (id === "SBE" && kind === "toggle") {
@@ -26552,7 +26591,7 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
   }
   var TOOL = { wires: "Fili", torch: "Torcia", sound: "Suono", log: "Registro" };
   function topHTML2(cfg, clock, ui2) {
-    const t = (k, label, pressed) => `<button class="pchip" type="button" data-pui="${k}"${pressed === void 0 ? "" : ` aria-pressed="${!!pressed}"`}>${label}</button>`;
+    const t = (k, label, pressed2) => `<button class="pchip" type="button" data-pui="${k}"${pressed2 === void 0 ? "" : ` aria-pressed="${!!pressed2}"`}>${label}</button>`;
     return `<a class="pmap" href="#/home">&larr; Mappa</a>
     <div class="ptitle"><span class="pk">${esc5(cfg.kick)}</span><b>${esc5(cfg.title)}</b></div>
     <div class="ptools"><span class="pclock" aria-label="Ora">${esc5(clock)}</span>${(cfg.tools || ["wires", "torch", "sound", "log"]).map((k) => t(k, TOOL[k], ui2[k])).join("")}</div>`;
@@ -26921,7 +26960,7 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
         if (!pointerHold) return;
         const id = pointerHold;
         pointerHold = null;
-        release({ id });
+        release2({ id });
       };
       el.pDock.addEventListener("pointerup", up);
       el.pDock.addEventListener("pointercancel", up);
@@ -26989,7 +27028,7 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
         doAct({ kind: "press", id: u.id }, () => s().press(u.id));
       } else s().press(u.id);
     }
-    function release(u) {
+    function release2(u) {
       if (!holding.delete(u.id)) return;
       if (plant()) doAct({ kind: "release", id: u.id }, () => s().release(u.id));
       else s().release(u.id);
@@ -27634,7 +27673,7 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
       loadScript2().then((ok) => {
         if (!mounted || my !== token) return;
         el.pScene.hidden = false;
-        const api = ok && window.FaseNeutroProve && window.FaseNeutroProve.createScene(name, el.pScene, { reduced: reduced(), onTap: tap, onPress: press2, onRelease: release });
+        const api = ok && window.FaseNeutroProve && window.FaseNeutroProve.createScene(name, el.pScene, { reduced: reduced(), onTap: tap, onPress: press2, onRelease: release2 });
         if (api) {
           scene = api;
           sceneState = "ready";
@@ -27687,13 +27726,15 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
     }
     function setHTML(node, html) {
       if (!node || node._html === html) return;
-      const a = document.activeElement, keep = a && node.contains(a) ? a.getAttribute("data-pid") || a.getAttribute("data-pui") || a.getAttribute("data-pdiag") : null;
-      node.innerHTML = html;
       node._html = html;
-      if (keep) {
-        const b = node.querySelector(`[data-pid="${keep}"],[data-pui="${keep}"],[data-pdiag="${keep}"]`);
-        if (b && b.focus) b.focus({ preventScroll: true });
-      }
+      whenFree(node, () => {
+        const a = document.activeElement, keep = a && node.contains(a) ? a.getAttribute("data-pid") || a.getAttribute("data-pui") || a.getAttribute("data-pdiag") : null;
+        node.innerHTML = node._html;
+        if (keep) {
+          const b = node.querySelector(`[data-pid="${keep}"],[data-pui="${keep}"],[data-pdiag="${keep}"]`);
+          if (b && b.focus) b.focus({ preventScroll: true });
+        }
+      });
     }
     function renderHud() {
       const c2 = cfg();
@@ -27965,14 +28006,14 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
   function renderBench() {
     const b = $("#bench");
     b.setAttribute("viewBox", benchViewBox(comps));
-    b.innerHTML = benchHTML(S, comps, ui());
+    writeHTML(b, benchHTML(S, comps, ui()));
   }
   function renderStatus() {
-    $("#status").innerHTML = statusHTML(S);
+    writeHTML($("#status"), statusHTML(S));
     updateRoom($("#room"), S, comps);
   }
   function renderResult() {
-    $("#result").innerHTML = resultHTML(S);
+    writeHTML($("#result"), resultHTML(S));
   }
   function setInfo(key, extra, open) {
     const h = HELP[key];
@@ -28014,8 +28055,8 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
   var route = parseRoute();
   var routeApplied = null;
   function renderChrome() {
-    $("#appbar").innerHTML = appbarHTML(S, profile);
-    $("#tabbar").innerHTML = tabbarHTML(route, S.last);
+    writeHTML($("#appbar"), appbarHTML(S, profile));
+    writeHTML($("#tabbar"), tabbarHTML(route, S.last));
   }
   var REDUCED = window.matchMedia ? window.matchMedia("(prefers-reduced-motion: reduce)") : { matches: false };
   var demo = { page: -1, frames: [], i: 0, timer: null, playing: false };
@@ -28087,7 +28128,7 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
     } else {
       demo.page = -1;
     }
-    $("#lesson").innerHTML = lessonHTML(S, extra);
+    writeHTML($("#lesson"), lessonHTML(S, extra));
     if (fresh) startDemo();
   }
   function renderLevelScreen() {
@@ -28112,10 +28153,10 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
     }
     stopDemo();
     demo.page = -1;
-    $("#lesson").innerHTML = "";
+    writeHTML($("#lesson"), "");
     $("#work").classList.toggle("passed", !!(S.result && S.result.pass));
-    $("#unit").innerHTML = unitHTML(S);
-    $("#sideLinks").innerHTML = sideLinksHTML(S);
+    writeHTML($("#unit"), unitHTML(S));
+    writeHTML($("#sideLinks"), sideLinksHTML(S));
     const doneBefore = (S.levels.find((l) => l.id === S.level.id) || {}).stars > 0;
     $("#modeBar").hidden = S.level.quadroOnly || S.playMode === "verifica" || !!S.unit && ph !== "done" && !doneBefore;
     $("#bHint").hidden = $("#bSol").hidden = S.playMode === "verifica";
@@ -28132,7 +28173,7 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
     mt.hidden = !S.meter;
     mt.setAttribute("aria-pressed", String(!!(S.meter && S.meter.on)));
     mp.hidden = !(S.meter && S.meter.on);
-    mp.innerHTML = S.meter && S.meter.on ? meterHTML(S.meter, (t) => termName(S.level, t)) : "";
+    writeHTML(mp, S.meter && S.meter.on ? meterHTML(S.meter, (t) => termName(S.level, t)) : "");
     renderBench();
     renderLadder();
     processSync($("#process"), S);
@@ -28148,7 +28189,7 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
     el.hidden = !plc;
     $("#work").classList.toggle("lad-first", !!(plc && plc.edit));
     if (!plc) {
-      el.innerHTML = "";
+      writeHTML(el, "");
       return;
     }
     const st = S.obs && S.obs.plc && S.obs.plc[plc.id];
@@ -28167,7 +28208,7 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
         html += `<div class="ladhead" style="margin-top:12px"><b>Soluzione</b></div><div class="ladscroll">${ladderHTML(S.level.solutionPrograms[plc.id], st, names)}</div>`;
       }
     }
-    el.innerHTML = html;
+    writeHTML(el, html);
   }
   function ladderAct(act2, data) {
     const plc = ladPlc();

@@ -10,6 +10,7 @@ import { planHTML } from './plan.js';
 import * as T from './hud.js';
 import { sound } from '../prove/sound.js';
 import { loaderHTML } from '../ui2d/tower.js';
+import { writeHTML } from '../ui2d/press.js';
 
 const CIRCUITS = T.CIRCUITS;
 const EXT = { tx: 4.5, tz: 4.2, ty: 0.8, yaw: -24, pitch: 22, dist: 21 };          // la casa vista da fuori
@@ -302,10 +303,11 @@ export function createHouse(host, env) {
   function render() {
     if (!mounted || !el.tTop) return;
     const h = hs();
-    el.tTop.innerHTML = T.topHTML(F, ui);
-    el.tSteps.innerHTML = T.stationsHTML(F, h, lastLevel);
+    // con writeHTML un pulsante non viene sostituito mentre lo si preme (src/ui2d/press.js)
+    writeHTML(el.tTop, T.topHTML(F, ui));
+    writeHTML(el.tSteps, T.stationsHTML(F, h, lastLevel));
     el.tSheet.hidden = sheet !== 'dico';
-    el.tSheet.innerHTML = sheet === 'dico' ? T.dicoHTML(F, env.name ? env.name() : '', 'Ore ' + new Date().toTimeString().slice(0, 5)) : '';
+    writeHTML(el.tSheet, sheet === 'dico' ? T.dicoHTML(F, env.name ? env.name() : '', 'Ore ' + new Date().toTimeString().slice(0, 5)) : '');
     placePins();
   }
   // Lo stato che la scena mostra: nel finale la casa e' tutta accesa.
@@ -319,7 +321,7 @@ export function createHouse(host, env) {
     if (!mounted) return;
     const h = hs();
     if (scene) scene.update(shown(h));
-    el.hPlan.innerHTML = planHTML(h, { select: lastLevel });
+    writeHTML(el.hPlan, planHTML(h, { select: lastLevel }));
     // i fili del banco nella casa: i nuovi si stendono, quelli tolti spariscono
     const w = wireSet();
     if (w && lastSnap) {
