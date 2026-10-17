@@ -11386,7 +11386,8 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
             focus: ["E", "K1", "K2"],
             paras: [
               "Il fungo ha quattro morsetti: 1-2 \xE8 il canale 1 e 3-4 il canale 2. A riposo i contatti sono chiusi; premuto, si aprono insieme e il fungo resta bloccato finch\xE9 non lo ruoti.",
-              "Il canale 1 alimenta la bobina del rel\xE8 K1, il canale 2 quella di K2. I contatti dei due rel\xE8 stanno in serie sul carico: la macchina va solo se tutti e due sono chiusi."
+              "Il canale 1 alimenta la bobina del rel\xE8 K1, il canale 2 quella di K2. I contatti dei due rel\xE8 stanno in serie sul carico: la macchina va solo se tutti e due sono chiusi. Il fungo non porta la corrente della macchina: comanda le bobine, e sono i contatti dei rel\xE8 a portarla.",
+              "Un contatto \xABincollato\xBB resta chiuso quando dovrebbe aprirsi: a forza di aprire e chiudere sotto corrente, una scintilla ha saldato le due parti."
             ]
           },
           {
@@ -11511,7 +11512,14 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
             title: "Un rel\xE8 che controlla",
             paras: [
               "Il rel\xE8 di sicurezza non si limita a passare un contatto: controlla. Legge i due canali del fungo, e se uno solo cade apre le sue uscite. Se i due canali non cambiano insieme, segnala una discrepanza e si blocca finch\xE9 non tornano entrambi a riposo.",
-              "Dopo un arresto non riparte da solo. Serve un impulso sul pulsante di riarmo, e il rel\xE8 si arma quando il pulsante viene rilasciato: la macchina riparte per una scelta di chi sta davanti, non perch\xE9 il fungo \xE8 stato sbloccato. Un pulsante di riarmo bloccato o ponticellato non arma mai il rel\xE8."
+              "I due controlli lavorano insieme. Basta che cada un canale e il rel\xE8 apre le uscite: la macchina si ferma. Se poi l\u2019altro canale non cade insieme a lui, il rel\xE8 capisce che qualcosa non va (si chiama discrepanza) e non si lascia riarmare finch\xE9 tutti e due i canali non sono tornati a riposo."
+            ]
+          },
+          {
+            type: "spiegazione",
+            title: "Il riarmo",
+            paras: [
+              "Dopo un arresto non riparte da solo. Serve un impulso sul pulsante di riarmo, e il rel\xE8 si arma quando il pulsante viene rilasciato: la macchina riparte per una scelta di chi sta davanti, non perch\xE9 il fungo \xE8 stato sbloccato. Un pulsante di riarmo bloccato o ponticellato (cio\xE8 scavalcato con un filo) non arma mai il rel\xE8: per questo si arma al rilascio, e non quando lo premi. Il pulsante di riarmo \xE8 normalmente aperto, come una marcia."
             ]
           },
           {
@@ -11519,7 +11527,7 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
             title: "Il contattore incollato",
             paras: [
               "I contatti di potenza di un contattore possono incollarsi, per esempio dopo molti cicli con carico forte. La bobina si spegne, ma la macchina continua a girare.",
-              "Nei contattori i contatti NC e NA non si possono trovare chiusi insieme. Se il contattore \xE8 incollato, il contatto NC 21-22 resta aperto. Mettendolo nel circuito di riarmo, il rel\xE8 di sicurezza si accorge del guasto e non si riarma. Nelle macchine vere i contattori di potenza sono due, in serie; qui ce n\u2019\xE8 uno solo, per semplicit\xE0: il contattore incollato si scopre al riarmo, ma intanto non si ferma."
+              "Nei contattori i contatti NC e NA non si possono trovare chiusi insieme. Se il contattore \xE8 incollato, il contatto NC 21-22 resta aperto. Mettendolo nel circuito di riarmo, il rel\xE8 di sicurezza si accorge del guasto e non si riarma. Nelle macchine vere i contattori di potenza sono due, in serie; qui ce n\u2019\xE8 uno solo, per semplicit\xE0: il contattore incollato si scopre al riarmo, ma intanto non si ferma. Con due contattori, se uno si incolla l\u2019altro ferma la macchina, e il riarmo non riparte con quello guasto."
             ],
             warn: "Se il riarmo non passa dal contatto NC del contattore, un contattore incollato non viene scoperto: la macchina resta senza protezione fino al guasto successivo."
           },
@@ -11551,7 +11559,7 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
                 ["Fungo \u2192 S12, S22", "i due canali arrivano al rel\xE8: \xE8 lui che li controlla, non le bobine"],
                 ["A1, A2", "l\u2019alimentazione del rel\xE8 di sicurezza, che lavora sempre"],
                 ["Fase \u2192 21-22 di KM \u2192 riarmo \u2192 R", "il riarmo passa dal NC del contattore: con KM incollato non arriva"],
-                ["13-14 e 23-24 in serie", "due contatti interni del rel\xE8: ognuno da solo apre la bobina di KM"],
+                ["13-14 e 23-24 in serie", "due contatti interni del rel\xE8: se uno si incolla, l\u2019altro apre lo stesso la bobina di KM"],
                 ["24 \u2192 A1 di KM, A2 al neutro", "il rel\xE8 comanda la bobina; la potenza la porta il contattore"],
                 ["1-2 di KM \u2192 lampada", "la macchina riceve potenza solo dal contattore"]
               ]
@@ -11685,14 +11693,14 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
               "Se un operatore apre la portella per togliere un pezzo, e la richiude, la macchina non deve ripartire da sola: potrebbe esserci ancora qualcuno dentro.",
               "Per questo lo stesso rel\xE8 di sicurezza vale per tutta la catena: ogni arresto apre le uscite, e solo il riarmo, dato da fuori, rimette in marcia. Un contatto lasciato libero in un dispositivo toglie un canale a quel dispositivo."
             ],
-            warn: "Un dispositivo a due canali con un solo contatto collegato sembra funzionare, ma non \xE8 pi\xF9 sicuro. Nota: le barriere a raggi vere hanno uscite statiche e di solito non si collegano in serie come un contatto a secco; qui \xE8 una semplificazione del gioco."
+            warn: "Un dispositivo a due canali con un solo contatto collegato sembra funzionare, ma non \xE8 pi\xF9 sicuro. Nota: le barriere a raggi vere hanno uscite elettroniche e di solito vanno a ingressi propri del rel\xE8 di sicurezza, non in serie come un contatto; qui \xE8 una semplificazione del gioco. La regola che impari vale lo stesso: ogni dispositivo ha due canali, e ogni canale arriva al rel\xE8."
           },
           {
             type: "spiegazione",
             title: "Dove si usano",
             paras: [
               "La portella \xE8 un riparo apribile, per esempio la porta di una recinzione intorno a un robot: un interruttore di sicurezza con due contatti sente se \xE8 chiusa. La barriera \xE8 una fila di raggi davanti a una zona di lavoro: se qualcuno ci passa, interrompe i raggi.",
-              "Il cablaggio \xE8 quello di c26, con due dispositivi in pi\xF9 in serie su ogni canale. Il rel\xE8 di sicurezza non sa chi ha aperto il canale: sa solo che un canale \xE8 caduto, e ferma tutto."
+              "Il cablaggio \xE8 quello di c26, con due dispositivi in pi\xF9 in serie su ogni canale. Il rel\xE8 di sicurezza non sa chi ha aperto il canale: sa solo che un canale \xE8 caduto, e ferma tutto. Per questo l\u2019ordine dei dispositivi nella serie non conta. Riarmare con la portella aperta non serve: i canali sono aperti e il rel\xE8 non si arma."
             ],
             table: {
               head: ["Che cosa", "Che cosa ci colleghi e perch\xE9"],
@@ -12797,6 +12805,15 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
           },
           {
             type: "spiegazione",
+            title: "Due fili per tutto",
+            paras: [
+              "Il trasmettitore ha solo due fili, e da quei due prende anche l\u2019energia per funzionare: qui la tensione la d\xE0 l\u2019ingresso del PLC, in molti impianti un alimentatore a 24 V messo in serie nell\u2019anello.",
+              "Per questo la polarit\xE0 conta. Se scambi i fili, l\u2019elettronica del trasmettitore non lascia passare la corrente al contrario: nell\u2019anello passano 0 mA, come con un filo staccato.",
+              "I fili dell\u2019anello sono rossi tutti e due perch\xE9 portano un segnale, non la fase o il neutro: il + e il \u2212 si riconoscono dai morsetti."
+            ]
+          },
+          {
+            type: "spiegazione",
             title: "Perch\xE9 4 e non 0",
             paras: [
               "Il livello vuoto vale 4 mA, non 0, e il pieno 20 mA. Sembra strano, ma \xE8 il punto pi\xF9 importante. Se il vuoto fosse 0 mA, un filo staccato e un serbatoio vuoto darebbero lo stesso valore, e il PLC non potrebbe distinguerli.",
@@ -12919,7 +12936,7 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
             title: "Due segnali, due strade",
             paras: [
               "Al variatore arrivano due segnali diversi. Il consenso di marcia \xE8 un s\xEC o un no: \xE8 l\u2019uscita digitale Q0 del PLC. Il riferimento di velocit\xE0 \xE8 un numero, da 0 a 100 %: \xE8 l\u2019uscita analogica AQ0.",
-              "Il consenso lo cabli tu, con l\u2019uscita a rel\xE8. Il riferimento \xE8 un valore che il programma copia dalla parola MW0 all\u2019uscita analogica; lo imposti con il cursore. Se il consenso manca il variatore si ferma, qualunque sia il riferimento."
+              "Il consenso lo cabli tu, con l\u2019uscita a rel\xE8. Il riferimento \xE8 un valore che il programma copia dalla parola MW0 all\u2019uscita analogica; lo imposti con il cursore. Se il consenso manca il variatore si ferma, qualunque sia il riferimento. Il 100 % vuol dire 50 hertz, quindi il 60 % sono 30 hertz. Sul banco il variatore non c\u2019\xE8: nel quadro vero sta tra la protezione e il motore, al posto del teleruttore."
             ],
             table: {
               head: ["Segnale", "Tipo", "Da dove viene"],
@@ -12981,7 +12998,7 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
             title: "Mantenere lo stato con Set e Reset",
             paras: [
               "Per mantenere \u201Cacceso\u201D anche quando il livello \xE8 risalito sopra il 20 % serve una memoria. Nel PLC l\u2019istruzione Set accende un\u2019uscita e la tiene accesa anche quando la condizione che l\u2019ha accesa sparisce. Soltanto un Reset la spegne.",
-              "Il programma ha due gradini: se il galleggiante basso scatta, Set su Q0; se il galleggiante alto scatta, Reset su Q0. In mezzo nessun gradino cambia Q0, e la pompa continua come prima."
+              "Il programma ha due gradini: se il galleggiante basso scatta, Set su Q0; se il galleggiante alto scatta, Reset su Q0. In mezzo nessun gradino cambia Q0, e la pompa continua come prima. Quando il PLC si accende Q0 \xE8 spento: con il serbatoio a met\xE0 la pompa aspetta che il livello scenda al 20 %. Le soglie 20 e 80 le sceglie chi progetta l\u2019impianto."
             ],
             table: {
               head: ["Livello", "Galleggiante", "La pompa"],
@@ -13054,7 +13071,7 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
             title: "P: quanto sono lontano?",
             paras: [
               "La parte proporzionale d\xE0 una potenza proporzionale all\u2019errore: potenza = Kp per errore. Pi\xF9 lontano sei dai 60 gradi, pi\xF9 scaldi. Kp \xE8 il guadagno: con Kp alto reagisci forte, con Kp basso piano.",
-              "Il limite del solo P: quando ci si avvicina ai 60 gradi l\u2019errore diventa piccolo, quindi anche la potenza, ma per mantenere il forno a 60 gradi, che disperde calore, serve ancora potenza. Il forno si ferma un po\u2019 prima dei 60: resta un errore a regime. Prova con Kp e Ti e Td a zero."
+              "Il limite del solo P: quando ci si avvicina ai 60 gradi l\u2019errore diventa piccolo, quindi anche la potenza, ma per mantenere il forno a 60 gradi, che disperde calore, serve ancora potenza. Il forno si ferma un po\u2019 prima dei 60: resta un errore a regime. Prova con Kp = 1 e Ti, Td a zero: nel regolatore Ti = 0 e Td = 0 vogliono dire \xABparte spenta\xBB."
             ]
           },
           {
@@ -13140,14 +13157,22 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
             title: "Un allarme \xE8 un bit",
             paras: [
               "Il PLC decide quando c\u2019\xE8 un allarme, con un gradino come gli altri: un contatto di confronto e una bobina su un marcatore, cio\xE8 un bit interno del PLC che non \xE8 collegato a nessun morsetto (in tedesco merker; si scrivono M0, M1...). Per esempio, se il livello in MW0 \xE8 maggiore di 90 la bobina M0 si accende. Il pannello legge M0 e mostra \u201CLivello troppo alto\u201D.",
-              "Il guasto del sensore si riconosce dalla corrente, non dal livello: con il filo interrotto il PLC legge 0 mA e MW0 resta fermo all\u2019ultimo valore calcolato. Per questo il gradino guarda AI0, i milliampere, e non MW0."
+              "Il guasto del sensore si riconosce dalla corrente, non dal livello: con il filo interrotto il PLC legge 0 mA e MW0 resta fermo all\u2019ultimo valore calcolato. Per questo il gradino guarda AI0, i milliampere, e non MW0. MW0 resta fermo perch\xE9 SCALE lavora solo con AI0 almeno a 3,6 mA: un filo staccato non scrive un livello falso."
+            ]
+          },
+          {
+            type: "spiegazione",
+            title: "Perch\xE9 proprio 90 e 10",
+            paras: [
+              "All\u201980 % la pompa si ferma da sola, con il galleggiante alto: \xE8 il lavoro normale. A 90 ci si arriva solo se qualcosa non va, per esempio il galleggiante bloccato, ed \xE8 il momento di avvisare.",
+              "Sotto il 10 % il serbatoio \xE8 quasi vuoto: chi preleva l\u2019acqua, per esempio la pompa che la manda all\u2019impianto, girerebbe a vuoto e si rovinerebbe. Le due soglie degli allarmi stanno fuori da quelle del lavoro normale (20 e 80): un allarme deve suonare solo quando serve."
             ]
           },
           {
             type: "spiegazione",
             title: "Priorit\xE0: che cosa guardare prima",
             paras: [
-              "Quando arrivano pi\xF9 allarmi insieme l\u2019operatore deve sapere da dove cominciare. Ogni allarme ha una priorit\xE0 e il pannello li mette in ordine: prima gli alti, poi i medi, poi i bassi; a parit\xE0 di priorit\xE0 il pi\xF9 recente sta in alto."
+              "Quando arrivano pi\xF9 allarmi insieme l\u2019operatore deve sapere da dove cominciare. Ogni allarme ha una priorit\xE0 e il pannello li mette in ordine: prima gli alti, poi i medi, poi i bassi; a parit\xE0 di priorit\xE0 il pi\xF9 recente sta in alto. Le priorit\xE0 si scrivono nel pannello quando lo si prepara."
             ],
             table: {
               head: ["Priorit\xE0", "Quando", "Esempio"],
@@ -13727,9 +13752,17 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
           },
           {
             type: "spiegazione",
+            title: "Due domande sul programma",
+            paras: [
+              "Perch\xE9 la partenza vuole I3 e I5? Il robot deve essere al posto giusto in tutte e due le direzioni: in alto (I3) e sopra il prelievo (I5). Se partisse con il braccio gi\xF9, il primo passo lo spingerebbe ancora pi\xF9 gi\xF9.",
+              "Un passo pu\xF2 saltare il successivo? Il PLC legge i gradini dall\u2019alto in basso, e il passo appena acceso viene letto subito dal gradino sotto. Non salta per\xF2 avanti, perch\xE9 il suo \xABfatto\xBB non \xE8 ancora vero: il braccio non si \xE8 ancora mosso, le uscite cambiano solo a fine giro."
+            ]
+          },
+          {
+            type: "spiegazione",
             title: "Quando serve un tempo, e il ciclo che finisce sempre",
             paras: [
-              "La pinza non ha un sensore: per sapere che si \xE8 chiusa si aspetta un tempo (T1 per chiudere, T2 per aprire). Dove c\u2019\xE8 un sensore si usa il sensore; dove manca, un temporizzatore.",
+              "La pinza non ha un sensore: per sapere che si \xE8 chiusa si aspetta un tempo (T1 per chiudere, T2 per aprire). Dove c\u2019\xE8 un sensore si usa il sensore; dove manca, un temporizzatore. I due tempi sono gi\xE0 nel programma: M2 avvia T1, M6 avvia T2.",
               "Il marcatore M9 dice \u201Cciclo in corso\u201D: il ciclo parte solo se non ce n\u2019\xE8 uno in corso, e finisce sempre. Arresto spegne la marcia (M0): il ciclo successivo non comincia, ma quello in corso si conclude e il robot si ferma al prelievo. Fermare il programma a met\xE0 sequenza, con il pezzo in aria, lascerebbe la macchina in uno stato da cui \xE8 difficile ripartire."
             ]
           },
@@ -13804,7 +13837,7 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
             type: "spiegazione",
             title: "Riconoscere non \xE8 riparare",
             paras: [
-              "Il tasto di riconoscimento del pannello ferma la sirena, ma non cambia niente nell\u2019impianto: il guasto resta. Riparare vuol dire intervenire sul pezzo, e vale solo quando l\u2019impianto torna a funzionare. Nel gioco lo fai dal banco: il pezzo guasto mostra un tasto per rimetterlo a posto.",
+              "Il tasto di riconoscimento del pannello ferma la sirena, ma non cambia niente nell\u2019impianto: il guasto resta. Riparare vuol dire intervenire sul pezzo, e vale solo quando l\u2019impianto torna a funzionare. Nel gioco lo fai dal banco: il pezzo guasto mostra un tasto per rimetterlo a posto. Nel lavoro vero, per rifare un filo nel quadro si toglie prima tensione, come in \xABLavori in sicurezza\xBB.",
               "Ogni guasto ha un tempo massimo di intervento. Pi\xF9 aspetti, pi\xF9 il danno cresce: un galleggiante bloccato non ferma la pompa e il serbatoio, se aspetti troppo, trabocca. Con pi\xF9 allarmi contemporanei si comincia da quello di priorit\xE0 pi\xF9 alta."
             ],
             warn: "Se in una riparazione sbagli pezzo, perdi tempo. Prima di toccare il banco guarda gli indizi: quello che cambia per quel guasto."
@@ -13832,11 +13865,11 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
             question: "Compaiono insieme \u201CLivello troppo basso\u201D (media) e \u201CGuasto del sensore di livello\u201D (alta). Da quale cominci?",
             options: [
               { id: "a", text: "Dal livello basso: \xE8 quello che si vede e va sistemato subito." },
-              { id: "b", text: "Dal guasto del sensore: \xE8 prioritario, e senza misura il livello \xE8 falso." },
+              { id: "b", text: "Dal guasto del sensore: \xE8 prioritario, e senza misura il livello \xE8 vecchio." },
               { id: "c", text: "Non importa l\u2019ordine: tutti e due vanno risolti prima di ripartire." }
             ],
             correct: "b",
-            why: "La priorit\xE0 alta va per prima. Il guasto del sensore \xE8 anche la causa possibile dell\u2019altro: con la misura persa il livello mostrato non \xE8 affidabile."
+            why: "La priorit\xE0 alta va per prima. E senza misura non sai se il livello \xE8 ancora basso: MW0 \xE8 fermo all\u2019ultima lettura buona, non \xE8 il livello di adesso."
           },
           { type: "sintesi", title: "Da ricordare" }
         ]
@@ -13861,7 +13894,7 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
             type: "spiegazione",
             title: "Una cella di produzione completa",
             paras: [
-              "Questo livello mette insieme tutto: la sicurezza a due canali dei primi livelli del modulo, il programma a sequenza della linea, gli allarmi e il pannello operatore, e la gestione dei guasti di un turno di lavoro. Non c\u2019\xE8 niente di nuovo da imparare: c\u2019\xE8 da dimostrare che sai farlo tutto insieme.",
+              "Questo livello mette insieme tutto: la sicurezza a due canali dei primi livelli del modulo, il programma a sequenza della linea, gli allarmi e il pannello operatore, e la gestione dei guasti di un turno di lavoro. Le cose nuove sono due, e le spiegano le slide che seguono: il PLC ascolta la sicurezza e ferma i suoi tempi quando \xE8 aperta. Quei gradini sono gi\xE0 nel programma; tu scrivi le transizioni e i due allarmi.",
               "Un robot porta i pezzi dal prelievo al deposito. Le tre parti da fare: la sicurezza (cablaggio), il programma (transizioni e allarmi) e il turno (guasti)."
             ]
           },
@@ -13877,6 +13910,15 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
             title: "Il PLC ascolta la sicurezza",
             paras: [
               "Il PLC ascolta la sicurezza con un ingresso (I7, il contatto ausiliario di KM): non decide niente, ma sa quando le sicurezze sono aperte. Cos\xEC pu\xF2 dare l\u2019allarme \u201CSicurezze aperte\u201D, sospendere i suoi tempi e lasciar cadere la marcia: dopo il riarmo il robot finisce il ciclo interrotto, poi per ripartire serve di nuovo Marcia."
+            ]
+          },
+          {
+            type: "spiegazione",
+            title: "Che cosa c\u2019\xE8 gi\xE0 nel programma",
+            paras: [
+              "I gradini che ascoltano la sicurezza sono gi\xE0 scritti. I7 \xE8 un contatto NA di KM (13-14), gi\xE0 cablato: \xE8 chiuso quando KM \xE8 eccitato. Il riarmo usa un altro contatto di KM, l\u2019NC 21-22.",
+              "T3 conta finch\xE9 c\u2019\xE8 un ciclo in corso (M9) con le sicurezze a posto: dopo 40 secondi accende il suo contatto, e tu lo usi per l\u2019allarme \u201CCiclo bloccato\u201D.",
+              "Quando la potenza manca, i marcatori dei passi restano come sono: per questo, dopo il riarmo, il programma sa a che passo era."
             ]
           },
           {
@@ -15014,7 +15056,7 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
           title: "Dall\u2019allarme al pezzo",
           paras: [
             "Il pannello dice che cosa \xE8 successo, non dove. \u201CSicurezze aperte\u201D vuol dire che il robot ha perso la potenza: fungo premuto o portella aperta. \u201CCiclo bloccato\u201D con il robot alimentato vuol dire che il programma aspetta un segnale che non arriva: quasi sempre un finecorsa.",
-            "Per trovare quale, guarda dove si \xE8 fermato il braccio: se \xE8 in basso e il programma aspetta \u201Cbraccio gi\xF9\u201D, il finecorsa in basso non ha risposto. Il LED del finecorsa dice se il PLC lo vede."
+            "Per trovare quale, guarda dove si \xE8 fermato il braccio: se \xE8 in basso e il programma aspetta \u201Cbraccio gi\xF9\u201D, il finecorsa in basso non ha risposto. Sul PLC ogni ingresso ha una lucina: se quella del finecorsa resta spenta con il braccio in basso, il PLC non lo sente."
           ],
           table: {
             head: ["Il pannello dice", "Il robot", "Dove guardare"],
@@ -15033,6 +15075,14 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
             "L\u2019ordine conta: riparare con il robot alimentato \xE8 l\u2019errore pi\xF9 pericoloso del turno, anche se il robot in quel momento \xE8 fermo. \xC8 fermo perch\xE9 il programma aspetta: appena il finecorsa torna a rispondere, riparte."
           ],
           warn: "Un robot fermo non \xE8 un robot sicuro: \xE8 fermo finch\xE9 il programma aspetta. Senza potenza invece non pu\xF2 muoversi."
+        },
+        {
+          type: "spiegazione",
+          title: "Il lucchetto",
+          paras: [
+            "Nelle celle vere chi entra mette il suo lucchetto sulla portella aperta, o si porta dietro la chiave: cos\xEC nessuno pu\xF2 richiuderla e riarmare mentre \xE8 dentro.",
+            "La portella aperta basta per togliere potenza al robot. Per un lavoro sui fili del quadro invece si toglie tensione con il lucchetto, come in \xABLavori in sicurezza\xBB."
+          ]
         },
         {
           type: "previsione",
