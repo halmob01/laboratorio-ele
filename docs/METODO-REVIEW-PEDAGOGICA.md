@@ -157,6 +157,8 @@ già mettono in scena nella sfida guasto, senza allungarlo a tavolino:
   di previsioni del livello, perché danno i punti;
 - la sintesi (`summary` e titolo della slide `sintesi`), in tutti i modi.
 
+- lo stile delle lezioni (`src/ui2d/style.css`, le regole di lezione, tabelle, riquadri, sintesi): deciso da Gianluca il 17 ottobre.
+
 **Che cosa non si cambia:** passi, sfida guasto, `support`, didascalie delle demo, `focus` dei pezzi, e tutto il codice (motore, banco,
 pannelli, scene). Unica eccezione proposta: il mescolamento delle opzioni (§6 bis), che è una riga della vista e non tocca le regole.
 Se la lezione non può spiegare quello che l'esercizio chiede, si annota in `docs/DOMANDE-PER-GIANLUCA.md` e non si tocca l'esercizio.

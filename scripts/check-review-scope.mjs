@@ -1,7 +1,8 @@
 // Rete di sicurezza della review pedagogica (docs/PIANO-FASE-2.md, blocco B0; regole in docs/METODO-REVIEW-PEDAGOGICA.md, par. 6).
 // Uso: node scripts/check-review-scope.mjs [commit-di-partenza]   (predefinito: BASE qui sotto)
 // Fallisce se, rispetto al commit di partenza, e' cambiato altro che la lezione:
-//  - file toccati fuori da units.js, units-v2.js, src/i18n/ar*.js, docs/, test/ e dai file costruiti;
+//  - file toccati fuori da units.js, units-v2.js, src/i18n/ar*.js, docs/, test/, dai file costruiti e da src/ui2d/style.css
+//    (lo stile delle lezioni si puo' cambiare, deciso da Gianluca il 17 ottobre; lo stile di banco ed esercizio no: chi lo tocca lo dice nel commit);
 //  - in un livello: steps, fault, support; le slide 'demo' (identiche); il 'focus' delle slide 'pezzi';
 //    l'ordine di demo e pezzi; il numero di slide 'previsione' (danno i punti).
 // Si possono invece: riscrivere, aggiungere, togliere, spostare slide 'spiegazione'; riscrivere titolo e testi dei 'pezzi';
@@ -21,7 +22,7 @@ const git = (...a) => execFileSync('git', a, { encoding: 'utf8', maxBuffer: 1 <<
 const problems = [];
 
 const ALLOWED = [
-  /^src\/content\/units(-v2)?\.js$/, /^src\/i18n\/ar(-\d+)?\.js$/, /^docs\//, /^test\//, /^scripts\//,
+  /^src\/content\/units(-v2)?\.js$/, /^src\/ui2d\/style\.css$/, /^src\/i18n\/ar(-\d+)?\.js$/, /^docs\//, /^test\//, /^scripts\//,
   /^index\.html$/, /^trilocale\.js$/, /^prove3d\.js$/, /^README\.md$/, /^CLAUDE\.md$/,
 ];
 for (const f of git('diff', '--name-only', base, 'HEAD').split('\n').filter(Boolean)) {
