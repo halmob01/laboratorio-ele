@@ -3,15 +3,23 @@
 La fase 1 (percorso c01-c55, prove 3D) e' chiusa: punto di ritorno `fe4fee0` (vedi `docs/PROCEDURA-UNIONE.md`).
 La fase 2 non aggiunge contenuti: rende il prodotto chiaro, veloce e pubblicabile. Le espansioni (autoclave, condominio) vengono dopo.
 
-**Regola ferma:** il codice degli esercizi (motore, banco, pannelli, livelli, scene) non si tocca. La review pedagogica cambia solo
-i testi delle lezioni in `src/content/units.js` e `src/content/units-v2.js` (titoli, paragrafi, avvisi, didascalie, tabelle) e le
-traduzioni arabe collegate. Un controllo automatico (blocco B0) lo verifica a ogni commit.
+**Regola ferma:** il codice degli esercizi (motore, banco, pannelli, livelli, scene) e tutto il "dopo" la lezione non si toccano.
+La review pedagogica puo' fare solo questo, in `src/content/units.js` e `src/content/units-v2.js` (e nelle traduzioni arabe collegate):
+- riscrivere i testi delle slide di tipo `spiegazione` (titoli, paragrafi, avvisi);
+- **aggiungere, togliere o spostare slide `spiegazione`** per spiegare meglio il perche' (il gioco conta le slide da solo).
+
+Restano identici: `steps` (i passi del banco), `fault` (la sfida guasto), `summary` e la slide `sintesi` (la sintesi di fine livello,
+considerata "dopo": se Gianluca vuole ritoccarla lo dice), `support`, e le slide `previsione` (opzioni e risposta giusta: alimentano il
+punteggio), `demo` (le didascalie seguono i fili del livello) e `pezzi`.
+Lo script `node scripts/check-review-scope.mjs` (blocco B0, commit di partenza `fe4fee0`) lo verifica: va lanciato prima di ogni commit
+di review e fallisce se cambia qualcosa fuori da questo perimetro. Provato: blocca una modifica ai passi o a una previsione,
+lascia passare una slide `spiegazione` in piu'.
 
 ## Blocchi
 
 | Blocco | Cosa | Agente | Dopo |
 |---|---|---|---|
-| B0 | Rete di sicurezza: script che fallisce se un commit di review tocca altro che testi di lezione e arabo; baseline dei 602 test | Sonnet | - |
+| B0 | Rete di sicurezza: `scripts/check-review-scope.mjs` (fatto) | Sonnet | - |
 | P | Review pedagogica (vedi sotto), modulo per modulo | Opus decide, Sonnet scrive, Haiku traduce | B0 |
 | Q | Quaderno: rivedere cosa raccoglie e come si stampa | Sonnet, revisione Opus | P1 (serve sapere i testi) |
 | T | Tutorial iniziale del gioco al posto di "Per cominciare" (lezioni, banco, scene 3D, come muoversi); il vecchio testo su corrente e fili diventa la prima lezione del Modulo 1 | Sonnet testi, Opus controlla | - |
@@ -57,3 +65,15 @@ repo privato richiede un piano a pagamento e comunque il sito e' pubblico a chiu
 Strada consigliata: repo privato su GitHub + Cloudflare Pages (gratuito) con accesso limitato (Cloudflare Access, per email o codice)
 oppure password semplice; dominio proprio se la scuola lo vuole; licenza "tutti i diritti riservati" (`docs/LICENZE.md` per i font e
 le librerie). Da decidere con Gianluca: chi deve poter aprire il gioco (solo la tua classe, tutta la scuola, i colleghi) e se serve la classifica online.
+
+## Valore e licenza (note del 17 ottobre)
+
+- Costo di rifacimento a mano per un team: circa 6-12 mesi-persona (60.000-150.000 EUR); non e' un prezzo di vendita. Il valore di mercato
+  oggi e' basso (nessun allievo vero l'ha ancora provato, manca l'area docenti); sale con la review, la prova con allievi e i primi clienti.
+- Il vantaggio non e' il codice (oggi quasi tutti usano l'IA) ma pedagogia, contenuti verificati con allievi e distribuzione.
+- Il diritto d'autore protegge la forma, non le idee; per il codice scritto con l'IA la tutela automatica e' incerta, e conta il contributo
+  umano. Proteggono comunque licenza, termini d'uso, contratti con le scuole e accesso con login. Prima di vendere licenze: breve
+  consulenza di un avvocato di software.
+- Il repository passa a privato; Pages resta acceso finche' serve per le anteprime (Pages da repo privato richiede un piano a pagamento:
+  alternativa Cloudflare Pages). Aggiungere un `LICENSE` "tutti i diritti riservati" e il copyright nel footer (blocco D).
+- Impacchettare come app (PWA, Capacitor, Electron) non rende il codice non copiabile: protegge la licenza, non il pacchetto.
