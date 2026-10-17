@@ -734,18 +734,35 @@ export const UNITS_V2 = {
           type: 'spiegazione',
           title: 'Da una fase a tre fasi',
           paras: [
-            'Un impianto industriale arriva con quattro conduttori attivi: tre fasi, L1, L2, L3, e il neutro. Ogni fase ha 230 V rispetto al neutro, come la fase di casa.',
-            'Tra due fasi la tensione è 400 V. Non è la somma di 230 più 230, perché le tre tensioni sono sfasate di un terzo di giro una dall’altra: tra due fasi si misurano 400 V, circa 1,73 volte 230.',
+            'Una casa di solito riceve una sola fase e il neutro. Un’officina riceve quattro fili: tre fasi, L1, L2, L3, e il neutro. Ogni fase ha 230 V rispetto al neutro: lampade e prese vanno tra una fase e il neutro, come in casa.',
+            'Tra due fasi invece ci sono 400 V. Le tre fasi sono come tre persone che spingono una ruota a turno: non spingono mai tutte nello stesso momento (si dice che sono sfasate). Per questo tra due fasi non si misurano 230 più 230, ma 400 V, circa 1,73 volte 230.',
           ],
         },
         {
           type: 'spiegazione',
           title: 'Perché tre fasi',
           paras: [
-            'Con tre fasi sfasate un motore ha sempre una spinta che lo fa girare, e a parità di potenza servono cavi più sottili. Per questo le macchine usano il trifase.',
+            'Il trifase serve ai motori e ai cavi. Il motore: con tre spinte a turno la sua forza non si spegne mai, e gira regolare.',
+            'I cavi: più potenza vuol dire più corrente, e la corrente scalda i cavi. In trifase la potenza viaggia su tre fili e a 400 V: una macchina da 10 kW chiede circa 14 A per fase, in monofase ne chiederebbe 43 su un filo solo. Meno corrente, cavi più sottili.',
             'Nel gioco le tre fasi hanno tre colori: marrone, nero e grigio. Il neutro resta blu e la terra giallo-verde.',
           ],
           warn: 'Una lampada da 230 V collegata tra due fasi riceve 400 V e si brucia.',
+        },
+        {
+          type: 'spiegazione',
+          title: 'Perché ogni filo e ogni misura',
+          paras: [
+            'Due fili e due misure. Le misure sono quelle che fa l’elettricista quando arriva davanti a un quadro trifase, prima di collegarci qualcosa.',
+          ],
+          table: {
+            head: ['Dove', 'Che cosa fai e perché'],
+            rows: [
+              ['L1', 'Un morsetto della lampada: la fase porta la tensione, come in casa.'],
+              ['Neutro', 'L’altro morsetto: ogni carico ha bisogno di fase e neutro. Su L2 al posto del neutro la lampada riceve 400 V e si brucia.'],
+              ['L1-N', 'Leggi 230 V: la fase arriva, e lampade e prese si possono alimentare. Con 0 V quella fase manca.'],
+              ['L1-L2', 'Leggi 400 V: è la tensione dei motori. Tra due fasi il pericolo è più grande che in casa. Nel lavoro vero si misurano tutte le coppie: L1-L2, L2-L3, L1-L3.'],
+            ],
+          },
         },
         {
           type: 'demo',
@@ -763,12 +780,12 @@ export const UNITS_V2 = {
           type: 'previsione',
           question: 'Una lampada da 230 V viene collegata tra la fase L1 e la fase L2. Che cosa succede?',
           options: [
-            { id: 'a', text: 'Si accende normalmente.' },
-            { id: 'b', text: 'Si accende molto più debole.' },
-            { id: 'c', text: 'Riceve 400 V e si brucia.' },
+            { id: 'a', text: 'Si accende normalmente: ogni fase ha 230 V.' },
+            { id: 'b', text: 'Si accende più debole: le due fasi si ostacolano.' },
+            { id: 'c', text: 'Si brucia: tra due fasi ci sono 400 V, non 230.' },
           ],
           correct: 'c',
-          why: 'Tra due fasi ci sono 400 V, quasi il doppio di quello che la lampada sopporta. Una lampada da 230 V va sempre tra una fase e il neutro.',
+          why: 'Tra due fasi ci sono 400 V, quasi il doppio di quello che la lampada sopporta. Ogni fase ha 230 V solo rispetto al neutro: una lampada da 230 V va sempre tra una fase e il neutro.',
         },
         { type: 'sintesi', title: 'Da ricordare' },
       ],
@@ -781,10 +798,10 @@ export const UNITS_V2 = {
       { kind: 'verify', short: '5 Verifica', title: 'Controlla l’impianto', text: 'Premi Verifica.' },
     ],
     summary: [
-      'Un impianto trifase ha tre fasi, L1, L2, L3, più il neutro.',
-      'Tra una fase e il neutro ci sono 230 V; tra due fasi ce ne sono 400.',
-      'Un carico da 230 V va tra una fase e il neutro, mai tra due fasi.',
-      'Le tre fasi hanno tre colori diversi: marrone, nero, grigio.',
+      'In officina arrivano tre fasi e il neutro: tra una fase e il neutro 230 V, tra due fasi 400 V, perché le fasi spingono a turno.',
+      'Un carico da 230 V va tra una fase e il neutro: tra due fasi riceve 400 V e si brucia.',
+      'Il trifase serve ai motori, che hanno sempre una spinta, e ai cavi: la stessa potenza con meno corrente per filo.',
+      'Le tre fasi hanno tre colori, marrone, nero e grigio, per riconoscerle a colpo d’occhio.',
     ],
     fault: {
       say: 'La lampada è già collegata e non si accende più. Guarda dove sono collegati i suoi morsetti e misura.',
@@ -811,8 +828,8 @@ export const UNITS_V2 = {
           type: 'spiegazione',
           title: 'Un comando piccolo per una potenza grande',
           paras: [
-            'Un motore trifase assorbe molta corrente a 400 V: un pulsante non la regge e sarebbe pericoloso tenerla in mano. Il teleruttore (o contattore) separa le due parti.',
-            'Ha una bobina, che si comanda con un pulsante a 230 V, e tre contatti di potenza. Quando la bobina è alimentata, i tre contatti chiudono e il motore riceve le tre fasi.',
+            'Un motore trifase assorbe molta corrente a 400 V. Un pulsante sulla macchina non la regge, e non si vuole che chi lavora abbia sotto le dita i 400 V. Spesso poi il quadro è lontano dalla macchina, e la si deve comandare da dove si sta.',
+            'Si usa il teleruttore, detto anche contattore: due nomi della stessa cosa. È un relè grande, come quello del Modulo 2: una bobina che diventa calamita e tre contatti di potenza che chiude tutti insieme. Il pulsante porta solo la piccola corrente della bobina.',
           ],
         },
         {
@@ -820,10 +837,10 @@ export const UNITS_V2 = {
           title: 'La bobina e i contatti',
           focus: ['KM'],
           paras: [
-            'I morsetti A1 e A2 sono la bobina: va collegata tra una fase e il neutro, 230 V. Tra due fasi riceverebbe 400 V e si brucerebbe.',
-            'I morsetti 1-2, 3-4, 5-6 sono i tre contatti di potenza. Il morsetto 13-14 è un contatto ausiliario, che servirà nel prossimo livello.',
+            'A1 e A2 sono la bobina. Qui è da 230 V e va tra una fase e il neutro, perché è un carico come una lampada: tra due fasi riceverebbe 400 V e si brucerebbe. Nelle macchine vere il comando è spesso a 24 V, preso da un trasformatore come quello del campanello.',
+            'I morsetti 1-2, 3-4, 5-6 sono i contatti di potenza: il contatto è solo un interruttore, la tensione gliela porti tu dal salvamotore. Il 13-14 è un contatto ausiliario, piccolo, che servirà nel prossimo livello.',
           ],
-          warn: 'Il circuito di comando e quello di potenza sono separati: i fili del comando si disegnano in rosso.',
+          warn: 'Comando e potenza sono due circuiti separati: nel gioco i fili del comando sono rossi, per riconoscerli a colpo d’occhio.',
         },
         {
           type: 'spiegazione',
@@ -833,6 +850,23 @@ export const UNITS_V2 = {
             'Collegare fili con il sezionamento chiuso, cioè con i morsetti in tensione, è pericoloso: nel gioco vale una stella di sicurezza in meno.',
           ],
           warn: 'Il lato di ingresso del salvamotore resta sempre in tensione: collegarvi i fili del quadro è normale, quello che conta è tenere aperto il sezionamento.',
+        },
+        {
+          type: 'spiegazione',
+          title: 'Perché ogni filo',
+          paras: [
+            'Prima la potenza, poi il comando. Ecco perché ogni filo va proprio lì.',
+          ],
+          table: {
+            head: ['Morsetto', 'Che cosa ci colleghi e perché'],
+            rows: [
+              ['KM 1, 3, 5', 'I morsetti 2, 4, 6 del salvamotore: la potenza passa prima dalla protezione, poi dai contatti che accendono il motore.'],
+              ['KM 2, 4, 6', 'U, V, W in ordine, come nel livello del motore: il motore gira in avanti. La terra PE alla carcassa, come sempre.'],
+              ['Pulsante 3', 'Una fase presa a valle del salvamotore, dal morsetto 2: aprendo il salvamotore si spegne anche il comando. Va bene una fase qualunque: il comando sta sulla fase.'],
+              ['Pulsante 4', 'A1: premendo, la fase arriva alla bobina. I morsetti 3-4 sono un contatto NA: chiude solo finché premi.'],
+              ['A2', 'Il neutro: la bobina è un carico, senza ritorno non si eccita. Su un’altra fase riceverebbe 400 V e si brucerebbe.'],
+            ],
+          },
         },
         {
           type: 'demo',
@@ -883,10 +917,11 @@ export const UNITS_V2 = {
       { kind: 'verify', short: '9 Verifica', title: 'Controlla l’impianto', text: 'Premi Verifica.' },
     ],
     summary: [
-      'Il teleruttore separa il comando a 230 V dalla potenza a 400 V.',
-      'La bobina (A1-A2) va tra una fase e il neutro; i contatti 1-2, 3-4, 5-6 portano la potenza al motore.',
-      'Senza autoritenuta il motore gira solo finché si tiene premuto il pulsante.',
-      'Si cabla con il sezionamento aperto: collegare fili in tensione è pericoloso.',
+      'Il teleruttore (o contattore) è un relè grande: il pulsante porta solo la corrente della bobina, i contatti di potenza portano quella del motore.',
+      'La bobina è un carico: va tra una fase e il neutro; tra due fasi riceve 400 V e si brucia.',
+      'Il comando prende la fase a valle del salvamotore: aprendolo si spegne tutto, potenza e comando.',
+      'Così il motore gira solo finché tieni premuto: nel prossimo livello un contatto lo terrà in marcia.',
+      'Si cabla con il salvamotore aperto: collegare fili in tensione è pericoloso.',
     ],
     fault: {
       say: 'Il teleruttore è già cablato, ma tenendo premuto il pulsante il motore non parte. Guarda dove è collegata la bobina.',
@@ -916,20 +951,21 @@ export const UNITS_V2 = {
       pages: [
         {
           type: 'spiegazione',
-          title: 'Tre fasi e 400 V',
+          title: 'Il motore delle macchine',
           paras: [
-            'Nelle fabbriche la rete è trifase: ci sono tre fasi, L1, L2 e L3. Tra due fasi qualsiasi la tensione è di 400 V; tra una fase e il neutro è di 230 V, come in casa.',
-            'I motori industriali sono quasi tutti trifase: tre avvolgimenti alimentati dalle tre fasi creano un campo magnetico che gira e trascina il rotore. Non serve il neutro.',
+            'In un’officina quasi tutto quello che si muove ha un motore trifase: nastri, pompe, ventilatori, trapani, compressori. Lavora a 400 V, tra le fasi.',
+            'Dentro ci sono tre avvolgimenti, cioè bobine di filo di rame, una per fase. Ricevono la tensione a turno e diventano calamite a turno: è come una calamita che gira, il campo magnetico rotante, e si porta dietro il rotore, la parte che gira con l’albero.',
+            'Non serve il neutro: la corrente che arriva da una fase torna dalle altre due. Il giro della corrente c’è, ma tra le fasi.',
           ],
-          warn: 'A 400 V gli errori sono più pericolosi. Si lavora sempre fuori tensione, con il sezionamento a monte aperto e verificato.',
+          warn: 'A 400 V gli errori sono più pericolosi. Si cabla sempre senza tensione, con il salvamotore aperto.',
         },
         {
           type: 'pezzi',
           title: 'Il salvamotore',
           focus: ['QM'],
           paras: [
-            'Il salvamotore è un interruttore con tre poli, uno per fase. In alto entrano le fasi (1, 3, 5), in basso escono (2, 4, 6).',
-            'Protegge il motore e i fili che vengono dopo: scatta se la corrente è troppo alta. La levetta su vuol dire chiuso, giù aperto.',
+            'Il salvamotore è l’interruttore del motore. Ha tre poli, uno per fase: tre interruttori che si aprono e si chiudono insieme. In alto entrano le fasi dal quadro (1, 3, 5), in basso escono verso il motore (2, 4, 6). Il lato del quadro si dice a monte, quello del motore a valle.',
+            'Come il magnetotermico protegge il cavo, il salvamotore protegge il motore e i suoi fili: scatta se la corrente è troppo alta. La levetta su vuol dire chiuso, giù aperto.',
           ],
         },
         {
@@ -937,7 +973,7 @@ export const UNITS_V2 = {
           title: 'Il motore',
           focus: ['M'],
           paras: [
-            'Il motore ha tre morsetti per le fasi, U, V e W, e il morsetto PE per la terra. La terra collega la carcassa metallica: se un avvolgimento tocca la carcassa, la corrente va a terra e non in chi la tocca.',
+            'Il motore ha tre morsetti per le fasi, U, V e W, e il morsetto PE per la terra. La terra collega la carcassa, l’involucro di metallo: se un avvolgimento tocca la carcassa, la corrente va a terra e non in chi la tocca.',
             'Le fasi si collegano in ordine: L1 a U, L2 a V, L3 a W. Con questo ordine il motore gira in avanti.',
           ],
         },
@@ -948,7 +984,29 @@ export const UNITS_V2 = {
             'Per far girare il motore al contrario basta scambiare due qualunque delle tre fasi. Il campo magnetico gira nell’altro verso e con lui il rotore.',
             'È utile quando serve andare avanti e indietro, per esempio in un nastro o in un cancello. Se invece succede per errore, il motore gira nel verso sbagliato.',
           ],
-          table: { head: ['U', 'V', 'W', 'Senso'], rows: [['L1', 'L2', 'L3', 'in avanti'], ['L1', 'L3', 'L2', 'all’indietro']] },
+          table: {
+            head: ['Collegamento', 'Senso'],
+            rows: [
+              ['L1-U, L2-V, L3-W', 'In avanti: è l’ordine giusto.'],
+              ['L1-U, L3-V, L2-W', 'All’indietro: due fasi scambiate, il campo gira al contrario.'],
+            ],
+          },
+        },
+        {
+          type: 'spiegazione',
+          title: 'Perché ogni filo',
+          paras: [
+            'Tre gruppi di fili e una levetta. Ecco perché ognuno va proprio lì.',
+          ],
+          table: {
+            head: ['Morsetto', 'Che cosa ci colleghi e perché'],
+            rows: [
+              ['1, 3, 5', 'Le tre fasi del quadro: la rete entra nel salvamotore, così aprendolo tutto quello che viene dopo resta senza tensione.'],
+              ['2, 4, 6', 'U, V, W del motore, nello stesso ordine: il motore gira in avanti. Con due fasi scambiate girerebbe al contrario.'],
+              ['PE', 'La terra alla carcassa: se un avvolgimento la tocca, la corrente va a terra e non nella persona che tocca il motore.'],
+              ['Levetta', 'Si chiude per ultima, solo per provare: prima si cabla senza tensione.'],
+            ],
+          },
         },
         {
           type: 'demo',
@@ -972,9 +1030,9 @@ export const UNITS_V2 = {
           title: 'Il salvamotore e il lavoro senza tensione',
           paras: [
             'Il salvamotore parte aperto: lascialo aperto mentre colleghi i fili, e chiudilo solo alla fine per provare. Collegare fili con i morsetti in tensione è pericoloso, e nel gioco vale una stella di sicurezza in meno.',
-            'Se il motore riceve solo due delle tre fasi non gira: ronza e si scalda. Anche per questo il salvamotore interrompe tutte e tre le fasi insieme.',
+            'Se il motore riceve solo due delle tre fasi non gira: ronza, cioè fa un rumore sordo, e si scalda. Anche per questo il salvamotore interrompe tutte e tre le fasi insieme.',
           ],
-          warn: 'Il lato di ingresso del salvamotore resta in tensione anche da aperto: il quadro è a monte.',
+          warn: 'Da aperto il salvamotore spegne solo quello che c’è a valle: i fili in basso e il motore. I morsetti in alto arrivano dal quadro e restano in tensione: per lavorarci si apre l’interruttore del quadro, a monte.',
         },
         {
           type: 'previsione',
@@ -998,10 +1056,11 @@ export const UNITS_V2 = {
       { kind: 'verify', short: '5 Verifica', title: 'Controlla l’impianto', text: 'Premi Verifica.' },
     ],
     summary: [
-      'La rete industriale ha tre fasi, L1, L2 e L3: tra due fasi ci sono 400 V.',
-      'Il motore trifase non usa il neutro: usa le tre fasi, U, V e W, e la terra PE.',
-      'Il salvamotore ha un polo per fase e protegge il motore.',
-      'Scambiando due fasi il motore gira al contrario.',
+      'Il motore trifase usa le tre fasi e la terra, non il neutro: la corrente di una fase torna dalle altre due.',
+      'Il salvamotore stacca tutte e tre le fasi insieme, perché con due sole il motore ronza e si scalda.',
+      'Aperto il salvamotore, a valle è tutto senza tensione; i morsetti in alto, che vengono dal quadro, restano in tensione.',
+      'La terra va alla carcassa: se un avvolgimento la tocca, la corrente va a terra e non nella persona.',
+      'Scambiando due fasi il motore gira al contrario: utile per andare avanti e indietro, un guasto se capita per errore.',
     ],
     fault: {
       say: 'Il motore è già collegato e gira, ma nel verso sbagliato. Chiudi il salvamotore e guarda.',
@@ -1031,8 +1090,8 @@ export const UNITS_V2 = {
           type: 'spiegazione',
           title: 'Due circuiti: potenza e comando',
           paras: [
-            'Un motore si comanda con un contattore: un interruttore pilotato da una bobina. Il circuito di potenza porta le tre fasi al motore. Il circuito di comando alimenta la bobina e decide quando il contattore si chiude.',
-            'I due circuiti sono separati. Il comando usa pochi fili sottili, con pulsanti piccoli e sicuri. Nel gioco i fili di comando sono rossi.',
+            'Con il teleruttore il motore girava solo finché tenevi premuto il pulsante. Una macchina vera invece parte con un colpo su Marcia e si ferma con un colpo su Arresto, e una spia dice anche da lontano che è in marcia.',
+            'La potenza è quella che conosci: tre fasi, salvamotore, contattore, motore. Il comando alimenta la bobina e decide quando il contattore si chiude: pochi fili sottili, pulsanti piccoli e sicuri, in rosso. Il contatto è solo un interruttore: la tensione gliela porti tu.',
           ],
         },
         {
@@ -1041,7 +1100,7 @@ export const UNITS_V2 = {
           focus: ['KM'],
           paras: [
             'La bobina è tra A1 e A2. Se è alimentata, i tre poli di potenza (1-2, 3-4, 5-6) si chiudono e il motore parte.',
-            'Il contattore ha anche un contatto ausiliario, 13-14: si chiude insieme ai poli di potenza. Serve per l’autoritenuta.',
+            'Il contattore ha anche un contatto ausiliario NA, 13-14: si chiude insieme ai poli di potenza. I numeri lo dicono: i contatti che finiscono in 3-4 sono NA, quelli in 1-2 sono NC. È lui che fa l’autoritenuta.',
           ],
         },
         {
@@ -1049,18 +1108,35 @@ export const UNITS_V2 = {
           title: 'Marcia e arresto',
           focus: ['SB0', 'SB1'],
           paras: [
-            'Il pulsante di marcia è normalmente aperto (NA): chiude il circuito finché lo tieni premuto. Il pulsante di arresto è normalmente chiuso (NC): lo apre.',
-            'L’arresto è NC perché se un filo si stacca il circuito si apre e il motore si ferma. Un guasto va sempre verso la sicurezza.',
+            'Marcia è normalmente aperto (NA, morsetti 3-4): chiude solo finché lo tieni premuto. Arresto è normalmente chiuso (NC, morsetti 1-2): a riposo lascia passare la fase, premuto la interrompe. «Normalmente» vuol dire a riposo, quando nessuno lo tocca.',
+            'NA e NC si scelgono pensando a che cosa succede se un filo si stacca. Con l’arresto NC un filo staccato apre il comando e il motore si ferma. Con un arresto NA il filo staccato non si vedrebbe, finché qualcuno preme Arresto e il motore non si ferma.',
           ],
         },
         {
           type: 'spiegazione',
           title: 'L’autoritenuta',
           paras: [
-            'Il pulsante di marcia dà corrente alla bobina solo finché lo tieni premuto. Per non doverlo tenere premuto si usa il contatto 13-14 del contattore, in parallelo al pulsante.',
-            'Premi Marcia: la bobina si eccita e il contatto 13-14 si chiude. Rilasci: la corrente alla bobina continua a passare dal contatto. Il contattore si tiene da solo, per questo si chiama autoritenuta.',
-            'Premi Arresto: il circuito si apre, la bobina si diseccita, il contatto 13-14 si apre e il motore si ferma. Il motore riparte solo con un nuovo comando di marcia.',
+            'Il pulsante di marcia alimenta la bobina solo finché lo premi. Per questo il 13-14 va in parallelo al pulsante: due strade per la fase, ne basta una chiusa.',
+            'Premi Marcia: la bobina si eccita e chiude il 13-14. Rilasci: la fase passa dal 13-14 e il contattore si tiene da solo, è l’autoritenuta. Come nel relè ad impulsi, a ricordare è il contattore.',
+            'Con Arresto, o se manca la corrente, la bobina si diseccita (resta senza tensione) e il 13-14 si apre: il motore resta fermo anche quando la corrente torna. È voluto: una macchina che riparte da sola può ferire chi la crede spenta.',
           ],
+        },
+        {
+          type: 'spiegazione',
+          title: 'Perché ogni filo del comando',
+          paras: [
+            'La potenza è come nel livello del teleruttore. Il comando ha più fili: ecco perché ognuno va lì.',
+          ],
+          table: {
+            head: ['Morsetto', 'Che cosa ci colleghi e perché'],
+            rows: [
+              ['Arresto 1', 'La fase dal morsetto 2 del salvamotore: aprendolo si spegne anche il comando. L’arresto è il primo, così interrompe tutte le strade che vengono dopo.'],
+              ['Marcia 3', 'Il morsetto 2 dell’arresto: la fase arriva alla marcia solo se l’arresto è chiuso.'],
+              ['Marcia 4', 'A1: premendo Marcia la bobina si eccita. A2 va al neutro: la bobina è un carico.'],
+              ['13 e 14', 'Ai morsetti 3 e 4 della marcia, in parallelo: tengono la bobina quando rilasci. Se il 13 prendesse la fase prima dell’arresto, lo scavalcherebbe e Arresto non fermerebbe più il motore.'],
+              ['Spia', 'Tra A1 e il neutro, accanto alla bobina: si accende proprio quando la bobina è alimentata, cioè quando il motore è in marcia.'],
+            ],
+          },
         },
         {
           type: 'demo',
@@ -1120,11 +1196,11 @@ export const UNITS_V2 = {
       { kind: 'verify', short: '12 Verifica', title: 'Controlla l’impianto', text: 'Premi Verifica.' },
     ],
     summary: [
-      'Il circuito di potenza porta le tre fasi al motore; il circuito di comando alimenta la bobina del contattore.',
-      'La bobina alimentata chiude i poli di potenza e il contatto ausiliario 13-14.',
-      'Marcia è un pulsante NA, Arresto è un pulsante NC: un filo staccato ferma il motore.',
-      'L’autoritenuta è il contatto 13-14 in parallelo al pulsante di marcia: il contattore si tiene da solo.',
-      'Arresto vince sempre: premuto, il motore si ferma anche se si tiene premuta Marcia.',
+      'Il comando alimenta la bobina, la potenza porta le tre fasi al motore: il pulsante non porta mai la corrente del motore.',
+      'Arresto è NC e Marcia NA: se si stacca un filo dell’arresto il motore si ferma, invece di non fermarsi più.',
+      'L’autoritenuta è il contatto 13-14 in parallelo alla marcia: il pulsante dà l’impulso, a ricordare è il contattore.',
+      'L’arresto sta prima della marcia e dell’autoritenuta: le interrompe tutte e due, e Arresto vince sempre.',
+      'Se manca la corrente il motore si ferma e, quando torna, non riparte da solo: serve un nuovo Marcia.',
     ],
     fault: {
       open: ['QM'],
@@ -1158,8 +1234,8 @@ export const UNITS_V2 = {
           type: 'spiegazione',
           title: 'Proteggere il motore',
           paras: [
-            'Un motore può assorbire troppa corrente per un tempo lungo: per esempio se l’albero si blocca o se il carico è eccessivo. Gli avvolgimenti si scaldano e, se si va avanti, si danneggiano.',
-            'La protezione a monte (il salvamotore) interviene subito contro i cortocircuiti. Il sovraccarico, che è lento, è affidato al relè termico abbinato al contattore: si scalda con la stessa corrente del motore e scatta dopo un po’.',
+            'Un nastro con un pacco incastrato, una pompa con un cuscinetto duro: il motore fa più fatica e per minuti assorbe più corrente del normale. È il sovraccarico. Gli avvolgimenti si scaldano, l’isolante dei loro fili si rovina e alla fine il motore si brucia.',
+            'Il salvamotore, a monte, interviene subito sul cortocircuito. Per il sovraccarico c’è il relè termico: come la parte termica del magnetotermico, si scalda con la corrente del motore e scatta dopo un po’. È lento apposta: all’avvio il motore chiede per un attimo molta corrente, e lì non deve scattare.',
           ],
         },
         {
@@ -1167,18 +1243,28 @@ export const UNITS_V2 = {
           title: 'Il relè termico',
           focus: ['FR'],
           paras: [
-            'I tre poli di potenza (1-2, 3-4, 5-6) stanno in serie al motore, tra il contattore e il motore: la corrente del motore passa da qui.',
-            'Il contatto 95-96 è normalmente chiuso e va nel circuito di comando. Quando il termico scatta, si apre.',
+            'Il termico si aggancia sotto il contattore. I suoi tre poli (1-2, 3-4, 5-6) stanno in serie al motore, tra contattore e motore: deve sentire tutta la corrente del motore, quindi sta dove passa.',
+            'Il contatto 95-96 è normalmente chiuso e va nel comando. Il termico non apre la potenza: quando scatta apre il 95-96 e ferma il motore attraverso il contattore. Scatta anche se manca una fase, perché il motore assorbe di più dalle altre due.',
+            'Esistono salvamotori che fanno anche da termico: qui i due compiti sono divisi, come in molti quadri.',
           ],
         },
         {
           type: 'spiegazione',
           title: 'Come ferma il motore',
           paras: [
-            'Il contatto 95-96 sta in serie al comando, prima dell’arresto. Se il termico scatta, il comando si interrompe: la bobina perde corrente, il contattore si apre e il motore si ferma.',
-            'Il termico non si riarma da solo: dopo aver tolto la causa del sovraccarico si preme il tasto Reset. Solo allora il motore può ripartire con un nuovo comando di marcia.',
+            'Il 95-96 sta in serie al comando prima dell’arresto, come l’arresto sta prima della marcia: così interrompe tutte le strade, anche l’autoritenuta. Se il termico scatta la bobina perde la tensione, il contattore si apre e il motore si ferma.',
+            'Il termico non si riarma da solo: la macchina non deve ripartire con il guasto ancora lì. Si cerca la causa (il pacco incastrato, il nastro troppo carico), si lascia raffreddare il motore, poi si preme Reset e si dà un nuovo comando di marcia.',
           ],
-          warn: 'Il termico ferma il motore tramite il comando. Se il contatto 95-96 non è collegato nel comando, il termico scatta ma il motore continua a girare.',
+          table: {
+            head: ['Morsetto', 'Che cosa ci colleghi e perché'],
+            rows: [
+              ['1, 3, 5', 'I morsetti 2, 4, 6 del contattore: la corrente del motore entra nel termico.'],
+              ['2, 4, 6', 'U, V, W del motore, in ordine: il termico sente tutta la corrente che il motore assorbe.'],
+              ['95', 'La fase del comando, dal morsetto 2 del salvamotore: il termico è il primo contatto del comando.'],
+              ['96', 'Il morsetto 1 dell’arresto: il comando continua come nel livello di marcia e arresto.'],
+            ],
+          },
+          warn: 'Il termico ferma il motore tramite il comando. Se il contatto 95-96 non è collegato nel comando, il termico scatta ma il motore continua a girare e si brucia.',
         },
         {
           type: 'demo',
@@ -1216,7 +1302,7 @@ export const UNITS_V2 = {
           type: 'previsione',
           question: 'Il termico è scattato e il motore si è fermato. Senza riarmarlo premo Marcia. Che cosa succede?',
           options: [
-            { id: 'a', text: 'Il motore parte normalmente.' },
+            { id: 'a', text: 'Il motore parte: il termico si è già raffreddato.' },
             { id: 'b', text: 'Il motore non parte: il contatto 95-96 è ancora aperto.' },
             { id: 'c', text: 'Il motore parte e il termico scatta di nuovo subito.' },
           ],
@@ -1235,10 +1321,10 @@ export const UNITS_V2 = {
       { kind: 'verify', short: '5 Verifica', title: 'Controlla l’impianto', text: 'Usa il pulsante sotto la scena per simulare un sovraccarico, poi premi Verifica.' },
     ],
     summary: [
-      'Il relè termico, abbinato al contattore, protegge dal sovraccarico, che è lento; la protezione a monte interviene sul cortocircuito, che è subito.',
-      'I poli di potenza del termico sono in serie al motore; il contatto 95-96 è nel comando, in serie, prima dell’arresto.',
-      'Scattato il termico, il comando si apre e il motore si ferma; serve riarmarlo a mano con Reset.',
-      'Se il contatto 95-96 non è nel comando, il termico scatta ma il motore non si ferma.',
+      'Il termico protegge il motore dal sovraccarico, che è lento: si scalda come il motore e scatta dopo un po’, ma non all’avvio. Il cortocircuito, che è subito, tocca al salvamotore.',
+      'I poli del termico sono in serie al motore, perché deve sentirne tutta la corrente.',
+      'Il termico ferma il motore attraverso il comando: il 95-96 in serie, prima dell’arresto, toglie tensione alla bobina. Fuori dal comando, il termico scatta e il motore gira lo stesso.',
+      'Non si riarma da solo: prima si trova la causa del sovraccarico, poi Reset e un nuovo Marcia.',
     ],
     fault: {
       open: ['QM'],
@@ -1273,8 +1359,8 @@ export const UNITS_V2 = {
           type: 'spiegazione',
           title: 'Avanti e indietro',
           paras: [
-            'Per invertire il senso di un motore trifase basta scambiare due fasi. Per farlo con un comando si usano due contattori: KM1 collega il motore in modo normale, KM2 con due fasi scambiate.',
-            'Così con Avanti si chiude KM1 e con Indietro si chiude KM2.',
+            'Un nastro che deve anche riportare indietro i pacchi, un cancello che si apre e si chiude, un carroponte che va a destra e a sinistra: lo stesso motore deve girare nei due sensi, comandato da due pulsanti.',
+            'Per invertire il senso di un motore trifase basta scambiare due fasi. Per farlo con un comando si usano due contattori (negli schemi la sigla dei contattori è KM): KM1 collega il motore in modo normale, KM2 con due fasi scambiate. Con Avanti si chiude KM1, con Indietro KM2.',
           ],
         },
         {
@@ -1282,18 +1368,36 @@ export const UNITS_V2 = {
           title: 'Due contattori',
           focus: ['KM1', 'KM2'],
           paras: [
-            'I poli di potenza dei due contattori sono collegati agli stessi morsetti del salvamotore. In uscita KM2 scambia due fasi: i suoi morsetti 2 e 6 vanno a W e a U.',
-            'Ogni contattore ha il suo contatto di autoritenuta (13-14) e un contatto normalmente chiuso (21-22) per l’interblocco.',
+            'I poli di potenza dei due contattori sono collegati agli stessi morsetti del salvamotore. In uscita KM2 scambia due fasi: i suoi morsetti 2 e 6 vanno a W e a U, quindi L1 e L3 si scambiano. Due fasi qualunque andrebbero bene: conta che KM2 ne scambi due e KM1 nessuna.',
+            'Ogni contattore ha il suo contatto di autoritenuta, 13-14 (NA), e un contatto 21-22, NC: finisce in 1-2, come l’arresto, e si apre quando il contattore si chiude. Serve per l’interblocco.',
           ],
         },
         {
           type: 'spiegazione',
           title: 'L’interblocco',
           paras: [
-            'Se i due contattori si chiudessero insieme, due fasi della rete si collegherebbero tra loro: un cortocircuito. Il salvamotore scatterebbe.',
-            'L’interblocco lo impedisce con il contatto NC (21-22): la bobina di KM1 passa dal contatto di KM2, e la bobina di KM2 dal contatto di KM1. Se uno è chiuso, l’altro non può chiudersi.',
+            'Se KM1 e KM2 si chiudessero insieme, sui morsetti del motore L1 e L3 si toccherebbero: un cortocircuito tra due fasi. Il salvamotore scatterebbe, ma prima passerebbe per un attimo una corrente enorme: scintille, contatti bruciati o incollati, un quadro da riparare. Meglio che non possa succedere.',
+            'Interblocco vuol dire blocco reciproco: la bobina di KM1 passa dal 21-22 di KM2, quella di KM2 dal 21-22 di KM1. Quando uno è chiuso il suo contatto NC è aperto, e l’altro non può chiudersi.',
           ],
           warn: 'Senza interblocco il circuito sembra funzionare, ma premendo le due marce insieme si ha un cortocircuito.',
+        },
+        {
+          type: 'spiegazione',
+          title: 'Perché ogni filo',
+          paras: [
+            'Qui i passi sono pochi e i fili tanti. Ecco la ragione di ogni gruppo.',
+          ],
+          table: {
+            head: ['Dove', 'Che cosa ci colleghi e perché'],
+            rows: [
+              ['KM1, KM2 in', 'Tutti e due ai morsetti 2, 4, 6 del salvamotore: i due contattori prendono la stessa rete.'],
+              ['KM1 out', 'U, V, W in ordine: il senso Avanti.'],
+              ['KM2 out', '2 a W, 4 a V, 6 a U: due fasi scambiate, il senso Indietro. Senza scambio i due pulsanti farebbero girare il motore nello stesso senso.'],
+              ['Arresto', 'Il primo del comando, prima di Avanti e di Indietro: un solo Arresto ferma tutti e due i sensi.'],
+              ['13-14', 'Ogni contattore il suo, in parallelo al suo pulsante: KM1 su Avanti, KM2 su Indietro.'],
+              ['21-22', 'Ognuno nel comando dell’altro, dopo il pulsante e prima della bobina: KM1 chiuso apre la strada di KM2, e il contrario.'],
+            ],
+          },
         },
         {
           type: 'demo',
@@ -1327,7 +1431,7 @@ export const UNITS_V2 = {
             { id: 'c', text: 'Il salvamotore scatta: i due contattori si chiudono insieme.' },
           ],
           correct: 'b',
-          why: 'Il contatto NC di KM1 è aperto finché KM1 è chiuso: la bobina di KM2 non riceve corrente. Per invertire bisogna prima premere Arresto.',
+          why: 'Il contatto NC di KM1 è aperto finché KM1 è chiuso: la bobina di KM2 non riceve corrente. Per invertire bisogna prima premere Arresto. Va bene così: invertire un motore lanciato vuol dire frenarlo di colpo, con una corrente fortissima e uno strappo sulla macchina.',
         },
         { type: 'sintesi', title: 'Da ricordare' },
       ],
@@ -1340,11 +1444,10 @@ export const UNITS_V2 = {
       { kind: 'verify', short: '4 Verifica', title: 'Controlla l’impianto', text: 'Premi Verifica.' },
     ],
     summary: [
-      'Scambiando due fasi si inverte il senso del motore.',
-      'Due contattori: KM1 collega le fasi in ordine, KM2 le collega con due fasi scambiate.',
-      'I due contattori non devono mai chiudersi insieme: sarebbe un cortocircuito.',
-      'L’interblocco usa il contatto NC (21-22) di ciascun contattore nel comando dell’altro.',
-      'Per invertire il senso si preme prima Arresto.',
+      'Scambiando due fasi il motore gira al contrario: KM1 le collega in ordine, KM2 con due fasi scambiate.',
+      'KM1 e KM2 chiusi insieme mettono due fasi in cortocircuito: per questo non devono chiudersi mai insieme.',
+      'L’interblocco mette il contatto NC 21-22 di ogni contattore nel comando dell’altro: chi è chiuso blocca l’altro.',
+      'Per invertire si preme prima Arresto: invertire un motore lanciato lo frena di colpo e sforza la macchina.',
     ],
     fault: {
       open: ['QM'],
@@ -1382,8 +1485,8 @@ export const UNITS_V2 = {
           type: 'spiegazione',
           title: 'Una macchina completa',
           paras: [
-            'Un nastro trasportatore porta un pacco da un punto all’altro. Ha un motore, un contattore, i pulsanti di marcia e arresto, un relè termico e due dispositivi di sicurezza: il pulsante di emergenza e il finecorsa.',
-            'Il circuito di potenza è quello che già conosci. Il comando mette in serie tutti i contatti che devono poter fermare il nastro.',
+            'In un magazzino il nastro porta i pacchi fino al banco dove l’operatore li prende. Deve fermarsi da solo quando il pacco arriva in fondo, e chiunque deve poterlo fermare subito se qualcosa va storto: una mano presa, un pacco che cade.',
+            'Per questo, oltre a motore, contattore, marcia, arresto e termico, ha due dispositivi di sicurezza: il pulsante di emergenza e il finecorsa. La potenza è quella che conosci. Il comando mette in serie tutti i contatti che devono poter fermare il nastro.',
           ],
         },
         {
@@ -1391,18 +1494,35 @@ export const UNITS_V2 = {
           title: 'Emergenza e finecorsa',
           focus: ['SBE', 'FC'],
           paras: [
-            'Il pulsante di emergenza a fungo ha un contatto normalmente chiuso, in serie al comando. Premuto, si blocca aperto: il nastro si ferma e non riparte finché non lo sblocchi.',
-            'Il finecorsa è un contatto azionato dal pacco. Usiamo il contatto normalmente chiuso (1-2): a fine nastro si apre e il comando si interrompe.',
+            'Il pulsante di emergenza è un fungo rosso su fondo giallo: grande, si preme con il palmo senza cercarlo. Ha un contatto NC in serie al comando. Premuto si blocca aperto e va sbloccato a mano: così nessuno riavvia il nastro mentre il pericolo c’è ancora. L’arresto ferma il lavoro, il fungo ferma un pericolo.',
+            'Il finecorsa è un contatto che il pacco schiaccia quando arriva in fondo. Si usa il suo contatto NC (1-2): il pacco lo apre e il nastro si ferma. Tolto il pacco il contatto si richiude, e il nastro riparte con un nuovo Marcia.',
           ],
         },
         {
           type: 'spiegazione',
           title: 'Perché i contatti NC',
           paras: [
-            'Un contatto NC in serie al comando ferma la macchina anche quando si stacca un filo: un guasto porta alla fermata, non alla marcia.',
-            'Per questo emergenza, arresto, termico e finecorsa sono tutti contatti NC in serie. Dopo l’emergenza il nastro non riparte da solo: serve un nuovo comando di marcia.',
+            'NA e NC si scelgono pensando a che cosa succede se un filo si stacca. Un contatto NC in serie al comando ferma la macchina anche quando si stacca un suo filo: un guasto porta alla fermata, non alla marcia.',
+            'Per questo emergenza, arresto, termico e finecorsa sono tutti contatti NC in serie: ne basta uno aperto. Dopo l’emergenza il nastro non riparte da solo: serve un nuovo comando di marcia.',
           ],
           warn: 'Con il finecorsa collegato al contatto normalmente aperto il comando è interrotto all’inizio: il nastro non parte.',
+        },
+        {
+          type: 'spiegazione',
+          title: 'Perché ogni contatto sta lì',
+          paras: [
+            'Il comando è una fila di contatti, nell’ordine in cui li incontra la fase. Le protezioni vengono per prime; tutti i contatti che fermano stanno fuori dal parallelo tra marcia e autoritenuta, così le interrompono tutte e due.',
+          ],
+          table: {
+            head: ['Contatto', 'Perché sta lì'],
+            rows: [
+              ['95-96', 'Il primo, dal morsetto 2 del salvamotore: il termico ferma il motore in sovraccarico.'],
+              ['Fungo', 'Dopo il termico: premuto apre il comando, il contattore si apre e toglie le tre fasi al motore.'],
+              ['Arresto', 'Dopo il fungo: lo stop di tutti i giorni.'],
+              ['Marcia, 13-14', 'In parallelo, come nel livello di marcia e arresto: uno avvia, l’altro tiene.'],
+              ['Finecorsa', 'Dopo la marcia, davanti alla bobina: interrompe sia la marcia sia l’autoritenuta.'],
+            ],
+          },
         },
         {
           type: 'demo',
@@ -1451,11 +1571,10 @@ export const UNITS_V2 = {
       { kind: 'verify', short: '3 Verifica', title: 'Controlla l’impianto', text: 'Premi Verifica.' },
     ],
     summary: [
-      'Una macchina completa ha potenza, comando e dispositivi di sicurezza.',
-      'Emergenza, arresto, termico e finecorsa sono contatti NC in serie nel comando.',
-      'Un contatto NC porta la macchina alla fermata anche se si stacca un filo.',
-      'Dopo l’emergenza la macchina riparte solo con un nuovo comando di marcia.',
-      'Il finecorsa ferma il nastro a fine corsa: il contatto NC si apre.',
+      'Il fungo serve a fermare un pericolo: è NC in serie, si blocca aperto e va sbloccato a mano, così nessuno riavvia mentre il pericolo c’è.',
+      'Emergenza, arresto, termico e finecorsa sono NC in serie: ne basta uno aperto, e un filo staccato ferma la macchina invece di lasciarla andare.',
+      'Il finecorsa NC sta davanti alla bobina: il pacco in fondo lo apre e il nastro si ferma da solo.',
+      'Dopo un’emergenza o un finecorsa la macchina riparte solo con un nuovo Marcia: non deve ripartire da sola.',
     ],
     fault: {
       open: ['QM'],
@@ -1864,6 +1983,14 @@ export const UNITS_V2 = {
           ],
         },
         {
+          type: 'spiegazione',
+          title: 'Una funzione alla volta',
+          paras: [
+            'Si prova una funzione alla volta, sempre nello stesso ordine: Marcia (il nastro parte e la spia si accende), Arresto, emergenza (poi la sblocchi e serve un nuovo Marcia), finecorsa e, per ultimo, il sovraccarico. Per ognuna sai già che cosa deve succedere: se succede altro, hai trovato il guasto.',
+            'Poi ragioni sul comando: un contatto che si apre ma non ferma la macchina non sta in serie nel giro della bobina. Si corregge come nei lavori in sicurezza: a salvamotore aperto, mai in tensione. Poi si rifà il collaudo.',
+          ],
+        },
+        {
           type: 'previsione',
           question: 'Durante il collaudo simuli un sovraccarico: il termico scatta, ma il nastro continua a girare. Che cosa significa?',
           options: [
@@ -1878,7 +2005,8 @@ export const UNITS_V2 = {
       ],
     },
     summary: [
-      'Il collaudo prova tutte le funzioni: marcia, arresto, emergenza, finecorsa e protezioni.',
+      'Il collaudo prova tutte le funzioni, anche quelle che servono di rado: sono quelle che salvano persone e macchina.',
+      'Si prova una funzione alla volta: per ognuna sai che cosa deve succedere, e se succede altro hai trovato il guasto.',
       'La protezione del motore si prova con un sovraccarico simulato: il termico deve scattare e fermare il nastro.',
       'Un termico che scatta ma non ferma il motore ha il contatto 95-96 fuori dal circuito di comando.',
       'Si corregge un impianto a salvamotore aperto, mai in tensione.',
@@ -4700,16 +4828,16 @@ UNITS_V2['c52-lavori-sicurezza'] = {
         type: 'spiegazione',
         title: 'La procedura, nell’ordine',
         paras: [
-          'In bassa tensione i passi sono questi. L’ordine non si cambia: ogni passo protegge dall’errore del passo prima.',
+          'Negli impianti di casa e d’officina, che sono in bassa tensione (fino a 1000 V; i 12 V del campanello sono bassissima tensione), i passi sono questi. L’ordine non si cambia: ogni passo protegge dall’errore del passo prima.',
         ],
         table: {
-          head: ['Passo', 'Che cosa fai', 'Perché'],
+          head: ['Passo', 'Che cosa fai e perché'],
           rows: [
-            ['1 Sezionare', 'apri l’interruttore a monte', 'togli la tensione ai fili su cui lavori'],
-            ['2 Bloccare', 'metti il lucchetto sull’interruttore aperto', 'nessuno può richiuderlo mentre lavori'],
-            ['3 Verificare', 'misuri che non ci sia tensione', 'ti accorgi di un altro circuito o di un errore'],
-            ['4 Lavorare', 'metti le mani sui fili', 'solo adesso'],
-            ['5 Rimettere in servizio', 'togli il lucchetto e richiudi', 'solo tu, che l’hai messo'],
+            ['1 Sezionare', 'Apri l’interruttore a monte: togli la tensione ai fili su cui lavori.'],
+            ['2 Bloccare', 'Metti il lucchetto sull’interruttore aperto: nessuno può richiuderlo mentre lavori.'],
+            ['3 Verificare', 'Misuri che non ci sia tensione: ti accorgi di un altro circuito o di un errore.'],
+            ['4 Lavorare', 'Metti le mani sui fili: solo adesso.'],
+            ['5 Rimettere in servizio', 'Togli il lucchetto e richiudi, cioè ridai tensione: solo tu, che l’hai messo.'],
           ],
         },
       },
@@ -4718,7 +4846,7 @@ UNITS_V2['c52-lavori-sicurezza'] = {
         title: 'Il lucchetto: perché non basta aprire',
         paras: [
           'Un interruttore aperto si richiude con un dito. Un collega che non sa che stai lavorando, vede la macchina ferma e riarma il quadro: la tensione torna sui fili che hai in mano.',
-          'Il lucchetto, con il tuo nome o un cartello, impedisce la richiusura e dice a tutti che c’è qualcuno al lavoro. La chiave la tieni tu: il lucchetto lo toglie solo chi l’ha messo. Nel gioco, a lucchetto messo il salvamotore non si richiude.',
+          'Il lucchetto, con il tuo nome o un cartello, impedisce la richiusura e dice a tutti che c’è qualcuno al lavoro. La chiave la tieni tu: il lucchetto lo toglie solo chi l’ha messo. Se lavorate in due, ognuno mette il suo: l’interruttore si richiude solo quando li avete tolti tutti. Nel gioco, a lucchetto messo il salvamotore non si richiude.',
         ],
       },
       {
@@ -4729,12 +4857,12 @@ UNITS_V2['c52-lavori-sicurezza'] = {
           'Per questo prima si prova lo strumento su un punto che sai in tensione, a monte dell’interruttore aperto: deve leggere 230 V. Se li legge, lo strumento funziona, e uno zero a valle vale.',
         ],
         table: {
-          head: ['Misura', 'Tra', 'Che cosa ti aspetti', 'A che serve'],
+          head: ['Puntali', 'Che cosa leggi e a che cosa serve'],
           rows: [
-            ['1', 'morsetto 1 del salvamotore e neutro', '230 V', 'prova che lo strumento funziona'],
-            ['2', 'morsetto 2 del salvamotore e neutro', '0 V', 'la prima fase è spenta'],
-            ['3', 'morsetto 4 del salvamotore e neutro', '0 V', 'la seconda fase è spenta'],
-            ['4', 'morsetto 6 del salvamotore e neutro', '0 V', 'la terza fase è spenta'],
+            ['1 e neutro', 'Morsetto 1 del salvamotore, a monte: 230 V. Lo strumento funziona.'],
+            ['2 e neutro', '0 V: la prima fase è spenta.'],
+            ['4 e neutro', '0 V: la seconda fase è spenta.'],
+            ['6 e neutro', '0 V: la terza fase è spenta.'],
           ],
         },
         warn: 'Si misurano tutte le fasi: una sola fase ancora in tensione basta per prendere la scossa.',
@@ -4746,6 +4874,7 @@ UNITS_V2['c52-lavori-sicurezza'] = {
         paras: [
           'Accanto alla leva del salvamotore c’è il pulsante con il lucchetto: si mette solo a salvamotore aperto. Il multimetro si accende dal suo pulsante; il primo morsetto che tocchi è il puntale rosso, il secondo il nero.',
           'L’impianto è già cablato: marcia, arresto, contattore e motore. Manca il fungo di emergenza, che si aggiunge in serie al comando.',
+          'Nel lavoro vero si misura anche tra le fasi e verso terra, con uno strumento adatto: nel gioco basta tra ogni fase e il neutro.',
         ],
       },
       {
@@ -4753,7 +4882,7 @@ UNITS_V2['c52-lavori-sicurezza'] = {
         title: 'Il lavoro: aggiungere il fungo',
         paras: [
           'Il fungo di emergenza è un contatto normalmente chiuso: a riposo lascia passare la fase al comando; premuto, la interrompe e il contattore cade. Come l’arresto, sta in serie sul comando: se un contatto qualunque si apre, la bobina perde la tensione.',
-          'Va messo per primo, prima dell’arresto: dal morsetto 2 del salvamotore (a valle, dove prende la fase il comando) al morsetto 1 del fungo, e dal morsetto 2 del fungo al morsetto 1 dell’arresto. Sono due fili: ma prima la procedura.',
+          'Va messo per primo, prima dell’arresto, come il termico nel nastro: le sicurezze vengono per prime. Dal morsetto 2 del salvamotore (a valle, dove prende la fase il comando) al morsetto 1 del fungo, e dal morsetto 2 del fungo al morsetto 1 dell’arresto. Sono due fili: ma prima la procedura.',
         ],
       },
       {
