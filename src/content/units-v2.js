@@ -2378,8 +2378,8 @@ export const UNITS_V2 = {
           type: 'spiegazione',
           title: 'Perché un motore grande non parte di colpo',
           paras: [
-            'Un compressore, una grossa pompa, il ventilatore di un capannone: motori grandi. All’avviamento un motore trifase assorbe una corrente molto più alta di quella di lavoro, anche cinque o sette volte. Con un motore grande lo strappo sulla linea è forte: le luci dello stesso quadro calano e le protezioni a monte possono scattare.',
-            'Il rimedio è partire con una tensione ridotta e passare alla tensione piena quando il motore ha preso velocità. Il metodo più comune è stella-triangolo. Va bene per le macchine che partono leggere, come pompe e ventilatori: all’inizio il motore ha poca forza.',
+            'Un compressore, il ventilatore di un capannone: motori grandi. All’avviamento un motore trifase assorbe una corrente molto più alta di quella di lavoro, anche cinque o sette volte. Con un motore grande lo strappo sulla linea è forte e le protezioni a monte possono scattare.',
+            'Il rimedio è partire con una tensione ridotta e passare alla tensione piena quando il motore ha preso velocità. Il metodo più comune è stella-triangolo. Va bene per le macchine che all’avvio non spingono un carico pesante, come pompe e ventilatori: in stella il motore ha poca forza. Quando passa a triangolo è già quasi alla sua velocità, e lo strappo è piccolo.',
           ],
         },
         {
@@ -2429,9 +2429,9 @@ export const UNITS_V2 = {
             head: ['Morsetto', 'Che cosa ci colleghi e perché'],
             rows: [
               ['Arresto, Marcia', 'Come in marcia e arresto, con il 13-14 di KM1 in parallelo alla marcia: Marcia avvia, il 13-14 tiene, Arresto ferma tutto.'],
-              ['KT A1 e 15', 'Sullo stesso punto di A1 di KM1: KT parte quando la linea si chiude e si azzera con Arresto. Così ogni avviamento comincia in stella.'],
+              ['KT A1 e 15', 'Sullo stesso punto di A1 di KM1, che l’autoritenuta tiene in tensione (Marcia è solo un impulso): KT parte con la linea e si azzera con Arresto. Ogni avviamento comincia in stella.'],
               ['KT 16', 'Chiuso a riposo, prima che il tempo scada: va verso KM2, la stella. Sul 18 il motore partirebbe a triangolo, con tutto lo strappo.'],
-              ['KT 18', 'Si chiude dopo il ritardo: va verso KM3, il triangolo. Il comune lascia il 16 e tocca il 18: la stella si apre, il triangolo si chiude.'],
+              ['KT 18', 'Si chiude dopo il ritardo: va verso KM3, il triangolo. Il comune lascia il 16 e tocca il 18: la stella si apre, e solo dopo il triangolo si chiude. Per un attimo il motore gira da solo, senza collegamento.'],
               ['21-22', 'Il NC di KM3 prima della bobina di KM2, e il contrario: se un contattore resta incollato, l’altro non chiude e non c’è il cortocircuito.'],
               ['A2', 'Al neutro, per tutte e quattro le bobine: ognuna è un carico, e senza ritorno quel contattore non chiude.'],
             ],
@@ -2608,7 +2608,7 @@ export const UNITS_V2 = {
           type: 'spiegazione',
           title: 'Gli ingressi: come il PLC vede un pulsante',
           paras: [
-            'Un ingresso non "sente" il pulsante: misura se tra l’ingresso e il comune IC c’è tensione. Con 230 V l’ingresso vale 1, senza tensione vale 0. Per misurare serve un secondo punto di riferimento: per questo IC va al neutro.',
+            'Un ingresso non "sente" il pulsante: misura se tra l’ingresso e il comune IC c’è tensione. Con 230 V l’ingresso vale 1, senza tensione vale 0. Per misurare serve un secondo punto di riferimento: per questo IC va al neutro. Nel gioco gli ingressi sono a 230 V; molti PLC veri li hanno a 24 V, più sicuri da toccare.',
             'Quando premi Marcia, la fase passa dal pulsante e arriva all’ingresso I1: tra I1 e IC ci sono 230 V e I1 vale 1. Quando rilasci, la tensione sparisce e I1 torna a 0.',
           ],
           warn: 'Senza il collegamento di IC nessun ingresso può misurare tensione: restano tutti a 0, anche premendo.',
@@ -2627,7 +2627,7 @@ export const UNITS_V2 = {
           title: 'Perché il PLC ha la sua alimentazione',
           paras: [
             'Il PLC è un computer: per funzionare ha bisogno di corrente, come una bobina. Si alimenta tra A1 e A2, fase e neutro. La fase si prende a valle del salvamotore: aprendolo si spegne anche il PLC, e tutto il comando resta senza tensione mentre lavori.',
-            'Se manca l’alimentazione il programma si ferma e tutte le uscite si aprono: i contattori si aprono e la macchina si ferma. È il comportamento che vogliamo in caso di guasto.',
+            'Se manca l’alimentazione il programma si ferma e tutte le uscite si aprono: i contattori si aprono e la macchina si ferma. È il comportamento che vogliamo in caso di guasto. Il programma resta nella memoria del PLC: si perde solo lo stato del momento, come l’autoritenuta.',
           ],
         },
         {
@@ -2655,7 +2655,7 @@ export const UNITS_V2 = {
               ['Marcia e Arresto insieme', '(1 oppure …) e 0 è falso: vince l’arresto, come nei fili.'],
             ],
           },
-          warn: 'L’arresto è un contatto NC: a riposo porta tensione e I0 vale 1. Premendolo, I0 va a 0. Un filo staccato fa lo stesso: la macchina si ferma.',
+          warn: 'L’arresto è un contatto NC: a riposo porta tensione e I0 vale 1. Premendolo, I0 va a 0. Un filo staccato fa lo stesso: la macchina si ferma. Ma se il PLC si blocca con Q0 chiuso, Arresto non conta più: per questo l’emergenza resta nei fili, come vedrai nel nastro con il PLC.',
         },
         {
           type: 'demo',
@@ -2778,8 +2778,8 @@ export const UNITS_V2 = {
           type: 'spiegazione',
           title: 'Il ladder: lo schema a scala',
           paras: [
-            'Il ladder (schema a scala) è nato per gli elettricisti: si legge come lo schema a relè di marcia e arresto. Due righe verticali, i montanti, fanno da fase a sinistra e da neutro a destra; tra loro, i gradini. Ogni gradino ha a sinistra dei contatti e a destra una bobina.',
-            'La «corrente» passa nel gradino da sinistra a destra se i contatti lasciano passare, e la bobina si accende. Ma nel ladder la bobina non è un filo di rame, è il bit che il gradino accende. Può essere un’uscita (Q0, Q1) o un bit interno, una casella di memoria che non esce dal PLC.',
+            'Il ladder è nato per gli elettricisti: si legge come lo schema a relè di marcia e arresto. Due righe verticali, i montanti, fanno da fase a sinistra e da neutro a destra; tra loro, i gradini. Ogni gradino ha a sinistra dei contatti e a destra una bobina.',
+            'La «corrente» passa nel gradino da sinistra a destra se i contatti lasciano passare (un modo di dire), e la bobina si accende. Ma nel ladder la bobina non è un filo di rame, è il bit che il gradino accende. Può essere un’uscita (Q0, Q1) o un bit interno, una casella di memoria che non esce dal PLC.',
           ],
         },
         {
@@ -2863,7 +2863,7 @@ export const UNITS_V2 = {
           type: 'spiegazione',
           title: 'Due NC diversi: nei fili e nel programma',
           paras: [
-            'Nel programma non si pensa al tipo di pulsante, ma al valore del bit: il contatto deve lasciar passare quando la macchina può andare. Ecco l’arresto, dal pulsante al gradino.',
+            'Nel programma non si pensa al tipo di pulsante, ma al valore del bit: il contatto deve lasciar passare quando la macchina può andare. In serie l’ordine dei contatti non conta, e con Marcia e Arresto premuti insieme vince l’arresto. Ecco l’arresto, dal pulsante al gradino.',
           ],
           table: {
             head: ['Dove', 'Che cosa succede e perché'],
@@ -3031,7 +3031,7 @@ export const UNITS_V2 = {
       'Un PLC conta il tempo da solo, con un temporizzatore TON: il KT dei fili diventa una riga del programma.',
       'Il TON parte quando la sua condizione è vera e il suo bit T1 diventa 1 dopo il tempo impostato; se la condizione cade si azzera, così dopo un arresto il motore riparte in stella con il tempo pieno.',
       'Stella e triangolo si distinguono con T1: la stella lo vuole a 0, il triangolo a 1.',
-      'L’interblocco tra stella e triangolo resta nei fili; il programma ne aggiunge un secondo, usando T1 in modo opposto nei due gradini.',
+      'L’interblocco tra stella e triangolo resta nei fili: anche se il programma li comanda nella stessa scansione, il NC di KM2 lascia chiudere KM3 solo quando KM2 si è davvero aperto. Il programma ne aggiunge un secondo, con T1 usato in modo opposto.',
       'Q0, la linea, resta acceso per tutto l’avviamento: stella e triangolo cambiano solo come sono uniti gli avvolgimenti.',
     ],
     fault: {
@@ -3117,7 +3117,7 @@ export const UNITS_V2 = {
           type: 'spiegazione',
           title: 'Fungo e termico restano nei fili',
           paras: [
-            'In una macchina vera l’emergenza e la protezione del motore non devono mai dipendere dal programma: un programma può avere un errore e un PLC può bloccarsi. Per questo il contatto del fungo e il contatto 95-96 del termico stanno in serie alla bobina del contattore, nei fili.',
+            'L’arresto è un comando di lavoro e può passare dal programma. L’emergenza e la protezione del motore no: fermano un pericolo, e non devono mai dipendere dal programma, perché un programma può avere un errore e un PLC può bloccarsi. Per questo il contatto del fungo e il contatto 95-96 del termico stanno in serie alla bobina del contattore, nei fili.',
             'Guarda il banco: la fase passa dal fungo, dal termico, poi dall’uscita Q0 del PLC e solo allora arriva alla bobina. Il PLC può solo dire "no" quando vuole fermare il nastro; non può forzare la marcia se fungo o termico sono aperti.',
           ],
           table: {
@@ -4266,7 +4266,7 @@ export const UNITS_V2 = {
           type: 'spiegazione',
           title: 'Il programma si cambia a macchina ferma',
           paras: [
-            'Quando il programma cambia, il PLC riparte da zero: perde le autoritenute, i conteggi e i tempi. Con la macchina in moto può fermarsi di colpo o, peggio, ripartire mentre qualcuno ci sta lavorando.',
+            'Per caricare il programma nuovo il PLC si ferma e poi riparte come appena acceso: perde le autoritenute, i conteggi e i tempi. Con la macchina in moto può fermarsi di colpo o, peggio, ripartire mentre qualcuno ci sta lavorando.',
             'Per questo il programma si cambia solo a macchina ferma, come i fili si cambiano solo a salvamotore aperto. Fungo e termico restano nei fili: fermano il nastro anche se il programma sbaglia.',
           ],
         },
