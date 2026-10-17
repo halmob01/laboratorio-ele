@@ -15,9 +15,9 @@ import { join } from 'node:path';
 import { isDeepStrictEqual } from 'node:util';
 import { pathToFileURL } from 'node:url';
 
-// Punto di partenza: B0, B1, spazio nelle tabelle, Attenzione nei pezzi, previsioni multiple, tabelle a piu' colonne (17 ottobre).
+// Punto di partenza: dopo la correzione dell'esercizio di c53 (17 ottobre). Le correzioni a esercizi o vista, approvate, spostano questo commit.
 // Contiene gia' le review dei Moduli 2 e 3; per le lezioni di partenza si usa fe4fee0 (pacchetto-allievo.mjs --commit).
-const BASE = '7089345';
+const BASE = '534708f';
 const base = process.argv[2] || BASE;
 const git = (...a) => execFileSync('git', a, { encoding: 'utf8', maxBuffer: 1 << 28 });
 const problems = [];
