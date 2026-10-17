@@ -101,20 +101,48 @@ export const UNITS_V2 = {
       pages: [
         {
           type: 'spiegazione',
-          title: 'Comando e carico separati',
+          title: 'Perché un relè',
           paras: [
-            'Un relè è un interruttore comandato da un altro circuito. Una piccola bobina, quando riceve tensione, diventa un elettromagnete e sposta un contatto.',
-            'Il circuito che alimenta la bobina è il comando. Il circuito che passa dal contatto è il carico. I due circuiti non si toccano: possono anche avere tensioni diverse.',
+            'Finora l’interruttore accendeva direttamente la lampada. Spesso però chi comanda e chi consuma sono lontani o diversi: un pulsante piccolo deve accendere un motore grande, un termostato a pochi volt deve accendere una caldaia a 230 V, una centralina deve accendere le luci del giardino.',
+            'Il relè risolve questo problema: un circuito piccolo, il comando, decide; un altro circuito, quello che porta l’energia, esegue. I due circuiti non si toccano e possono avere tensioni diverse (nel gioco sono tutti e due a 230 V).',
+            'È un’idea che ritroverai spesso: nel relè ad impulsi, nel contattore dei motori, nelle uscite del PLC.',
           ],
+        },
+        {
+          type: 'spiegazione',
+          title: 'Come funziona',
+          paras: [
+            'Il relè ha due parti. La bobina è un filo avvolto: quando riceve tensione diventa una calamita (si dice che è eccitata) e tira il contatto. Senza tensione la calamita si spegne e una molla riporta il contatto a riposo.',
+            'Per la bobina vale quello che sai della lampada: è un carico, e per funzionare ha bisogno di fase e neutro. Il contatto invece è solo un interruttore: non ha tensione sua, la tensione per le lampade gliela porti tu.',
+          ],
+          warn: 'Il relè non dà corrente alle lampade: passa solo quella che porti al suo contatto.',
         },
         {
           type: 'pezzi',
           title: 'Il relè con contatto di scambio',
           focus: ['K'],
           paras: [
-            'La bobina ha due morsetti, A1 e A2. Il contatto ne ha tre: 11 è il comune, 12 è chiuso a bobina spenta (NC), 14 è chiuso a bobina accesa (NA).',
-            'Il comune è sempre collegato a uno dei due: il contatto non resta mai a metà. Con una sola lampada ne basta un morsetto; con due si può dare un segnale per ogni stato.',
+            'La bobina ha due morsetti, A1 e A2. Il contatto ne ha tre: 11 è il comune, dove entra la fase; 12 è collegato al comune quando la bobina è a riposo; 14 quando la bobina è eccitata.',
+            'Il contatto 11-12, chiuso a riposo, si chiama NC (normalmente chiuso); 11-14, aperto a riposo, si chiama NA (normalmente aperto). Il comune tocca sempre uno dei due: è un contatto di scambio. Con due lampade dà due segnali opposti, come le spie di un quadro: verde a macchina ferma, rossa a macchina in moto.',
           ],
+        },
+        {
+          type: 'spiegazione',
+          title: 'Perché ogni filo',
+          paras: [
+            'Due circuiti, otto fili. Prima di guardare come si fa, ecco a che cosa serve ciascuno.',
+          ],
+          table: {
+            head: ['Morsetto', 'Che cosa ci colleghi e perché'],
+            rows: [
+              ['A1', 'La fase, passando dall’interruttore: il comando sta sulla fase e decide quando la bobina si eccita.'],
+              ['A2', 'Il neutro: la bobina è un carico, senza ritorno non si eccita e il relè non scatta mai.'],
+              ['11', 'La fase: il contatto non ha tensione sua, senza questo filo nessuna lampada si accende.'],
+              ['12', 'La lampada verde: chiuso a riposo, la verde dice «comando spento».'],
+              ['14', 'La lampada rossa: chiuso a bobina eccitata, la rossa dice «comando acceso». Sul 12 si accenderebbe insieme alla verde.'],
+              ['Lampade', 'L’altro morsetto al neutro: ogni lampada ha bisogno del suo giro, come nel primo livello.'],
+            ],
+          },
         },
         {
           type: 'demo',
@@ -138,12 +166,12 @@ export const UNITS_V2 = {
           type: 'previsione',
           question: 'Il comando è aperto. Quale lampada è accesa?',
           options: [
-            { id: 'a', text: 'La rossa, collegata al morsetto 14.' },
-            { id: 'b', text: 'La verde, collegata al morsetto 12.' },
-            { id: 'c', text: 'Tutte e due.' },
+            { id: 'a', text: 'La rossa: la bobina è già collegata, quindi il contatto è sul 14.' },
+            { id: 'b', text: 'La verde: a bobina spenta il comune 11 resta collegato al 12.' },
+            { id: 'c', text: 'Tutte e due: la fase arriva al comune e da lì a tutte e due.' },
           ],
           correct: 'b',
-          why: 'A bobina spenta il contatto comune 11 è collegato al 12, chiuso a riposo. La lampada verde è alimentata. La rossa, sul 14, si accende solo quando la bobina si eccita.',
+          why: 'Con il comando aperto la bobina non riceve tensione: è a riposo, e a riposo il comune 11 è collegato al 12, il contatto NC. La verde è accesa. La rossa, sul 14, si accende solo quando la bobina è eccitata. Il comune non alimenta mai i due morsetti insieme.',
         },
         { type: 'sintesi', title: 'Da ricordare' },
       ],
@@ -161,10 +189,10 @@ export const UNITS_V2 = {
       { kind: 'verify', short: '10 Verifica', title: 'Controlla l’impianto', text: 'Premi Verifica.' },
     ],
     summary: [
-      'Il relè ha un circuito di comando (la bobina) e un circuito di carico (il contatto), separati.',
-      'Il contatto di scambio ha un comune (11), un morsetto chiuso a riposo (12) e uno chiuso a bobina eccitata (14).',
-      'Con il comando aperto è collegato il 12, con il comando chiuso il 14: una sola bobina può dare due segnali opposti.',
-      'La bobina ha il suo ritorno al neutro, e il comando sta sulla fase.',
+      'Il relè separa il comando dalla potenza: un circuito piccolo decide, un altro porta l’energia. Così un comando piccolo, lontano o a tensione più bassa può accendere un carico diverso.',
+      'La bobina è un carico: per eccitarsi ha bisogno della fase, che arriva dal comando, e del neutro.',
+      'Il contatto è solo un interruttore: la fase per le lampade gliela porti tu, sul comune 11.',
+      'A riposo il comune tocca il 12 (NC), a bobina eccitata il 14 (NA): una sola bobina dà due segnali opposti.',
     ],
     fault: {
       say: 'L’impianto è già cablato. Dai corrente: a comando aperto le due lampade sono accese insieme. Misura con il multimetro e trova l’errore.',

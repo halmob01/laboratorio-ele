@@ -9240,20 +9240,48 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
         pages: [
           {
             type: "spiegazione",
-            title: "Comando e carico separati",
+            title: "Perch\xE9 un rel\xE8",
             paras: [
-              "Un rel\xE8 \xE8 un interruttore comandato da un altro circuito. Una piccola bobina, quando riceve tensione, diventa un elettromagnete e sposta un contatto.",
-              "Il circuito che alimenta la bobina \xE8 il comando. Il circuito che passa dal contatto \xE8 il carico. I due circuiti non si toccano: possono anche avere tensioni diverse."
+              "Finora l\u2019interruttore accendeva direttamente la lampada. Spesso per\xF2 chi comanda e chi consuma sono lontani o diversi: un pulsante piccolo deve accendere un motore grande, un termostato a pochi volt deve accendere una caldaia a 230 V, una centralina deve accendere le luci del giardino.",
+              "Il rel\xE8 risolve questo problema: un circuito piccolo, il comando, decide; un altro circuito, quello che porta l\u2019energia, esegue. I due circuiti non si toccano e possono avere tensioni diverse (nel gioco sono tutti e due a 230 V).",
+              "\xC8 un\u2019idea che ritroverai spesso: nel rel\xE8 ad impulsi, nel contattore dei motori, nelle uscite del PLC."
             ]
+          },
+          {
+            type: "spiegazione",
+            title: "Come funziona",
+            paras: [
+              "Il rel\xE8 ha due parti. La bobina \xE8 un filo avvolto: quando riceve tensione diventa una calamita (si dice che \xE8 eccitata) e tira il contatto. Senza tensione la calamita si spegne e una molla riporta il contatto a riposo.",
+              "Per la bobina vale quello che sai della lampada: \xE8 un carico, e per funzionare ha bisogno di fase e neutro. Il contatto invece \xE8 solo un interruttore: non ha tensione sua, la tensione per le lampade gliela porti tu."
+            ],
+            warn: "Il rel\xE8 non d\xE0 corrente alle lampade: passa solo quella che porti al suo contatto."
           },
           {
             type: "pezzi",
             title: "Il rel\xE8 con contatto di scambio",
             focus: ["K"],
             paras: [
-              "La bobina ha due morsetti, A1 e A2. Il contatto ne ha tre: 11 \xE8 il comune, 12 \xE8 chiuso a bobina spenta (NC), 14 \xE8 chiuso a bobina accesa (NA).",
-              "Il comune \xE8 sempre collegato a uno dei due: il contatto non resta mai a met\xE0. Con una sola lampada ne basta un morsetto; con due si pu\xF2 dare un segnale per ogni stato."
+              "La bobina ha due morsetti, A1 e A2. Il contatto ne ha tre: 11 \xE8 il comune, dove entra la fase; 12 \xE8 collegato al comune quando la bobina \xE8 a riposo; 14 quando la bobina \xE8 eccitata.",
+              "Il contatto 11-12, chiuso a riposo, si chiama NC (normalmente chiuso); 11-14, aperto a riposo, si chiama NA (normalmente aperto). Il comune tocca sempre uno dei due: \xE8 un contatto di scambio. Con due lampade d\xE0 due segnali opposti, come le spie di un quadro: verde a macchina ferma, rossa a macchina in moto."
             ]
+          },
+          {
+            type: "spiegazione",
+            title: "Perch\xE9 ogni filo",
+            paras: [
+              "Due circuiti, otto fili. Prima di guardare come si fa, ecco a che cosa serve ciascuno."
+            ],
+            table: {
+              head: ["Morsetto", "Che cosa ci colleghi e perch\xE9"],
+              rows: [
+                ["A1", "La fase, passando dall\u2019interruttore: il comando sta sulla fase e decide quando la bobina si eccita."],
+                ["A2", "Il neutro: la bobina \xE8 un carico, senza ritorno non si eccita e il rel\xE8 non scatta mai."],
+                ["11", "La fase: il contatto non ha tensione sua, senza questo filo nessuna lampada si accende."],
+                ["12", "La lampada verde: chiuso a riposo, la verde dice \xABcomando spento\xBB."],
+                ["14", "La lampada rossa: chiuso a bobina eccitata, la rossa dice \xABcomando acceso\xBB. Sul 12 si accenderebbe insieme alla verde."],
+                ["Lampade", "L\u2019altro morsetto al neutro: ogni lampada ha bisogno del suo giro, come nel primo livello."]
+              ]
+            }
           },
           {
             type: "demo",
@@ -9277,12 +9305,12 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
             type: "previsione",
             question: "Il comando \xE8 aperto. Quale lampada \xE8 accesa?",
             options: [
-              { id: "a", text: "La rossa, collegata al morsetto 14." },
-              { id: "b", text: "La verde, collegata al morsetto 12." },
-              { id: "c", text: "Tutte e due." }
+              { id: "a", text: "La rossa: la bobina \xE8 gi\xE0 collegata, quindi il contatto \xE8 sul 14." },
+              { id: "b", text: "La verde: a bobina spenta il comune 11 resta collegato al 12." },
+              { id: "c", text: "Tutte e due: la fase arriva al comune e da l\xEC a tutte e due." }
             ],
             correct: "b",
-            why: "A bobina spenta il contatto comune 11 \xE8 collegato al 12, chiuso a riposo. La lampada verde \xE8 alimentata. La rossa, sul 14, si accende solo quando la bobina si eccita."
+            why: "Con il comando aperto la bobina non riceve tensione: \xE8 a riposo, e a riposo il comune 11 \xE8 collegato al 12, il contatto NC. La verde \xE8 accesa. La rossa, sul 14, si accende solo quando la bobina \xE8 eccitata. Il comune non alimenta mai i due morsetti insieme."
           },
           { type: "sintesi", title: "Da ricordare" }
         ]
@@ -9300,10 +9328,10 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
         { kind: "verify", short: "10 Verifica", title: "Controlla l\u2019impianto", text: "Premi Verifica." }
       ],
       summary: [
-        "Il rel\xE8 ha un circuito di comando (la bobina) e un circuito di carico (il contatto), separati.",
-        "Il contatto di scambio ha un comune (11), un morsetto chiuso a riposo (12) e uno chiuso a bobina eccitata (14).",
-        "Con il comando aperto \xE8 collegato il 12, con il comando chiuso il 14: una sola bobina pu\xF2 dare due segnali opposti.",
-        "La bobina ha il suo ritorno al neutro, e il comando sta sulla fase."
+        "Il rel\xE8 separa il comando dalla potenza: un circuito piccolo decide, un altro porta l\u2019energia. Cos\xEC un comando piccolo, lontano o a tensione pi\xF9 bassa pu\xF2 accendere un carico diverso.",
+        "La bobina \xE8 un carico: per eccitarsi ha bisogno della fase, che arriva dal comando, e del neutro.",
+        "Il contatto \xE8 solo un interruttore: la fase per le lampade gliela porti tu, sul comune 11.",
+        "A riposo il comune tocca il 12 (NC), a bobina eccitata il 14 (NA): una sola bobina d\xE0 due segnali opposti."
       ],
       fault: {
         say: "L\u2019impianto \xE8 gi\xE0 cablato. Dai corrente: a comando aperto le due lampade sono accese insieme. Misura con il multimetro e trova l\u2019errore.",

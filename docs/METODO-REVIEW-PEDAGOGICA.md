@@ -83,6 +83,9 @@ slide `spiegazione` con una tabella, messa subito prima di "Guarda come si fa":
 | Le uscite 13-14 e 23-24 in serie | Due interruttori: ognuno da solo ferma la macchina | Un contatto incollato e la macchina non si ferma più |
 
 Si raggruppano i fili che hanno la stessa ragione (le tre fasi, i neutri), così la tabella resta di 4-7 righe anche con 19 fili.
+**Forma vera (provata su c18, 17 ottobre):** le tabelle delle lezioni mostrano **due colonne**, quindi "perché" e "se lo sbagli" stanno
+nella stessa cella. Sul telefono la colonna di sinistra deve essere corta: si usa il morsetto o il pezzo (`A1`, `11`, `Lampade`) e a destra
+"che cosa ci colleghi e perché". Esempio: `['A2', 'Il neutro: la bobina è un carico, senza ritorno non si eccita e il relè non scatta mai.']`.
 La demo poi mostra *come*, e l'allievo sa già *perché*.
 
 ## 4. I fili rossi del percorso
