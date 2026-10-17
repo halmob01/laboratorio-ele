@@ -42,8 +42,10 @@ Le sei domande che stavano qui hanno avuto risposta nella chat con Gianluca del 
 (campione di 12 lezioni e conteggi su tutti i 55 livelli, i quattro perche', i fili rossi, la scheda del livello, l'allievo finto che
 spiega i passi, ordine e misure).
 
+## Decisioni del 17 ottobre
+- Opzioni mescolate nella vista sia nelle previsioni sia nella sfida guasto (blocco B1): approvato da Gianluca.
+- Metodo della review unito in `main`.
+
 ## Domande ancora aperte per Gianluca
 - Chi deve poter aprire il gioco una volta pubblicato (la sua classe, la scuola, i colleghi) e si vende o no? Decide il blocco D e quanto serve l'area docenti.
-- Unire in `main` i documenti di piano e l'elenco (decisione da prendere; i file sono sul ramo `docs-piano-fase-2`).
 - Pilota sul Modulo 2: confermato?
-- Mescolare le opzioni anche nella sfida guasto (stessa funzione della vista; il contenuto non cambia)? Proposta: si'.

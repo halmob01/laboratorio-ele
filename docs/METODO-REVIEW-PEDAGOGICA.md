@@ -192,7 +192,8 @@ Un allievo che sceglie sempre "la più lunga" prende quasi tutti i punti senza l
 1. **Mescolare le opzioni quando si mostrano.** Le risposte si riconoscono dal loro codice (`a`, `b`, `c`), non dalla posizione:
    cambiare l'ordine sullo schermo non tocca punteggio, salvataggi né regole. È una modifica di poche righe in `optButtons`
    (`src/ui2d/screens.js`), con un ordine fisso per domanda (ricavato dal livello e dalla domanda) così non cambia a ogni ridisegno.
-   La stessa funzione mostra anche le opzioni della sfida guasto: il mescolamento le sistema senza toccarne il contenuto.
+   La stessa funzione mostra anche le opzioni della sfida guasto: il mescolamento le sistema senza toccarne il contenuto
+   (approvato da Gianluca il 17 ottobre, anche per la sfida guasto).
 2. **Riscrivere le opzioni sbagliate** perché siano lunghe e credibili quanto quella giusta. Le opzioni sbagliate migliori sono gli
    errori di concetto veri (§5): così la previsione, invece di essere un quiz, fa emergere l'errore e la spiegazione lo smonta.
    Regola: opzioni di lunghezza simile (la giusta non più lunga delle altre di oltre un terzo), ognuna una frase che un allievo
