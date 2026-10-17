@@ -39,9 +39,7 @@ Serve a far suonare e aprire il portone da dentro casa senza mettere i 230 V sul
 - Il tasto di chiamata ha morsetti 3 e 4: devo rispettare quale è l'ingresso e quale l'uscita, o sono uguali?
 
 ### 5. Conteggio
-Passi con il perché vero: 8 su 8 (il 4 e il 7 sono deboli: dicono a che serve il tasto, non perché è fatto così). Passi con la conseguenza: 3 su 8 (3, 5, 8; il 6 conta come quarto: 4 su 8). Capisco a che cosa serve: sì.
-
-*Nota di conteggio: conseguenze 3, 5, 6, 8 = 4 su 8.*
+Passi con il perché vero: 8 su 8 (il 4 e il 7 sono deboli: dicono a che serve il tasto, non perché è fatto così). Passi con la conseguenza: 4 su 8 (3, 5, 6, 8). Capisco a che cosa serve: sì.
 
 ---
 

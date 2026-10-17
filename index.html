@@ -13186,7 +13186,7 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
             title: "La polarit\xE0 e il LED",
             paras: [
               "A una lampada a incandescenza non importa il verso: \xE8 un filo che scalda e si accende comunque. Un LED invece \xE8 un diodo: lascia passare la corrente in un solo verso, dall\u2019anodo (A) al catodo (K). L\u2019anodo va verso il positivo, il catodo verso il negativo. Al contrario resta spento.",
-              "Per questo nei circuiti in continua la polarit\xE0 conta: un dispositivo collegato al contrario non funziona, e alcuni si rompono. Il LED fa da spia: va in parallelo alla lampada, cos\xEC riceve la stessa tensione e si accende con lei. L\u2019interruttore si mette di solito sul positivo, come in alternata sulla fase."
+              "Per questo nei circuiti in continua la polarit\xE0 conta: un dispositivo collegato al contrario non funziona, e alcuni si rompono. Il LED fa da spia: in parallelo alla lampada si accende con lei. L\u2019interruttore si mette sul positivo: aperto, a valle non arriva il +, mentre il negativo spesso \xE8 collegato al metallo dell\u2019apparecchio (nelle auto, alla carrozzeria)."
             ],
             warn: "Un LED vero non si collega mai da solo a una batteria: serve una piccola resistenza in serie che limita la corrente (nei LED fatti per 12 V \xE8 gi\xE0 dentro). Nel gioco la resistenza \xE8 compresa nel LED."
           },
@@ -13248,9 +13248,9 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
             title: "Come funziona un pannello fotovoltaico",
             paras: [
               "Un pannello fotovoltaico trasforma la luce del sole in corrente continua. Come una batteria ha un positivo e un negativo, ma la sua tensione non \xE8 fissa: dipende da quanta luce arriva. A pieno sole un pannello d\xE0 la sua tensione massima; con il cielo coperto o al tramonto ne d\xE0 molto meno; di notte niente.",
-              "Il sole nella giornata sale e scende: la produzione ha la forma di una campana, con il massimo verso mezzogiorno. Nel grafico vedi la produzione in kilowatt (kW) e il consumo della casa."
+              "Il sole nella giornata sale e scende: la produzione ha la forma di una campana, con il massimo verso mezzogiorno. Nel grafico vedi la produzione in kilowatt (kW: 1 kW sono 1000 W) e il consumo della casa."
             ],
-            warn: "Un pannello illuminato \xE8 sempre in tensione: nessun interruttore lo spegne, e aprire il sezionatore stacca solo l\u2019inverter. Sui fili dei pannelli si lavora con attenzione anche di giorno; nei tetti veri una stringa arriva a centinaia di volt, non ai 44 V del gioco."
+            warn: "Un pannello illuminato \xE8 sempre in tensione: nessun interruttore lo spegne, e aprire l\u2019interruttore dell\u2019inverter stacca solo l\u2019inverter. Sui fili dei pannelli si lavora con attenzione anche di giorno; nei tetti veri una stringa arriva a centinaia di volt, non ai 44 V del gioco."
           },
           {
             type: "spiegazione",
@@ -13258,7 +13258,8 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
             paras: [
               "La casa funziona in corrente alternata a 230 V. L\u2019inverter trasforma la continua dei pannelli in alternata, e l\u2019energia pu\xF2 cos\xEC alimentare la casa o andare in rete.",
               "L\u2019inverter ha una finestra di tensione in ingresso: sotto una tensione minima (qui 30 V) non parte, perch\xE9 non ha abbastanza tensione per lavorare; sopra la massima (qui 60 V) si danneggia. Il compito dell\u2019impianto \xE8 tenere la tensione dei pannelli dentro la finestra."
-            ]
+            ],
+            warn: "Il + libero della stringa va al + dell\u2019inverter, il \u2212 libero al \u2212: invertiti, l\u2019inverter non lavora e si pu\xF2 rovinare."
           },
           {
             type: "spiegazione",
@@ -13421,7 +13422,7 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
             type: "spiegazione",
             title: "Chi comanda la batteria",
             paras: [
-              "La batteria \xE8 in continua e la casa in alternata: in mezzo c\u2019\xE8 il suo inverter, che decide da solo quando caricare e quando scaricare. L\u2019interruttore del banco mette in servizio batteria e inverter, e la spia lo segnala. Se la sera la casa chiede pi\xF9 di 3 kW, il resto arriva dalla rete."
+              "La batteria \xE8 in continua e la casa in alternata: in mezzo c\u2019\xE8 il suo inverter, che decide da solo quando caricare e quando scaricare. Sul banco colleghi solo il comando: l\u2019interruttore che mette in servizio batteria e inverter, gi\xE0 cablati, e la spia che lo segnala. Se la sera la casa chiede pi\xF9 di 3 kW, il resto arriva dalla rete."
             ]
           },
           {
@@ -13831,7 +13832,7 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
           type: "spiegazione",
           title: "Il trasformatore ha due lati",
           paras: [
-            "Il primario (morsetti 1 e 2) si collega alla rete e resta sempre alimentato. Il secondario (morsetti 3 e 4) d\xE0 i 12 V. Tra i due lati non c\u2019\xE8 nessun filo: l\u2019energia passa attraverso il campo magnetico del nucleo, quindi un guasto sul portone non arriva mai alla rete.",
+            "Il primario (morsetti 1 e 2) si collega alla rete e resta sempre alimentato. Il secondario (morsetti 3 e 4) d\xE0 i 12 V. Tra i due lati non c\u2019\xE8 nessun filo: l\u2019energia passa attraverso il nucleo di ferro, per magnetismo, come nel campanello: un guasto sul portone non arriva mai alla rete.",
             "Con il trasformatore alimentato ma nessun tasto premuto non passa corrente: il secondario \xE8 un circuito aperto, come una lampada con l\u2019interruttore spento. I trasformatori per campanelli e citofoni sono di sicurezza: reggono un corto sul secondario o hanno una protezione dentro."
           ],
           table: {
@@ -14253,7 +14254,7 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
           title: "Il rel\xE8 che si tiene da solo",
           paras: [
             "La memoria \xE8 un rel\xE8 con l\u2019autoritenuta. Quando un sensore chiude, la bobina del rel\xE8 riceve la fase e si eccita. Il suo contatto 11-14 si chiude e riporta la fase alla bobina stessa: ora la bobina non dipende pi\xF9 dal sensore, perch\xE9 si alimenta da sola.",
-            "La sirena prende la tensione dalla stessa linea della bobina: suona finch\xE9 la bobina \xE8 alimentata."
+            "La sirena \xE8 un secondo carico in parallelo alla bobina: prende la fase dallo stesso punto A1, quindi suona finch\xE9 il rel\xE8 si tiene. \xC8 pi\xF9 semplice che portarla su un altro contatto del rel\xE8, come si fa nelle centrali vere, e funziona allo stesso modo."
           ],
           table: {
             head: ["Che cosa succede", "Sensore", "Rel\xE8 KA", "Sirena"],
@@ -14526,7 +14527,7 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
           title: "Un contatore, tanti carichi",
           paras: [
             "Il contatore della casa ha un limite di potenza: 6 kW. Se la casa preleva di pi\xF9 per pi\xF9 di 20 secondi, il contatore stacca tutto e al buio ci va l\u2019intera casa. In una sera d\u2019inverno i carichi si sommano: l\u2019auto in carica, la pompa di calore, il forno, le luci.",
-            "Sommati fanno pi\xF9 del limite, e allora qualcuno deve aspettare. Il PLC comanda l\u2019auto e la pompa di calore. Il forno no: lo accendono le persone, e il PLC non pu\xF2 spegnerlo."
+            "Sommati fanno pi\xF9 del limite, e allora qualcuno deve aspettare. Il PLC comanda l\u2019auto e la pompa di calore (scalda la casa usando l\u2019elettricit\xE0). Il forno no: lo accendono le persone, e il PLC non pu\xF2 spegnerlo."
           ],
           table: {
             head: ["Carico", "Potenza", "Lo comanda il PLC?"],
@@ -14543,8 +14544,8 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
           type: "spiegazione",
           title: "La priorit\xE0: chi aspetta e chi torna prima",
           paras: [
-            "Si stacca per primo il carico che d\xE0 meno fastidio. L\u2019auto pu\xF2 caricarsi anche pi\xF9 tardi, nessuno se ne accorge. La pompa di calore ha un\u2019inerzia: la casa \xE8 calda e qualche minuto senza non si sente. Il forno e le luci no: se si spengono se ne accorgono subito.",
-            "Attenzione a come lavora il programma del banco: il PLC legge i gradini uno dopo l\u2019altro, e il gradino della pompa vede gi\xE0 la colonnina spenta. Cos\xEC, sopra 5800 W, si staccano subito tutte e due. La priorit\xE0 si vede al ritorno: prima la pompa di calore, che serve di pi\xF9, poi la colonnina."
+            "L\u2019auto pu\xF2 caricarsi anche pi\xF9 tardi, nessuno se ne accorge. La pompa di calore ha un\u2019inerzia: la casa \xE8 calda e qualche minuto senza non si sente. Il forno e le luci no: se si spengono se ne accorgono subito.",
+            "Attenzione a come lavora il programma del banco. La condizione \xABQ0 spenta\xBB vorrebbe dire \xABprima la colonnina\xBB, ma il PLC legge i gradini uno dopo l\u2019altro: quando arriva alla pompa, la colonnina \xE8 gi\xE0 spenta. Sopra 5800 W si staccano quindi tutte e due. La priorit\xE0 si vede al ritorno: prima la pompa, poi la colonnina."
           ],
           table: {
             head: ["Chi aspetta di pi\xF9", "Carico", "Perch\xE9"],
@@ -14849,7 +14850,7 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
           table: {
             head: ["Che cosa c\u2019\xE8", "Che cosa fa", "Dove l\u2019hai visto"],
             rows: [
-              ["Gestione dei carichi", "stacca prima l\u2019auto e poi la pompa, per non far saltare il contatore", "c53"],
+              ["Gestione dei carichi", "stacca auto e pompa per non far saltare il contatore, e riattacca prima la pompa", "c53"],
               ["Clima per zone", "scalda soggiorno e camera tra 20 e 22 \xB0C, chiude la valvola se la finestra \xE8 aperta", "c54"],
               ["Pannelli e batteria", "di giorno producono, la sera la batteria copre i consumi", "c39-c41"],
               ["Allarme di allagamento", "la sirena suona finch\xE9 non si asciuga la sonda e si tacita", "c50"]

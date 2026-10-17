@@ -3721,7 +3721,7 @@ export const UNITS_V2 = {
           title: 'La polarità e il LED',
           paras: [
             'A una lampada a incandescenza non importa il verso: è un filo che scalda e si accende comunque. Un LED invece è un diodo: lascia passare la corrente in un solo verso, dall’anodo (A) al catodo (K). L’anodo va verso il positivo, il catodo verso il negativo. Al contrario resta spento.',
-            'Per questo nei circuiti in continua la polarità conta: un dispositivo collegato al contrario non funziona, e alcuni si rompono. Il LED fa da spia: va in parallelo alla lampada, così riceve la stessa tensione e si accende con lei. L’interruttore si mette di solito sul positivo, come in alternata sulla fase.',
+            'Per questo nei circuiti in continua la polarità conta: un dispositivo collegato al contrario non funziona, e alcuni si rompono. Il LED fa da spia: in parallelo alla lampada si accende con lei. L’interruttore si mette sul positivo: aperto, a valle non arriva il +, mentre il negativo spesso è collegato al metallo dell’apparecchio (nelle auto, alla carrozzeria).',
           ],
           warn: 'Un LED vero non si collega mai da solo a una batteria: serve una piccola resistenza in serie che limita la corrente (nei LED fatti per 12 V è già dentro). Nel gioco la resistenza è compresa nel LED.',
         },
@@ -3783,9 +3783,9 @@ export const UNITS_V2 = {
           title: 'Come funziona un pannello fotovoltaico',
           paras: [
             'Un pannello fotovoltaico trasforma la luce del sole in corrente continua. Come una batteria ha un positivo e un negativo, ma la sua tensione non è fissa: dipende da quanta luce arriva. A pieno sole un pannello dà la sua tensione massima; con il cielo coperto o al tramonto ne dà molto meno; di notte niente.',
-            'Il sole nella giornata sale e scende: la produzione ha la forma di una campana, con il massimo verso mezzogiorno. Nel grafico vedi la produzione in kilowatt (kW) e il consumo della casa.',
+            'Il sole nella giornata sale e scende: la produzione ha la forma di una campana, con il massimo verso mezzogiorno. Nel grafico vedi la produzione in kilowatt (kW: 1 kW sono 1000 W) e il consumo della casa.',
           ],
-          warn: 'Un pannello illuminato è sempre in tensione: nessun interruttore lo spegne, e aprire il sezionatore stacca solo l’inverter. Sui fili dei pannelli si lavora con attenzione anche di giorno; nei tetti veri una stringa arriva a centinaia di volt, non ai 44 V del gioco.',
+          warn: 'Un pannello illuminato è sempre in tensione: nessun interruttore lo spegne, e aprire l’interruttore dell’inverter stacca solo l’inverter. Sui fili dei pannelli si lavora con attenzione anche di giorno; nei tetti veri una stringa arriva a centinaia di volt, non ai 44 V del gioco.',
         },
         {
           type: 'spiegazione',
@@ -3794,6 +3794,7 @@ export const UNITS_V2 = {
             'La casa funziona in corrente alternata a 230 V. L’inverter trasforma la continua dei pannelli in alternata, e l’energia può così alimentare la casa o andare in rete.',
             'L’inverter ha una finestra di tensione in ingresso: sotto una tensione minima (qui 30 V) non parte, perché non ha abbastanza tensione per lavorare; sopra la massima (qui 60 V) si danneggia. Il compito dell’impianto è tenere la tensione dei pannelli dentro la finestra.',
           ],
+          warn: 'Il + libero della stringa va al + dell’inverter, il − libero al −: invertiti, l’inverter non lavora e si può rovinare.',
         },
         {
           type: 'spiegazione',
@@ -3956,7 +3957,7 @@ export const UNITS_V2 = {
           type: 'spiegazione',
           title: 'Chi comanda la batteria',
           paras: [
-            'La batteria è in continua e la casa in alternata: in mezzo c’è il suo inverter, che decide da solo quando caricare e quando scaricare. L’interruttore del banco mette in servizio batteria e inverter, e la spia lo segnala. Se la sera la casa chiede più di 3 kW, il resto arriva dalla rete.',
+            'La batteria è in continua e la casa in alternata: in mezzo c’è il suo inverter, che decide da solo quando caricare e quando scaricare. Sul banco colleghi solo il comando: l’interruttore che mette in servizio batteria e inverter, già cablati, e la spia che lo segnala. Se la sera la casa chiede più di 3 kW, il resto arriva dalla rete.',
           ],
         },
         {
@@ -4370,7 +4371,7 @@ UNITS_V2['c47-videocitofono'] = {
         type: 'spiegazione',
         title: 'Il trasformatore ha due lati',
         paras: [
-          'Il primario (morsetti 1 e 2) si collega alla rete e resta sempre alimentato. Il secondario (morsetti 3 e 4) dà i 12 V. Tra i due lati non c’è nessun filo: l’energia passa attraverso il campo magnetico del nucleo, quindi un guasto sul portone non arriva mai alla rete.',
+          'Il primario (morsetti 1 e 2) si collega alla rete e resta sempre alimentato. Il secondario (morsetti 3 e 4) dà i 12 V. Tra i due lati non c’è nessun filo: l’energia passa attraverso il nucleo di ferro, per magnetismo, come nel campanello: un guasto sul portone non arriva mai alla rete.',
           'Con il trasformatore alimentato ma nessun tasto premuto non passa corrente: il secondario è un circuito aperto, come una lampada con l’interruttore spento. I trasformatori per campanelli e citofoni sono di sicurezza: reggono un corto sul secondario o hanno una protezione dentro.',
         ],
         table: {
@@ -4784,7 +4785,7 @@ UNITS_V2['c50-allarme'] = {
         title: 'Il relè che si tiene da solo',
         paras: [
           'La memoria è un relè con l’autoritenuta. Quando un sensore chiude, la bobina del relè riceve la fase e si eccita. Il suo contatto 11-14 si chiude e riporta la fase alla bobina stessa: ora la bobina non dipende più dal sensore, perché si alimenta da sola.',
-          'La sirena prende la tensione dalla stessa linea della bobina: suona finché la bobina è alimentata.',
+          'La sirena è un secondo carico in parallelo alla bobina: prende la fase dallo stesso punto A1, quindi suona finché il relè si tiene. È più semplice che portarla su un altro contatto del relè, come si fa nelle centrali vere, e funziona allo stesso modo.',
         ],
         table: {
           head: ['Che cosa succede', 'Sensore', 'Relè KA', 'Sirena'],
@@ -5056,7 +5057,7 @@ UNITS_V2['c53-carichi'] = {
         title: 'Un contatore, tanti carichi',
         paras: [
           'Il contatore della casa ha un limite di potenza: 6 kW. Se la casa preleva di più per più di 20 secondi, il contatore stacca tutto e al buio ci va l’intera casa. In una sera d’inverno i carichi si sommano: l’auto in carica, la pompa di calore, il forno, le luci.',
-          'Sommati fanno più del limite, e allora qualcuno deve aspettare. Il PLC comanda l’auto e la pompa di calore. Il forno no: lo accendono le persone, e il PLC non può spegnerlo.',
+          'Sommati fanno più del limite, e allora qualcuno deve aspettare. Il PLC comanda l’auto e la pompa di calore (scalda la casa usando l’elettricità). Il forno no: lo accendono le persone, e il PLC non può spegnerlo.',
         ],
         table: {
           head: ['Carico', 'Potenza', 'Lo comanda il PLC?'],
@@ -5073,8 +5074,8 @@ UNITS_V2['c53-carichi'] = {
         type: 'spiegazione',
         title: 'La priorità: chi aspetta e chi torna prima',
         paras: [
-          'Si stacca per primo il carico che dà meno fastidio. L’auto può caricarsi anche più tardi, nessuno se ne accorge. La pompa di calore ha un’inerzia: la casa è calda e qualche minuto senza non si sente. Il forno e le luci no: se si spengono se ne accorgono subito.',
-          'Attenzione a come lavora il programma del banco: il PLC legge i gradini uno dopo l’altro, e il gradino della pompa vede già la colonnina spenta. Così, sopra 5800 W, si staccano subito tutte e due. La priorità si vede al ritorno: prima la pompa di calore, che serve di più, poi la colonnina.',
+          'L’auto può caricarsi anche più tardi, nessuno se ne accorge. La pompa di calore ha un’inerzia: la casa è calda e qualche minuto senza non si sente. Il forno e le luci no: se si spengono se ne accorgono subito.',
+          'Attenzione a come lavora il programma del banco. La condizione «Q0 spenta» vorrebbe dire «prima la colonnina», ma il PLC legge i gradini uno dopo l’altro: quando arriva alla pompa, la colonnina è già spenta. Sopra 5800 W si staccano quindi tutte e due. La priorità si vede al ritorno: prima la pompa, poi la colonnina.',
         ],
         table: {
           head: ['Chi aspetta di più', 'Carico', 'Perché'],
@@ -5384,7 +5385,7 @@ UNITS_V2['c55-sera-inverno'] = {
         table: {
           head: ['Che cosa c’è', 'Che cosa fa', 'Dove l’hai visto'],
           rows: [
-            ['Gestione dei carichi', 'stacca prima l’auto e poi la pompa, per non far saltare il contatore', 'c53'],
+            ['Gestione dei carichi', 'stacca auto e pompa per non far saltare il contatore, e riattacca prima la pompa', 'c53'],
             ['Clima per zone', 'scalda soggiorno e camera tra 20 e 22 °C, chiude la valvola se la finestra è aperta', 'c54'],
             ['Pannelli e batteria', 'di giorno producono, la sera la batteria copre i consumi', 'c39-c41'],
             ['Allarme di allagamento', 'la sirena suona finché non si asciuga la sonda e si tacita', 'c50'],

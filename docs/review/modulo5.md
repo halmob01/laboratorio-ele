@@ -6,7 +6,32 @@ gioco: c47, c48, c49, c50, c38, c39, c40, c41, c42, c53, c54, c55. Prove dell'al
 
 ## Risultato
 
-RISULTATO_DOPO
+| Livello | Perché vero, prima | Perché vero, dopo | Conseguenza, prima → dopo | Domande che restano, prima → dopo |
+|---|---|---|---|---|
+| c47 | 7/8 | 8/8 | 4 → 4 | 6 → 4 |
+| c48 | 5/7 | 6/7 | 5 → 5 | 5 → 4 |
+| c49 | 2/3 | 3/3 | 3 → 2 | 5 → 3 |
+| c50 | 7/10 | 8/10 | 5 → 6 | 5 → 4 |
+| c38 | 3/4 | 3/4 | 3 → 3 | 5 → 3 |
+| c39 | 2/3 | 2/3 | 2 → 2 | 5 → 3 |
+| c40 | 2/2 | 2/2 | 1 → 2 | 4 → 3 |
+| c41 | 1/1 | 1/1 | 0 → 0 | 5 → 3 |
+| c42 | 2/2 | 2/2 | 2 → 2 | 4 → 3 |
+| c53 | 4/4 | 3/4 | 3 → 3 | 6 → 4 |
+| c54 | 4/4 | 4/4 | 4 → 4 | 4 → 4 |
+| c55 | - | - | - | 4 → 3 |
+| Totale | 39/48 | 42/48 | 32 → 33 | 58 → 41 |
+
+Contano solo i passi di cablaggio o di programma. Capisce a che cosa serve: sì in tutti i livelli, prima e dopo. Il Modulo 5 partiva già
+alto sui passi: il guadagno vero è nelle domande che restano (da 58 a 41) e nella sparizione dei concetti usati prima di spiegarli.
+
+c53 scende a 3/4 nella seconda prova perché la lezione corretta (distacco insieme) contraddiceva il testo del passo («se non basta»):
+dopo la prova la lezione dice apertamente che la condizione «Q0 spenta» vorrebbe dire «prima la colonnina» ma è già vera quando il PLC
+arriva al gradino della pompa. Il passo resta com'è (esercizio, vedi `docs/DOMANDE-PER-GIANLUCA.md`).
+
+Dopo la seconda prova sono stati corretti anche: c50 (la sirena è un carico in parallelo alla bobina, non sul contatto: detto e
+spiegato), c38 (perché l'interruttore sul positivo), c39 (kW = 1000 W, polarità dell'inverter, «sezionatore» tolto), c41 (sul banco si
+cabla solo il comando), c47 (nucleo di ferro come nel campanello), c53 (che cos'è la pompa di calore), c55 (tabella allineata a c53).
 
 ## Quadro d'insieme
 
