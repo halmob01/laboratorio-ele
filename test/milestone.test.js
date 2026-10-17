@@ -696,7 +696,7 @@ function home(storage) {
 test('mappa: ogni modulo chiude con la scheda della sua milestone, preceduta dal capolinea del binario', () => {
   const { d, errors } = home();
   const cards = [...d.querySelectorAll('.msc')];
-  assert.deepEqual(cards.map(c => c.id), ['ms-trilocale', 'ms-c23-appartamento-notte', 'ms-c24-officina', 'ms-c46-nastro-automatico', 'ms-casa', 'ms-c51-turno-notte']);
+  assert.deepEqual(cards.map(c => c.id), ['ms-trilocale', 'ms-c23-appartamento-notte', 'ms-c24-officina', 'ms-c46-nastro-automatico', 'ms-c55-sera-inverno', 'ms-c51-turno-notte']);
   cards.forEach(c => assert.doesNotMatch(c.textContent, /Milestone/));
   assert.equal(d.querySelectorAll('.terminus').length, 6);
   // il binario delle Fondamenta finisce al capolinea del trilocale
@@ -704,10 +704,10 @@ test('mappa: ogni modulo chiude con la scheda della sua milestone, preceduta dal
   assert.ok(fond.querySelector('.rail + .terminus + #ms-trilocale'), 'Fondamenta: binario, capolinea, trilocale');
   assert.ok(fond.querySelector('.msteaser[data-goto="ms-trilocale"]'));
   assert.ok(!d.querySelector('.tricard'), 'le vecchie schede non ci sono piu');
-  // le cinque con una scena vera mostrano la foto, le altre il disegno tecnico
+  // tutte hanno una scena vera e mostrano la foto: nessuna e' piu' in arrivo
   assert.deepEqual([...d.querySelectorAll('.msc:not(.soon) img')].map(i => i.getAttribute('src')),
-    ['assets/milestone/trilocale.jpg', 'assets/milestone/appartamento.jpg', 'assets/milestone/officina.jpg', 'assets/milestone/automatico.jpg', 'assets/milestone/fabbrica.jpg']);
-  assert.equal(d.querySelectorAll('.msc.soon svg').length, 1);
+    ['assets/milestone/trilocale.jpg', 'assets/milestone/appartamento.jpg', 'assets/milestone/officina.jpg', 'assets/milestone/automatico.jpg', 'assets/milestone/casa.jpg', 'assets/milestone/fabbrica.jpg']);
+  assert.equal(d.querySelectorAll('.msc.soon').length, 0);
   assert.equal(d.querySelectorAll('.msc.soon a').length, 0, 'in arrivo: niente pulsante');
   assert.deepEqual(errors, []);
 });

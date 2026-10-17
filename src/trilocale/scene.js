@@ -349,8 +349,9 @@ export function createScene(container, cb) {
     });
   }
   // Il primo disegno aspetta gli shader, preparati in parallelo: niente blocco della pagina all'apertura.
-  let ready = false;
-  envGate.then(() => (disposed ? null : pipe.warm())).then(() => { ready = true; redraw(); });
+  let ready = false, readyDone;
+  const readyP = new Promise(r => { readyDone = r; });
+  envGate.then(() => (disposed ? null : pipe.warm())).then(() => { ready = true; readyDone(); redraw(); });
   function frame(t) {
     raf = 0;
     if (disposed) return;
@@ -527,6 +528,8 @@ export function createScene(container, cb) {
     // keepView: il tetto si muove ma la telecamera resta dov'e' (la regia la muove a parte)
     setRoof(on, keepView, ms) { setRoof(on, ms); if (on && !keepView) go({ yaw: -18, pitch: 42, dist: 23 }, 1400); },
     roof() { return roofOn; },
+    // quando i programmi sono pronti (dopo, nascondere un oggetto non gli fa saltare la preparazione)
+    whenReady() { return readyP; },
     resize,
     dispose() {
       disposed = true;

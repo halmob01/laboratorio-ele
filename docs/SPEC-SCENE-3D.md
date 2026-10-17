@@ -148,7 +148,7 @@ Numeri di riferimento attuali (rendering software):
 | Appartamento | 0 | circa 114 |
 | Officina, nastro in marcia | 0 | 81 su telefono; 185 su computer (con l'occlusione ambientale; senza, circa 110) |
 | Nastro automatico, in marcia | 0 | 100 su telefono (l'inquadratura comprende motore, scivolo e bancale); 162 su computer |
-| Casa intelligente, serata che scorre | 0 | circa 150 su telefono (vista esterna: si vede tutto); circa 320 su computer (165 la scena, 145 l'occlusione) |
+| Casa intelligente, serata che scorre | 0 | con il tetto (interno nascosto): circa 65-90 su telefono, circa 175 su computer; senza tetto (insieme): circa 155 su telefono, circa 310 su computer |
 
 ## Scena nuova: cosa fare
 
@@ -185,3 +185,5 @@ Numeri di riferimento attuali (rendering software):
 - Nel trilocale `ctx.animate` segna le ombre da rifare a ogni passo (serve a chi sposta oggetti con ombra). Per luci che si
   accendono, acqua che sale, oggetti senza ombra vera usare `ctx.loop` (casa: da 8 ombre del sole per un cambio di luce a 1).
 - `mergeStatic` del trilocale si chiama prima di `extend`: gli oggetti aggiunti vanno accorpati dalla scena che li aggiunge.
+- Viste da fuori con il tetto messo: l'interno non si vede ma si disegna lo stesso. Nella casa si nascondono gli oggetti interni
+  (mai le luci) a tetto messo e a programmi pronti (`whenReady()` del trilocale): la vista esterna passa da 160 a 90 chiamate.

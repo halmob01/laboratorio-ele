@@ -40,6 +40,9 @@ function extension(ctx, cb) {
   const K = kitMaterials();
   const grp = new THREE.Group();
   world.add(grp);
+  // pezzi dentro la casa: con il tetto messo non si vedono e si nascondono (meno chiamate dalle viste esterne)
+  const inner = new THREE.Group();
+  grp.add(inner);
   const skip = [];
   const take = p => { (p.picks || []).forEach(m => { m.userData = { ...m.userData, ext: true }; pick.push(m); }); (p.skip || []).forEach(o => skip.push(o)); return p; };
 
@@ -113,7 +116,7 @@ function extension(ctx, cb) {
   const panel = take(homePanel(K, 2.4));
   panel.group.position.set(bk.x + 0.06 + 0.03, 1.2, bk.z);
   panel.group.rotation.y = FACE_ROT.e;
-  grp.add(panel.group);
+  inner.add(panel.group);
   addLabel('Quadro', bk.x + 0.6, 1.6, bk.z, 'ctl');
 
   // ---- bagno: sonda a pavimento vicino alla porta, sirena sul muro est, tacitazione in corridoio ----
@@ -121,7 +124,7 @@ function extension(ctx, cb) {
   probe.group.position.set(4.62, 0, 3.5 - T / 2 - 0.08);
   probe.group.rotation.y = Math.PI;
   probe.group.scale.setScalar(1.4);
-  grp.add(probe.group);
+  inner.add(probe.group);
   addLabel('Sonda', 4.5, 0.5, 2.9, 'ctl');
   const sir = take(siren(K));
   sir.group.position.set(HW - 4 - T / 2 - 0.04, 1.2, 0.55);
@@ -132,7 +135,7 @@ function extension(ctx, cb) {
   ta.group.position.set(3.62, 1.15, 3.5 + T / 2 + 0.012);
   ta.group.rotation.y = FACE_ROT.s;
   ta.group.scale.setScalar(1.6);
-  grp.add(ta.group);
+  inner.add(ta.group);
   addLabel('Tacitazione', 3.62, 1.6, 3.9, 'ctl');
 
   // ---- clima: termostato e radiatore in soggiorno e in camera, finestra del soggiorno ----
@@ -145,17 +148,17 @@ function extension(ctx, cb) {
   zc.th.group.position.set(8.2, 1.15, 3.5 - T / 2 - 0.016); zc.th.group.rotation.y = FACE_ROT.n;
   zs.rad.group.position.set(5.5, 0, HD - T / 2 - 0.05); zs.rad.group.rotation.y = FACE_ROT.n;
   zc.rad.group.position.set(6.9, 0, T / 2 + 0.05); zc.rad.group.rotation.y = FACE_ROT.s;
-  Object.values(zoneParts).forEach(z => { z.th.group.scale.setScalar(1.5); grp.add(z.th.group, z.rad.group); });
+  Object.values(zoneParts).forEach(z => { z.th.group.scale.setScalar(1.5); inner.add(z.th.group, z.rad.group); });
   const sash = take(windowSash(K, 1.4, 0.55, 0.9));
   sash.group.position.set(7.7, 0, HD - T / 2 - 0.035);
   sash.group.rotation.y = FACE_ROT.n;
-  grp.add(sash.group);
+  inner.add(sash.group);
   addLabel('Finestra', 7.7, 1.75, 7.6, 'ctl');
 
   // ---- cucina: il forno sotto il piano (vetro che si accende arancio) ----
   const ovenGlass = new THREE.MeshStandardMaterial({ color: 0x1b1410, emissive: 0xff7a2a, emissiveIntensity: 0, roughness: 0.15 });
-  box(grp, K.steelDark, 2.35, 0.45, 0.66, 0.58, 0.56, 0.02, 0.006);
-  const ovenDoor = box(grp, ovenGlass, 2.35, 0.43, 0.672, 0.44, 0.3, 0.012, 0.004);
+  box(inner, K.steelDark, 2.35, 0.45, 0.66, 0.58, 0.56, 0.02, 0.006);
+  const ovenDoor = box(inner, ovenGlass, 2.35, 0.43, 0.672, 0.44, 0.3, 0.012, 0.004);
   ovenDoor.castShadow = false;
   const ovenLight = new THREE.PointLight(0xff8a3a, 0, 2.2, 2);
   ovenLight.position.set(2.35, 0.45, 0.95);
@@ -201,7 +204,20 @@ function extension(ctx, cb) {
   placeSun(16.5);
 
   // tutto quello che non si muove si accorpa per materiale (il trilocale ha gia' accorpato il suo prima di extend)
-  mergeStatic(grp, skip);
+  mergeStatic(inner, skip);
+  mergeStatic(grp, [...skip, inner]);
+  // l'interno del trilocale: tutto il mondo tranne prato, marciapiede, facciata, i gruppi con una luce (lampade) e i pezzi
+  // di fuori; le luci non cambiano mai (cambierebbero i programmi di tutti i materiali)
+  function interior(on) {
+    world.children.forEach(o => {
+      if (o === grp || o.isLight) return;
+      if (o.isMesh && (o.material === ctx.M.grass || o.material === ctx.M.paving)) return;
+      let keep = false;
+      o.traverse(q => { if (q.isLight || q.material === ctx.M.outside) keep = true; });
+      if (!keep) o.visible = on;
+    });
+    inner.visible = on;
+  }
 
   // animazioni che non spostano ombre (luci, acqua, anta e auto senza ombre vere): niente ricalcolo delle ombre a ogni passo
   const tween = (ms, step) => { const t0 = performance.now(); ctx.loop(() => { const k = Math.min(1, (performance.now() - t0) / ms); step(k); return k < 1; }); };
@@ -267,6 +283,7 @@ function extension(ctx, cb) {
   let last = null, sig = '', prevHour = null, prevWet = null, prevWin = null, prevSil = false;
   return {
     lamps,
+    interior,
     lampsTo(rooms, instant) { Object.keys(lamps).forEach(id => lampTo(id, clamp01(rooms[id] || 0), instant)); },
     stats() { let n = 0; ctx.scene.traverseVisible(o => { if (o.isMesh) n++; }); return { meshes: n }; },
     // hold: le luci delle stanze restano come sono (le sta facendo tremolare il blackout)
@@ -351,7 +368,20 @@ export function createCasa(container, cb) {
     ROOMS.forEach(id => { out[id] = s && s.powered && s.rooms ? clamp01(s.rooms[id] || 0) : 0; });
     return out;
   }
+  // il tetto: messo del tutto, l'interno si nasconde (ma solo a programmi pronti); prima di toglierlo l'interno torna
+  let roofToken = 0;
+  function roofTo(on, ms) {
+    const my = ++roofToken;
+    if (!on && ext) ext.interior(true);
+    api.setRoof(on, true, ms);
+    if (on) api.whenReady().then(() => setTimeout(() => { if (my === roofToken && api.roof() && ext) ext.interior(false); }, cb.reduced ? 0 : ms + 80));
+  }
+  // si parte da fuori con il tetto: l'interno si nasconde appena i programmi sono pronti
+  api.whenReady().then(() => { if (roofToken === 0 && api.roof() && ext) ext.interior(false); });
+  let curView = 'esterno', backT = null;
   const lookAt = (name, ms) => {
+    curView = typeof name === 'string' ? name : null;
+    if (backT) { clearTimeout(backT); backT = null; }
     const v = typeof name === 'object' ? { ...name } : { ...(VIEWS[name] || VIEWS.insieme) };
     if (container.clientWidth < container.clientHeight * 0.9) {
       // su telefono in verticale la casa si guarda da est: la pianta (9 x 8 m) piu' la tettoia entra nel lato lungo
@@ -360,15 +390,17 @@ export function createCasa(container, cb) {
       else if (name === 'bagno') v.dist = 7.5;
       else if (typeof name === 'string' && OUTSIDE.has(name)) v.dist *= 1.5;
     }
-    if (typeof name === 'string') api.setRoof(OUTSIDE.has(name), true, ms === undefined ? 1300 : Math.max(1, ms));
+    if (typeof name === 'string') roofTo(OUTSIDE.has(name), ms === undefined ? 1300 : Math.max(1, ms));
     api.look(v, ms);
   };
   return {
     // state = casaState(snapshot): si ridisegna solo se qualcosa e' cambiato
     update(s) {
       if (!s) return;
-      const first = !last;
+      const first = !last, prevQg = last && last.qg;
       last = s;
+      // chiuso il generale dal quadro, la telecamera torna sulla casa: si guarda la serata che comincia
+      if (!first && s.qg && prevQg === false && curView === 'quadro') backT = setTimeout(() => { backT = null; if (curView === 'quadro') lookAt('insieme', 1400); }, cb.reduced ? 0 : 1100);
       const rooms = roomsOf(s);
       const k = Math.round(clamp01(((typeof s.hour === 'number' ? s.hour : 16.5) - 16.6) / 1.2) * 40) / 40;
       if (k !== nightKey) { nightKey = k; api.nightLevel(smooth(k)); }
@@ -408,7 +440,7 @@ export function createCasa(container, cb) {
     alert() {},
     inside() { lookAt('insieme', 1); },
     // da fuori, con il tetto: per la chiamata e l'arrivo
-    outside() { api.setRoof(true, true, 1); api.look({ ...VIEWS.lontano }, 1); },
+    outside() { roofTo(true, 1); api.look({ ...VIEWS.lontano }, 1); },
     // l'arrivo: dalla strada alla casa, poi il tetto si alza e si guarda dentro; torna quanto dura
     arrival() {
       if (cb.reduced) { lookAt('insieme', 1); return 0; }
@@ -421,7 +453,13 @@ export function createCasa(container, cb) {
     views: Object.keys(VIEWS).filter(v => v !== 'lontano'),
     view: name => ({ ...(VIEWS[name] || VIEWS.insieme) }),
     resize: api.resize,
-    dispose: api.dispose,
+    // chiudendo la scena si fermano anche i temporizzatori ancora in attesa (finale, ritorno della telecamera, tetto)
+    dispose() {
+      if (evening) evening.forEach(clearTimeout);
+      if (backT) clearTimeout(backT);
+      roofToken++;
+      api.dispose();
+    },
   };
 }
 

@@ -77,8 +77,9 @@ export const MODULES = [
       'c42-colonnina',
       'c53-carichi',
       'c54-clima-zone',
+      'c55-sera-inverno',
     ],
-    milestone: { soon: true, art: 'casa', kick: 'Casa del futuro', name: 'Luci, tapparelle, sole e batteria', text: 'La casa che si comanda da sola e produce la sua energia.' },
+    milestone: { level: 'c55-sera-inverno', kick: 'Casa intelligente', name: 'Una sera d’inverno', text: 'La casa di Via Roma 12 è finita e stasera va da sola: chiudi il generale e guardala lavorare fino alle 23, con il sole che cala, l’auto in carica, la cena e la pompa di calore. Se qualcosa va storto, trova la regola sbagliata nel programma.', src: 'assets/milestone/casa.jpg', alt: 'La casa al tramonto vista dalla strada: i pannelli sul tetto, la tettoia con l’auto e la colonnina, le finestre accese', tools: ['Generale', 'PLC', 'Pannello della casa', 'Colonnina', 'Pompa di calore', 'Sonda di allagamento'], cta: 'Entra in casa', again: 'Rifai la serata' },
   },
   {
     tag: 'MODULO 6',
