@@ -153,7 +153,7 @@ const saved = w => JSON.parse(w.localStorage.getItem('fase-e-neutro-1') || '{}')
 
 // Percorre tutte le pagine della lezione rispondendo alla previsione con `ans`.
 const lessonAll = (w, d, ans = 'b') => {
-  for (let i = 0; i < 12; i++) {
+  for (let i = 0; i < 30; i++) {   // le lezioni piu' lunghe hanno 14 pagine (c29)
     if (q(d, '#lesson').hidden) break;
     const p = q(d, `[data-pred="${ans}"]`);
     if (p && !p.disabled) click(w, p);

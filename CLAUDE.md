@@ -32,6 +32,6 @@ Se Gianluca chiede "fai la review pedagogica del modulo N" (o di alcuni livelli)
   previsioni): `docs/LEZIONE-ED-ESERCIZIO.md`, §6. Le previsioni hanno la risposta giusta lunga quanto le altre: lo controlla `npm test`.
 - **Perimetro:** nelle lezioni si cambiano spiegazioni, testi dei pezzi, previsioni, sintesi e lo stile delle lezioni; passi, sfida
   guasto, demo e il codice di banco, motore e scene no. Un difetto che tocca il codice si chiede prima a Gianluca.
-- **Stato:** pilota sul Modulo 2 fatto; Modulo 3 fatto (`docs/review/modulo3.md`, ar-50); da fare Modulo 6 sicurezza (c25-c27) con c28, poi il controllo leggero del resto
+- **Stato:** pilota sul Modulo 2 fatto; Modulo 3 fatto (`docs/review/modulo3.md`, ar-50); Modulo 4 fatto con c28 e verifica piena dei livelli PLC (`docs/review/modulo4.md`, ar-51); da fare Modulo 6 sicurezza (c25-c27), poi il controllo leggero del resto
   (ordine nel §7 del metodo). Le sessioni su moduli diversi possono lavorare in parallelo.
 

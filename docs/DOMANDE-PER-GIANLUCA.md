@@ -77,3 +77,10 @@ Elenco completo in `docs/review/modulo3.md`, in fondo.
 - **Tabelle con più di due colonne** (risolta il 17 ottobre, con il via di Gianluca a scegliere): 33 tabelle in 20 livelli (c05, c34-c44,
   c47-c55) avevano tre o quattro colonne e la vista ne mostrava due. Invece di riscriverle si è cambiata la vista: con più di due colonne
   ogni riga diventa una scheda con il titolo davanti a ogni cella (`screens.js`, `style.css`, test in `test/lezione-vista.test.js`).
+
+## Review pedagogica del Modulo 4 (17 ottobre): frasi da far controllare al collega
+
+Elenco completo in `docs/review/modulo4.md`, in fondo.
+- c28: tempo di commutazione stella-triangolo «da 5 a 15 secondi nei motori veri» e l'attimo senza collegamento tra stella e triangolo.
+- c29: «le uscite del PLC sono piccoli relè che reggono pochi ampere»; «molti PLC veri hanno gli ingressi a 24 V».
+- c32: «nelle macchine vere l'emergenza passa anche da un relè di sicurezza».

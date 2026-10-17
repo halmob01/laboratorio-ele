@@ -250,6 +250,8 @@ imitare: `docs/review/modulo2.md` (schede, risultati) e il ramo `review-modulo2`
 
 ### Ordine dei moduli
 1. Fatto: **pilota sul Modulo 2** (17 ottobre).
+   Fatto: **Modulo 4** (c28, c29-c32, c46; schede in `docs/review/modulo4.md`), con c28 tolto dalla review del Modulo 6 e, su richiesta di
+   Gianluca, la verifica piena dei livelli PLC (non il controllo leggero del punto 3).
    Fatto: **Modulo 3** (c21-c16, c52, c24; schede in `docs/review/modulo3.md`). Trovato e corretto: tabelle con più di due colonne
    (c12, c52) di cui la vista mostrava solo le prime due. Lo stesso difetto c'era in 20 livelli fuori dal Modulo 3: la vista ora
    mostra tutte le colonne (ogni riga una scheda), quindi le tabelle a tre o quattro colonne si possono usare; a due resta la forma più leggibile.
