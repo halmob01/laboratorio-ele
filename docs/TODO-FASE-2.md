@@ -26,7 +26,7 @@ questo elenco serve a chi arriva nuovo (anche un'altra sessione) per capire cosa
 | 4 | **Footer**: la torre animata al centro e due riquadri di testo ai lati; ora e' troppo alto (`footerHTML` in `screens.js`, `src/ui2d/tower.js`) | da fare | Sonnet |
 | 5 | **Ritardo del bottone avanti** tra le slide: a volte la slide successiva arriva in ritardo. Prima riprodurre e misurare, poi correggere | da fare | Opus indaga, Sonnet corregge |
 | 6 | **Scene 3D piu' veloci**: seconda passata secondo `docs/SPEC-SCENE-3D.md`, con misure prima e dopo. Idea di Gianluca: la torre come schermata di caricamento. Nota: la torre nasconde l'attesa, non la riduce; in `tower.js` esiste gia' un riquadro di caricamento. Prima accorciare davvero, poi coprire il resto | da fare | Opus |
-| 7 | **Cose dimenticate**: prova con 2-3 allievi veri o un docente; controllo su telefono vero; backup; licenza; privacy dei dati dei minori se c'e' classifica o nome | da fare | Gianluca + Sonnet |
+| 7 | **Cose dimenticate**: prova con 2-3 allievi veri o un docente (raccogliere gli errori di concetto osservati, per un secondo passaggio sulle lezioni: `METODO-REVIEW-PEDAGOGICA.md` §5); controllo su telefono vero; backup; licenza; privacy dei dati dei minori se c'e' classifica o nome | da fare | Gianluca + Sonnet |
 | 8 | **Pubblicazione non pubblica**: il repo diventa privato; Pages resta per ora solo per le anteprime (da repo privato serve un piano a pagamento; alternativa Cloudflare Pages). Un gioco nel browser non si puo' rendere non copiabile: si controllano accesso (login) e licenza (`LICENSE` "tutti i diritti riservati", copyright nel footer, termini d'uso). Impacchettarlo come app non cambia questo. Non e' urgente | da decidere con Gianluca; non urgente | Sonnet per la bozza tecnica; avvocato per i termini |
 | 9 | **Area docenti** e altre cose previste dal `SYLLABUS.md` (classifica, pannello docente, statistiche degli errori) e mai fatte: prima un inventario, poi si decide | inventario dopo il pilota | Opus |
 
@@ -47,4 +47,3 @@ spiega i passi, ordine e misure).
 - Unire in `main` i documenti di piano e l'elenco (decisione da prendere; i file sono sul ramo `docs-piano-fase-2`).
 - Pilota sul Modulo 2: confermato?
 - Mescolare le opzioni anche nella sfida guasto (stessa funzione della vista; il contenuto non cambia)? Proposta: si'.
-- Errori di concetto tipici degli allievi da aggiungere all'elenco (§5 del metodo).

@@ -127,10 +127,14 @@ Allievo finto: N passi spiegati su M (prima) -> N' su M (dopo)
 Cambi decisi: ...
 ```
 
-### Errori di concetto da smontare (da completare con Gianluca)
+### Errori di concetto da smontare
 
 Gli allievi arrivano con idee sbagliate che i passi non correggono. Una lezione che le nomina e le smonta insegna di più di una che le ignora.
-Primo elenco, da allungare con l'esperienza di laboratorio:
+
+**Decisione di Gianluca (17 ottobre):** l'elenco vero si raccoglie più avanti, quando gli allievi useranno il gioco con il docente di
+laboratorio (blocco Z e dopo): meglio gli errori osservati che quelli immaginati. Allora si fa un secondo passaggio, leggero, sulle
+lezioni e sulle opzioni sbagliate delle previsioni. Per ora si usa solo questo elenco di partenza, insieme agli errori che i livelli
+già mettono in scena nella sfida guasto, senza allungarlo a tavolino:
 - "La corrente si consuma nella lampada" (torna tutta dal neutro).
 - "Il neutro non porta corrente, si può toccare."
 - "L'interruttore sul neutro va bene lo stesso, tanto la luce si spegne."
