@@ -94,18 +94,20 @@ Poche idee tornano in tutto il percorso. Se ogni lezione le richiama con le stes
 già capita, e l'allievo smette di imparare a memoria. La diagnosi indica per ogni livello quali fili rossi usa; la riscrittura li
 richiama in modo esplicito ("come nel relè del Modulo 2, anche qui...").
 
-| Filo rosso | Dove nasce | Dove torna (esempi) |
-|---|---|---|
-| **Il giro della corrente**: parte dalla fase, attraversa il carico, torna dal neutro; se il giro è aperto non passa niente | c01 | ogni bobina (A2 al neutro), anello 4-20 mA, ingressi del PLC (IC) |
-| **Si interrompe la fase** | c03 | interruttori, pulsanti, uscite del PLC |
-| **Comando e potenza sono separati**: un circuito piccolo decide, uno grande porta l'energia | c18 | contattore c22/c13, PLC c29 ("il PLC comanda il contattore, non il motore"), relè di sicurezza |
-| **Lo stato a riposo e il guasto sicuro**: NA e NC si scelgono pensando a cosa succede se un filo si stacca | c13 (arresto NC) | fungo c25, 4-20 mA c33, alimentazione del PLC c29 |
-| **Ogni protezione protegge qualcosa da qualcosa** | c19 | magnetotermico (il cavo dal calore), differenziale c20 (le persone dalla dispersione), salvamotore e termico (il motore), relè di sicurezza (le persone dalla macchina) |
-| **Qualcosa deve ricordare** | c08 (relè ad impulsi) | autoritenuta c13, Set e Reset c49, integrale c36 |
-| **Si lavora senza tensione** | c12 | ogni livello con salvamotore o quadro |
-| **Misurare invece di indovinare** | c17 | collaudo, sensori, prove 3D |
+| Filo rosso | Dove nasce | Frase fissa (da usare uguale) | Dove torna (esempi) |
+|---|---|---|---|
+| **Il giro della corrente** | c01 | "ogni carico ha bisogno di fase e neutro: senza ritorno non passa niente" | ogni bobina (A2 al neutro), anello 4-20 mA, ingressi del PLC (IC) |
+| **Si interrompe la fase** | c03 | "il comando sta sulla fase" | interruttori, pulsanti, uscite del PLC; fase e neutro si aprono *insieme* (magnetotermico), mai il neutro da solo |
+| **Tensione, corrente, potenza** | c17 | "più potenza vuol dire più corrente, e la corrente scalda i cavi" | c19 (portata dei cavi), motori, fotovoltaico, carichi |
+| **Comando e potenza sono separati** | c18 | "il contatto è solo un interruttore: la tensione gliela porti tu" | c08, c09, contattore c22/c13, PLC c29 ("il PLC comanda il contattore, non il motore"), relè di sicurezza |
+| **Lo stato a riposo e il guasto sicuro** | c18 (NA/NC), c13 (arresto NC) | "NA e NC si scelgono pensando a che cosa succede se un filo si stacca" | fungo c25, 4-20 mA c33, alimentazione del PLC c29 |
+| **Qualcosa deve ricordare** | c08 | "il pulsante dà solo un impulso, a ricordare è il relè" | autoritenuta c13, Set e Reset c49, integrale c36 |
+| **Ogni protezione protegge qualcosa da qualcosa** | c19 | magnetotermico: "protegge il cavo, non l'apparecchio"; differenziale: "protegge le persone" | salvamotore e termico (il motore), relè di sicurezza (le persone dalla macchina) |
+| **Si lavora senza tensione** | c12 | "prima di toccare si toglie tensione e si misura" | ogni livello con salvamotore o quadro |
+| **Misurare invece di indovinare** | c17 | "si segue il giro della corrente con il puntale" | collaudo, sensori, prove 3D |
 
-La tabella si completa nel pilota (§7) e poi non cambia più: è il vocabolario comune di tutte le riscritture.
+Fissata nel pilota del Modulo 2 (17 ottobre): è il vocabolario comune di tutte le riscritture. Quando un livello usa un filo rosso, lo
+richiama con la sua frase fissa e con il livello dove l'allievo l'ha visto ("come nel relè del Modulo 2...").
 
 ## 5. La scheda del livello
 
@@ -155,16 +157,17 @@ già mettono in scena nella sfida guasto, senza allungarlo a tavolino:
 - slide `pezzi`: titolo e testi liberi; resta uguale solo `focus` (quale pezzo del banco si illumina) e il loro ordine rispetto alle demo;
 - slide `previsione`: domanda, opzioni, risposta giusta e spiegazione si possono riscrivere tutte (vedi §6 bis); resta uguale il numero
   di previsioni del livello, perché danno i punti;
-- la sintesi (`summary` e titolo della slide `sintesi`), in tutti i modi.
-
+- la sintesi (`summary` e titolo della slide `sintesi`), in tutti i modi;
 - lo stile delle lezioni (`src/ui2d/style.css`, le regole di lezione, tabelle, riquadri, sintesi): deciso da Gianluca il 17 ottobre.
 
-**Che cosa non si cambia:** passi, sfida guasto, `support`, didascalie delle demo, `focus` dei pezzi, e tutto il codice (motore, banco,
-pannelli, scene). Unica eccezione proposta: il mescolamento delle opzioni (§6 bis), che è una riga della vista e non tocca le regole.
+**Che cosa non si cambia:** passi, sfida guasto, `support`, didascalie delle demo, `focus` dei pezzi, e il codice di motore, banco,
+pannelli e scene. Le correzioni alla vista della lezione fatte nel pilota (opzioni mescolate, tabelle, Attenzione nei pezzi, una risposta
+per ogni previsione) sono già in `main`; un altro difetto della lezione che tocca il codice si chiede prima a Gianluca.
 Se la lezione non può spiegare quello che l'esercizio chiede, si annota in `docs/DOMANDE-PER-GIANLUCA.md` e non si tocca l'esercizio.
 
 **Misura:**
-- al massimo 2 slide `spiegazione` in più per livello; ogni slide al massimo 90 parole circa (tabella esclusa);
+- di solito 1-3 slide in più per livello (nel pilota la più lunga è c19, da 6 a 10 slide, perché è il livello più denso);
+- ogni slide circa 90 parole, mai oltre 110 (tabella esclusa): se serve di più, si divide in due slide;
 - prima di aggiungere si guarda se si può riscrivere una slide che c'è già;
 - non si ripete il testo dei passi: la lezione dice il perché, il banco dice il come.
 
@@ -178,6 +181,13 @@ Se la lezione non può spiegare quello che l'esercizio chiede, si annota in `doc
 
 **Sintesi:** 3-5 punti, ognuno una regola con il suo perché, in modo che il Quaderno serva a ripassare il *perché* e non solo il *che cosa*.
 Esempio: "Il salvamotore stacca tutte e tre le fasi insieme, perché con due sole il motore ronza e si scalda."
+
+**Forma delle pagine (provata nel pilota):**
+- le tabelle mostrano **due colonne**: "perché" e "se lo sbagli" vanno nella stessa cella; a sinistra un'etichetta corta (il morsetto o il
+  pezzo: `A2`, `11`, `Morsetti 3`, `Lampade`), a destra "che cosa ci colleghi e perché";
+- le slide `pezzi` mostrano disegno, paragrafi e riquadro Attenzione, ma **non le tabelle**: le tabelle vanno nelle slide `spiegazione`;
+- nei testi si usa l'apostrofo tipografico ’ (come nel resto del file) e le virgolette « »;
+- sul telefono una slide lunga scorre sotto la barra in basso: un motivo in più per stare sotto le 110 parole.
 
 **Tono:** quello di oggi, che va bene: seconda persona, frasi corte, concreto. Niente tono da manuale, niente teoria che non serve a
 capire il banco.
@@ -204,49 +214,52 @@ Un allievo che sceglie sempre "la più lunga" prende quasi tutti i punti senza l
    potrebbe pensare davvero, nessuna palesemente assurda.
    Il testo della sfida guasto resta com'è (è l'esercizio); basta il mescolamento.
 
-## 7. Procedura
+## 7. Procedura (ricetta per una sessione)
 
-### Per ogni modulo (un ramo `review-moduloN`)
+Questa è la sequenza seguita nel pilota del Modulo 2, scritta perché un'altra sessione la possa rifare da sola. Esempio completo da
+imitare: `docs/review/modulo2.md` (schede, risultati) e il ramo `review-modulo2` nella storia di `main`. Consegne degli agenti:
+`docs/review/CONSEGNE.md`.
 
-1. **Allievo finto, prima prova** (Sonnet). Riceve: le lezioni del modulo, le sintesi dei livelli precedenti (è "quello che sa"), e
-   la lista dei passi di ogni livello. Non riceve il resto del codice. Per ogni livello:
-   - prima di vedere i passi: descrive che cosa collegherebbe e perché;
-   - poi, per ogni passo: spiega il perché citando la lezione, oppure scrive **"la lezione non lo dice"**;
-   - dice quali parole non ha capito e quali domande gli restano.
-   Ruolo da dargli: allievo di 15-16 anni, primo o secondo anno IeFP, ha fatto solo i livelli precedenti, non sa niente di più di
-   quello che c'è scritto; se una cosa non è scritta non la sa. Il conteggio dei "la lezione non lo dice" è la misura principale.
-   **Lezione della prima prova (Modulo 2, 17 ottobre):** l'allievo finto conta come "perché" anche il *come* ripetuto ("il 12 è chiuso
-   a bobina spenta, quindi la verde è accesa") e trova un perché in quasi tutti i passi. Il conteggio dei passi da solo inganna. I segnali
-   veri sono altri due: la risposta a "a che cosa serve nella vita vera" (in c18: "non so a che cosa serva") e le domande che restano
-   ("perché non basta collegare l'interruttore direttamente alla lampada?"). Dalla seconda prova in poi la consegna chiede, per ogni
-   passo, il perché *del lavoro* (perché si fa così e non in un altro modo, a che cosa serve) e scarta il perché che ridice il come.
-2. **Diagnosi** (Opus). Legge lezione, passi, sfida guasto, previsioni e la definizione del livello (`src/content/levels*.js`, per
-   sapere com'è fatto il banco) e la prova dell'allievo finto. Compila la scheda (§5), con verdetto e cambi decisi.
-3. **Riscrittura** (Opus per le riscritture, Sonnet per i ritocchi). Segue la scheda e le regole (§6).
-4. **Allievo finto, seconda prova** (Sonnet, stessa consegna, sessione nuova). I "la lezione non lo dice" devono scendere a zero o
-   quasi; quelli che restano si giustificano nella scheda.
-5. **Controllo tecnico** (Opus, a parte da chi ha scritto): precisione contro `docs/VALORI-TECNICI.md`, coerenza con passi, demo,
-   previsioni e sfida guasto, lunghezza.
-6. **Arabo** (Haiku): un file `src/i18n/ar-NN.js` per modulo, numero prenotato in `docs/PROCEDURA-UNIONE.md`, poi
-   `node scripts/check-lang.mjs ar` a zero. Serve all'accessibilità di oggi; una revisione estesa dell'arabo è un lavoro successivo.
-7. **Chiusura**: `node scripts/check-review-scope.mjs`, `npm test`, `npm run build`, schermate della lezione a 390 e 1280 px (le
-   tabelle nuove devono leggersi sul telefono), unione secondo `docs/PROCEDURA-UNIONE.md`.
+### Prima di cominciare
+1. Leggere questo documento, `docs/review/modulo2.md` (il tono e la forma) e `docs/PROCEDURA-UNIONE.md`.
+2. Ramo nuovo da `main`: `review-moduloN` (o un nome che dice i livelli, per esempio `review-modulo6-sicurezza`).
+3. Prenotare nella tabella di `docs/PROCEDURA-UNIONE.md` il file arabo `ar-NN` (il primo numero libero) e caricare subito il ramo.
+4. `npm ci` se mancano le dipendenze; `npm test` deve essere verde prima di toccare niente.
 
-### Ordine
+### Lavoro
+1. **Allievo finto, prova "prima"** (Sonnet, consegna 1 di `CONSEGNE.md`) sulle lezioni di partenza:
+   `node scripts/review/pacchetto-allievo.mjs <modulo o elenco di livelli> --commit fe4fee0 > <scratch>/prima.txt`.
+   Risultato in `docs/review/moduloN-allievo-prima.md`.
+2. **Diagnosi** (Opus): per ogni livello leggere lezione, passi, sfida guasto e la prova dell'allievo; scrivere la scheda (§5) in
+   `docs/review/moduloN.md`, con un quadro d'insieme in testa. Controllare i valori su `docs/VALORI-TECNICI.md`; i dubbi tecnici vanno in
+   fondo alle schede, "Da far controllare al collega".
+3. **Riscrittura** (Opus): in `src/content/units-v2.js` (Modulo 0 in `units.js`), solo le parti permesse (§6). Si scrive a mano nel file,
+   rispettando la forma degli oggetti vicini. Dopo ogni livello: `node scripts/review/misure.mjs <modulo>` (lunghezze e risposte) e
+   `node scripts/check-review-scope.mjs` (dopo un commit: lo script confronta i commit, non i file non salvati).
+4. **Allievo finto, prova "dopo"** con la stessa consegna sulle lezioni nuove (`pacchetto-allievo.mjs <modulo>` senza `--commit`).
+   Leggere tutte le domande che restano: correggere le contraddizioni e i vuoti veri, poi annotare nella scheda il confronto prima/dopo.
+5. **Controllo nel browser**: `npm run build`, poi `node scripts/review/prova-tasti.mjs <livello>` per ogni livello (serve
+   `playwright-core` installato a parte, per esempio in una cartella temporanea) e schermate a 390 e 1280 px delle slide nuove con
+   tabelle. Nelle sessioni cloud il browser è in `/opt/pw-browsers/`; al primo avvio il gioco apre "Per cominciare" e la finestra del
+   nome: lo script le chiude.
+6. **Arabo** (Haiku, consegna 2 di `CONSEGNE.md`), poi `npm test` tutto verde.
+7. **Unione**: secondo `docs/PROCEDURA-UNIONE.md`, dopo il via di Gianluca; riga in `docs/STATO-AVANZAMENTO.md`.
 
-1. **Pilota: Modulo 2.** È il salto di difficoltà che senti tu ed è il gruppo con il buco più grande. Nel pilota si fissano il tono,
-   la tabella dei fili rossi (§4), l'elenco degli errori di concetto e la forma della tabella "che cosa colleghi / perché / se lo sbagli".
-   Gianluca legge le lezioni riscritte del pilota prima di andare avanti.
-2. **Priorità alta, in parallelo dopo il pilota:** Modulo 3 (c21-c16, c52) e Modulo 6 sicurezza (c25-c27), più c28.
-3. **Controllo leggero:** livelli con il PLC e i processi (c29-c32, c33-c45, c47-c54). Hanno già il perché: si verifica con
-   l'allievo finto e si ritocca dove serve, soprattutto lo scopo nel lavoro vero (tipo A) e i fili rossi. Eccezione: c29 riceve una
-   slide nuova sul PLC nel lavoro vero (tipo A bis).
+### Che cosa aspettarsi (dal pilota)
+- Il conteggio dei passi dell'allievo finto con la consegna vecchia ingannava (contava il come): usare solo la consegna di `CONSEGNE.md`.
+- Le domande che restano trovano contraddizioni con i livelli precedenti: sono la parte più utile della prova.
+- Costo del pilota (10 livelli): tre prove dell'allievo finto (circa 100.000 token ciascuna), una traduzione (circa 140.000), il resto
+  diagnosi e scrittura.
 
-In tutti i moduli si riscrivono anche le opzioni delle previsioni (§6 bis). Il mescolamento delle opzioni e' fatto (blocco B1, `shuffledOptions` in `src/ui2d/screens.js`, test `test/opzioni.test.js`):
-la risposta giusta ora sta prima 32 volte, in mezzo 32, ultima 16 (prima era in mezzo 64 volte su 80).
-4. **Ultimo:** Modulo 0 (già a posto, va solo allineato ai fili rossi) e i briefing delle prove.
-
-I moduli diversi non toccano gli stessi testi, quindi dopo il pilota si può lavorare in parallelo.
+### Ordine dei moduli
+1. Fatto: **pilota sul Modulo 2** (17 ottobre).
+2. **Priorità alta, in parallelo:** Modulo 3 (c21-c16, c52, c24) e Modulo 6 sicurezza (c25-c27) con c28. Non condividono livelli,
+   quindi due sessioni possono lavorare insieme; ognuna con il suo ramo, il suo `ar-NN` e il suo file di schede.
+3. **Controllo leggero:** livelli con il PLC e i processi (c29-c32, c33-c45, c47-c54). Hanno già il perché: si fa la prova dell'allievo
+   finto e si ritocca dove serve, soprattutto lo scopo nel lavoro vero (tipo A) e i fili rossi. In c29 una slide nuova sul PLC nel lavoro
+   vero (tipo A bis).
+4. **Ultimo:** Modulo 0 (allineato ai fili rossi; quando si fa il blocco T, la slide "Tensione, corrente, potenza" si sposta all'inizio)
+   e i briefing delle prove.
 
 ## 8. Come si misura
 

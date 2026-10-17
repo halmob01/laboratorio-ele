@@ -1,11 +1,11 @@
 // Prova dei tasti della lezione con clic veri, a 390 e 1280 px: Avanti, Indietro, demo, previsione, Sintesi,
 // Rivedi la lezione, Salta la lezione; misura anche quanto ci mette a cambiare pagina. Serve index.html costruito.
-// Uso: node scripts/prova-tasti-lezione.mjs c18-rele   (richiede playwright-core installato a parte e Chromium;
+// Uso: node scripts/review/prova-tasti.mjs c18-rele   (richiede playwright-core installato a parte e Chromium;
 // percorso del browser in CHROMIUM, predefinito quello delle sessioni cloud)
 import { chromium } from 'playwright-core';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 const level = process.argv[2] || 'c18-rele';
-const page = pathToFileURL(fileURLToPath(new URL('../index.html', import.meta.url))).href;
+const page = pathToFileURL(fileURLToPath(new URL('../../index.html', import.meta.url))).href;
 const b = await chromium.launch({ executablePath: process.env.CHROMIUM || '/opt/pw-browsers/chromium-1194/chrome-linux/chrome' });
 const log = [];
 const ok = (w, cond, msg) => log.push(`${w}px ${cond ? 'OK ' : 'NO '} ${msg}`);
@@ -15,7 +15,7 @@ for (const w of [390, 1280]) {
   await p.goto(page + '#/livello/' + level);
   await p.waitForTimeout(1000);
   for (let k = 0; k < 6; k++) { for (const s of ['[data-skipname]', '[data-intro="skip"]']) { const x = await p.$(s); if (x && await x.isVisible()) { await x.click(); await p.waitForTimeout(300); } } }
-  const title = () => p.$eval('#lesson h2', e => e.textContent).catch(() => null);
+  const title = () => p.$eval('#lesson', e => { const k = e.querySelector('.kick'), h = e.querySelector('h2, h3'); return k ? k.textContent + ' ' + (h ? h.textContent : '') : null; }).catch(() => null);
   const kind = () => p.$eval('#lesson .kick', e => e.textContent).catch(() => '');
   const tap = async sel => { const t0 = Date.now(); await p.click(sel, { timeout: 4000 }); return Date.now() - t0; };
   const waitChange = async (before) => { const t0 = Date.now(); while (Date.now() - t0 < 3000) { if ((await title()) !== before) return Date.now() - t0; await p.waitForTimeout(20); } return -1; };
@@ -50,7 +50,7 @@ for (const w of [390, 1280]) {
     const label = await nx.textContent();
     await tap('[data-unit="next"]');
     ms = await waitChange(t); maxMs = Math.max(maxMs, ms);
-    if (ms < 0) { ok(w, !(await p.$('#lesson h2')), `Ultima pagina "${t}": "${label}" porta all'esercizio`); break; }
+    if (ms < 0) { ok(w, !(await title()), `Ultima pagina "${t}": "${label}" porta all'esercizio`); break; }
   }
   ok(w, maxMs < 300, `Pagine viste ${pages + 1}, cambio pagina più lento ${maxMs} ms`);
   await p.waitForTimeout(400);
@@ -60,7 +60,7 @@ for (const w of [390, 1280]) {
   await tap('[data-unit="lesson"]'); await p.waitForTimeout(300);
   ok(w, !!(await title()), `Rivedi la lezione riapre "${await title()}"`);
   await tap('[data-unit="skip"]'); await p.waitForTimeout(300);
-  ok(w, !(await p.$('#lesson h2')), 'Salta la lezione porta all\'esercizio');
+  ok(w, !(await title()), 'Salta la lezione porta all\'esercizio');
   ok(w, errs.length === 0, 'Nessun errore JavaScript' + (errs.length ? ': ' + errs.join(' | ') : ''));
   await p.close();
 }

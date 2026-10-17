@@ -45,7 +45,8 @@ La misura principale e' un "allievo finto" che spiega il perche' di ogni passo u
 
 Dal campione: il buco piu' grande e' nei livelli con tanti fili e poca spiegazione (Moduli 2 e 3, c25-c27, c28), scritti prima dei
 criteri del 16 ottobre; i livelli con il PLC e i processi hanno gia' il perche' e servono solo ritocchi.
-Ordine: pilota sul Modulo 2, poi Modulo 3 e sicurezza del Modulo 6 in parallelo, poi controllo leggero del resto, Modulo 0 per ultimo.
+Ordine: pilota sul Modulo 2 (fatto il 17 ottobre, `docs/review/modulo2.md`), poi Modulo 3 e sicurezza del Modulo 6 in parallelo, poi
+controllo leggero del resto, Modulo 0 per ultimo. Ogni sessione segue la ricetta del §7 del metodo.
 
 **Cosa NON e' nel perimetro:** cambiare richieste degli esercizi, passi, soglie, valori del banco. Se la review scopre che un esercizio
 chiede qualcosa che la lezione non puo' spiegare, si annota in `docs/DOMANDE-PER-GIANLUCA.md` e non lo si tocca.
