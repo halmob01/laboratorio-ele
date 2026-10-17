@@ -11,18 +11,51 @@ export const UNITS_V2 = {
           type: 'spiegazione',
           title: 'Misurare invece di indovinare',
           paras: [
-            'Un impianto che non funziona si può ispezionare a occhio, ma spesso il guasto non si vede: un filo staccato dentro il morsetto, un contatto che non chiude. L’elettricista misura.',
-            'Lo strumento è il multimetro. Ha due puntali: il rosso e il nero. Li appoggi su due punti dell’impianto e il display ti dice cosa c’è tra quei due punti.',
+            'Una luce non si accende. Il guasto può essere un filo staccato dentro un morsetto, un interruttore che non chiude, la lampada: a occhio spesso non si vede. Andare a tentativi fa perdere tempo ed è pericoloso, perché una lampada spenta non vuol dire un impianto senza tensione.',
+            'Per questo l’elettricista misura. Lo strumento è il multimetro: ha due puntali, il rosso e il nero. Li appoggi su due punti dell’impianto e il display ti dice che cosa c’è tra quei due punti.',
           ],
+        },
+        {
+          type: 'spiegazione',
+          title: 'Tensione, corrente, potenza',
+          paras: [
+            'Tre parole che userai sempre. La tensione è la spinta che fa muovere la corrente. Tra fase e neutro ci sono 230 V anche quando non è acceso niente, come la pressione nel tubo dell’acqua con il rubinetto chiuso.',
+            'La corrente è quanta elettricità passa davvero, e passa solo se il giro è chiuso, come l’acqua che scorre solo a rubinetto aperto. La potenza è quanto lavoro fa un apparecchio, in luce o in calore.',
+          ],
+          table: {
+            head: ['Parola', 'Si misura in... e un esempio'],
+            rows: [
+              ['Tensione', 'Volt (V): 230 V tra fase e neutro.'],
+              ['Corrente', 'Ampere (A): una stufa da 2000 W prende circa 8,7 A.'],
+              ['Potenza', 'Watt (W): una lampada LED circa 10 W, una stufa 2000 W.'],
+            ],
+          },
+          warn: 'Più potenza vuol dire più corrente, e la corrente scalda i cavi: per questo, più avanti, ogni cavo avrà la sua protezione.',
         },
         {
           type: 'spiegazione',
           title: 'Due misure: tensione e continuità',
           paras: [
-            'La tensione, in volt, si misura a impianto in tensione. Tra la fase e il neutro leggi 230 V; tra il neutro e la terra, circa 0 V.',
-            'La continuità si misura a impianto spento. Il multimetro manda una piccola corrente tra i due puntali: se il percorso è chiuso (un filo, un interruttore chiuso) legge continuità; se è interrotto legge circuito aperto; se attraversa un carico legge la sua resistenza.',
+            'La tensione si misura a impianto acceso e risponde alla domanda: qui arriva la spinta? Tra fase e neutro leggi 230 V, tra neutro e terra circa 0 V. Serve a capire fin dove arriva la fase e, prima di lavorare, a essere sicuri che non ci sia.',
+            'La continuità si misura a impianto spento e risponde alla domanda: questo filo, questo interruttore, è intero? Lo strumento manda una sua piccola corrente tra i puntali: se il percorso è chiuso legge continuità, se è interrotto legge circuito aperto, se attraversa un carico legge la sua resistenza.',
           ],
-          warn: 'Mai misurare la continuità con l’impianto in tensione: la lettura non vale e lo strumento si può rovinare.',
+          warn: 'Mai misurare la continuità con l’impianto in tensione: la lettura non vale, perché la tensione dell’impianto si somma a quella dello strumento, e lo strumento si può rovinare.',
+        },
+        {
+          type: 'spiegazione',
+          title: 'Come si cerca un guasto',
+          paras: [
+            'Si segue il giro della corrente. Metti il puntale nero sul neutro del quadro e fai avanzare il rosso lungo la fase: quadro, interruttore, lampada. Finché leggi 230 V la fase arriva fin lì; dove la tensione sparisce, il percorso è interrotto prima di quel punto.',
+            'Se la fase arriva fino alla lampada e la lampada resta spenta, il problema è dall’altra parte: nel neutro o nella lampada. Sul banco farai le stesse misure:',
+          ],
+          table: {
+            head: ['Misura', 'A che cosa serve'],
+            rows: [
+              ['1 e neutro', 'La fase arriva fino all’interruttore?'],
+              ['1 e 2', 'Con l’interruttore aperto: c’è tensione anche a luce spenta?'],
+              ['Continuità', 'A quadro spento: l’interruttore chiuso chiude davvero?'],
+            ],
+          },
         },
         {
           type: 'demo',
@@ -41,9 +74,9 @@ export const UNITS_V2 = {
           type: 'previsione',
           question: 'L’interruttore è aperto e la lampada è spenta. Metto i puntali sui due morsetti dell’interruttore. Quanti volt leggo?',
           options: [
-            { id: 'a', text: '0 V: la lampada è spenta, quindi non c’è tensione.' },
-            { id: 'b', text: '230 V: da un lato arriva la fase, dall’altro, attraverso la lampada, il neutro.' },
-            { id: 'c', text: '115 V: metà della tensione.' },
+            { id: 'a', text: '0 V: la lampada è spenta, quindi nel circuito non c’è tensione.' },
+            { id: 'b', text: '230 V: da un lato arriva la fase, dall’altro il neutro attraverso la lampada.' },
+            { id: 'c', text: '115 V: la tensione si divide a metà tra l’interruttore e la lampada.' },
           ],
           correct: 'b',
           why: 'Una lampada spenta non è senza tensione. Il morsetto a valle dell’interruttore aperto prende il neutro attraverso la lampada, quindi tra i due morsetti ci sono 230 V. Per questo si può prendere la scossa anche con la luce spenta.',
@@ -52,12 +85,12 @@ export const UNITS_V2 = {
           type: 'previsione',
           question: 'Devo cambiare la lampada. Che cosa faccio prima di toccare i fili?',
           options: [
-            { id: 'a', text: 'Spengo l’interruttore: la lampada è spenta, sono al sicuro.' },
-            { id: 'b', text: 'Tolgo la tensione dal quadro e controllo con il multimetro che non ce ne sia.' },
-            { id: 'c', text: 'Niente: con una mano sola non si rischia.' },
+            { id: 'a', text: 'Spengo l’interruttore: la lampada si spegne, quindi lì non c’è più tensione.' },
+            { id: 'b', text: 'Tolgo tensione dal quadro e controllo con il multimetro che non ce ne sia.' },
+            { id: 'c', text: 'Lavoro con una mano sola: così la corrente non mi attraversa il corpo.' },
           ],
           correct: 'b',
-          why: 'L’interruttore spegne la lampada ma può lasciare la fase sul portalampada. Si apre il quadro e si misura: solo uno 0 V letto con lo strumento dice che si può lavorare.',
+          why: 'L’interruttore spegne la lampada ma può lasciare la fase sul portalampada, e una mano sola non basta: la corrente può passare dalla mano ai piedi. Si toglie tensione dal quadro e si misura: solo uno 0 V letto con lo strumento dice che si può lavorare.',
         },
         { type: 'sintesi', title: 'Da ricordare' },
       ],
@@ -73,10 +106,11 @@ export const UNITS_V2 = {
       { kind: 'verify', short: '8 Verifica', title: 'Controlla l’impianto', text: 'Premi Verifica.' },
     ],
     summary: [
-      'Il multimetro ha due puntali: la tensione si misura a impianto in tensione, la continuità a impianto spento.',
-      'Una lampada spenta può avere tensione ai suoi morsetti: un interruttore aperto lascia la fase dal lato del quadro e il neutro attraverso la lampada.',
-      'Prima di lavorare su un impianto si toglie la tensione e si verifica con il multimetro che non ci sia.',
-      'La continuità con l’impianto in tensione non è una misura valida.',
+      'Tensione (V) è la spinta, corrente (A) è quanto passa, potenza (W) è il lavoro fatto: più potenza vuol dire più corrente, e la corrente scalda i cavi.',
+      'La tensione si misura a impianto acceso, per sapere fin dove arriva la fase; la continuità a impianto spento, per sapere se un filo o un interruttore è intero.',
+      'Una lampada spenta non vuol dire niente tensione: con l’interruttore aperto, ai suoi morsetti ci sono 230 V.',
+      'Per trovare un guasto si segue la fase con il puntale: dove la tensione sparisce, lì c’è l’interruzione.',
+      'Prima di lavorare si toglie tensione dal quadro e si verifica con il multimetro che non ci sia.',
     ],
     fault: {
       say: 'Il punto luce è già cablato, ma la lampada non si accende. Dai corrente, chiudi l’interruttore e usa il multimetro per capire dove si interrompe il circuito.',
@@ -221,29 +255,51 @@ export const UNITS_V2 = {
       pages: [
         {
           type: 'spiegazione',
-          title: 'Quanta corrente passa nel cavo',
+          title: 'Un cavo che si scalda',
           paras: [
-            'La corrente di un apparecchio si ricava dalla potenza: corrente = potenza diviso tensione. Una stufa da 2000 W a 230 V assorbe circa 8,7 A. Due stufe sulla stessa linea ne assorbono circa 17,4.',
-            'Ogni cavo regge una corrente massima, la portata, che dipende dalla sezione e da come è posato. Un cavo da 1,5 mm² in tubo incassato regge circa 14,5 A (valore del gioco). Se passa di più, si scalda.',
+            'Ogni filo che porta corrente si scalda un po’. Se la corrente è troppa si scalda troppo: l’isolante di plastica si rovina, può fondere, e dentro il muro può partire un cortocircuito o un incendio. Nessuno lo vede, finché non è tardi.',
+            'Per questo ogni cavo ha una portata: la corrente massima che regge senza scaldarsi troppo. Dipende dalla sezione, cioè dallo spessore del rame in mm², e da come è posato. Un cavo da 1,5 mm² in un tubo nel muro regge circa 14,5 A (valore del gioco).',
           ],
         },
         {
+          type: 'spiegazione',
+          title: 'Quanta corrente passa',
+          paras: [
+            'La corrente la decidono gli apparecchi accesi: corrente = potenza diviso tensione. Più apparecchi sulla stessa linea, più corrente nello stesso cavo.',
+          ],
+          table: {
+            head: ['Sulla linea', 'Corrente nel cavo'],
+            rows: [
+              ['Una stufa', '2000 W diviso 230 V: circa 8,7 A. Il cavo regge 14,5 A: va bene.'],
+              ['Due stufe', 'Circa 17,4 A: più di quanto regge il cavo, che si scalda.'],
+            ],
+          },
+        },
+        {
           type: 'pezzi',
-          title: 'La portata del magnetotermico',
+          title: 'Due protezioni in una',
           focus: ['QM'],
           paras: [
-            'Sul magnetotermico c’è un numero: la portata In, in ampere. Sotto 1,13 volte In non scatta mai. Sopra 1,45 volte In scatta (nella realtà in meno di un’ora, nel gioco in pochi secondi). In mezzo, la norma non dice che cosa deve fare.',
-            'Un cortocircuito, invece, lo fa scattare subito.',
+            'Il nome dice le due parti. La parte termica è una lamina che si scalda con la corrente, come il cavo: se la corrente è un po’ troppa a lungo, si piega e stacca; è lenta apposta, per non scattare a ogni piccolo picco. La parte magnetica stacca subito il cortocircuito, quando la corrente diventa enorme.',
+            'Sopra c’è un numero, la portata In, in ampere. Siccome la parte termica è lenta, sotto 1,13 volte In non scatta mai; sopra 1,45 volte In scatta (nella realtà in meno di un’ora, nel gioco in pochi secondi). In mezzo la norma, cioè le regole che gli elettricisti devono seguire, non dice che cosa deve fare.',
           ],
         },
         {
           type: 'spiegazione',
           title: 'La regola dei tre numeri',
           paras: [
-            'Corrente di impiego, portata dell’interruttore, portata del cavo: Ib ≤ In ≤ Iz. L’interruttore deve reggere l’uso normale e deve scattare prima che il cavo si scaldi.',
-            'Un interruttore troppo piccolo scatta senza motivo. Uno troppo grande non protegge il cavo: la corrente supera la portata del cavo ma non quella dell’interruttore, e nessuno se ne accorge finché il cavo non scalda.',
+            'Il magnetotermico protegge il cavo, non l’apparecchio. Per sceglierlo servono tre numeri: la corrente che serve agli apparecchi (Ib), il numero scritto sull’interruttore (In), la corrente che regge il cavo (Iz). Devono stare in quest’ordine: Ib ≤ In ≤ Iz.',
+            'Qui la linea deve reggere una stufa (8,7 A) e il cavo regge 14,5 A. Un magnetotermico da 10 A regge una stufa e scatta con due, prima che il cavo si scaldi. Uno da 16 A è più grande di quanto regge il cavo: con due stufe non scatta e il cavo scalda senza che nessuno lo sappia.',
           ],
           warn: 'Un interruttore da 16 A su un cavo da 1,5 mm² è uno degli errori più pericolosi: non scatta e il cavo si scalda.',
+        },
+        {
+          type: 'spiegazione',
+          title: '«Mi salta sempre»',
+          paras: [
+            'È la frase che sentirai più spesso da un cliente. La tentazione è montare un magnetotermico più grande, così non salta più. È l’errore più pericoloso: il cavo resta quello di prima e nessuno lo protegge più.',
+            'Un magnetotermico che scatta sta facendo il suo lavoro. Si cerca il perché: troppi apparecchi sulla stessa linea (si dividono le linee, o si rifà la linea con un cavo più grosso) oppure un guasto da trovare e riparare.',
+          ],
         },
         {
           type: 'demo',
@@ -267,9 +323,9 @@ export const UNITS_V2 = {
           type: 'previsione',
           question: 'Una linea in cavo da 1,5 mm² (portata 14,5 A) ha un magnetotermico da 16 A. Si accendono due stufe: 17,4 A. Che cosa succede?',
           options: [
-            { id: 'a', text: 'Il magnetotermico scatta subito: 17,4 A sono più di 16 A.' },
-            { id: 'b', text: 'Il magnetotermico non scatta e il cavo si scalda oltre la sua portata.' },
-            { id: 'c', text: 'Il cavo si adatta alla corrente.' },
+            { id: 'a', text: 'Scatta subito: 17,4 A sono più dei 16 A scritti sull’interruttore.' },
+            { id: 'b', text: 'Non scatta: 17,4 A sono pochi per lui, ma troppi per il cavo, che scalda.' },
+            { id: 'c', text: 'Niente di grave: il cavo regge la stessa corrente del suo interruttore.' },
           ],
           correct: 'b',
           why: '17,4 A sono solo 1,09 volte i 16 A: sotto 1,13 In il magnetotermico non scatta mai. Ma il cavo regge 14,5 A: la corrente è oltre la sua portata e nessuno la interrompe. Con un magnetotermico da 10 A la stessa corrente è 1,74 volte la portata e scatta.',
@@ -292,10 +348,11 @@ export const UNITS_V2 = {
       { kind: 'verify', short: '12 Verifica', title: 'Controlla l’impianto', text: 'Riarma il magnetotermico e premi Verifica.' },
     ],
     summary: [
-      'La corrente si ricava dalla potenza: corrente = potenza diviso tensione. Una stufa da 2000 W assorbe circa 8,7 A.',
-      'Il cavo ha una portata: oltre quella si scalda. L’interruttore deve scattare prima.',
-      'Il magnetotermico non scatta sotto 1,13 volte la sua portata e scatta sopra 1,45 volte. Il cortocircuito lo fa scattare subito.',
-      'Regola dei tre numeri: corrente di impiego ≤ portata dell’interruttore ≤ portata del cavo.',
+      'La corrente scalda i cavi: oltre la loro portata l’isolante si rovina e dentro il muro può partire un incendio.',
+      'Il magnetotermico protegge il cavo: la parte termica stacca piano il sovraccarico, la parte magnetica stacca subito il cortocircuito.',
+      'Regola dei tre numeri: corrente che serve ≤ portata dell’interruttore ≤ portata del cavo (Ib ≤ In ≤ Iz).',
+      'Sotto 1,13 volte la sua portata non scatta mai: un 16 A su un cavo da 1,5 mm² lascia scaldare il cavo senza scattare.',
+      'Se un magnetotermico salta sempre si cerca il perché: non si monta mai un interruttore più grande di quanto regge il cavo.',
     ],
     fault: {
       say: 'La linea è già cablata e le due stufe funzionano. Accendile tutte e due, aspetta qualche secondo e guarda il cavo.',
@@ -324,10 +381,10 @@ export const UNITS_V2 = {
       pages: [
         {
           type: 'spiegazione',
-          title: 'La corrente che non torna',
+          title: 'La corrente che scappa',
           paras: [
-            'In un apparecchio la corrente esce dalla fase e rientra dal neutro: le due correnti sono uguali. Se l’isolante cede, una parte della corrente va a terra, magari passando per una persona che tocca l’involucro. Fase e neutro non sono più uguali.',
-            'Il differenziale confronta continuamente la corrente che esce con quella che rientra. Se la differenza supera la sua soglia, scatta.',
+            'Normalmente la corrente fa il suo giro: esce dalla fase, attraversa l’apparecchio e torna tutta dal neutro. Se l’isolante di un apparecchio si rovina, una parte può scappare verso terra: è una dispersione. Se in quel momento qualcuno tocca l’involucro di metallo, la strada verso terra passa per il suo corpo.',
+            'Il differenziale, quello che in casa molti chiamano salvavita, confronta di continuo la corrente che va con quella che torna. Se ne torna meno, una parte sta andando da un’altra parte: quando la differenza supera la sua soglia, stacca.',
           ],
         },
         {
@@ -335,8 +392,8 @@ export const UNITS_V2 = {
           title: 'La soglia di 30 mA',
           focus: ['D'],
           paras: [
-            'Nelle case il differenziale ha una soglia di 30 mA. Scatta con una dispersione di 30 mA o più, e per norma non scatta sotto i 15 mA.',
-            'Il magnetotermico non se ne accorge: 30 mA sono pochissimi rispetto ai suoi 10 o 16 ampere. Per questo in casa servono tutti e due.',
+            'Un milliampere (mA) è un millesimo di ampere. Sembra pochissimo, ma nel corpo bastano una decina di mA per non riuscire più a staccare la mano, e poche decine possono bloccare il respiro o il cuore. Per questo in casa il differenziale ha una soglia di 30 mA e stacca in una frazione di secondo.',
+            'Un po’ di dispersione è normale in molti apparecchi: per norma sotto 15 mA il differenziale non scatta, da 30 mA in su sì. Il magnetotermico non se ne accorge, perché 30 mA sono nulla rispetto ai suoi 10 o 16 A: per questo in casa servono tutti e due.',
           ],
           warn: 'Una corrente di 30 mA attraverso il corpo è già pericolosa. Il differenziale serve proprio a interromperla in una frazione di secondo.',
         },
@@ -344,8 +401,18 @@ export const UNITS_V2 = {
           type: 'spiegazione',
           title: 'Il neutro deve passare dal differenziale',
           paras: [
-            'Il differenziale confronta la corrente di fase con quella di neutro, ma solo se passano tutte e due da lui. Se il neutro di un apparecchio viene preso prima del differenziale, la corrente esce dal differenziale e rientra altrove: lui la vede come una dispersione e scatta appena si accende l’apparecchio.',
+            'Il differenziale confronta la corrente di fase con quella di neutro, ma solo se passano tutte e due da lui. Se il neutro di un apparecchio è preso prima del differenziale, la corrente esce da lui e rientra altrove: la vede come una dispersione e scatta appena si accende l’apparecchio.',
+            'La terra e il differenziale lavorano insieme: la terra dà alla corrente di guasto una strada che non passa per le persone, il differenziale la vede e stacca.',
           ],
+          table: {
+            head: ['Morsetto', 'Che cosa ci colleghi e perché'],
+            rows: [
+              ['1 e N in alto', 'Fase e neutro dal quadro: deve vedere sia la corrente che va sia quella che torna.'],
+              ['2', 'La fase verso lo scaldabagno, passando dal suo interruttore.'],
+              ['N in basso', 'Il neutro dello scaldabagno: la corrente torna passando da lui. Preso dal quadro, scatta appena accendi.'],
+              ['Prova', '10 mA, una piccola perdita: non deve scattare. 300 mA, un guasto vero: deve scattare subito.'],
+            ],
+          },
         },
         {
           type: 'demo',
@@ -366,9 +433,9 @@ export const UNITS_V2 = {
           type: 'previsione',
           question: 'Lo scaldabagno ha una dispersione verso terra di 300 mA. Il magnetotermico della linea è da 16 A e il differenziale da 30 mA. Che cosa succede?',
           options: [
-            { id: 'a', text: 'Scatta il magnetotermico: 300 mA sono una corrente anomala.' },
-            { id: 'b', text: 'Scatta il differenziale: 300 mA sono molto più della sua soglia.' },
-            { id: 'c', text: 'Non scatta niente: la corrente è troppo piccola per ogni protezione.' },
+            { id: 'a', text: 'Scatta il magnetotermico: una corrente che va a terra è un guasto, e lui lo sente.' },
+            { id: 'b', text: 'Scatta il differenziale: tra fase e neutro mancano 300 mA, dieci volte la soglia.' },
+            { id: 'c', text: 'Non scatta niente: 300 mA sono meno di un ampere, troppo poco per le protezioni.' },
           ],
           correct: 'b',
           why: 'Il magnetotermico guarda la corrente totale della linea: 0,3 A sono nulla rispetto ai suoi 16 A. Il differenziale confronta fase e neutro: 300 mA di differenza sono dieci volte la sua soglia e lo fanno scattare subito.',
@@ -387,10 +454,11 @@ export const UNITS_V2 = {
       { kind: 'verify', short: '8 Verifica', title: 'Controlla l’impianto', text: 'Riarma il differenziale e premi Verifica.' },
     ],
     summary: [
-      'Il differenziale confronta la corrente di fase con quella di neutro: se non sono uguali, scatta.',
-      'In casa la soglia è 30 mA: scatta da 30 mA in su e non scatta sotto i 15 mA.',
-      'Il magnetotermico non sente le dispersioni: servono tutti e due.',
-      'Il neutro dei carichi deve uscire dal differenziale, altrimenti scatta senza guasto.',
+      'Una dispersione è corrente che scappa verso terra invece di tornare dal neutro, magari attraverso una persona.',
+      'Il differenziale confronta la corrente che va (fase) con quella che torna (neutro): se ne manca, stacca. Protegge le persone.',
+      'In casa la soglia è 30 mA, perché poche decine di mA nel corpo sono pericolose: non scatta sotto 15 mA, scatta da 30 mA in su.',
+      'Il magnetotermico non sente le dispersioni: in casa servono tutti e due.',
+      'Il neutro degli apparecchi deve uscire dal differenziale, altrimenti scatta anche senza guasto.',
     ],
     fault: {
       say: 'Lo scaldabagno è già cablato. Chiudi l’interruttore e guarda che cosa fa il differenziale.',
@@ -418,10 +486,11 @@ export const UNITS_V2 = {
       pages: [
         {
           type: 'spiegazione',
-          title: 'Una presa e una luce con un solo comando',
+          title: 'Una presa che si accende dalla porta',
           paras: [
-            'In molte stanze un solo interruttore comanda più di un carico: per esempio la luce del soffitto e una presa a cui è collegata una lampada da tavolo.',
-            'Il comando sta sulla fase. A valle dell’interruttore la fase si divide: un filo va alla presa, uno alla lampada. Il neutro, invece, non passa dall’interruttore.',
+            'Entri in camera e vuoi accendere, con l’interruttore vicino alla porta, sia la luce sia la lampada da tavolo attaccata alla presa. Senza una presa comandata dovresti attraversare la stanza al buio per accendere la lampada.',
+            'Le prese normali sono collegate direttamente al quadro: hanno sempre tensione. La presa comandata invece riceve la fase dopo l’interruttore, proprio come la lampada: è alimentata solo quando l’interruttore è chiuso.',
+            'Per questo la fase si divide a valle dell’interruttore, cioè dopo di lui, nel verso che va dal quadro agli apparecchi: un filo va alla presa, uno alla lampada. Il neutro non passa dall’interruttore.',
           ],
         },
         {
@@ -429,8 +498,8 @@ export const UNITS_V2 = {
           title: 'La presa: fase, neutro e terra',
           focus: ['P'],
           paras: [
-            'La presa ha tre morsetti. L riceve la fase, N il neutro, PE la terra.',
-            'Fase e neutro non si scambiano mai, anche se l’apparecchio funzionerebbe lo stesso: per regola d’impianto il morsetto L va sulla fase e il morsetto N sul neutro.',
+            'La presa ha tre morsetti: L per la fase, N per il neutro, PE per la terra. La terra si collega sempre: se un apparecchio con l’involucro di metallo ha un guasto, la corrente va a terra e non in chi lo tocca.',
+            'La fase va sempre su L e il neutro su N, anche se l’apparecchio funzionerebbe lo stesso: è la regola, così chi lavora dopo di te trova la fase sempre allo stesso posto.',
           ],
         },
         {
@@ -438,8 +507,8 @@ export const UNITS_V2 = {
           title: 'L’interruttore sulla fase',
           focus: ['S'],
           paras: [
-            'L’interruttore apre o chiude un solo filo: la fase. Quando è aperto, presa e lampada non ricevono tensione.',
-            'Il filo che esce dall’interruttore (morsetto 2) alimenta tutti e due i carichi. Lo stesso morsetto, due fili.',
+            'L’interruttore apre o chiude un solo filo, la fase. Aperto, presa e lampada non hanno tensione; chiuso, sono alimentate tutte e due. Dal suo morsetto 2 partono due fili: uno per la presa, uno per la lampada.',
+            'Se l’interruttore fosse sul neutro, la luce si spegnerebbe lo stesso, ma la fase resterebbe sulla presa e sul portalampada. Chi infila una spina o cambia la lampada pensando che sia tutto spento rischierebbe la scossa.',
           ],
         },
         {
@@ -462,9 +531,9 @@ export const UNITS_V2 = {
           type: 'previsione',
           question: 'L’interruttore è aperto. Che cosa succede se inserisco una spina nella presa?',
           options: [
-            { id: 'a', text: 'L’apparecchio funziona lo stesso: la presa è sempre alimentata.' },
-            { id: 'b', text: 'L’apparecchio non funziona: la presa è comandata dall’interruttore.' },
-            { id: 'c', text: 'Scatta il quadro.' },
+            { id: 'a', text: 'Funziona lo stesso: una presa è collegata al quadro e ha sempre tensione.' },
+            { id: 'b', text: 'Non funziona: la presa prende la fase dopo l’interruttore, che è aperto.' },
+            { id: 'c', text: 'Scatta il quadro: si usa una presa mentre il suo interruttore è spento.' },
           ],
           correct: 'b',
           why: 'In questo circuito l’interruttore interrompe la fase che alimenta anche la presa. Aperto l’interruttore, la presa non ha tensione e l’apparecchio non funziona. Le prese normali, invece, sono collegate direttamente al quadro.',
@@ -483,10 +552,10 @@ export const UNITS_V2 = {
       { kind: 'verify', short: '8 Verifica', title: 'Controlla l’impianto', text: 'Premi Verifica.' },
     ],
     summary: [
-      'Un solo interruttore può comandare più carichi: sta sulla fase, prima che si divida.',
-      'Il neutro va ai carichi senza passare dall’interruttore.',
-      'La presa ha L (fase), N (neutro) e PE (terra): la terra si collega sempre.',
-      'Fase e neutro sulla presa non si scambiano, anche se l’apparecchio funziona lo stesso.',
+      'Una presa comandata riceve la fase dopo l’interruttore: si accende e si spegne insieme alla luce, mentre le prese normali hanno sempre tensione.',
+      'Un solo interruttore comanda più apparecchi se sta sulla fase, prima che si divida.',
+      'Il neutro va agli apparecchi senza passare dall’interruttore: un interruttore sul neutro lascia la fase sulla presa e sulla lampada spente.',
+      'La presa ha L (fase), N (neutro) e PE (terra): la terra si collega sempre, e la fase va sempre su L, così chi lavora dopo la trova al suo posto.',
     ],
     fault: {
       say: 'L’impianto è già cablato e la lampada e la presa funzionano. Eppure l’impianto non è a norma. Dai corrente, prova l’interruttore e poi premi Verifica.',
@@ -516,8 +585,8 @@ export const UNITS_V2 = {
           type: 'spiegazione',
           title: 'Una luce da tre punti',
           paras: [
-            'In un lungo corridoio con molte porte serve accendere e spegnere la stessa luce da molti punti. Con i deviatori servirebbe un invertitore in ogni punto in più.',
-            'Con il relè ad impulsi basta mettere tanti pulsanti quanti ne servono, tutti in parallelo. Ogni pressione cambia lo stato della luce.',
+            'In un lungo corridoio con molte porte serve accendere e spegnere la stessa luce da molti punti. Con deviatori e invertitori si può, ma ogni punto in più vuol dire un invertitore in più e altri fili che corrono per tutto il corridoio.',
+            'Con il relè ad impulsi basta un pulsante per ogni punto, tutti in parallelo. Aggiungere un punto è facile: un pulsante in più. Ogni pressione cambia lo stato della luce: accesa, spenta, accesa.',
           ],
         },
         {
@@ -525,8 +594,8 @@ export const UNITS_V2 = {
           title: 'Il pulsante',
           focus: ['P1'],
           paras: [
-            'Il pulsante è un interruttore che torna a riposo da solo: il contatto è chiuso finché lo tieni premuto, poi si riapre.',
-            'Per questo non ricorda lo stato della luce: lo ricorda il relè.',
+            'Il pulsante è un interruttore che torna a riposo da solo: il contatto è chiuso finché lo tieni premuto, poi una molla lo riapre. Dà solo un colpo, un impulso.',
+            'Per questo non può ricordare se la luce è accesa o spenta: lo ricorda il relè.',
           ],
         },
         {
@@ -534,17 +603,26 @@ export const UNITS_V2 = {
           title: 'Il relè ad impulsi',
           focus: ['K'],
           paras: [
-            'Il relè ha due parti separate. La bobina (A1-A2) è il circuito di comando: a ogni impulso il relè cambia stato.',
-            'Il contatto (1-2) è il circuito della lampada: è chiuso o aperto, e resta così finché non arriva un altro impulso.',
+            'È un relè come quello che hai già visto: la bobina (A1-A2) è il comando, il contatto (1-2) porta la corrente alla lampada. La differenza è che a ogni impulso sulla bobina il contatto cambia stato e resta così: chiuso, poi aperto, poi di nuovo chiuso.',
+            'Come in ogni relè, il contatto è solo un interruttore: la fase per la lampada gliela porti tu, sul morsetto 1.',
           ],
         },
         {
           type: 'spiegazione',
           title: 'Pulsanti in parallelo, mai in serie',
           paras: [
-            'I pulsanti in parallelo: ne basta uno premuto perché la bobina riceva l’impulso. In serie servirebbero tutti premuti insieme.',
-            'In parallelo i morsetti 3 sono collegati tra loro e alla fase; i morsetti 4 sono collegati tra loro e alla bobina.',
+            'In parallelo basta un pulsante qualunque premuto perché la bobina riceva l’impulso. In serie servirebbero tutti premuti insieme: da soli non farebbero mai niente.',
           ],
+          table: {
+            head: ['Morsetto', 'Che cosa ci colleghi e perché'],
+            rows: [
+              ['Morsetti 3', 'Tutti insieme alla fase: ogni pulsante deve poter mandare l’impulso.'],
+              ['Morsetti 4', 'Tutti insieme ad A1: qualunque pulsante premuto porta la fase alla bobina.'],
+              ['A2', 'Il neutro: la bobina è un carico, senza ritorno il relè non cambia mai stato.'],
+              ['1', 'La fase: il contatto non ha tensione sua.'],
+              ['2', 'La lampada, con l’altro morsetto al neutro.'],
+            ],
+          },
           warn: 'Pulsanti in serie: la bobina non riceverebbe mai l’impulso e la lampada non si accenderebbe mai.',
         },
         {
@@ -571,9 +649,9 @@ export const UNITS_V2 = {
           type: 'previsione',
           question: 'La lampada è accesa. Premo il pulsante e lo lascio andare. Che cosa fa la lampada?',
           options: [
-            { id: 'a', text: 'Si spegne e resta spenta.' },
-            { id: 'b', text: 'Si spegne solo finché tengo premuto, poi si riaccende.' },
-            { id: 'c', text: 'Resta accesa.' },
+            { id: 'a', text: 'Si spegne e resta spenta: il relè ha cambiato stato e lo ricorda.' },
+            { id: 'b', text: 'Si spegne solo finché tengo premuto, poi torna accesa da sola.' },
+            { id: 'c', text: 'Resta accesa: il pulsante è tornato a riposo e non è cambiato niente.' },
           ],
           correct: 'a',
           why: 'Il relè ad impulsi cambia stato a ogni pressione e ricorda lo stato anche a pulsante rilasciato. Un impulso acceso, un impulso spento.',
@@ -594,10 +672,10 @@ export const UNITS_V2 = {
       { kind: 'verify', short: '10 Verifica', title: 'Controlla l’impianto', text: 'Premi Verifica.' },
     ],
     summary: [
-      'Il pulsante torna a riposo da solo: non ricorda lo stato della luce.',
-      'Il relè ad impulsi cambia stato a ogni impulso sulla bobina e lo mantiene.',
-      'Circuito di comando (bobina) e circuito della lampada (contatto) sono separati.',
-      'I pulsanti si collegano in parallelo: ne basta uno premuto. In serie la lampada non si accende mai.',
+      'Con il relè ad impulsi una luce si comanda da quanti punti vuoi: basta un pulsante in più, senza fili che corrono per tutto il corridoio.',
+      'Il pulsante dà solo un impulso e torna a riposo; a ricordare se la luce è accesa è il relè.',
+      'Come in ogni relè, il contatto è solo un interruttore: la fase per la lampada gliela porti tu.',
+      'I pulsanti si mettono in parallelo: ne basta uno. In serie servirebbero tutti premuti insieme e la luce non si accenderebbe mai.',
     ],
     fault: {
       say: 'L’impianto è già cablato, ma premendo i pulsanti la lampada non si accende. Dai corrente e prova.',
@@ -1384,8 +1462,8 @@ export const UNITS_V2 = {
           type: 'spiegazione',
           title: 'La luce che si spegne da sola',
           paras: [
-            'Nelle scale dei condomini la luce si accende con un pulsante e si spegne da sola dopo qualche decina di secondi. Così non resta accesa per dimenticanza e si risparmia energia.',
-            'Il pulsante non comanda direttamente le lampade: comanda un relè temporizzato, che tiene acceso il contatto per un tempo regolabile.',
+            'Nelle scale dei condomini la luce si accende con un pulsante e si spegne da sola dopo qualche decina di secondi. Così nessuno la lascia accesa per dimenticanza e si risparmia energia.',
+            'Il pulsante non comanda direttamente le lampade: se lo facesse, la luce resterebbe accesa solo finché lo tieni premuto. Comanda invece un relè temporizzato, che sta nel quadro del condominio e tiene chiuso il suo contatto per il tempo impostato.',
           ],
         },
         {
@@ -1393,8 +1471,8 @@ export const UNITS_V2 = {
           title: 'Il relè temporizzato',
           focus: ['T'],
           paras: [
-            'Ha una bobina (A1, A2) e un contatto (1, 2). Quando la bobina riceve tensione il contatto si chiude; il tempo comincia a contare quando il pulsante viene rilasciato.',
-            'Il contatto resta chiuso fino alla fine del tempo, anche se il pulsante è già stato rilasciato. Se si preme di nuovo prima della fine, il conteggio riparte da capo.',
+            'È un relè con un orologio: bobina (A1, A2) e contatto (1, 2). Quando la bobina riceve tensione il contatto si chiude; il tempo comincia a contare quando il pulsante viene rilasciato. Se si preme di nuovo prima della fine, il conteggio riparte da capo.',
+            'Come in ogni relè, il contatto è solo un interruttore: la fase per le lampade gliela porti tu, sul morsetto 1.',
           ],
         },
         {
@@ -1402,8 +1480,8 @@ export const UNITS_V2 = {
           title: 'Pulsanti in parallelo',
           focus: ['P1', 'P2'],
           paras: [
-            'Come nel relè ad impulsi, i pulsanti sono in parallelo: basta premerne uno qualunque per eccitare la bobina. Se ne possono aggiungere quanti servono, uno a ogni piano.',
-            'Le lampade non passano dai pulsanti: sono alimentate dal contatto del temporizzatore.',
+            'Come nel relè ad impulsi, i pulsanti sono in parallelo: uno per piano, e basta premerne uno qualunque. Portano solo la piccola corrente della bobina, anche se le lampade sono tante.',
+            'Le lampade non passano dai pulsanti: sono in parallelo sul contatto del temporizzatore, così si accendono insieme e, se una si brucia, le altre restano accese.',
           ],
         },
         {
@@ -1430,12 +1508,12 @@ export const UNITS_V2 = {
           type: 'previsione',
           question: 'Le lampade sono accese da 15 secondi su 20. Premo di nuovo il pulsante. Quanto resteranno accese ancora?',
           options: [
-            { id: 'a', text: 'Altri 5 secondi: il tempo non cambia.' },
-            { id: 'b', text: 'Altri 20 secondi: il conteggio riparte da capo.' },
-            { id: 'c', text: 'Si spengono subito.' },
+            { id: 'a', text: 'Altri 5 secondi: il tempo era già partito e non si può allungare.' },
+            { id: 'b', text: 'Altri 20 secondi: ogni pressione fa ripartire il conteggio da capo.' },
+            { id: 'c', text: 'Si spengono subito: il secondo impulso spegne, come nel relè ad impulsi.' },
           ],
           correct: 'b',
-          why: 'Il conteggio parte da capo quando rilasci il pulsante. Ogni pressione dà un nuovo intervallo pieno: per questo chi sale le scale può premere quando vuole senza restare al buio.',
+          why: 'Il conteggio parte da capo quando rilasci il pulsante. Ogni pressione dà un nuovo intervallo pieno: per questo chi sale le scale può premere quando vuole senza restare al buio. Non è un relè ad impulsi: un nuovo impulso non spegne, ricarica il tempo.',
         },
         { type: 'sintesi', title: 'Da ricordare' },
       ],
@@ -1455,10 +1533,10 @@ export const UNITS_V2 = {
       { kind: 'verify', short: '12 Verifica', title: 'Controlla l’impianto', text: 'Premi Verifica: il controllo simula anche lo scorrere del tempo.' },
     ],
     summary: [
-      'Il relè temporizzato tiene chiuso il suo contatto per un tempo fissato, dopo che la bobina è stata eccitata.',
-      'Il pulsante comanda la bobina: le lampade sono alimentate dal contatto.',
-      'I pulsanti si mettono in parallelo: se ne può aggiungere uno per ogni punto di comando.',
-      'Premendo di nuovo prima della fine, il tempo riparte da capo.',
+      'Il relè temporizzato tiene chiuso il suo contatto per il tempo impostato: la luce delle scale si spegne da sola e non resta accesa per dimenticanza.',
+      'Il pulsante comanda la bobina, le lampade sono sul contatto: se fossero sul pulsante resterebbero accese solo finché lo tieni premuto.',
+      'I pulsanti si mettono in parallelo, uno per piano; il contatto è solo un interruttore, e la fase per le lampade gliela porti tu.',
+      'Premendo di nuovo prima della fine il tempo riparte da capo: non spegne, come farebbe un relè ad impulsi.',
     ],
     fault: {
       say: 'Qui il temporizzatore non c’è: i pulsanti comandano direttamente le lampade. Premi un pulsante, aspetta qualche secondo e poi premi Verifica.',
@@ -1486,10 +1564,10 @@ export const UNITS_V2 = {
       pages: [
         {
           type: 'spiegazione',
-          title: 'Il campanello a bassa tensione',
+          title: 'Il campanello a bassissima tensione',
           paras: [
-            'Il campanello di casa funziona a bassa tensione, per esempio 12 V. È più sicuro: chi tocca il pulsante accanto alla porta non rischia nulla, perché il pulsante sta sul circuito a bassa tensione.',
-            'La rete però è a 230 V. Serve un componente che abbassi la tensione: il trasformatore.',
+            'Il pulsante del campanello sta fuori dalla porta: lo toccano tutti, anche con la pioggia o con le mani bagnate. Per questo il campanello funziona a bassissima tensione, per esempio 12 V: così poca che chi tocca il pulsante non rischia niente.',
+            'Bassissima tensione vuol dire fino a 50 V. La rete però è a 230 V: serve un pezzo che abbassi la tensione, il trasformatore.',
           ],
         },
         {
@@ -1497,8 +1575,8 @@ export const UNITS_V2 = {
           title: 'Il trasformatore',
           focus: ['TR'],
           paras: [
-            'Ha due lati separati. Il primario (morsetti 1 e 2) si collega alla rete a 230 V. Il secondario (morsetti 3 e 4) fornisce i 12 V.',
-            'Tra primario e secondario non c’è nessun collegamento elettrico: l’energia passa attraverso il campo magnetico del nucleo.',
+            'Ha due lati separati. Il primario (morsetti 1 e 2) si collega alla rete a 230 V; il secondario (morsetti 3 e 4) dà i 12 V. Tra i due non c’è nessun filo: l’energia passa attraverso il nucleo di ferro, per magnetismo.',
+            'È proprio questa separazione a proteggere: dal lato a 12 V si può toccare tutto, perché la rete a 230 V non ci arriva.',
           ],
         },
         {
@@ -1506,8 +1584,8 @@ export const UNITS_V2 = {
           title: 'Il campanello',
           focus: ['B'],
           paras: [
-            'Il campanello è fatto per 12 V. Se lo si collega per errore alla rete a 230 V si brucia.',
-            'Il pulsante sta sul secondario, in serie al campanello: premuto, chiude il circuito a 12 V. I fili del circuito a bassa tensione, né fase né neutro, possono essere di altri colori, per esempio bianco.',
+            'Il campanello è fatto per 12 V: collegato per errore alla rete a 230 V si brucia. Il pulsante sta sul secondario, in serie al campanello: premuto, chiude il giro a 12 V e il campanello suona.',
+            'I fili del circuito a 12 V non sono né fase né neutro e hanno un altro colore, per esempio bianco: così chi lavora dopo di te capisce a colpo d’occhio che quel filo non è della rete.',
           ],
         },
         {
@@ -1529,9 +1607,9 @@ export const UNITS_V2 = {
           type: 'previsione',
           question: 'Il trasformatore è alimentato e il campanello è collegato al secondario, in serie al pulsante. Il pulsante non è premuto. Che cosa succede?',
           options: [
-            { id: 'a', text: 'Il campanello suona: il secondario ha tensione.' },
-            { id: 'b', text: 'Il campanello è silenzioso: il pulsante tiene aperto il circuito a 12 V.' },
-            { id: 'c', text: 'Il campanello si brucia.' },
+            { id: 'a', text: 'Suona: il secondario ha tensione e il campanello è collegato a lui.' },
+            { id: 'b', text: 'Tace: il pulsante non premuto tiene aperto il giro a 12 V.' },
+            { id: 'c', text: 'Si brucia: sul secondario arriva la tensione della rete.' },
           ],
           correct: 'b',
           why: 'Il secondario ha tensione, ma il circuito è aperto dal pulsante: non passa corrente e il campanello tace. Premendo il pulsante il circuito si chiude e il campanello suona.',
@@ -1549,10 +1627,10 @@ export const UNITS_V2 = {
       { kind: 'verify', short: '7 Verifica', title: 'Controlla l’impianto', text: 'Premi Verifica.' },
     ],
     summary: [
-      'Il campanello funziona a bassa tensione (12 V): collegato alla rete a 230 V si brucia.',
-      'Il trasformatore abbassa la tensione: il primario va alla rete, il secondario al campanello.',
-      'Il pulsante sta sul secondario, in serie al campanello.',
-      'I fili del circuito a bassa tensione non hanno i colori della rete: si usa, per esempio, il bianco.',
+      'Dove le persone toccano, come il pulsante fuori dalla porta, si usa la bassissima tensione (qui 12 V): chi lo tocca non rischia.',
+      'Il trasformatore abbassa la tensione e separa i due lati: il primario va alla rete, il secondario al campanello, e i 230 V non arrivano al pulsante.',
+      'Il pulsante sta sul secondario, in serie al campanello. Un campanello da 12 V collegato alla rete si brucia.',
+      'I fili a 12 V hanno un colore diverso da quelli della rete, per esempio bianco, così nessuno li scambia.',
     ],
     fault: {
       say: 'Il campanello è collegato al pulsante senza trasformatore. Premi il pulsante e guarda che cosa succede, poi premi Verifica.',
@@ -1581,8 +1659,8 @@ export const UNITS_V2 = {
           type: 'spiegazione',
           title: 'Il quadro di una casa',
           paras: [
-            'Il quadro elettrico raccoglie le protezioni. All’ingresso c’è un interruttore differenziale, che protegge le persone. A valle, ogni linea ha il suo magnetotermico, che protegge i cavi dal sovraccarico e dal cortocircuito.',
-            'Dividere in linee ha un vantaggio: se si guasta la luce, scatta solo il magnetotermico della luce e le prese restano alimentate.',
+            'Il quadro raccoglie le protezioni di tutta la casa. All’ingresso c’è un solo differenziale: così protegge le persone su tutte le linee insieme. Dopo di lui ogni linea ha il suo magnetotermico, scelto per il suo cavo: protegge i cavi dal sovraccarico e dal cortocircuito.',
+            'Dividere in linee ha due vantaggi: se si guasta la luce, scatta solo il magnetotermico della luce e le prese restano alimentate; e se devi lavorare su una linea, apri solo quella.',
           ],
         },
         {
@@ -1590,19 +1668,26 @@ export const UNITS_V2 = {
           title: 'Il differenziale',
           focus: ['D'],
           paras: [
-            'Confronta la corrente che entra dalla fase con quella che torna dal neutro. Se non sono uguali, una parte sta tornando per un’altra strada, per esempio attraverso una persona, e il differenziale scatta.',
-            'Per questo il neutro di ogni carico deve passare dal differenziale. Il tasto di prova simula una dispersione: va premuto ogni tanto per controllare che funzioni.',
+            'Confronta la corrente che va dalla fase con quella che torna dal neutro. Se non sono uguali, una parte sta tornando per un’altra strada, magari attraverso una persona, e il differenziale stacca. Per questo il neutro di ogni linea deve passare da lui.',
+            'Il tasto di prova simula una dispersione. Dentro ci sono parti che si muovono e si possono bloccare, e il differenziale non lo dice da solo: il tasto si preme ogni tanto per controllare che scatti davvero.',
           ],
-          warn: 'Se un neutro è preso a monte del differenziale, la corrente non torna da dove è andata e il differenziale scatta anche senza una vera dispersione.',
         },
         {
           type: 'pezzi',
           title: 'I magnetotermici di linea',
           focus: ['M1', 'M2'],
           paras: [
-            'Un magnetotermico per la luce e uno per le prese: ciascuno interrompe sia la fase sia il neutro della sua linea.',
-            'Sono entrambi a valle del differenziale: una dispersione su qualunque linea lo fa scattare.',
+            'Un magnetotermico per la luce e uno per le prese. Ciascuno interrompe sia la fase sia il neutro della sua linea: quando lo apri, la linea è staccata del tutto e ci puoi lavorare.',
+            'Sono tutti e due a valle del differenziale, cioè dopo di lui: una dispersione su qualunque linea lo fa scattare.',
           ],
+        },
+        {
+          type: 'spiegazione',
+          title: 'Se il differenziale non resta armato',
+          paras: [
+            'Se il differenziale scatta e, riarmandolo, scatta di nuovo, da qualche parte dopo di lui c’è una dispersione. Non si cerca a caso: si aprono tutti i magnetotermici, si riarma il differenziale e si richiude una linea alla volta. La linea che lo fa scattare è quella che disperde.',
+          ],
+          warn: 'Se un neutro è preso prima del differenziale, la corrente non torna da lui e il differenziale scatta anche senza una vera dispersione.',
         },
         {
           type: 'demo',
@@ -1630,9 +1715,9 @@ export const UNITS_V2 = {
           type: 'previsione',
           question: 'In casa un apparecchio della linea prese ha una dispersione verso terra. Che cosa dovrebbe scattare?',
           options: [
-            { id: 'a', text: 'Il magnetotermico della luce.' },
-            { id: 'b', text: 'Il differenziale.' },
-            { id: 'c', text: 'Nulla: la dispersione non è pericolosa.' },
+            { id: 'a', text: 'Il magnetotermico delle prese: il guasto è sulla sua linea, quindi scatta lui.' },
+            { id: 'b', text: 'Il differenziale: la corrente che va a terra non torna dal neutro, e lui lo vede.' },
+            { id: 'c', text: 'Niente: una dispersione è una corrente piccola e non fa danni a nessuno.' },
           ],
           correct: 'b',
           why: 'Il differenziale rileva la differenza tra la corrente di andata e quella di ritorno. Una dispersione verso terra è proprio questa differenza. I magnetotermici scattano per sovraccarico o cortocircuito, non per dispersione.',
@@ -1647,11 +1732,12 @@ export const UNITS_V2 = {
       { kind: 'verify', short: '4 Verifica', title: 'Controlla l’impianto', text: 'Prova anche il tasto di prova del differenziale, poi premi Verifica.' },
     ],
     summary: [
-      'Il differenziale protegge le persone: scatta se la corrente di andata e quella di ritorno sono diverse.',
-      'Il magnetotermico protegge i cavi dal sovraccarico e dal cortocircuito.',
-      'Il neutro di ogni carico deve passare dal differenziale, altrimenti scatta anche senza una vera dispersione.',
-      'Linee separate con magnetotermici separati: se una si guasta, le altre restano alimentate.',
-      'Il tasto di prova del differenziale va premuto ogni tanto per controllare che funzioni.',
+      'All’ingresso del quadro c’è un differenziale, che protegge le persone su tutte le linee; dopo, un magnetotermico per ogni linea protegge il suo cavo.',
+      'Ogni magnetotermico apre fase e neutro: aprendo una linea la si stacca del tutto.',
+      'Linee separate: se una si guasta, le altre restano alimentate.',
+      'Il neutro di ogni linea passa dal differenziale, altrimenti scatta anche senza dispersione.',
+      'Se il differenziale non resta armato, si aprono tutte le linee, si riarma e si richiude una linea alla volta.',
+      'Il tasto di prova va premuto ogni tanto: è l’unico modo di sapere che il differenziale scatta davvero.',
     ],
     fault: {
       say: 'Il quadro è cablato bene, ma il differenziale è scattato e non resta armato. Per capire quale linea disperde, apri i due magnetotermici, riarma il differenziale e richiudi una linea alla volta. Poi rispondi.',
@@ -1687,6 +1773,7 @@ export const UNITS_V2 = {
             'È notte e in casa è saltata la luce. Il quadro è quello che conosci: un differenziale all’ingresso e un magnetotermico per ogni linea. Stavolta le linee sono tre: luce, prese e cucina.',
             'Se il differenziale è scattato, da qualche parte c’è una dispersione verso terra. Non si cerca a caso: si isolano le linee. Apri tutti i magnetotermici, riarma il differenziale, poi richiudi una linea alla volta. La linea che lo fa scattare di nuovo è quella che disperde.',
             'Il multimetro serve a controllare dove c’è tensione: a monte del differenziale c’è sempre, a valle solo se il differenziale è armato e la linea è chiusa.',
+            'Non si riarma a ripetizione sperando che tenga: se c’è una dispersione vera, ogni riarmo rimette in tensione il guasto, e magari la persona che lo sta toccando.',
           ],
         },
         {
