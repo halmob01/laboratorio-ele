@@ -1,6 +1,6 @@
 // Unita' didattiche dei Moduli 2 e 3. Stessa forma di units.js.
 
-import { PROG_46_FAULT, PROG_51, W46, W51_PLANT, W52_FIXED } from './levels-v2.js';
+import { PROG_46_FAULT, PROG_51, W46, W51_PLANT, W52_FIXED, W55, PROG_55_FAULT } from './levels-v2.js';
 
 export const UNITS_V2 = {
   'c17-multimetro': {
@@ -4992,5 +4992,92 @@ UNITS_V2['c51-turno-notte'] = {
       why: 'Con la potenza tolta il pannello direbbe “Sicurezze aperte” e la spia del robot sarebbe spenta. Il braccio è sceso ma il PLC non vede il finecorsa in basso: il passo “Scendi” aspetta il suo “fatto” e dopo 40 secondi scatta “Ciclo bloccato”.',
     },
     fixSay: 'Apri la portella (il robot perde la potenza), ripara il finecorsa “braccio giù”, richiudi la portella, premi il riarmo e poi Marcia. Poi tieni la cella in produzione fino alla fine del turno e premi Verifica.',
+  },
+};
+
+// ---- Modulo 5: la prova della casa intelligente, una sera d'inverno (c55) ----
+UNITS_V2['c55-sera-inverno'] = {
+  support: 'obiettivo',
+  lesson: {
+    pages: [
+      {
+        type: 'spiegazione',
+        title: 'Consegnare una casa intelligente',
+        paras: [
+          'In una casa intelligente i fili sono solo metà del lavoro. L’altra metà sono le regole scritte nel PLC: quando staccare l’auto, quando scaldare una stanza, che cosa fare se si apre una finestra. Un impianto cablato bene con una regola sbagliata lascia la famiglia al buio come un filo staccato.',
+          'Per questo una casa intelligente non si consegna dopo aver acceso una lampada. Si guarda lavorare per una sera intera, con tutto quello che succede davvero: il sole che cala, l’auto che arriva, la cena, una finestra aperta.',
+        ],
+        table: {
+          head: ['Che cosa c’è', 'Che cosa fa', 'Dove l’hai visto'],
+          rows: [
+            ['Gestione dei carichi', 'stacca prima l’auto e poi la pompa, per non far saltare il contatore', 'c53'],
+            ['Clima per zone', 'scalda soggiorno e camera tra 20 e 22 °C, chiude la valvola se la finestra è aperta', 'c54'],
+            ['Pannelli e batteria', 'di giorno producono, la sera la batteria copre i consumi', 'c39-c41'],
+            ['Allarme di allagamento', 'la sirena suona finché non si asciuga la sonda e si tacita', 'c50'],
+          ],
+        },
+      },
+      {
+        type: 'spiegazione',
+        title: 'Il misuratore ha un fondo scala',
+        paras: [
+          'Il PLC conosce la potenza della casa solo attraverso il misuratore del contatore. Il misuratore manda un segnale da 4 a 20 mA che vuol dire da −6 kW (la casa immette) a +6 kW (la casa preleva). Oltre i 6 kW il segnale non sale più: si ferma a 20,5 mA, cioè circa 6,4 kW, anche se la casa preleva 8 o 10 kW.',
+          'Quindi una soglia scritta nel programma vale solo se il misuratore la può raggiungere. Una soglia oltre il fondo scala non scatta mai.',
+        ],
+        table: {
+          head: ['Potenza vera', 'Segnale', 'Il PLC legge'],
+          rows: [
+            ['3 kW', '16 mA', '3000 W'],
+            ['6 kW', '20 mA', '6000 W'],
+            ['8 kW', '20,5 mA (fermo)', 'circa 6400 W'],
+          ],
+        },
+        warn: 'La soglia di distacco va sotto il limite del contatore, con margine. Sopra il limite il contatore stacca comunque dopo 20 secondi.',
+      },
+      {
+        type: 'spiegazione',
+        title: 'Si guarda la serata intera',
+        paras: [
+          'Chiudi il generale alle 16:30 e lascia andare la casa fino alle 23. Il pannello a muro mostra le potenze, la batteria, l’auto e le due stanze. Alle 21:30 la sonda del bagno potrebbe bagnarsi: prima la asciughi, poi taciti la sirena.',
+          'Se il contatore stacca, la casa resta al buio fino a fine serata: il contatore non si riarma da solo e una casa che salta a ogni cena non si consegna. Si capisce perché, si corregge il programma e si rifà la serata da capo.',
+        ],
+      },
+      {
+        type: 'previsione',
+        question: 'Vuoi una spia che si accenda quando la casa preleva più di 7 kW. Scrivi il gradino “MW0 maggiore di 7000”, con il misuratore da −6 a +6 kW. Una sera la casa preleva 8 kW. La spia si accende?',
+        options: [
+          { id: 'a', text: 'Sì: 8 kW è più di 7 kW.' },
+          { id: 'b', text: 'No: il misuratore si ferma a circa 6400 W e il confronto con 7000 non è mai vero.' },
+          { id: 'c', text: 'Solo se la batteria è scarica.' },
+        ],
+        correct: 'b',
+        why: 'Il PLC non vede la potenza vera ma il segnale del misuratore, che oltre il fondo scala resta fermo a 20,5 mA, circa 6400 W. Per sorvegliare 7 kW serve un misuratore con il fondo scala più alto, oppure una soglia che il misuratore può raggiungere.',
+      },
+      { type: 'sintesi', title: 'Da ricordare' },
+    ],
+  },
+  summary: [
+    'In una casa intelligente le regole del PLC contano quanto i fili: una soglia sbagliata lascia la casa al buio.',
+    'Il PLC vede la potenza solo attraverso il misuratore: oltre il fondo scala il segnale si ferma, e una soglia più alta non scatta mai.',
+    'La soglia di distacco sta sotto il limite del contatore, con margine.',
+    'Una casa intelligente si collauda per una serata intera, con tutto quello che succede davvero.',
+    'Allagamento: prima si asciuga la sonda, poi si tacita la sirena.',
+  ],
+  fault: {
+    say: 'La casa è finita e programmata. Chiudi il generale: la serata comincia alle 16:30. Guarda il pannello. Se qualcosa non va, rispondi alla domanda.',
+    wires: W55,
+    programs: { PLC: PROG_55_FAULT },
+    diagnosis: {
+      question: 'Verso le 19:45 il contatore ha staccato tutta la casa. Sul pannello, prima del buio, la rete era al fondo scala sopra la riga del limite, auto e pompa erano accese e nessun carico si era staccato. Perché?',
+      options: [
+        { id: 'a', text: 'Il forno non si può staccare: con il forno acceso il contatore stacca sempre.' },
+        { id: 'b', text: 'La soglia di distacco (6500 W) è sopra il limite e oltre il fondo scala del misuratore: il PLC non l’ha mai vista superata.' },
+        { id: 'c', text: 'La batteria era scarica.' },
+        { id: 'd', text: 'L’ordine di distacco è al contrario: prima la pompa, poi l’auto.' },
+      ],
+      correct: 'b',
+      why: 'Il misuratore arriva al massimo a circa 6400 W, quindi “maggiore di 6500” non è mai vero e il PLC non stacca niente. Con il forno acceso basta staccare l’auto (3,7 kW) per tornare sotto il limite: il forno non è il problema. E con l’ordine al contrario la casa reggerebbe comunque, solo più fredda.',
+    },
+    fixSay: 'Apri il programma del PLC e nei due gradini del distacco metti la soglia sotto il limite, con margine: 5800 W. Poi rifai la serata da capo e consegna.',
   },
 };

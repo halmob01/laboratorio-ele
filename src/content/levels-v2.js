@@ -2175,3 +2175,124 @@ LEVELS_V2.push({
     'Dentro la cella si ripara solo a robot senza potenza: apri la portella, ripara, richiudi, riarma e premi Marcia.',
   ],
 });
+
+// c55: la prova del Modulo 5 (scena 3D "casa"), "Una sera d'inverno". La casa della famiglia Rossi, Via Roma 12, finita: gestione dei
+// carichi di c53, clima per zone di c54 e allarme di allagamento di c50 nello stesso impianto, con una sola pompa di calore (modello
+// `casa`). Si chiude il generale e si guarda la casa lavorare dalle 16:30 alle 23. Il guasto della prova e' nel programma: la soglia
+// di distacco (6500 W) e' sopra il limite del contatore (6 kW) e oltre il fondo scala del misuratore (circa 6,4 kW): il PLC non stacca
+// mai e alle 19:30, con forno, auto e pompa, il contatore stacca tutta la casa. Specifica: docs/PROGETTO-CASA.md.
+export const W55 = [
+  ['Q.L1', 'QG.1', 'marrone'],
+  ['QG.2', 'PLC.A1', 'rosso'], ['PLC.A2', 'Q.N', 'blu'], ['PLC.IC', 'Q.N', 'blu'],
+  ['TT.+', 'PLC.AI0+', 'rosso'], ['TT.-', 'PLC.AI0-', 'rosso'],
+  ['TT1.+', 'PLC.AI1+', 'rosso'], ['TT1.-', 'PLC.AI1-', 'rosso'],
+  ['TT2.+', 'PLC.AI2+', 'rosso'], ['TT2.-', 'PLC.AI2-', 'rosso'],
+  ['QG.2', 'W1.a', 'rosso'], ['W1.b', 'PLC.I0', 'rosso'],
+  ['QG.2', 'PLC.Q0A', 'rosso'], ['PLC.Q0B', 'EV.a', 'rosso'], ['EV.b', 'HE.X1', 'rosso'], ['HE.X2', 'Q.N', 'blu'],
+  ['QG.2', 'PLC.Q1A', 'rosso'], ['PLC.Q1B', 'HP.X1', 'rosso'], ['HP.X2', 'Q.N', 'blu'],
+  ['QG.2', 'PLC.Q2A', 'rosso'], ['PLC.Q2B', 'HV1.X1', 'rosso'], ['HV1.X2', 'Q.N', 'blu'],
+  ['QG.2', 'PLC.Q3A', 'rosso'], ['PLC.Q3B', 'HV2.X1', 'rosso'], ['HV2.X2', 'Q.N', 'blu'],
+  ['QG.2', 'TA.1', 'rosso'], ['TA.2', 'S2.a', 'rosso'], ['TA.2', 'KA.11', 'rosso'],
+  ['S2.b', 'KA.A1', 'rosso'], ['KA.14', 'KA.A1', 'rosso'], ['KA.A2', 'Q.N', 'blu'],
+  ['KA.A1', 'B.1', 'rosso'], ['B.2', 'Q.N', 'blu'],
+];
+export const START_55 = [
+  { if: ['ge', 'AI0', 3.6], do: [{ op: 'scale', in: 'AI0', out: 'MW0', lo: -6000, hi: 6000 }] },
+  { if: ['ge', 'AI1', 3.6], do: [{ op: 'scale', in: 'AI1', out: 'MW1', lo: 0, hi: 40 }] },
+  { if: ['ge', 'AI2', 3.6], do: [{ op: 'scale', in: 'AI2', out: 'MW2', lo: 0, hi: 40 }] },
+];
+// Programma della casa (c53 + c54 insieme): la gestione dei carichi stacca la colonnina Q0 e poi il permesso alla pompa M0; la pompa
+// Q1 gira se c'e' il permesso e almeno una valvola (Q2 soggiorno, Q3 camera) e' aperta.
+// La pompa si stacca solo se, staccata la colonnina, la potenza resta alta per 5 secondi (T3): il PLC scandisce molto piu' in fretta
+// di quanto il misuratore si aggiorni, e senza attesa nella stessa mezza frazione di secondo staccherebbe tutti e due i carichi.
+export const prog55 = shed => START_55.concat([
+  { if: ['and', ['gt', 'MW0', shed], 'Q0'], do: [{ op: 'reset', a: 'Q0' }] },
+  { if: ['and', ['gt', 'MW0', shed], ['not', 'Q0']], do: [{ op: 'ton', id: 'T3', pt: 5 }] },
+  { if: 'T3', do: [{ op: 'reset', a: 'M0' }] },
+  { if: ['lt', 'MW0', 4200], do: [{ op: 'ton', id: 'T1', pt: 30 }] },
+  { if: 'T1', do: [{ op: 'set', a: 'M0' }] },
+  { if: ['and', ['lt', 'MW0', 2000], 'M0'], do: [{ op: 'ton', id: 'T2', pt: 30 }] },
+  { if: 'T2', do: [{ op: 'set', a: 'Q0' }] },
+  { if: ['lt', 'MW1', 20], do: [{ op: 'set', a: 'Q2' }] },
+  { if: ['gt', 'MW1', 22], do: [{ op: 'reset', a: 'Q2' }] },
+  { if: 'I0', do: [{ op: 'reset', a: 'Q2' }] },
+  { if: ['lt', 'MW2', 20], do: [{ op: 'set', a: 'Q3' }] },
+  { if: ['gt', 'MW2', 22], do: [{ op: 'reset', a: 'Q3' }] },
+  { if: ['and', 'M0', ['or', 'Q2', 'Q3']], do: [{ op: 'coil', a: 'Q1' }] },
+]);
+export const PROG_55 = prog55(5800);
+export const PROG_55_FAULT = prog55(6500);
+// Gli eventi e il guasto a tempo, in secondi dal generale chiuso (16:30; un'ora = 60 s con dayLen 1440).
+export const EVENTS_55 = [
+  { id: 'auto', at: 120, do: 'toggle EV', label: 'l’auto si attacca alla colonnina' },
+  { id: 'apre', at: 225, do: 'toggle W1', label: 'qualcuno apre la finestra del soggiorno' },
+  { id: 'chiude', at: 255, do: 'toggle W1', label: 'la finestra del soggiorno si richiude' },
+];
+export const FLOOD_55 = { id: 'allagamento', at: 300, do: 'toggle S2', label: 'la sonda di allagamento del bagno', fixed: [{ part: 'S2', prop: 'on', is: false }, { part: 'KA', prop: 'on', is: false }], maxDelay: 30, fix: ['toggle S2', 'press TA', 'release TA'] };
+LEVELS_V2.push({
+  id: 'c55-sera-inverno', code: 'c55', n: 0, ...IND, flow: 'onDemand',
+  prova: { scene: 'casa' },
+  supply: 'protezioni',          // la casa e' finita e allacciata: si comincia chiudendo il generale
+  name: 'Una sera d’inverno', title: 'Una sera d’inverno',
+  blurb: 'La casa intelligente è finita: chiudi il generale e guardala lavorare da sola fino alle 23. Poi consegna.',
+  goal: 'Famiglia Rossi, Via Roma 12. L’impianto è finito: pannelli, batteria, colonnina, pompa di calore con due zone, allarme di allagamento, tutto comandato dal PLC. Stasera la casa va da sola. Chiudi il generale e guardala lavorare dalle 16:30 alle 23: l’auto arriva, si cucina, qualcuno apre la finestra. Se qualcosa non va, leggi il pannello, capisci, correggi e rifai la serata. Poi consegna.',
+  fixed: W55,
+  comps: [
+    Q3,
+    C('QG', 'mt', 'Generale', 'Interruttore generale della casa', { '1': { l: '1' }, '2': { l: '2' }, N1: { l: 'N' }, N2: { l: 'N' } }, { init: 0 }),   // il neutro torna diretto al quadro (regola coilReturn): si usa solo il polo di fase
+    C('PLC', 'plc', 'PLC', 'PLC della casa', T('A1', 'A2', 'I0', 'IC', 'AI0+', 'AI0-', 'AI1+', 'AI1-', 'AI2+', 'AI2-', 'Q0A', 'Q0B', 'Q1A', 'Q1B', 'Q2A', 'Q2B', 'Q3A', 'Q3B'), {
+      symbols: { I0: 'Finestra soggiorno aperta', AI0: 'Potenza scambiata (mA)', AI1: 'Soggiorno (mA)', AI2: 'Camera (mA)', MW0: 'Potenza scambiata (W)', MW1: 'Soggiorno (°C)', MW2: 'Camera (°C)',
+        Q0: 'Colonnina', Q1: 'Pompa di calore', Q2: 'Valvola soggiorno', Q3: 'Valvola camera', M0: 'Pompa permessa', T1: 'Margine per la pompa', T2: 'Margine per la colonnina', T3: 'Potenza ancora alta' },
+      edit: { start: START_55, markers: 1, timers: 3, counters: 0, words: ['MW0', 'MW1', 'MW2'], ops: ['coil', 'set', 'reset', 'ton'] },
+    }),
+    GRID_TX(),
+    C('TT1', 'tx', 'Sonda soggiorno', 'Sonda di temperatura del soggiorno, 0…40 °C, 4-20 mA', T('+', '-'), { sense: { v: 'T1', lo: 0, hi: 40 } }),
+    C('TT2', 'tx', 'Sonda camera', 'Sonda di temperatura della camera, 0…40 °C, 4-20 mA', T('+', '-'), { sense: { v: 'T2', lo: 0, hi: 40 } }),
+    C('W1', 'sw', 'Finestra', 'Contatto della finestra del soggiorno (chiuso se aperta)', { a: { l: '1' }, b: { l: '2' } }),
+    C('EV', 'sw', 'Spina dell’auto', 'Contatto della spina: chiuso quando l’auto è attaccata alla colonnina', { a: { l: '1' }, b: { l: '2' } }),
+    C('HE', 'spia', 'Colonnina', 'Auto in ricarica (3,7 kW)', T('X1', 'X2')),
+    C('HP', 'spia', 'Pompa di calore', 'Pompa di calore in funzione (1,5 kW)', T('X1', 'X2')),
+    C('HV1', 'spia', 'Valvola soggiorno', 'Valvola del soggiorno aperta', T('X1', 'X2')),
+    C('HV2', 'spia', 'Valvola camera', 'Valvola della camera aperta', T('X1', 'X2')),
+    C('S2', 'sw', 'Sonda allagamento', 'Sonda di allagamento del bagno', { a: { l: '1' }, b: { l: '2' } }),
+    C('TA', 'pbnc', 'Tacitazione', 'Tasto di tacitazione (NC)', { '1': { l: '1' }, '2': { l: '2' } }),
+    C('KA', 'rel', 'Relè allarme', 'Relè dell’allarme', T('A1', 'A2', '11', '12', '14')),
+    C('B', 'bell', 'Sirena', 'Sirena 230 V', T('1', '2'), { volt: 230 }),
+  ],
+  controls: ['QG', 'W1', 'S2', 'TA'],
+  process: {
+    model: 'casa', cutSupply: 'blackout', title: 'La serata', alt: 'La casa di sera: pannelli, batteria, colonnina, pompa di calore e due stanze', speed: 1,
+    // la serata dura 6,5 ore in 390 s (un'ora = 60 s): il clima ha costanti per ora di serata (c54 le aveva per minuto, con speed 40)
+    params: { n: 2, ovenKw: 3.5, limit: 6, pvKw: 4, sunrise: 7.5, sunset: 17.25, batCap: 13.5, gain: 4, loss: 0.15, winK: 2 },
+    init: { hour: 16.5, T1: 17, T2: 17, soc: 90 },
+    actuators: { pv: { value: 1 }, house: { value: 1 }, batt: { value: 1 }, ev: { load: 'HE' }, pump: { load: 'HP' }, v1: { load: 'HV1' }, v2: { load: 'HV2' }, w1: { ctl: 'W1' } },
+    trace: ['grid', 'load', 'pv', 'soc', 'T1', 'T2', 'eEv', 'hpRun', 'PLC.Q0', 'PLC.Q1', 'PLC.Q2', 'PLC.Q3'],
+    labels: { grid: 'La potenza della rete', eEv: 'L’energia caricata nell’auto (kWh)', T1: 'La temperatura del soggiorno', T2: 'La temperatura della camera' },
+    graph: { vars: [{ v: 'load', label: 'Consumo kW', lo: 0, hi: 10, color: '#C0262D' }, { v: 'grid', label: 'Rete kW', lo: 0, hi: 10, color: '#2563B0' }], window: 1500, lines: [{ value: 6, label: 'limite del contatore', var: 'grid' }] },
+  },
+  scenario: {
+    duration: 390,
+    startWhen: { coil: 'QG' },
+    events: EVENTS_55,
+    faults: [FLOOD_55],
+    expect: {
+      process: { blackout: false, broken: false, eEv: [2, 100] },
+      trace: [{ v: 'PLC.Q0', maxSwitches: 6 }, { v: 'PLC.Q1', maxSwitches: 16 }],
+    },
+  },
+  checks: [
+    { id: 'acqua', label: 'La sonda vede acqua: la sirena suona', do: ['toggle QG', 'toggle S2'], expect: { loads: { B: 'on' } } },
+    { id: 'memoria', label: 'Asciugata la sonda la sirena continua, finché non si tacita', do: ['toggle QG', 'toggle S2', 'toggle S2'], expect: { loads: { B: 'on' } } },
+    { id: 'tacita', label: 'Con la sonda asciutta il tasto di tacitazione ferma la sirena', do: ['toggle QG', 'toggle S2', 'toggle S2'].concat(press('TA')), expect: { loads: { B: 'off' } } },
+  ],
+  safety: { coilReturn: ['PLC', 'KA'] },
+  solution: W55,
+  solutionPrograms: { PLC: PROG_55 },
+  solutionStart: ['toggle QG'],   // per i test: la serata comincia chiudendo il generale
+  hints: [
+    'Per cominciare chiudi il generale: la serata parte dalle 16:30.',
+    'Se il contatore stacca, guarda sul pannello la potenza della rete prima del buio: era sopra la riga del limite e nessun carico si è staccato. Allora il PLC non ha visto la potenza superare la soglia di distacco.',
+    'Il misuratore arriva al massimo a 6 kW (fondo scala): oltre, il segnale si ferma. Una soglia sopra il limite del contatore non si raggiunge mai. Va messa sotto il limite, con margine: per esempio 5800 W, nei due gradini del distacco.',
+    'Allagamento: prima asciuga la sonda, poi tacita la sirena. Se tacitassi con la sonda bagnata, ripartirebbe subito.',
+  ],
+});

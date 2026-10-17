@@ -473,8 +473,10 @@ test('turno: in ogni livello a guasti le azioni del guasto e della riparazione s
     const list = l.scenario.pick ? l.scenario.pick.from.map(f => ({ ...f, at: Math.max(...l.scenario.pick.slots) })) : l.scenario.faults;
     list.forEach(f => {
       const sim = createSim(withSolutionPrograms(l), wiresOf(l));
-      const ok = () => !!sim.parts[f.fixed.part][f.fixed.prop] === !!f.fixed.is;
-      assert.ok(sim.parts[f.fixed.part], l.id + ' ' + f.id);
+      // `fixed` puo' essere un elenco di condizioni che devono valere tutte (c55: sonda asciutta e rele' a riposo)
+      const conds = [].concat(f.fixed);
+      const ok = () => conds.every(x => !!sim.parts[x.part][x.prop] === !!x.is);
+      conds.forEach(x => assert.ok(sim.parts[x.part], l.id + ' ' + f.id));
       (l.solutionStart || []).forEach(d => { const [a, x] = d.split(' '); act(sim, a, x); advance(sim, 1); });
       assert.equal(ok(), true, l.id + ' ' + f.id + ': a turno appena cominciato il pezzo e\' a posto');
       const [a, x] = f.do.split(' ');

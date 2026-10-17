@@ -264,7 +264,7 @@ function extension(ctx, cb) {
     tween(k > from ? 420 : 260, q => set(from + (k - from) * smooth(q)));
   }
 
-  let last = null, sig = '', prevHour = null, prevWet = null, prevWin = null;
+  let last = null, sig = '', prevHour = null, prevWet = null, prevWin = null, prevSil = false;
   return {
     lamps,
     lampsTo(rooms, instant) { Object.keys(lamps).forEach(id => lampTo(id, clamp01(rooms[id] || 0), instant)); },
@@ -282,6 +282,7 @@ function extension(ctx, cb) {
       if (placeSun(hour)) { ctx.moved(); changed = true; }
       // pezzi
       [solar, batt, ch, hp, meter, panel, probe, sir].forEach(p => { if (p.set(s)) changed = true; });
+      if (!!s.silence !== prevSil) { prevSil = !!s.silence; ta.press(prevSil); changed = true; }
       (s.zones || []).forEach(z => {
         const zp = zoneParts[z.id];
         if (!zp) return;
@@ -323,7 +324,12 @@ export function createCasa(container, cb) {
     dayBg: SKY, roomWindows: true, porch: false, limits: { yaw: [-200, 200], pitch: [8, 80] },
     reduced: cb.reduced, lite: cb.lite, capture: cb.capture,
     onBreaker() {}, onControl() {}, onRoom() {}, onRoof() {},
-    onPick: u => { const { ext: _x, ...rest } = u; if (cb.onTap) cb.onTap(rest); },
+    // la tacitazione e' un pulsante da tenere premuto (come quelli della fabbrica): il tocco lo preme e lo rilascia
+    onPick: u => {
+      const { ext: _x, ...rest } = u;
+      if (rest.kind === 'press' && cb.onPress) { cb.onPress(rest); setTimeout(() => { if (cb.onRelease) cb.onRelease(rest); }, 700); return; }
+      if (cb.onTap) cb.onTap(rest);
+    },
     extend: ctx => (ext = extension(ctx, cb)),
   });
   if (!api) return null;
@@ -332,11 +338,11 @@ export function createCasa(container, cb) {
   const ROOMS = HOUSE.rooms.map(r => r.id);
   // stanze per il trilocale: accese le sue lampade (bagno, camera, corridoio) e le finestre di tutte
   function pushRooms(rooms, force) {
-    const rs = ROOMS.map(id => (rooms[id] || 0) > 0.5 ? 1 : 0).join('');
+    const rs = ROOMS.map(id => (rooms[id] || 0) >= 0.5 ? 1 : 0).join('');
     if (rs === roomSig && !force) return;
     roomSig = rs;
     const st = {};
-    ROOMS.forEach(id => { st[id] = { lit: (rooms[id] || 0) > 0.5, controls: {} }; });
+    ROOMS.forEach(id => { st[id] = { lit: (rooms[id] || 0) >= 0.5, controls: {} }; });
     api.update({ rooms: st });
   }
   function roomsOf(s) {
@@ -398,6 +404,9 @@ export function createCasa(container, cb) {
       }, 2400 + i * step));
       return 2400 + order.length * step;
     },
+    // allagamento: la sirena lampeggia gia' con lo stato; qui basta ridisegnare
+    alert() {},
+    inside() { lookAt('insieme', 1); },
     // da fuori, con il tetto: per la chiamata e l'arrivo
     outside() { api.setRoof(true, true, 1); api.look({ ...VIEWS.lontano }, 1); },
     // l'arrivo: dalla strada alla casa, poi il tetto si alza e si guarda dentro; torna quanto dura

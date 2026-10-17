@@ -18,6 +18,10 @@ const MAX_ITER = 40;
 const STEP = 0.5;
 
 export const sourcesOf = level => level.src || { F: 'Q.F', N: 'Q.N', PE: 'Q.PE' };
+// Rete presente: la levetta del quadro, nessun corto senza protezione e, se il processo ha un contatore (`process.cutSupply`, per
+// esempio 'blackout' del modello casa), il contatore non ha staccato: a contatore staccato tutto l'impianto resta senza tensione.
+const meterOff = sim => { const k = sim.level.process && sim.level.process.cutSupply; return !!(k && sim.process && sim.process.state[k]); };
+const mainsOn = sim => sim.supply && !sim.mainTrip && !meterOff(sim);
 
 /* ---------- creazione e stato ---------- */
 
@@ -47,7 +51,7 @@ export function createSim(level, wires = []) {
     hmi: {},               // parole dei PLC scritte dal pannello di regolazione: { idPLC: { MW0: 60 } }
     // turno con guasti a tempo (level.scenario): i guasti del turno (scelti dal seme, se c'e' `pick`), quando sono scattati e quando
     // sono stati riparati, il tempo di fermo (`downtime`)
-    scenario: level.scenario ? { firedAt: {}, fixedAt: {}, seed: level.scenario.seed ?? 1, faults: scenarioFaults(level.scenario, level.scenario.seed ?? 1), down: 0, lastMove: 0, sig: null, t0: level.scenario.startWhen ? null : 0 } : null,
+    scenario: level.scenario ? { firedAt: {}, fixedAt: {}, eventAt: {}, seed: level.scenario.seed ?? 1, faults: scenarioFaults(level.scenario, level.scenario.seed ?? 1), down: 0, lastMove: 0, sig: null, t0: level.scenario.startWhen ? null : 0 } : null,
     panel: level.hmi ? { values: {}, alarms: {}, seq: 0 } : null,   // pannello operatore (level.hmi): ultime letture e stato degli allarmi
   };
   Object.entries(tunedValues(level.process)).forEach(([name, v]) => applyTune(sim, name, v));
@@ -178,7 +182,7 @@ function analyseDC(sim, open) {
     const p = partOf(c);
     p.contacts(c, sim.parts[c.id] || {}).forEach(([x, y]) => els.push({ id: c.id + ':' + x, type: 'W', a: c.id + '.' + x, b: c.id + '.' + y }));
     // dopo un cortocircuito il fusibile delle batterie e' bruciato: niente sorgenti finche' non si rifa' il cablaggio
-    if (p.dc) p.dc(c, sim.parts[c.id] || {}, vars).forEach(e => { if (e.type !== 'V' || (sim.supply && !sim.mainTrip)) els.push(e); });
+    if (p.dc) p.dc(c, sim.parts[c.id] || {}, vars).forEach(e => { if (e.type !== 'V' || mainsOn(sim)) els.push(e); });
   });
   const firstV = els.find(e => e.type === 'V');
   const r = solveDC({ elements: els, ground: firstV ? firstV.b : (els[0] && els[0].a) });
@@ -216,7 +220,7 @@ function analyse(sim, open) {
     const k = uf.f(term);
     (pots[k] = pots[k] || new Set()).add(name);
   };
-  if (sim.supply && !sim.mainTrip) {
+  if (mainsOn(sim)) {
     Object.entries(sourcesOf(level)).forEach(([name, term]) => addPot(term, name));
   }
   const potAt = term => {
@@ -608,7 +612,7 @@ function downtimeTick(sim, dt) {
   const powered = !d.enable || !!(sim.parts[d.enable] && sim.parts[d.enable].on);
   if (!powered || sim.t - S.lastMove > (d.stall || 15)) S.down += dt;
 }
-// level.scenario = { duration, faults: [{ id, at, do: 'cut TT', label, fixed: { part, prop, is }, maxDelay, fix: [azioni] }], expect? }
+// level.scenario = { duration, faults: [{ id, at, do: 'cut TT', label, fixed: { part, prop, is } | [..], maxDelay, fix: [azioni] }], events?, expect? }
 // `fix` (le azioni che riparano, nell'ordine) non serve al gioco: lo usano i test per giocare il turno e documenta la riparazione.
 // A `at` secondi simulati dall'accensione scatta il guasto (un'azione del banco: cut, jam, toggle, weld...); l'allievo lo ripara
 // con gli stessi comandi. Il guasto e' riparato quando la proprieta' di quel pezzo torna al valore giusto.
@@ -618,7 +622,8 @@ function scenarioTick(sim) {
   // `startWhen: { coil }`: il turno comincia quando quella bobina si chiude la prima volta (il riarmo della cella)
   if (S.t0 === null) { const p = sim.parts[sc.startWhen.coil]; if (p && p.on) { S.t0 = sim.t; S.lastMove = sim.t; } else return; }
   const t = sim.t - S.t0;
-  const healthy = f => { const part = sim.parts[f.fixed.part]; return !!part && !!part[f.fixed.prop] === !!f.fixed.is; };
+  // `fixed`: una condizione { part, prop, is } o un elenco di condizioni che devono valere tutte (allagamento: sonda asciutta E relè a riposo)
+  const healthy = f => [].concat(f.fixed).every(x => { const part = sim.parts[x.part]; return !!part && !!part[x.prop] === !!x.is; });
   S.faults.forEach(f => {
     if (S.firedAt[f.id] === undefined && t >= f.at) {
       const [a, x] = f.do.split(/\s+/);
@@ -628,6 +633,14 @@ function scenarioTick(sim) {
     }
     // a turno finito non si ripara piu': il guasto resta aperto
     if (S.firedAt[f.id] !== undefined && S.fixedAt[f.id] === undefined && t < sc.duration && healthy(f)) S.fixedAt[f.id] = t;
+  });
+  // eventi della serata (`events`: [{ id, at, do, label }]): azioni a un'ora fissa che non sono guasti. Scattano una volta sola,
+  // non hanno riparazione ne' tempo massimo e non tolgono stelle (docs/SPEC-PROCESSI.md, 8e). Dopo la fine del periodo non scattano.
+  (sc.events || []).forEach(ev => {
+    if (S.eventAt[ev.id] !== undefined || t < ev.at || t >= sc.duration) return;
+    S.eventAt[ev.id] = t;
+    const [a, x] = ev.do.split(/\s+/);
+    try { act(sim, a, x); } catch (e) { /* azione non valida per il pezzo: lo segnala il test sui livelli */ }
   });
 }
 
@@ -642,7 +655,8 @@ export function scenarioReport(sim) {
     return { id: f.id, label: f.label || f.id, at: f.at, firedAt: firedAt ?? null, fixedAt: fixedAt ?? null, delay, max: f.maxDelay ?? Infinity,
       late: delay !== null && delay > (f.maxDelay ?? Infinity), open: firedAt !== undefined && fixedAt === undefined };
   });
-  return { duration: sc.duration, t, done: t >= sc.duration, started: S.t0 !== null, faults, seed: S.seed, down: sc.downtime ? Math.round(S.down) : null };
+  const events = (sc.events || []).map(ev => ({ id: ev.id, label: ev.label || ev.id, at: ev.at, firedAt: S.eventAt[ev.id] ?? null }));
+  return { duration: sc.duration, t, done: t >= sc.duration, started: S.t0 !== null, faults, events, seed: S.seed, down: sc.downtime ? Math.round(S.down) : null };
 }
 
 /* ---------- azioni ---------- */
@@ -745,7 +759,10 @@ export function advance(sim, seconds) {
       if (dir === 'fwd') sim.pos = Math.min(m.length, sim.pos + v);
       if (dir === 'rev') sim.pos = Math.max(0, sim.pos - v);
     }
-    if (sim.process) sim.process = stepProcess(sim.level.process, sim.process, actuatorsOf(sim, an), STEP);
+    // un periodo con il via (`scenario.startWhen`): il processo resta fermo finche' il periodo non comincia (la serata della casa
+    // parte alle 16:30 quando si chiude il generale, non quando si apre il livello)
+    const waiting = sim.scenario && sim.scenario.t0 === null;
+    if (sim.process && !waiting) sim.process = stepProcess(sim.level.process, sim.process, actuatorsOf(sim, an), STEP);
     sim.plcDt = STEP;
     settle(sim);
     scenarioTick(sim);
@@ -800,7 +817,7 @@ export function observe(sim) {
     parts,
     machine: sim.level.machine ? { pos: sim.pos, atStart: sim.pos <= 0, atEnd: sim.pos >= sim.level.machine.length } : null,
     potential: term => { const p = an.potAt(term); return p === 'mix' ? null : p; },
-    supply: sim.supply && !sim.mainTrip,
+    supply: mainsOn(sim),
     overload: !!sim.overload,
     lines: lineReport(sim, an),
     leaks: an.leaks,
@@ -875,7 +892,7 @@ export function measure(sim, a, b, mode = 'V') {
     return { kind: 'v', value: v, ac: true };
   }
   const live = x => x && x !== 'N' && x !== 'PE';
-  if (live(pa) || live(pb) || (sim.supply && !sim.mainTrip)) return { kind: 'live' };   // a impianto alimentato la continuità non si misura mai
+  if (live(pa) || live(pb) || mainsOn(sim)) return { kind: 'live' };   // a impianto alimentato la continuità non si misura mai
   const ra = an.uf.f(a), rb = an.uf.f(b);
   if (ra === rb) return { kind: 'cont' };
   // ricerca del percorso piu' corto attraverso gli avvolgimenti

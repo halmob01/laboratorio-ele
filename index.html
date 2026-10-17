@@ -1115,6 +1115,45 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
 .pfab-door.open{box-shadow:inset 0 0 0 2px #E3B61F}
 .pverb-tests b.ko{color:var(--hud-bad,#B21E16)}
 .pverb-tests b.late{color:#B8860B}
+/* casa (c55): il pannello a muro (un tablet) e i tasti accanto; niente strisce gialle e nere, e' una casa */
+.pcasa::before{display:none}
+.pcasa .pboxhead .prow{flex-wrap:wrap;justify-content:flex-end}
+.pcasa .pboxhead .pbtn,.pcasa .pboxhead .pchip{white-space:nowrap}
+.pcasa-in{display:grid;grid-template-columns:minmax(0,1fr) 200px;gap:10px;align-items:start}
+.pcasa-tab{grid-column:auto}
+.pcasa-tab.dark{box-shadow:inset 0 0 0 2px #E5484D}
+.pcasa-p,.pcasa-row{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px 12px;margin:7px 0 4px;font:500 12px/1.3 'IBM Plex Mono',monospace}
+.pcasa-row{grid-template-columns:repeat(3,minmax(0,1fr))}
+.pcasa-p > span,.pcasa-row > span{display:flex;flex-direction:column;gap:2px;min-width:0}
+.pcasa-p i,.pcasa-row i{font-style:normal;color:#8E9AAD;font-size:10px;text-transform:uppercase;letter-spacing:.05em}
+.pcasa-p b,.pcasa-row b{color:#F2F6FB;font-weight:600;font-size:14px}
+.pcasa-p small,.pcasa-row small{color:#8E9AAD;font-size:10px;line-height:1.3}
+.pcasa-grid.over b{color:#FF8A8D}
+.pcasa-bar{position:relative;display:block;height:6px;border-radius:3px;background:linear-gradient(90deg,#4FA3FF calc(var(--g)*100%),#2B3647 0)}
+.pcasa-grid.over .pcasa-bar{background:linear-gradient(90deg,#E5484D calc(var(--g)*100%),#2B3647 0)}
+.pcasa-bar::after{content:"";position:absolute;top:-3px;bottom:-3px;left:calc(var(--l)*100%);width:2px;background:#FFC61A}
+.pcasa-zs{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin:4px 0 6px}
+.pcasa-z{display:flex;flex-direction:column;gap:2px;padding:5px 8px;border-radius:7px;background:rgba(255,255,255,.05);font:500 11px/1.3 'IBM Plex Mono',monospace;color:#B5C0D0}
+.pcasa-z .pst-name{color:#8E9AAD;width:auto}
+.pcasa-z b{font-size:17px;color:#F2F6FB}
+.pcasa-z.win{box-shadow:inset 0 0 0 1px #4FA3FF}
+.phmi-a.rientrato{background:rgba(255,198,26,.14);color:#FFE08A}
+.pcasa-keys{grid-template-columns:1fr;align-content:start}
+.pcasa-keys .pst-mod{grid-column:auto}
+.pcasa-keys .pst-btn{flex-direction:row;justify-content:flex-start;gap:10px;padding:4px 2px}
+.pcasa-keys .pst-cap{width:30px;height:30px}
+.pcasa-keys .pchip{grid-column:auto;justify-self:stretch;min-height:38px}
+.pcasa-keys .pchip:disabled{opacity:.45;cursor:default}
+@media (max-width:760px){
+  .pcasa-in{grid-template-columns:minmax(0,1fr);gap:6px}
+  .pcasa-p{grid-template-columns:repeat(2,minmax(0,1fr));gap:4px 10px}
+  .pcasa-row{gap:4px 8px}
+  .pcasa-p b,.pcasa-row b{font-size:13px}
+  .pcasa-z b{font-size:15px}
+  .pcasa-keys{grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}
+  .pcasa-keys .pst-btn{padding:2px}
+  .pcasa-keys .pst-cap{width:26px;height:26px}
+}
 @media (max-width:760px){
   .pshift{top:calc(52px + env(safe-area-inset-top,0px));left:12px;right:12px;transform:none;max-width:none}
   .pshift-in{font-size:11px;gap:2px 12px;padding:5px 10px;border-radius:12px}
@@ -1631,18 +1670,18 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
     if (data.v >= PROGRESS_VERSION) {
       const out2 = emptyProgress();
       const isObj = (o) => o && typeof o === "object" && !Array.isArray(o);
-      const num2 = (x, max) => {
+      const num3 = (x, max) => {
         const n = Math.floor(Number(x));
         return n >= 0 ? Math.min(n, max) : 0;
       };
       if (isObj(data.stars)) Object.keys(data.stars).forEach((k) => {
-        out2.stars[k] = num2(data.stars[k], 3);
+        out2.stars[k] = num3(data.stars[k], 3);
       });
       if (isObj(data.best)) {
         Object.keys(data.best).forEach((k) => {
           const r = data.best[k];
           if (!isObj(r)) return;
-          out2.best[k] = { base: num2(r.base, 110), pred: r.pred === true, fault: r.fault === true, skipped: r.skipped === true };
+          out2.best[k] = { base: num3(r.base, 110), pred: r.pred === true, fault: r.fault === true, skipped: r.skipped === true };
         });
       }
       out2.last = typeof data.last === "string" ? data.last : null;
@@ -2004,8 +2043,8 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
   function sanitizeProgram(program) {
     const addr = (a) => typeof a === "string" && ADDR.test(a) ? a : null;
     const word = (a) => typeof a === "string" && WORD.test(a) ? a : null;
-    const num2 = (v) => isNum(v) && Math.abs(v) <= 1e6 ? v : null;
-    const operand = (v) => isNum(v) ? num2(v) : word(v);
+    const num3 = (v) => isNum(v) && Math.abs(v) <= 1e6 ? v : null;
+    const operand = (v) => isNum(v) ? num3(v) : word(v);
     const expr = (e, depth = 0) => {
       if (depth > 4) return null;
       if (typeof e === "string") return addr(e);
@@ -2025,11 +2064,11 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
       if (i.op === "ctu") return /^C\d{1,2}$/.test(i.id) && i.pv > 0 && i.pv <= 999 ? { op: "ctu", id: i.id, pv: Math.floor(Number(i.pv)), ...addr(i.r) ? { r: i.r } : {} } : null;
       const wout = (a) => typeof a === "string" && /^(AQ|MW)\d{1,2}$/.test(a) ? a : null;
       if (i.op === "move") return operand(i.v) !== null && wout(i.out) ? { op: "move", v: i.v, out: i.out } : null;
-      if (i.op === "scale") return /^AI\d{1,2}$/.test(i.in) && wout(i.out) && num2(i.lo) !== null && num2(i.hi) !== null ? { op: "scale", in: i.in, out: i.out, lo: i.lo, hi: i.hi } : null;
+      if (i.op === "scale") return /^AI\d{1,2}$/.test(i.in) && wout(i.out) && num3(i.lo) !== null && num3(i.hi) !== null ? { op: "scale", in: i.in, out: i.out, lo: i.lo, hi: i.hi } : null;
       if (i.op === "pid") {
-        const gain = (v, pos) => isNum(v) ? pos ? num2(v) > 0 : num2(v) >= 0 : word(v) !== null;
+        const gain = (v, pos) => isNum(v) ? pos ? num3(v) > 0 : num3(v) >= 0 : word(v) !== null;
         if (operand(i.pv) === null || operand(i.sp) === null || !wout(i.out) || !gain(i.kp, true) || !gain(i.ti ?? 0) || !gain(i.td ?? 0)) return null;
-        return { op: "pid", id: typeof i.id === "string" && /^PID\d$/.test(i.id) ? i.id : i.out, pv: i.pv, sp: i.sp, out: i.out, kp: i.kp, ti: i.ti ?? 0, td: i.td ?? 0, ...num2(i.lo) !== null ? { lo: i.lo } : {}, ...num2(i.hi) !== null ? { hi: i.hi } : {}, ...i.windup === true ? { windup: true } : {} };
+        return { op: "pid", id: typeof i.id === "string" && /^PID\d$/.test(i.id) ? i.id : i.out, pv: i.pv, sp: i.sp, out: i.out, kp: i.kp, ti: i.ti ?? 0, td: i.td ?? 0, ...num3(i.lo) !== null ? { lo: i.lo } : {}, ...num3(i.hi) !== null ? { hi: i.hi } : {}, ...i.windup === true ? { windup: true } : {} };
       }
       return null;
     };
@@ -2316,6 +2355,7 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
         oven: s.hour >= p.ovenFrom && s.hour < p.ovenTo && p.ovenKw > 0 ? 1 : 0
       })
     },
+    // casa: definito sotto, dopo MODELS, perche' chiama `zone` ed `energia` (docs/SPEC-PROCESSI.md, 8e)
     // Linea di prelievo e deposito (Modulo 6): un robot a tre movimenti prende il pezzo dal punto di prelievo e lo porta al deposito.
     //   down  (1 = braccio giu', 0 = su)   shift (1 = verso il deposito, 0 = verso il prelievo)   grip (1 = pinza chiusa)
     // Posizioni da 0 a 1; i sensori scattano agli estremi. Ogni `feedEvery` secondi arriva un pezzo se il punto di prelievo e' libero.
@@ -2401,6 +2441,35 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
       expose: (s) => ({ f: s.f, v: s.v, moving: s.v > 1 })
     }
   };
+  {
+    const Z = MODELS.zone, E = MODELS.energia;
+    const zoneKeys = Object.keys(Z.init);
+    MODELS.casa = {
+      // warmK: la zona K ha raggiunto il comfort almeno una volta; outK: secondi fuori dal comfort dopo (per il verbale della serata)
+      init: { ...E.init, ...Z.init, hpRun: 0, warm1: 0, warm2: 0, warm3: 0, out1: 0, out2: 0, out3: 0 },
+      params: { ...Z.params, ...E.params, comfortLo: 19.5, comfortHi: 22.5 },
+      acts: { ...E.acts, ...Z.acts, hp: 0, pump: 0 },
+      step(s, a, p, dt) {
+        if (s.blackout) a = { ...a, house: 0, boiler: 0, ev: 0, wash: 0, batt: 0 };
+        const run = frac(a.pump) > 0 && !s.broken && !s.blackout ? 1 : 0;
+        const zp = { ...p, pumpKw: p.hpKw };
+        const zs = Object.fromEntries(zoneKeys.map((k) => [k, s[k]]));
+        const z = Z.step(zs, { ...a, pump: run }, zp, dt);
+        const e = E.step(s, { ...a, hp: run }, p, dt);
+        const out = { ...s, ...z, ...e, hpRun: run };
+        for (let i = 1; i <= clamp2(Math.round(p.n), 1, 3); i++) {
+          const T2 = out["T" + i];
+          if (T2 >= p.comfortLo) out["warm" + i] = 1;
+          if (out["warm" + i] && (T2 < p.comfortLo || T2 > p.comfortHi)) out["out" + i] = s["out" + i] + dt;
+        }
+        return out;
+      },
+      expose(s, p) {
+        const z = Z.expose(s, { ...p, pumpKw: p.hpKw }), e = E.expose(s, p);
+        return { ...z, ...e, broken: z.broken, dryRun: z.dryRun, night: z.night, hpRun: s.hpRun ? 1 : 0 };
+      }
+    };
+  }
   var PROCESS_DT = 0.1;
   function modelOf(proc) {
     const m = proc && MODELS[proc.model];
@@ -2459,6 +2528,11 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
   var MAX_ITER = 40;
   var STEP = 0.5;
   var sourcesOf = (level) => level.src || { F: "Q.F", N: "Q.N", PE: "Q.PE" };
+  var meterOff = (sim) => {
+    const k = sim.level.process && sim.level.process.cutSupply;
+    return !!(k && sim.process && sim.process.state[k]);
+  };
+  var mainsOn = (sim) => sim.supply && !sim.mainTrip && !meterOff(sim);
   function createSim(level, wires = []) {
     const parts = {};
     level.comps.forEach((c2) => {
@@ -2501,7 +2575,7 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
       // parole dei PLC scritte dal pannello di regolazione: { idPLC: { MW0: 60 } }
       // turno con guasti a tempo (level.scenario): i guasti del turno (scelti dal seme, se c'e' `pick`), quando sono scattati e quando
       // sono stati riparati, il tempo di fermo (`downtime`)
-      scenario: level.scenario ? { firedAt: {}, fixedAt: {}, seed: level.scenario.seed ?? 1, faults: scenarioFaults(level.scenario, level.scenario.seed ?? 1), down: 0, lastMove: 0, sig: null, t0: level.scenario.startWhen ? null : 0 } : null,
+      scenario: level.scenario ? { firedAt: {}, fixedAt: {}, eventAt: {}, seed: level.scenario.seed ?? 1, faults: scenarioFaults(level.scenario, level.scenario.seed ?? 1), down: 0, lastMove: 0, sig: null, t0: level.scenario.startWhen ? null : 0 } : null,
       panel: level.hmi ? { values: {}, alarms: {}, seq: 0 } : null
       // pannello operatore (level.hmi): ultime letture e stato degli allarmi
     };
@@ -2529,21 +2603,21 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
   }
   var processVars = (sim) => sim.process ? exposeProcess(sim.level.process, sim.process) : {};
   function traceValue(sim, name, vars = processVars(sim)) {
-    const num2 = (x) => typeof x === "boolean" ? x ? 1 : 0 : Number(x) || 0;
-    if (name in vars) return num2(vars[name]);
+    const num3 = (x) => typeof x === "boolean" ? x ? 1 : 0 : Number(x) || 0;
+    if (name in vars) return num3(vars[name]);
     const [id, k] = name.split(".");
     const c2 = sim.level.comps.find((x) => x.id === id);
     const s = sim.parts[id];
     if (!c2 || !s) return 0;
     if (c2.type === "plc" && k) {
-      if (/^Q\d+$/.test(k)) return num2(!!s.q[k]);
-      if (/^AQ\d+$/.test(k)) return num2(s.aq[k]);
-      if (/^AI\d+$/.test(k)) return num2(s.ai[k]);
+      if (/^Q\d+$/.test(k)) return num3(!!s.q[k]);
+      if (/^AQ\d+$/.test(k)) return num3(s.aq[k]);
+      if (/^AI\d+$/.test(k)) return num3(s.ai[k]);
       const m = s.mem || {};
-      return num2(/^(AI|AQ|MW)\d+$/.test(k) ? (m.words || {})[k] : (m.bits || {})[k]);
+      return num3(/^(AI|AQ|MW)\d+$/.test(k) ? (m.words || {})[k] : (m.bits || {})[k]);
     }
-    if (c2.type === "tx") return num2(s.mA);
-    return num2(s.run !== void 0 ? s.run : s.on !== void 0 ? s.on : s.act);
+    if (c2.type === "tx") return num3(s.mA);
+    return num3(s.run !== void 0 ? s.run : s.on !== void 0 ? s.on : s.act);
   }
   function recordTrace(sim) {
     const names = sim.traceNames || sim.level.process && sim.level.process.trace;
@@ -2622,7 +2696,7 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
       const p = partOf(c2);
       p.contacts(c2, sim.parts[c2.id] || {}).forEach(([x, y]) => els.push({ id: c2.id + ":" + x, type: "W", a: c2.id + "." + x, b: c2.id + "." + y }));
       if (p.dc) p.dc(c2, sim.parts[c2.id] || {}, vars).forEach((e) => {
-        if (e.type !== "V" || sim.supply && !sim.mainTrip) els.push(e);
+        if (e.type !== "V" || mainsOn(sim)) els.push(e);
       });
     });
     const firstV = els.find((e) => e.type === "V");
@@ -2676,7 +2750,7 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
       const k = uf.f(term2);
       (pots[k] = pots[k] || /* @__PURE__ */ new Set()).add(name);
     };
-    if (sim.supply && !sim.mainTrip) {
+    if (mainsOn(sim)) {
       Object.entries(sourcesOf(level)).forEach(([name, term2]) => addPot(term2, name));
     }
     const potAt = (term2) => {
@@ -3111,10 +3185,10 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
       } else return;
     }
     const t = sim.t - S2.t0;
-    const healthy = (f2) => {
-      const part2 = sim.parts[f2.fixed.part];
-      return !!part2 && !!part2[f2.fixed.prop] === !!f2.fixed.is;
-    };
+    const healthy = (f2) => [].concat(f2.fixed).every((x) => {
+      const part2 = sim.parts[x.part];
+      return !!part2 && !!part2[x.prop] === !!x.is;
+    });
     S2.faults.forEach((f2) => {
       if (S2.firedAt[f2.id] === void 0 && t >= f2.at) {
         const [a, x] = f2.do.split(/\s+/);
@@ -3125,6 +3199,15 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
         }
       }
       if (S2.firedAt[f2.id] !== void 0 && S2.fixedAt[f2.id] === void 0 && t < sc.duration && healthy(f2)) S2.fixedAt[f2.id] = t;
+    });
+    (sc.events || []).forEach((ev2) => {
+      if (S2.eventAt[ev2.id] !== void 0 || t < ev2.at || t >= sc.duration) return;
+      S2.eventAt[ev2.id] = t;
+      const [a, x] = ev2.do.split(/\s+/);
+      try {
+        act(sim, a, x);
+      } catch (e) {
+      }
     });
   }
   function scenarioReport(sim) {
@@ -3146,7 +3229,8 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
         open: firedAt !== void 0 && fixedAt === void 0
       };
     });
-    return { duration: sc.duration, t, done: t >= sc.duration, started: S2.t0 !== null, faults, seed: S2.seed, down: sc.downtime ? Math.round(S2.down) : null };
+    const events = (sc.events || []).map((ev2) => ({ id: ev2.id, label: ev2.label || ev2.id, at: ev2.at, firedAt: S2.eventAt[ev2.id] ?? null }));
+    return { duration: sc.duration, t, done: t >= sc.duration, started: S2.t0 !== null, faults, events, seed: S2.seed, down: sc.downtime ? Math.round(S2.down) : null };
   }
   function act(sim, action, id) {
     const c2 = sim.level.comps.find((x) => x.id === id);
@@ -3255,7 +3339,8 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
         if (dir === "fwd") sim.pos = Math.min(m.length, sim.pos + v);
         if (dir === "rev") sim.pos = Math.max(0, sim.pos - v);
       }
-      if (sim.process) sim.process = stepProcess(sim.level.process, sim.process, actuatorsOf(sim, an), STEP);
+      const waiting = sim.scenario && sim.scenario.t0 === null;
+      if (sim.process && !waiting) sim.process = stepProcess(sim.level.process, sim.process, actuatorsOf(sim, an), STEP);
       sim.plcDt = STEP;
       settle(sim);
       scenarioTick(sim);
@@ -3303,7 +3388,7 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
         const p = an.potAt(term2);
         return p === "mix" ? null : p;
       },
-      supply: sim.supply && !sim.mainTrip,
+      supply: mainsOn(sim),
       overload: !!sim.overload,
       lines: lineReport(sim, an),
       leaks: an.leaks,
@@ -3374,7 +3459,7 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
       return { kind: "v", value: v, ac: true };
     }
     const live = (x) => x && x !== "N" && x !== "PE";
-    if (live(pa) || live(pb) || sim.supply && !sim.mainTrip) return { kind: "live" };
+    if (live(pa) || live(pb) || mainsOn(sim)) return { kind: "live" };
     const ra = an.uf.f(a), rb = an.uf.f(b);
     if (ra === rb) return { kind: "cont" };
     const adj = /* @__PURE__ */ new Map();
@@ -8898,6 +8983,163 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
       "Dentro la cella si ripara solo a robot senza potenza: apri la portella, ripara, richiudi, riarma e premi Marcia."
     ]
   });
+  var W55 = [
+    ["Q.L1", "QG.1", "marrone"],
+    ["QG.2", "PLC.A1", "rosso"],
+    ["PLC.A2", "Q.N", "blu"],
+    ["PLC.IC", "Q.N", "blu"],
+    ["TT.+", "PLC.AI0+", "rosso"],
+    ["TT.-", "PLC.AI0-", "rosso"],
+    ["TT1.+", "PLC.AI1+", "rosso"],
+    ["TT1.-", "PLC.AI1-", "rosso"],
+    ["TT2.+", "PLC.AI2+", "rosso"],
+    ["TT2.-", "PLC.AI2-", "rosso"],
+    ["QG.2", "W1.a", "rosso"],
+    ["W1.b", "PLC.I0", "rosso"],
+    ["QG.2", "PLC.Q0A", "rosso"],
+    ["PLC.Q0B", "EV.a", "rosso"],
+    ["EV.b", "HE.X1", "rosso"],
+    ["HE.X2", "Q.N", "blu"],
+    ["QG.2", "PLC.Q1A", "rosso"],
+    ["PLC.Q1B", "HP.X1", "rosso"],
+    ["HP.X2", "Q.N", "blu"],
+    ["QG.2", "PLC.Q2A", "rosso"],
+    ["PLC.Q2B", "HV1.X1", "rosso"],
+    ["HV1.X2", "Q.N", "blu"],
+    ["QG.2", "PLC.Q3A", "rosso"],
+    ["PLC.Q3B", "HV2.X1", "rosso"],
+    ["HV2.X2", "Q.N", "blu"],
+    ["QG.2", "TA.1", "rosso"],
+    ["TA.2", "S2.a", "rosso"],
+    ["TA.2", "KA.11", "rosso"],
+    ["S2.b", "KA.A1", "rosso"],
+    ["KA.14", "KA.A1", "rosso"],
+    ["KA.A2", "Q.N", "blu"],
+    ["KA.A1", "B.1", "rosso"],
+    ["B.2", "Q.N", "blu"]
+  ];
+  var START_55 = [
+    { if: ["ge", "AI0", 3.6], do: [{ op: "scale", in: "AI0", out: "MW0", lo: -6e3, hi: 6e3 }] },
+    { if: ["ge", "AI1", 3.6], do: [{ op: "scale", in: "AI1", out: "MW1", lo: 0, hi: 40 }] },
+    { if: ["ge", "AI2", 3.6], do: [{ op: "scale", in: "AI2", out: "MW2", lo: 0, hi: 40 }] }
+  ];
+  var prog55 = (shed) => START_55.concat([
+    { if: ["and", ["gt", "MW0", shed], "Q0"], do: [{ op: "reset", a: "Q0" }] },
+    { if: ["and", ["gt", "MW0", shed], ["not", "Q0"]], do: [{ op: "ton", id: "T3", pt: 5 }] },
+    { if: "T3", do: [{ op: "reset", a: "M0" }] },
+    { if: ["lt", "MW0", 4200], do: [{ op: "ton", id: "T1", pt: 30 }] },
+    { if: "T1", do: [{ op: "set", a: "M0" }] },
+    { if: ["and", ["lt", "MW0", 2e3], "M0"], do: [{ op: "ton", id: "T2", pt: 30 }] },
+    { if: "T2", do: [{ op: "set", a: "Q0" }] },
+    { if: ["lt", "MW1", 20], do: [{ op: "set", a: "Q2" }] },
+    { if: ["gt", "MW1", 22], do: [{ op: "reset", a: "Q2" }] },
+    { if: "I0", do: [{ op: "reset", a: "Q2" }] },
+    { if: ["lt", "MW2", 20], do: [{ op: "set", a: "Q3" }] },
+    { if: ["gt", "MW2", 22], do: [{ op: "reset", a: "Q3" }] },
+    { if: ["and", "M0", ["or", "Q2", "Q3"]], do: [{ op: "coil", a: "Q1" }] }
+  ]);
+  var PROG_55 = prog55(5800);
+  var PROG_55_FAULT = prog55(6500);
+  var EVENTS_55 = [
+    { id: "auto", at: 120, do: "toggle EV", label: "l\u2019auto si attacca alla colonnina" },
+    { id: "apre", at: 225, do: "toggle W1", label: "qualcuno apre la finestra del soggiorno" },
+    { id: "chiude", at: 255, do: "toggle W1", label: "la finestra del soggiorno si richiude" }
+  ];
+  var FLOOD_55 = { id: "allagamento", at: 300, do: "toggle S2", label: "la sonda di allagamento del bagno", fixed: [{ part: "S2", prop: "on", is: false }, { part: "KA", prop: "on", is: false }], maxDelay: 30, fix: ["toggle S2", "press TA", "release TA"] };
+  LEVELS_V2.push({
+    id: "c55-sera-inverno",
+    code: "c55",
+    n: 0,
+    ...IND,
+    flow: "onDemand",
+    prova: { scene: "casa" },
+    supply: "protezioni",
+    // la casa e' finita e allacciata: si comincia chiudendo il generale
+    name: "Una sera d\u2019inverno",
+    title: "Una sera d\u2019inverno",
+    blurb: "La casa intelligente \xE8 finita: chiudi il generale e guardala lavorare da sola fino alle 23. Poi consegna.",
+    goal: "Famiglia Rossi, Via Roma 12. L\u2019impianto \xE8 finito: pannelli, batteria, colonnina, pompa di calore con due zone, allarme di allagamento, tutto comandato dal PLC. Stasera la casa va da sola. Chiudi il generale e guardala lavorare dalle 16:30 alle 23: l\u2019auto arriva, si cucina, qualcuno apre la finestra. Se qualcosa non va, leggi il pannello, capisci, correggi e rifai la serata. Poi consegna.",
+    fixed: W55,
+    comps: [
+      Q3,
+      C("QG", "mt", "Generale", "Interruttore generale della casa", { "1": { l: "1" }, "2": { l: "2" }, N1: { l: "N" }, N2: { l: "N" } }, { init: 0 }),
+      // il neutro torna diretto al quadro (regola coilReturn): si usa solo il polo di fase
+      C("PLC", "plc", "PLC", "PLC della casa", T("A1", "A2", "I0", "IC", "AI0+", "AI0-", "AI1+", "AI1-", "AI2+", "AI2-", "Q0A", "Q0B", "Q1A", "Q1B", "Q2A", "Q2B", "Q3A", "Q3B"), {
+        symbols: {
+          I0: "Finestra soggiorno aperta",
+          AI0: "Potenza scambiata (mA)",
+          AI1: "Soggiorno (mA)",
+          AI2: "Camera (mA)",
+          MW0: "Potenza scambiata (W)",
+          MW1: "Soggiorno (\xB0C)",
+          MW2: "Camera (\xB0C)",
+          Q0: "Colonnina",
+          Q1: "Pompa di calore",
+          Q2: "Valvola soggiorno",
+          Q3: "Valvola camera",
+          M0: "Pompa permessa",
+          T1: "Margine per la pompa",
+          T2: "Margine per la colonnina",
+          T3: "Potenza ancora alta"
+        },
+        edit: { start: START_55, markers: 1, timers: 3, counters: 0, words: ["MW0", "MW1", "MW2"], ops: ["coil", "set", "reset", "ton"] }
+      }),
+      GRID_TX(),
+      C("TT1", "tx", "Sonda soggiorno", "Sonda di temperatura del soggiorno, 0\u202640 \xB0C, 4-20 mA", T("+", "-"), { sense: { v: "T1", lo: 0, hi: 40 } }),
+      C("TT2", "tx", "Sonda camera", "Sonda di temperatura della camera, 0\u202640 \xB0C, 4-20 mA", T("+", "-"), { sense: { v: "T2", lo: 0, hi: 40 } }),
+      C("W1", "sw", "Finestra", "Contatto della finestra del soggiorno (chiuso se aperta)", { a: { l: "1" }, b: { l: "2" } }),
+      C("EV", "sw", "Spina dell\u2019auto", "Contatto della spina: chiuso quando l\u2019auto \xE8 attaccata alla colonnina", { a: { l: "1" }, b: { l: "2" } }),
+      C("HE", "spia", "Colonnina", "Auto in ricarica (3,7 kW)", T("X1", "X2")),
+      C("HP", "spia", "Pompa di calore", "Pompa di calore in funzione (1,5 kW)", T("X1", "X2")),
+      C("HV1", "spia", "Valvola soggiorno", "Valvola del soggiorno aperta", T("X1", "X2")),
+      C("HV2", "spia", "Valvola camera", "Valvola della camera aperta", T("X1", "X2")),
+      C("S2", "sw", "Sonda allagamento", "Sonda di allagamento del bagno", { a: { l: "1" }, b: { l: "2" } }),
+      C("TA", "pbnc", "Tacitazione", "Tasto di tacitazione (NC)", { "1": { l: "1" }, "2": { l: "2" } }),
+      C("KA", "rel", "Rel\xE8 allarme", "Rel\xE8 dell\u2019allarme", T("A1", "A2", "11", "12", "14")),
+      C("B", "bell", "Sirena", "Sirena 230 V", T("1", "2"), { volt: 230 })
+    ],
+    controls: ["QG", "W1", "S2", "TA"],
+    process: {
+      model: "casa",
+      cutSupply: "blackout",
+      title: "La serata",
+      alt: "La casa di sera: pannelli, batteria, colonnina, pompa di calore e due stanze",
+      speed: 1,
+      // la serata dura 6,5 ore in 390 s (un'ora = 60 s): il clima ha costanti per ora di serata (c54 le aveva per minuto, con speed 40)
+      params: { n: 2, ovenKw: 3.5, limit: 6, pvKw: 4, sunrise: 7.5, sunset: 17.25, batCap: 13.5, gain: 4, loss: 0.15, winK: 2 },
+      init: { hour: 16.5, T1: 17, T2: 17, soc: 90 },
+      actuators: { pv: { value: 1 }, house: { value: 1 }, batt: { value: 1 }, ev: { load: "HE" }, pump: { load: "HP" }, v1: { load: "HV1" }, v2: { load: "HV2" }, w1: { ctl: "W1" } },
+      trace: ["grid", "load", "pv", "soc", "T1", "T2", "eEv", "hpRun", "PLC.Q0", "PLC.Q1", "PLC.Q2", "PLC.Q3"],
+      labels: { grid: "La potenza della rete", eEv: "L\u2019energia caricata nell\u2019auto (kWh)", T1: "La temperatura del soggiorno", T2: "La temperatura della camera" },
+      graph: { vars: [{ v: "load", label: "Consumo kW", lo: 0, hi: 10, color: "#C0262D" }, { v: "grid", label: "Rete kW", lo: 0, hi: 10, color: "#2563B0" }], window: 1500, lines: [{ value: 6, label: "limite del contatore", var: "grid" }] }
+    },
+    scenario: {
+      duration: 390,
+      startWhen: { coil: "QG" },
+      events: EVENTS_55,
+      faults: [FLOOD_55],
+      expect: {
+        process: { blackout: false, broken: false, eEv: [2, 100] },
+        trace: [{ v: "PLC.Q0", maxSwitches: 6 }, { v: "PLC.Q1", maxSwitches: 16 }]
+      }
+    },
+    checks: [
+      { id: "acqua", label: "La sonda vede acqua: la sirena suona", do: ["toggle QG", "toggle S2"], expect: { loads: { B: "on" } } },
+      { id: "memoria", label: "Asciugata la sonda la sirena continua, finch\xE9 non si tacita", do: ["toggle QG", "toggle S2", "toggle S2"], expect: { loads: { B: "on" } } },
+      { id: "tacita", label: "Con la sonda asciutta il tasto di tacitazione ferma la sirena", do: ["toggle QG", "toggle S2", "toggle S2"].concat(press("TA")), expect: { loads: { B: "off" } } }
+    ],
+    safety: { coilReturn: ["PLC", "KA"] },
+    solution: W55,
+    solutionPrograms: { PLC: PROG_55 },
+    solutionStart: ["toggle QG"],
+    // per i test: la serata comincia chiudendo il generale
+    hints: [
+      "Per cominciare chiudi il generale: la serata parte dalle 16:30.",
+      "Se il contatore stacca, guarda sul pannello la potenza della rete prima del buio: era sopra la riga del limite e nessun carico si \xE8 staccato. Allora il PLC non ha visto la potenza superare la soglia di distacco.",
+      "Il misuratore arriva al massimo a 6 kW (fondo scala): oltre, il segnale si ferma. Una soglia sopra il limite del contatore non si raggiunge mai. Va messa sotto il limite, con margine: per esempio 5800 W, nei due gradini del distacco.",
+      "Allagamento: prima asciuga la sonda, poi tacita la sirena. Se tacitassi con la sonda bagnata, ripartirebbe subito."
+    ]
+  });
 
   // src/content/units-v2.js
   var UNITS_V2 = {
@@ -14175,6 +14417,91 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
       fixSay: "Apri la portella (il robot perde la potenza), ripara il finecorsa \u201Cbraccio gi\xF9\u201D, richiudi la portella, premi il riarmo e poi Marcia. Poi tieni la cella in produzione fino alla fine del turno e premi Verifica."
     }
   };
+  UNITS_V2["c55-sera-inverno"] = {
+    support: "obiettivo",
+    lesson: {
+      pages: [
+        {
+          type: "spiegazione",
+          title: "Consegnare una casa intelligente",
+          paras: [
+            "In una casa intelligente i fili sono solo met\xE0 del lavoro. L\u2019altra met\xE0 sono le regole scritte nel PLC: quando staccare l\u2019auto, quando scaldare una stanza, che cosa fare se si apre una finestra. Un impianto cablato bene con una regola sbagliata lascia la famiglia al buio come un filo staccato.",
+            "Per questo una casa intelligente non si consegna dopo aver acceso una lampada. Si guarda lavorare per una sera intera, con tutto quello che succede davvero: il sole che cala, l\u2019auto che arriva, la cena, una finestra aperta."
+          ],
+          table: {
+            head: ["Che cosa c\u2019\xE8", "Che cosa fa", "Dove l\u2019hai visto"],
+            rows: [
+              ["Gestione dei carichi", "stacca prima l\u2019auto e poi la pompa, per non far saltare il contatore", "c53"],
+              ["Clima per zone", "scalda soggiorno e camera tra 20 e 22 \xB0C, chiude la valvola se la finestra \xE8 aperta", "c54"],
+              ["Pannelli e batteria", "di giorno producono, la sera la batteria copre i consumi", "c39-c41"],
+              ["Allarme di allagamento", "la sirena suona finch\xE9 non si asciuga la sonda e si tacita", "c50"]
+            ]
+          }
+        },
+        {
+          type: "spiegazione",
+          title: "Il misuratore ha un fondo scala",
+          paras: [
+            "Il PLC conosce la potenza della casa solo attraverso il misuratore del contatore. Il misuratore manda un segnale da 4 a 20 mA che vuol dire da \u22126 kW (la casa immette) a +6 kW (la casa preleva). Oltre i 6 kW il segnale non sale pi\xF9: si ferma a 20,5 mA, cio\xE8 circa 6,4 kW, anche se la casa preleva 8 o 10 kW.",
+            "Quindi una soglia scritta nel programma vale solo se il misuratore la pu\xF2 raggiungere. Una soglia oltre il fondo scala non scatta mai."
+          ],
+          table: {
+            head: ["Potenza vera", "Segnale", "Il PLC legge"],
+            rows: [
+              ["3 kW", "16 mA", "3000 W"],
+              ["6 kW", "20 mA", "6000 W"],
+              ["8 kW", "20,5 mA (fermo)", "circa 6400 W"]
+            ]
+          },
+          warn: "La soglia di distacco va sotto il limite del contatore, con margine. Sopra il limite il contatore stacca comunque dopo 20 secondi."
+        },
+        {
+          type: "spiegazione",
+          title: "Si guarda la serata intera",
+          paras: [
+            "Chiudi il generale alle 16:30 e lascia andare la casa fino alle 23. Il pannello a muro mostra le potenze, la batteria, l\u2019auto e le due stanze. Alle 21:30 la sonda del bagno potrebbe bagnarsi: prima la asciughi, poi taciti la sirena.",
+            "Se il contatore stacca, la casa resta al buio fino a fine serata: il contatore non si riarma da solo e una casa che salta a ogni cena non si consegna. Si capisce perch\xE9, si corregge il programma e si rif\xE0 la serata da capo."
+          ]
+        },
+        {
+          type: "previsione",
+          question: "Vuoi una spia che si accenda quando la casa preleva pi\xF9 di 7 kW. Scrivi il gradino \u201CMW0 maggiore di 7000\u201D, con il misuratore da \u22126 a +6 kW. Una sera la casa preleva 8 kW. La spia si accende?",
+          options: [
+            { id: "a", text: "S\xEC: 8 kW \xE8 pi\xF9 di 7 kW." },
+            { id: "b", text: "No: il misuratore si ferma a circa 6400 W e il confronto con 7000 non \xE8 mai vero." },
+            { id: "c", text: "Solo se la batteria \xE8 scarica." }
+          ],
+          correct: "b",
+          why: "Il PLC non vede la potenza vera ma il segnale del misuratore, che oltre il fondo scala resta fermo a 20,5 mA, circa 6400 W. Per sorvegliare 7 kW serve un misuratore con il fondo scala pi\xF9 alto, oppure una soglia che il misuratore pu\xF2 raggiungere."
+        },
+        { type: "sintesi", title: "Da ricordare" }
+      ]
+    },
+    summary: [
+      "In una casa intelligente le regole del PLC contano quanto i fili: una soglia sbagliata lascia la casa al buio.",
+      "Il PLC vede la potenza solo attraverso il misuratore: oltre il fondo scala il segnale si ferma, e una soglia pi\xF9 alta non scatta mai.",
+      "La soglia di distacco sta sotto il limite del contatore, con margine.",
+      "Una casa intelligente si collauda per una serata intera, con tutto quello che succede davvero.",
+      "Allagamento: prima si asciuga la sonda, poi si tacita la sirena."
+    ],
+    fault: {
+      say: "La casa \xE8 finita e programmata. Chiudi il generale: la serata comincia alle 16:30. Guarda il pannello. Se qualcosa non va, rispondi alla domanda.",
+      wires: W55,
+      programs: { PLC: PROG_55_FAULT },
+      diagnosis: {
+        question: "Verso le 19:45 il contatore ha staccato tutta la casa. Sul pannello, prima del buio, la rete era al fondo scala sopra la riga del limite, auto e pompa erano accese e nessun carico si era staccato. Perch\xE9?",
+        options: [
+          { id: "a", text: "Il forno non si pu\xF2 staccare: con il forno acceso il contatore stacca sempre." },
+          { id: "b", text: "La soglia di distacco (6500 W) \xE8 sopra il limite e oltre il fondo scala del misuratore: il PLC non l\u2019ha mai vista superata." },
+          { id: "c", text: "La batteria era scarica." },
+          { id: "d", text: "L\u2019ordine di distacco \xE8 al contrario: prima la pompa, poi l\u2019auto." }
+        ],
+        correct: "b",
+        why: "Il misuratore arriva al massimo a circa 6400 W, quindi \u201Cmaggiore di 6500\u201D non \xE8 mai vero e il PLC non stacca niente. Con il forno acceso basta staccare l\u2019auto (3,7 kW) per tornare sotto il limite: il forno non \xE8 il problema. E con l\u2019ordine al contrario la casa reggerebbe comunque, solo pi\xF9 fredda."
+      },
+      fixSay: "Apri il programma del PLC e nei due gradini del distacco metti la soglia sotto il limite, con margine: 5800 W. Poi rifai la serata da capo e consegna."
+    }
+  };
 
   // src/content/it.js
   var COLOR_NAMES = {
@@ -16281,8 +16608,8 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
         <ol class="uplist">${m.levels.map((x) => `<li>${esc(x)}</li>`).join("")}</ol>
         ${terminusHTML()}${milestoneCard({ id: "ms-" + m.project.art, kick: m.project.kick, name: m.project.name, text: m.project.text, art: m.project.art, st: "soon" })}
       </section>` }));
-    const num2 = (tag) => Number((tag.match(/\d+/) || [0])[0]);
-    const listed = MODULES.map((m, i) => ({ n: num2(m.tag), html: mods[i] })).concat(upItems);
+    const num3 = (tag) => Number((tag.match(/\d+/) || [0])[0]);
+    const listed = MODULES.map((m, i) => ({ n: num3(m.tag), html: mods[i] })).concat(upItems);
     const ordered = listed.sort((a, b) => a.n - b.n).map((x) => x.html).join("");
     return `<div class="homegrid">
       <div class="homemain">${cont.replace('class="cont"', 'class="cont only-narrow"')}${ordered}${trNoteHTML()}</div>
@@ -16617,9 +16944,9 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
       const sizes = kids.map(size);
       const extra = (w - sizes.reduce((s, k) => s + k.w, 0)) / kids.length;
       kids.forEach((k, i) => {
-        const kw2 = sizes[i].w + extra;
-        o2 += draw(k, px2, y, kw2, bits, names, on, cx, path.length ? path : [i], words);
-        px2 += kw2;
+        const kw3 = sizes[i].w + extra;
+        o2 += draw(k, px2, y, kw3, bits, names, on, cx, path.length ? path : [i], words);
+        px2 += kw3;
       });
       return o2;
     }
@@ -22266,6 +22593,242 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
     "Il capannone di notte: la cella del robot nella recinzione gialla, la pulsantiera, il pannello operatore e l\u2019armadio con il PLC": "\u0627\u0644\u0645\u0633\u062A\u0648\u062F\u0639 \u0644\u064A\u0644\u064B\u0627: \u062E\u0644\u064A\u0629 \u0627\u0644\u0631\u0648\u0628\u0648\u062A \u062F\u0627\u062E\u0644 \u0627\u0644\u0633\u064A\u0627\u062C \u0627\u0644\u0623\u0635\u0641\u0631\u060C \u0648\u0644\u0648\u062D\u0629 \u0627\u0644\u0623\u0632\u0631\u0627\u0631\u060C \u0648\u0644\u0648\u062D\u0629 \u0627\u0644\u0645\u0634\u063A\u0651\u0644\u060C \u0648\u0627\u0644\u062E\u0632\u0627\u0646\u0629 \u0645\u0639 \u0648\u062D\u062F\u0629 PLC"
   };
 
+  // src/i18n/ar-46.js
+  var kw2 = (x) => iso(x) + " \u0643\u064A\u0644\u0648\u0648\u0627\u0637";
+  registerLang("ar", {}, [
+    [/^Fine serata tra (.+)$/, (m, t) => `\u062A\u0646\u062A\u0647\u064A \u0627\u0644\u0633\u0647\u0631\u0629 \u0628\u0639\u062F ${t(m[1])}`],
+    [/^Casa al buio dalle (\d+:\d+)$/, (m) => `\u0627\u0644\u0628\u064A\u062A \u0641\u064A \u0627\u0644\u0638\u0644\u0627\u0645 \u0645\u0646\u0630 ${iso(m[1])}`],
+    [/^Rete ([\d,.-]+) kW \/ ([\d,.]+) kW$/, (m) => `\u0627\u0644\u0634\u0628\u0643\u0629 ${kw2(m[1])} / ${kw2(m[2])}`],
+    [/^Batteria (\d+) %$/, (m) => `\u0627\u0644\u0628\u0637\u0627\u0631\u064A\u0629 ${iso(m[1])}\u066A`],
+    [/^Auto ([\d,.]+) kWh$/, (m) => `\u0627\u0644\u0633\u064A\u0627\u0631\u0629 ${iso(m[1])} \u0643\u064A\u0644\u0648\u0648\u0627\u0637 \u0633\u0627\u0639\u0629`],
+    [/^si carica ([\d,.]+) kW$/, (m) => `\u062A\u064F\u0634\u062D\u0646 ${kw2(m[1])}`],
+    [/^dà ([\d,.]+) kW alla casa$/, (m) => `\u062A\u0639\u0637\u064A \u0627\u0644\u0628\u064A\u062A ${kw2(m[1])}`],
+    [/^limite ([\d,.]+) kW · il misuratore legge ([\d,.-]+) kW( \(fondo scala\))?$/, (m) => `\u0627\u0644\u062D\u062F ${kw2(m[1])} \xB7 \u064A\u0642\u0631\u0623 \u062C\u0647\u0627\u0632 \u0627\u0644\u0642\u064A\u0627\u0633 ${kw2(m[2])}${m[3] ? " (\u0646\u0647\u0627\u064A\u0629 \u0627\u0644\u0645\u062F\u0649)" : ""}`],
+    [/^alle (\d+:\d+)$/, (m) => `\u0641\u064A ${iso(m[1])}`],
+    [/^staccato alle (\d+:\d+)$/, (m) => `\u0641\u0635\u0644 \u0641\u064A ${iso(m[1])}`],
+    [/^(valvola aperta|valvola chiusa)( · finestra aperta)?$/, (m) => `${m[1] === "valvola aperta" ? "\u0627\u0644\u0635\u0645\u0627\u0645 \u0645\u0641\u062A\u0648\u062D" : "\u0627\u0644\u0635\u0645\u0627\u0645 \u0645\u063A\u0644\u0642"}${m[2] ? " \xB7 \u0627\u0644\u0646\u0627\u0641\u0630\u0629 \u0645\u0641\u062A\u0648\u062D\u0629" : ""}`],
+    [/^(sonda bagnata|sonda asciutta)( · sirena)?$/, (m) => `${m[1] === "sonda bagnata" ? "\u0627\u0644\u062D\u0633\u0651\u0627\u0633 \u0645\u0628\u0644\u0644" : "\u0627\u0644\u062D\u0633\u0651\u0627\u0633 \u062C\u0627\u0641"}${m[2] ? " \xB7 \u0635\u0641\u0627\u0631\u0629 \u0627\u0644\u0625\u0646\u0630\u0627\u0631" : ""}`],
+    [/^alle (\d+:\d+), non gestito$/, (m) => `\u0641\u064A ${iso(m[1])}\u060C \u0644\u0645 \u064A\u064F\u0639\u0627\u0644\u064E\u062C`],
+    [/^alle (\d+:\d+), gestito alle (\d+:\d+)( \(in ritardo\))?$/, (m) => `\u0641\u064A ${iso(m[1])}\u060C \u0639\u0648\u0644\u062C \u0641\u064A ${iso(m[2])}${m[3] ? " (\u0645\u062A\u0623\u062E\u0631\u064B\u0627)" : ""}`],
+    [/^prodotta ([\d,.]+) kWh · prelevata ([\d,.]+) kWh · immessa ([\d,.]+) kWh · costo ([\d,.]+) €$/, (m) => `\u0627\u0644\u0645\u0646\u062A\u064E\u062C\u0629 ${iso(m[1])} \u0643\u064A\u0644\u0648\u0648\u0627\u0637 \u0633\u0627\u0639\u0629 \xB7 \u0627\u0644\u0645\u0633\u062D\u0648\u0628\u0629 ${iso(m[2])} \u0643\u064A\u0644\u0648\u0648\u0627\u0637 \u0633\u0627\u0639\u0629 \xB7 \u0627\u0644\u0645\u0636\u062E\u0648\u062E\u0629 ${iso(m[3])} \u0643\u064A\u0644\u0648\u0648\u0627\u0637 \u0633\u0627\u0639\u0629 \xB7 \u0627\u0644\u0643\u0644\u0641\u0629 ${iso(m[4])} \u20AC`],
+    [/^Soggiorno (\d+) · Camera (\d+)$/, (m) => `\u063A\u0631\u0641\u0629 \u0627\u0644\u062C\u0644\u0648\u0633 ${iso(m[1])} \xB7 \u063A\u0631\u0641\u0629 \u0627\u0644\u0646\u0648\u0645 ${iso(m[2])}`]
+  ]);
+  var ar_46_default = {
+    // cornice della prova (src/content/prove.js, PROVE.casa) e pannello della casa
+    "Modulo 5 \xB7 prova": "\u0627\u0644\u0648\u062D\u062F\u0629 5 \xB7 \u0627\u0644\u0627\u062E\u062A\u0628\u0627\u0631",
+    "Modulo 5": "\u0627\u0644\u0648\u062D\u062F\u0629 5",
+    "Modulo 5 completato": "\u0627\u0643\u062A\u0645\u0644\u062A \u0627\u0644\u0648\u062D\u062F\u0629 5",
+    "Casa": "\u0627\u0644\u0628\u064A\u062A",
+    "Ore 16:30. Il sole cala.": "\u0627\u0644\u0633\u0627\u0639\u0629 16:30. \u0627\u0644\u0634\u0645\u0633 \u062A\u063A\u064A\u0628.",
+    "La casa intelligente della famiglia Rossi \xE8 finita. Chiudi il generale e guardala lavorare da sola fino alle 23: l\u2019auto arriva, si cucina, qualcuno apre la finestra. Se qualcosa non va, capisci perch\xE9, correggi il programma e rifai la serata. Poi consegna.": "\u0627\u0644\u0628\u064A\u062A \u0627\u0644\u0630\u0643\u064A \u0644\u0639\u0627\u0626\u0644\u0629 \u0631\u0648\u0633\u064A \u062C\u0627\u0647\u0632. \u0623\u063A\u0644\u0642 \u0627\u0644\u0642\u0627\u0637\u0639 \u0627\u0644\u0631\u0626\u064A\u0633\u064A \u0648\u0631\u0627\u0642\u0628\u0647 \u064A\u0639\u0645\u0644 \u0648\u062D\u062F\u0647 \u062D\u062A\u0649 23: \u062A\u0635\u0644 \u0627\u0644\u0633\u064A\u0627\u0631\u0629\u060C \u064A\u064F\u0637\u0628\u062E \u0627\u0644\u0639\u0634\u0627\u0621\u060C \u064A\u0641\u062A\u062D \u0623\u062D\u062F\u0647\u0645 \u0627\u0644\u0646\u0627\u0641\u0630\u0629. \u0625\u0630\u0627 \u0644\u0645 \u064A\u0633\u0631 \u0634\u064A\u0621 \u0643\u0645\u0627 \u064A\u062C\u0628\u060C \u0627\u0641\u0647\u0645 \u0627\u0644\u0633\u0628\u0628\u060C \u0635\u062D\u0651\u062D \u0627\u0644\u0628\u0631\u0646\u0627\u0645\u062C \u0648\u0623\u0639\u062F \u0627\u0644\u0633\u0647\u0631\u0629. \u062B\u0645 \u0633\u0644\u0651\u0645.",
+    "Pannello della casa": "\u0644\u0648\u062D\u0629 \u0627\u0644\u0628\u064A\u062A",
+    "Consegna dell\u2019impianto": "\u062A\u0633\u0644\u064A\u0645 \u0627\u0644\u062A\u0631\u0643\u064A\u0628",
+    "Famiglia Rossi, Via Roma 12": "\u0639\u0627\u0626\u0644\u0629 \u0631\u0648\u0633\u064A\u060C \u0634\u0627\u0631\u0639 \u0631\u0648\u0645\u0627 12",
+    "\xABL\u2019impianto \xE8 finito, stasera la casa va da sola. Chiudi il generale, guardala lavorare fino alle 23 e consegnaci le chiavi.\xBB": "\xAB\u0627\u0644\u062A\u0631\u0643\u064A\u0628 \u062C\u0627\u0647\u0632\u060C \u0627\u0644\u0644\u064A\u0644\u0629 \u064A\u0639\u0645\u0644 \u0627\u0644\u0628\u064A\u062A \u0648\u062D\u062F\u0647. \u0623\u063A\u0644\u0642 \u0627\u0644\u0642\u0627\u0637\u0639 \u0627\u0644\u0631\u0626\u064A\u0633\u064A\u060C \u0631\u0627\u0642\u0628\u0647 \u064A\u0639\u0645\u0644 \u062D\u062A\u0649 23 \u0648\u0633\u0644\u0651\u0645\u0646\u0627 \u0627\u0644\u0645\u0641\u0627\u062A\u064A\u062D.\xBB",
+    "Chiudi il generale": "\u0623\u063A\u0644\u0642 \u0627\u0644\u0642\u0627\u0637\u0639 \u0627\u0644\u0631\u0626\u064A\u0633\u064A",
+    "Guarda la serata": "\u0631\u0627\u0642\u0628 \u0627\u0644\u0633\u0647\u0631\u0629",
+    "Rispondi: perch\xE9 \xE8 saltata la casa?": "\u0623\u062C\u0628: \u0644\u0645\u0627\u0630\u0627 \u0627\u0646\u0642\u0637\u0639 \u0627\u0644\u0628\u064A\u062A\u061F",
+    "Correggi il programma": "\u0635\u062D\u0651\u062D \u0627\u0644\u0628\u0631\u0646\u0627\u0645\u062C",
+    "Rifai la serata fino alle 23": "\u0623\u0639\u062F \u0627\u0644\u0633\u0647\u0631\u0629 \u062D\u062A\u0649 23",
+    "Consegna": "\u0633\u0644\u0651\u0645",
+    "La casa \xE8 al buio.": "\u0627\u0644\u0628\u064A\u062A \u0641\u064A \u0627\u0644\u0638\u0644\u0627\u0645.",
+    "Il contatore ha staccato: la casa ha prelevato troppo per troppo tempo.": "\u0641\u0635\u0644 \u0627\u0644\u0639\u062F\u0651\u0627\u062F: \u0633\u062D\u0628 \u0627\u0644\u0628\u064A\u062A \u0623\u0643\u062B\u0631 \u0645\u0646 \u0627\u0644\u0644\u0627\u0632\u0645 \u0644\u0645\u062F\u0629 \u0637\u0648\u064A\u0644\u0629.",
+    "Allagamento in bagno.": "\u0641\u064A\u0636\u0627\u0646 \u0641\u064A \u0627\u0644\u062D\u0645\u0651\u0627\u0645.",
+    "Prima asciuga la sonda, poi tacita la sirena.": "\u062C\u0641\u0651\u0641 \u0627\u0644\u062D\u0633\u0651\u0627\u0633 \u0623\u0648\u0644\u064B\u0627\u060C \u062B\u0645 \u0623\u0633\u0643\u062A \u0635\u0641\u0627\u0631\u0629 \u0627\u0644\u0625\u0646\u0630\u0627\u0631.",
+    "La sonda \xE8 ancora bagnata: la sirena riparte.": "\u0627\u0644\u062D\u0633\u0651\u0627\u0633 \u0645\u0627 \u0632\u0627\u0644 \u0645\u0628\u0644\u0644\u064B\u0627: \u062A\u0639\u0648\u062F \u0635\u0641\u0627\u0631\u0629 \u0627\u0644\u0625\u0646\u0630\u0627\u0631.",
+    "La pompa di calore si \xE8 guastata: ha girato con le valvole chiuse.": "\u062A\u0639\u0637\u0644\u062A \u0627\u0644\u0645\u0636\u062E\u0629 \u0627\u0644\u062D\u0631\u0627\u0631\u064A\u0629: \u0639\u0645\u0644\u062A \u0648\u0627\u0644\u0635\u0645\u0627\u0645\u0627\u062A \u0645\u063A\u0644\u0642\u0629.",
+    "Le 23:00. La casa va a dormire.": "\u0627\u0644\u0633\u0627\u0639\u0629 23:00. \u0627\u0644\u0628\u064A\u062A \u064A\u062E\u0644\u062F \u0625\u0644\u0649 \u0627\u0644\u0646\u0648\u0645.",
+    "Il contatore non si riarma: rifai la serata da capo.": "\u0627\u0644\u0639\u062F\u0651\u0627\u062F \u0644\u0627 \u064A\u0639\u064A\u062F \u0627\u0644\u062A\u0648\u0635\u064A\u0644: \u0623\u0639\u062F \u0627\u0644\u0633\u0647\u0631\u0629 \u0645\u0646 \u0627\u0644\u0628\u062F\u0627\u064A\u0629.",
+    "Verbale di consegna": "\u0645\u062D\u0636\u0631 \u0627\u0644\u062A\u0633\u0644\u064A\u0645",
+    "Casa intelligente, Via Roma 12": "\u0628\u064A\u062A \u0630\u0643\u064A\u060C \u0634\u0627\u0631\u0639 \u0631\u0648\u0645\u0627 12",
+    "Le 23:00. Buonanotte.": "\u0627\u0644\u0633\u0627\u0639\u0629 23:00. \u062A\u0635\u0628\u062D\u0648\u0646 \u0639\u0644\u0649 \u062E\u064A\u0631.",
+    "Energia della serata": "\u0637\u0627\u0642\u0629 \u0627\u0644\u0633\u0647\u0631\u0629",
+    "Auto caricata": "\u0627\u0644\u0633\u064A\u0627\u0631\u0629 \u0627\u0644\u0645\u0634\u062D\u0648\u0646\u0629",
+    "Comfort (minuti fuori da 19,5\u201322,5 \xB0C)": "\u0627\u0644\u0631\u0627\u062D\u0629 (\u062F\u0642\u0627\u0626\u0642 \u062E\u0627\u0631\u062C 19,5\u201322,5 \xB0C)",
+    "mai a vuoto": "\u0644\u0645 \u062A\u0639\u0645\u0644 \u0641\u064A \u0627\u0644\u0641\u0631\u0627\u063A \u0623\u0628\u062F\u064B\u0627",
+    "guasta: ha girato a vuoto": "\u0645\u0639\u0637\u0644\u0629: \u0639\u0645\u0644\u062A \u0641\u064A \u0627\u0644\u0641\u0631\u0627\u063A",
+    "Allagamento": "\u0627\u0644\u0641\u064A\u0636\u0627\u0646",
+    "nessuno": "\u0644\u0627 \u0634\u064A\u0621",
+    "Contatore": "\u0627\u0644\u0639\u062F\u0651\u0627\u062F",
+    "mai staccato": "\u0644\u0645 \u064A\u0641\u0635\u0644 \u0623\u0628\u062F\u064B\u0627",
+    "Nel programma la soglia di distacco era 6500 W: sopra il limite del contatore (6 kW) e oltre il fondo scala del misuratore. Il PLC non vedeva mai la soglia superata e alle 19:30, con forno, auto e pompa, il contatore staccava la casa.": "\u0641\u064A \u0627\u0644\u0628\u0631\u0646\u0627\u0645\u062C \u0643\u0627\u0646\u062A \u0639\u062A\u0628\u0629 \u0627\u0644\u0641\u0635\u0644 6500 \u0648\u0627\u0637: \u0641\u0648\u0642 \u062D\u062F \u0627\u0644\u0639\u062F\u0651\u0627\u062F (6 \u0643\u064A\u0644\u0648\u0648\u0627\u0637) \u0648\u0628\u0639\u062F \u0646\u0647\u0627\u064A\u0629 \u0645\u062F\u0649 \u062C\u0647\u0627\u0632 \u0627\u0644\u0642\u064A\u0627\u0633. \u0644\u0645 \u064A\u0643\u0646 \u0627\u0644\u0640 PLC \u064A\u0631\u0649 \u0627\u0644\u0639\u062A\u0628\u0629 \u0645\u062A\u062C\u0627\u0648\u064E\u0632\u0629 \u0623\u0628\u062F\u064B\u0627\u060C \u0648\u0641\u064A 19:30\u060C \u0645\u0639 \u0627\u0644\u0641\u0631\u0646 \u0648\u0627\u0644\u0633\u064A\u0627\u0631\u0629 \u0648\u0627\u0644\u0645\u0636\u062E\u0629\u060C \u0643\u0627\u0646 \u0627\u0644\u0639\u062F\u0651\u0627\u062F \u064A\u0641\u0635\u0644 \u0627\u0644\u0628\u064A\u062A.",
+    "Soglia di distacco portata a 5800 W nei due gradini, sotto il limite con margine. Serata rifatta fino alle 23.": "\u0639\u062A\u0628\u0629 \u0627\u0644\u0641\u0635\u0644 \u0635\u0627\u0631\u062A 5800 \u0648\u0627\u0637 \u0641\u064A \u0627\u0644\u062F\u0631\u062C\u062A\u064A\u0646\u060C \u062A\u062D\u062A \u0627\u0644\u062D\u062F \u0645\u0639 \u0647\u0627\u0645\u0634. \u0623\u064F\u0639\u064A\u062F\u062A \u0627\u0644\u0633\u0647\u0631\u0629 \u062D\u062A\u0649 23.",
+    "Sicurezza": "\u0627\u0644\u0633\u0644\u0627\u0645\u0629",
+    "nessun errore": "\u0644\u0627 \u0623\u062E\u0637\u0627\u0621",
+    "regole di sicurezza non rispettate": "\u0642\u0648\u0627\u0639\u062F \u0627\u0644\u0633\u0644\u0627\u0645\u0629 \u0644\u0645 \u062A\u064F\u062D\u062A\u0631\u0645",
+    "Impianto finito. Il generale \xE8 aperto.": "\u0627\u0644\u062A\u0631\u0643\u064A\u0628 \u062C\u0627\u0647\u0632. \u0627\u0644\u0642\u0627\u0637\u0639 \u0627\u0644\u0631\u0626\u064A\u0633\u064A \u0645\u0641\u062A\u0648\u062D.",
+    "Chiuso il generale: la serata comincia.": "\u0623\u064F\u063A\u0644\u0642 \u0627\u0644\u0642\u0627\u0637\u0639 \u0627\u0644\u0631\u0626\u064A\u0633\u064A: \u062A\u0628\u062F\u0623 \u0627\u0644\u0633\u0647\u0631\u0629.",
+    "Aperto il generale.": "\u0641\u064F\u062A\u062D \u0627\u0644\u0642\u0627\u0637\u0639 \u0627\u0644\u0631\u0626\u064A\u0633\u064A.",
+    "Chiuso il generale.": "\u0623\u064F\u063A\u0644\u0642 \u0627\u0644\u0642\u0627\u0637\u0639 \u0627\u0644\u0631\u0626\u064A\u0633\u064A.",
+    "L\u2019auto si attacca alla colonnina.": "\u062A\u064F\u0648\u0635\u064E\u0644 \u0627\u0644\u0633\u064A\u0627\u0631\u0629 \u0628\u0645\u062D\u0637\u0629 \u0627\u0644\u0634\u062D\u0646.",
+    "Il PLC stacca la colonnina.": "\u064A\u0641\u0635\u0644 \u0627\u0644\u0640 PLC \u0645\u062D\u0637\u0629 \u0627\u0644\u0634\u062D\u0646.",
+    "La colonnina riprende a caricare.": "\u062A\u0639\u0648\u062F \u0645\u062D\u0637\u0629 \u0627\u0644\u0634\u062D\u0646 \u0625\u0644\u0649 \u0627\u0644\u0634\u062D\u0646.",
+    "Si accende il forno.": "\u064A\u064F\u0634\u063A\u064E\u0651\u0644 \u0627\u0644\u0641\u0631\u0646.",
+    "Si spegne il forno.": "\u064A\u064F\u0637\u0641\u0623 \u0627\u0644\u0641\u0631\u0646.",
+    "Si apre la finestra del soggiorno.": "\u062A\u064F\u0641\u062A\u062D \u0646\u0627\u0641\u0630\u0629 \u063A\u0631\u0641\u0629 \u0627\u0644\u062C\u0644\u0648\u0633.",
+    "Si chiude la finestra del soggiorno.": "\u062A\u064F\u063A\u0644\u0642 \u0646\u0627\u0641\u0630\u0629 \u063A\u0631\u0641\u0629 \u0627\u0644\u062C\u0644\u0648\u0633.",
+    "La sonda del bagno \xE8 bagnata: suona la sirena.": "\u062D\u0633\u0651\u0627\u0633 \u0627\u0644\u062D\u0645\u0651\u0627\u0645 \u0645\u0628\u0644\u0644: \u062A\u062F\u0648\u0651\u064A \u0635\u0641\u0627\u0631\u0629 \u0627\u0644\u0625\u0646\u0630\u0627\u0631.",
+    "Asciugata la sonda.": "\u062C\u064F\u0641\u0651\u0641 \u0627\u0644\u062D\u0633\u0651\u0627\u0633.",
+    "Tacitata la sirena.": "\u0623\u064F\u0633\u0643\u062A\u062A \u0635\u0641\u0627\u0631\u0629 \u0627\u0644\u0625\u0646\u0630\u0627\u0631.",
+    "Tacitata la sirena con la sonda bagnata: riparte.": "\u0623\u064F\u0633\u0643\u062A\u062A \u0635\u0641\u0627\u0631\u0629 \u0627\u0644\u0625\u0646\u0630\u0627\u0631 \u0648\u0627\u0644\u062D\u0633\u0651\u0627\u0633 \u0645\u0628\u0644\u0644: \u062A\u0639\u0648\u062F.",
+    "Allagamento gestito.": "\u0639\u0648\u0644\u062C \u0627\u0644\u0641\u064A\u0636\u0627\u0646.",
+    "Allagamento gestito in ritardo.": "\u0639\u0648\u0644\u062C \u0627\u0644\u0641\u064A\u0636\u0627\u0646 \u0645\u062A\u0623\u062E\u0631\u064B\u0627.",
+    "Il contatore stacca: la casa \xE8 al buio.": "\u064A\u0641\u0635\u0644 \u0627\u0644\u0639\u062F\u0651\u0627\u062F: \u0627\u0644\u0628\u064A\u062A \u0641\u064A \u0627\u0644\u0638\u0644\u0627\u0645.",
+    "La pompa di calore si guasta.": "\u062A\u062A\u0639\u0637\u0644 \u0627\u0644\u0645\u0636\u062E\u0629 \u0627\u0644\u062D\u0631\u0627\u0631\u064A\u0629.",
+    "Programma del PLC cambiato.": "\u062A\u063A\u064A\u0651\u0631 \u0628\u0631\u0646\u0627\u0645\u062C \u0627\u0644\u0640 PLC.",
+    "Programma cambiato: la soglia di distacco \xE8 sotto il limite.": "\u062A\u063A\u064A\u0651\u0631 \u0627\u0644\u0628\u0631\u0646\u0627\u0645\u062C: \u0639\u062A\u0628\u0629 \u0627\u0644\u0641\u0635\u0644 \u062A\u062D\u062A \u0627\u0644\u062D\u062F.",
+    "Serata rifatta da capo.": "\u0623\u064F\u0639\u064A\u062F\u062A \u0627\u0644\u0633\u0647\u0631\u0629 \u0645\u0646 \u0627\u0644\u0628\u062F\u0627\u064A\u0629.",
+    "Le 23:00: fine della serata.": "\u0627\u0644\u0633\u0627\u0639\u0629 23:00: \u0646\u0647\u0627\u064A\u0629 \u0627\u0644\u0633\u0647\u0631\u0629.",
+    "Risposta giusta: la soglia di distacco \xE8 sopra il limite e il PLC non la vede mai.": "\u0625\u062C\u0627\u0628\u0629 \u0635\u062D\u064A\u062D\u0629: \u0639\u062A\u0628\u0629 \u0627\u0644\u0641\u0635\u0644 \u0641\u0648\u0642 \u0627\u0644\u062D\u062F \u0648\u0644\u0627 \u064A\u0631\u0627\u0647\u0627 \u0627\u0644\u0640 PLC \u0623\u0628\u062F\u064B\u0627.",
+    "Verifica: casa consegnata.": "\u0627\u0644\u062A\u062D\u0642\u0642: \u0633\u064F\u0644\u0651\u0645 \u0627\u0644\u0628\u064A\u062A.",
+    "Chiudi il generale: la serata comincia alle 16:30.": "\u0623\u063A\u0644\u0642 \u0627\u0644\u0642\u0627\u0637\u0639 \u0627\u0644\u0631\u0626\u064A\u0633\u064A: \u062A\u0628\u062F\u0623 \u0627\u0644\u0633\u0647\u0631\u0629 \u0641\u064A 16:30.",
+    "Guarda il pannello: le potenze, la batteria, l\u2019auto e le due stanze.": "\u0631\u0627\u0642\u0628 \u0627\u0644\u0644\u0648\u062D\u0629: \u0627\u0644\u0642\u062F\u0631\u0627\u062A\u060C \u0627\u0644\u0628\u0637\u0627\u0631\u064A\u0629\u060C \u0627\u0644\u0633\u064A\u0627\u0631\u0629 \u0648\u0627\u0644\u063A\u0631\u0641\u062A\u064A\u0646.",
+    "La casa \xE8 saltata: prima del buio la rete era sopra il limite e nessun carico si era staccato. Perch\xE9? Rispondi.": "\u0627\u0646\u0642\u0637\u0639 \u0627\u0644\u0628\u064A\u062A: \u0642\u0628\u0644 \u0627\u0644\u0638\u0644\u0627\u0645 \u0643\u0627\u0646\u062A \u0627\u0644\u0634\u0628\u0643\u0629 \u0641\u0648\u0642 \u0627\u0644\u062D\u062F \u0648\u0644\u0645 \u064A\u064F\u0641\u0635\u0644 \u0623\u064A \u062D\u0650\u0645\u0644. \u0644\u0645\u0627\u0630\u0627\u061F \u0623\u062C\u0628.",
+    "Apri il banco: nei due gradini del distacco la soglia va sotto il limite, con margine.": "\u0627\u0641\u062A\u062D \u0627\u0644\u0637\u0627\u0648\u0644\u0629: \u0641\u064A \u062F\u0631\u062C\u062A\u064A \u0627\u0644\u0641\u0635\u0644 \u062A\u0648\u0636\u0639 \u0627\u0644\u0639\u062A\u0628\u0629 \u062A\u062D\u062A \u0627\u0644\u062D\u062F\u060C \u0645\u0639 \u0647\u0627\u0645\u0634.",
+    "Rifai la serata da capo e guardala fino alle 23. Alle 21:30 tieni d\u2019occhio il bagno.": "\u0623\u0639\u062F \u0627\u0644\u0633\u0647\u0631\u0629 \u0645\u0646 \u0627\u0644\u0628\u062F\u0627\u064A\u0629 \u0648\u0631\u0627\u0642\u0628\u0647\u0627 \u062D\u062A\u0649 23. \u0641\u064A 21:30 \u0627\u0646\u062A\u0628\u0647 \u0644\u0644\u062D\u0645\u0651\u0627\u0645.",
+    "Serata finita: premi Verifica e consegna.": "\u0627\u0646\u062A\u0647\u062A \u0627\u0644\u0633\u0647\u0631\u0629: \u0627\u0636\u063A\u0637 \u0627\u0644\u062A\u062D\u0642\u0642 \u0648\u0633\u0644\u0651\u0645.",
+    "Casa consegnata": "\u0633\u064F\u0644\u0651\u0645 \u0627\u0644\u0628\u064A\u062A",
+    "La soglia di distacco era sopra il limite del contatore e oltre il fondo scala del misuratore: il PLC non staccava mai niente. Con la soglia a 5800 W la casa ha retto la cena con l\u2019auto in carica e la pompa accesa.": "\u0643\u0627\u0646\u062A \u0639\u062A\u0628\u0629 \u0627\u0644\u0641\u0635\u0644 \u0641\u0648\u0642 \u062D\u062F \u0627\u0644\u0639\u062F\u0651\u0627\u062F \u0648\u0628\u0639\u062F \u0646\u0647\u0627\u064A\u0629 \u0645\u062F\u0649 \u062C\u0647\u0627\u0632 \u0627\u0644\u0642\u064A\u0627\u0633: \u0644\u0645 \u064A\u0643\u0646 \u0627\u0644\u0640 PLC \u064A\u0641\u0635\u0644 \u0634\u064A\u0626\u064B\u0627. \u0645\u0639 \u0627\u0644\u0639\u062A\u0628\u0629 5800 \u0648\u0627\u0637 \u0635\u0645\u062F \u0627\u0644\u0628\u064A\u062A \u0623\u062B\u0646\u0627\u0621 \u0627\u0644\u0639\u0634\u0627\u0621 \u0648\u0627\u0644\u0633\u064A\u0627\u0631\u0629 \u062A\u064F\u0634\u062D\u0646 \u0648\u0627\u0644\u0645\u0636\u062E\u0629 \u062A\u0639\u0645\u0644.",
+    "Banco e programma": "\u0627\u0644\u0637\u0627\u0648\u0644\u0629 \u0648\u0627\u0644\u0628\u0631\u0646\u0627\u0645\u062C",
+    "Rifai la serata": "\u0623\u0639\u062F \u0627\u0644\u0633\u0647\u0631\u0629",
+    "Ultimi valori prima del buio": "\u0622\u062E\u0631 \u0627\u0644\u0642\u064A\u0645 \u0642\u0628\u0644 \u0627\u0644\u0638\u0644\u0627\u0645",
+    "La casa adesso": "\u0627\u0644\u0628\u064A\u062A \u0627\u0644\u0622\u0646",
+    "Sole": "\u0627\u0644\u0634\u0645\u0633",
+    "Batteria": "\u0627\u0644\u0628\u0637\u0627\u0631\u064A\u0629",
+    "Rete": "\u0627\u0644\u0634\u0628\u0643\u0629",
+    "Auto": "\u0627\u0644\u0633\u064A\u0627\u0631\u0629",
+    "Forno": "\u0627\u0644\u0641\u0631\u0646",
+    "acceso": "\u064A\u0639\u0645\u0644",
+    "spento": "\u0645\u062A\u0648\u0642\u0641",
+    "ferma": "\u0645\u062A\u0648\u0642\u0641\u0629",
+    "guasta": "\u0645\u0639\u0637\u0644\u0629",
+    "in funzione": "\u062A\u0639\u0645\u0644",
+    "non c\u2019\xE8": "\u063A\u064A\u0631 \u0645\u0648\u062C\u0648\u062F\u0629",
+    "in carica": "\u0641\u064A \u0627\u0644\u0634\u062D\u0646",
+    "attaccata, ferma": "\u0645\u0648\u0635\u0648\u0644\u0629\u060C \u0645\u062A\u0648\u0642\u0641\u0629",
+    "Contatore staccato": "\u0627\u0644\u0639\u062F\u0651\u0627\u062F \u0645\u0641\u0635\u0648\u0644",
+    "Allagamento in bagno": "\u0641\u064A\u0636\u0627\u0646 \u0641\u064A \u0627\u0644\u062D\u0645\u0651\u0627\u0645",
+    "Pompa di calore guasta": "\u0627\u0644\u0645\u0636\u062E\u0629 \u0627\u0644\u062D\u0631\u0627\u0631\u064A\u0629 \u0645\u0639\u0637\u0644\u0629",
+    "ha girato a vuoto": "\u0639\u0645\u0644\u062A \u0641\u064A \u0627\u0644\u0641\u0631\u0627\u063A",
+    "Asciuga la sonda": "\u062C\u0641\u0651\u0641 \u0627\u0644\u062D\u0633\u0651\u0627\u0633",
+    "Apri la finestra": "\u0627\u0641\u062A\u062D \u0627\u0644\u0646\u0627\u0641\u0630\u0629",
+    "Chiudi la finestra": "\u0623\u063A\u0644\u0642 \u0627\u0644\u0646\u0627\u0641\u0630\u0629",
+    "Casa al buio": "\u0627\u0644\u0628\u064A\u062A \u0641\u064A \u0627\u0644\u0638\u0644\u0627\u0645",
+    "Generale aperto: chiudilo per cominciare": "\u0627\u0644\u0642\u0627\u0637\u0639 \u0627\u0644\u0631\u0626\u064A\u0633\u064A \u0645\u0641\u062A\u0648\u062D: \u0623\u063A\u0644\u0642\u0647 \u0644\u0644\u0628\u062F\u0621",
+    "Serata finita": "\u0627\u0646\u062A\u0647\u062A \u0627\u0644\u0633\u0647\u0631\u0629",
+    "Installatore": "\u0627\u0644\u0645\u0631\u0643\u0651\u0628",
+    "La serata non \xE8 finita: guarda la casa fino alle 23:00.": "\u0644\u0645 \u062A\u0646\u062A\u0647\u0650 \u0627\u0644\u0633\u0647\u0631\u0629: \u0631\u0627\u0642\u0628 \u0627\u0644\u0628\u064A\u062A \u062D\u062A\u0649 23:00.",
+    "La serata non \xE8 cominciata: chiudi il generale.": "\u0644\u0645 \u062A\u0628\u062F\u0623 \u0627\u0644\u0633\u0647\u0631\u0629: \u0623\u063A\u0644\u0642 \u0627\u0644\u0642\u0627\u0637\u0639 \u0627\u0644\u0631\u0626\u064A\u0633\u064A.",
+    // nomi tecnici e sigle
+    "PLC.AI2+": "PLC.AI2+",
+    "PLC.AI2-": "PLC.AI2-",
+    "PLC.Q3": "PLC.Q3",
+    "eEv": "eEv",
+    "hpRun": "hpRun",
+    // visore del ladder (etichette dei gradini)
+    "Confronto AI2 \u2265 3,6": "\u0645\u0642\u0627\u0631\u0646\u0629 AI2 \u2265 3\u066B6",
+    "Confronto MW0 < 2000": "\u0645\u0642\u0627\u0631\u0646\u0629 MW0 < 2000",
+    "Confronto MW0 < 4200": "\u0645\u0642\u0627\u0631\u0646\u0629 MW0 < 4200",
+    "Confronto MW0 > 6500": "\u0645\u0642\u0627\u0631\u0646\u0629 MW0 > 6500",
+    "Confronto MW0 > 5800": "\u0645\u0642\u0627\u0631\u0646\u0629 MW0 > 5800",
+    "Confronto MW1 < 20": "\u0645\u0642\u0627\u0631\u0646\u0629 MW1 < 20",
+    "Confronto MW1 > 22": "\u0645\u0642\u0627\u0631\u0646\u0629 MW1 > 22",
+    "Confronto MW2 < 20": "\u0645\u0642\u0627\u0631\u0646\u0629 MW2 < 20",
+    "Confronto MW2 > 22": "\u0645\u0642\u0627\u0631\u0646\u0629 MW2 > 22",
+    "Contatto Colonnina": "\u0645\u0644\u0627\u0645\u0633 \u0645\u062D\u0637\u0629 \u0627\u0644\u0634\u062D\u0646",
+    "Contatto Colonnina, normalmente chiuso": "\u0645\u0644\u0627\u0645\u0633 \u0645\u062D\u0637\u0629 \u0627\u0644\u0634\u062D\u0646\u060C \u0645\u063A\u0644\u0642 \u0639\u0627\u062F\u0629\u064B",
+    "Contatto Finestra soggiorno aperta": "\u0645\u0644\u0627\u0645\u0633 \u0646\u0627\u0641\u0630\u0629 \u0627\u0644\u062C\u0644\u0648\u0633 \u0645\u0641\u062A\u0648\u062D\u0629",
+    "Contatto Margine per la colonnina": "\u0645\u0644\u0627\u0645\u0633 \u0647\u0627\u0645\u0634 \u0644\u0645\u062D\u0637\u0629 \u0627\u0644\u0634\u062D\u0646",
+    "Contatto Margine per la pompa": "\u0645\u0644\u0627\u0645\u0633 \u0647\u0627\u0645\u0634 \u0644\u0644\u0645\u0636\u062E\u0629",
+    "Contatto Pompa permessa": "\u0645\u0644\u0627\u0645\u0633 \u0627\u0644\u0645\u0636\u062E\u0629 \u0645\u0633\u0645\u0648\u062D \u0628\u0647\u0627",
+    "Contatto Potenza ancora alta": "\u0645\u0644\u0627\u0645\u0633 \u0627\u0644\u0642\u062F\u0631\u0629 \u0645\u0627 \u0632\u0627\u0644\u062A \u0645\u0631\u062A\u0641\u0639\u0629",
+    "Contatto Valvola camera": "\u0645\u0644\u0627\u0645\u0633 \u0635\u0645\u0627\u0645 \u0627\u0644\u0646\u0648\u0645",
+    "Contatto Valvola soggiorno": "\u0645\u0644\u0627\u0645\u0633 \u0635\u0645\u0627\u0645 \u0627\u0644\u062C\u0644\u0648\u0633",
+    "Morsetto PLC AI2+": "\u0627\u0644\u0645\u0631\u0628\u0637 AI2+ \u0641\u064A \u0627\u0644\u0640PLC",
+    "Morsetto PLC AI2-": "\u0627\u0644\u0645\u0631\u0628\u0637 AI2- \u0641\u064A \u0627\u0644\u0640PLC",
+    "Pompa permessa": "\u0627\u0644\u0645\u0636\u062E\u0629 \u0645\u0633\u0645\u0648\u062D \u0628\u0647\u0627",
+    "Potenza ancora alta": "\u0627\u0644\u0642\u062F\u0631\u0629 \u0645\u0627 \u0632\u0627\u0644\u062A \u0645\u0631\u062A\u0641\u0639\u0629",
+    "TON 5 s": "TON 5 \u062B",
+    "Uscita Colonnina": "\u0645\u062E\u0631\u062C \u0645\u062D\u0637\u0629 \u0627\u0644\u0634\u062D\u0646",
+    "Uscita Margine per la colonnina": "\u0645\u062E\u0631\u062C \u0647\u0627\u0645\u0634 \u0644\u0645\u062D\u0637\u0629 \u0627\u0644\u0634\u062D\u0646",
+    "Uscita Margine per la pompa": "\u0645\u062E\u0631\u062C \u0647\u0627\u0645\u0634 \u0644\u0644\u0645\u0636\u062E\u0629",
+    "Uscita Pompa di calore": "\u0645\u062E\u0631\u062C \u0627\u0644\u0645\u0636\u062E\u0629 \u0627\u0644\u062D\u0631\u0627\u0631\u064A\u0629",
+    "Uscita Pompa permessa": "\u0645\u062E\u0631\u062C \u0627\u0644\u0645\u0636\u062E\u0629 \u0645\u0633\u0645\u0648\u062D \u0628\u0647\u0627",
+    "Uscita Potenza ancora alta": "\u0645\u062E\u0631\u062C \u0627\u0644\u0642\u062F\u0631\u0629 \u0645\u0627 \u0632\u0627\u0644\u062A \u0645\u0631\u062A\u0641\u0639\u0629",
+    "Uscita Valvola camera": "\u0645\u062E\u0631\u062C \u0635\u0645\u0627\u0645 \u0627\u0644\u0646\u0648\u0645",
+    "Uscita Valvola soggiorno": "\u0645\u062E\u0631\u062C \u0635\u0645\u0627\u0645 \u0627\u0644\u062C\u0644\u0648\u0633",
+    // livello
+    "Una sera d\u2019inverno": "\u0645\u0633\u0627\u0621 \u0645\u0646 \u0623\u0645\u0633\u064A\u0627\u062A \u0627\u0644\u0634\u062A\u0627\u0621",
+    "La casa intelligente \xE8 finita: chiudi il generale e guardala lavorare da sola fino alle 23. Poi consegna.": "\u0627\u0644\u0628\u064A\u062A \u0627\u0644\u0630\u0643\u064A \u062C\u0627\u0647\u0632: \u0623\u063A\u0644\u0642 \u0627\u0644\u0642\u0627\u0637\u0639 \u0627\u0644\u0631\u0626\u064A\u0633\u064A \u0648\u0631\u0627\u0642\u0628\u0647 \u064A\u0639\u0645\u0644 \u0648\u062D\u062F\u0647 \u062D\u062A\u0649 \u0627\u0644\u0633\u0627\u0639\u0629 23. \u062B\u0645 \u0633\u0644\u0651\u0645\u0647.",
+    "Famiglia Rossi, Via Roma 12. L\u2019impianto \xE8 finito: pannelli, batteria, colonnina, pompa di calore con due zone, allarme di allagamento, tutto comandato dal PLC. Stasera la casa va da sola. Chiudi il generale e guardala lavorare dalle 16:30 alle 23: l\u2019auto arriva, si cucina, qualcuno apre la finestra. Se qualcosa non va, leggi il pannello, capisci, correggi e rifai la serata. Poi consegna.": "\u0639\u0627\u0626\u0644\u0629 \u0631\u0648\u0633\u064A\u060C \u0634\u0627\u0631\u0639 \u0631\u0648\u0645\u0627 12. \u0627\u0644\u062A\u0631\u0643\u064A\u0628 \u062C\u0627\u0647\u0632: \u0627\u0644\u0623\u0644\u0648\u0627\u062D\u060C \u0627\u0644\u0628\u0637\u0627\u0631\u064A\u0629\u060C \u0645\u062D\u0637\u0629 \u0627\u0644\u0634\u062D\u0646\u060C \u0627\u0644\u0645\u0636\u062E\u0629 \u0627\u0644\u062D\u0631\u0627\u0631\u064A\u0629 \u0628\u0645\u0646\u0637\u0642\u062A\u064A\u0646\u060C \u0625\u0646\u0630\u0627\u0631 \u0627\u0644\u0641\u064A\u0636\u0627\u0646\u060C \u0648\u0643\u0644 \u0630\u0644\u0643 \u064A\u062A\u062D\u0643\u0645 \u0641\u064A\u0647 \u0627\u0644\u0640 PLC. \u0627\u0644\u0644\u064A\u0644\u0629 \u064A\u0639\u0645\u0644 \u0627\u0644\u0628\u064A\u062A \u0648\u062D\u062F\u0647. \u0623\u063A\u0644\u0642 \u0627\u0644\u0642\u0627\u0637\u0639 \u0627\u0644\u0631\u0626\u064A\u0633\u064A \u0648\u0631\u0627\u0642\u0628\u0647 \u0645\u0646 16:30 \u062D\u062A\u0649 23: \u062A\u0635\u0644 \u0627\u0644\u0633\u064A\u0627\u0631\u0629\u060C \u064A\u064F\u0637\u0628\u062E \u0627\u0644\u0639\u0634\u0627\u0621\u060C \u064A\u0641\u062A\u062D \u0623\u062D\u062F\u0647\u0645 \u0627\u0644\u0646\u0627\u0641\u0630\u0629. \u0625\u0630\u0627 \u0644\u0645 \u064A\u0633\u0631 \u0634\u064A\u0621 \u0643\u0645\u0627 \u064A\u062C\u0628\u060C \u0627\u0642\u0631\u0623 \u0627\u0644\u0644\u0648\u062D\u0629\u060C \u0627\u0641\u0647\u0645\u060C \u0635\u062D\u0651\u062D \u0648\u0623\u0639\u062F \u0627\u0644\u0633\u0647\u0631\u0629. \u062B\u0645 \u0633\u0644\u0651\u0645.",
+    "Generale": "\u0627\u0644\u0631\u0626\u064A\u0633\u064A",
+    "Interruttore generale della casa": "\u0627\u0644\u0642\u0627\u0637\u0639 \u0627\u0644\u0631\u0626\u064A\u0633\u064A \u0644\u0644\u0628\u064A\u062A",
+    "PLC della casa": "PLC \u0627\u0644\u0628\u064A\u062A",
+    "Spina dell\u2019auto": "\u0642\u0627\u0628\u0633 \u0627\u0644\u0633\u064A\u0627\u0631\u0629",
+    "Contatto della spina: chiuso quando l\u2019auto \xE8 attaccata alla colonnina": "\u0645\u0644\u0627\u0645\u0633 \u0627\u0644\u0642\u0627\u0628\u0633: \u0645\u063A\u0644\u0642 \u0639\u0646\u062F\u0645\u0627 \u062A\u0643\u0648\u0646 \u0627\u0644\u0633\u064A\u0627\u0631\u0629 \u0645\u0648\u0635\u0648\u0644\u0629 \u0628\u0645\u062D\u0637\u0629 \u0627\u0644\u0634\u062D\u0646",
+    "Auto in ricarica (3,7 kW)": "\u0627\u0644\u0633\u064A\u0627\u0631\u0629 \u0641\u064A \u0627\u0644\u0634\u062D\u0646 (3,7 \u0643\u064A\u0644\u0648\u0648\u0627\u0637)",
+    "Pompa di calore in funzione (1,5 kW)": "\u0627\u0644\u0645\u0636\u062E\u0629 \u0627\u0644\u062D\u0631\u0627\u0631\u064A\u0629 \u062A\u0639\u0645\u0644 (1,5 \u0643\u064A\u0644\u0648\u0648\u0627\u0637)",
+    "Sonda di allagamento del bagno": "\u062D\u0633\u0651\u0627\u0633 \u0627\u0644\u0641\u064A\u0636\u0627\u0646 \u0641\u064A \u0627\u0644\u062D\u0645\u0651\u0627\u0645",
+    "La casa di sera: pannelli, batteria, colonnina, pompa di calore e due stanze": "\u0627\u0644\u0628\u064A\u062A \u0641\u064A \u0627\u0644\u0645\u0633\u0627\u0621: \u0627\u0644\u0623\u0644\u0648\u0627\u062D\u060C \u0627\u0644\u0628\u0637\u0627\u0631\u064A\u0629\u060C \u0645\u062D\u0637\u0629 \u0627\u0644\u0634\u062D\u0646\u060C \u0627\u0644\u0645\u0636\u062E\u0629 \u0627\u0644\u062D\u0631\u0627\u0631\u064A\u0629 \u0648\u063A\u0631\u0641\u062A\u0627\u0646",
+    "Asciugata la sonda la sirena continua, finch\xE9 non si tacita": "\u0628\u0639\u062F \u062A\u062C\u0641\u064A\u0641 \u0627\u0644\u062D\u0633\u0651\u0627\u0633 \u062A\u0633\u062A\u0645\u0631 \u0635\u0641\u0627\u0631\u0629 \u0627\u0644\u0625\u0646\u0630\u0627\u0631 \u062D\u062A\u0649 \u064A\u062A\u0645 \u0625\u0633\u0643\u0627\u062A\u0647\u0627",
+    "Con la sonda asciutta il tasto di tacitazione ferma la sirena": "\u0639\u0646\u062F\u0645\u0627 \u064A\u0643\u0648\u0646 \u0627\u0644\u062D\u0633\u0651\u0627\u0633 \u062C\u0627\u0641\u064B\u0627 \u064A\u0648\u0642\u0641 \u0632\u0631 \u0627\u0644\u0625\u0633\u0643\u0627\u062A \u0635\u0641\u0627\u0631\u0629 \u0627\u0644\u0625\u0646\u0630\u0627\u0631",
+    // eventi della serata
+    "l\u2019auto si attacca alla colonnina": "\u062A\u064F\u0648\u0635\u064E\u0644 \u0627\u0644\u0633\u064A\u0627\u0631\u0629 \u0628\u0645\u062D\u0637\u0629 \u0627\u0644\u0634\u062D\u0646",
+    "qualcuno apre la finestra del soggiorno": "\u064A\u0641\u062A\u062D \u0623\u062D\u062F\u0647\u0645 \u0646\u0627\u0641\u0630\u0629 \u063A\u0631\u0641\u0629 \u0627\u0644\u062C\u0644\u0648\u0633",
+    "la finestra del soggiorno si richiude": "\u062A\u064F\u063A\u0644\u0642 \u0646\u0627\u0641\u0630\u0629 \u063A\u0631\u0641\u0629 \u0627\u0644\u062C\u0644\u0648\u0633 \u0645\u0646 \u062C\u062F\u064A\u062F",
+    "la sonda di allagamento del bagno": "\u062D\u0633\u0651\u0627\u0633 \u0627\u0644\u0641\u064A\u0636\u0627\u0646 \u0641\u064A \u0627\u0644\u062D\u0645\u0651\u0627\u0645",
+    // suggerimenti
+    "Per cominciare chiudi il generale: la serata parte dalle 16:30.": "\u0644\u0644\u0628\u062F\u0621 \u0623\u063A\u0644\u0642 \u0627\u0644\u0642\u0627\u0637\u0639 \u0627\u0644\u0631\u0626\u064A\u0633\u064A: \u062A\u0628\u062F\u0623 \u0627\u0644\u0633\u0647\u0631\u0629 \u0645\u0646 \u0627\u0644\u0633\u0627\u0639\u0629 16:30.",
+    "Se il contatore stacca, guarda sul pannello la potenza della rete prima del buio: era sopra la riga del limite e nessun carico si \xE8 staccato. Allora il PLC non ha visto la potenza superare la soglia di distacco.": "\u0625\u0630\u0627 \u0641\u0635\u0644 \u0627\u0644\u0639\u062F\u0651\u0627\u062F\u060C \u0627\u0646\u0638\u0631 \u0641\u064A \u0627\u0644\u0644\u0648\u062D\u0629 \u0625\u0644\u0649 \u0642\u062F\u0631\u0629 \u0627\u0644\u0634\u0628\u0643\u0629 \u0642\u0628\u0644 \u0627\u0644\u0638\u0644\u0627\u0645: \u0643\u0627\u0646\u062A \u0641\u0648\u0642 \u062E\u0637 \u0627\u0644\u062D\u062F \u0648\u0644\u0645 \u064A\u064F\u0641\u0635\u0644 \u0623\u064A \u062D\u0650\u0645\u0644. \u0625\u0630\u0646 \u0644\u0645 \u064A\u0631\u064E \u0627\u0644\u0640 PLC \u0627\u0644\u0642\u062F\u0631\u0629 \u062A\u062A\u062C\u0627\u0648\u0632 \u0639\u062A\u0628\u0629 \u0627\u0644\u0641\u0635\u0644.",
+    "Il misuratore arriva al massimo a 6 kW (fondo scala): oltre, il segnale si ferma. Una soglia sopra il limite del contatore non si raggiunge mai. Va messa sotto il limite, con margine: per esempio 5800 W, nei due gradini del distacco.": "\u062C\u0647\u0627\u0632 \u0627\u0644\u0642\u064A\u0627\u0633 \u064A\u0635\u0644 \u0625\u0644\u0649 6 \u0643\u064A\u0644\u0648\u0648\u0627\u0637 \u0639\u0644\u0649 \u0627\u0644\u0623\u0643\u062B\u0631 (\u0646\u0647\u0627\u064A\u0629 \u0645\u062F\u0649 \u0627\u0644\u0642\u064A\u0627\u0633): \u0628\u0639\u062F\u0647\u0627 \u062A\u062A\u0648\u0642\u0641 \u0627\u0644\u0625\u0634\u0627\u0631\u0629. \u0627\u0644\u0639\u062A\u0628\u0629 \u0641\u0648\u0642 \u062D\u062F \u0627\u0644\u0639\u062F\u0651\u0627\u062F \u0644\u0627 \u064A\u062A\u0645 \u0628\u0644\u0648\u063A\u0647\u0627 \u0623\u0628\u062F\u064B\u0627. \u064A\u062C\u0628 \u0648\u0636\u0639\u0647\u0627 \u062A\u062D\u062A \u0627\u0644\u062D\u062F \u0645\u0639 \u0647\u0627\u0645\u0634: \u0645\u062B\u0644\u064B\u0627 5800 \u0648\u0627\u0637\u060C \u0641\u064A \u062F\u0631\u062C\u062A\u064A \u0627\u0644\u0641\u0635\u0644.",
+    "Allagamento: prima asciuga la sonda, poi tacita la sirena. Se tacitassi con la sonda bagnata, ripartirebbe subito.": "\u0627\u0644\u0641\u064A\u0636\u0627\u0646: \u062C\u0641\u0651\u0641 \u0627\u0644\u062D\u0633\u0651\u0627\u0633 \u0623\u0648\u0644\u064B\u0627\u060C \u062B\u0645 \u0623\u0633\u0643\u062A \u0635\u0641\u0627\u0631\u0629 \u0627\u0644\u0625\u0646\u0630\u0627\u0631. \u0644\u0648 \u0623\u0633\u0643\u062A\u0651\u0647\u0627 \u0648\u0627\u0644\u062D\u0633\u0651\u0627\u0633 \u0645\u0628\u0644\u0644\u060C \u0644\u0639\u0627\u062F\u062A \u0641\u0648\u0631\u064B\u0627.",
+    // unita': lezione
+    "Consegnare una casa intelligente": "\u062A\u0633\u0644\u064A\u0645 \u0628\u064A\u062A \u0630\u0643\u064A",
+    "In una casa intelligente i fili sono solo met\xE0 del lavoro. L\u2019altra met\xE0 sono le regole scritte nel PLC: quando staccare l\u2019auto, quando scaldare una stanza, che cosa fare se si apre una finestra. Un impianto cablato bene con una regola sbagliata lascia la famiglia al buio come un filo staccato.": "\u0641\u064A \u0627\u0644\u0628\u064A\u062A \u0627\u0644\u0630\u0643\u064A \u0627\u0644\u0623\u0633\u0644\u0627\u0643 \u0646\u0635\u0641 \u0627\u0644\u0639\u0645\u0644 \u0641\u0642\u0637. \u0627\u0644\u0646\u0635\u0641 \u0627\u0644\u0622\u062E\u0631 \u0647\u0648 \u0627\u0644\u0642\u0648\u0627\u0639\u062F \u0627\u0644\u0645\u0643\u062A\u0648\u0628\u0629 \u0641\u064A \u0627\u0644\u0640 PLC: \u0645\u062A\u0649 \u062A\u064F\u0641\u0635\u0644 \u0627\u0644\u0633\u064A\u0627\u0631\u0629\u060C \u0645\u062A\u0649 \u062A\u064F\u062F\u0641\u0651\u0623 \u063A\u0631\u0641\u0629\u060C \u0645\u0627\u0630\u0627 \u064A\u064F\u0641\u0639\u0644 \u0625\u0630\u0627 \u0641\u064F\u062A\u062D\u062A \u0646\u0627\u0641\u0630\u0629. \u062A\u0631\u0643\u064A\u0628 \u0645\u0648\u0635\u0648\u0644 \u062C\u064A\u062F\u064B\u0627 \u0628\u0642\u0627\u0639\u062F\u0629 \u062E\u0627\u0637\u0626\u0629 \u064A\u062A\u0631\u0643 \u0627\u0644\u0639\u0627\u0626\u0644\u0629 \u0641\u064A \u0627\u0644\u0638\u0644\u0627\u0645 \u0645\u062B\u0644 \u0633\u0644\u0643 \u0645\u0641\u0635\u0648\u0644.",
+    "Per questo una casa intelligente non si consegna dopo aver acceso una lampada. Si guarda lavorare per una sera intera, con tutto quello che succede davvero: il sole che cala, l\u2019auto che arriva, la cena, una finestra aperta.": "\u0644\u0647\u0630\u0627 \u0644\u0627 \u064A\u064F\u0633\u0644\u064E\u0651\u0645 \u0627\u0644\u0628\u064A\u062A \u0627\u0644\u0630\u0643\u064A \u0628\u0639\u062F \u0625\u0634\u0639\u0627\u0644 \u0645\u0635\u0628\u0627\u062D. \u064A\u064F\u0631\u0627\u0642\u064E\u0628 \u0648\u0647\u0648 \u064A\u0639\u0645\u0644 \u0633\u0647\u0631\u0629 \u0643\u0627\u0645\u0644\u0629\u060C \u0645\u0639 \u0643\u0644 \u0645\u0627 \u064A\u062D\u062F\u062B \u0641\u0639\u0644\u064B\u0627: \u0627\u0644\u0634\u0645\u0633 \u0627\u0644\u062A\u064A \u062A\u063A\u064A\u0628\u060C \u0627\u0644\u0633\u064A\u0627\u0631\u0629 \u0627\u0644\u062A\u064A \u062A\u0635\u0644\u060C \u0627\u0644\u0639\u0634\u0627\u0621\u060C \u0646\u0627\u0641\u0630\u0629 \u0645\u0641\u062A\u0648\u062D\u0629.",
+    "Che cosa c\u2019\xE8": "\u0645\u0627\u0630\u0627 \u064A\u0648\u062C\u062F",
+    "Dove l\u2019hai visto": "\u0623\u064A\u0646 \u0631\u0623\u064A\u062A\u0647",
+    "Gestione dei carichi": "\u0625\u062F\u0627\u0631\u0629 \u0627\u0644\u0623\u062D\u0645\u0627\u0644",
+    "stacca prima l\u2019auto e poi la pompa, per non far saltare il contatore": "\u064A\u0641\u0635\u0644 \u0627\u0644\u0633\u064A\u0627\u0631\u0629 \u0623\u0648\u0644\u064B\u0627 \u062B\u0645 \u0627\u0644\u0645\u0636\u062E\u0629\u060C \u0643\u064A \u0644\u0627 \u064A\u0641\u0635\u0644 \u0627\u0644\u0639\u062F\u0651\u0627\u062F",
+    "Clima per zone": "\u0627\u0644\u062A\u062F\u0641\u0626\u0629 \u062D\u0633\u0628 \u0627\u0644\u0645\u0646\u0627\u0637\u0642",
+    "scalda soggiorno e camera tra 20 e 22 \xB0C, chiude la valvola se la finestra \xE8 aperta": "\u064A\u062F\u0641\u0651\u0626 \u063A\u0631\u0641\u0629 \u0627\u0644\u062C\u0644\u0648\u0633 \u0648\u063A\u0631\u0641\u0629 \u0627\u0644\u0646\u0648\u0645 \u0628\u064A\u0646 20 \u064822 \xB0C\u060C \u0648\u064A\u063A\u0644\u0642 \u0627\u0644\u0635\u0645\u0627\u0645 \u0625\u0630\u0627 \u0643\u0627\u0646\u062A \u0627\u0644\u0646\u0627\u0641\u0630\u0629 \u0645\u0641\u062A\u0648\u062D\u0629",
+    "Pannelli e batteria": "\u0627\u0644\u0623\u0644\u0648\u0627\u062D \u0648\u0627\u0644\u0628\u0637\u0627\u0631\u064A\u0629",
+    "di giorno producono, la sera la batteria copre i consumi": "\u0641\u064A \u0627\u0644\u0646\u0647\u0627\u0631 \u062A\u064F\u0646\u062A\u062C\u060C \u0648\u0641\u064A \u0627\u0644\u0645\u0633\u0627\u0621 \u062A\u063A\u0637\u064A \u0627\u0644\u0628\u0637\u0627\u0631\u064A\u0629 \u0627\u0644\u0627\u0633\u062A\u0647\u0644\u0627\u0643",
+    "Allarme di allagamento": "\u0625\u0646\u0630\u0627\u0631 \u0627\u0644\u0641\u064A\u0636\u0627\u0646",
+    "la sirena suona finch\xE9 non si asciuga la sonda e si tacita": "\u062A\u062F\u0648\u0651\u064A \u0635\u0641\u0627\u0631\u0629 \u0627\u0644\u0625\u0646\u0630\u0627\u0631 \u062D\u062A\u0649 \u064A\u064F\u062C\u0641\u064E\u0651\u0641 \u0627\u0644\u062D\u0633\u0651\u0627\u0633 \u0648\u064A\u062A\u0645 \u0627\u0644\u0625\u0633\u0643\u0627\u062A",
+    "Il misuratore ha un fondo scala": "\u0644\u062C\u0647\u0627\u0632 \u0627\u0644\u0642\u064A\u0627\u0633 \u0646\u0647\u0627\u064A\u0629 \u0645\u062F\u0649",
+    "Il PLC conosce la potenza della casa solo attraverso il misuratore del contatore. Il misuratore manda un segnale da 4 a 20 mA che vuol dire da \u22126 kW (la casa immette) a +6 kW (la casa preleva). Oltre i 6 kW il segnale non sale pi\xF9: si ferma a 20,5 mA, cio\xE8 circa 6,4 kW, anche se la casa preleva 8 o 10 kW.": "\u0644\u0627 \u064A\u0639\u0631\u0641 \u0627\u0644\u0640 PLC \u0642\u062F\u0631\u0629 \u0627\u0644\u0628\u064A\u062A \u0625\u0644\u0627 \u0639\u0628\u0631 \u062C\u0647\u0627\u0632 \u0642\u064A\u0627\u0633 \u0627\u0644\u0639\u062F\u0651\u0627\u062F. \u064A\u0631\u0633\u0644 \u062C\u0647\u0627\u0632 \u0627\u0644\u0642\u064A\u0627\u0633 \u0625\u0634\u0627\u0631\u0629 \u0645\u0646 4 \u0625\u0644\u0649 20 \u0645\u0644\u0644\u064A \u0623\u0645\u0628\u064A\u0631 \u062A\u0639\u0646\u064A \u0645\u0646 \u22126 \u0643\u064A\u0644\u0648\u0648\u0627\u0637 (\u0627\u0644\u0628\u064A\u062A \u064A\u0636\u062E\u0651) \u0625\u0644\u0649 +6 \u0643\u064A\u0644\u0648\u0648\u0627\u0637 (\u0627\u0644\u0628\u064A\u062A \u064A\u0633\u062D\u0628). \u0628\u0639\u062F 6 \u0643\u064A\u0644\u0648\u0648\u0627\u0637 \u0644\u0627 \u062A\u0631\u062A\u0641\u0639 \u0627\u0644\u0625\u0634\u0627\u0631\u0629 \u0623\u0643\u062B\u0631: \u062A\u062A\u0648\u0642\u0641 \u0639\u0646\u062F 20,5 \u0645\u0644\u0644\u064A \u0623\u0645\u0628\u064A\u0631\u060C \u0623\u064A \u062D\u0648\u0627\u0644\u064A 6,4 \u0643\u064A\u0644\u0648\u0648\u0627\u0637\u060C \u062D\u062A\u0649 \u0644\u0648 \u0633\u062D\u0628 \u0627\u0644\u0628\u064A\u062A 8 \u0623\u0648 10 \u0643\u064A\u0644\u0648\u0648\u0627\u0637.",
+    "Quindi una soglia scritta nel programma vale solo se il misuratore la pu\xF2 raggiungere. Una soglia oltre il fondo scala non scatta mai.": "\u0625\u0630\u0646 \u0627\u0644\u0639\u062A\u0628\u0629 \u0627\u0644\u0645\u0643\u062A\u0648\u0628\u0629 \u0641\u064A \u0627\u0644\u0628\u0631\u0646\u0627\u0645\u062C \u0644\u0627 \u062A\u0646\u0641\u0639 \u0625\u0644\u0627 \u0625\u0630\u0627 \u0627\u0633\u062A\u0637\u0627\u0639 \u062C\u0647\u0627\u0632 \u0627\u0644\u0642\u064A\u0627\u0633 \u0628\u0644\u0648\u063A\u0647\u0627. \u0627\u0644\u0639\u062A\u0628\u0629 \u0628\u0639\u062F \u0646\u0647\u0627\u064A\u0629 \u0627\u0644\u0645\u062F\u0649 \u0644\u0627 \u062A\u0639\u0645\u0644 \u0623\u0628\u062F\u064B\u0627.",
+    "Potenza vera": "\u0627\u0644\u0642\u062F\u0631\u0629 \u0627\u0644\u062D\u0642\u064A\u0642\u064A\u0629",
+    "Il PLC legge": "\u064A\u0642\u0631\u0623 \u0627\u0644\u0640 PLC",
+    "20,5 mA (fermo)": "20,5 \u0645\u0644\u0644\u064A \u0623\u0645\u0628\u064A\u0631 (\u062B\u0627\u0628\u062A)",
+    "circa 6400 W": "\u062D\u0648\u0627\u0644\u064A 6400 \u0648\u0627\u0637",
+    "La soglia di distacco va sotto il limite del contatore, con margine. Sopra il limite il contatore stacca comunque dopo 20 secondi.": "\u062A\u0648\u0636\u0639 \u0639\u062A\u0628\u0629 \u0627\u0644\u0641\u0635\u0644 \u062A\u062D\u062A \u062D\u062F \u0627\u0644\u0639\u062F\u0651\u0627\u062F \u0645\u0639 \u0647\u0627\u0645\u0634. \u0641\u0648\u0642 \u0627\u0644\u062D\u062F \u064A\u0641\u0635\u0644 \u0627\u0644\u0639\u062F\u0651\u0627\u062F \u0639\u0644\u0649 \u0623\u064A \u062D\u0627\u0644 \u0628\u0639\u062F 20 \u062B\u0627\u0646\u064A\u0629.",
+    "Si guarda la serata intera": "\u062A\u064F\u0631\u0627\u0642\u064E\u0628 \u0627\u0644\u0633\u0647\u0631\u0629 \u0643\u0644\u0647\u0627",
+    "Chiudi il generale alle 16:30 e lascia andare la casa fino alle 23. Il pannello a muro mostra le potenze, la batteria, l\u2019auto e le due stanze. Alle 21:30 la sonda del bagno potrebbe bagnarsi: prima la asciughi, poi taciti la sirena.": "\u0623\u063A\u0644\u0642 \u0627\u0644\u0642\u0627\u0637\u0639 \u0627\u0644\u0631\u0626\u064A\u0633\u064A \u0641\u064A 16:30 \u0648\u062F\u0639 \u0627\u0644\u0628\u064A\u062A \u064A\u0639\u0645\u0644 \u062D\u062A\u0649 23. \u062A\u0639\u0631\u0636 \u0627\u0644\u0644\u0648\u062D\u0629 \u0627\u0644\u062C\u062F\u0627\u0631\u064A\u0629 \u0627\u0644\u0642\u062F\u0631\u0627\u062A\u060C \u0627\u0644\u0628\u0637\u0627\u0631\u064A\u0629\u060C \u0627\u0644\u0633\u064A\u0627\u0631\u0629 \u0648\u0627\u0644\u063A\u0631\u0641\u062A\u064A\u0646. \u0641\u064A 21:30 \u0642\u062F \u064A\u062A\u0628\u0644\u0644 \u062D\u0633\u0651\u0627\u0633 \u0627\u0644\u062D\u0645\u0651\u0627\u0645: \u062C\u0641\u0651\u0641\u0647 \u0623\u0648\u0644\u064B\u0627\u060C \u062B\u0645 \u0623\u0633\u0643\u062A \u0635\u0641\u0627\u0631\u0629 \u0627\u0644\u0625\u0646\u0630\u0627\u0631.",
+    "Se il contatore stacca, la casa resta al buio fino a fine serata: il contatore non si riarma da solo e una casa che salta a ogni cena non si consegna. Si capisce perch\xE9, si corregge il programma e si rif\xE0 la serata da capo.": "\u0625\u0630\u0627 \u0641\u0635\u0644 \u0627\u0644\u0639\u062F\u0651\u0627\u062F\u060C \u064A\u0628\u0642\u0649 \u0627\u0644\u0628\u064A\u062A \u0641\u064A \u0627\u0644\u0638\u0644\u0627\u0645 \u062D\u062A\u0649 \u0646\u0647\u0627\u064A\u0629 \u0627\u0644\u0633\u0647\u0631\u0629: \u0627\u0644\u0639\u062F\u0651\u0627\u062F \u0644\u0627 \u064A\u0639\u064A\u062F \u0627\u0644\u062A\u0648\u0635\u064A\u0644 \u0648\u062D\u062F\u0647\u060C \u0648\u0627\u0644\u0628\u064A\u062A \u0627\u0644\u0630\u064A \u064A\u0646\u0642\u0637\u0639 \u0639\u0646\u062F \u0643\u0644 \u0639\u0634\u0627\u0621 \u0644\u0627 \u064A\u064F\u0633\u0644\u064E\u0651\u0645. \u0646\u0641\u0647\u0645 \u0627\u0644\u0633\u0628\u0628\u060C \u0646\u0635\u062D\u0651\u062D \u0627\u0644\u0628\u0631\u0646\u0627\u0645\u062C \u0648\u0646\u0639\u064A\u062F \u0627\u0644\u0633\u0647\u0631\u0629 \u0645\u0646 \u0627\u0644\u0628\u062F\u0627\u064A\u0629.",
+    "Vuoi una spia che si accenda quando la casa preleva pi\xF9 di 7 kW. Scrivi il gradino \u201CMW0 maggiore di 7000\u201D, con il misuratore da \u22126 a +6 kW. Una sera la casa preleva 8 kW. La spia si accende?": "\u062A\u0631\u064A\u062F \u0645\u0635\u0628\u0627\u062D \u0625\u0634\u0627\u0631\u0629 \u064A\u0636\u064A\u0621 \u0639\u0646\u062F\u0645\u0627 \u064A\u0633\u062D\u0628 \u0627\u0644\u0628\u064A\u062A \u0623\u0643\u062B\u0631 \u0645\u0646 7 \u0643\u064A\u0644\u0648\u0648\u0627\u0637. \u062A\u0643\u062A\u0628 \u0627\u0644\u062F\u0631\u062C\u0629 \xABMW0 \u0623\u0643\u0628\u0631 \u0645\u0646 7000\xBB\u060C \u0645\u0639 \u062C\u0647\u0627\u0632 \u0642\u064A\u0627\u0633 \u0645\u0646 \u22126 \u0625\u0644\u0649 +6 \u0643\u064A\u0644\u0648\u0648\u0627\u0637. \u0641\u064A \u0645\u0633\u0627\u0621 \u0645\u0627 \u064A\u0633\u062D\u0628 \u0627\u0644\u0628\u064A\u062A 8 \u0643\u064A\u0644\u0648\u0648\u0627\u0637. \u0647\u0644 \u064A\u0636\u064A\u0621 \u0627\u0644\u0645\u0635\u0628\u0627\u062D\u061F",
+    "S\xEC: 8 kW \xE8 pi\xF9 di 7 kW.": "\u0646\u0639\u0645: 8 \u0643\u064A\u0644\u0648\u0648\u0627\u0637 \u0623\u0643\u062B\u0631 \u0645\u0646 7 \u0643\u064A\u0644\u0648\u0648\u0627\u0637.",
+    "No: il misuratore si ferma a circa 6400 W e il confronto con 7000 non \xE8 mai vero.": "\u0644\u0627: \u062C\u0647\u0627\u0632 \u0627\u0644\u0642\u064A\u0627\u0633 \u064A\u062A\u0648\u0642\u0641 \u0639\u0646\u062F \u062D\u0648\u0627\u0644\u064A 6400 \u0648\u0627\u0637\u060C \u0648\u0627\u0644\u0645\u0642\u0627\u0631\u0646\u0629 \u0645\u0639 7000 \u0644\u0627 \u062A\u0643\u0648\u0646 \u0635\u062D\u064A\u062D\u0629 \u0623\u0628\u062F\u064B\u0627.",
+    "Solo se la batteria \xE8 scarica.": "\u0641\u0642\u0637 \u0625\u0630\u0627 \u0643\u0627\u0646\u062A \u0627\u0644\u0628\u0637\u0627\u0631\u064A\u0629 \u0641\u0627\u0631\u063A\u0629.",
+    "Il PLC non vede la potenza vera ma il segnale del misuratore, che oltre il fondo scala resta fermo a 20,5 mA, circa 6400 W. Per sorvegliare 7 kW serve un misuratore con il fondo scala pi\xF9 alto, oppure una soglia che il misuratore pu\xF2 raggiungere.": "\u0644\u0627 \u064A\u0631\u0649 \u0627\u0644\u0640 PLC \u0627\u0644\u0642\u062F\u0631\u0629 \u0627\u0644\u062D\u0642\u064A\u0642\u064A\u0629 \u0628\u0644 \u0625\u0634\u0627\u0631\u0629 \u062C\u0647\u0627\u0632 \u0627\u0644\u0642\u064A\u0627\u0633\u060C \u0627\u0644\u062A\u064A \u062A\u0628\u0642\u0649 \u062B\u0627\u0628\u062A\u0629 \u0628\u0639\u062F \u0646\u0647\u0627\u064A\u0629 \u0627\u0644\u0645\u062F\u0649 \u0639\u0646\u062F 20,5 \u0645\u0644\u0644\u064A \u0623\u0645\u0628\u064A\u0631\u060C \u0623\u064A \u062D\u0648\u0627\u0644\u064A 6400 \u0648\u0627\u0637. \u0644\u0645\u0631\u0627\u0642\u0628\u0629 7 \u0643\u064A\u0644\u0648\u0648\u0627\u0637 \u064A\u0644\u0632\u0645 \u062C\u0647\u0627\u0632 \u0642\u064A\u0627\u0633 \u0628\u0645\u062F\u0649 \u0623\u0639\u0644\u0649\u060C \u0623\u0648 \u0639\u062A\u0628\u0629 \u064A\u0633\u062A\u0637\u064A\u0639 \u062C\u0647\u0627\u0632 \u0627\u0644\u0642\u064A\u0627\u0633 \u0628\u0644\u0648\u063A\u0647\u0627.",
+    // unita': da ricordare
+    "In una casa intelligente le regole del PLC contano quanto i fili: una soglia sbagliata lascia la casa al buio.": "\u0641\u064A \u0627\u0644\u0628\u064A\u062A \u0627\u0644\u0630\u0643\u064A \u0642\u0648\u0627\u0639\u062F \u0627\u0644\u0640 PLC \u0645\u0647\u0645\u0629 \u0645\u062B\u0644 \u0627\u0644\u0623\u0633\u0644\u0627\u0643: \u0639\u062A\u0628\u0629 \u062E\u0627\u0637\u0626\u0629 \u062A\u062A\u0631\u0643 \u0627\u0644\u0628\u064A\u062A \u0641\u064A \u0627\u0644\u0638\u0644\u0627\u0645.",
+    "Il PLC vede la potenza solo attraverso il misuratore: oltre il fondo scala il segnale si ferma, e una soglia pi\xF9 alta non scatta mai.": "\u0644\u0627 \u064A\u0631\u0649 \u0627\u0644\u0640 PLC \u0627\u0644\u0642\u062F\u0631\u0629 \u0625\u0644\u0627 \u0639\u0628\u0631 \u062C\u0647\u0627\u0632 \u0627\u0644\u0642\u064A\u0627\u0633: \u0628\u0639\u062F \u0646\u0647\u0627\u064A\u0629 \u0627\u0644\u0645\u062F\u0649 \u062A\u062A\u0648\u0642\u0641 \u0627\u0644\u0625\u0634\u0627\u0631\u0629\u060C \u0648\u0627\u0644\u0639\u062A\u0628\u0629 \u0627\u0644\u0623\u0639\u0644\u0649 \u0644\u0627 \u062A\u0639\u0645\u0644 \u0623\u0628\u062F\u064B\u0627.",
+    "La soglia di distacco sta sotto il limite del contatore, con margine.": "\u0639\u062A\u0628\u0629 \u0627\u0644\u0641\u0635\u0644 \u062A\u0643\u0648\u0646 \u062A\u062D\u062A \u062D\u062F \u0627\u0644\u0639\u062F\u0651\u0627\u062F\u060C \u0645\u0639 \u0647\u0627\u0645\u0634.",
+    "Una casa intelligente si collauda per una serata intera, con tutto quello che succede davvero.": "\u064A\u064F\u062E\u062A\u0628\u0631 \u0627\u0644\u0628\u064A\u062A \u0627\u0644\u0630\u0643\u064A \u0633\u0647\u0631\u0629 \u0643\u0627\u0645\u0644\u0629\u060C \u0645\u0639 \u0643\u0644 \u0645\u0627 \u064A\u062D\u062F\u062B \u0641\u0639\u0644\u064B\u0627.",
+    "Allagamento: prima si asciuga la sonda, poi si tacita la sirena.": "\u0627\u0644\u0641\u064A\u0636\u0627\u0646: \u0623\u0648\u0644\u064B\u0627 \u064A\u064F\u062C\u0641\u064E\u0651\u0641 \u0627\u0644\u062D\u0633\u0651\u0627\u0633\u060C \u062B\u0645 \u062A\u064F\u0633\u0643\u064E\u062A \u0635\u0641\u0627\u0631\u0629 \u0627\u0644\u0625\u0646\u0630\u0627\u0631.",
+    // unita': guasto della prova
+    "La casa \xE8 finita e programmata. Chiudi il generale: la serata comincia alle 16:30. Guarda il pannello. Se qualcosa non va, rispondi alla domanda.": "\u0627\u0644\u0628\u064A\u062A \u062C\u0627\u0647\u0632 \u0648\u0645\u0628\u0631\u0645\u062C. \u0623\u063A\u0644\u0642 \u0627\u0644\u0642\u0627\u0637\u0639 \u0627\u0644\u0631\u0626\u064A\u0633\u064A: \u062A\u0628\u062F\u0623 \u0627\u0644\u0633\u0647\u0631\u0629 \u0641\u064A 16:30. \u0631\u0627\u0642\u0628 \u0627\u0644\u0644\u0648\u062D\u0629. \u0625\u0630\u0627 \u0644\u0645 \u064A\u0633\u0631 \u0634\u064A\u0621 \u0643\u0645\u0627 \u064A\u062C\u0628\u060C \u0623\u062C\u0628 \u0639\u0646 \u0627\u0644\u0633\u0624\u0627\u0644.",
+    "Verso le 19:45 il contatore ha staccato tutta la casa. Sul pannello, prima del buio, la rete era al fondo scala sopra la riga del limite, auto e pompa erano accese e nessun carico si era staccato. Perch\xE9?": "\u0646\u062D\u0648 19:45 \u0641\u0635\u0644 \u0627\u0644\u0639\u062F\u0651\u0627\u062F \u0627\u0644\u0628\u064A\u062A \u0643\u0644\u0647. \u0641\u064A \u0627\u0644\u0644\u0648\u062D\u0629\u060C \u0642\u0628\u0644 \u0627\u0644\u0638\u0644\u0627\u0645\u060C \u0643\u0627\u0646\u062A \u0627\u0644\u0634\u0628\u0643\u0629 \u0639\u0646\u062F \u0646\u0647\u0627\u064A\u0629 \u0627\u0644\u0645\u062F\u0649 \u0641\u0648\u0642 \u062E\u0637 \u0627\u0644\u062D\u062F\u060C \u0648\u0627\u0644\u0633\u064A\u0627\u0631\u0629 \u0648\u0627\u0644\u0645\u0636\u062E\u0629 \u062A\u0639\u0645\u0644\u0627\u0646\u060C \u0648\u0644\u0645 \u064A\u064F\u0641\u0635\u0644 \u0623\u064A \u062D\u0650\u0645\u0644. \u0644\u0645\u0627\u0630\u0627\u061F",
+    "Il forno non si pu\xF2 staccare: con il forno acceso il contatore stacca sempre.": "\u0627\u0644\u0641\u0631\u0646 \u0644\u0627 \u064A\u0645\u0643\u0646 \u0641\u0635\u0644\u0647: \u0645\u0639 \u0627\u0644\u0641\u0631\u0646 \u0627\u0644\u0645\u0634\u063A\u0651\u0644 \u064A\u0641\u0635\u0644 \u0627\u0644\u0639\u062F\u0651\u0627\u062F \u062F\u0627\u0626\u0645\u064B\u0627.",
+    "La soglia di distacco (6500 W) \xE8 sopra il limite e oltre il fondo scala del misuratore: il PLC non l\u2019ha mai vista superata.": "\u0639\u062A\u0628\u0629 \u0627\u0644\u0641\u0635\u0644 (6500 \u0648\u0627\u0637) \u0641\u0648\u0642 \u0627\u0644\u062D\u062F \u0648\u0628\u0639\u062F \u0646\u0647\u0627\u064A\u0629 \u0645\u062F\u0649 \u062C\u0647\u0627\u0632 \u0627\u0644\u0642\u064A\u0627\u0633: \u0644\u0645 \u064A\u0631\u064E\u0647\u0627 \u0627\u0644\u0640 PLC \u0645\u062A\u062C\u0627\u0648\u064E\u0632\u0629 \u0623\u0628\u062F\u064B\u0627.",
+    "La batteria era scarica.": "\u0643\u0627\u0646\u062A \u0627\u0644\u0628\u0637\u0627\u0631\u064A\u0629 \u0641\u0627\u0631\u063A\u0629.",
+    "L\u2019ordine di distacco \xE8 al contrario: prima la pompa, poi l\u2019auto.": "\u062A\u0631\u062A\u064A\u0628 \u0627\u0644\u0641\u0635\u0644 \u0645\u0639\u0643\u0648\u0633: \u0623\u0648\u0644\u064B\u0627 \u0627\u0644\u0645\u0636\u062E\u0629\u060C \u062B\u0645 \u0627\u0644\u0633\u064A\u0627\u0631\u0629.",
+    "Il misuratore arriva al massimo a circa 6400 W, quindi \u201Cmaggiore di 6500\u201D non \xE8 mai vero e il PLC non stacca niente. Con il forno acceso basta staccare l\u2019auto (3,7 kW) per tornare sotto il limite: il forno non \xE8 il problema. E con l\u2019ordine al contrario la casa reggerebbe comunque, solo pi\xF9 fredda.": "\u062C\u0647\u0627\u0632 \u0627\u0644\u0642\u064A\u0627\u0633 \u064A\u0635\u0644 \u0639\u0644\u0649 \u0627\u0644\u0623\u0643\u062B\u0631 \u0625\u0644\u0649 \u062D\u0648\u0627\u0644\u064A 6400 \u0648\u0627\u0637\u060C \u0625\u0630\u0646 \xAB\u0623\u0643\u0628\u0631 \u0645\u0646 6500\xBB \u0644\u0627 \u062A\u0643\u0648\u0646 \u0635\u062D\u064A\u062D\u0629 \u0623\u0628\u062F\u064B\u0627 \u0648\u0644\u0627 \u064A\u0641\u0635\u0644 \u0627\u0644\u0640 PLC \u0634\u064A\u0626\u064B\u0627. \u0645\u0639 \u0627\u0644\u0641\u0631\u0646 \u0627\u0644\u0645\u0634\u063A\u0651\u0644 \u064A\u0643\u0641\u064A \u0641\u0635\u0644 \u0627\u0644\u0633\u064A\u0627\u0631\u0629 (3,7 \u0643\u064A\u0644\u0648\u0648\u0627\u0637) \u0644\u0644\u0639\u0648\u062F\u0629 \u062A\u062D\u062A \u0627\u0644\u062D\u062F: \u0627\u0644\u0641\u0631\u0646 \u0644\u064A\u0633 \u0627\u0644\u0645\u0634\u0643\u0644\u0629. \u0648\u0645\u0639 \u0627\u0644\u062A\u0631\u062A\u064A\u0628 \u0627\u0644\u0645\u0639\u0643\u0648\u0633 \u0643\u0627\u0646 \u0627\u0644\u0628\u064A\u062A \u0633\u064A\u0635\u0645\u062F \u0639\u0644\u0649 \u0623\u064A \u062D\u0627\u0644\u060C \u0644\u0643\u0646\u0647 \u0623\u0628\u0631\u062F \u0641\u0642\u0637.",
+    "Apri il programma del PLC e nei due gradini del distacco metti la soglia sotto il limite, con margine: 5800 W. Poi rifai la serata da capo e consegna.": "\u0627\u0641\u062A\u062D \u0628\u0631\u0646\u0627\u0645\u062C \u0627\u0644\u0640 PLC \u0648\u0641\u064A \u062F\u0631\u062C\u062A\u064A \u0627\u0644\u0641\u0635\u0644 \u0636\u0639 \u0627\u0644\u0639\u062A\u0628\u0629 \u062A\u062D\u062A \u0627\u0644\u062D\u062F \u0645\u0639 \u0647\u0627\u0645\u0634: 5800 \u0648\u0627\u0637. \u062B\u0645 \u0623\u0639\u062F \u0627\u0644\u0633\u0647\u0631\u0629 \u0645\u0646 \u0627\u0644\u0628\u062F\u0627\u064A\u0629 \u0648\u0633\u0644\u0651\u0645."
+  };
+
   // src/i18n/ar-47.js
   var ar_47_default = {
     "Tettoia": "\u0627\u0644\u0645\u0638\u0644\u0629",
@@ -22407,7 +22970,7 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
     [/^Togli il lucchetto da (.+)$/, (m, t) => `\u0623\u0632\u0644 \u0627\u0644\u0642\u0641\u0644 \u0639\u0646 ${t(m[1])}`],
     [/^Protezioni scattate: (.+)\.$/, (m, t) => `\u062D\u0645\u0627\u064A\u0627\u062A \u0641\u0635\u0644\u062A: ${t(m[1])}.`]
   ];
-  registerLang("ar", { ...ar_1_default, ...ar_2_default, ...ar_3_default, ...ar_4_default, ...ar_5_default, ...ar_6_default, ...ar_7_default, ...ar_8_default, ...ar_9_default, ...ar_10_default, ...ar_11_default, ...ar_12_default, ...ar_13_default, ...ar_14_default, ...ar_15_default, ...ar_16_default, ...ar_17_default, ...ar_18_default, ...ar_19_default, ...ar_20_default, ...ar_21_default, ...ar_22_default, ...ar_23_default, ...ar_24_default, ...ar_25_default, ...ar_26_default, ...ar_27_default, ...ar_28_default, ...ar_29_default, ...ar_30_default, ...ar_31_default, ...ar_32_default, ...ar_33_default, ...ar_34_default, ...ar_35_default, ...ar_36_default, ...ar_37_default, ...ar_38_default, ...ar_39_default, ...ar_40_default, ...ar_41_default, ...ar_42_default, ...ar_45_default, ...ar_47_default }, PAT);
+  registerLang("ar", { ...ar_1_default, ...ar_2_default, ...ar_3_default, ...ar_4_default, ...ar_5_default, ...ar_6_default, ...ar_7_default, ...ar_8_default, ...ar_9_default, ...ar_10_default, ...ar_11_default, ...ar_12_default, ...ar_13_default, ...ar_14_default, ...ar_15_default, ...ar_16_default, ...ar_17_default, ...ar_18_default, ...ar_19_default, ...ar_20_default, ...ar_21_default, ...ar_22_default, ...ar_23_default, ...ar_24_default, ...ar_25_default, ...ar_26_default, ...ar_27_default, ...ar_28_default, ...ar_29_default, ...ar_30_default, ...ar_31_default, ...ar_32_default, ...ar_33_default, ...ar_34_default, ...ar_35_default, ...ar_36_default, ...ar_37_default, ...ar_38_default, ...ar_39_default, ...ar_40_default, ...ar_41_default, ...ar_42_default, ...ar_45_default, ...ar_46_default, ...ar_47_default }, PAT);
 
   // src/trilocale/house.js
   function houseState(session2, on = true) {
@@ -23494,12 +24057,75 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
       flow: snap.flow || null
     };
   }
+  var ROOM_HOURS = {
+    ingresso: [[17.25, 22]],
+    corridoio: [[17.25, 23]],
+    soggiorno: [[17.25, 23]],
+    cucina: [[19, 21]],
+    bagno: [[21.25, 21.75], [22.5, 23]],
+    camera: [[22.25, 23]]
+  };
+  var CASA_ROOMS = Object.keys(ROOM_HOURS);
+  function casaRooms(hour, sun, powered) {
+    const out = {};
+    CASA_ROOMS.forEach((id) => {
+      const on = powered && sun < 0.15 && ROOM_HOURS[id].some(([a, b]) => hour >= a && hour < b);
+      out[id] = on ? id === "corridoio" || id === "ingresso" ? 0.5 : 1 : 0;
+    });
+    return out;
+  }
+  var num2 = (x, d = 0) => Number.isFinite(Number(x)) ? Number(x) : d;
+  function casaState(snap) {
+    const o = snap.obs;
+    if (!o) return null;
+    const p = o.process || {}, lv = snap.level || {}, params = { ...lv.process && lv.process.params || {} };
+    const qg = !!part(o, "QG").on, blackout = !!p.blackout;
+    const powered = !!o.supply && qg && !blackout;
+    const hour = num2(p.hour, 16.5);
+    const sun = num2(p.sun);
+    const plc = part(o, "PLC");
+    const minPerSec = 1440 / num2(params.dayLen, 1440);
+    return {
+      scene: "casa",
+      powered,
+      // generale chiuso e contatore non staccato
+      blackout,
+      // il contatore ha staccato: tutta la casa al buio (momento forte)
+      qg,
+      // la leva del generale (chiusa anche al buio)
+      hour,
+      // ora della serata dal motore, 16.5 ... 23
+      sun,
+      // altezza del sole (0 dopo il tramonto)
+      kw: { pv: num2(p.pv), load: num2(p.load), grid: num2(p.grid), batt: num2(p.pb), limit: num2(params.limit, 6) },
+      soc: num2(p.soc),
+      ev: { plugged: !!part(o, "EV").on, charging: powered && o.loads.HE === "on", kwh: num2(p.eEv) },
+      hp: { on: !!p.hpRun, broken: !!p.broken },
+      zones: [
+        { id: "soggiorno", T: num2(p.T1, 17), valve: num2(p.p1), window: !!part(o, "W1").on },
+        { id: "camera", T: num2(p.T2, 17), valve: num2(p.p2), window: false }
+      ],
+      oven: powered && !!p.oven,
+      flood: { wet: !!part(o, "S2").on, siren: o.loads.B === "on" },
+      silence: !!part(o, "TA").pressed,
+      // il tasto di tacitazione tenuto premuto
+      rooms: casaRooms(hour, sun, powered),
+      // luce di ogni stanza 0..1
+      shift: o.scenario || null,
+      // come la fabbrica: duration, t, done, started, faults, events
+      // per il pannello e il verbale (non servono alla scena)
+      plc: { on: !!plc.mem, outputs: { ...plc.q || {} } },
+      energy: { prod: num2(p.eProd), imp: num2(p.eImp), exp: num2(p.eExp), cost: num2(p.cost) },
+      comfort: { soggiorno: Math.round(num2(p.out1) * minPerSec), camera: Math.round(num2(p.out2) * minPerSec) }
+    };
+  }
   function provaState(snap) {
     const sc = snap && snap.level && snap.level.prova && snap.level.prova.scene;
     if (sc === "appartamento") return appartamentoState(snap);
     if (sc === "officina") return officinaState(snap);
     if (sc === "automatico") return automaticoState(snap);
     if (sc === "fabbrica") return fabbricaState(snap);
+    if (sc === "casa") return casaState(snap);
     return null;
   }
 
@@ -23797,6 +24423,101 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
         title: "Turno consegnato",
         text: "La cella ha prodotto per tutta la notte. Ogni guasto \xE8 stato trovato dal pannello e riparato in sicurezza, con il robot senza potenza."
       }
+    },
+    casa: {
+      kick: "Modulo 5 \xB7 prova",
+      place: "Casa",
+      title: "Una sera d\u2019inverno",
+      tagline: "Ore 16:30. Il sole cala.",
+      clock: [16, 30],
+      shiftHours: 6.5,
+      // la serata (scenario.duration) va dalle 16:30 alle 23:00
+      goal: "La casa intelligente della famiglia Rossi \xE8 finita. Chiudi il generale e guardala lavorare da sola fino alle 23: l\u2019auto arriva, si cucina, qualcuno apre la finestra. Se qualcosa non va, capisci perch\xE9, correggi il programma e rifai la serata. Poi consegna.",
+      dockTitle: "Pannello della casa",
+      tools: ["sound", "log"],
+      call: { label: "Consegna dell\u2019impianto", where: "Famiglia Rossi, Via Roma 12", quote: "\xABL\u2019impianto \xE8 finito, stasera la casa va da sola. Chiudi il generale, guardala lavorare fino alle 23 e consegnaci le chiavi.\xBB", go: "Entra" },
+      steps: ["Chiudi il generale", "Guarda la serata", "Rispondi: perch\xE9 \xE8 saltata la casa?", "Correggi il programma", "Rifai la serata fino alle 23", "Consegna"],
+      zoneNames: { soggiorno: "Soggiorno", camera: "Camera" },
+      story: {
+        blackout: "La casa \xE8 al buio.",
+        blackoutWhy: "Il contatore ha staccato: la casa ha prelevato troppo per troppo tempo.",
+        flood: "Allagamento in bagno.",
+        floodWhy: "Prima asciuga la sonda, poi tacita la sirena.",
+        wet: "La sonda \xE8 ancora bagnata: la sirena riparte.",
+        broken: "La pompa di calore si \xE8 guastata: ha girato con le valvole chiuse.",
+        end: "Le 23:00. La casa va a dormire.",
+        replay: "Il contatore non si riarma: rifai la serata da capo."
+      },
+      report: {
+        title: "Verbale di consegna",
+        sub: "Casa intelligente, Via Roma 12",
+        end: "Le 23:00. Buonanotte.",
+        energy: "Energia della serata",
+        prod: "prodotta",
+        imp: "prelevata",
+        exp: "immessa",
+        cost: "costo",
+        car: "Auto caricata",
+        comfort: "Comfort (minuti fuori da 19,5\u201322,5 \xB0C)",
+        pump: "Pompa di calore",
+        pumpOk: "mai a vuoto",
+        pumpKo: "guasta: ha girato a vuoto",
+        flood: "Allagamento",
+        arrived: "alle",
+        fixed: "gestito alle",
+        open: "non gestito",
+        late: "in ritardo",
+        none: "nessuno",
+        meter: "Contatore",
+        meterOk: "mai staccato",
+        meterKo: "staccato alle",
+        fault: "Nel programma la soglia di distacco era 6500 W: sopra il limite del contatore (6 kW) e oltre il fondo scala del misuratore. Il PLC non vedeva mai la soglia superata e alle 19:30, con forno, auto e pompa, il contatore staccava la casa.",
+        fix: "Soglia di distacco portata a 5800 W nei due gradini, sotto il limite con margine. Serata rifatta fino alle 23.",
+        safety: "Sicurezza",
+        safeOk: "nessun errore",
+        safeKo: "regole di sicurezza non rispettate"
+      },
+      log: {
+        start: "Impianto finito. Il generale \xE8 aperto.",
+        shiftStart: "Chiuso il generale: la serata comincia.",
+        qgOff: "Aperto il generale.",
+        qgOn: "Chiuso il generale.",
+        car: "L\u2019auto si attacca alla colonnina.",
+        shed: "Il PLC stacca la colonnina.",
+        unshed: "La colonnina riprende a caricare.",
+        oven: "Si accende il forno.",
+        ovenOff: "Si spegne il forno.",
+        windowOpen: "Si apre la finestra del soggiorno.",
+        windowClose: "Si chiude la finestra del soggiorno.",
+        flood: "La sonda del bagno \xE8 bagnata: suona la sirena.",
+        dried: "Asciugata la sonda.",
+        silenced: "Tacitata la sirena.",
+        silenceWet: "Tacitata la sirena con la sonda bagnata: riparte.",
+        fixed: "Allagamento gestito.",
+        late: "Allagamento gestito in ritardo.",
+        blackout: "Il contatore stacca: la casa \xE8 al buio.",
+        broken: "La pompa di calore si guasta.",
+        program: "Programma del PLC cambiato.",
+        programOk: "Programma cambiato: la soglia di distacco \xE8 sotto il limite.",
+        replay: "Serata rifatta da capo.",
+        end: "Le 23:00: fine della serata.",
+        answerOk: "Risposta giusta: la soglia di distacco \xE8 sopra il limite e il PLC non la vede mai.",
+        answerKo: "Risposta sbagliata. Si pu\xF2 riprovare.",
+        checkOk: "Verifica: casa consegnata.",
+        checkKo: "Verifica: qualcosa non va ancora."
+      },
+      hints: [
+        "Chiudi il generale: la serata comincia alle 16:30.",
+        "Guarda il pannello: le potenze, la batteria, l\u2019auto e le due stanze.",
+        "La casa \xE8 saltata: prima del buio la rete era sopra il limite e nessun carico si era staccato. Perch\xE9? Rispondi.",
+        "Apri il banco: nei due gradini del distacco la soglia va sotto il limite, con margine.",
+        "Rifai la serata da capo e guardala fino alle 23. Alle 21:30 tieni d\u2019occhio il bagno.",
+        "Serata finita: premi Verifica e consegna."
+      ],
+      win: {
+        title: "Casa consegnata",
+        text: "La soglia di distacco era sopra il limite del contatore e oltre il fondo scala del misuratore: il PLC non staccava mai niente. Con la soglia a 5800 W la casa ha retto la cena con l\u2019auto in carica e la pompa accesa."
+      }
     }
   };
 
@@ -23815,8 +24536,8 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
     if (m.rearmed && line2 && before && before.rcd.on && !before.lines[line2].on && after.lines[line2].on && after.rcd.tripped) m.found = true;
     return m;
   }
-  var isPlant = (name) => name === "officina" || name === "automatico" || name === "fabbrica";
-  var plantEvents = (name, action, before, after) => name === "automatico" ? automaticoEvents(action, before, after) : name === "fabbrica" ? fabbricaEvents(action, before, after) : officinaEvents(action, before, after);
+  var isPlant = (name) => name === "officina" || name === "automatico" || name === "fabbrica" || name === "casa";
+  var plantEvents = (name, action, before, after) => name === "automatico" ? automaticoEvents(action, before, after) : name === "fabbrica" ? fabbricaEvents(action, before, after) : name === "casa" ? casaEvents(action, before, after) : officinaEvents(action, before, after);
   var lineOf = (name, id) => {
     const c2 = (PROVE[name].controls || []).find((x) => x.id === id);
     return c2 ? c2.line : null;
@@ -23834,6 +24555,10 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
       const allFixed = sh.faults.length > 0 && sh.faults.every((f2) => f2.fixedAt !== null && !f2.late);
       done = [!!sh.started, diagOk, f0.fixedAt != null && !f0.late, allFixed, !!sh.done, unit && unit.phase === "done"];
       ko = [false, false, !!f0.late || !!sh.done && f0.fixedAt == null, sh.faults.some((f2) => f2.late || sh.done && f2.fixedAt === null), false, false];
+    } else if (name === "casa") {
+      const sh = ps && ps.shift || {};
+      done = [!!sh.started || !!mem.blackout, !!mem.blackout || !!sh.done && !ps.blackout, diagOk, !!mem.fixed, !!mem.fixed && !!sh.done && !ps.blackout, unit && unit.phase === "done"];
+      ko = [false, false, false, false, !!mem.fixed && !!ps.blackout, false];
     } else if (isPlant(name)) {
       const t = mem.tests || {};
       done = cfg.tests.map((x) => t[x.id] === "ok").concat([diagOk, !!mem.fixed, unit && unit.phase === "done"]);
@@ -23901,7 +24626,7 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
     const ctu = ((programs || {}).PLC || []).map((r) => (r.do || []).find((i) => i.op === "ctu")).find(Boolean);
     return !!ctu && ctu.r === "I1" && ctu.pv === 4;
   }
-  var plantFixed = (name, snap) => name === "automatico" ? automaticoFixed(snap.programs) : name === "fabbrica" ? false : officinaFixed(snap.wires);
+  var plantFixed = (name, snap) => name === "automatico" ? automaticoFixed(snap.programs) : name === "fabbrica" ? false : name === "casa" ? casaFixed(snap.programs, snap.level) : officinaFixed(snap.wires);
   var shiftClock = (cfg, sh, t = sh ? sh.t : 0) => clockText(cfg, sh && sh.duration ? Math.round(t / sh.duration * cfg.shiftHours * 60) : 0);
   function shiftSpan(cfg, sh, sec) {
     const m = sh && sh.duration ? Math.round(sec / sh.duration * cfg.shiftHours * 60) : 0;
@@ -23944,7 +24669,8 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
     if (!b.done && a.done) ev2.push({ kind: "end", text: L.end, good: true });
     return ev2;
   }
-  function shiftHTML(cfg, ps) {
+  function shiftHTML(cfg, ps, mem) {
+    if (ps && ps.scene === "casa") return casaShiftHTML(cfg, ps, mem);
     const sh = ps && ps.shift;
     if (!sh) return "";
     const fired = sh.faults.filter((f2) => f2.firedAt !== null), fixed = fired.filter((f2) => f2.fixedAt !== null);
@@ -24002,6 +24728,12 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
   function rememberEvents(mem, events) {
     if (!events.length) return mem;
     const m = { ...mem, tests: { ...mem.tests || {} } };
+    events.forEach((e) => {
+      if (e.kind === "blackout") {
+        m.blackout = true;
+        m.blackoutAt = e.clock || m.blackoutAt || null;
+      }
+    });
     events.forEach((e) => {
       if (e.test && e.result && m.tests[e.test] !== "ok") m.tests[e.test] = e.result;
     });
@@ -24089,7 +24821,7 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
   }
   var STATE_WORD = { on: "Chiuso", off: "Aperto", tripped: "Scattato", armed: "Armato" };
   function dockHTML(cfg, ps, unit, ui2) {
-    if (cfg.shiftHours) return fabbricaDockHTML(cfg, ps, unit, ui2);
+    if (cfg.shiftHours) return ps.scene === "casa" ? casaDockHTML(cfg, ps, unit, ui2) : fabbricaDockHTML(cfg, ps, unit, ui2);
     if (cfg.tests) return stationHTML(cfg, ps, unit, ui2);
     const mods = cfg.controls.map((c2) => {
       let on, trip2, live;
@@ -24200,6 +24932,123 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
         <dt>Esito</dt><dd><span class="pstars" role="img" aria-label="${stars2} stelle su 3">${[0, 1, 2].map((i) => `<span class="pstar" style="--i:${i}">${STAR2(i < stars2)}</span>`).join("")}</span></dd>
       </dl>
       <div class="prow"><a class="pbtn y" href="#/home">Torna alla mappa</a><button class="pbtn" type="button" data-pui="again">Rifai la prova</button><button class="pbtn" type="button" data-pui="summary">Sintesi</button><button class="pbtn" type="button" data-pui="closeSheet">Guarda la casa</button></div></div>`;
+  }
+  function casaFixed(programs, level) {
+    const limit = ((level && level.process && level.process.params || {}).limit || 6) * 1e3;
+    const found = [];
+    const walk = (e) => {
+      if (!Array.isArray(e)) return;
+      if (e[0] === "gt" && e[1] === "MW0" && typeof e[2] === "number") found.push(e[2]);
+      else e.slice(1).forEach(walk);
+    };
+    ((programs || {}).PLC || []).forEach((r) => walk(r.if));
+    return found.length > 0 && found.every((x) => x < limit);
+  }
+  function casaEvents(action, before, after) {
+    if (!before || !after) return [];
+    const L = PROVE.casa.log, ev2 = [];
+    const id = action && action.id, kind = action && action.kind;
+    const b = before.shift || { faults: [], events: [] }, a = after.shift || { faults: [], events: [] };
+    if (id === "QG" && kind === "toggle") {
+      if (!b.started && a.started) ev2.push({ kind: "shiftStart", text: L.shiftStart, good: true });
+      else ev2.push({ kind: after.qg ? "qgOn" : "qgOff", text: after.qg ? L.qgOn : L.qgOff });
+    } else if (id === "S2" && kind === "toggle" && before.flood.wet && !after.flood.wet) ev2.push({ kind: "dried", text: L.dried, good: true });
+    else if (id === "TA" && kind === "release" && after.flood.siren && after.flood.wet) ev2.push({ kind: "silenceWet", text: L.silenceWet, trip: true });
+    if (!before.ev.plugged && after.ev.plugged) ev2.push({ kind: "car", text: L.car, view: "tettoia" });
+    else if (before.ev.plugged && after.ev.plugged && after.powered) {
+      if (before.ev.charging && !after.ev.charging) ev2.push({ kind: "shed", text: L.shed });
+      else if (!before.ev.charging && after.ev.charging && before.powered) ev2.push({ kind: "unshed", text: L.unshed, good: true });
+    }
+    if (!before.oven && after.oven) ev2.push({ kind: "oven", text: L.oven });
+    else if (before.oven && !after.oven && after.powered) ev2.push({ kind: "ovenOff", text: L.ovenOff });
+    const w0 = before.zones[0].window, w1 = after.zones[0].window;
+    if (w0 !== w1) ev2.push({ kind: w1 ? "windowOpen" : "windowClose", text: w1 ? L.windowOpen : L.windowClose });
+    if (!before.flood.wet && after.flood.wet) ev2.push({ kind: "flood", text: L.flood, trip: true, view: "bagno" });
+    if (!before.blackout && after.blackout) ev2.push({ kind: "blackout", text: L.blackout, trip: true, view: "esterno" });
+    if (!before.hp.broken && after.hp.broken) ev2.push({ kind: "broken", text: L.broken, trip: true });
+    a.faults.forEach((f2) => {
+      const was = b.faults.find((x) => x.id === f2.id);
+      if (f2.fixedAt !== null && (!was || was.fixedAt === null)) ev2.push({ kind: "fixed", text: f2.late ? L.late : L.fixed, good: !f2.late, trip: f2.late });
+    });
+    if (!b.done && a.done) ev2.push({ kind: "end", text: L.end, good: !after.blackout });
+    return ev2;
+  }
+  var kwText = (x) => (Math.round(x * 10) / 10).toFixed(1).replace(".", ",") + " kW";
+  var num1 = (x) => (Math.round(x * 10) / 10).toFixed(1).replace(".", ",");
+  var meterKw = (g, limit) => Math.min(g, limit * (1 + 0.5 / 16 * 2));
+  function casaShiftHTML(cfg, ps, mem) {
+    const sh = ps.shift;
+    if (!sh) return "";
+    const left = sh.started ? shiftSpan(cfg, sh, Math.max(0, sh.duration - sh.t)) : "";
+    const state = ps.blackout ? "Casa al buio" + (mem && mem.blackoutAt ? " dalle " + mem.blackoutAt : "") : !sh.started ? "Generale aperto: chiudilo per cominciare" : sh.done ? "Serata finita" : "Fine serata tra " + left;
+    const over = ps.kw.grid > ps.kw.limit;
+    return `<div class="pshift-in" role="status"><span class="pshift-state">${esc5(state)}</span>
+    <span class="pshift-down${over || ps.blackout ? " on" : ""}">Rete ${esc5(kwText(ps.kw.grid))} / ${esc5(kwText(ps.kw.limit))}</span>
+    <span>Batteria ${Math.round(ps.soc)} %</span>
+    <span>Auto ${esc5(num1(ps.ev.kwh))} kWh</span></div>`;
+  }
+  function casaDockHTML(cfg, ps, unit, ui2) {
+    const diagOk = !!(unit && unit.diag && unit.diag.correct);
+    const sh = ps.shift || {};
+    let main = "";
+    if (unit && unit.phase === "fault") main = diagOk ? '<button class="pbtn y" type="button" data-pui="check">Verifica</button>' : '<button class="pbtn y" type="button" data-pui="answer">Rispondi</button>';
+    else if (unit && unit.phase === "done") main = '<button class="pbtn y" type="button" data-pui="finale">Verbale</button>';
+    const replay = unit && unit.phase === "fault" && (ps.blackout || sh.done) ? '<button class="pchip" type="button" data-pui="replay">Rifai la serata</button>' : "";
+    const v = ps.blackout && ui2 && ui2.lastLit ? ui2.lastLit : ps;
+    const k = v.kw, lim = k.limit;
+    const bar = (x) => Math.max(0, Math.min(1, x / (lim * 1.5)));
+    const metered = meterKw(k.grid, lim), sat = k.grid > metered + 1e-6;
+    const zones = v.zones.map((z) => `<div class="pcasa-z${z.window ? " win" : ""}"><span class="pst-name">${esc5(cfg.zoneNames[z.id] || z.id)}</span><b>${esc5(num1(z.T))} \xB0C</b><span>${z.valve > 0.5 ? "valvola aperta" : "valvola chiusa"}${z.window ? " \xB7 finestra aperta" : ""}</span></div>`).join("");
+    const alarms = [];
+    if (ps.blackout) alarms.push(`<li class="phmi-a attivo"><b>Contatore staccato</b><span>${esc5(ui2 && ui2.blackoutAt ? "alle " + ui2.blackoutAt : "")}</span></li>`);
+    if (ps.flood.siren || ps.flood.wet) alarms.push(`<li class="phmi-a ${ps.flood.siren ? "attivo" : "rientrato"}"><b>Allagamento in bagno</b><span>${ps.flood.wet ? "sonda bagnata" : "sonda asciutta"}${ps.flood.siren ? " \xB7 sirena" : ""}</span></li>`);
+    if (ps.hp.broken) alarms.push('<li class="phmi-a attivo"><b>Pompa di calore guasta</b><span>ha girato a vuoto</span></li>');
+    const hp = ps.hp.broken ? "guasta" : v.hp.on ? "in funzione" : "ferma";
+    const car = !v.ev.plugged ? "non c\u2019\xE8" : v.ev.charging ? "in carica" : "attaccata, ferma";
+    return `<div class="pbox pstation pcasa"><div class="pboxhead"><h2>${esc5(cfg.dockTitle)}</h2><div class="prow">
+      <button class="pchip" type="button" data-pui="schema" aria-pressed="${!!(ui2 && ui2.schema)}">${ui2 && ui2.schema ? "Chiudi il banco" : "Banco e programma"}</button>${replay}${main}</div></div>
+    <div class="pcasa-in">
+      <div class="phmi pcasa-tab${ps.blackout ? " dark" : ""}">
+        <div class="phmi-head"><b>${ps.blackout ? "Ultimi valori prima del buio" : "La casa adesso"}</b><span>${esc5(clockText(cfg, Math.round((v.hour - cfg.clock[0] - cfg.clock[1] / 60) * 60)))}</span></div>
+        <div class="pcasa-p">
+          <span><i>Sole</i><b>${esc5(kwText(k.pv))}</b></span>
+          <span><i>Casa</i><b>${esc5(kwText(k.load))}</b></span>
+          <span><i>Batteria</i><b>${Math.round(v.soc)} %</b><small>${esc5(k.batt > 0.05 ? "si carica " + kwText(k.batt) : k.batt < -0.05 ? "d\xE0 " + kwText(-k.batt) + " alla casa" : "ferma")}</small></span>
+          <span class="pcasa-grid${k.grid > lim ? " over" : ""}"><i>Rete</i><b>${esc5(kwText(k.grid))}</b><span class="pcasa-bar" style="--g:${bar(k.grid)};--l:${bar(lim)}" aria-hidden="true"></span><small>limite ${esc5(kwText(lim))} \xB7 il misuratore legge ${esc5(kwText(metered))}${sat ? " (fondo scala)" : ""}</small></span>
+        </div>
+        <div class="pcasa-row"><span><i>Auto</i><b>${esc5(car)}</b><small>${esc5(num1(v.ev.kwh))} kWh</small></span><span><i>Pompa di calore</i><b>${esc5(hp)}</b></span><span><i>Forno</i><b>${v.oven ? "acceso" : "spento"}</b></span></div>
+        <div class="pcasa-zs">${zones}</div>
+        <ul class="phmi-al" aria-live="polite">${alarms.join("") || '<li class="phmi-none">Nessun allarme</li>'}</ul>
+      </div>
+      <div class="pst-side pcasa-keys">
+        <div class="pst-mod${ps.qg ? "" : " open"}"><span class="pst-name">Generale</span><button class="pst-sw" type="button" data-pact="toggle" data-pid="QG" aria-pressed="${!!ps.qg}">${ps.qg ? "Chiuso" : "Aperto"}</button></div>
+        <button class="pst-btn pst-reset" type="button" data-phold="TA" data-pid="TA" aria-pressed="${!!ps.silence}"><span class="pst-cap" aria-hidden="true"></span><span>Tacitazione</span></button>
+        <button class="pchip" type="button" data-pact="toggle" data-pid="S2"${ps.flood.wet ? "" : " disabled"}>Asciuga la sonda</button>
+        <button class="pchip" type="button" data-pact="toggle" data-pid="W1" aria-pressed="${!!ps.zones[0].window}">${ps.zones[0].window ? "Chiudi la finestra" : "Apri la finestra"}</button>
+      </div>
+    </div></div>`;
+  }
+  function serataReportHTML(cfg, stars2, solved, ps, who, safeOk, mem = {}) {
+    const R = cfg.report, sh = ps.shift || { faults: [] }, e = ps.energy;
+    const fl = (sh.faults || []).find((f2) => f2.id === "allagamento");
+    const flood = !fl || fl.firedAt === null ? R.none : `${R.arrived} ${shiftClock(cfg, sh, fl.firedAt)}, ${fl.fixedAt === null ? R.open : R.fixed + " " + shiftClock(cfg, sh, fl.fixedAt) + (fl.late ? " (" + R.late + ")" : "")}`;
+    const euro = (x) => (Math.round(x * 100) / 100).toFixed(2).replace(".", ",") + " \u20AC";
+    return `<div class="pcard preport pverbale" role="dialog" aria-modal="true" aria-labelledby="pW">
+      <div class="prep-head"><span class="pk">${solved ? esc5(cfg.kick.split(" \xB7 ")[0] + " completato") : "Casa consegnata"}</span><span class="prep-time">${esc5(shiftClock(cfg, sh, 0))}\u2013${esc5(shiftClock(cfg, sh))}</span></div>
+      <h2 id="pW">${esc5(R.title)}</h2><p class="pverb-sub">${esc5(R.sub)}</p>
+      <dl class="prep">
+        <dt>${esc5(R.energy)}</dt><dd>${esc5(`${R.prod} ${num1(e.prod)} kWh \xB7 ${R.imp} ${num1(e.imp)} kWh \xB7 ${R.exp} ${num1(e.exp)} kWh \xB7 ${R.cost} ${euro(e.cost)}`)}</dd>
+        <dt>${esc5(R.car)}</dt><dd>${esc5(num1(ps.ev.kwh) + " kWh")}</dd>
+        <dt>${esc5(R.comfort)}</dt><dd>${esc5(`${cfg.zoneNames.soggiorno} ${ps.comfort.soggiorno} \xB7 ${cfg.zoneNames.camera} ${ps.comfort.camera}`)}</dd>
+        <dt>${esc5(R.pump)}</dt><dd>${esc5(ps.hp.broken ? R.pumpKo : R.pumpOk)}</dd>
+        <dt>${esc5(R.meter)}</dt><dd>${esc5(ps.blackout ? R.meterKo + " " + (mem.blackoutAt || "") : R.meterOk)}</dd>
+        <dt>${esc5(R.flood)}</dt><dd>${esc5(flood)}</dd>
+        ${solved ? `<dt>Guasto</dt><dd>${esc5(R.fault)}</dd><dt>Intervento</dt><dd>${esc5(R.fix)}</dd>` : ""}
+        <dt>${esc5(R.safety)}</dt><dd>${esc5(safeOk ? R.safeOk : R.safeKo)}</dd>
+        <dt>Esito</dt><dd><span class="pstars" role="img" aria-label="${stars2} stelle su 3">${[0, 1, 2].map((i) => `<span class="pstar" style="--i:${i}">${STAR2(i < stars2)}</span>`).join("")}</span></dd>
+        <dt>Installatore</dt><dd class="tsign"${who ? " data-notr" : ""}>${esc5(who || "Giocatore")}</dd>
+      </dl>
+      <div class="prow"><a class="pbtn y" href="#/home">Torna alla mappa</a><button class="pbtn" type="button" data-pui="again">Rifai la serata</button><button class="pbtn" type="button" data-pui="summary">Sintesi</button><button class="pbtn" type="button" data-pui="closeSheet">Guarda la casa</button></div></div>`;
   }
 
   // src/prove/page.js
@@ -24367,6 +25216,10 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
     }
     function tap(u) {
       if (inLesson() || act2 && act2 !== "play") return;
+      if (u.kind === "toggle" && name === "casa" && u.id === "S2") {
+        const ps = provaState(lastSnap);
+        if (!ps || !ps.flood.wet) return;
+      }
       if (u.kind === "toggle") doAct({ kind: "toggle", id: u.id }, () => s().toggleControl(u.id));
       else if (u.kind === "test") doAct({ kind: "test", id: u.part }, () => s().testPart(u.part));
       else if (u.kind === "reset") doAct({ kind: "reset", id: u.part }, () => s().resetPart(u.part));
@@ -24453,7 +25306,8 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
         backInside();
         s().startFault();
         if (cfg().shiftHours) s().restartShift();
-      } else if (k === "summary") {
+      } else if (k === "replay") replay();
+      else if (k === "summary") {
         if (env.summary) env.summary();
       } else if (k === "schema") schema();
       else if (k === "overload") {
@@ -24522,8 +25376,37 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
       renderHud();
       if (!opening && plant() && scene) scene.look("insieme", 900);
     }
+    function replay() {
+      if (name !== "casa" || !lastSnap || lastSnap.unit.phase !== "fault") return;
+      if (ui2.schema) {
+        ui2.schema = false;
+        if (env.drawer) env.drawer(false);
+      }
+      s().restartShift();
+      ui2.lastLit = null;
+      ui2.blackoutAt = null;
+      prevPs = provaState(s().snapshot());
+      note(cfg().log.replay);
+      if (scene) {
+        if (scene.evening) scene.evening(false);
+        scene.look("insieme", 1200);
+      }
+      subtitle("", cfg().hints[0], 3200);
+      renderHud();
+    }
     function check() {
       const sh = cfg().shiftHours && shiftNow();
+      if (sh && name === "casa") {
+        const ps = provaState(lastSnap);
+        if (ps && ps.blackout) {
+          subtitle("", cfg().story.replay, 3600);
+          return;
+        }
+        if (!sh.done) {
+          subtitle("", sh.started ? "La serata non \xE8 finita: guarda la casa fino alle 23:00." : "La serata non \xE8 cominciata: chiudi il generale.", 3200);
+          return;
+        }
+      }
       if (sh && !sh.done) {
         subtitle("", sh.started ? "Il turno non \xE8 finito: tieni la cella in produzione fino alle 6:00." : "Il turno non \xE8 cominciato: riarma e premi Marcia.", 3200);
         return;
@@ -24592,6 +25475,7 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
         sound.motor(act2 !== "finale" && ps.powered && ps.cycle, 0);
         return;
       }
+      if (name === "casa") return;
       if (plant()) {
         sound.motor(act2 !== "finale" && ps.motor === "fwd", ps.overload ? 1 : ps.thermal.heat * 0.5);
         return;
@@ -24606,8 +25490,9 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
       if (!ps) return;
       const before = prevPs;
       prevPs = ps;
-      const sig = name === "automatico" ? JSON.stringify(snapshot.programs || {}) : null, progBefore = progSig;
+      const sig = name === "automatico" || name === "casa" ? JSON.stringify(snapshot.programs || {}) : null, progBefore = progSig;
       progSig = sig;
+      if (name === "casa" && ps.powered) ui2.lastLit = ps;
       if (!before || act2 !== "play" || inLesson() || snapshot.unit.phase === "lesson") return;
       const action = pending;
       const events = plantEvents(name, action, before, ps);
@@ -24616,7 +25501,10 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
       mem = rememberFixed(mem, snapshot.unit.phase === "fault" && plantFixed(name, snapshot));
       events.forEach((e) => note(e.text, e));
       const c2 = cfg();
-      if (sig !== null && progBefore !== null && sig !== progBefore) note(before.motor === "fwd" ? c2.log.programLive : c2.log.program, { trip: before.motor === "fwd" });
+      if (sig !== null && progBefore !== null && sig !== progBefore) {
+        if (name === "casa") note(casaFixed(snapshot.programs, snapshot.level) ? c2.log.programOk : c2.log.program, { good: casaFixed(snapshot.programs, snapshot.level) });
+        else note(before.motor === "fwd" ? c2.log.programLive : c2.log.program, { trip: before.motor === "fwd" });
+      }
       if (!wasFixed && mem.fixed) {
         note(c2.log.fixed, { good: true });
         sound.chime(1);
@@ -24650,14 +25538,37 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
           }
           subtitle(c2.story.stop, c2.story.stopWhy, 4200);
           if (scene && scene.alert) scene.alert(2600);
-        } else if (e.kind === "safety") subtitle(c2.story.safety, c2.story.safetyWhy, 3200);
+        } else if (e.kind === "blackout") {
+          ui2.blackoutAt = clockNow();
+          mem = { ...mem, blackout: true, blackoutAt: ui2.blackoutAt };
+          sound.tac();
+          sound.silence();
+          sound.vibrate([30, 40, 80]);
+          flash();
+          subtitle(c2.story.blackout, c2.story.blackoutWhy, 4800);
+          if (scene && scene.blackout) scene.blackout();
+          if (scene) scene.look("esterno", 1200);
+        } else if (e.kind === "flood") {
+          sound.siren();
+          subtitle(c2.story.flood, c2.story.floodWhy, 4200);
+          if (scene) {
+            if (scene.alert) scene.alert(2600);
+            scene.look("bagno", 1200);
+          }
+        } else if (e.kind === "silenceWet") subtitle("", c2.story.wet, 3200);
+        else if (e.kind === "broken") {
+          sound.tac();
+          subtitle("", c2.story.broken, 4200);
+        } else if (e.kind === "car" && scene) scene.look("tettoia", 1200);
+        else if (e.kind === "safety") subtitle(c2.story.safety, c2.story.safetyWhy, 3200);
         else if (e.kind === "panelLost") subtitle("", c2.story.panel, 3200);
         else if (e.kind === "repairLive") {
           sound.tac();
           subtitle("", c2.story.inside, 4200);
         } else if (e.kind === "fixed" && e.good) sound.chime(1);
         else if (e.kind === "end") {
-          sound.siren();
+          if (name !== "casa") sound.siren();
+          else sound.chime(1);
           subtitle(c2.story.end, "", 3200);
         } else if (e.kind === "lotto") {
           sound.clunk();
@@ -24736,7 +25647,8 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
     }
     function prepareOutside() {
       if (scene && plant()) {
-        scene.outside();
+        if (scene.outside) scene.outside();
+        else scene.look("esterno", 1);
         const w2 = wires();
         if (w2) w2.setVisible(false);
         return;
@@ -24781,6 +25693,11 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
         });
         return;
       }
+      if (name === "casa") {
+        scene.look("insieme", 2400);
+        later(2600, afterArrive);
+        return;
+      }
       if (name === "officina") {
         later(300, () => {
           scene.shutter(true, 1600);
@@ -24814,7 +25731,7 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
       hideCall();
       override = null;
       if (scene && plant()) {
-        scene.inside();
+        if (scene.inside) scene.inside();
         scene.look("insieme", 1);
       }
       if (scene && scene.setRoof) {
@@ -24907,7 +25824,11 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
           if (env.drawer) env.drawer(false);
         }
         sound.siren();
-        if (scene) {
+        if (scene && name === "casa") {
+          if (scene.evening) scene.evening(true);
+          scene.look("esterno", 2600);
+          later(1300, () => subtitle(cfg().report.end, "", 2600));
+        } else if (scene) {
           scene.shift(true);
           scene.look("turno", 2600);
           later(1300, () => subtitle(cfg().report.end, "", 2600));
@@ -24943,7 +25864,9 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
     }
     function backInside() {
       if (scene && plant()) {
-        scene.shift(false);
+        if (name === "casa") {
+          if (scene.evening) scene.evening(false);
+        } else scene.shift(false);
         scene.look("insieme", 1200);
         return;
       }
@@ -25031,7 +25954,7 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
       if (!ps) return;
       const steps = stepsOf(name, ps, unit, mem);
       setHTML(el.pTop, topHTML2(c2, clockNow(), ui2));
-      if (el.pShift) setHTML(el.pShift, shiftHTML(c2, ps));
+      if (el.pShift) setHTML(el.pShift, shiftHTML(c2, ps, mem));
       setHTML(el.pSteps, stepsHTML(steps) + (unit.phase === "fault" && act2 === "play" ? `<p class="phint">${hintOf(name, steps)}</p>` : ""));
       setHTML(el.pDock, dockHTML(c2, ps, unit, ui2));
       el.pLog.hidden = !ui2.log;
@@ -25041,7 +25964,8 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
       else if (sheet === "finale") {
         const lv = lastSnap.levels.find((l) => l.id === lastSnap.level.id) || {};
         const stars2 = lastSnap.result && lastSnap.result.stars || lv.stars || 0;
-        sh = c2.shiftHours ? turnoReportHTML(c2, stars2, !!unit.faultSolved, ps, env.name ? env.name() : "", !(lastSnap.result && lastSnap.result.safe && lastSnap.result.safe.items.some((i) => i.code === "safe.repairLive"))) : c2.tests ? verbaleHTML(c2, stars2, !!unit.faultSolved, clockText(c2, 0), clockText(c2, Math.max(minutes, 20)), env.name ? env.name() : "") : reportHTML(c2, stars2, !!unit.faultSolved, clockText(c2, 0), clockText(c2, minutes));
+        const safeOk = !(lastSnap.result && lastSnap.result.safe && !lastSnap.result.safe.ok);
+        sh = name === "casa" ? serataReportHTML(c2, stars2, !!unit.faultSolved, ps, env.name ? env.name() : "", safeOk, mem) : c2.shiftHours ? turnoReportHTML(c2, stars2, !!unit.faultSolved, ps, env.name ? env.name() : "", !(lastSnap.result && lastSnap.result.safe && lastSnap.result.safe.items.some((i) => i.code === "safe.repairLive"))) : c2.tests ? verbaleHTML(c2, stars2, !!unit.faultSolved, clockText(c2, 0), clockText(c2, Math.max(minutes, 20)), env.name ? env.name() : "") : reportHTML(c2, stars2, !!unit.faultSolved, clockText(c2, 0), clockText(c2, minutes));
       } else sheet = null;
       el.pSheet.hidden = !sh;
       setHTML(el.pSheet, sh);
@@ -25094,7 +26018,11 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
             restart2(true);
             setAct("play");
             if (plant()) {
-              if (scene) scene.shift(false);
+              if (scene) {
+                if (name === "casa") {
+                  if (scene.evening) scene.evening(false);
+                } else scene.shift(false);
+              }
               prevPs = provaState(snapshot);
             } else {
               override = litHouse();
@@ -25139,6 +26067,8 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
         pending = null;
         pointerHold = null;
         ui2.alarm = false;
+        ui2.lastLit = null;
+        ui2.blackoutAt = null;
         sceneState = "idle";
         mounted = false;
         lastSnap = null;

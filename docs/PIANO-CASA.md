@@ -68,6 +68,26 @@ decide A in A3 guardando come `page.js` usa la fabbrica, chiamando i metodi solo
 un metodo in piu' lo scrive qui. Se A o B hanno bisogno di un
 campo nuovo lo aggiungono qui (solo aggiunte) e lo scrivono nello STATO.
 
+### Contratto come è davvero (A3, 17 ottobre)
+
+`casaState` in `src/prove/state.js` ha tutti i campi sopra, con questi significati precisi, più alcuni per il pannello:
+- `powered` = rete presente, generale chiuso e contatore non staccato; `qg` = leva del generale (resta chiusa anche al buio).
+- `kw.batt` = `pb` del modello: > 0 la batteria si carica, < 0 dà potenza alla casa. `kw.limit` dal livello (6).
+- `ev.charging` = colonnina accesa con la casa alimentata. `hp.on` = la pompa ha girato nell'ultimo passo (`hpRun`).
+- `zones[k].valve` = apertura vera della valvola 0..1; `window` solo per il soggiorno.
+- `oven` acceso solo con la casa alimentata. `flood.wet` = sonda bagnata, `flood.siren` = sirena che suona.
+- `silence` = tasto di tacitazione tenuto premuto.
+- `rooms`: 0 / 0,5 (ingresso, corridoio) / 1, dopo il tramonto secondo un orario fisso della serata (cucina a cena, bagno alle
+  21:30, camera dalle 22:15); tutte 0 a casa non alimentata. È un disegno, non una regola.
+- in più: `plc { on, outputs }`, `energy { prod, imp, exp, cost }` (kWh, euro), `comfort { soggiorno, camera }` (minuti fuori dal comfort).
+
+Che cosa chiama la pagina sulla scena (solo se il metodo esiste): `update(stato)` a ogni stato; `look(vista, ms)` con
+`insieme` (arrivo, Rifai), `esterno` (buio e finale), `tettoia` (l'auto si attacca), `bagno` (allagamento); `alert(ms)`
+all'allagamento; `blackout()` nel momento in cui il contatore stacca (la pagina fa il "tac" e il lampo, la scena il buio);
+`evening(true)` all'inizio del finale (finestre che si spengono), `evening(false)` tornando dentro o rifacendo la serata;
+`arrival()` se c'è (ritorna i millisecondi dell'arrivo), altrimenti `look('insieme', 2400)`; `outside()`/`inside()` se ci sono.
+Tocchi gestiti: `QG`, `W1`, `S2` (solo se la sonda è bagnata), `TA` (premi e rilascia, come i pulsanti della fabbrica: `onPress`/`onRelease`).
+
 Aggiunte di B (fase B2, 17 ottobre), tutte facoltative per A:
 - campo `qg: bool` in `casaState`: il generale e' chiuso (anche a contatore staccato). Se manca, la leva del quadro
   segue `powered || blackout`.
