@@ -2181,7 +2181,7 @@ export const UNITS_V2 = {
           type: 'spiegazione',
           title: 'Il riarmo',
           paras: [
-            'Dopo un arresto non riparte da solo. Serve un impulso sul pulsante di riarmo, e il relè si arma quando il pulsante viene rilasciato: la macchina riparte per una scelta di chi sta davanti, non perché il fungo è stato sbloccato. Un pulsante di riarmo bloccato o ponticellato (cioè scavalcato con un filo) non arma mai il relè: per questo si arma al rilascio, e non quando lo premi. Il pulsante di riarmo è normalmente aperto, come una marcia.',
+            'Dopo un arresto non riparte da solo. Serve un impulso sul pulsante di riarmo, e il relè si arma quando il pulsante viene rilasciato: la macchina riparte per una scelta di chi sta davanti, non perché il fungo è stato sbloccato. Il relè si arma quando lasci il pulsante, dopo averlo premuto (nell’animazione lo vedi come un tasto premuto). Perché al rilascio: un pulsante incastrato o ponticellato (scavalcato con un filo) sarebbe sempre premuto, e il relè si riarmerebbe da solo appena sblocchi il fungo. Così invece non si arma mai. Il pulsante di riarmo è normalmente aperto, come una marcia.',
           ],
         },
         {
@@ -2189,7 +2189,7 @@ export const UNITS_V2 = {
           title: 'Il contattore incollato',
           paras: [
             'I contatti di potenza di un contattore possono incollarsi, per esempio dopo molti cicli con carico forte. La bobina si spegne, ma la macchina continua a girare.',
-            'Nei contattori i contatti NC e NA non si possono trovare chiusi insieme. Se il contattore è incollato, il contatto NC 21-22 resta aperto. Mettendolo nel circuito di riarmo, il relè di sicurezza si accorge del guasto e non si riarma. Nelle macchine vere i contattori di potenza sono due, in serie; qui ce n’è uno solo, per semplicità: il contattore incollato si scopre al riarmo, ma intanto non si ferma. Con due contattori, se uno si incolla l’altro ferma la macchina, e il riarmo non riparte con quello guasto.',
+            'Nei contattori i contatti NC e NA non si possono trovare chiusi insieme. Se il contattore è incollato, il contatto NC 21-22 resta aperto. Mettendolo nel circuito di riarmo, il relè di sicurezza si accorge del guasto e non si riarma. Nelle macchine vere i contattori di potenza sono due, in serie; qui ce n’è uno solo, per semplicità: il contattore incollato si scopre al riarmo, ma intanto non si ferma. Con un contattore solo, se si incolla, nemmeno il fungo ferma la macchina: per questo nelle macchine vere sono due, e se uno si incolla l’altro la ferma.',
           ],
           warn: 'Se il riarmo non passa dal contatto NC del contattore, un contattore incollato non viene scoperto: la macchina resta senza protezione fino al guasto successivo.',
         },
@@ -3358,7 +3358,7 @@ export const UNITS_V2 = {
           type: 'spiegazione',
           title: 'Due fili per tutto',
           paras: [
-            'Il trasmettitore ha solo due fili, e da quei due prende anche l’energia per funzionare: qui la tensione la dà l’ingresso del PLC, in molti impianti un alimentatore a 24 V messo in serie nell’anello.',
+            'Il trasmettitore ha solo due fili, e da quei due prende anche l’energia per funzionare (è fatto per consumare meno di 4 mA, un’altra ragione per cui il minimo è 4): qui la tensione la dà l’ingresso del PLC, in molti impianti un alimentatore a 24 V messo in serie nell’anello.',
             'Per questo la polarità conta. Se scambi i fili, l’elettronica del trasmettitore non lascia passare la corrente al contrario: nell’anello passano 0 mA, come con un filo staccato.',
             'I fili dell’anello sono rossi tutti e due perché portano un segnale, non la fase o il neutro: il + e il − si riconoscono dai morsetti.',
           ],
@@ -3461,7 +3461,7 @@ export const UNITS_V2 = {
           title: 'Perché serve un variatore',
           paras: [
             'Un motore trifase collegato alla rete gira a una velocità quasi fissa, decisa dalla frequenza della rete: 50 hertz, cioè la tensione cambia verso 50 volte al secondo. Se vuoi un nastro più lento o più veloce, e partenze dolci, devi cambiare la frequenza che arriva al motore.',
-            'Lo fa il variatore di frequenza: prende la tensione di rete e ne produce una trifase con la frequenza che gli chiedi. Più la frequenza è alta, più il motore gira in fretta. Molti lo chiamano inverter, come il pezzo dei pannelli: anche lui fa l’alternata con l’elettronica, ma per un motore.',
+            'Lo fa il variatore di frequenza: prende la tensione di rete e ne produce una trifase con la frequenza che gli chiedi. Più la frequenza è alta, più il motore gira in fretta: il campo magnetico dentro il motore gira al ritmo della tensione, e il rotore lo segue. Molti lo chiamano inverter, come il pezzo dei pannelli: anche lui fa l’alternata con l’elettronica, ma per un motore.',
           ],
         },
         {
@@ -3539,7 +3539,7 @@ export const UNITS_V2 = {
           title: 'Mantenere lo stato con Set e Reset',
           paras: [
             'Per mantenere “acceso” anche quando il livello è risalito sopra il 20 % serve una memoria. Nel PLC l’istruzione Set accende un’uscita e la tiene accesa anche quando la condizione che l’ha accesa sparisce. Soltanto un Reset la spegne.',
-            'Il programma ha due gradini: se il galleggiante basso scatta, Set su Q0; se il galleggiante alto scatta, Reset su Q0. In mezzo nessun gradino cambia Q0, e la pompa continua come prima. Quando il PLC si accende Q0 è spento: con il serbatoio a metà la pompa aspetta che il livello scenda al 20 %. Le soglie 20 e 80 le sceglie chi progetta l’impianto.',
+            'Il programma ha due gradini: se il galleggiante basso scatta, Set su Q0; se il galleggiante alto scatta, Reset su Q0. In mezzo nessun gradino cambia Q0, e la pompa continua come prima. Quando il PLC si accende Q0 è spento: con il serbatoio a metà la pompa aspetta che il livello scenda al 20 %; se è già sotto, parte subito. Le soglie 20 e 80 le sceglie chi progetta l’impianto.',
           ],
           table: {
             head: ['Livello', 'Galleggiante', 'La pompa'],
@@ -3706,7 +3706,7 @@ export const UNITS_V2 = {
           title: 'Perché proprio 90 e 10',
           paras: [
             'All’80 % la pompa si ferma da sola, con il galleggiante alto: è il lavoro normale. A 90 ci si arriva solo se qualcosa non va, per esempio il galleggiante bloccato, ed è il momento di avvisare.',
-            'Sotto il 10 % il serbatoio è quasi vuoto: chi preleva l’acqua, per esempio la pompa che la manda all’impianto, girerebbe a vuoto e si rovinerebbe. Le due soglie degli allarmi stanno fuori da quelle del lavoro normale (20 e 80): un allarme deve suonare solo quando serve.',
+            'Sotto il 10 % il serbatoio è quasi vuoto: chi preleva l’acqua, per esempio la pompa che la manda all’impianto, girerebbe a vuoto e si rovinerebbe. Le due soglie degli allarmi stanno fuori da quelle del lavoro normale (20 e 80): un allarme deve suonare solo quando serve. E avvisa soltanto: la pompa la comanda sempre il programma, con i galleggianti.',
           ],
         },
         {
