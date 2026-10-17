@@ -53,3 +53,17 @@ Aggiornato il 17 ottobre 2026. Tutto il lavoro utile e' in `main` e il resto si 
 - **Storia riscritta, vecchi del 13-14 ottobre** (hanno commit "in piu'" solo perche' la storia di `main` non li contiene piu' tali e quali):
   `b1-c01`, `b2-modello-lezione`, `b3-notte`, `b4-moduli`, `b5-trilocale-3d`, `p1-modulo2`, `p2-trifase`, `p3-prove3d`,
   `separazione-motore-vista`. Tenuti per sicurezza; non unirli.
+
+## Punto di ritorno: fine della prima fase
+
+Il commit **`fe4fee0`** (17 ottobre 2026) e' lo stato stabile di fine prima fase: percorso completo c01-c55 in `main`, 602 test verdi,
+nessuna frase araba mancante, documentazione allineata. Il codice e' identico a `98aa50e` (cambia solo la documentazione).
+Il tag `fine-prima-fase` non e' stato pubblicato (il push dei tag dalla sessione non funzionava): vale il numero del commit.
+Se in futuro lo si crea da GitHub (Releases, "Create a new release", sul commit `fe4fee0`), annotarlo qui.
+
+Se qualcosa si rompe, **non** riscrivere `main`: ripartire da li' in un ramo nuovo.
+- Guardare cosa e' cambiato dopo: `git diff fe4fee0 HEAD --stat` (e `git log --oneline fe4fee0..HEAD`).
+- Recuperare un solo file com'era: `git checkout fe4fee0 -- percorso/del/file`, poi `npm run build` e `npm test`.
+- Ripartire da zero da quel punto: `git checkout -b ripristino fe4fee0`, `npm ci`, `npm run build`, `npm test` (devono dare 602 verdi).
+- Riportare `main` a quel punto solo se Gianluca lo decide: e' una scelta distruttiva (`git reset --hard` e push forzato). Meglio un
+  commit di annullamento: `git revert --no-commit fe4fee0..HEAD`, controllare, committare.
