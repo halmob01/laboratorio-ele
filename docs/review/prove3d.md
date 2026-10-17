@@ -24,6 +24,18 @@ un rapporto finale con la causa del guasto e il rimedio. È già il modo giusto:
 Traduzioni in `src/i18n/ar-55.js`. Attenzione: `scripts/check-lang.mjs` non controlla i testi di `src/content/prove.js` (le prove hanno
 una pagina a parte); le traduzioni delle prove vanno aggiunte a mano e controllate cercando la frase nei file `ar-*.js`.
 
+## Controllo del 17 ottobre (ramo `claude/bold-heisenberg-0v4gc0`)
+
+- **La regola finale non si vedeva.** I testi «Da ricordare» stavano nel campo `win` di `src/content/prove.js`, che la vista non legge:
+  il finale mostra il rapporto (`report`). Ora la regola sta in `report.rule` e i quattro rapporti (intervento, verbale di collaudo,
+  fine turno, consegna della casa) hanno la riga «Da ricordare» (`src/prove/hud.js`, con il via di Gianluca). Tolto il campo `win`.
+  Controllato a 390 px: il rapporto più lungo scorre dentro il riquadro, come prima.
+- **Lucchetto.** c24 (dopo «Lavori in sicurezza») e c51 (dopo la slide «Il lucchetto» del Modulo 6) dicevano solo «apri il salvamotore»
+  e «apri la portella». I suggerimenti ora dicono che nel lavoro vero ci si mette il proprio lucchetto; la regola di c51 lo ripete; la sintesi
+  di c24 dice «con il lucchetto e la tensione verificata». Nelle prove il lucchetto non è un comando: resta una frase, non un passo.
+- **c55:** «Il contatore non si riarma da solo», come dice la lezione (nelle case vere si riarma dal suo pulsante).
+- Arabo in `src/i18n/ar-57.js`.
+
 ## Da fare in seguito
 
 - Le domande della sfida guasto dei livelli normali (41) hanno lo stesso problema di lunghezza delle risposte (la giusta è la più lunga 39

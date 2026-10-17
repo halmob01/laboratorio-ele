@@ -32,6 +32,7 @@ export const PROVE = {
     },
     report: {
       title: 'Rapporto d’intervento',
+      rule: 'Se il differenziale non resta armato, si aprono tutte le linee e se ne richiude una alla volta.', // riga «Da ricordare» del rapporto finale
       fault: 'Dispersione verso terra sulla linea prese: la stufetta del soggiorno ha l’isolante rovinato e perde circa 300 mA, dieci volte la soglia del differenziale.',
       fix: 'Stufetta scollegata, da far riparare. Differenziale riarmato, tre linee chiuse.',
       end: 'Tutto acceso.',
@@ -65,10 +66,6 @@ export const PROVE = {
       checkOk: 'Verifica: impianto funzionante.',
       checkKo: 'Verifica: qualcosa non va ancora.',
     },
-    win: {
-      title: 'La luce è tornata',
-      text: 'La stufetta del soggiorno aveva l’isolante rovinato: perdeva verso terra circa 300 mA, dieci volte la soglia del differenziale. Scollegata la stufetta, le tre linee restano chiuse e il differenziale armato. Da ricordare: se il differenziale non resta armato, si aprono tutte le linee e se ne richiude una alla volta.',
-    },
   },
   officina: {
     kick: 'Modulo 3 · prova',
@@ -100,6 +97,7 @@ export const PROVE = {
     },
     report: {
       title: 'Verbale di collaudo',
+      rule: 'Ogni contatto che deve fermare la macchina sta in serie nel comando, e si collauda tutto prima di consegnare.',
       sub: 'Nastro trasportatore, linea 1',
       fault: 'Contatto 95-96 del termico fuori dal circuito di comando: con il sovraccarico il termico scattava ma il nastro non si fermava.',
       fix: 'A salvamotore aperto, il 95-96 del termico messo in serie prima del fungo.',
@@ -138,13 +136,9 @@ export const PROVE = {
       'Di nuovo in marcia, poi premi il fungo: deve fermare tutto, sempre. Ricordati di sbloccarlo.',
       'In marcia, incastra un pacco: il motore si sforza e il termico deve fermare il nastro prima che il motore si bruci.',
       'Il termico è scattato ma il nastro girava: perché? Rispondi.',
-      'Apri il salvamotore (sui fili si lavora senza tensione), poi apri il banco e sistema il comando del termico.',
+      'Apri il salvamotore: sui fili si lavora senza tensione (nel quadro vero ci metti il tuo lucchetto e verifichi con lo strumento). Poi apri il banco e sistema il comando del termico.',
       'Richiudi il salvamotore, riarma il termico, rifai le prove e premi Verifica.',
     ],
-    win: {
-      title: 'Il turno può partire',
-      text: 'Il contatto 95-96 del termico non era nel circuito di comando: con il sovraccarico il termico scattava ma il nastro non si fermava. Ora è in serie prima del fungo e il collaudo è completo. Da ricordare: ogni contatto che deve fermare la macchina sta in serie nel comando, e si collauda tutto prima di consegnare.',
-    },
   },
   automatico: {
     kick: 'Modulo 4 · prova',
@@ -172,6 +166,7 @@ export const PROVE = {
     },
     report: {
       title: 'Verbale di collaudo',
+      rule: 'Un programma si collauda come un impianto, e si cambia solo a macchina ferma.',
       sub: 'Linea di confezionamento, lotti da 4',
       fault: 'Nel programma il contatore dei pacchi non aveva l’ingresso di azzeramento: dopo il primo lotto restava pieno e Marcia non faceva ripartire il nastro.',
       fix: 'A nastro fermo, nel gradino del contatore aggiunto l’azzeramento con Marcia (I1). Conteggio a 4.',
@@ -213,10 +208,6 @@ export const PROVE = {
       'Con il nastro fermo apri il banco (un programma cambiato in marcia può far muovere la macchina di colpo): nel gradino del contatore scegli con che cosa si azzera.',
       'Rifai le prove, con due lotti di fila, e premi Verifica.',
     ],
-    win: {
-      title: 'La linea riparte',
-      text: 'Il contatore dei pacchi non aveva l’ingresso di azzeramento: dopo il primo lotto restava pieno e il nastro non ripartiva. Ora si azzera con Marcia e i lotti da 4 si susseguono. Da ricordare: un programma si collauda come un impianto, e si cambia solo a macchina ferma.',
-    },
   },
   fabbrica: {
     kick: 'Modulo 6 · prova',
@@ -242,6 +233,7 @@ export const PROVE = {
     },
     report: {
       title: 'Rapporto di fine turno',
+      rule: 'Un robot fermo non è un robot sicuro: dentro la cella si entra solo a portella aperta, con il proprio lucchetto.',
       sub: 'Linea 2, turno di notte',
       pieces: 'Pezzi prodotti',
       goal: 'obiettivo',
@@ -285,15 +277,11 @@ export const PROVE = {
     hints: [
       'Riarma le sicurezze (tasto Riarmo) e premi Marcia: il turno comincia quando il robot riceve potenza.',
       'La cella si è fermata: guarda il pannello e dove si è fermato il braccio, poi rispondi.',
-      'Apri la portella, così il robot resta senza potenza; sostituisci il sensore che non risponde, richiudi, riarma e premi Marcia.',
+      'Apri la portella, così il robot resta senza potenza (nella cella vera ci metti il tuo lucchetto, perché nessuno la richiuda); sostituisci il sensore che non risponde, richiudi, riarma e premi Marcia.',
       'Tieni d’occhio il pannello: ogni guasto ha un tempo massimo.',
       'Il turno finisce alle 6:00: intanto tieni la cella in produzione.',
       'Turno finito: premi Verifica.',
     ],
-    win: {
-      title: 'Turno consegnato',
-      text: 'La cella ha prodotto per tutta la notte. Ogni guasto è stato trovato dal pannello e riparato in sicurezza, con il robot senza potenza. Da ricordare: un robot fermo non è un robot sicuro; dentro la cella si entra solo a portella aperta.',
-    },
   },
   casa: {
     kick: 'Modulo 5 · prova',
@@ -316,10 +304,11 @@ export const PROVE = {
       wet: 'La sonda è ancora bagnata: la sirena riparte.',
       broken: 'La pompa di calore si è guastata: ha girato con le valvole chiuse.',
       end: 'Le 23:00. La casa va a dormire.',
-      replay: 'Il contatore non si riarma: rifai la serata da capo.',
+      replay: 'Il contatore non si riarma da solo: rifai la serata da capo.',
     },
     report: {
       title: 'Verbale di consegna',
+      rule: 'Una soglia vale solo se il misuratore la può vedere, e va sotto il limite con margine.',
       sub: 'Casa intelligente, Via Roma 12',
       end: 'Le 23:00. Buonanotte.',
       energy: 'Energia della serata',
@@ -384,9 +373,5 @@ export const PROVE = {
       'Rifai la serata da capo e guardala fino alle 23. Alle 21:30 tieni d’occhio il bagno: prima si asciuga la sonda, poi si tacita la sirena.',
       'Serata finita: premi Verifica e consegna.',
     ],
-    win: {
-      title: 'Casa consegnata',
-      text: 'La soglia di distacco era sopra il limite del contatore e oltre il fondo scala del misuratore: il PLC non staccava mai niente. Con la soglia a 5800 W la casa ha retto la cena con l’auto in carica e la pompa accesa. Da ricordare: una soglia vale solo se il misuratore la può vedere, e va sotto il limite con margine.',
-    },
   },
 };

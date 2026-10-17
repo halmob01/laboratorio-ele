@@ -237,6 +237,7 @@ export function turnoReportHTML(cfg, stars, solved, ps, who, safeOk) {
         <dt>${esc(R.down)}</dt><dd>${esc(shiftSpan(cfg, sh, sh.down || 0))}</dd>
         <dt>${esc(R.faults)}</dt><dd><ul class="pverb-tests">${rows}</ul></dd>
         <dt>${esc(R.safety)}</dt><dd>${esc(safeOk ? R.safeOk : R.safeKo)}</dd>
+        ${R.rule ? `<dt>Da ricordare</dt><dd>${esc(R.rule)}</dd>` : ''}
         <dt>Esito</dt><dd><span class="pstars" role="img" aria-label="${stars} stelle su 3">${[0, 1, 2].map(i => `<span class="pstar" style="--i:${i}">${STAR(i < stars)}</span>`).join('')}</span></dd>
         <dt>Manutentore</dt><dd class="tsign"${who ? ' data-notr' : ''}>${esc(who || 'Giocatore')}</dd>
       </dl>
@@ -459,6 +460,7 @@ export function verbaleHTML(cfg, stars, solved, from, to, who) {
         <dt>Prove</dt><dd><ul class="pverb-tests">${rows}</ul></dd>
         <dt>Guasto</dt><dd>${esc(R.fault)}</dd>
         <dt>Intervento</dt><dd>${esc(R.fix)}</dd>
+        ${R.rule ? `<dt>Da ricordare</dt><dd>${esc(R.rule)}</dd>` : ''}
         <dt>Esito</dt><dd><span class="pstars" role="img" aria-label="${stars} stelle su 3">${[0, 1, 2].map(i => `<span class="pstar" style="--i:${i}">${STAR(i < stars)}</span>`).join('')}</span></dd>
         <dt>Collaudatore</dt><dd class="tsign"${who ? ' data-notr' : ''}>${esc(who || 'Giocatore')}</dd>
       </dl>
@@ -477,6 +479,7 @@ export function reportHTML(cfg, stars, solved, from, to) {
         <dt>Dove</dt><dd>${esc(cfg.call.where)}</dd>
         <dt>Guasto</dt><dd>${esc(R.fault)}</dd>
         <dt>Intervento</dt><dd>${esc(R.fix)}</dd>
+        ${R.rule ? `<dt>Da ricordare</dt><dd>${esc(R.rule)}</dd>` : ''}
         <dt>Esito</dt><dd><span class="pstars" role="img" aria-label="${stars} stelle su 3">${[0, 1, 2].map(i => `<span class="pstar" style="--i:${i}">${STAR(i < stars)}</span>`).join('')}</span></dd>
       </dl>
       <div class="prow"><a class="pbtn y" href="#/home">Torna alla mappa</a><button class="pbtn" type="button" data-pui="again">Rifai la prova</button><button class="pbtn" type="button" data-pui="summary">Sintesi</button><button class="pbtn" type="button" data-pui="closeSheet">Guarda la casa</button></div></div>`;
@@ -610,6 +613,7 @@ export function serataReportHTML(cfg, stars, solved, ps, who, safeOk, mem = {}) 
         <dt>${esc(R.flood)}</dt><dd>${esc(flood)}</dd>
         ${solved ? `<dt>Guasto</dt><dd>${esc(R.fault)}</dd><dt>Intervento</dt><dd>${esc(R.fix)}</dd>` : ''}
         <dt>${esc(R.safety)}</dt><dd>${esc(safeOk ? R.safeOk : R.safeKo)}</dd>
+        ${R.rule ? `<dt>Da ricordare</dt><dd>${esc(R.rule)}</dd>` : ''}
         <dt>Esito</dt><dd><span class="pstars" role="img" aria-label="${stars} stelle su 3">${[0, 1, 2].map(i => `<span class="pstar" style="--i:${i}">${STAR(i < stars)}</span>`).join('')}</span></dd>
         <dt>Installatore</dt><dd class="tsign"${who ? ' data-notr' : ''}>${esc(who || 'Giocatore')}</dd>
       </dl>

@@ -2016,7 +2016,7 @@ export const UNITS_V2 = {
       'Si prova una funzione alla volta: per ognuna sai che cosa deve succedere, e se succede altro hai trovato il guasto.',
       'La protezione del motore si prova con un sovraccarico simulato: il termico deve scattare e fermare il nastro.',
       'Un termico che scatta ma non ferma il motore ha il contatto 95-96 fuori dal circuito di comando.',
-      'Si corregge un impianto a salvamotore aperto, mai in tensione.',
+      'Si corregge un impianto a salvamotore aperto, con il lucchetto e la tensione verificata, mai in tensione.',
     ],
     fault: {
       say: 'Il nastro è montato e gira. Collaudalo: premi Marcia, prova l’arresto e l’emergenza, poi simula un sovraccarico e guarda se il termico ferma il nastro. Quando hai capito che cosa non va, rispondi.',
