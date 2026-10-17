@@ -51,6 +51,7 @@ Scritta il 16 ottobre 2026 da Gianluca, dopo la collisione evitata tra la casa i
 | c53: attesa di 5 s prima di staccare la pompa (esercizio corretto) | ar-53 | c53-distacco | in `main` |
 | Review pedagogica del Modulo 6 (c25-c27, c33-c37, c43-c45, c51) | ar-54 | review-modulo6 | in `main` |
 | Review pedagogica delle prove 3D (c23, c24, c46, c51, c55) | ar-55 | review-prove3d | in `main` |
+| Slide oltre le 110 parole (c23, c25-c27, c34, c35, c37, c43) divise o accorciate; stato della review aggiornato | ar-56 | claude/bold-heisenberg-0v4gc0 | in corso |
 
 ## Rami vecchi (non cancellare, non usare)
 
