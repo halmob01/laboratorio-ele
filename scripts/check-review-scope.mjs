@@ -15,7 +15,8 @@ import { join } from 'node:path';
 import { isDeepStrictEqual } from 'node:util';
 import { pathToFileURL } from 'node:url';
 
-// Punto di partenza: B0, B1, spazio nelle tabelle, Attenzione nei pezzi, previsioni multiple (17 ottobre). Le lezioni sono identiche a fe4fee0; cambia solo la vista.
+// Punto di partenza: B0, B1, spazio nelle tabelle, Attenzione nei pezzi, previsioni multiple, tabelle a piu' colonne (17 ottobre).
+// Contiene gia' le review dei Moduli 2 e 3; per le lezioni di partenza si usa fe4fee0 (pacchetto-allievo.mjs --commit).
 const BASE = '7089345';
 const base = process.argv[2] || BASE;
 const git = (...a) => execFileSync('git', a, { encoding: 'utf8', maxBuffer: 1 << 28 });
