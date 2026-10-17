@@ -537,7 +537,7 @@ test('pagina: la fabbrica a tutto schermo: consegna del turno, barra del turno, 
   await wait(20);
   click(w, $('#pDock [data-phold="SB1"]'));
   await wait(20);
-  assert.match($('#pShift').textContent, /Fine turno tra 8 h/);
+  assert.match($('#pShift').textContent, /Fine turno tra (8 h\b|7 h 59)/);   // su una macchina lenta il turno puo' essere gia' avanzato di un minuto
   assert.ok($('#pDock .pst-lamp.on'), 'il robot ha potenza');
   click(w, $('#pDock [data-prepair="ZU"]'));               // un sensore buono: si controlla e basta
   click(w, $('[data-pui="log"]'));
