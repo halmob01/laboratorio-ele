@@ -87,7 +87,9 @@ Elenco completo in `docs/review/modulo4.md`, in fondo.
 
 ## Review pedagogica del Modulo 5 (17 ottobre)
 
-**Da decidere (esercizio, non toccato):** c53, gestione dei carichi. I passi del banco dicono «se la colonnina è già staccata e non basta,
+**Risolto il 17 ottobre (via di Gianluca: «fai tutte queste cose»):** c53 ora ha l'attesa di 5 secondi (T3) prima di staccare la pompa,
+come il programma di c55; passi, suggerimenti e lezione dicono «prima la colonnina e, se non basta, la pompa». Nota originale:
+c53, gestione dei carichi. I passi del banco dicono «se la colonnina è già staccata e non basta,
 tocca alla pompa», ma con il programma richiesto il PLC stacca le due insieme: legge i gradini uno dopo l'altro e il gradino della pompa
 vede già la colonnina spenta, con la potenza ancora sopra 5800 W (`src/engine/v2/plc.js`, `scan`). La lezione ora dice come va davvero
 (distacco insieme, priorità al ritorno). Se si vuole il distacco a gradini davvero, va cambiato l'esercizio: per esempio un TON di qualche

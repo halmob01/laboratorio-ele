@@ -44,8 +44,9 @@ che cosa serve ogni livello anche prima. I problemi erano di altro tipo:
 2. **Una lezione che non diceva quello che succede sul banco (c53).** Il programma del banco stacca colonnina e pompa insieme: il PLC aggiorna
    i bit gradino per gradino, e il gradino della pompa vede già la colonnina spenta mentre la potenza è ancora sopra 5800 W (verificato in
    `src/engine/v2/plc.js`, `scan`). La lezione diceva "prima la colonnina, se non basta la pompa". Ora dice la verità: si staccano insieme,
-   la priorità si vede al ritorno (prima la pompa, poi la colonnina). I passi del banco dicono ancora "se non basta, tocca alla pompa":
-   sono esercizio e non si toccano; annotato in `docs/DOMANDE-PER-GIANLUCA.md`.
+   la priorità si vede al ritorno (prima la pompa, poi la colonnina). Poi, con il via di Gianluca,
+   l'esercizio è stato corretto: un TON di 5 secondi (T3) prima di staccare la pompa, come in c55. Ora programma, passi e lezione dicono
+   la stessa cosa: prima la colonnina, e la pompa solo se dopo 5 secondi la potenza è ancora alta.
 3. **Precisione tecnica e semplificazioni non dette:** "bassa tensione" per i 12 V (è bassissima, come in c10); il LED senza resistenza;
    i pannelli che non si spengono; "scambio sul posto" usato come nome del contatore; la pompa che "si guasta dopo un minuto".
 4. **Unità mai spiegate:** kWh e kW (c41).

@@ -2009,6 +2009,8 @@ LEVELS_V2.push({
 
 // c53: la gestione dei carichi (Modulo 5). Colonnina (3,7 kW) e pompa di calore (1,5 kW) comandate dal PLC, forno serale di 3 kW non comandabile,
 // contatore da 6 kW. Priorita': si stacca prima la colonnina, poi la pompa di calore. Il riattacco vuole un margine che duri (TON), altrimenti pendolano.
+// La pompa si stacca solo se, staccata la colonnina, la potenza resta alta per 5 secondi (T3), come in c55: senza attesa il gradino della
+// pompa vedrebbe la colonnina gia' spenta nello stesso giro e staccherebbe tutti e due (docs/review/modulo5.md).
 const W53 = [
   ['Q.L1', 'PLC.A1', 'rosso'], ['PLC.A2', 'Q.N', 'blu'],
   ['TT.+', 'PLC.AI0+', 'rosso'], ['TT.-', 'PLC.AI0-', 'rosso'],
@@ -2017,7 +2019,8 @@ const W53 = [
 ];
 const PROG_53 = START_5.concat([
   { if: ['and', ['gt', 'MW0', 5800], 'Q0'], do: [{ op: 'reset', a: 'Q0' }] },
-  { if: ['and', ['gt', 'MW0', 5800], ['not', 'Q0']], do: [{ op: 'reset', a: 'Q1' }] },
+  { if: ['and', ['gt', 'MW0', 5800], ['not', 'Q0']], do: [{ op: 'ton', id: 'T3', pt: 5 }] },
+  { if: 'T3', do: [{ op: 'reset', a: 'Q1' }] },
   { if: ['lt', 'MW0', 4200], do: [{ op: 'ton', id: 'T1', pt: 30 }] },
   { if: 'T1', do: [{ op: 'set', a: 'Q1' }] },
   { if: ['and', ['lt', 'MW0', 2000], 'Q1'], do: [{ op: 'ton', id: 'T2', pt: 30 }] },
@@ -2032,8 +2035,8 @@ LEVELS_V2.push({
   comps: [
     Q3,
     C('PLC', 'plc', 'PLC', 'PLC (programma da scrivere)', T('A1', 'A2', 'AI0+', 'AI0-', 'Q0A', 'Q0B', 'Q1A', 'Q1B'), {
-      symbols: { AI0: 'Potenza scambiata (mA)', MW0: 'Potenza scambiata (W)', Q0: 'Colonnina', Q1: 'Pompa di calore', T1: 'Margine per la pompa', T2: 'Margine per la colonnina' },
-      edit: { start: START_5, markers: 0, timers: 2, counters: 0, words: ['MW0'], ops: ['set', 'reset', 'ton'] },
+      symbols: { AI0: 'Potenza scambiata (mA)', MW0: 'Potenza scambiata (W)', Q0: 'Colonnina', Q1: 'Pompa di calore', T1: 'Margine per la pompa', T2: 'Margine per la colonnina', T3: 'La potenza resta alta' },
+      edit: { start: START_5, markers: 0, timers: 3, counters: 0, words: ['MW0'], ops: ['set', 'reset', 'ton'] },
     }),
     GRID_TX(),
     C('HE', 'spia', 'Colonnina', 'Auto in ricarica', T('X1', 'X2')),
@@ -2057,7 +2060,7 @@ LEVELS_V2.push({
   solutionPrograms: { PLC: PROG_53 },
   hints: [
     'La potenza della rete è in MW0, in watt. Il limite è 6000 W: stacca prima, per esempio sopra 5800 W, perché il contatore aspetta 20 secondi ma il forno non aspetta.',
-    'Priorità: sopra la soglia Reset su Q0 (la colonnina) se è accesa; se la colonnina è già staccata e la potenza è ancora alta, Reset su Q1 (la pompa di calore). Il secondo gradino ha come condizione “MW0 maggiore di 5800 E Q0 spenta”.',
+    'Priorità: sopra la soglia Reset su Q0 (la colonnina) se è accesa. Per la pompa serve un’attesa: un TON da 5 secondi (T3) con la condizione “MW0 maggiore di 5800 E Q0 spenta”, e quando scatta Reset su Q1. Senza attesa il gradino della pompa vedrebbe la colonnina già spenta nello stesso giro e staccherebbe subito anche la pompa.',
     'Per riattaccare serve margine che dura. Un temporizzatore (TON) da 30 secondi con la condizione “MW0 minore di 4200”: quando scatta, Set su Q1 (la pompa riparte per prima, è più importante).',
     'Per la colonnina serve più margine, perché assorbe 3,7 kW: un secondo TON da 30 secondi con la condizione “MW0 minore di 2000 E Q1 accesa”, e quando scatta Set su Q0. Senza questi ritardi la potenza torna sotto soglia appena stacchi un carico, quindi riattacchi subito e la potenza risale: i carichi pendolano.',
   ],

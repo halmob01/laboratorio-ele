@@ -1,0 +1,27 @@
+// Dizionario arabo, parte 53: c53 con l'attesa di 5 secondi prima di staccare la pompa (passi, suggerimenti, lezione) e c55 allineato.
+// Glossario: come ar-52.
+export default {
+'Due gradini: MW0 maggiore di 5800 E Q0 spento (contatto normalmente chiuso) con un TON da 5 s (T3); poi T3 con Reset su Q1. Perché: se, staccata la colonnina, la potenza resta alta per 5 secondi, tocca alla pompa.': 'درجتان: MW0 أكبر من 5800 و Q0 مطفأ (ملامس مغلق عادةً) مع TON مدته 5 s (T3)؛ ثم T3 مع Reset على Q1. السبب: إذا بقيت القدرة مرتفعة لمدة 5 ثوانٍ بعد فصل محطة الشحن، يأتي دور المضخة.',
+'Ecco una sera con numeri di esempio: pompa 1,5 kW, auto 3,7 kW, forno 3,5 kW, il resto della casa cambia. Il TON lo conosci da c31: conta il tempo finché la sua condizione resta vera, e si azzera appena diventa falsa. Guarda le 19:30: tolta l’auto la potenza è ancora troppa, e dopo 5 secondi tocca alla pompa.': 'إليك مساءً بأرقام على سبيل المثال: المضخة 1,5 kW، السيارة 3,7 kW، الفرن 3,5 kW، وباقي المنزل يتغيّر. تعرف TON من c31: يعدّ الوقت ما دام شرطه صحيحًا، ويعود إلى الصفر حين يصبح خاطئًا. انظر إلى الساعة 19:30: بعد فصل السيارة تبقى القدرة كبيرة، وبعد 5 ثوانٍ يأتي دور المضخة.',
+'Il primo gradino è già scritto: legge la potenza del contatore e la porta in watt in MW0. Gli altri sette li scrivi tu.': 'الدرجة الأولى مكتوبة مسبقًا: تقرأ قدرة العدّاد وتضعها بالواط في MW0. أما الدرجات السبع الأخرى فتكتبها أنت.',
+'La potenza resta alta': 'القدرة تبقى مرتفعة',
+'Poi la pompa di calore, se non basta': 'ثم المضخة الحرارية، إذا لم يكفِ ذلك',
+'Priorità: si stacca prima il carico che può aspettare (l’auto); la pompa di calore solo se non basta, dopo 5 secondi di potenza ancora alta. Si riattaccano al contrario.': 'الأولوية: يُفصل أولًا الحمل الذي يمكنه الانتظار (السيارة)؛ والمضخة الحرارية فقط إذا لم يكفِ ذلك، بعد 5 ثوانٍ من بقاء القدرة مرتفعة. وتُعاد بالترتيب المعاكس.',
+'Priorità: sopra la soglia Reset su Q0 (la colonnina) se è accesa. Per la pompa serve un’attesa: un TON da 5 secondi (T3) con la condizione “MW0 maggiore di 5800 E Q0 spenta”, e quando scatta Reset su Q1. Senza attesa il gradino della pompa vedrebbe la colonnina già spenta nello stesso giro e staccherebbe subito anche la pompa.': 'الأولوية: فوق العتبة Reset على Q0 (محطة الشحن) إذا كانت تعمل. للمضخة يلزم انتظار: TON مدته 5 ثوانٍ (T3) بالشرط “MW0 أكبر من 5800 و Q0 مطفأ”، وعندما ينتهي Reset على Q1. من دون انتظار، سترى درجة المضخة محطة الشحن مطفأة في الدورة نفسها وستفصل المضخة فورًا أيضًا.',
+'Quindi: sopra la soglia si stacca la colonnina; se dopo 5 secondi la potenza è ancora alta, anche la pompa. Quando torna il margine si riattaccano al contrario: prima la pompa, poi la colonnina. I 5 secondi servono perché il PLC legge i gradini uno dopo l’altro: senza attesa, il gradino della pompa vedrebbe la colonnina già spenta e staccherebbe subito anche lei.': 'إذن: فوق العتبة تُفصل محطة الشحن؛ وإذا بقيت القدرة مرتفعة بعد 5 ثوانٍ، تُفصل المضخة أيضًا. وعندما يعود الهامش تُعاد بالترتيب المعاكس: المضخة أولًا ثم محطة الشحن. الثواني الخمس ضرورية لأن الـPLC يقرأ الدرجات واحدة بعد الأخرى: من دون انتظار، سترى درجة المضخة محطة الشحن مطفأة وستفصل المضخة فورًا أيضًا.',
+'T3 scade: stacca anche la pompa, restano 4,5 kW': 'ينتهي T3: تُفصل المضخة أيضًا، ويبقى 4,5 kW',
+'T3 scaduto': 'انتهى T3',
+'TON T3, 5 s': 'TON T3، 5 s',
+'casa 0,4 kW, pompa e auto': 'المنزل 0,4 kW، المضخة والسيارة',
+'dopo 30 s sotto 2000 W, T2: torna l’auto, 5,6 kW': 'بعد 30 s تحت 2000 W، T2: تعود السيارة، 5,6 kW',
+'dopo 30 s sotto 4200 W, T1: torna la pompa, 2,5 kW': 'بعد 30 s تحت 4200 W، T1: تعود المضخة، 2,5 kW',
+'la casa scende a 0,4 kW': 'ينخفض المنزل إلى 0,4 kW',
+'la potenza resta alta anche senza colonnina?': 'هل تبقى القدرة مرتفعة حتى من دون محطة الشحن؟',
+'la potenza è ancora alta': 'القدرة ما زالت مرتفعة',
+'si cucina: casa 1 kW e forno': 'وقت الطبخ: المنزل 1 kW والفرن',
+'si stacca per prima e torna per ultima: può aspettare': 'تُفصل أولًا وتعود أخيرًا: يمكنها الانتظار',
+'si stacca solo se non basta, e torna per prima': 'تُفصل فقط إذا لم يكفِ ذلك، وتعود أولًا',
+'stacca l’auto: restano 6,0 kW, ancora troppo': 'تُفصل السيارة: يبقى 6,0 kW، وهذا ما زال كثيرًا',
+'stacca prima l’auto e, se non basta, la pompa, per non far saltare il contatore': 'يفصل السيارة أولًا، وإذا لم يكفِ ذلك المضخة، كي لا يفصل العدّاد',
+'sì per 5 secondi: si stacca anche la pompa': 'نعم لمدة 5 ثوانٍ: تُفصل المضخة أيضًا',
+};

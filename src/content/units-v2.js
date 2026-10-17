@@ -5158,16 +5158,16 @@ UNITS_V2['c53-carichi'] = {
       },
       {
         type: 'spiegazione',
-        title: 'La priorità: chi aspetta e chi torna prima',
+        title: 'La priorità: chi si stacca per primo',
         paras: [
           'L’auto può caricarsi anche più tardi, nessuno se ne accorge. La pompa di calore ha un’inerzia: la casa è calda e qualche minuto senza non si sente. Il forno e le luci no: se si spengono se ne accorgono subito.',
-          'Attenzione a come lavora il programma del banco. La condizione «Q0 spenta» vorrebbe dire «prima la colonnina», ma il PLC legge i gradini uno dopo l’altro: quando arriva alla pompa, la colonnina è già spenta. Sopra 5800 W si staccano quindi tutte e due. La priorità si vede al ritorno: prima la pompa, poi la colonnina.',
+          'Quindi: sopra la soglia si stacca la colonnina; se dopo 5 secondi la potenza è ancora alta, anche la pompa. Quando torna il margine si riattaccano al contrario: prima la pompa, poi la colonnina. I 5 secondi servono perché il PLC legge i gradini uno dopo l’altro: senza attesa, il gradino della pompa vedrebbe la colonnina già spenta e staccherebbe subito anche lei.',
         ],
         table: {
           head: ['Chi aspetta di più', 'Carico', 'Perché'],
           rows: [
-            ['1', 'colonnina', 'torna per ultima: può aspettare, nessuno se ne accorge'],
-            ['2', 'pompa di calore', 'torna per prima: la casa ha inerzia, ma non può restare al freddo'],
+            ['1', 'colonnina', 'si stacca per prima e torna per ultima: può aspettare'],
+            ['2', 'pompa di calore', 'si stacca solo se non basta, e torna per prima'],
             ['mai', 'forno e luci', 'se si spengono se ne accorgono subito'],
           ],
         },
@@ -5208,17 +5208,17 @@ UNITS_V2['c53-carichi'] = {
         type: 'spiegazione',
         title: 'Una sera minuto per minuto',
         paras: [
-          'Ecco la sera del banco, con numeri di esempio: resto della casa 0,5 kW, pompa 1,5 kW, auto 3,7 kW, forno 3,5 kW. Il TON lo conosci da c31: conta il tempo finché la sua condizione resta vera, e si azzera appena diventa falsa.',
+          'Ecco una sera con numeri di esempio: pompa 1,5 kW, auto 3,7 kW, forno 3,5 kW, il resto della casa cambia. Il TON lo conosci da c31: conta il tempo finché la sua condizione resta vera, e si azzera appena diventa falsa. Guarda le 19:30: tolta l’auto la potenza è ancora troppa, e dopo 5 secondi tocca alla pompa.',
           'Il contatore non stacca mai: il PLC reagisce subito, molto prima dei 20 secondi.',
         ],
         table: {
           head: ['Ora', 'Che cosa succede', 'Potenza', 'Il PLC'],
           rows: [
-            ['18:00', 'casa, pompa e auto', '5,7 kW', 'niente: sotto 5800 W'],
-            ['19:30', 'si accende il forno', '9,2 kW', 'stacca auto e pompa: restano 4,0 kW'],
-            ['19:31', 'da 30 s sotto 4200 W', '4,0 kW', 'T1 scade: torna la pompa, 5,5 kW'],
-            ['20:30', 'il forno si spegne', '2,0 kW', 'niente ancora: non sotto 2000 W'],
-            ['20:40', 'la casa scende a 1,9 kW', '1,9 kW', 'dopo 30 s T2 scade: torna l’auto, 5,6 kW'],
+            ['18:00', 'casa 0,4 kW, pompa e auto', '5,6 kW', 'niente: sotto 5800 W'],
+            ['19:30', 'si cucina: casa 1 kW e forno', '9,7 kW', 'stacca l’auto: restano 6,0 kW, ancora troppo'],
+            ['19:30 e 5 s', 'la potenza è ancora alta', '6,0 kW', 'T3 scade: stacca anche la pompa, restano 4,5 kW'],
+            ['20:30', 'il forno si spegne', '1,0 kW', 'dopo 30 s sotto 4200 W, T1: torna la pompa, 2,5 kW'],
+            ['21:30', 'la casa scende a 0,4 kW', '1,9 kW', 'dopo 30 s sotto 2000 W, T2: torna l’auto, 5,6 kW'],
           ],
         },
       },
@@ -5226,17 +5226,18 @@ UNITS_V2['c53-carichi'] = {
         type: 'spiegazione',
         title: 'Il programma, gradino per gradino',
         paras: [
-          'Il primo gradino è già scritto: legge la potenza del contatore e la porta in watt in MW0. Gli altri sei li scrivi tu.',
+          'Il primo gradino è già scritto: legge la potenza del contatore e la porta in watt in MW0. Gli altri sette li scrivi tu.',
         ],
         table: {
           head: ['Gradino', 'Condizione', 'Istruzione', 'Perché'],
           rows: [
             ['2', 'MW0 maggiore di 5800 E Q0 accesa', 'Reset su Q0', 'si stacca prima la colonnina'],
-            ['3', 'MW0 maggiore di 5800 E Q0 spenta', 'Reset su Q1', 'la pompa: nello stesso giro vede la colonnina già spenta'],
-            ['4', 'MW0 minore di 4200', 'TON T1, 30 s', 'margine per la pompa'],
-            ['5', 'T1 scaduto', 'Set su Q1', 'riattacca la pompa'],
-            ['6', 'MW0 minore di 2000 E Q1 accesa', 'TON T2, 30 s', 'margine per la colonnina'],
-            ['7', 'T2 scaduto', 'Set su Q0', 'riattacca la colonnina'],
+            ['3', 'MW0 maggiore di 5800 E Q0 spenta', 'TON T3, 5 s', 'la potenza resta alta anche senza colonnina?'],
+            ['4', 'T3 scaduto', 'Reset su Q1', 'sì per 5 secondi: si stacca anche la pompa'],
+            ['5', 'MW0 minore di 4200', 'TON T1, 30 s', 'margine per la pompa'],
+            ['6', 'T1 scaduto', 'Set su Q1', 'riattacca la pompa'],
+            ['7', 'MW0 minore di 2000 E Q1 accesa', 'TON T2, 30 s', 'margine per la colonnina'],
+            ['8', 'T2 scaduto', 'Set su Q0', 'riattacca la colonnina'],
           ],
         },
       },
@@ -5267,14 +5268,14 @@ UNITS_V2['c53-carichi'] = {
   },
   steps: [
     { kind: 'program', plc: 'PLC', min: 2, short: '1 Colonnina', title: 'Stacca prima la colonnina', text: 'Nuovo gradino: confronto MW0 maggiore di 5800 E contatto Q0; uscita Reset su Q0. Perché: la colonnina è il carico che può aspettare.' },
-    { kind: 'program', plc: 'PLC', min: 3, short: '2 Pompa', title: 'Poi la pompa di calore', text: 'Gradino: MW0 maggiore di 5800 E Q0 spento (contatto normalmente chiuso); uscita Reset su Q1. Perché: se la colonnina è già staccata e non basta, tocca alla pompa.' },
-    { kind: 'program', plc: 'PLC', min: 5, short: '3 Pompa riparte', title: 'La pompa riparte con margine', text: 'Due gradini: MW0 minore di 4200 con un TON da 30 s (T1); poi T1 con Set su Q1. Perché: 4200 più 1500 resta sotto 5800, e il ritardo evita il pendolamento.' },
-    { kind: 'program', plc: 'PLC', min: 7, short: '4 Auto riparte', title: 'La colonnina riparte dopo', text: 'Due gradini: MW0 minore di 2000 E Q1 accesa, TON da 30 s (T2); poi T2 con Set su Q0. Perché: 2000 più 3700 resta sotto 5800; riparte solo quando la pompa è già in marcia.' },
+    { kind: 'program', plc: 'PLC', min: 4, short: '2 Pompa', title: 'Poi la pompa di calore, se non basta', text: 'Due gradini: MW0 maggiore di 5800 E Q0 spento (contatto normalmente chiuso) con un TON da 5 s (T3); poi T3 con Reset su Q1. Perché: se, staccata la colonnina, la potenza resta alta per 5 secondi, tocca alla pompa.' },
+    { kind: 'program', plc: 'PLC', min: 6, short: '3 Pompa riparte', title: 'La pompa riparte con margine', text: 'Due gradini: MW0 minore di 4200 con un TON da 30 s (T1); poi T1 con Set su Q1. Perché: 4200 più 1500 resta sotto 5800, e il ritardo evita il pendolamento.' },
+    { kind: 'program', plc: 'PLC', min: 8, short: '4 Auto riparte', title: 'La colonnina riparte dopo', text: 'Due gradini: MW0 minore di 2000 E Q1 accesa, TON da 30 s (T2); poi T2 con Set su Q0. Perché: 2000 più 3700 resta sotto 5800; riparte solo quando la pompa è già in marcia.' },
     { kind: 'verify', short: '5 Verifica', title: 'Guarda la serata', text: 'Premi Verifica: il tempo corre dalle 17. Nel grafico la potenza della rete deve passare sopra il limite solo per pochi secondi, quando si accende il forno, e il contatore non deve staccare.' },
   ],
   summary: [
     'Più carichi su un contatore: la potenza sommata supera il limite, e qualcuno deve aspettare.',
-    'Priorità: torna per primo il carico che serve di più (la pompa di calore), per ultimo quello che può aspettare (l’auto). Il forno e le luci il PLC non li tocca.',
+    'Priorità: si stacca prima il carico che può aspettare (l’auto); la pompa di calore solo se non basta, dopo 5 secondi di potenza ancora alta. Si riattaccano al contrario.',
     'Soglia di riattacco più potenza del carico deve restare sotto la soglia di distacco, altrimenti riparte e si ferma.',
     'Il margine deve durare: un temporizzatore evita il pendolamento, cioè le decine di commutazioni nella serata.',
     'Il PLC comanda solo i carichi che gli sono collegati: il forno lo accendono le persone.',
@@ -5508,7 +5509,7 @@ UNITS_V2['c55-sera-inverno'] = {
         table: {
           head: ['Che cosa c’è', 'Che cosa fa', 'Dove l’hai visto'],
           rows: [
-            ['Gestione dei carichi', 'stacca auto e pompa per non far saltare il contatore, e riattacca prima la pompa', 'c53'],
+            ['Gestione dei carichi', 'stacca prima l’auto e, se non basta, la pompa, per non far saltare il contatore', 'c53'],
             ['Clima per zone', 'scalda soggiorno e camera tra 20 e 22 °C, chiude la valvola se la finestra è aperta', 'c54'],
             ['Pannelli e batteria', 'di giorno producono, la sera la batteria copre i consumi', 'c39-c41'],
             ['Allarme di allagamento', 'la sirena suona finché non si asciuga la sonda e si tacita', 'c50'],

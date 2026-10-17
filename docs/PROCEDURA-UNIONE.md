@@ -48,6 +48,7 @@ Scritta il 16 ottobre 2026 da Gianluca, dopo la collisione evitata tra la casa i
 | Review pedagogica del Modulo 3 (testi delle lezioni c21-c16, c52, c24; vista delle tabelle a più colonne) | ar-50 | claude/elegant-galileo-ou3t8x | in `main` |
 | Review pedagogica del Modulo 4 (c28 stella-triangolo, c29-c32, c46): c28 si fa qui, non con il Modulo 6 sicurezza | ar-51 | claude/elegant-galileo-ou3t8x | in `main` |
 | Review pedagogica del Modulo 5 (c47-c50, c38-c42, c53-c55) | ar-52 | review-modulo5 | in `main` |
+| c53: attesa di 5 s prima di staccare la pompa (esercizio corretto) | ar-53 | c53-distacco | in `main` |
 
 ## Rami vecchi (non cancellare, non usare)
 

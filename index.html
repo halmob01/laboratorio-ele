@@ -8844,7 +8844,8 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
   ];
   var PROG_53 = START_5.concat([
     { if: ["and", ["gt", "MW0", 5800], "Q0"], do: [{ op: "reset", a: "Q0" }] },
-    { if: ["and", ["gt", "MW0", 5800], ["not", "Q0"]], do: [{ op: "reset", a: "Q1" }] },
+    { if: ["and", ["gt", "MW0", 5800], ["not", "Q0"]], do: [{ op: "ton", id: "T3", pt: 5 }] },
+    { if: "T3", do: [{ op: "reset", a: "Q1" }] },
     { if: ["lt", "MW0", 4200], do: [{ op: "ton", id: "T1", pt: 30 }] },
     { if: "T1", do: [{ op: "set", a: "Q1" }] },
     { if: ["and", ["lt", "MW0", 2e3], "Q1"], do: [{ op: "ton", id: "T2", pt: 30 }] },
@@ -8864,8 +8865,8 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
     comps: [
       Q3,
       C("PLC", "plc", "PLC", "PLC (programma da scrivere)", T("A1", "A2", "AI0+", "AI0-", "Q0A", "Q0B", "Q1A", "Q1B"), {
-        symbols: { AI0: "Potenza scambiata (mA)", MW0: "Potenza scambiata (W)", Q0: "Colonnina", Q1: "Pompa di calore", T1: "Margine per la pompa", T2: "Margine per la colonnina" },
-        edit: { start: START_5, markers: 0, timers: 2, counters: 0, words: ["MW0"], ops: ["set", "reset", "ton"] }
+        symbols: { AI0: "Potenza scambiata (mA)", MW0: "Potenza scambiata (W)", Q0: "Colonnina", Q1: "Pompa di calore", T1: "Margine per la pompa", T2: "Margine per la colonnina", T3: "La potenza resta alta" },
+        edit: { start: START_5, markers: 0, timers: 3, counters: 0, words: ["MW0"], ops: ["set", "reset", "ton"] }
       }),
       GRID_TX(),
       C("HE", "spia", "Colonnina", "Auto in ricarica", T("X1", "X2")),
@@ -8894,7 +8895,7 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
     solutionPrograms: { PLC: PROG_53 },
     hints: [
       "La potenza della rete \xE8 in MW0, in watt. Il limite \xE8 6000 W: stacca prima, per esempio sopra 5800 W, perch\xE9 il contatore aspetta 20 secondi ma il forno non aspetta.",
-      "Priorit\xE0: sopra la soglia Reset su Q0 (la colonnina) se \xE8 accesa; se la colonnina \xE8 gi\xE0 staccata e la potenza \xE8 ancora alta, Reset su Q1 (la pompa di calore). Il secondo gradino ha come condizione \u201CMW0 maggiore di 5800 E Q0 spenta\u201D.",
+      "Priorit\xE0: sopra la soglia Reset su Q0 (la colonnina) se \xE8 accesa. Per la pompa serve un\u2019attesa: un TON da 5 secondi (T3) con la condizione \u201CMW0 maggiore di 5800 E Q0 spenta\u201D, e quando scatta Reset su Q1. Senza attesa il gradino della pompa vedrebbe la colonnina gi\xE0 spenta nello stesso giro e staccherebbe subito anche la pompa.",
       "Per riattaccare serve margine che dura. Un temporizzatore (TON) da 30 secondi con la condizione \u201CMW0 minore di 4200\u201D: quando scatta, Set su Q1 (la pompa riparte per prima, \xE8 pi\xF9 importante).",
       "Per la colonnina serve pi\xF9 margine, perch\xE9 assorbe 3,7 kW: un secondo TON da 30 secondi con la condizione \u201CMW0 minore di 2000 E Q1 accesa\u201D, e quando scatta Set su Q0. Senza questi ritardi la potenza torna sotto soglia appena stacchi un carico, quindi riattacchi subito e la potenza risale: i carichi pendolano."
     ]
@@ -14628,16 +14629,16 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
         },
         {
           type: "spiegazione",
-          title: "La priorit\xE0: chi aspetta e chi torna prima",
+          title: "La priorit\xE0: chi si stacca per primo",
           paras: [
             "L\u2019auto pu\xF2 caricarsi anche pi\xF9 tardi, nessuno se ne accorge. La pompa di calore ha un\u2019inerzia: la casa \xE8 calda e qualche minuto senza non si sente. Il forno e le luci no: se si spengono se ne accorgono subito.",
-            "Attenzione a come lavora il programma del banco. La condizione \xABQ0 spenta\xBB vorrebbe dire \xABprima la colonnina\xBB, ma il PLC legge i gradini uno dopo l\u2019altro: quando arriva alla pompa, la colonnina \xE8 gi\xE0 spenta. Sopra 5800 W si staccano quindi tutte e due. La priorit\xE0 si vede al ritorno: prima la pompa, poi la colonnina."
+            "Quindi: sopra la soglia si stacca la colonnina; se dopo 5 secondi la potenza \xE8 ancora alta, anche la pompa. Quando torna il margine si riattaccano al contrario: prima la pompa, poi la colonnina. I 5 secondi servono perch\xE9 il PLC legge i gradini uno dopo l\u2019altro: senza attesa, il gradino della pompa vedrebbe la colonnina gi\xE0 spenta e staccherebbe subito anche lei."
           ],
           table: {
             head: ["Chi aspetta di pi\xF9", "Carico", "Perch\xE9"],
             rows: [
-              ["1", "colonnina", "torna per ultima: pu\xF2 aspettare, nessuno se ne accorge"],
-              ["2", "pompa di calore", "torna per prima: la casa ha inerzia, ma non pu\xF2 restare al freddo"],
+              ["1", "colonnina", "si stacca per prima e torna per ultima: pu\xF2 aspettare"],
+              ["2", "pompa di calore", "si stacca solo se non basta, e torna per prima"],
               ["mai", "forno e luci", "se si spengono se ne accorgono subito"]
             ]
           }
@@ -14678,17 +14679,17 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
           type: "spiegazione",
           title: "Una sera minuto per minuto",
           paras: [
-            "Ecco la sera del banco, con numeri di esempio: resto della casa 0,5 kW, pompa 1,5 kW, auto 3,7 kW, forno 3,5 kW. Il TON lo conosci da c31: conta il tempo finch\xE9 la sua condizione resta vera, e si azzera appena diventa falsa.",
+            "Ecco una sera con numeri di esempio: pompa 1,5 kW, auto 3,7 kW, forno 3,5 kW, il resto della casa cambia. Il TON lo conosci da c31: conta il tempo finch\xE9 la sua condizione resta vera, e si azzera appena diventa falsa. Guarda le 19:30: tolta l\u2019auto la potenza \xE8 ancora troppa, e dopo 5 secondi tocca alla pompa.",
             "Il contatore non stacca mai: il PLC reagisce subito, molto prima dei 20 secondi."
           ],
           table: {
             head: ["Ora", "Che cosa succede", "Potenza", "Il PLC"],
             rows: [
-              ["18:00", "casa, pompa e auto", "5,7 kW", "niente: sotto 5800 W"],
-              ["19:30", "si accende il forno", "9,2 kW", "stacca auto e pompa: restano 4,0 kW"],
-              ["19:31", "da 30 s sotto 4200 W", "4,0 kW", "T1 scade: torna la pompa, 5,5 kW"],
-              ["20:30", "il forno si spegne", "2,0 kW", "niente ancora: non sotto 2000 W"],
-              ["20:40", "la casa scende a 1,9 kW", "1,9 kW", "dopo 30 s T2 scade: torna l\u2019auto, 5,6 kW"]
+              ["18:00", "casa 0,4 kW, pompa e auto", "5,6 kW", "niente: sotto 5800 W"],
+              ["19:30", "si cucina: casa 1 kW e forno", "9,7 kW", "stacca l\u2019auto: restano 6,0 kW, ancora troppo"],
+              ["19:30 e 5 s", "la potenza \xE8 ancora alta", "6,0 kW", "T3 scade: stacca anche la pompa, restano 4,5 kW"],
+              ["20:30", "il forno si spegne", "1,0 kW", "dopo 30 s sotto 4200 W, T1: torna la pompa, 2,5 kW"],
+              ["21:30", "la casa scende a 0,4 kW", "1,9 kW", "dopo 30 s sotto 2000 W, T2: torna l\u2019auto, 5,6 kW"]
             ]
           }
         },
@@ -14696,17 +14697,18 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
           type: "spiegazione",
           title: "Il programma, gradino per gradino",
           paras: [
-            "Il primo gradino \xE8 gi\xE0 scritto: legge la potenza del contatore e la porta in watt in MW0. Gli altri sei li scrivi tu."
+            "Il primo gradino \xE8 gi\xE0 scritto: legge la potenza del contatore e la porta in watt in MW0. Gli altri sette li scrivi tu."
           ],
           table: {
             head: ["Gradino", "Condizione", "Istruzione", "Perch\xE9"],
             rows: [
               ["2", "MW0 maggiore di 5800 E Q0 accesa", "Reset su Q0", "si stacca prima la colonnina"],
-              ["3", "MW0 maggiore di 5800 E Q0 spenta", "Reset su Q1", "la pompa: nello stesso giro vede la colonnina gi\xE0 spenta"],
-              ["4", "MW0 minore di 4200", "TON T1, 30 s", "margine per la pompa"],
-              ["5", "T1 scaduto", "Set su Q1", "riattacca la pompa"],
-              ["6", "MW0 minore di 2000 E Q1 accesa", "TON T2, 30 s", "margine per la colonnina"],
-              ["7", "T2 scaduto", "Set su Q0", "riattacca la colonnina"]
+              ["3", "MW0 maggiore di 5800 E Q0 spenta", "TON T3, 5 s", "la potenza resta alta anche senza colonnina?"],
+              ["4", "T3 scaduto", "Reset su Q1", "s\xEC per 5 secondi: si stacca anche la pompa"],
+              ["5", "MW0 minore di 4200", "TON T1, 30 s", "margine per la pompa"],
+              ["6", "T1 scaduto", "Set su Q1", "riattacca la pompa"],
+              ["7", "MW0 minore di 2000 E Q1 accesa", "TON T2, 30 s", "margine per la colonnina"],
+              ["8", "T2 scaduto", "Set su Q0", "riattacca la colonnina"]
             ]
           }
         },
@@ -14737,14 +14739,14 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
     },
     steps: [
       { kind: "program", plc: "PLC", min: 2, short: "1 Colonnina", title: "Stacca prima la colonnina", text: "Nuovo gradino: confronto MW0 maggiore di 5800 E contatto Q0; uscita Reset su Q0. Perch\xE9: la colonnina \xE8 il carico che pu\xF2 aspettare." },
-      { kind: "program", plc: "PLC", min: 3, short: "2 Pompa", title: "Poi la pompa di calore", text: "Gradino: MW0 maggiore di 5800 E Q0 spento (contatto normalmente chiuso); uscita Reset su Q1. Perch\xE9: se la colonnina \xE8 gi\xE0 staccata e non basta, tocca alla pompa." },
-      { kind: "program", plc: "PLC", min: 5, short: "3 Pompa riparte", title: "La pompa riparte con margine", text: "Due gradini: MW0 minore di 4200 con un TON da 30 s (T1); poi T1 con Set su Q1. Perch\xE9: 4200 pi\xF9 1500 resta sotto 5800, e il ritardo evita il pendolamento." },
-      { kind: "program", plc: "PLC", min: 7, short: "4 Auto riparte", title: "La colonnina riparte dopo", text: "Due gradini: MW0 minore di 2000 E Q1 accesa, TON da 30 s (T2); poi T2 con Set su Q0. Perch\xE9: 2000 pi\xF9 3700 resta sotto 5800; riparte solo quando la pompa \xE8 gi\xE0 in marcia." },
+      { kind: "program", plc: "PLC", min: 4, short: "2 Pompa", title: "Poi la pompa di calore, se non basta", text: "Due gradini: MW0 maggiore di 5800 E Q0 spento (contatto normalmente chiuso) con un TON da 5 s (T3); poi T3 con Reset su Q1. Perch\xE9: se, staccata la colonnina, la potenza resta alta per 5 secondi, tocca alla pompa." },
+      { kind: "program", plc: "PLC", min: 6, short: "3 Pompa riparte", title: "La pompa riparte con margine", text: "Due gradini: MW0 minore di 4200 con un TON da 30 s (T1); poi T1 con Set su Q1. Perch\xE9: 4200 pi\xF9 1500 resta sotto 5800, e il ritardo evita il pendolamento." },
+      { kind: "program", plc: "PLC", min: 8, short: "4 Auto riparte", title: "La colonnina riparte dopo", text: "Due gradini: MW0 minore di 2000 E Q1 accesa, TON da 30 s (T2); poi T2 con Set su Q0. Perch\xE9: 2000 pi\xF9 3700 resta sotto 5800; riparte solo quando la pompa \xE8 gi\xE0 in marcia." },
       { kind: "verify", short: "5 Verifica", title: "Guarda la serata", text: "Premi Verifica: il tempo corre dalle 17. Nel grafico la potenza della rete deve passare sopra il limite solo per pochi secondi, quando si accende il forno, e il contatore non deve staccare." }
     ],
     summary: [
       "Pi\xF9 carichi su un contatore: la potenza sommata supera il limite, e qualcuno deve aspettare.",
-      "Priorit\xE0: torna per primo il carico che serve di pi\xF9 (la pompa di calore), per ultimo quello che pu\xF2 aspettare (l\u2019auto). Il forno e le luci il PLC non li tocca.",
+      "Priorit\xE0: si stacca prima il carico che pu\xF2 aspettare (l\u2019auto); la pompa di calore solo se non basta, dopo 5 secondi di potenza ancora alta. Si riattaccano al contrario.",
       "Soglia di riattacco pi\xF9 potenza del carico deve restare sotto la soglia di distacco, altrimenti riparte e si ferma.",
       "Il margine deve durare: un temporizzatore evita il pendolamento, cio\xE8 le decine di commutazioni nella serata.",
       "Il PLC comanda solo i carichi che gli sono collegati: il forno lo accendono le persone."
@@ -14973,7 +14975,7 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
           table: {
             head: ["Che cosa c\u2019\xE8", "Che cosa fa", "Dove l\u2019hai visto"],
             rows: [
-              ["Gestione dei carichi", "stacca auto e pompa per non far saltare il contatore, e riattacca prima la pompa", "c53"],
+              ["Gestione dei carichi", "stacca prima l\u2019auto e, se non basta, la pompa, per non far saltare il contatore", "c53"],
               ["Clima per zone", "scalda soggiorno e camera tra 20 e 22 \xB0C, chiude la valvola se la finestra \xE8 aperta", "c54"],
               ["Pannelli e batteria", "di giorno producono, la sera la batteria copre i consumi", "c39-c41"],
               ["Allarme di allagamento", "la sirena suona finch\xE9 non si asciuga la sonda e si tacita", "c50"]
@@ -24181,6 +24183,33 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
     "torna il sole": "\u062A\u0639\u0648\u062F \u0627\u0644\u0634\u0645\u0633"
   };
 
+  // src/i18n/ar-53.js
+  var ar_53_default = {
+    "Due gradini: MW0 maggiore di 5800 E Q0 spento (contatto normalmente chiuso) con un TON da 5 s (T3); poi T3 con Reset su Q1. Perch\xE9: se, staccata la colonnina, la potenza resta alta per 5 secondi, tocca alla pompa.": "\u062F\u0631\u062C\u062A\u0627\u0646: MW0 \u0623\u0643\u0628\u0631 \u0645\u0646 5800 \u0648 Q0 \u0645\u0637\u0641\u0623 (\u0645\u0644\u0627\u0645\u0633 \u0645\u063A\u0644\u0642 \u0639\u0627\u062F\u0629\u064B) \u0645\u0639 TON \u0645\u062F\u062A\u0647 5 s (T3)\u061B \u062B\u0645 T3 \u0645\u0639 Reset \u0639\u0644\u0649 Q1. \u0627\u0644\u0633\u0628\u0628: \u0625\u0630\u0627 \u0628\u0642\u064A\u062A \u0627\u0644\u0642\u062F\u0631\u0629 \u0645\u0631\u062A\u0641\u0639\u0629 \u0644\u0645\u062F\u0629 5 \u062B\u0648\u0627\u0646\u064D \u0628\u0639\u062F \u0641\u0635\u0644 \u0645\u062D\u0637\u0629 \u0627\u0644\u0634\u062D\u0646\u060C \u064A\u0623\u062A\u064A \u062F\u0648\u0631 \u0627\u0644\u0645\u0636\u062E\u0629.",
+    "Ecco una sera con numeri di esempio: pompa 1,5 kW, auto 3,7 kW, forno 3,5 kW, il resto della casa cambia. Il TON lo conosci da c31: conta il tempo finch\xE9 la sua condizione resta vera, e si azzera appena diventa falsa. Guarda le 19:30: tolta l\u2019auto la potenza \xE8 ancora troppa, e dopo 5 secondi tocca alla pompa.": "\u0625\u0644\u064A\u0643 \u0645\u0633\u0627\u0621\u064B \u0628\u0623\u0631\u0642\u0627\u0645 \u0639\u0644\u0649 \u0633\u0628\u064A\u0644 \u0627\u0644\u0645\u062B\u0627\u0644: \u0627\u0644\u0645\u0636\u062E\u0629 1,5 kW\u060C \u0627\u0644\u0633\u064A\u0627\u0631\u0629 3,7 kW\u060C \u0627\u0644\u0641\u0631\u0646 3,5 kW\u060C \u0648\u0628\u0627\u0642\u064A \u0627\u0644\u0645\u0646\u0632\u0644 \u064A\u062A\u063A\u064A\u0651\u0631. \u062A\u0639\u0631\u0641 TON \u0645\u0646 c31: \u064A\u0639\u062F\u0651 \u0627\u0644\u0648\u0642\u062A \u0645\u0627 \u062F\u0627\u0645 \u0634\u0631\u0637\u0647 \u0635\u062D\u064A\u062D\u064B\u0627\u060C \u0648\u064A\u0639\u0648\u062F \u0625\u0644\u0649 \u0627\u0644\u0635\u0641\u0631 \u062D\u064A\u0646 \u064A\u0635\u0628\u062D \u062E\u0627\u0637\u0626\u064B\u0627. \u0627\u0646\u0638\u0631 \u0625\u0644\u0649 \u0627\u0644\u0633\u0627\u0639\u0629 19:30: \u0628\u0639\u062F \u0641\u0635\u0644 \u0627\u0644\u0633\u064A\u0627\u0631\u0629 \u062A\u0628\u0642\u0649 \u0627\u0644\u0642\u062F\u0631\u0629 \u0643\u0628\u064A\u0631\u0629\u060C \u0648\u0628\u0639\u062F 5 \u062B\u0648\u0627\u0646\u064D \u064A\u0623\u062A\u064A \u062F\u0648\u0631 \u0627\u0644\u0645\u0636\u062E\u0629.",
+    "Il primo gradino \xE8 gi\xE0 scritto: legge la potenza del contatore e la porta in watt in MW0. Gli altri sette li scrivi tu.": "\u0627\u0644\u062F\u0631\u062C\u0629 \u0627\u0644\u0623\u0648\u0644\u0649 \u0645\u0643\u062A\u0648\u0628\u0629 \u0645\u0633\u0628\u0642\u064B\u0627: \u062A\u0642\u0631\u0623 \u0642\u062F\u0631\u0629 \u0627\u0644\u0639\u062F\u0651\u0627\u062F \u0648\u062A\u0636\u0639\u0647\u0627 \u0628\u0627\u0644\u0648\u0627\u0637 \u0641\u064A MW0. \u0623\u0645\u0627 \u0627\u0644\u062F\u0631\u062C\u0627\u062A \u0627\u0644\u0633\u0628\u0639 \u0627\u0644\u0623\u062E\u0631\u0649 \u0641\u062A\u0643\u062A\u0628\u0647\u0627 \u0623\u0646\u062A.",
+    "La potenza resta alta": "\u0627\u0644\u0642\u062F\u0631\u0629 \u062A\u0628\u0642\u0649 \u0645\u0631\u062A\u0641\u0639\u0629",
+    "Poi la pompa di calore, se non basta": "\u062B\u0645 \u0627\u0644\u0645\u0636\u062E\u0629 \u0627\u0644\u062D\u0631\u0627\u0631\u064A\u0629\u060C \u0625\u0630\u0627 \u0644\u0645 \u064A\u0643\u0641\u0650 \u0630\u0644\u0643",
+    "Priorit\xE0: si stacca prima il carico che pu\xF2 aspettare (l\u2019auto); la pompa di calore solo se non basta, dopo 5 secondi di potenza ancora alta. Si riattaccano al contrario.": "\u0627\u0644\u0623\u0648\u0644\u0648\u064A\u0629: \u064A\u064F\u0641\u0635\u0644 \u0623\u0648\u0644\u064B\u0627 \u0627\u0644\u062D\u0645\u0644 \u0627\u0644\u0630\u064A \u064A\u0645\u0643\u0646\u0647 \u0627\u0644\u0627\u0646\u062A\u0638\u0627\u0631 (\u0627\u0644\u0633\u064A\u0627\u0631\u0629)\u061B \u0648\u0627\u0644\u0645\u0636\u062E\u0629 \u0627\u0644\u062D\u0631\u0627\u0631\u064A\u0629 \u0641\u0642\u0637 \u0625\u0630\u0627 \u0644\u0645 \u064A\u0643\u0641\u0650 \u0630\u0644\u0643\u060C \u0628\u0639\u062F 5 \u062B\u0648\u0627\u0646\u064D \u0645\u0646 \u0628\u0642\u0627\u0621 \u0627\u0644\u0642\u062F\u0631\u0629 \u0645\u0631\u062A\u0641\u0639\u0629. \u0648\u062A\u064F\u0639\u0627\u062F \u0628\u0627\u0644\u062A\u0631\u062A\u064A\u0628 \u0627\u0644\u0645\u0639\u0627\u0643\u0633.",
+    "Priorit\xE0: sopra la soglia Reset su Q0 (la colonnina) se \xE8 accesa. Per la pompa serve un\u2019attesa: un TON da 5 secondi (T3) con la condizione \u201CMW0 maggiore di 5800 E Q0 spenta\u201D, e quando scatta Reset su Q1. Senza attesa il gradino della pompa vedrebbe la colonnina gi\xE0 spenta nello stesso giro e staccherebbe subito anche la pompa.": "\u0627\u0644\u0623\u0648\u0644\u0648\u064A\u0629: \u0641\u0648\u0642 \u0627\u0644\u0639\u062A\u0628\u0629 Reset \u0639\u0644\u0649 Q0 (\u0645\u062D\u0637\u0629 \u0627\u0644\u0634\u062D\u0646) \u0625\u0630\u0627 \u0643\u0627\u0646\u062A \u062A\u0639\u0645\u0644. \u0644\u0644\u0645\u0636\u062E\u0629 \u064A\u0644\u0632\u0645 \u0627\u0646\u062A\u0638\u0627\u0631: TON \u0645\u062F\u062A\u0647 5 \u062B\u0648\u0627\u0646\u064D (T3) \u0628\u0627\u0644\u0634\u0631\u0637 \u201CMW0 \u0623\u0643\u0628\u0631 \u0645\u0646 5800 \u0648 Q0 \u0645\u0637\u0641\u0623\u201D\u060C \u0648\u0639\u0646\u062F\u0645\u0627 \u064A\u0646\u062A\u0647\u064A Reset \u0639\u0644\u0649 Q1. \u0645\u0646 \u062F\u0648\u0646 \u0627\u0646\u062A\u0638\u0627\u0631\u060C \u0633\u062A\u0631\u0649 \u062F\u0631\u062C\u0629 \u0627\u0644\u0645\u0636\u062E\u0629 \u0645\u062D\u0637\u0629 \u0627\u0644\u0634\u062D\u0646 \u0645\u0637\u0641\u0623\u0629 \u0641\u064A \u0627\u0644\u062F\u0648\u0631\u0629 \u0646\u0641\u0633\u0647\u0627 \u0648\u0633\u062A\u0641\u0635\u0644 \u0627\u0644\u0645\u0636\u062E\u0629 \u0641\u0648\u0631\u064B\u0627 \u0623\u064A\u0636\u064B\u0627.",
+    "Quindi: sopra la soglia si stacca la colonnina; se dopo 5 secondi la potenza \xE8 ancora alta, anche la pompa. Quando torna il margine si riattaccano al contrario: prima la pompa, poi la colonnina. I 5 secondi servono perch\xE9 il PLC legge i gradini uno dopo l\u2019altro: senza attesa, il gradino della pompa vedrebbe la colonnina gi\xE0 spenta e staccherebbe subito anche lei.": "\u0625\u0630\u0646: \u0641\u0648\u0642 \u0627\u0644\u0639\u062A\u0628\u0629 \u062A\u064F\u0641\u0635\u0644 \u0645\u062D\u0637\u0629 \u0627\u0644\u0634\u062D\u0646\u061B \u0648\u0625\u0630\u0627 \u0628\u0642\u064A\u062A \u0627\u0644\u0642\u062F\u0631\u0629 \u0645\u0631\u062A\u0641\u0639\u0629 \u0628\u0639\u062F 5 \u062B\u0648\u0627\u0646\u064D\u060C \u062A\u064F\u0641\u0635\u0644 \u0627\u0644\u0645\u0636\u062E\u0629 \u0623\u064A\u0636\u064B\u0627. \u0648\u0639\u0646\u062F\u0645\u0627 \u064A\u0639\u0648\u062F \u0627\u0644\u0647\u0627\u0645\u0634 \u062A\u064F\u0639\u0627\u062F \u0628\u0627\u0644\u062A\u0631\u062A\u064A\u0628 \u0627\u0644\u0645\u0639\u0627\u0643\u0633: \u0627\u0644\u0645\u0636\u062E\u0629 \u0623\u0648\u0644\u064B\u0627 \u062B\u0645 \u0645\u062D\u0637\u0629 \u0627\u0644\u0634\u062D\u0646. \u0627\u0644\u062B\u0648\u0627\u0646\u064A \u0627\u0644\u062E\u0645\u0633 \u0636\u0631\u0648\u0631\u064A\u0629 \u0644\u0623\u0646 \u0627\u0644\u0640PLC \u064A\u0642\u0631\u0623 \u0627\u0644\u062F\u0631\u062C\u0627\u062A \u0648\u0627\u062D\u062F\u0629 \u0628\u0639\u062F \u0627\u0644\u0623\u062E\u0631\u0649: \u0645\u0646 \u062F\u0648\u0646 \u0627\u0646\u062A\u0638\u0627\u0631\u060C \u0633\u062A\u0631\u0649 \u062F\u0631\u062C\u0629 \u0627\u0644\u0645\u0636\u062E\u0629 \u0645\u062D\u0637\u0629 \u0627\u0644\u0634\u062D\u0646 \u0645\u0637\u0641\u0623\u0629 \u0648\u0633\u062A\u0641\u0635\u0644 \u0627\u0644\u0645\u0636\u062E\u0629 \u0641\u0648\u0631\u064B\u0627 \u0623\u064A\u0636\u064B\u0627.",
+    "T3 scade: stacca anche la pompa, restano 4,5 kW": "\u064A\u0646\u062A\u0647\u064A T3: \u062A\u064F\u0641\u0635\u0644 \u0627\u0644\u0645\u0636\u062E\u0629 \u0623\u064A\u0636\u064B\u0627\u060C \u0648\u064A\u0628\u0642\u0649 4,5 kW",
+    "T3 scaduto": "\u0627\u0646\u062A\u0647\u0649 T3",
+    "TON T3, 5 s": "TON T3\u060C 5 s",
+    "casa 0,4 kW, pompa e auto": "\u0627\u0644\u0645\u0646\u0632\u0644 0,4 kW\u060C \u0627\u0644\u0645\u0636\u062E\u0629 \u0648\u0627\u0644\u0633\u064A\u0627\u0631\u0629",
+    "dopo 30 s sotto 2000 W, T2: torna l\u2019auto, 5,6 kW": "\u0628\u0639\u062F 30 s \u062A\u062D\u062A 2000 W\u060C T2: \u062A\u0639\u0648\u062F \u0627\u0644\u0633\u064A\u0627\u0631\u0629\u060C 5,6 kW",
+    "dopo 30 s sotto 4200 W, T1: torna la pompa, 2,5 kW": "\u0628\u0639\u062F 30 s \u062A\u062D\u062A 4200 W\u060C T1: \u062A\u0639\u0648\u062F \u0627\u0644\u0645\u0636\u062E\u0629\u060C 2,5 kW",
+    "la casa scende a 0,4 kW": "\u064A\u0646\u062E\u0641\u0636 \u0627\u0644\u0645\u0646\u0632\u0644 \u0625\u0644\u0649 0,4 kW",
+    "la potenza resta alta anche senza colonnina?": "\u0647\u0644 \u062A\u0628\u0642\u0649 \u0627\u0644\u0642\u062F\u0631\u0629 \u0645\u0631\u062A\u0641\u0639\u0629 \u062D\u062A\u0649 \u0645\u0646 \u062F\u0648\u0646 \u0645\u062D\u0637\u0629 \u0627\u0644\u0634\u062D\u0646\u061F",
+    "la potenza \xE8 ancora alta": "\u0627\u0644\u0642\u062F\u0631\u0629 \u0645\u0627 \u0632\u0627\u0644\u062A \u0645\u0631\u062A\u0641\u0639\u0629",
+    "si cucina: casa 1 kW e forno": "\u0648\u0642\u062A \u0627\u0644\u0637\u0628\u062E: \u0627\u0644\u0645\u0646\u0632\u0644 1 kW \u0648\u0627\u0644\u0641\u0631\u0646",
+    "si stacca per prima e torna per ultima: pu\xF2 aspettare": "\u062A\u064F\u0641\u0635\u0644 \u0623\u0648\u0644\u064B\u0627 \u0648\u062A\u0639\u0648\u062F \u0623\u062E\u064A\u0631\u064B\u0627: \u064A\u0645\u0643\u0646\u0647\u0627 \u0627\u0644\u0627\u0646\u062A\u0638\u0627\u0631",
+    "si stacca solo se non basta, e torna per prima": "\u062A\u064F\u0641\u0635\u0644 \u0641\u0642\u0637 \u0625\u0630\u0627 \u0644\u0645 \u064A\u0643\u0641\u0650 \u0630\u0644\u0643\u060C \u0648\u062A\u0639\u0648\u062F \u0623\u0648\u0644\u064B\u0627",
+    "stacca l\u2019auto: restano 6,0 kW, ancora troppo": "\u062A\u064F\u0641\u0635\u0644 \u0627\u0644\u0633\u064A\u0627\u0631\u0629: \u064A\u0628\u0642\u0649 6,0 kW\u060C \u0648\u0647\u0630\u0627 \u0645\u0627 \u0632\u0627\u0644 \u0643\u062B\u064A\u0631\u064B\u0627",
+    "stacca prima l\u2019auto e, se non basta, la pompa, per non far saltare il contatore": "\u064A\u0641\u0635\u0644 \u0627\u0644\u0633\u064A\u0627\u0631\u0629 \u0623\u0648\u0644\u064B\u0627\u060C \u0648\u0625\u0630\u0627 \u0644\u0645 \u064A\u0643\u0641\u0650 \u0630\u0644\u0643 \u0627\u0644\u0645\u0636\u062E\u0629\u060C \u0643\u064A \u0644\u0627 \u064A\u0641\u0635\u0644 \u0627\u0644\u0639\u062F\u0651\u0627\u062F",
+    "s\xEC per 5 secondi: si stacca anche la pompa": "\u0646\u0639\u0645 \u0644\u0645\u062F\u0629 5 \u062B\u0648\u0627\u0646\u064D: \u062A\u064F\u0641\u0635\u0644 \u0627\u0644\u0645\u0636\u062E\u0629 \u0623\u064A\u0636\u064B\u0627"
+  };
+
   // src/i18n/ar.js
   var ROLE = { "del neutro": "\u0627\u0644\u0645\u062D\u0627\u064A\u062F", "di terra": "\u0627\u0644\u0623\u0631\u0636\u064A", "di fase": "\u0627\u0644\u0637\u0648\u0631", "a bassa tensione": "\u0627\u0644\u062C\u0647\u062F \u0627\u0644\u0645\u0646\u062E\u0641\u0636", "di comando": "\u0627\u0644\u062A\u062D\u0643\u0645", "del positivo": "\u0627\u0644\u0645\u0648\u062C\u0628", "del negativo": "\u0627\u0644\u0633\u0627\u0644\u0628", "in continua": "\u0627\u0644\u062A\u064A\u0627\u0631 \u0627\u0644\u0645\u0633\u062A\u0645\u0631" };
   var COLORI = { "blu": "\u0623\u0632\u0631\u0642", "giallo-verde": "\u0623\u0635\u0641\u0631-\u0623\u062E\u0636\u0631", "marrone, nero o grigio": "\u0628\u0646\u064A\u064B\u0651\u0627 \u0623\u0648 \u0623\u0633\u0648\u062F \u0623\u0648 \u0631\u0645\u0627\u062F\u064A\u064B\u0651\u0627", "rosso, marrone, nero o grigio": "\u0623\u062D\u0645\u0631 \u0623\u0648 \u0628\u0646\u064A\u064B\u0651\u0627 \u0623\u0648 \u0623\u0633\u0648\u062F \u0623\u0648 \u0631\u0645\u0627\u062F\u064A\u064B\u0651\u0627", "di un colore diverso da blu e giallo-verde": "\u0628\u0644\u0648\u0646 \u0645\u062E\u062A\u0644\u0641 \u0639\u0646 \u0627\u0644\u0623\u0632\u0631\u0642 \u0648\u0627\u0644\u0623\u0635\u0641\u0631-\u0627\u0644\u0623\u062E\u0636\u0631", "rosso": "\u0623\u062D\u0645\u0631", "nero": "\u0623\u0633\u0648\u062F", "rosso o nero": "\u0623\u062D\u0645\u0631 \u0623\u0648 \u0623\u0633\u0648\u062F" };
@@ -24301,7 +24330,7 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
     [/^Togli il lucchetto da (.+)$/, (m, t) => `\u0623\u0632\u0644 \u0627\u0644\u0642\u0641\u0644 \u0639\u0646 ${t(m[1])}`],
     [/^Protezioni scattate: (.+)\.$/, (m, t) => `\u062D\u0645\u0627\u064A\u0627\u062A \u0641\u0635\u0644\u062A: ${t(m[1])}.`]
   ];
-  registerLang("ar", { ...ar_1_default, ...ar_2_default, ...ar_3_default, ...ar_4_default, ...ar_5_default, ...ar_6_default, ...ar_7_default, ...ar_8_default, ...ar_9_default, ...ar_10_default, ...ar_11_default, ...ar_12_default, ...ar_13_default, ...ar_14_default, ...ar_15_default, ...ar_16_default, ...ar_17_default, ...ar_18_default, ...ar_19_default, ...ar_20_default, ...ar_21_default, ...ar_22_default, ...ar_23_default, ...ar_24_default, ...ar_25_default, ...ar_26_default, ...ar_27_default, ...ar_28_default, ...ar_29_default, ...ar_30_default, ...ar_31_default, ...ar_32_default, ...ar_33_default, ...ar_34_default, ...ar_35_default, ...ar_36_default, ...ar_37_default, ...ar_38_default, ...ar_39_default, ...ar_40_default, ...ar_41_default, ...ar_42_default, ...ar_45_default, ...ar_46_default, ...ar_47_default, ...ar_48_default, ...ar_49_default, ...ar_50_default, ...ar_51_default, ...ar_52_default }, PAT);
+  registerLang("ar", { ...ar_1_default, ...ar_2_default, ...ar_3_default, ...ar_4_default, ...ar_5_default, ...ar_6_default, ...ar_7_default, ...ar_8_default, ...ar_9_default, ...ar_10_default, ...ar_11_default, ...ar_12_default, ...ar_13_default, ...ar_14_default, ...ar_15_default, ...ar_16_default, ...ar_17_default, ...ar_18_default, ...ar_19_default, ...ar_20_default, ...ar_21_default, ...ar_22_default, ...ar_23_default, ...ar_24_default, ...ar_25_default, ...ar_26_default, ...ar_27_default, ...ar_28_default, ...ar_29_default, ...ar_30_default, ...ar_31_default, ...ar_32_default, ...ar_33_default, ...ar_34_default, ...ar_35_default, ...ar_36_default, ...ar_37_default, ...ar_38_default, ...ar_39_default, ...ar_40_default, ...ar_41_default, ...ar_42_default, ...ar_45_default, ...ar_46_default, ...ar_47_default, ...ar_48_default, ...ar_49_default, ...ar_50_default, ...ar_51_default, ...ar_52_default, ...ar_53_default }, PAT);
 
   // src/trilocale/house.js
   function houseState(session2, on = true) {
