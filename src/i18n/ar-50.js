@@ -169,4 +169,11 @@ export default {
 'Una fase presa a valle del salvamotore, dal morsetto 2: aprendo il salvamotore si spegne anche il comando. Va bene una fase qualunque: il comando sta sulla fase.': 'الطور المأخوذ في المصبّ لقاطع حماية المحرك، من المربط 2: عند فتح قاطع حماية المحرك ينطفئ التحكم أيضًا. أي طور يصلح: التحكم يكون على الطور.',
 'Una funzione alla volta': 'وظيفة واحدة في كل مرة',
 'Va messo per primo, prima dell’arresto, come il termico nel nastro: le sicurezze vengono per prime. Dal morsetto 2 del salvamotore (a valle, dove prende la fase il comando) al morsetto 1 del fungo, e dal morsetto 2 del fungo al morsetto 1 dell’arresto. Sono due fili: ma prima la procedura.': 'يُوضع أولًا، قبل الإيقاف، كما يُوضع المرحّل الحراري في السير الناقل: تأتي وسائل الأمان أولًا. من المربط 2 لقاطع حماية المحرك (في المصبّ، حيث يأخذ التحكم الطور) إلى المربط 1 لزر الطوارئ، ومن المربط 2 لزر الطوارئ إلى المربط 1 للإيقاف. هذان سلكان: لكن الإجراء أولًا.',
+// Celle della terza e quarta colonna delle tabelle, visibili dal 17 ottobre.
+'diseccitato': 'غير مُثار',
+'immette': 'يضخّ في الشبكة',
+'oscilla': 'يتذبذب',
+'preleva': 'يسحب من الشبكة',
+'suona': 'تعمل',
+'tace': 'صامتة',
 };

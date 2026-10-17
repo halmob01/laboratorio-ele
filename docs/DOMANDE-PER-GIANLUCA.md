@@ -74,8 +74,6 @@ Elenco completo in `docs/review/modulo3.md`, in fondo.
 - c14: «esistono salvamotori che fanno anche da termico: qui i due compiti sono divisi, come in molti quadri»; il termico «scatta anche se manca una fase».
 - c15: «invertire un motore lanciato vuol dire frenarlo di colpo, con una corrente fortissima e uno strappo sulla macchina».
 - c52: il neutro non passa dal salvamotore tripolare (domanda dell'allievo finto); la verifica solo tra fase e neutro dichiarata come semplificazione.
-- **Tabelle con più di due colonne.** La vista della lezione mostra solo le prime due colonne (`screens.js`), ma 33 tabelle in 20 livelli
-  (c05, c34-c44, c47-c55) ne hanno tre o quattro: la terza e la quarta non si vedono (in c52, per esempio, sparivano il «perché» della
-  procedura e i valori attesi delle misure; corretto nel Modulo 3). Si riscrivono a due colonne nelle review dei moduli, oppure si cambia la
-  vista per mostrare tutte le colonne (tocca il codice: decidi tu)?
-
+- **Tabelle con più di due colonne** (risolta il 17 ottobre, con il via di Gianluca a scegliere): 33 tabelle in 20 livelli (c05, c34-c44,
+  c47-c55) avevano tre o quattro colonne e la vista ne mostrava due. Invece di riscriverle si è cambiata la vista: con più di due colonne
+  ogni riga diventa una scheda con il titolo davanti a ogni cella (`screens.js`, `style.css`, test in `test/lezione-vista.test.js`).

@@ -251,8 +251,8 @@ imitare: `docs/review/modulo2.md` (schede, risultati) e il ramo `review-modulo2`
 ### Ordine dei moduli
 1. Fatto: **pilota sul Modulo 2** (17 ottobre).
    Fatto: **Modulo 3** (c21-c16, c52, c24; schede in `docs/review/modulo3.md`). Trovato e corretto: tabelle con più di due colonne
-   (c12, c52) di cui la vista mostrava solo le prime due. Lo stesso difetto c'è in 20 livelli fuori dal Modulo 3 (c05, c34-c44,
-   c47-c55, 33 tabelle): domanda aperta a Gianluca in `docs/DOMANDE-PER-GIANLUCA.md` (riscrivere le tabelle o mostrare tutte le colonne).
+   (c12, c52) di cui la vista mostrava solo le prime due. Lo stesso difetto c'era in 20 livelli fuori dal Modulo 3: la vista ora
+   mostra tutte le colonne (ogni riga una scheda), quindi le tabelle a tre o quattro colonne si possono usare; a due resta la forma più leggibile.
 2. **Priorità alta, in parallelo:** Modulo 3 (c21-c16, c52, c24) e Modulo 6 sicurezza (c25-c27) con c28. Non condividono livelli,
    quindi due sessioni possono lavorare insieme; ognuna con il suo ramo, il suo `ar-NN` e il suo file di schede.
 3. **Controllo leggero:** livelli con il PLC e i processi (c29-c32, c33-c45, c47-c54). Hanno già il perché: si fa la prova dell'allievo

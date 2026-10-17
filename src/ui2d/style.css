@@ -425,6 +425,11 @@ button:disabled{cursor:default}
 .ltable{margin-top:12px;border:1px solid var(--line);border-radius:10px;overflow:hidden;font-size:15px}
 .lt{display:flex;justify-content:space-between;gap:12px;padding:8px 12px;border-top:1px solid var(--line)}
 .lt.head{background:var(--chip);border-top:0;font:500 12px 'IBM Plex Mono',monospace;color:var(--ink2);text-transform:uppercase}
+.lt.multi>span{flex:0 0 32%}
+.ltc{display:flex;flex-direction:column;gap:4px;flex:1 1 0;text-align:start}
+.ltc p{margin:0}
+.ltc i{font:500 11px 'IBM Plex Mono',monospace;font-style:normal;color:var(--ink2);text-transform:uppercase;margin-inline-end:4px}
+@media (max-width:520px){.lt.multi{flex-direction:column;gap:6px}.lt.multi>span{flex:none;font-weight:600}.ltc{flex:none}}
 .lwarn{margin-top:12px;padding:10px 12px;border-left:5px solid var(--bad);background:rgba(190,37,48,.1);border-radius:6px;font-size:15px}
 .sum{margin:12px 0 0;padding-left:20px;line-height:1.5}
 .sum li{margin-top:4px}

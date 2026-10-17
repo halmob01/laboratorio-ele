@@ -296,7 +296,10 @@ export function lessonHTML(s, extra = {}) {
     if (pg.room) body += `<div class="vis"><svg viewBox="0 0 400 190" role="img" aria-label="La stanza con la lampada">${extra.roomInner || ''}</svg></div>`;
     if (pg.art) body += `<div class="vis">${artHTML(pg.art)}</div>`;
     body += pg.paras.map(t => `<p>${esc(t)}</p>`).join('');
-    if (pg.table) body += `<div class="ltable"><div class="lt head"><span>${esc(pg.table.head[0])}</span><span>${esc(pg.table.head[1])}</span></div>${pg.table.rows.map(r => `<div class="lt"><span>${esc(r[0])}</span><b>${esc(r[1])}</b></div>`).join('')}</div>`;
+    // Due colonne: etichetta e testo. Con piu' colonne ogni riga diventa una scheda: la prima cella a sinistra,
+    // le altre una sotto l'altra con il loro titolo davanti (si leggono anche sul telefono).
+    if (pg.table && pg.table.head.length <= 2) body += `<div class="ltable"><div class="lt head"><span>${esc(pg.table.head[0])}</span><span>${esc(pg.table.head[1])}</span></div>${pg.table.rows.map(r => `<div class="lt"><span>${esc(r[0])}</span><b>${esc(r[1])}</b></div>`).join('')}</div>`;
+    else if (pg.table) body += `<div class="ltable"><div class="lt head"><span>${esc(pg.table.head[0])}</span></div>${pg.table.rows.map(r => `<div class="lt multi"><span>${esc(r[0])}</span><div class="ltc">${r.slice(1).map((c, k) => `<p><i>${esc(pg.table.head[k + 1])}</i> <b>${esc(c)}</b></p>`).join('')}</div></div>`).join('')}</div>`;
     if (pg.warn) body += `<div class="lwarn"><b>Attenzione.</b> ${esc(pg.warn)}</div>`;
   } else if (pg.type === 'pezzi') {
     body += `<div class="vis"><svg class="lbench" viewBox="${extra.benchBox}" role="img" aria-label="Il banco con i componenti in evidenza">${extra.benchInner || ''}</svg></div>`;

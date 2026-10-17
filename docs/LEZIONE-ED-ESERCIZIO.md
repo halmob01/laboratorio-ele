@@ -91,7 +91,10 @@ Chi scrive una lezione nuova o ne rivede una segue queste specifiche; i test le 
 | `sintesi` | `title`; i punti vengono da `summary` del livello | Una sola, l'ultima pagina; il Quaderno raccoglie le `summary` |
 
 ### Tabelle
-- Due colonne: `head` con due titoli, `rows` con coppie. Una terza colonna non si vede.
+- Di regola due colonne: `head` con due titoli, `rows` con coppie.
+- Con tre o quattro colonne (dal 17 ottobre) ogni riga diventa una scheda: la prima cella a sinistra, le altre una sotto l'altra con il
+  titolo della colonna davanti; sotto i 520 px le celle vanno sotto la prima. Test `test/lezione-vista.test.js` (ogni cella si vede).
+  Prima la terza e la quarta colonna non si vedevano (33 tabelle in 20 livelli; in c12 e c52 riscritte a due colonne).
 - Sul telefono la colonna di sinistra è stretta: etichette corte (il morsetto o il pezzo: `A2`, `11`, `Morsetti 3`, `Lampade`).
 - Per spiegare i collegamenti: a sinistra il morsetto, a destra "che cosa ci colleghi e perché", con la conseguenza dell'errore nella stessa cella.
 
