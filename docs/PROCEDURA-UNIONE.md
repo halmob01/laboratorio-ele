@@ -53,6 +53,7 @@ Scritta il 16 ottobre 2026 da Gianluca, dopo la collisione evitata tra la casa i
 | Review pedagogica delle prove 3D (c23, c24, c46, c51, c55) | ar-55 | review-prove3d | in `main` |
 | Slide oltre le 110 parole (c23, c25-c27, c34, c35, c37, c43) divise o accorciate; stato della review aggiornato | ar-56 | claude/bold-heisenberg-0v4gc0 | in `main` |
 | Prove 3D: regola «Da ricordare» nel rapporto finale (il campo `win` non era letto dalla vista), lucchetto in c24 e c51 | ar-57 | claude/bold-heisenberg-0v4gc0 | in `main` |
+| c17 multimetro (demo con le misure, come si usa lo strumento) e c18 relè (che cos'è, prima slide) | ar-58 | claude/bold-heisenberg-0v4gc0 | in corso |
 
 ## Rami vecchi (non cancellare, non usare)
 
