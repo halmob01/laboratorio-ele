@@ -165,8 +165,14 @@ pannelli e scene. Le correzioni alla vista della lezione fatte nel pilota (opzio
 per ogni previsione) sono già in `main`; un altro difetto della lezione che tocca il codice si chiede prima a Gianluca.
 Se la lezione non può spiegare quello che l'esercizio chiede, si annota in `docs/DOMANDE-PER-GIANLUCA.md` e non si tocca l'esercizio.
 
+**Moduli complessi (decisione di Gianluca, 17 ottobre):** nei moduli più difficili (PLC, energia, processi, fabbrica) non ci si fida che
+le lezioni di partenza siano già scritte bene perché hanno il "Perché:" nei passi. Si spiega di più: un esempio svolto passo per passo
+(una serata, un ciclo, un minuto alla volta), il perché di ogni gradino oltre che di ogni filo, il collegamento con il lavoro vero.
+Le slide e le lezioni in più vanno bene. Se un concetto viene spiegato meglio in un livello successivo, qui se ne dice quanto basta per
+capire il livello e si rimanda in modo esplicito ("lo vedrai meglio in c33, nel Modulo 6"); mai usarlo come se l'allievo lo sapesse già.
+
 **Misura:**
-- di solito 1-3 slide in più per livello (nel pilota la più lunga è c19, da 6 a 10 slide, perché è il livello più denso);
+- di solito 1-3 slide in più per livello; nei moduli complessi anche di più, se servono a capire (nel pilota la più lunga è c19, da 6 a 10 slide);
 - ogni slide circa 90 parole, mai oltre 110 (tabella esclusa): se serve di più, si divide in due slide;
 - prima di aggiungere si guarda se si può riscrivere una slide che c'è già;
 - non si ripete il testo dei passi: la lezione dice il perché, il banco dice il come.

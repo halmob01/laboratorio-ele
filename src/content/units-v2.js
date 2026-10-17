@@ -3703,6 +3703,23 @@ export const UNITS_V2 = {
         },
         {
           type: 'spiegazione',
+          title: 'Dove si usa la continua',
+          paras: [
+            'La continua è dappertutto, anche se in casa la rete è alternata. Ogni apparecchio che funziona a batteria è in continua; ogni caricatore e ogni alimentatore trasforma l’alternata della presa in continua.',
+            'Per un elettricista conta saperla riconoscere: ha un più e un meno, e la polarità va rispettata. La incontrerai nei pannelli fotovoltaici e nelle batterie di casa (subito dopo questo livello), e nei comandi di molte macchine.',
+          ],
+          table: {
+            head: ['Dove', 'Tensione tipica'],
+            rows: [
+              ['Auto', '12 V, dalla batteria'],
+              ['Telefono, LED', 'da 5 a 24 V, da un alimentatore'],
+              ['Comandi delle macchine', 'spesso 24 V'],
+              ['Pannelli e batterie di casa', 'da decine a centinaia di volt'],
+            ],
+          },
+        },
+        {
+          type: 'spiegazione',
           title: 'Serie: le tensioni si sommano',
           paras: [
             'Due batterie in serie si collegano una dopo l’altra: il + della prima va al − della seconda. Le tensioni si sommano: due batterie da 6 V danno 12 V tra il − libero della prima e il + libero della seconda.',
@@ -3795,6 +3812,23 @@ export const UNITS_V2 = {
             'L’inverter ha una finestra di tensione in ingresso: sotto una tensione minima (qui 30 V) non parte, perché non ha abbastanza tensione per lavorare; sopra la massima (qui 60 V) si danneggia. Il compito dell’impianto è tenere la tensione dei pannelli dentro la finestra.',
           ],
           warn: 'Il + libero della stringa va al + dell’inverter, il − libero al −: invertiti, l’inverter non lavora e si può rovinare.',
+        },
+        {
+          type: 'spiegazione',
+          title: 'Dal tetto alla presa',
+          paras: [
+            'Ecco tutta la strada dell’energia. I pannelli sul tetto, collegati in serie, formano la stringa e danno corrente continua. L’inverter la trasforma in alternata a 230 V e la manda al quadro di casa, come se fosse un’altra linea.',
+            'Gli apparecchi accesi usano per primi l’energia dei pannelli. Quella che avanza esce dal contatore e va in rete; quando i pannelli non bastano, la differenza arriva dalla rete. Il contatore che conta nei due versi lo vedi nel prossimo livello, la batteria in quello dopo.',
+          ],
+          table: {
+            head: ['Pezzo', 'Che cosa fa'],
+            rows: [
+              ['Pannelli in serie', 'continua, più tensione quanto più c’è sole'],
+              ['Inverter', 'dalla continua all’alternata a 230 V'],
+              ['Quadro di casa', 'porta l’energia alle linee, come sempre'],
+              ['Contatore', 'conta quello che entra e quello che esce'],
+            ],
+          },
         },
         {
           type: 'spiegazione',
@@ -3891,6 +3925,24 @@ export const UNITS_V2 = {
             'Servono due soglie diverse, una per accendere e una per spegnere: si chiama isteresi. Appena lo scaldabagno si accende consuma 2 kW e la potenza scambiata sale di colpo: se la soglia di spegnimento fosse la stessa dell’accensione si spegnerebbe subito e ripartirebbe di continuo.',
             'Qui si accende sotto −2200 W: lo scaldabagno prende 2000 W e restano 200 W di scorta. Si spegne sopra +300 W, non a zero, per non spegnerlo a ogni piccolo prelievo di un attimo. In mezzo mantiene il suo stato: Set e Reset. La regola: tra le due soglie ci deve essere più della potenza del carico (2500 W contro 2000).',
           ],
+        },
+        {
+          type: 'spiegazione',
+          title: 'Una giornata con lo scaldabagno',
+          paras: [
+            'Ecco una giornata, con numeri di esempio. La potenza scambiata è il consumo della casa meno la produzione dei pannelli: negativa vuol dire che la casa immette. Lo scaldabagno, quando è acceso, aggiunge 2 kW al consumo.',
+            'Guarda la nuvola: lo scaldabagno si spegne solo perché la casa comincia a prelevare più di 300 W, e riparte quando torna il sole.',
+          ],
+          table: {
+            head: ['Ora', 'Che cosa succede', 'Potenza scambiata', 'Il PLC'],
+            rows: [
+              ['9:00', 'poco sole', '−1,0 kW', 'niente: non sotto −2200'],
+              ['11:00', 'sole pieno', '−2,7 kW', 'Set: lo scaldabagno parte, e la potenza diventa −0,7 kW'],
+              ['13:00', 'passa una nuvola', '+0,8 kW', 'Reset: sopra +300 W, si spegne'],
+              ['14:00', 'torna il sole', '−2,7 kW', 'Set: riparte'],
+              ['18:00', 'il sole cala', '+1,8 kW', 'Reset: si spegne per la sera'],
+            ],
+          },
         },
         {
           type: 'previsione',
@@ -4010,6 +4062,23 @@ export const UNITS_V2 = {
             rows: [
               ['Parti (Set)', 'sotto 500 W', 'se la casa preleva poco c’è margine per 3,7 kW'],
               ['Fermati (Reset)', 'sopra 4300 W', 'poco sotto il limite di 4500 W: lo stacca prima del contatore'],
+            ],
+          },
+        },
+        {
+          type: 'spiegazione',
+          title: 'Una sera con la colonnina',
+          paras: [
+            'Ecco una sera, con numeri di esempio. La colonnina assorbe 3,7 kW, il limite del contatore è 4,5 kW, le soglie sono 500 W (parti) e 4300 W (fermati).',
+            'L’auto non si carica tutta di fila: si carica nei momenti in cui la casa ha margine, e alla fine della sera è carica lo stesso.',
+          ],
+          table: {
+            head: ['Ora', 'Che cosa succede', 'Potenza prelevata', 'Il PLC'],
+            rows: [
+              ['17:00', 'casa quasi spenta, 0,3 kW', '0,3 kW', 'Set: sotto 500 W, la colonnina parte (4,0 kW)'],
+              ['19:30', 'si cucina, +1,2 kW', '5,2 kW', 'Reset: sopra 4300 W, la colonnina si stacca (1,5 kW)'],
+              ['20:30', 'casa a 1,5 kW', '1,5 kW', 'niente: non sotto 500 W, la colonnina aspetta'],
+              ['22:00', 'si spegne quasi tutto, 0,4 kW', '0,4 kW', 'Set: riparte (4,1 kW)'],
             ],
           },
         },
@@ -4696,6 +4765,23 @@ UNITS_V2['c49-casa-plc'] = {
       },
       {
         type: 'spiegazione',
+        title: 'Come sono collegati tasti e luci',
+        paras: [
+          'Il cablaggio è quello del PLC di c29, qui già fatto. Ogni tasto è un pulsante: la fase passa dal tasto e arriva al suo ingresso (I0, I1, I2), e il comune IC va al neutro. Ogni luce sta su un’uscita: la fase entra in Q0A, esce da Q0B quando il programma chiude il contatto, e va alla lampada, che torna al neutro.',
+          'I tasti sono pulsanti, non interruttori: l’ingresso vale 1 solo mentre premi. Per questo il programma deve ricordare, e servono Set e Reset.',
+        ],
+        table: {
+          head: ['Morsetto', 'Che cosa ci arriva e perché'],
+          rows: [
+            ['I0, I1, I2', 'la fase dai tre tasti: premuto, l’ingresso vale 1'],
+            ['IC', 'il neutro: senza ritorno nessun ingresso vale 1'],
+            ['Q0, Q1', 'la fase entra nel contatto ed esce verso la lampada'],
+            ['A1, A2', 'l’alimentazione del PLC, fase e neutro'],
+          ],
+        },
+      },
+      {
+        type: 'spiegazione',
         title: 'Perché Set e Reset',
         paras: [
           'Una scena lascia le luci come le ha messe, anche dopo che hai rilasciato il tasto. Una bobina semplice non basta: segue la condizione, e quando rilasci il tasto la luce si spegne.',
@@ -5120,6 +5206,24 @@ UNITS_V2['c53-carichi'] = {
       },
       {
         type: 'spiegazione',
+        title: 'Una sera minuto per minuto',
+        paras: [
+          'Ecco la sera del banco, con numeri di esempio: resto della casa 0,5 kW, pompa 1,5 kW, auto 3,7 kW, forno 3,5 kW. Il TON lo conosci da c31: conta il tempo finché la sua condizione resta vera, e si azzera appena diventa falsa.',
+          'Il contatore non stacca mai: il PLC reagisce subito, molto prima dei 20 secondi.',
+        ],
+        table: {
+          head: ['Ora', 'Che cosa succede', 'Potenza', 'Il PLC'],
+          rows: [
+            ['18:00', 'casa, pompa e auto', '5,7 kW', 'niente: sotto 5800 W'],
+            ['19:30', 'si accende il forno', '9,2 kW', 'stacca auto e pompa: restano 4,0 kW'],
+            ['19:31', 'da 30 s sotto 4200 W', '4,0 kW', 'T1 scade: torna la pompa, 5,5 kW'],
+            ['20:30', 'il forno si spegne', '2,0 kW', 'niente ancora: non sotto 2000 W'],
+            ['20:40', 'la casa scende a 1,9 kW', '1,9 kW', 'dopo 30 s T2 scade: torna l’auto, 5,6 kW'],
+          ],
+        },
+      },
+      {
+        type: 'spiegazione',
         title: 'Il programma, gradino per gradino',
         paras: [
           'Il primo gradino è già scritto: legge la potenza del contatore e la porta in watt in MW0. Gli altri sei li scrivi tu.',
@@ -5239,6 +5343,25 @@ UNITS_V2['c54-clima-zone'] = {
           'Se il soggiorno ha la finestra aperta il calore esce, e scaldarlo vuol dire scaldare la strada. Il contatto della finestra arriva all’ingresso I0: quando vale 1 la valvola del soggiorno si chiude, con un gradino Reset su Q1.',
           'Il PLC legge i gradini dall’alto in basso e vince l’ultimo che scrive la stessa uscita. Il gradino della finestra va quindi dopo il Set della valvola: così, anche se la stanza è fredda, a finestra aperta la valvola resta chiusa. Le uscite vere cambiano solo alla fine del giro: la valvola non si apre nemmeno per un attimo.',
         ],
+      },
+      {
+        type: 'spiegazione',
+        title: 'Il programma, gradino per gradino',
+        paras: [
+          'Sei gradini, in quest’ordine. La valvola di ogni stanza ha il suo termostato con due soglie; la finestra viene dopo il Set del soggiorno, perché vince l’ultimo; la pompa guarda le due valvole.',
+          'Il consenso è la condizione che permette alla pompa di partire: qui «almeno una valvola aperta».',
+        ],
+        table: {
+          head: ['Gradino', 'Condizione', 'Istruzione', 'Perché'],
+          rows: [
+            ['1', 'MW0 minore di 20', 'Set su Q1', 'soggiorno freddo: si apre la sua valvola'],
+            ['2', 'MW0 maggiore di 22', 'Reset su Q1', 'soggiorno caldo: si chiude'],
+            ['3', 'I0 (finestra aperta)', 'Reset su Q1', 'dopo il Set: a finestra aperta vince la chiusura'],
+            ['4', 'MW1 minore di 20', 'Set su Q2', 'camera fredda: si apre la sua valvola'],
+            ['5', 'MW1 maggiore di 22', 'Reset su Q2', 'camera calda: si chiude'],
+            ['6', 'Q1 oppure Q2', 'bobina Q0', 'la pompa gira solo se c’è dove mandare l’acqua'],
+          ],
+        },
       },
       {
         type: 'previsione',
