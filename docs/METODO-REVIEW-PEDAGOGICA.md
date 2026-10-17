@@ -210,6 +210,11 @@ Un allievo che sceglie sempre "la più lunga" prende quasi tutti i punti senza l
    - dice quali parole non ha capito e quali domande gli restano.
    Ruolo da dargli: allievo di 15-16 anni, primo o secondo anno IeFP, ha fatto solo i livelli precedenti, non sa niente di più di
    quello che c'è scritto; se una cosa non è scritta non la sa. Il conteggio dei "la lezione non lo dice" è la misura principale.
+   **Lezione della prima prova (Modulo 2, 17 ottobre):** l'allievo finto conta come "perché" anche il *come* ripetuto ("il 12 è chiuso
+   a bobina spenta, quindi la verde è accesa") e trova un perché in quasi tutti i passi. Il conteggio dei passi da solo inganna. I segnali
+   veri sono altri due: la risposta a "a che cosa serve nella vita vera" (in c18: "non so a che cosa serva") e le domande che restano
+   ("perché non basta collegare l'interruttore direttamente alla lampada?"). Dalla seconda prova in poi la consegna chiede, per ogni
+   passo, il perché *del lavoro* (perché si fa così e non in un altro modo, a che cosa serve) e scarta il perché che ridice il come.
 2. **Diagnosi** (Opus). Legge lezione, passi, sfida guasto, previsioni e la definizione del livello (`src/content/levels*.js`, per
    sapere com'è fatto il banco) e la prova dell'allievo finto. Compila la scheda (§5), con verdetto e cambi decisi.
 3. **Riscrittura** (Opus per le riscritture, Sonnet per i ritocchi). Segue la scheda e le regole (§6).
