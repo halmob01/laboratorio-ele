@@ -61,8 +61,12 @@ Il Modulo 6 è il più difficile del gioco e le lezioni di partenza erano corte 
 | c45 | Il PLC ascolta la sicurezza; Che cosa c'è già nel programma | I7 (NA 13-14 di KM), T3, i marcatori che ricordano il passo |
 | c51 | Il lucchetto | portella aperta per il robot, lucchetto per chi entra, tensione tolta per i fili |
 
-Due slide restano un po' sopra le 110 parole (c26 «Il contattore incollato», c37 «Un allarme è un bit», circa 125): accorciarle
-toglierebbe il perché appena aggiunto.
+Slide oltre le 110 parole (controllo del 17 ottobre, ramo `claude/bold-heisenberg-0v4gc0`): divise senza togliere il perché.
+c26 «Il contattore incollato» in due («Perché i contattori sono due», con il riarmo dai NC di tutti e due); c27 «Dove si usano» e
+«Tutti in serie, su due canali»; c34 «Il variatore nel quadro» (inverter, posto nel quadro, che cosa si cabla sul banco); c37 «Un
+allarme è un bit» e «Il guasto del sensore»; c43 «Quando serve un tempo» e «Il ciclo che finisce sempre». c25: la definizione di
+contatto incollato passa alla slide «Un guasto alla volta», dove serve; c35: frase sulle soglie spostata nella slide prima. Tutte le
+slide del modulo ora stanno sotto le 110 parole.
 
 **Prova dei tasti nel browser:** `prova-tasti.mjs` tutto OK per c25-c27, c33-c37, c43-c45 (11 livelli). c51 è una prova.
 Nota: `prova-tasti.mjs` vuole `playwright-core`; nelle sessioni cloud c'è in `/opt/node-tools/node_modules` (collegarlo con un link

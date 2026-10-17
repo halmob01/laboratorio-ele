@@ -263,12 +263,15 @@ imitare: `docs/review/modulo2.md` (schede, risultati) e il ramo `review-modulo2`
    Fatto: **Modulo 3** (c21-c16, c52, c24; schede in `docs/review/modulo3.md`). Trovato e corretto: tabelle con più di due colonne
    (c12, c52) di cui la vista mostrava solo le prime due. Lo stesso difetto c'era in 20 livelli fuori dal Modulo 3: la vista ora
    mostra tutte le colonne (ogni riga una scheda), quindi le tabelle a tre o quattro colonne si possono usare; a due resta la forma più leggibile.
+   Fatto: **Modulo 5** (c47-c55; `docs/review/modulo5.md`), **Modulo 6** (c25-c27, c33-c37, c43-c45, c51; `docs/review/modulo6.md`) e
+   **prove 3D** (c23, c24, c46, c51, c55; `docs/review/prove3d.md`), tutti con la verifica piena: il controllo leggero del punto 3 non serve più.
+   Controllo finale del 17 ottobre: nessuna slide dei Moduli 2-6 oltre le 110 parole (otto divise o accorciate, ar-56).
 2. **Priorità alta, in parallelo:** Modulo 3 (c21-c16, c52, c24) e Modulo 6 sicurezza (c25-c27) con c28. Non condividono livelli,
    quindi due sessioni possono lavorare insieme; ognuna con il suo ramo, il suo `ar-NN` e il suo file di schede.
-3. **Controllo leggero:** livelli con il PLC e i processi (c29-c32, c33-c45, c47-c54). Hanno già il perché: si fa la prova dell'allievo
+3. **Controllo leggero (superato: fatti per intero con i Moduli 4, 5 e 6):** livelli con il PLC e i processi (c29-c32, c33-c45, c47-c54). Hanno già il perché: si fa la prova dell'allievo
    finto e si ritocca dove serve, soprattutto lo scopo nel lavoro vero (tipo A) e i fili rossi. In c29 una slide nuova sul PLC nel lavoro
    vero (tipo A bis).
-4. **Ultimo:** Modulo 0 (allineato ai fili rossi; la slide "Tensione, corrente, potenza" è già in c01, al suo posto definitivo:
+4. **Ultimo, da fare:** Modulo 0 (allineato ai fili rossi; la slide "Tensione, corrente, potenza" è già in c01, al suo posto definitivo:
    il blocco T non la deve spostare) e i briefing delle prove.
 
 ## 8. Come si misura

@@ -308,3 +308,8 @@ e il differenziale non lo dice da solo).
 - c07: come si spiega in laboratorio perché la fase va su L, visto che la spina italiana si può girare.
 - c20: la frase sugli effetti della corrente nel corpo (una decina di mA, poche decine).
 - c19: il caso "mi salta sempre": è il modo giusto di presentarlo agli allievi?
+
+## Controllo del 17 ottobre (slide lunghe)
+
+c23: la slide d'ingresso (135 parole) è divisa in «Una notte senza luce» (il metodo: aprire le linee, riarmare, richiudere una alla
+volta) e «Prima di riarmare» (il multimetro, perché non si riarma a ripetizione). Testo invariato.

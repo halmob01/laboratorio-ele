@@ -35,6 +35,6 @@ Se Gianluca chiede "fai la review pedagogica del modulo N" (o di alcuni livelli)
 - **Perimetro:** nelle lezioni si cambiano spiegazioni, testi dei pezzi, previsioni, sintesi e lo stile delle lezioni; passi, sfida
   guasto, demo e il codice di banco, motore e scene no. Un difetto che tocca il codice si chiede prima a Gianluca.
 - **Stato:** pilota sul Modulo 2 fatto; Modulo 3 fatto (`docs/review/modulo3.md`, ar-50); Modulo 4 fatto con c28 e verifica piena dei livelli PLC (`docs/review/modulo4.md`, ar-51); Modulo 5 fatto con più spiegazione nei
-  livelli complessi (`docs/review/modulo5.md`, ar-52); prove 3D fatte (`docs/review/prove3d.md`, ar-55); Modulo 6 fatto (`docs/review/modulo6.md`, ar-54); da fare il controllo leggero del resto
-  (ordine nel §7 del metodo). Le sessioni su moduli diversi possono lavorare in parallelo.
+  livelli complessi (`docs/review/modulo5.md`, ar-52); prove 3D fatte (`docs/review/prove3d.md`, ar-55); Modulo 6 fatto (`docs/review/modulo6.md`, ar-54); slide lunghe divise (ar-56). Da fare: Modulo 0
+  (§7 del metodo) e, se Gianluca lo vuole, le risposte della sfida guasto (`docs/review/prove3d.md`, «Da fare in seguito»). Le sessioni su moduli diversi possono lavorare in parallelo.
 

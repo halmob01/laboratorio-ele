@@ -1921,6 +1921,12 @@ export const UNITS_V2 = {
           paras: [
             'È notte e in casa è saltata la luce. Il quadro è quello che conosci: un differenziale all’ingresso e un magnetotermico per ogni linea. Stavolta le linee sono tre: luce, prese e cucina.',
             'Se il differenziale è scattato, da qualche parte c’è una dispersione verso terra. Non si cerca a caso: si isolano le linee. Apri tutti i magnetotermici, riarma il differenziale, poi richiudi una linea alla volta. La linea che lo fa scattare di nuovo è quella che disperde.',
+          ],
+        },
+        {
+          type: 'spiegazione',
+          title: 'Prima di riarmare',
+          paras: [
             'Il multimetro serve a controllare dove c’è tensione: a monte del differenziale c’è sempre, a valle solo se il differenziale è armato e la linea è chiusa.',
             'Non si riarma a ripetizione sperando che tenga: se c’è una dispersione vera, ogni riarmo rimette in tensione il guasto, e magari la persona che lo sta toccando.',
           ],
@@ -2055,7 +2061,6 @@ export const UNITS_V2 = {
           paras: [
             'Il fungo ha quattro morsetti: 1-2 è il canale 1 e 3-4 il canale 2. A riposo i contatti sono chiusi; premuto, si aprono insieme e il fungo resta bloccato finché non lo ruoti.',
             'Il canale 1 alimenta la bobina del relè K1, il canale 2 quella di K2. I contatti dei due relè stanno in serie sul carico: la macchina va solo se tutti e due sono chiusi. Il fungo non porta la corrente della macchina: comanda le bobine, e sono i contatti dei relè a portarla.',
-            'Un contatto «incollato» resta chiuso quando dovrebbe aprirsi: a forza di aprire e chiudere sotto corrente, una scintilla ha saldato le due parti.',
           ],
         },
         {
@@ -2080,6 +2085,7 @@ export const UNITS_V2 = {
           type: 'spiegazione',
           title: 'Un guasto alla volta',
           paras: [
+            'Un contatto «incollato» resta chiuso quando dovrebbe aprirsi: a forza di aprire e chiudere sotto corrente, una scintilla ha saldato le due parti.',
             'La ridondanza serve per i guasti che nessuno vede. Ecco che cosa succede premendo il fungo, con un guasto alla volta.',
             'Con un guasto solo la macchina si ferma comunque. Ma nessuno se ne accorge: la macchina sembra a posto, e il secondo guasto arriva quando il primo è ancora lì. Per questo, nel livello dopo, un relè di sicurezza controlla che i due canali lavorino insieme.',
           ],
@@ -2181,7 +2187,7 @@ export const UNITS_V2 = {
           type: 'spiegazione',
           title: 'Il riarmo',
           paras: [
-            'Dopo un arresto non riparte da solo. Serve un impulso sul pulsante di riarmo, e il relè si arma quando il pulsante viene rilasciato: la macchina riparte per una scelta di chi sta davanti, non perché il fungo è stato sbloccato. Il relè si arma quando lasci il pulsante, dopo averlo premuto (nell’animazione lo vedi come un tasto premuto). Perché al rilascio: un pulsante incastrato o ponticellato (scavalcato con un filo) sarebbe sempre premuto, e il relè si riarmerebbe da solo appena sblocchi il fungo. Così invece non si arma mai. Il pulsante di riarmo è normalmente aperto, come una marcia.',
+            'Dopo un arresto non riparte da solo. Serve un impulso sul pulsante di riarmo, e il relè si arma quando il pulsante viene rilasciato: la macchina riparte per una scelta di chi sta davanti, non perché il fungo è stato sbloccato (nell’animazione il riarmo è un tasto premuto e lasciato). Perché al rilascio: un pulsante incastrato o ponticellato (scavalcato con un filo) sarebbe sempre premuto, e il relè si riarmerebbe da solo appena sblocchi il fungo. Così invece non si arma mai. Il pulsante di riarmo è normalmente aperto, come una marcia.',
           ],
         },
         {
@@ -2189,9 +2195,17 @@ export const UNITS_V2 = {
           title: 'Il contattore incollato',
           paras: [
             'I contatti di potenza di un contattore possono incollarsi, per esempio dopo molti cicli con carico forte. La bobina si spegne, ma la macchina continua a girare.',
-            'Nei contattori i contatti NC e NA non si possono trovare chiusi insieme. Se il contattore è incollato, il contatto NC 21-22 resta aperto. Mettendolo nel circuito di riarmo, il relè di sicurezza si accorge del guasto e non si riarma. Nelle macchine vere i contattori di potenza sono due, in serie; qui ce n’è uno solo, per semplicità: il contattore incollato si scopre al riarmo, ma intanto non si ferma. Con un contattore solo, se si incolla, nemmeno il fungo ferma la macchina: per questo nelle macchine vere sono due, e se uno si incolla l’altro la ferma.',
+            'Nei contattori i contatti NC e NA non si possono trovare chiusi insieme: se i contatti di potenza sono incollati, il contatto NC 21-22 resta aperto. Per questo il riarmo passa dal NC: il relè di sicurezza si accorge del guasto e non si riarma.',
           ],
           warn: 'Se il riarmo non passa dal contatto NC del contattore, un contattore incollato non viene scoperto: la macchina resta senza protezione fino al guasto successivo.',
+        },
+        {
+          type: 'spiegazione',
+          title: 'Perché i contattori sono due',
+          paras: [
+            'Qui c’è un contattore solo, per semplicità: se si incolla, il guasto si scopre al riarmo, ma intanto nemmeno il fungo ferma la macchina. Nelle macchine vere i contattori di potenza sono due, in serie: se uno si incolla, l’altro la ferma.',
+            'Il relè di sicurezza li controlla tutti e due: il riarmo passa dai contatti NC di entrambi, in serie. Se uno dei due è incollato, il suo NC resta aperto e la macchina non riparte finché non lo si cambia.',
+          ],
         },
         {
           type: 'spiegazione',
@@ -2352,6 +2366,12 @@ export const UNITS_V2 = {
           title: 'Dove si usano',
           paras: [
             'La portella è un riparo apribile, per esempio la porta di una recinzione intorno a un robot: un interruttore di sicurezza con due contatti sente se è chiusa. La barriera è una fila di raggi davanti a una zona di lavoro: se qualcuno ci passa, interrompe i raggi.',
+          ],
+        },
+        {
+          type: 'spiegazione',
+          title: 'Tutti in serie, su due canali',
+          paras: [
             'Il cablaggio è quello di c26, con due dispositivi in più in serie su ogni canale. Il relè di sicurezza non sa chi ha aperto il canale: sa solo che un canale è caduto, e ferma tutto. Per questo l’ordine dei dispositivi nella serie non conta. Riarmare con la portella aperta non serve: i canali sono aperti e il relè non si arma.',
           ],
           table: {
@@ -3461,7 +3481,15 @@ export const UNITS_V2 = {
           title: 'Perché serve un variatore',
           paras: [
             'Un motore trifase collegato alla rete gira a una velocità quasi fissa, decisa dalla frequenza della rete: 50 hertz, cioè la tensione cambia verso 50 volte al secondo. Se vuoi un nastro più lento o più veloce, e partenze dolci, devi cambiare la frequenza che arriva al motore.',
-            'Lo fa il variatore di frequenza: prende la tensione di rete e ne produce una trifase con la frequenza che gli chiedi. Più la frequenza è alta, più il motore gira in fretta: il campo magnetico dentro il motore gira al ritmo della tensione, e il rotore lo segue. Molti lo chiamano inverter, come il pezzo dei pannelli: anche lui fa l’alternata con l’elettronica, ma per un motore.',
+            'Lo fa il variatore di frequenza: prende la tensione di rete e ne produce una trifase con la frequenza che gli chiedi. Più la frequenza è alta, più il motore gira in fretta: il campo magnetico dentro il motore gira al ritmo della tensione, e il rotore lo segue.',
+          ],
+        },
+        {
+          type: 'spiegazione',
+          title: 'Il variatore nel quadro',
+          paras: [
+            'Molti lo chiamano inverter, come il pezzo dei pannelli: anche lui fa l’alternata con l’elettronica, ma per un motore.',
+            'Nel quadro vero il variatore sta tra la protezione e il motore, al posto del teleruttore: il motore lo accende e lo ferma lui, con la sua rampa. Sul banco il variatore non c’è: cabli i due segnali che il PLC gli manda, e la velocità del nastro la vedi nel grafico.',
           ],
         },
         {
@@ -3477,7 +3505,7 @@ export const UNITS_V2 = {
           title: 'Due segnali, due strade',
           paras: [
             'Al variatore arrivano due segnali diversi. Il consenso di marcia è un sì o un no: è l’uscita digitale Q0 del PLC. Il riferimento di velocità è un numero, da 0 a 100 %: è l’uscita analogica AQ0.',
-            'Il consenso lo cabli tu, con l’uscita a relè. Il riferimento è un valore che il programma copia dalla parola MW0 all’uscita analogica; lo imposti con il cursore. Se il consenso manca il variatore si ferma, qualunque sia il riferimento. Il 100 % vuol dire 50 hertz, quindi il 60 % sono 30 hertz. Sul banco il variatore non c’è: nel quadro vero sta tra la protezione e il motore, al posto del teleruttore.',
+            'Il consenso lo cabli tu, con l’uscita a relè. Il riferimento è un valore che il programma copia dalla parola MW0 all’uscita analogica; lo imposti con il cursore. Se il consenso manca il variatore si ferma, qualunque sia il riferimento. Il 100 % vuol dire 50 hertz, quindi il 60 % sono 30 hertz.',
           ],
           table: {
             head: ['Segnale', 'Tipo', 'Da dove viene'],
@@ -3531,7 +3559,7 @@ export const UNITS_V2 = {
           title: 'Il problema con una sola soglia',
           paras: [
             'Se la pompa fosse comandata solo dal galleggiante basso, accesa quando il livello è sotto il 20 %, si accenderebbe a 19 %, subito spingerebbe il livello a 20 %, si spegnerebbe, il livello ricalerebbe e così via: accensioni e spegnimenti di continuo. Il motore della pompa si rovina e i contatti si consumano.',
-            'Il rimedio è l’isteresi, che hai già visto nel Modulo 5 con lo scaldabagno e con il termostato delle stanze: due soglie diverse, una per accendere e una per spegnere. La pompa parte a 20 % e si ferma a 80 %. In mezzo mantiene l’ultimo stato.',
+            'Il rimedio è l’isteresi, che hai già visto nel Modulo 5 con lo scaldabagno e con il termostato delle stanze: due soglie diverse, una per accendere e una per spegnere. Qui la pompa parte a 20 % e si ferma a 80 % (le soglie le sceglie chi progetta l’impianto). In mezzo mantiene l’ultimo stato.',
           ],
         },
         {
@@ -3539,7 +3567,7 @@ export const UNITS_V2 = {
           title: 'Mantenere lo stato con Set e Reset',
           paras: [
             'Per mantenere “acceso” anche quando il livello è risalito sopra il 20 % serve una memoria. Nel PLC l’istruzione Set accende un’uscita e la tiene accesa anche quando la condizione che l’ha accesa sparisce. Soltanto un Reset la spegne.',
-            'Il programma ha due gradini: se il galleggiante basso scatta, Set su Q0; se il galleggiante alto scatta, Reset su Q0. In mezzo nessun gradino cambia Q0, e la pompa continua come prima. Quando il PLC si accende Q0 è spento: con il serbatoio a metà la pompa aspetta che il livello scenda al 20 %; se è già sotto, parte subito. Le soglie 20 e 80 le sceglie chi progetta l’impianto.',
+            'Il programma ha due gradini: se il galleggiante basso scatta, Set su Q0; se il galleggiante alto scatta, Reset su Q0. In mezzo nessun gradino cambia Q0, e la pompa continua come prima. Quando il PLC si accende Q0 è spento: con il serbatoio a metà la pompa aspetta che il livello scenda al 20 %; se è già sotto, parte subito.',
           ],
           table: {
             head: ['Livello', 'Galleggiante', 'La pompa'],
@@ -3698,7 +3726,14 @@ export const UNITS_V2 = {
           title: 'Un allarme è un bit',
           paras: [
             'Il PLC decide quando c’è un allarme, con un gradino come gli altri: un contatto di confronto e una bobina su un marcatore, cioè un bit interno del PLC che non è collegato a nessun morsetto (in tedesco merker; si scrivono M0, M1...). Per esempio, se il livello in MW0 è maggiore di 90 la bobina M0 si accende. Il pannello legge M0 e mostra “Livello troppo alto”.',
-            'Il guasto del sensore si riconosce dalla corrente, non dal livello: con il filo interrotto il PLC legge 0 mA e MW0 resta fermo all’ultimo valore calcolato. Per questo il gradino guarda AI0, i milliampere, e non MW0. MW0 resta fermo perché SCALE lavora solo con AI0 almeno a 3,6 mA: un filo staccato non scrive un livello falso.',
+          ],
+        },
+        {
+          type: 'spiegazione',
+          title: 'Il guasto del sensore',
+          paras: [
+            'Il guasto del sensore si riconosce dalla corrente, non dal livello. Con il filo interrotto il PLC legge 0 mA, e MW0 resta fermo all’ultimo valore calcolato: SCALE lavora solo con AI0 almeno a 3,6 mA, così un filo staccato non scrive un livello falso.',
+            'Per questo il gradino dell’allarme guarda AI0, i milliampere, e non MW0: sotto 3,6 mA il sensore è guasto. Un livello fermo sembrerebbe normale, e nessuno se ne accorgerebbe.',
           ],
         },
         {
@@ -4294,9 +4329,15 @@ export const UNITS_V2 = {
         },
         {
           type: 'spiegazione',
-          title: 'Quando serve un tempo, e il ciclo che finisce sempre',
+          title: 'Quando serve un tempo',
           paras: [
             'La pinza non ha un sensore: per sapere che si è chiusa si aspetta un tempo (T1 per chiudere, T2 per aprire). Dove c’è un sensore si usa il sensore; dove manca, un temporizzatore. I due tempi sono già nel programma: M2 avvia T1, M6 avvia T2.',
+          ],
+        },
+        {
+          type: 'spiegazione',
+          title: 'Il ciclo che finisce sempre',
+          paras: [
             'Il marcatore M9 dice “ciclo in corso”: il ciclo parte solo se non ce n’è uno in corso, e finisce sempre. Arresto spegne la marcia (M0): il ciclo successivo non comincia, ma quello in corso si conclude e il robot si ferma al prelievo. Fermare il programma a metà sequenza, con il pezzo in aria, lascerebbe la macchina in uno stato da cui è difficile ripartire.',
           ],
         },
