@@ -50,6 +50,24 @@ che cosa serve ogni livello anche prima. I problemi erano di altro tipo:
    i pannelli che non si spengono; "scambio sul posto" usato come nome del contatore; la pompa che "si guasta dopo un minuto".
 4. **Unità mai spiegate:** kWh e kW (c41).
 
+## Secondo passaggio: più spiegazione (richiesta di Gianluca)
+
+Gianluca: «soprattutto nei moduli più complessi spiega tanto, non ti fidare che siano di base scritte meglio; se ci sono cose che verranno
+fatte meglio dopo, spiega il giusto per capire e poi rimanda». Dopo le due prove sono state aggiunte sette slide:
+
+| Livello | Slide nuova | A che cosa serve |
+|---|---|---|
+| c38 | Dove si usa la continua | auto, caricatori, comandi a 24 V, pannelli e batterie: la continua nel lavoro vero |
+| c39 | Dal tetto alla presa | tutta la strada: stringa, inverter, quadro, contatore, rete; rimanda a c40 e c41 |
+| c40 | Una giornata con lo scaldabagno | esempio svolto ora per ora: potenza scambiata, Set e Reset, la nuvola |
+| c42 | Una sera con la colonnina | esempio svolto: parte, si stacca quando si cucina, aspetta, riparte; l'auto si carica a pezzi |
+| c49 | Come sono collegati tasti e luci | il cablaggio del PLC (lo stesso di c29), perché i tasti sono pulsanti e servono Set e Reset |
+| c53 | Una sera minuto per minuto | esempio svolto con il forno, il distacco insieme, T1 e T2 (TON ripreso da c31) |
+| c54 | Il programma, gradino per gradino | i sei gradini con il perché di ognuno; «consenso» spiegato |
+
+I numeri degli esempi sono stati controllati con le soglie e le potenze del gioco (limite 4,5 e 6 kW, soglie 500/4300, 5800/4200/2000,
+scaldabagno 2 kW, −2200/+300).
+
 ## Schede, in breve
 
 | Livello | Verdetto | Che cosa è cambiato |
