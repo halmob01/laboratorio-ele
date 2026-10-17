@@ -3,26 +3,26 @@
 La fase 1 (percorso c01-c55, prove 3D) e' chiusa: punto di ritorno `fe4fee0` (vedi `docs/PROCEDURA-UNIONE.md`).
 La fase 2 non aggiunge contenuti: rende il prodotto chiaro, veloce e pubblicabile. Le espansioni (autoclave, condominio) vengono dopo.
 
-**Regola ferma:** il codice degli esercizi (motore, banco, pannelli, livelli, scene) e tutto il "dopo" la lezione non si toccano.
-La review pedagogica puo' fare solo questo, in `src/content/units.js` e `src/content/units-v2.js` (e nelle traduzioni arabe collegate):
-- riscrivere i testi delle slide di tipo `spiegazione` (titoli, paragrafi, avvisi);
-- **aggiungere, togliere o spostare slide `spiegazione`** per spiegare meglio il perche' (il gioco conta le slide da solo).
+**Regola ferma:** il codice degli esercizi (motore, banco, pannelli, livelli, scene) e tutto il "dopo" la lezione non si toccano,
+anche se hanno piccoli difetti. La lezione invece si puo' cambiare in tutti i modi utili a far capire (deciso con Gianluca il 17 ottobre),
+in `src/content/units.js` e `src/content/units-v2.js` e nelle traduzioni arabe collegate:
+- slide `spiegazione`: testi liberi, si possono aggiungere, togliere, spostare (il gioco conta le slide da solo);
+- slide `pezzi`: titolo e testi liberi, resta uguale `focus`;
+- slide `previsione`: domanda, opzioni, risposta giusta e spiegazione riscrivibili; resta uguale il numero di previsioni (danno i punti);
+- sintesi di fine livello (`summary` e titolo della slide `sintesi`), perche' ne beneficia il Quaderno.
 
-Si puo' anche **riscrivere la sintesi di fine livello** (`summary`: elenco di frasi non vuote; slide `sintesi`: una sola, l'ultima, con un titolo),
-perche' ne beneficia il Quaderno.
-
-Restano identici: `steps` (i passi del banco), `fault` (la sfida guasto), `support`, e le slide `previsione` (opzioni e risposta giusta:
-alimentano il punteggio), `demo` (le didascalie seguono i fili del livello) e `pezzi`.
-Lo script `node scripts/check-review-scope.mjs` (blocco B0, commit di partenza `fe4fee0`) lo verifica: va lanciato prima di ogni commit
-di review e fallisce se cambia qualcosa fuori da questo perimetro. Provato: blocca una modifica ai passi o a una previsione e una sintesi
-tolta; lascia passare una slide `spiegazione` in piu' e una sintesi riscritta.
+Restano identici: `steps`, `fault`, `support`, le didascalie delle `demo` e `focus` dei `pezzi`. Unica modifica di codice ammessa: il
+mescolamento delle opzioni delle domande nella vista (`docs/METODO-REVIEW-PEDAGOGICA.md` §6 bis).
+Lo script `node scripts/check-review-scope.mjs` (blocco B0, commit di partenza `fe4fee0`) lo verifica e va lanciato prima di ogni commit
+di review. **Da aggiornare prima del pilota** per lasciar passare testi dei `pezzi` e previsioni riscritte.
 
 ## Blocchi
 
 | Blocco | Cosa | Agente | Dopo |
 |---|---|---|---|
-| B0 | Rete di sicurezza: `scripts/check-review-scope.mjs` (fatto) | Sonnet | - |
-| P | Review pedagogica (vedi sotto), modulo per modulo | Opus decide, Sonnet scrive, Haiku traduce | B0 |
+| B0 | Rete di sicurezza: `scripts/check-review-scope.mjs` (fatto; da allargare a pezzi e previsioni) | Sonnet | - |
+| B1 | Opzioni delle domande mescolate nella vista, con test (`METODO-REVIEW-PEDAGOGICA.md` §6 bis) | Sonnet | - |
+| P | Review pedagogica (vedi sotto), modulo per modulo | Sonnet allievo finto, Opus diagnosi e riscritture, Haiku traduce | B0, B1 |
 | Q | Quaderno: rivedere cosa raccoglie e come si stampa | Sonnet, revisione Opus | P1 (serve sapere i testi) |
 | T | Tutorial iniziale del gioco al posto di "Per cominciare" (lezioni, banco, scene 3D, come muoversi); il vecchio testo su corrente e fili diventa la prima lezione del Modulo 1 | Sonnet testi, Opus controlla | - |
 | F | Footer: torre al centro, due riquadri di testo ai lati, altezza ridotta | Sonnet | - |

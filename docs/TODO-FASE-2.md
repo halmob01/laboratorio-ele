@@ -11,9 +11,8 @@ questo elenco serve a chi arriva nuovo (anche un'altra sessione) per capire cosa
 
 ## Vincoli decisi da Gianluca
 - **Il codice degli esercizi non si tocca** (banco, pannelli, motore, scene, livelli). Eventuali bug si sistemano man mano.
-- La review pedagogica lavora **solo sulle lezioni**: puo' riscrivere i testi, aggiungere/togliere/spostare slide `spiegazione` e riscrivere
-  la sintesi. Non tocca passi, sfida guasto, previsioni, demo, pezzi (regola e controllo automatico in `PIANO-FASE-2.md` e
-  `scripts/check-review-scope.mjs`).
+- La review pedagogica lavora **solo sulla lezione**, ma li' puo' cambiare tutto quello che aiuta a capire: spiegazioni, testi dei pezzi,
+  previsioni (anche domande e opzioni), sintesi. Non tocca passi, sfida guasto, demo, codice (regola in `PIANO-FASE-2.md`).
 - Lo scopo non e' allargare: le espansioni (autoclave, condominio) si fanno **dopo**, a prodotto sistemato. Non deve diventare "altri tre mesi".
 - Priorita' massima: review pedagogica e che tutto funzioni.
 
@@ -47,5 +46,5 @@ spiega i passi, ordine e misure).
 - Chi deve poter aprire il gioco una volta pubblicato (la sua classe, la scuola, i colleghi) e si vende o no? Decide il blocco D e quanto serve l'area docenti.
 - Unire in `main` i documenti di piano e l'elenco (decisione da prendere; i file sono sul ramo `docs-piano-fase-2`).
 - Pilota sul Modulo 2: confermato?
-- Perimetro: si possono riscrivere anche i testi delle slide `pezzi` e il `why` delle previsioni? (proposta in `docs/METODO-REVIEW-PEDAGOGICA.md` §6)
+- Mescolare le opzioni anche nella sfida guasto (stessa funzione della vista; il contenuto non cambia)? Proposta: si'.
 - Errori di concetto tipici degli allievi da aggiungere all'elenco (§5 del metodo).

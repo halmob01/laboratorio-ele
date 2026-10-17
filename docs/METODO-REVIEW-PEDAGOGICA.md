@@ -12,7 +12,10 @@ che cosa ha costruito.
 La leggibilità (frasi corte, parole spiegate, esempi) è già buona ed è un requisito minimo, non l'obiettivo. Il tono e la lunghezza
 delle lezioni di oggi vanno bene: non si riscrive per "semplificare", si riscrive dove manca un perché.
 
-Gli esercizi (banco, passi, sfida guasto, previsioni, demo, motore, scene) restano come sono. Si lavora sui testi di lezione e sulla sintesi.
+Gli esercizi (banco, passi, sfida guasto, demo, motore, scene) restano come sono, anche se hanno qualche piccolo difetto: rimetterci
+mano adesso vorrebbe dire rifare il sito. **Tutto il resto della lezione si può cambiare in tutti i modi utili a far capire**: slide
+di spiegazione, testi dei pezzi, previsioni, sintesi (§6). Una spiegazione in più senza un esercizio collegato va benissimo:
+l'importante è che l'allievo capisca.
 
 ## 2. Che cosa abbiamo trovato (campione del 17 ottobre)
 
@@ -45,6 +48,12 @@ Modulo 3 e i tre livelli di sicurezza del Modulo 6. Sono i livelli scritti prima
   per il sovraccarico) non è mai spiegato.
 - **D. Parole date per scontate.** c12: "avvolgimenti", "rotore", "campo magnetico che gira", "sezionamento a monte".
 - **E. Il legame con quello che sa già.** c26 non richiama c25 (i due canali, i due relè in serie sul carico), che è la stessa idea.
+- **A bis. Il PLC nel lavoro vero.** c29 spiega bene che cos'è il PLC (un computer per le macchine, ingressi, programma, uscite,
+  scansione) e perché esiste (cambiare comportamento senza ricablare). Non dice come lo si usa davvero: dove sta (nel quadro, sulla
+  guida DIN), come ci entra il programma (si scrive al computer con il programma del costruttore e si carica con un cavo), chi fa che
+  cosa (l'elettricista cabla e collauda ingressi e uscite, spesso un tecnico scrive il programma, il manutentore lo legge per trovare
+  i guasti), dove lo si incontra (macchine, cancelli, ascensori, impianti di casa), perché il ladder somiglia a uno schema a relè
+  (è nato per gli elettricisti). Va aggiunto in c29, con un richiamo in c30.
 - **F. Sintesi fatta di fatti.** "Il salvamotore ha un polo per fase" invece di "Il salvamotore stacca tutte e tre le fasi insieme,
   perché con due sole il motore ronza e si scalda".
 
@@ -134,14 +143,16 @@ Primo elenco, da allungare con l'esperienza di laboratorio:
 
 ## 6. Regole di scrittura
 
-**Che cosa si può cambiare** (controllato da `node scripts/check-review-scope.mjs`):
-- testi delle slide `spiegazione`; aggiungere, togliere, spostare slide `spiegazione`;
-- la sintesi (`summary` e titolo della slide `sintesi`);
-- proposta da decidere con Gianluca: anche i testi (`title`, `paras`) delle slide `pezzi`, lasciando `focus` com'è, e il `why` delle
-  `previsione`, lasciando domanda, opzioni e risposta giusta. Sono spiegazioni, non toccano punteggio né banco. Se approvato, si
-  aggiorna lo script B0 prima di cominciare.
+**Che cosa si può cambiare** (deciso con Gianluca il 17 ottobre; lo script `node scripts/check-review-scope.mjs` va aggiornato
+prima di cominciare il pilota):
+- slide `spiegazione`: testi liberi; si possono aggiungere, togliere, spostare;
+- slide `pezzi`: titolo e testi liberi; resta uguale solo `focus` (quale pezzo del banco si illumina) e il loro ordine rispetto alle demo;
+- slide `previsione`: domanda, opzioni, risposta giusta e spiegazione si possono riscrivere tutte (vedi §6 bis); resta uguale il numero
+  di previsioni del livello, perché danno i punti;
+- la sintesi (`summary` e titolo della slide `sintesi`), in tutti i modi.
 
-**Che cosa non si cambia:** passi, sfida guasto, `support`, domande e risposte delle previsioni, didascalie delle demo, `focus` dei pezzi.
+**Che cosa non si cambia:** passi, sfida guasto, `support`, didascalie delle demo, `focus` dei pezzi, e tutto il codice (motore, banco,
+pannelli, scene). Unica eccezione proposta: il mescolamento delle opzioni (§6 bis), che è una riga della vista e non tocca le regole.
 Se la lezione non può spiegare quello che l'esercizio chiede, si annota in `docs/DOMANDE-PER-GIANLUCA.md` e non si tocca l'esercizio.
 
 **Misura:**
@@ -162,6 +173,27 @@ Esempio: "Il salvamotore stacca tutte e tre le fasi insieme, perché con due sol
 
 **Tono:** quello di oggi, che va bene: seconda persona, frasi corte, concreto. Niente tono da manuale, niente teoria che non serve a
 capire il banco.
+
+## 6 bis. Le previsioni: la risposta giusta si indovina senza capire
+
+Gianluca ha notato che la risposta giusta è spesso la più lunga e quella in mezzo. I numeri lo confermano:
+
+| Domande | Quante | Giusta = la più lunga | Posizione della giusta |
+|---|---|---|---|
+| Previsioni nelle lezioni | 80 | 63 (79 %) | in mezzo (b) 64 volte, prima 14, ultima 2 |
+| Sfida guasto (diagnosi) | 41 | 39 (95 %) | prima (a) 34 volte su 41 |
+
+Un allievo che sceglie sempre "la più lunga" prende quasi tutti i punti senza leggere. Due rimedi, da fare tutti e due:
+
+1. **Mescolare le opzioni quando si mostrano.** Le risposte si riconoscono dal loro codice (`a`, `b`, `c`), non dalla posizione:
+   cambiare l'ordine sullo schermo non tocca punteggio, salvataggi né regole. È una modifica di poche righe in `optButtons`
+   (`src/ui2d/screens.js`), con un ordine fisso per domanda (ricavato dal livello e dalla domanda) così non cambia a ogni ridisegno.
+   La stessa funzione mostra anche le opzioni della sfida guasto: il mescolamento le sistema senza toccarne il contenuto.
+2. **Riscrivere le opzioni sbagliate** perché siano lunghe e credibili quanto quella giusta. Le opzioni sbagliate migliori sono gli
+   errori di concetto veri (§5): così la previsione, invece di essere un quiz, fa emergere l'errore e la spiegazione lo smonta.
+   Regola: opzioni di lunghezza simile (la giusta non più lunga delle altre di oltre un terzo), ognuna una frase che un allievo
+   potrebbe pensare davvero, nessuna palesemente assurda.
+   Il testo della sfida guasto resta com'è (è l'esercizio); basta il mescolamento.
 
 ## 7. Procedura
 
@@ -193,7 +225,11 @@ capire il banco.
    Gianluca legge le lezioni riscritte del pilota prima di andare avanti.
 2. **Priorità alta, in parallelo dopo il pilota:** Modulo 3 (c21-c16, c52) e Modulo 6 sicurezza (c25-c27), più c28.
 3. **Controllo leggero:** livelli con il PLC e i processi (c29-c32, c33-c45, c47-c54). Hanno già il perché: si verifica con
-   l'allievo finto e si ritocca dove serve, soprattutto lo scopo nel lavoro vero (tipo A) e i fili rossi.
+   l'allievo finto e si ritocca dove serve, soprattutto lo scopo nel lavoro vero (tipo A) e i fili rossi. Eccezione: c29 riceve una
+   slide nuova sul PLC nel lavoro vero (tipo A bis).
+
+In tutti i moduli si riscrivono anche le opzioni delle previsioni (§6 bis). Il mescolamento delle opzioni si fa una volta sola,
+prima del pilota, in un ramo a parte (`previsioni-mescolate`), con un test che controlla che ogni risposta giusta resti giusta.
 4. **Ultimo:** Modulo 0 (già a posto, va solo allineato ai fili rossi) e i briefing delle prove.
 
 I moduli diversi non toccano gli stessi testi, quindi dopo il pilota si può lavorare in parallelo.
