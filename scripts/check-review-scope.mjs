@@ -15,8 +15,8 @@ import { join } from 'node:path';
 import { isDeepStrictEqual } from 'node:util';
 import { pathToFileURL } from 'node:url';
 
-// Punto di partenza: B0, B1 e lo spazio nelle tabelle (17 ottobre). Le lezioni sono identiche a fe4fee0; cambia solo la vista.
-const BASE = '7464a26';
+// Punto di partenza: B0, B1, spazio nelle tabelle, Attenzione nei pezzi (17 ottobre). Le lezioni sono identiche a fe4fee0; cambia solo la vista.
+const BASE = 'a9b7e45';
 const base = process.argv[2] || BASE;
 const git = (...a) => execFileSync('git', a, { encoding: 'utf8', maxBuffer: 1 << 28 });
 const problems = [];
