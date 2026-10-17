@@ -50,6 +50,7 @@ Scritta il 16 ottobre 2026 da Gianluca, dopo la collisione evitata tra la casa i
 | Review pedagogica del Modulo 5 (c47-c50, c38-c42, c53-c55) | ar-52 | review-modulo5 | in `main` |
 | c53: attesa di 5 s prima di staccare la pompa (esercizio corretto) | ar-53 | c53-distacco | in `main` |
 | Review pedagogica del Modulo 6 (c25-c27, c33-c37, c43-c45, c51) | ar-54 | review-modulo6 | in corso |
+| Review pedagogica delle prove 3D (c23, c24, c46, c51, c55) | ar-55 | review-prove3d | in `main` |
 
 ## Rami vecchi (non cancellare, non usare)
 

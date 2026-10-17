@@ -1959,10 +1959,10 @@ export const UNITS_V2 = {
       diagnosis: {
         question: 'Quale linea disperde verso terra?',
         options: [
-          { id: 'a', text: 'La linea della luce.' },
-          { id: 'b', text: 'La linea delle prese del soggiorno: un apparecchio collegato disperde.' },
-          { id: 'c', text: 'La linea della cucina.' },
-          { id: 'd', text: 'Nessuna: il differenziale è guasto.' },
+          { id: 'a', text: 'La linea della luce: è quella che si usa di più, di sera.' },
+          { id: 'b', text: 'La linea delle prese: richiusa da sola, fa scattare il differenziale.' },
+          { id: 'c', text: 'La linea della cucina: il forno e il frigo consumano più di tutti.' },
+          { id: 'd', text: 'Nessuna: il differenziale è guasto e scatta senza motivo.' },
         ],
         correct: 'b',
         why: 'Con la linea delle prese aperta il differenziale resta armato, con la linea richiusa scatta subito: la dispersione è lì, in un apparecchio con l’isolante rovinato.',
@@ -2027,8 +2027,8 @@ export const UNITS_V2 = {
         question: 'Perché, con il sovraccarico, il termico scatta ma il nastro non si ferma?',
         options: [
           { id: 'a', text: 'Il contatto 95-96 del termico non è nel circuito di comando.' },
-          { id: 'b', text: 'Il termico è tarato su una corrente troppo alta.' },
-          { id: 'c', text: 'Il salvamotore è guasto.' },
+          { id: 'b', text: 'Il termico è tarato troppo alto: scatta, ma tardi per il motore.' },
+          { id: 'c', text: 'Il salvamotore è guasto e tiene alimentato il comando.' },
         ],
         correct: 'a',
         why: 'Il comando passa dal salvamotore al fungo senza attraversare il contatto 95-96 del termico: quando il termico scatta quel contatto apre, ma il comando non ne risente e il contattore resta chiuso.',
@@ -4529,10 +4529,10 @@ export const UNITS_V2 = {
       diagnosis: {
         question: 'Perché, finito il primo lotto, con Marcia il nastro non riparte e la spia resta accesa?',
         options: [
-          { id: 'a', text: 'La fotocellula conta due volte ogni pacco.' },
-          { id: 'b', text: 'Il contatore non si azzera mai: nel suo gradino manca l’ingresso di azzeramento.' },
-          { id: 'c', text: 'Il pulsante di marcia non arriva al PLC.' },
-          { id: 'd', text: 'Il termico è scattato.' },
+          { id: 'a', text: 'La fotocellula conta due volte ogni pacco, e il lotto si riempie prima.' },
+          { id: 'b', text: 'Il contatore non si azzera mai: nel suo gradino manca l’azzeramento.' },
+          { id: 'c', text: 'Il pulsante di marcia non arriva al PLC: il suo filo è staccato.' },
+          { id: 'd', text: 'Il termico è scattato durante il primo lotto e non è stato riarmato.' },
         ],
         correct: 'b',
         why: 'Il PLC vede Marcia (l’ingresso I1 si accende) e i pacchi sono stati contati giusti, quattro. Ma il contatore non ha un ingresso che lo riporti a zero: resta pieno, il suo contatto normalmente chiuso nel gradino del nastro resta aperto e Marcia non può far partire niente.',
@@ -5604,10 +5604,10 @@ UNITS_V2['c51-turno-notte'] = {
     diagnosis: {
       question: 'La cella si è fermata: il pannello dice “Ciclo bloccato”, il robot è alimentato e il braccio è in basso. Perché?',
       options: [
-        { id: 'a', text: 'Il relè di sicurezza ha tolto la potenza al robot.' },
-        { id: 'b', text: 'Il finecorsa “braccio giù” non risponde: il programma aspetta un segnale che non arriva.' },
-        { id: 'c', text: 'Al prelievo manca il pezzo.' },
-        { id: 'd', text: 'Il programma ha perso un passo.' },
+        { id: 'a', text: 'Il relè di sicurezza ha tolto la potenza al robot, che è rimasto giù.' },
+        { id: 'b', text: 'Il finecorsa “braccio giù” non risponde: il programma lo aspetta.' },
+        { id: 'c', text: 'Al prelievo manca il pezzo, e il robot aspetta che arrivi.' },
+        { id: 'd', text: 'Il programma ha perso un passo e non sa più dove si trova.' },
       ],
       correct: 'b',
       why: 'Con la potenza tolta il pannello direbbe “Sicurezze aperte” e la spia del robot sarebbe spenta. Il braccio è sceso ma il PLC non vede il finecorsa in basso: il passo “Scendi” aspetta il suo “fatto” e dopo 40 secondi scatta “Ciclo bloccato”.',
@@ -5692,9 +5692,9 @@ UNITS_V2['c55-sera-inverno'] = {
       question: 'Verso le 19:45 il contatore ha staccato tutta la casa. Sul pannello, prima del buio, la rete era al fondo scala sopra la riga del limite, auto e pompa erano accese e nessun carico si era staccato. Perché?',
       options: [
         { id: 'a', text: 'Il forno non si può staccare: con il forno acceso il contatore stacca sempre.' },
-        { id: 'b', text: 'La soglia di distacco (6500 W) è sopra il limite e oltre il fondo scala del misuratore: il PLC non l’ha mai vista superata.' },
-        { id: 'c', text: 'La batteria era scarica.' },
-        { id: 'd', text: 'L’ordine di distacco è al contrario: prima la pompa, poi l’auto.' },
+        { id: 'b', text: 'La soglia di distacco (6500 W) è oltre il fondo scala: il PLC non la vede mai.' },
+        { id: 'c', text: 'La batteria era scarica e non poteva aiutare la casa durante la cena.' },
+        { id: 'd', text: 'L’ordine di distacco è al contrario: si stacca prima la pompa, poi l’auto.' },
       ],
       correct: 'b',
       why: 'Il misuratore arriva al massimo a circa 6400 W, quindi “maggiore di 6500” non è mai vero e il PLC non stacca niente. Con il forno acceso basta staccare l’auto (3,7 kW) per tornare sotto il limite: il forno non è il problema. E con l’ordine al contrario la casa reggerebbe comunque, solo più fredda.',
