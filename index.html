@@ -4219,6 +4219,11 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
       } catch (e) {
       }
     };
+    const predOf = (level, us, page) => {
+      const pages = level.unit.lesson.pages;
+      if (!pages[page] || pages[page].type !== "previsione") return null;
+      return page === pages.findIndex((pg) => pg.type === "previsione") ? us.pred : (us.more || {})[page] || null;
+    };
     const record = () => progress.best[progressKey(levelAt().id)] || (progress.best[progressKey(levelAt().id)] = { base: 0, pred: false, fault: false, skipped: false });
     const ratingsOf = (i = levelIndex) => {
       const sim = simsByKey[keyOf(i, "quadro")];
@@ -4415,6 +4420,7 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
           pages: level.unit.lesson.pages.length,
           pageData: phase === "lesson" ? level.unit.lesson.pages[us.page || 0] : null,
           pred: us.pred && { ...us.pred },
+          pagePred: phase === "lesson" && predOf(level, us, us.page || 0) ? { ...predOf(level, us, us.page || 0) } : null,
           diag: us.diag && { ...us.diag },
           faultSolved: us.faultSolved,
           hasFault: !!level.unit.fault,
@@ -4474,7 +4480,10 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
       } else delete work.w[workKeyOf(levelIndex, mode)];
       if (u && l.unit) {
         if (u.phase === "lesson" && !u.page) delete work.u[l.id];
-        else work.u[l.id] = { phase: u.phase, page: u.page || 0, pred: u.pred ? { option: u.pred.option, correct: !!u.pred.correct } : null };
+        else {
+          work.u[l.id] = { phase: u.phase, page: u.page || 0, pred: u.pred ? { option: u.pred.option, correct: !!u.pred.correct } : null };
+          if (u.more && Object.keys(u.more).length) work.u[l.id].more = { ...u.more };
+        }
       }
       writeWork();
     }
@@ -4595,6 +4604,13 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
           pred = { option: e.pred.option, correct: pages[pi].correct === e.pred.option };
         }
         if (pi >= 0 && !pred && page > pi) page = pi;
+        const more = {};
+        if (isObj(e.more)) Object.keys(e.more).forEach((k) => {
+          const n = Number(k), a = e.more[k], pg = pages[n];
+          if (n !== pi && pg && pg.type === "previsione" && isObj(a) && typeof a.option === "string" && pg.options.some((o) => o.id === a.option)) more[n] = { option: a.option, correct: pg.correct === a.option };
+        });
+        const open = pages.findIndex((pg, n) => pg.type === "previsione" && n !== pi && n < page && !more[n]);
+        if (open >= 0 && (pi < 0 || pred || open < pi)) page = Math.min(page, open);
         let phase = e.phase;
         let result = null;
         if (phase === "done") {
@@ -4606,9 +4622,10 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
             result = null;
           }
         }
-        unitByKey[i] = { phase, page, pred, diag: null, faultSolved: false };
+        unitByKey[i] = { phase, page, pred, more, diag: null, faultSolved: false };
         if (result) resultsByKey[keyOf(i, "quadro")] = result;
         work.u[l.id] = { phase, page, pred };
+        if (Object.keys(more).length) work.u[l.id].more = more;
       });
       try {
         lastWorkStr = JSON.stringify(work);
@@ -4663,7 +4680,7 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
       const us = unitByKey[levelIndex];
       if (!us || us.phase !== "fault") return;
       if (levelAt().prova && !us.before) {
-        unitByKey[levelIndex] = { phase: "fault", page: 0, pred: us.pred, diag: null, faultSolved: false };
+        unitByKey[levelIndex] = { phase: "fault", page: 0, pred: us.pred, more: us.more, diag: null, faultSolved: false };
         wiresByKey[keyOf(levelIndex, "quadro")] = blank(levelIndex, "quadro");
         delete programsByKey[keyOf(levelIndex, "quadro")];
         statesByKey[keyOf(levelIndex, "quadro")] = {};
@@ -5248,7 +5265,7 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
         const us = unitState();
         if (us.phase !== "lesson") return;
         const pg = currentPage();
-        if (pg.type === "previsione" && !us.pred) return;
+        if (pg.type === "previsione" && !predOf(level, us, us.page || 0)) return;
         if ((us.page || 0) < level.unit.lesson.pages.length - 1) us.page = (us.page || 0) + 1;
         else toPlay(us);
         emit();
@@ -5279,10 +5296,15 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
       answerPrediction(optionId) {
         const level = levelAt();
         const us = level.unit && unitState();
-        if (!us || us.phase !== "lesson" || us.pred) return;
+        if (!us || us.phase !== "lesson") return;
         const pg = currentPage();
-        if (!pg || pg.type !== "previsione") return;
+        if (!pg || pg.type !== "previsione" || predOf(level, us, us.page || 0)) return;
         const correct = pg.correct === optionId;
+        if ((us.page || 0) !== level.unit.lesson.pages.findIndex((p) => p.type === "previsione")) {
+          us.more = { ...us.more || {}, [us.page || 0]: { option: optionId, correct } };
+          emit();
+          return;
+        }
         us.pred = { option: optionId, correct };
         if (correct && !(progress.stars[progressKey(level.id, "quadro")] > 0)) {
           progress.best[progressKey(level.id, "quadro")] = progress.best[progressKey(level.id, "quadro")] || { base: 0, pred: false, fault: false, skipped: false };
@@ -16729,13 +16751,13 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
       body += `<div class="capt"><b class="n" id="demoN">${i + 1}</b><span id="demoCap">${esc(extra.caption || "")}</span></div>`;
       body += `<div class="dplayer"><button class="btn pp" data-demo="toggle" aria-label="${extra.playing ? "Pausa" : "Riprendi"}">${extra.playing ? "Pausa" : "Riprendi"}</button><button class="btn" data-demo="step">Passo successivo</button><button class="btn" data-demo="restart">Rivedi</button><span class="pcount" id="demoCount">${i + 1} / ${f2}</span></div>`;
     } else if (pg.type === "previsione") {
-      const a = u.pred;
+      const a = u.pagePred;
       body += `<h3 class="q">${esc(pg.question)}</h3>${optButtons(pg.options, a, pg.correct, "pred", false, pg.question)}`;
       body += a ? `<p class="fb ${a.correct ? "ok" : "ko"}"><b>${a.correct ? "Giusto." : "Non proprio."}</b> ${esc(pg.why)}</p>` : '<p class="note">Scegli una risposta per andare avanti.</p>';
     } else if (pg.type === "sintesi") {
       body += `<ul class="sum">${u.summary.map((t) => `<li>${esc(t)}</li>`).join("")}</ul><p class="note">La trovi anche nel Quaderno, dalla mappa.</p>`;
     }
-    const blocked = pg.type === "previsione" && !u.pred;
+    const blocked = pg.type === "previsione" && !u.pagePred;
     return `<div class="lhead"><div class="kick">Lezione \xB7 ${u.page + 1} di ${u.pages} \xB7 ${KIND2[pg.type]}</div><button class="link" data-unit="skip">Salta la lezione</button></div>
     <div class="prog" aria-hidden="true">${Array.from({ length: u.pages }, (_, k) => `<b class="${k <= u.page ? "on" : ""}"></b>`).join("")}</div>
     <h2 tabindex="-1">${esc(pg.title || "")}</h2>${body}

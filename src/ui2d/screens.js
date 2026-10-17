@@ -308,13 +308,13 @@ export function lessonHTML(s, extra = {}) {
     body += `<div class="capt"><b class="n" id="demoN">${i + 1}</b><span id="demoCap">${esc(extra.caption || '')}</span></div>`;
     body += `<div class="dplayer"><button class="btn pp" data-demo="toggle" aria-label="${extra.playing ? 'Pausa' : 'Riprendi'}">${extra.playing ? 'Pausa' : 'Riprendi'}</button><button class="btn" data-demo="step">Passo successivo</button><button class="btn" data-demo="restart">Rivedi</button><span class="pcount" id="demoCount">${i + 1} / ${f}</span></div>`;
   } else if (pg.type === 'previsione') {
-    const a = u.pred;
+    const a = u.pagePred;
     body += `<h3 class="q">${esc(pg.question)}</h3>${optButtons(pg.options, a, pg.correct, 'pred', false, pg.question)}`;
     body += a ? `<p class="fb ${a.correct ? 'ok' : 'ko'}"><b>${a.correct ? 'Giusto.' : 'Non proprio.'}</b> ${esc(pg.why)}</p>` : '<p class="note">Scegli una risposta per andare avanti.</p>';
   } else if (pg.type === 'sintesi') {
     body += `<ul class="sum">${u.summary.map(t => `<li>${esc(t)}</li>`).join('')}</ul><p class="note">La trovi anche nel Quaderno, dalla mappa.</p>`;
   }
-  const blocked = pg.type === 'previsione' && !u.pred;
+  const blocked = pg.type === 'previsione' && !u.pagePred;
   return `<div class="lhead"><div class="kick">Lezione · ${u.page + 1} di ${u.pages} · ${KIND[pg.type]}</div><button class="link" data-unit="skip">Salta la lezione</button></div>
     <div class="prog" aria-hidden="true">${Array.from({ length: u.pages }, (_, k) => `<b class="${k <= u.page ? 'on' : ''}"></b>`).join('')}</div>
     <h2 tabindex="-1">${esc(pg.title || '')}</h2>${body}
