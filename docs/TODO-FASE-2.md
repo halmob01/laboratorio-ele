@@ -21,7 +21,7 @@ questo elenco serve a chi arriva nuovo (anche un'altra sessione) per capire cosa
 
 | N | Cosa | Stato | Agente proposto |
 |---|---|---|---|
-| 1 | **Review pedagogica**: un allievo che non ha mai fatto impianti capisce *perche'* fa quello che fa, specie nei moduli piu' difficili? Si agisce solo sui testi di lezione. Procedura a moduli con pilota sul Modulo 2 | da fare | Sonnet "allievo finto", Opus diagnosi e riscritture difficili, Sonnet ritocchi, Haiku arabo |
+| 1 | **Review pedagogica**: l'allievo deve capire il lavoro che fa (perche' esiste il pezzo, perche' ogni filo va li', cosa succede se sbagli), non solo collegare. Metodo in `docs/METODO-REVIEW-PEDAGOGICA.md`. Pilota sul Modulo 2 | metodo scritto, da fare | Sonnet "allievo finto", Opus diagnosi e riscritture difficili, Sonnet ritocchi, Haiku arabo |
 | 2 | **Quaderno**: sistemare (cosa raccoglie, come si stampa; usa le sintesi dei livelli) | da fare, dopo il pilota | Sonnet, revisione Opus |
 | 3 | **Tutorial iniziale**: al posto di "Per cominciare" (`INTRO` in `src/content/home.js`, schermata in `screens.js`) un tutorial del gioco: lezioni, banco, scene 3D e come funzionano. Il vecchio testo su corrente e fili diventa la prima lezione del Modulo 1 | da fare | Sonnet, controllo Opus |
 | 4 | **Footer**: la torre animata al centro e due riquadri di testo ai lati; ora e' troppo alto (`footerHTML` in `screens.js`, `src/ui2d/tower.js`) | da fare | Sonnet |
@@ -38,19 +38,14 @@ questo elenco serve a chi arriva nuovo (anche un'altra sessione) per capire cosa
 - Diritto d'autore: tutela la forma, non le idee; il codice scritto con l'IA ha tutela incerta, conta il contributo umano (struttura, percorso,
   scelte). Proteggono licenza, termini d'uso e contratti. Prima di vendere licenze: breve consulenza di un avvocato di software.
 
-## Cosa si chiede all'altra chat (Opus): review del piano pedagogico
-Leggere `docs/PIANO-FASE-2.md` (sezione P), `scripts/check-review-scope.mjs` e due o tre lezioni a campione (per esempio c12-motore, c29-plc,
-c36-pid in `src/content/units-v2.js`) e rispondere:
-1. Il test di lettura (sei domande) e' quello giusto? Che cosa manca o e' di troppo?
-2. L'ordine (pilota su Modulo 2, poi M3-M6 in parallelo, M1 per ultimo) e' sensato? La divisione degli agenti (Sonnet "allievo finto", Opus diagnosi e
-   livelli difficili, Haiku arabo) regge, o conviene altro?
-3. L'"allievo finto" Sonnet senza contesto tecnico e' un buon sostituto di allievi veri? Come renderlo piu' fedele a un quindicenne di IeFP?
-4. Il perimetro (solo `spiegazione` e sintesi) basta per dire il "perche'"? O servono cambiamenti ammessi che ora sono vietati (per esempio
-   una didascalia di demo o una `previsione`)? Se si', quali e con quale rischio?
-5. Quali rischi vede nel tono delle riscritture (troppo lunghe, troppo da manuale, perdita di precisione tecnica)? Come limitarli?
-6. Come misurare che la lezione e' migliorata prima di avere allievi veri?
+## Review del piano pedagogico (fatta il 17 ottobre)
+Le sei domande che stavano qui hanno avuto risposta nella chat con Gianluca del 17 ottobre: il risultato e' `docs/METODO-REVIEW-PEDAGOGICA.md`
+(campione di 12 lezioni e conteggi su tutti i 55 livelli, i quattro perche', i fili rossi, la scheda del livello, l'allievo finto che
+spiega i passi, ordine e misure).
 
 ## Domande ancora aperte per Gianluca
 - Chi deve poter aprire il gioco una volta pubblicato (la sua classe, la scuola, i colleghi) e si vende o no? Decide il blocco D e quanto serve l'area docenti.
 - Unire in `main` i documenti di piano e l'elenco (decisione da prendere; i file sono sul ramo `docs-piano-fase-2`).
 - Pilota sul Modulo 2: confermato?
+- Perimetro: si possono riscrivere anche i testi delle slide `pezzi` e il `why` delle previsioni? (proposta in `docs/METODO-REVIEW-PEDAGOGICA.md` §6)
+- Errori di concetto tipici degli allievi da aggiungere all'elenco (§5 del metodo).

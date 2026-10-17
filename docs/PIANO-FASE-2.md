@@ -34,27 +34,17 @@ tolta; lascia passare una slide `spiegazione` in piu' e una sintesi riscritta.
 
 ## P: review pedagogica
 
-**Domanda guida per ogni livello:** un allievo che non ha mai visto un impianto, dopo aver letto la lezione, sa dire *perche'* sta
-facendo quello che gli chiede il banco? Le lezioni sono circa 15.000 parole in 55 livelli: si puo' rivedere tutto, non serve scegliere.
+**Il metodo completo e' in `docs/METODO-REVIEW-PEDAGOGICA.md`** (deciso con Gianluca il 17 ottobre): leggerlo prima di ogni lavoro di review.
 
-**Test di lettura (a ogni livello):**
-1. Il primo foglio dice a che cosa serve la cosa in un impianto vero, prima di dire come si fa.
-2. Ogni parola tecnica nuova e' spiegata la prima volta che compare, con parole da quindicenne.
-3. C'e' un esempio della vita di tutti i giorni (casa, scuola, officina) prima della teoria.
-4. Il collegamento con il livello precedente e' esplicito ("prima avevi..., ora aggiungi...").
-5. L'ultimo foglio dice cosa deve succedere sul banco quando il lavoro e' giusto e perche'.
-6. Frasi corte, niente sigle senza spiegazione, valori con unita' di misura.
+In breve: lo scopo non e' la leggibilita' (gia' buona) ma che l'allievo **capisca il lavoro che fa**. Ogni lezione deve dare quattro
+risposte: perche' esiste il pezzo (il problema vero), come funziona (dove passa la corrente), perche' ogni collegamento va li', che cosa
+succede se lo sbagli; e richiamare i "fili rossi" del percorso (giro della corrente, comando e potenza, stato a riposo e guasto sicuro...).
+Per ogni livello si compila prima una scheda (passo -> perche' -> se sbagli -> dove lo dice la lezione), poi si riscrive.
+La misura principale e' un "allievo finto" che spiega il perche' di ogni passo usando solo la lezione, prima e dopo.
 
-**Procedura per modulo (si ripete 6 volte, un ramo `review-moduloN` ciascuna):**
-1. *Allievo finto* (Sonnet, senza contesto tecnico): legge solo le lezioni del modulo e per ogni livello scrive cosa non ha capito e dove si e' perso. Costa poco e trova i vuoti veri.
-2. *Diagnosi* (Opus): confronta con il test di lettura e con il banco (cosa chiede l'esercizio), decide per ogni livello "va bene / ritocco / riscrittura" e scrive la lista dei cambi.
-3. *Riscrittura* (Sonnet per i ritocchi, Opus per le riscritture dei livelli difficili: PLC, PID, energia, fabbrica).
-4. *Arabo* (Haiku, poi `node scripts/check-lang.mjs ar` a zero): un file `ar-NN.js` nuovo per modulo, numero prenotato nella tabella.
-5. *Controllo* (B0 + `npm test` + `npm run build`), schermate della lezione a 390 e 1280 px, unione secondo la procedura.
-
-**Ordine:** prima un *pilota* sul Modulo 2 (quello dove senti il salto di difficolta'): serve a fissare il tono e a tarare il test di
-lettura. Se funziona, il resto va in parallelo (M3, M4, M5, M6) perche' i testi di moduli diversi non si toccano tra loro.
-M1 si rivede per ultimo e piu' leggero (per te e' gia' a posto).
+Dal campione: il buco piu' grande e' nei livelli con tanti fili e poca spiegazione (Moduli 2 e 3, c25-c27, c28), scritti prima dei
+criteri del 16 ottobre; i livelli con il PLC e i processi hanno gia' il perche' e servono solo ritocchi.
+Ordine: pilota sul Modulo 2, poi Modulo 3 e sicurezza del Modulo 6 in parallelo, poi controllo leggero del resto, Modulo 0 per ultimo.
 
 **Cosa NON e' nel perimetro:** cambiare richieste degli esercizi, passi, soglie, valori del banco. Se la review scopre che un esercizio
 chiede qualcosa che la lezione non puo' spiegare, si annota in `docs/DOMANDE-PER-GIANLUCA.md` e non lo si tocca.
