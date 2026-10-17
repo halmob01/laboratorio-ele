@@ -1,6 +1,6 @@
 # Progetto: "Il turno di notte", la prova della fabbrica (Modulo 6)
 
-**Stato: fasi 1-4 fatte** (motore e livello c51; cornice a tempo; pezzi della cella e del reparto; scena `fabbrica.js` con la riparazione toccando, i fili e la scheda in mappa: vedi "Fase 4: com'e' fatta" in fondo alla sezione 8). Ramo `fabbrica-fase3b`, non ancora in `main`. Poi: fase 5, misure e unione.
+**Stato: fasi 1-4 fatte** (motore e livello c51; cornice a tempo; pezzi della cella e del reparto; scena `fabbrica.js` con la riparazione toccando, i fili e la scheda in mappa: vedi "Fase 4: com'e' fatta" in fondo alla sezione 8). Unita in `main` il 16 ottobre 2026 (ramo `fabbrica-fase3b`, ora chiuso). La "fase 5" prevista (misure e unione) e' stata assorbita dal lavoro successivo: unione fatta, misure e ottimizzazioni delle scene 3D sono in `docs/SPEC-SCENE-3D.md`.
 Fase 2: la prova si gioca dall'inizio alla fine senza scena (consegna del turno, ora del turno dal motore, barra del turno con
 pezzi, fermo e guasti, pulsantiera con Riarmo, pannello operatore con Riconosci e "Ricollega il cavo", portella, i sensori della
 cella con il LED da sostituire con un tocco, momento forte al primo "Ciclo bloccato", rapporto di fine turno). Il registro dice
@@ -144,7 +144,7 @@ La cornice di reparto c'e'. Per una prova a tempo servono (in comune con la casa
 Ogni fase si chiude da sola: test verdi (`npm test`), traduzioni complete (`node scripts/check-lang.mjs ar`), pagina ricostruita
 (`npm run build`), commit e push sul ramo di lavoro, una riga in `docs/STATO-AVANZAMENTO.md` con che cosa e' fatto e da dove si
 riparte. Se i token finiscono a meta' fase, la fase si rifa' dall'ultimo commit: niente resta a meta' nel ramo. Si unisce a
-`main` solo alla fine (fase 5), o prima se Gianluca lo chiede: dopo le fasi 1-3 il gioco resta com'era per gli allievi.
+`main` solo alla fine, o prima se Gianluca lo chiede: dopo le fasi 1-3 il gioco resta com'era per gli allievi. (Poi unito in `main` il 16 ottobre, dopo la fase 4.)
 
 | Fase | Contenuto | Fatta quando | Per gli allievi |
 |---|---|---|---|

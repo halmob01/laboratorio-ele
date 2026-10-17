@@ -36,10 +36,20 @@ Scritta il 16 ottobre 2026 da Gianluca, dopo la collisione evitata tra la casa i
 |---|---|---|---|
 | Livelli casa intelligente c47-c50 | c47-c50 | casa-intelligente | in `main` |
 | File arabi di c47-c50, lucchetto | ar-38, ar-39, ar-40 | casa-intelligente, motore-lucchetto-zone-energia | in `main` |
-| Prova 3D della fabbrica "Il turno di notte" | c51 | claude/stoic-hawking-u5cka0, fabbrica-fase3b | in `main` (fasi 1-4; fase 5: misure e revisione) |
+| Prova 3D della fabbrica "Il turno di notte" | c51 | claude/stoic-hawking-u5cka0, fabbrica-fase3b | in `main` (fasi 1-4) |
 | File arabi della fabbrica 3D | ar-41, ar-45 | claude/stoic-hawking-u5cka0, fabbrica-fase3b | in `main` |
-| Lavori in sicurezza, Gestione dei carichi, Clima per zone | c52, c53, c54 | livelli-casa-sicurezza | in lavorazione |
-| File arabi dei tre livelli | ar-42 (usato); ar-43 e ar-44 liberi | livelli-casa-sicurezza | ar-42 usato |
+| Lavori in sicurezza, Gestione dei carichi, Clima per zone | c52, c53, c54 | livelli-casa-sicurezza | in `main` |
+| File arabi dei tre livelli | ar-42 (usato, in `main`); ar-43 e ar-44 mai usati: liberi | livelli-casa-sicurezza | chiusa |
 | Fabbrica fase 3b (pezzi del reparto, nessun numero) | - | fabbrica-fase3b, da `claude/stoic-hawking-u5cka0` | in `main` |
 | Prova 3D della casa "Una sera d'inverno": motore, livello, cornice | c55, ar-46 | casa-motore-cornice (sessione A di `docs/PIANO-CASA.md`) | in `main` (A1-A4, 17 ottobre) |
 | Prova 3D della casa: scena e scheda in mappa | ar-47 | claude/modest-tesla-prr9oc (sessione B di `docs/PIANO-CASA.md`, al posto di casa-scena-3d) | in `main` (B1-B4, 17 ottobre) |
+
+## Rami vecchi (non cancellare, non usare)
+
+Aggiornato il 17 ottobre 2026. Tutto il lavoro utile e' in `main` e il resto si parte sempre da `origin/main`.
+- **Interamente in `main`** (nessun commit in piu'): `casa-intelligente`, `casa-motore-cornice`, `fabbrica-fase3b`, `fix-titoli-c47-c50`,
+  `livelli-casa-sicurezza`, `motore-lucchetto-zone-energia`, `p5-plc`, `p5-revisione`, `p6-energia`, `p6-pannello`, `p6-processi`,
+  `p6-revisione`, `p7-linea`, `claude/*` (tutti i cinque). Si possono cancellare quando si vuole.
+- **Storia riscritta, vecchi del 13-14 ottobre** (hanno commit "in piu'" solo perche' la storia di `main` non li contiene piu' tali e quali):
+  `b1-c01`, `b2-modello-lezione`, `b3-notte`, `b4-moduli`, `b5-trilocale-3d`, `p1-modulo2`, `p2-trifase`, `p3-prove3d`,
+  `separazione-motore-vista`. Tenuti per sicurezza; non unirli.
