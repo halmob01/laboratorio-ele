@@ -77,7 +77,9 @@ Regole obbligatorie:
    pulsante = الزر، interruttore = المفتاح، lampada = المصباح، presa = المقبس، differenziale = القاطع التفاضلي،
    magnetotermico = القاطع المغناطيسي الحراري، multimetro = جهاز القياس المتعدد، trasformatore = المحوّل، cavo = الكابل،
    tensione = الجهد، corrente = التيار، potenza = القدرة، dispersione = التسرّب الأرضي، cortocircuito = قصر الدائرة،
-   sovraccarico = الحمل الزائد، portata = سعة التيار. Per i termini industriali usa quelli già presenti in src/i18n/ar-*.js
+   sovraccarico = الحمل الزائد، portata = سعة التيار، deviatore = المفتاح التبديلي، interblocco = القفل المتبادل،
+   autoritenuta = الحجز الذاتي، tacitazione = الإسكات، sensore = المستشعر، turno = الوردية، Marcia = التشغيل، Arresto = الإيقاف،
+   nastro = السير الناقل، salvamotore = قاطع حماية المحرك، contattore = الكونتاكتور، fungo (di emergenza) = زر الطوارئ. Per i termini industriali usa quelli già presenti in src/i18n/ar-*.js
    (cerca la parola italiana nei file per trovare la traduzione usata).
 5. Lascia in caratteri latini sigle, numeri dei morsetti, unità e valori (A1, 13-14, NA, NC, L1, U, PE, 230 V, 30 mA, 1,5 mm²).
 6. Traduzione fedele al senso, frasi brevi, nessuna spiegazione aggiunta.
