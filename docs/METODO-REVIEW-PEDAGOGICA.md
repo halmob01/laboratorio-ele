@@ -194,25 +194,17 @@ capire il banco.
 
 ## 6 bis. Le previsioni: la risposta giusta si indovina senza capire
 
-Gianluca ha notato che la risposta giusta è spesso la più lunga e quella in mezzo. I numeri lo confermano:
+Gianluca ha notato che la risposta giusta era spesso la più lunga e quella in mezzo. I numeri lo confermavano: nelle previsioni la
+giusta era la più lunga 63 volte su 80 e in mezzo 64 volte su 80; nella sfida guasto la più lunga 39 volte su 41 e la prima 34 volte.
 
-| Domande | Quante | Giusta = la più lunga | Posizione della giusta |
-|---|---|---|---|
-| Previsioni nelle lezioni | 80 | 63 (79 %) | in mezzo (b) 64 volte, prima 14, ultima 2 |
-| Sfida guasto (diagnosi) | 41 | 39 (95 %) | prima (a) 34 volte su 41 |
+**Fatto il 17 ottobre:**
+1. Le opzioni si mostrano mescolate, con un ordine fisso per domanda (previsioni e sfida guasto).
+2. In tutte le 80 previsioni le risposte sono state riscritte: la giusta ora è lunga tra 0,85 e 1,15 volte la sbagliata più lunga.
+3. Il test `test/opzioni.test.js` lo controlla: chi scrive o riscrive una previsione e sbilancia le lunghezze fa fallire `npm test`.
 
-Un allievo che sceglie sempre "la più lunga" prende quasi tutti i punti senza leggere. Due rimedi, da fare tutti e due:
-
-1. **Mescolare le opzioni quando si mostrano.** Le risposte si riconoscono dal loro codice (`a`, `b`, `c`), non dalla posizione:
-   cambiare l'ordine sullo schermo non tocca punteggio, salvataggi né regole. È una modifica di poche righe in `optButtons`
-   (`src/ui2d/screens.js`), con un ordine fisso per domanda (ricavato dal livello e dalla domanda) così non cambia a ogni ridisegno.
-   La stessa funzione mostra anche le opzioni della sfida guasto: il mescolamento le sistema senza toccarne il contenuto
-   (approvato da Gianluca il 17 ottobre, anche per la sfida guasto).
-2. **Riscrivere le opzioni sbagliate** perché siano lunghe e credibili quanto quella giusta. Le opzioni sbagliate migliori sono gli
-   errori di concetto veri (§5): così la previsione, invece di essere un quiz, fa emergere l'errore e la spiegazione lo smonta.
-   Regola: opzioni di lunghezza simile (la giusta non più lunga delle altre di oltre un terzo), ognuna una frase che un allievo
-   potrebbe pensare davvero, nessuna palesemente assurda.
-   Il testo della sfida guasto resta com'è (è l'esercizio); basta il mescolamento.
+**Come si fa** (specifica completa in `docs/LEZIONE-ED-ESERCIZIO.md`, §6): ogni opzione è una frase con il suo perché; le sbagliate sono
+convinzioni credibili (meglio gli errori di concetto veri, §5); si controlla con `node scripts/review/misure.mjs <modulo>`, che segna
+con ! le previsioni fuori dai limiti. Le domande della sfida guasto sono esercizio e non si riscrivono: basta il mescolamento.
 
 ## 7. Procedura (ricetta per una sessione)
 
@@ -246,6 +238,11 @@ imitare: `docs/review/modulo2.md` (schede, risultati) e il ramo `review-modulo2`
 7. **Unione**: secondo `docs/PROCEDURA-UNIONE.md`, dopo il via di Gianluca; riga in `docs/STATO-AVANZAMENTO.md`.
 
 ### Che cosa aspettarsi (dal pilota)
+- `scripts/check-review-scope.mjs` confronta il ramo con il commit `BASE` scritto in testa allo script. Se in `main` entra una correzione
+  al codice della vista della lezione (come le opzioni mescolate o le previsioni multiple), nello stesso lavoro si sposta `BASE` su quel
+  commit, altrimenti tutte le review successive segnalerebbero file fuori perimetro.
+- Il test della fabbrica "a tutto schermo" era instabile su macchine lente (l'orologio del turno): corretto il 17 ottobre. Se `npm test`
+  fallisce una volta sola, si rilancia salvando il registro (`npm test > registro.txt`) per sapere quale test era.
 - Il conteggio dei passi dell'allievo finto con la consegna vecchia ingannava (contava il come): usare solo la consegna di `CONSEGNE.md`.
 - Le domande che restano trovano contraddizioni con i livelli precedenti: sono la parte più utile della prova.
 - Costo del pilota (10 livelli): tre prove dell'allievo finto (circa 100.000 token ciascuna), una traduzione (circa 140.000), il resto

@@ -44,6 +44,7 @@ Scritta il 16 ottobre 2026 da Gianluca, dopo la collisione evitata tra la casa i
 | Prova 3D della casa "Una sera d'inverno": motore, livello, cornice | c55, ar-46 | casa-motore-cornice (sessione A di `docs/PIANO-CASA.md`) | in `main` (A1-A4, 17 ottobre) |
 | Prova 3D della casa: scena e scheda in mappa | ar-47 | claude/modest-tesla-prr9oc (sessione B di `docs/PIANO-CASA.md`, al posto di casa-scena-3d) | in `main` (B1-B4, 17 ottobre) |
 | Review pedagogica, pilota sul Modulo 2 (testi delle lezioni c17-c11, c23; slide in c01) | ar-48 | review-modulo2 | in `main` |
+| Previsioni equilibrate in tutti i livelli (risposte riscritte) | ar-49 | previsioni-equilibrate | in corso |
 
 ## Rami vecchi (non cancellare, non usare)
 

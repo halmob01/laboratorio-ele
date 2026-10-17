@@ -33,3 +33,18 @@ test('la risposta giusta non sta quasi sempre nella stessa posizione', () => {
   }
   for (const n of Object.values(count)) assert.ok(n / questions.length < 0.5, JSON.stringify(count));
 });
+
+// docs/METODO-REVIEW-PEDAGOGICA.md, par. 6 bis: la risposta giusta non si deve riconoscere dalla lunghezza.
+// La giusta sta tra 0,85 e 1,15 volte la sbagliata piu' lunga. (Le domande della sfida guasto sono l'esercizio e non si toccano.)
+test('nelle previsioni la risposta giusta non si riconosce dalla lunghezza', () => {
+  const fuori = [];
+  for (const L of levels) {
+    for (const p of (L.unit ? L.unit.lesson.pages : [])) {
+      if (p.type !== 'previsione') continue;
+      const len = p.options.map(o => o.text.length), i = p.options.findIndex(o => o.id === p.correct);
+      const r = len[i] / Math.max(...len.filter((_, k) => k !== i));
+      if (r < 0.85 || r > 1.15) fuori.push(`${L.id}: "${p.question}" (${r.toFixed(2)})`);
+    }
+  }
+  assert.deepEqual(fuori, []);
+});

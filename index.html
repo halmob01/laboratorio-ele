@@ -5768,9 +5768,9 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
             type: "previsione",
             question: "Collego fase e neutro ma dimentico il filo di terra. Che cosa succede quando do corrente?",
             options: [
-              { id: "a", text: "L\u2019apparecchio non si accende." },
-              { id: "b", text: "L\u2019apparecchio si accende, ma l\u2019impianto non \xE8 sicuro." },
-              { id: "c", text: "Il quadro scatta." }
+              { id: "a", text: "L\u2019apparecchio non si accende: senza la terra il giro della corrente resta aperto." },
+              { id: "b", text: "Si accende, ma se un guasto porta tensione sulla carcassa niente ti protegge." },
+              { id: "c", text: "Il quadro scatta subito: si accorge che manca la terra e toglie la corrente." }
             ],
             correct: "b",
             why: "L\u2019apparecchio funziona, perch\xE9 fase e neutro bastano a far passare la corrente. Ma senza la terra manca la protezione: se un guasto porta tensione sulla carcassa, questa resta in tensione senza che nulla intervenga, finch\xE9 qualcuno la tocca: allora la corrente passa attraverso la persona. Per questo il livello non \xE8 superato senza la terra."
@@ -5858,9 +5858,9 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
             type: "previsione",
             question: "Se l\u2019interruttore \xE8 aperto e il quadro \xE8 acceso, quale parte dell\u2019impianto \xE8 in tensione?",
             options: [
-              { id: "a", text: "Nessuna: tutto \xE8 spento." },
-              { id: "b", text: "Il filo di fase fino all\u2019interruttore." },
-              { id: "c", text: "Anche la lampada." }
+              { id: "a", text: "Nessuna: con l\u2019interruttore aperto tutto l\u2019impianto \xE8 spento." },
+              { id: "b", text: "Il filo di fase dal quadro fino all\u2019interruttore, e l\xEC si ferma." },
+              { id: "c", text: "Tutto, anche la lampada: la fase passa comunque attraverso il filo." }
             ],
             correct: "b",
             why: "La fase arriva fino all\u2019interruttore e l\xEC si ferma: quel tratto \xE8 in tensione. Dopo l\u2019interruttore, fino alla lampada, il filo non \xE8 in tensione. Per questo, con l\u2019interruttore sulla fase, a luce spenta il portalampada non \xE8 in tensione."
@@ -5958,9 +5958,9 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
             type: "previsione",
             question: "Le due lampade sono in parallelo e una si brucia. Che cosa fa l\u2019altra?",
             options: [
-              { id: "a", text: "Si spegne anche l\u2019altra." },
-              { id: "b", text: "Resta accesa." },
-              { id: "c", text: "Il quadro scatta." }
+              { id: "a", text: "Si spegne anche l\u2019altra: la corrente passava prima dalla lampada bruciata." },
+              { id: "b", text: "Resta accesa: ha il suo giro, che non passa dalla lampada bruciata." },
+              { id: "c", text: "Il quadro scatta: la lampada bruciata fa un cortocircuito sulla linea." }
             ],
             correct: "b",
             why: "Resta accesa. In parallelo ogni lampada ha il suo percorso tra fase e neutro: se uno si interrompe, l\u2019altro non cambia. Una lampada bruciata \xE8 un percorso aperto, non un cortocircuito, quindi il quadro non scatta."
@@ -6059,9 +6059,9 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
             type: "previsione",
             question: "La luce \xE8 accesa. Premo il deviatore A, poi il deviatore B. Come \xE8 la luce alla fine?",
             options: [
-              { id: "a", text: "Accesa." },
-              { id: "b", text: "Spenta." },
-              { id: "c", text: "Dipende da quale premo per primo." }
+              { id: "a", text: "Accesa: ogni deviatore cambia lo stato, e due cambi la riportano com\u2019era." },
+              { id: "b", text: "Spenta: il deviatore B spegne quello che aveva acceso il deviatore A." },
+              { id: "c", text: "Dipende da quale premo per primo: comanda l\u2019ultimo deviatore premuto." }
             ],
             correct: "a",
             why: "Ogni pressione cambia lo stato della luce. Due pressioni la riportano com\u2019era: dopo A la luce \xE8 spenta, dopo B \xE8 di nuovo accesa. L\u2019ordine non conta."
@@ -10183,9 +10183,9 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
             type: "previsione",
             question: "Scambio due delle tre fasi sui morsetti del motore. Che cosa succede?",
             options: [
-              { id: "a", text: "Il motore gira al contrario." },
-              { id: "b", text: "Il motore non parte." },
-              { id: "c", text: "Il salvamotore scatta." }
+              { id: "a", text: "Il motore gira, ma al contrario: il campo gira nell\u2019altro verso." },
+              { id: "b", text: "Il motore non parte: le fasi non sono pi\xF9 nell\u2019ordine giusto." },
+              { id: "c", text: "Il salvamotore scatta: due fasi scambiate fanno un cortocircuito." }
             ],
             correct: "a",
             why: "Scambiando due fasi il campo magnetico del motore gira nel verso opposto: il motore funziona normalmente, ma al contrario. Non c\u2019\xE8 nessun cortocircuito, quindi il salvamotore non scatta."
@@ -10301,9 +10301,9 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
             type: "previsione",
             question: "Il motore sta girando e premo Marcia. Che cosa succede?",
             options: [
-              { id: "a", text: "Niente: il motore continua a girare." },
-              { id: "b", text: "Il motore si ferma." },
-              { id: "c", text: "Il salvamotore scatta." }
+              { id: "a", text: "Niente: il contattore \xE8 gi\xE0 chiuso e il motore continua a girare." },
+              { id: "b", text: "Il motore si ferma: un secondo comando di marcia lo spegne." },
+              { id: "c", text: "Il salvamotore scatta: la bobina riceve corrente due volte." }
             ],
             correct: "a",
             why: "Il contattore \xE8 gi\xE0 chiuso e la bobina \xE8 gi\xE0 alimentata dal contatto di autoritenuta. Premere Marcia ancora non cambia nulla."
@@ -10569,9 +10569,9 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
             type: "previsione",
             question: "Il motore gira in avanti. Premo Indietro senza premere prima Arresto. Con l\u2019interblocco, che cosa succede?",
             options: [
-              { id: "a", text: "Il motore inverte subito il senso." },
+              { id: "a", text: "Il motore inverte subito: KM2 si chiude e KM1 si apre da solo." },
               { id: "b", text: "Non cambia nulla: KM2 non pu\xF2 chiudersi finch\xE9 KM1 \xE8 chiuso." },
-              { id: "c", text: "Il salvamotore scatta." }
+              { id: "c", text: "Il salvamotore scatta: i due contattori si chiudono insieme." }
             ],
             correct: "b",
             why: "Il contatto NC di KM1 \xE8 aperto finch\xE9 KM1 \xE8 chiuso: la bobina di KM2 non riceve corrente. Per invertire bisogna prima premere Arresto."
@@ -10706,9 +10706,9 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
             type: "previsione",
             question: "Il nastro \xE8 fermo per l\u2019emergenza. Sblocco il fungo. Che cosa fa il nastro?",
             options: [
-              { id: "a", text: "Riparte da solo." },
-              { id: "b", text: "Resta fermo finch\xE9 non premo Marcia." },
-              { id: "c", text: "Scatta il termico." }
+              { id: "a", text: "Riparte da solo: il contatto del fungo si \xE8 richiuso." },
+              { id: "b", text: "Resta fermo finch\xE9 qualcuno non preme di nuovo Marcia." },
+              { id: "c", text: "Scatta il termico: il motore riparte e assorbe troppo." }
             ],
             correct: "b",
             why: "Premendo il fungo il suo contatto si apre: la bobina perde corrente e l\u2019autoritenuta 13-14 si apre. Sbloccando il fungo il contatto si richiude, ma il circuito resta aperto finch\xE9 non premi Marcia: una macchina non deve ripartire da sola dopo un\u2019emergenza."
@@ -11178,8 +11178,8 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
             question: "Durante il collaudo simuli un sovraccarico: il termico scatta, ma il nastro continua a girare. Che cosa significa?",
             options: [
               { id: "a", text: "Il contatto 95-96 del termico non comanda la bobina del contattore." },
-              { id: "b", text: "Il termico \xE8 tarato troppo basso." },
-              { id: "c", text: "\xC8 normale: il termico serve solo a segnalare." }
+              { id: "b", text: "Il termico \xE8 tarato troppo basso e scatta prima del dovuto." },
+              { id: "c", text: "\xC8 normale: il termico segnala il sovraccarico ma non ferma il nastro." }
             ],
             correct: "a",
             why: "Il termico ha scattato, quindi si \xE8 scaldato e il suo contatto \xE8 cambiato. Se il nastro gira lo stesso, quel contatto non \xE8 in serie nel circuito di comando: apre, ma non interrompe niente."
@@ -11278,9 +11278,9 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
             type: "previsione",
             question: "Il fungo ha due contatti, ma hai collegato le bobine di K1 e di K2 allo stesso contatto. Che cosa hai perso?",
             options: [
-              { id: "a", text: "Niente: premendo il fungo la macchina si ferma ugualmente." },
-              { id: "b", text: "La ridondanza: se quel contatto si incolla, si incollano di fatto tutti e due i canali." },
-              { id: "c", text: "La macchina non parte pi\xF9." }
+              { id: "a", text: "Niente: premendo il fungo tutti e due i rel\xE8 si aprono e la macchina si ferma." },
+              { id: "b", text: "La ridondanza: se quel contatto si incolla, sono incollati tutti e due i canali." },
+              { id: "c", text: "La macchina non parte pi\xF9: un contatto solo non riesce ad alimentare due bobine." }
             ],
             correct: "b",
             why: "La macchina si ferma e il circuito sembra a posto, ma i due rel\xE8 dipendono dallo stesso contatto. Il secondo contatto del fungo non serve a niente. Ogni canale deve avere il suo percorso, dal fungo al suo rel\xE8."
@@ -11396,8 +11396,8 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
             question: "Hai premuto il fungo e la macchina si \xE8 fermata. Lo sblocchi senza premere il riarmo. Che cosa succede?",
             options: [
               { id: "a", text: "La macchina riparte, perch\xE9 i due canali sono tornati chiusi." },
-              { id: "b", text: "Resta ferma: serve un nuovo impulso sul riarmo." },
-              { id: "c", text: "Il rel\xE8 si rompe." }
+              { id: "b", text: "Resta ferma finch\xE9 non dai un nuovo impulso sul riarmo." },
+              { id: "c", text: "Il rel\xE8 si blocca e va sostituito: un arresto lo guasta." }
             ],
             correct: "b",
             why: "Il rel\xE8 tiene aperte le uscite finch\xE9 non riceve un impulso nuovo sul riarmo. Se ripartisse da solo, un fungo sbloccato mentre qualcuno \xE8 ancora vicino alla macchina potrebbe farla muovere."
@@ -11522,8 +11522,8 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
             question: "La macchina \xE8 in marcia e apri la portella. La richiudi subito. Che cosa succede?",
             options: [
               { id: "a", text: "La macchina riparte appena la portella \xE8 chiusa." },
-              { id: "b", text: "Resta ferma finch\xE9 non premi il riarmo." },
-              { id: "c", text: "Resta ferma e non riparte pi\xF9." }
+              { id: "b", text: "Resta ferma finch\xE9 qualcuno non preme il riarmo." },
+              { id: "c", text: "Resta ferma per sempre: serve spegnere il quadro." }
             ],
             correct: "b",
             why: "L\u2019apertura ha fatto cadere i due canali e il rel\xE8 ha aperto le uscite. Richiudendo la portella i canali tornano chiusi, ma le uscite si richiudono solo con un nuovo riarmo."
@@ -11705,9 +11705,9 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
             type: "previsione",
             question: "Il motore resta in stella a lungo, anche sotto carico. Che cosa succede?",
             options: [
-              { id: "a", text: "Va benissimo: in stella consuma meno." },
-              { id: "b", text: "Non ha coppia sufficiente, assorbe troppo, si scalda e il termico scatta." },
-              { id: "c", text: "Il motore gira pi\xF9 veloce." }
+              { id: "a", text: "Va benissimo: in stella consuma meno e si scalda meno." },
+              { id: "b", text: "Fatica sotto carico, si scalda e il termico scatta." },
+              { id: "c", text: "Gira pi\xF9 veloce, perch\xE9 ogni avvolgimento ha meno carico." }
             ],
             correct: "b",
             why: "In stella ogni avvolgimento riceve 230 V e la coppia scende a circa un terzo. Sotto carico il motore fatica, la corrente sale e si scalda: il termico scatta. La stella serve solo per l\u2019avviamento."
@@ -11904,9 +11904,9 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
             type: "previsione",
             question: "A che cosa serve il collegamento del comune IC al neutro?",
             options: [
-              { id: "a", text: "D\xE0 agli ingressi un secondo punto con cui misurare la tensione: senza, nessun ingresso vale 1." },
-              { id: "b", text: "Alimenta il PLC." },
-              { id: "c", text: "Mette a terra il PLC per sicurezza." }
+              { id: "a", text: "D\xE0 agli ingressi il ritorno: senza, nessun ingresso arriva mai a 1." },
+              { id: "b", text: "Alimenta il PLC: senza IC il programma non pu\xF2 girare." },
+              { id: "c", text: "Mette a terra il PLC, per sicurezza, come la carcassa del motore." }
             ],
             correct: "a",
             why: "Un ingresso misura la tensione tra se stesso e IC. L\u2019alimentazione del PLC \xE8 un\u2019altra cosa e passa da A1 e A2. Con IC scollegato non c\u2019\xE8 un ritorno e tutti gli ingressi restano a 0."
@@ -11915,9 +11915,9 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
             type: "previsione",
             question: "Il filo del pulsante di arresto si stacca dall\u2019ingresso I0. Che cosa succede?",
             options: [
-              { id: "a", text: "Il motore parte lo stesso: l\u2019arresto non serve se non \xE8 premuto." },
-              { id: "b", text: "I0 vale 0, quindi il programma non accende Q0: il motore non parte, ed eventualmente si ferma." },
-              { id: "c", text: "Niente: il PLC ricorda l\u2019ultimo valore dell\u2019ingresso." }
+              { id: "a", text: "Il motore parte lo stesso: l\u2019arresto conta solo quando lo premi." },
+              { id: "b", text: "I0 va a 0, come con Arresto premuto: il motore non parte o si ferma." },
+              { id: "c", text: "Niente: il PLC ricorda l\u2019ultimo valore buono che ha letto da I0." }
             ],
             correct: "b",
             why: "L\u2019arresto \xE8 normalmente chiuso, quindi a riposo porta tensione e I0 vale 1. Un filo staccato toglie la tensione: I0 vale 0, come se si premesse Arresto. Il guasto porta la macchina nello stato sicuro."
@@ -11926,9 +11926,9 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
             type: "previsione",
             question: "Perch\xE9 nel gradino del motore compare anche Q0 oltre a I1?",
             options: [
-              { id: "a", text: "Per far partire il motore pi\xF9 forte." },
-              { id: "b", text: "Perch\xE9 Q0 si rilegge e tiene acceso il gradino quando Marcia viene rilasciata: \xE8 l\u2019autoritenuta nel programma." },
-              { id: "c", text: "Per contare quante volte si preme Marcia." }
+              { id: "a", text: "Per far partire il motore pi\xF9 forte, con due comandi insieme." },
+              { id: "b", text: "Per tenere acceso Q0 dopo che Marcia \xE8 rilasciata: \xE8 l\u2019autoritenuta." },
+              { id: "c", text: "Per contare quante volte si preme Marcia durante il turno." }
             ],
             correct: "b",
             why: "Marcia \xE8 un impulso. Appena I1 torna a 0, serve qualcosa che tenga acceso Q0: lo stesso Q0, in parallelo a I1, che vale 1 finch\xE9 il gradino resta vero."
@@ -12027,9 +12027,9 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
             type: "previsione",
             question: "Un gradino ha un contatto normalmente aperto su I1 e la bobina Q0. Che cosa succede se I1 vale 1?",
             options: [
-              { id: "a", text: "Q0 si accende, e si spegne quando I1 torna a 0." },
+              { id: "a", text: "Q0 si accende, e si spegne appena I1 torna a 0." },
               { id: "b", text: "Q0 si accende e resta acceso per sempre." },
-              { id: "c", text: "Non succede niente: serve un contatto normalmente chiuso." }
+              { id: "c", text: "Non succede niente: il contatto NA blocca." }
             ],
             correct: "a",
             why: "Una bobina segue la condizione del suo gradino: la condizione \xE8 vera quando I1 vale 1, quindi Q0 vale 1, e torna a 0 quando I1 torna a 0. Per farlo restare acceso serve l\u2019autoritenuta."
@@ -12038,9 +12038,9 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
             type: "previsione",
             question: "Marcia \xE8 un impulso e deve far restare acceso Q0 anche dopo il rilascio. Come si aggiunge il contatto di Q0 al contatto di Marcia?",
             options: [
-              { id: "a", text: "In serie: servono tutti e due." },
+              { id: "a", text: "In serie: servono tutti e due insieme." },
               { id: "b", text: "In parallelo: ne basta uno dei due." },
-              { id: "c", text: "Non serve: il PLC ricorda l\u2019ultimo valore." }
+              { id: "c", text: "Non serve: il PLC lo ricorda da solo." }
             ],
             correct: "b",
             why: "All\u2019inizio Q0 vale 0, quindi serve Marcia. Una volta acceso, Q0 vale 1 e tiene vero il gradino anche con Marcia a 0. Due contatti dei quali basta uno sono in parallelo."
@@ -12074,9 +12074,9 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
             type: "previsione",
             question: "Con l\u2019arresto cablato NC, quale contatto di I0 metti nel gradino del motore?",
             options: [
-              { id: "a", text: "Normalmente aperto: lascia passare quando I0 vale 1, cio\xE8 a riposo." },
-              { id: "b", text: "Normalmente chiuso: cos\xEC si ferma quando viene premuto." },
-              { id: "c", text: "Nessuno: l\u2019arresto non serve nel programma." }
+              { id: "a", text: "Normalmente aperto: passa quando I0 vale 1, cio\xE8 a riposo." },
+              { id: "b", text: "Normalmente chiuso: cos\xEC il motore si ferma quando lo premi." },
+              { id: "c", text: "Nessuno: l\u2019arresto ferma il motore gi\xE0 nei fili, non nel programma." }
             ],
             correct: "a",
             why: '\xC8 facile sbagliare: "arresto = contatto chiuso". Ma \xE8 l\u2019ingresso I0 a valere 1 a riposo, perch\xE9 il pulsante cablato NC porta tensione. Premendo, I0 va a 0 e un contatto normalmente aperto smette di lasciar passare: il motore si ferma.'
@@ -12211,9 +12211,9 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
             type: "previsione",
             question: "Durante il conteggio premi Arresto, poi di nuovo Marcia. Quanto aspetta il motore prima del triangolo?",
             options: [
-              { id: "a", text: "Solo il tempo che mancava." },
+              { id: "a", text: "Solo il tempo che mancava: il TON se lo ricorda." },
               { id: "b", text: "Altri 6 secondi pieni: il conteggio riparte da zero." },
-              { id: "c", text: "Va subito in triangolo." }
+              { id: "c", text: "Va subito in triangolo: il tempo \xE8 gi\xE0 passato." }
             ],
             correct: "b",
             why: "Premendo Arresto, Q0 si spegne e la condizione del TON cade: il conteggio si azzera. Alla nuova partenza il motore riparte in stella e il tempo si ricomincia da capo, come richiede un avviamento corretto."
@@ -12222,9 +12222,9 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
             type: "previsione",
             question: "Nel gradino della stella c\u2019\xE8 solo il contatto Q0, senza T1. Che cosa succede dopo 6 secondi?",
             options: [
-              { id: "a", text: "Il motore passa in triangolo regolarmente." },
-              { id: "b", text: "Il PLC accende stella e triangolo insieme; l\u2019interblocco nei fili tiene aperto il triangolo e il motore resta in stella." },
-              { id: "c", text: "Stella e triangolo si chiudono insieme e il salvamotore scatta." }
+              { id: "a", text: "Passa in triangolo regolarmente: T1 accende Q2 e la stella si spegne da sola." },
+              { id: "b", text: "Il PLC accende stella e triangolo, ma l\u2019interblocco nei fili tiene il motore in stella." },
+              { id: "c", text: "Stella e triangolo si chiudono insieme, c\u2019\xE8 un cortocircuito e il salvamotore scatta." }
             ],
             correct: "b",
             why: "Senza T1 la stella resta accesa finch\xE9 Q0 \xE8 acceso, anche dopo i 6 secondi. Allo scadere il PLC accende anche Q2, ma la bobina del triangolo passa dal contatto NC di KM2, che \xE8 aperto: il triangolo non chiude. Niente corto, grazie ai fili, ma il motore resta in stella. Senza l\u2019interblocco nei fili sarebbe stato un cortocircuito."
@@ -12394,9 +12394,9 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
             type: "previsione",
             question: "Il fungo \xE8 premuto e il PLC si blocca con l\u2019uscita Q0 accesa. Che cosa fa il nastro?",
             options: [
-              { id: "a", text: "Continua a girare: il PLC comanda la bobina." },
+              { id: "a", text: "Continua a girare: \xE8 il PLC che comanda la bobina, e Q0 \xE8 acceso." },
               { id: "b", text: "Si ferma comunque: il fungo apre il comando nei fili, prima della bobina." },
-              { id: "c", text: "Dipende dal programma." }
+              { id: "c", text: "Dipende dal programma: se il PLC \xE8 bloccato decide l\u2019ultimo gradino." }
             ],
             correct: "b",
             why: "Il contatto del fungo \xE8 in serie alla bobina, prima dell\u2019uscita del PLC. Anche con Q0 chiuso la fase non arriva alla bobina. \xC8 proprio il motivo per cui l\u2019emergenza non passa dal programma."
@@ -12416,9 +12416,9 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
             type: "previsione",
             question: "Nel programma manca I3, il consenso delle sicurezze, nel gradino del nastro. Premi e sblocchi il fungo. Che cosa succede?",
             options: [
-              { id: "a", text: "Il nastro resta fermo: il fungo lo ha fermato." },
-              { id: "b", text: "Il nastro riparte da solo: il PLC aveva ancora Q0 acceso con l\u2019autoritenuta." },
-              { id: "c", text: "Scatta il termico." }
+              { id: "a", text: "Resta fermo: il fungo lo ha fermato e serve di nuovo Marcia." },
+              { id: "b", text: "Riparte da solo: per il programma Q0 era ancora acceso." },
+              { id: "c", text: "Scatta il termico: il motore riparte di colpo sotto carico." }
             ],
             correct: "b",
             why: "Il fungo ha fermato il nastro nei fili, ma per il programma Q0 era ancora acceso. Allo sblocco la bobina riprende corrente e il nastro riparte. Con I3 in serie l\u2019autoritenuta si scioglie quando il fungo \xE8 premuto."
@@ -12545,9 +12545,9 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
             type: "previsione",
             question: "Il serbatoio \xE8 pieno a met\xE0. Quanti milliampere trasmette il sensore?",
             options: [
-              { id: "a", text: "10 mA, la met\xE0 di 20." },
-              { id: "b", text: "12 mA: da 4 a 20 ci sono 16 mA, la met\xE0 \xE8 8 pi\xF9 4." },
-              { id: "c", text: "2 mA." }
+              { id: "a", text: "10 mA: met\xE0 di 20 mA, il valore del serbatoio pieno." },
+              { id: "b", text: "12 mA: met\xE0 della scala da 4 a 20, cio\xE8 4 pi\xF9 8." },
+              { id: "c", text: "8 mA: met\xE0 della scala da 4 a 20, cio\xE8 16 diviso 2." }
             ],
             correct: "b",
             why: "Il segnale parte da 4 mA, non da 0: la scala \xE8 lunga 16 mA. A met\xE0 si somma met\xE0 della scala (8 mA) ai 4 mA di partenza."
@@ -12556,9 +12556,9 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
             type: "previsione",
             question: "Un filo dell\u2019anello si stacca mentre il serbatoio \xE8 a met\xE0. Che cosa legge il PLC?",
             options: [
-              { id: "a", text: "12 mA, il livello non \xE8 cambiato." },
-              { id: "b", text: "4 mA: sembra un serbatoio vuoto." },
-              { id: "c", text: "0 mA: sotto i 4 mA non pu\xF2 essere una misura, \xE8 un guasto." }
+              { id: "a", text: "12 mA: il livello non \xE8 cambiato, quindi la misura resta quella." },
+              { id: "b", text: "4 mA: il minimo della scala, e il serbatoio sembra vuoto." },
+              { id: "c", text: "0 mA: sotto i 4 mA non \xE8 una misura, il PLC vede il guasto." }
             ],
             correct: "c",
             why: "Se l\u2019anello \xE8 aperto non passa corrente. Zero milliampere \xE8 fuori scala: il programma lo vede (AI0 sotto 3,6 mA) e accende la lampada di guasto invece di far credere che il serbatoio sia vuoto."
@@ -12653,9 +12653,9 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
             type: "previsione",
             question: "Con la velocit\xE0 voluta al 60 %, cio\xE8 30 hertz, e una rampa di 10 hertz al secondo, quanti secondi servono per arrivare a regime?",
             options: [
-              { id: "a", text: "Subito: il variatore \xE8 istantaneo." },
+              { id: "a", text: "Subito: il variatore cambia la frequenza in un istante." },
               { id: "b", text: "Circa 3 secondi: 30 hertz diviso 10 hertz al secondo." },
-              { id: "c", text: "Circa 30 secondi." }
+              { id: "c", text: "Circa 30 secondi: un secondo per ogni hertz da guadagnare." }
             ],
             correct: "b",
             why: "La rampa dice quanti hertz si guadagnano ogni secondo. Per salire di 30 hertz a 10 hertz al secondo servono 3 secondi (poi la velocit\xE0 del nastro raggiunge la frequenza con un piccolo ritardo)."
@@ -12716,9 +12716,9 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
             type: "previsione",
             question: "La pompa \xE8 accesa e il livello sale da 30 % a 60 %. Che cosa fa la pompa?",
             options: [
-              { id: "a", text: "Si ferma: il livello non \xE8 pi\xF9 basso." },
-              { id: "b", text: "Resta accesa: nessun galleggiante ha scattato, e il Set la mantiene." },
-              { id: "c", text: "Si ferma a met\xE0 e riparte." }
+              { id: "a", text: "Si ferma: il livello non \xE8 pi\xF9 basso e il Set non vale pi\xF9." },
+              { id: "b", text: "Resta accesa: nessun galleggiante ha scattato, il Set la tiene." },
+              { id: "c", text: "Si ferma a met\xE0 serbatoio e riparte quando il livello cala." }
             ],
             correct: "b",
             why: "Il Set ha acceso Q0 quando il livello era basso e Q0 resta acceso finch\xE9 non arriva il Reset. Fino all\u201980 % nessun gradino cambia Q0."
@@ -12728,8 +12728,8 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
             question: "Il galleggiante basso e quello alto non possono scattare insieme. Che cosa succederebbe se il programma usasse una bobina semplice su I1 invece di Set e Reset?",
             options: [
               { id: "a", text: "La pompa si accenderebbe e spegnerebbe di continuo attorno al 20 %." },
-              { id: "b", text: "Non cambierebbe nulla." },
-              { id: "c", text: "La pompa non si accenderebbe mai." }
+              { id: "b", text: "Non cambierebbe nulla: bobina e Set accendono la pompa allo stesso modo." },
+              { id: "c", text: "La pompa non si accenderebbe mai: una bobina non pu\xF2 tenere un livello." }
             ],
             correct: "a",
             why: "Con la bobina semplice la pompa segue il galleggiante basso: accesa sotto il 20 %, spenta appena sale. Senza isteresi commuta di continuo."
@@ -12797,9 +12797,9 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
             type: "previsione",
             question: "Con Kp = 1 e Ti, Td a zero la temperatura si ferma a circa 46 gradi. Perch\xE9 non arriva a 60?",
             options: [
-              { id: "a", text: "Il forno \xE8 rotto." },
-              { id: "b", text: "Il solo P d\xE0 potenza proporzionale all\u2019errore: per mantenere 60 gradi serve una potenza che richiede un errore ancora grande." },
-              { id: "c", text: "Serve pi\xF9 tempo." }
+              { id: "a", text: "Il forno \xE8 troppo piccolo: anche a piena potenza non arriva a 60 gradi." },
+              { id: "b", text: "Il P d\xE0 potenza solo se c\u2019\xE8 errore: per tenere il forno caldo l\u2019errore resta." },
+              { id: "c", text: "Serve pi\xF9 tempo: aspettando qualche minuto la temperatura arriva a 60." }
             ],
             correct: "b",
             why: "Il P d\xE0 potenza solo se c\u2019\xE8 un errore. A 46 gradi il forno ha bisogno del 14 % di potenza per restare l\xEC, e con Kp = 1 il P la d\xE0 proprio perch\xE9 l\u2019errore vale 14 gradi. Se l\u2019errore sparisse la potenza sparirebbe e il forno si raffredderebbe. Serve qualcosa che ricordi la potenza necessaria: l\u2019integrale."
@@ -12884,9 +12884,9 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
             type: "previsione",
             question: "Arriva \u201CLivello troppo alto\u201D e lo riconosci. Che cosa succede?",
             options: [
-              { id: "a", text: "L\u2019allarme sparisce e il livello torna normale." },
+              { id: "a", text: "L\u2019allarme sparisce: riconoscerlo vuol dire che il problema \xE8 risolto." },
               { id: "b", text: "La sirena tace, ma l\u2019allarme resta sul pannello finch\xE9 il livello \xE8 alto." },
-              { id: "c", text: "Il PLC ferma la pompa." }
+              { id: "c", text: "Il PLC ferma la pompa: riconoscere l\u2019allarme \xE8 un comando di arresto." }
             ],
             correct: "b",
             why: "Riconoscere vuol dire \u201Cl\u2019ho visto\u201D. Il problema c\u2019\xE8 ancora: l\u2019allarme resta, riconosciuto, finch\xE9 il livello non scende sotto il 90 %."
@@ -12895,9 +12895,9 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
             type: "previsione",
             question: "Il pannello mostra \u201CLivello 45 %\u201D da un minuto, sempre uguale, e nessun allarme. Che cosa controlli prima?",
             options: [
-              { id: "a", text: "Niente: il livello \xE8 stabile e non ci sono allarmi." },
-              { id: "b", text: "Se il valore \xE8 aggiornato: un numero fermo pu\xF2 essere un dato vecchio, con il collegamento perso." },
-              { id: "c", text: "La pompa." }
+              { id: "a", text: "Niente: il livello \xE8 stabile e non ci sono allarmi da guardare." },
+              { id: "b", text: "Se il dato \xE8 aggiornato: un numero fermo pu\xF2 essere una lettura vecchia." },
+              { id: "c", text: "La pompa: se il livello non cambia, la pompa si \xE8 certamente fermata." }
             ],
             correct: "b",
             why: "Un valore che non cambia mai \xE8 sospetto: se il collegamento \xE8 perso il pannello mostra l\u2019ultima lettura e nessun allarme nuovo. Prima di fidarti guarda se il dato \xE8 aggiornato."
@@ -13007,9 +13007,9 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
             type: "previsione",
             question: "Collego le due batterie da 6 V in parallelo e poi alla lampada da 12 V. Che cosa succede?",
             options: [
-              { id: "a", text: "La lampada si accende piena: le batterie sono due." },
-              { id: "b", text: "La lampada si accende appena: in parallelo la tensione resta 6 V." },
-              { id: "c", text: "La lampada brucia." }
+              { id: "a", text: "Si accende piena: le batterie sono due, quindi le tensioni si sommano." },
+              { id: "b", text: "Si accende appena: in parallelo la tensione resta quella di una, 6 V." },
+              { id: "c", text: "La lampada brucia: due batterie insieme le danno troppa corrente." }
             ],
             correct: "b",
             why: "In parallelo le batterie danno la stessa tensione di una sola, 6 V. Alla lampada da 12 V ne serve il doppio: per sommare le tensioni vanno in serie."
@@ -13018,9 +13018,9 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
             type: "previsione",
             question: "Con il multimetro metto il puntale rosso sul \u2212 e il nero sul + di una batteria da 6 V. Che cosa leggo?",
             options: [
-              { id: "a", text: "6 V." },
-              { id: "b", text: "\u22126 V: in continua il segno dice da che parte sta il positivo." },
-              { id: "c", text: "0 V." }
+              { id: "a", text: "6 V: la tensione della batteria non cambia con i puntali." },
+              { id: "b", text: "\u22126 V: il segno dice da che parte sta il positivo." },
+              { id: "c", text: "0 V: con i puntali al contrario lo strumento non misura." }
             ],
             correct: "b",
             why: "In continua il multimetro legge la tensione con il segno: positivo se il puntale rosso sta sul +, negativo se \xE8 al contrario. \xC8 il modo pi\xF9 semplice di trovare la polarit\xE0."
@@ -13085,9 +13085,9 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
             type: "previsione",
             question: "Il sole \xE8 pi\xF9 debole al mattino. Con due pannelli in serie, quando parte l\u2019inverter?",
             options: [
-              { id: "a", text: "Appena sorge il sole." },
-              { id: "b", text: "Quando la tensione dei due pannelli arriva a 30 V, cio\xE8 con un sole abbastanza alto." },
-              { id: "c", text: "Mai: serve il sole pieno." }
+              { id: "a", text: "Appena sorge il sole: basta un po\u2019 di luce sui pannelli." },
+              { id: "b", text: "Quando i due pannelli insieme arrivano a 30 V, a sole un po\u2019 pi\xF9 alto." },
+              { id: "c", text: "Mai al mattino: con due pannelli serve il sole pieno di mezzogiorno." }
             ],
             correct: "b",
             why: "La tensione sale con il sole. L\u2019inverter parte appena la somma dei due pannelli raggiunge i 30 V, un po\u2019 dopo l\u2019alba. La stessa soglia lo spegne la sera."
@@ -13148,9 +13148,9 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
             type: "previsione",
             question: "\xC8 mezzogiorno, la casa immette 3 kW e lo scaldabagno si accende. Quanto immette adesso?",
             options: [
-              { id: "a", text: "Ancora 3 kW." },
-              { id: "b", text: "Circa 1 kW: lo scaldabagno consuma 2 kW dell\u2019eccedenza." },
-              { id: "c", text: "Niente: smette di immettere." }
+              { id: "a", text: "Ancora 3 kW: lo scaldabagno prende la sua energia dalla rete." },
+              { id: "b", text: "Circa 1 kW: lo scaldabagno usa 2 kW dei 3 che avanzavano." },
+              { id: "c", text: "Niente: appena parte un carico la casa smette di immettere." }
             ],
             correct: "b",
             why: "L\u2019eccedenza era 3 kW; 2 kW li assorbe lo scaldabagno e ne restano 1 da immettere. Per questo la potenza scambiata cambia appena il carico parte, e per questo servono due soglie."
@@ -13202,9 +13202,9 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
             type: "previsione",
             question: "Con la batteria collegata, alle 14 i pannelli producono 3,5 kW e la casa consuma 0,5 kW. Che cosa succede?",
             options: [
-              { id: "a", text: "Tutti i 3 kW di eccedenza vanno in rete." },
-              { id: "b", text: "La batteria assorbe fino a 3 kW, che \xE8 il suo massimo: la rete immette il resto, o niente." },
-              { id: "c", text: "La batteria si scarica." }
+              { id: "a", text: "Tutti i 3 kW di eccedenza vanno in rete, come prima della batteria." },
+              { id: "b", text: "La batteria assorbe i 3 kW di eccedenza, e in rete non va niente." },
+              { id: "c", text: "La batteria si scarica, perch\xE9 la casa sta consumando energia." }
             ],
             correct: "b",
             why: "L\u2019eccedenza \xE8 3 kW e la batteria, se non \xE8 piena, pu\xF2 assorbirla tutta (3 kW \xE8 il suo massimo): la rete non immette niente. Se l\u2019eccedenza fosse pi\xF9 grande, solo il resto andrebbe in rete."
@@ -13255,9 +13255,9 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
             type: "previsione",
             question: "La colonnina \xE8 accesa e la casa preleva 4,1 kW. Alle 20 i consumi salgono di 1,2 kW. Che cosa serve?",
             options: [
-              { id: "a", text: "Niente: il limite \xE8 4,5 kW e sono a 4,1." },
-              { id: "b", text: "Staccare la colonnina: 4,1 + 1,2 = 5,3 kW supera il limite, e il contatore scatta dopo 20 secondi." },
-              { id: "c", text: "Accendere un altro carico." }
+              { id: "a", text: "Niente: il limite \xE8 4,5 kW e la casa ne preleva solo 4,1." },
+              { id: "b", text: "Staccare la colonnina: 4,1 pi\xF9 1,2 fa 5,3 kW, oltre il limite." },
+              { id: "c", text: "Ridurre i consumi di casa: la colonnina ha la precedenza." }
             ],
             correct: "b",
             why: "La somma supera il limite. Il programma deve staccare la colonnina quando la potenza supera 4300 W, prima che il contatore scatti e la casa resti al buio."
@@ -13331,9 +13331,9 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
             type: "previsione",
             question: "Nella transizione dal passo \u201Csali\u201D (M3) al passo \u201Cvai\u201D (M4) dimentico il segnale \u201Cbraccio su\u201D. Che cosa succede?",
             options: [
-              { id: "a", text: "Niente: il braccio sale comunque in fretta." },
-              { id: "b", text: "Il passo M4 comincia subito e il braccio si sposta mentre \xE8 ancora gi\xF9: urto." },
-              { id: "c", text: "Il ciclo non parte." }
+              { id: "a", text: "Niente: il braccio sale in fretta e arriva su prima di spostarsi." },
+              { id: "b", text: "M4 parte subito e il braccio si sposta mentre \xE8 ancora gi\xF9: urto." },
+              { id: "c", text: "Il ciclo non parte: senza \u201Cbraccio su\u201D il passo M3 non si accende." }
             ],
             correct: "b",
             why: "Senza il finecorsa la transizione scatta nello stesso istante in cui M3 si accende. Il braccio comincia a spostarsi mentre sta ancora salendo, ed \xE8 ancora gi\xF9."
@@ -13342,9 +13342,9 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
             type: "previsione",
             question: "Premi Arresto a met\xE0 ciclo, con il pezzo nella pinza. Che cosa deve fare la macchina?",
             options: [
-              { id: "a", text: "Fermarsi subito dove si trova." },
+              { id: "a", text: "Fermarsi subito dove si trova, con il pezzo nella pinza." },
               { id: "b", text: "Finire il ciclo, depositare il pezzo e poi fermarsi." },
-              { id: "c", text: "Aprire la pinza e lasciar cadere il pezzo." }
+              { id: "c", text: "Aprire la pinza, far cadere il pezzo e poi fermarsi." }
             ],
             correct: "b",
             why: "Fermare la sequenza a met\xE0 con il pezzo in aria, o far cadere il pezzo, lascia la macchina in uno stato pericoloso. L\u2019arresto normale fa finire il ciclo in corso. Quando c\u2019\xE8 un pericolo si usa invece il fungo di emergenza, cablato nei fili: toglie la potenza subito, e lo vedrai nella fabbrica."
@@ -13407,9 +13407,9 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
             type: "previsione",
             question: "Il pannello mostra tutti i valori grigi con \u201Ccollegamento perso\u201D, nessun allarme nuovo, e il serbatoio nella scena intanto continua a cambiare livello. Che cosa fai?",
             options: [
-              { id: "a", text: "Niente: senza allarmi l\u2019impianto \xE8 a posto." },
-              { id: "b", text: "Cerco il guasto di comunicazione: il cavo di rete del pannello. Con il collegamento perso gli allarmi non arrivano pi\xF9." },
-              { id: "c", text: "Sostituisco il trasmettitore di livello." }
+              { id: "a", text: "Niente: senza allarmi nuovi l\u2019impianto sta funzionando bene." },
+              { id: "b", text: "Cerco il guasto sul cavo di rete del pannello: senza collegamento non arrivano allarmi." },
+              { id: "c", text: "Sostituisco il trasmettitore di livello: i valori grigi vengono dal sensore." }
             ],
             correct: "b",
             why: "Un pannello senza collegamento non riceve neppure gli allarmi: l\u2019assenza di allarmi non vuol dire che va tutto bene. I valori grigi sono il segnale che i dati sono vecchi."
@@ -13418,9 +13418,9 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
             type: "previsione",
             question: "Compaiono insieme \u201CLivello troppo basso\u201D (media) e \u201CGuasto del sensore di livello\u201D (alta). Da quale cominci?",
             options: [
-              { id: "a", text: "Dal livello basso, perch\xE9 \xE8 quello che si vede." },
-              { id: "b", text: "Dal guasto del sensore: \xE8 prioritario, e senza una misura giusta non puoi fidarti neanche del livello." },
-              { id: "c", text: "Non importa l\u2019ordine." }
+              { id: "a", text: "Dal livello basso: \xE8 quello che si vede e va sistemato subito." },
+              { id: "b", text: "Dal guasto del sensore: \xE8 prioritario, e senza misura il livello \xE8 falso." },
+              { id: "c", text: "Non importa l\u2019ordine: tutti e due vanno risolti prima di ripartire." }
             ],
             correct: "b",
             why: "La priorit\xE0 alta va per prima. Il guasto del sensore \xE8 anche la causa possibile dell\u2019altro: con la misura persa il livello mostrato non \xE8 affidabile."
@@ -13481,9 +13481,9 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
             type: "previsione",
             question: "Compare \u201CCiclo bloccato\u201D e il robot \xE8 fermo con il braccio in basso. Dove cerchi?",
             options: [
-              { id: "a", text: "Nel fungo: ha tolto la potenza." },
-              { id: "b", text: "Nei finecorsa: un sensore che non risponde lascia il programma in attesa di un \u201Cfatto\u201D che non arriva." },
-              { id: "c", text: "Nel cavo di rete del pannello." }
+              { id: "a", text: "Nel fungo: qualcuno l\u2019ha premuto e ha tolto la potenza al robot." },
+              { id: "b", text: "Nei finecorsa: il programma aspetta un \u201Cfatto\u201D che non arriva." },
+              { id: "c", text: "Nel cavo di rete: il pannello ha perso il collegamento con il PLC." }
             ],
             correct: "b",
             why: "Con il fungo premuto compare \u201CSicurezze aperte\u201D, e la spia di robot alimentato \xE8 spenta. \u201CCiclo bloccato\u201D con il robot alimentato indica che il programma aspetta un segnale che non arriva: un finecorsa guasto."
@@ -13492,9 +13492,9 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
             type: "previsione",
             question: "Hai richiuso la portella ma il robot non riparte. Che cosa manca?",
             options: [
-              { id: "a", text: "Niente: serve pi\xF9 tempo." },
-              { id: "b", text: "Il riarmo: il rel\xE8 di sicurezza non si riarma da solo, serve il pulsante." },
-              { id: "c", text: "Un nuovo comando di Marcia dal PLC." }
+              { id: "a", text: "Niente: basta aspettare qualche secondo e riparte da solo." },
+              { id: "b", text: "Il riarmo: il rel\xE8 di sicurezza non si riarma da solo." },
+              { id: "c", text: "Un nuovo comando di Marcia: il PLC ha perso la marcia." }
             ],
             correct: "b",
             why: "\xC8 la regola che hai imparato con il rel\xE8 di sicurezza: dopo un arresto di sicurezza la macchina non riparte da sola. Il riarmo si d\xE0 con la portella chiusa e i canali a posto. Dopo il riarmo il robot finisce il ciclo interrotto; per i pezzi successivi serve anche Marcia, perch\xE9 il PLC ha perso la marcia quando le sicurezze si sono aperte."
@@ -13545,9 +13545,9 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
             type: "previsione",
             question: 'Il primo lotto da 4 riesce. Premi Marcia per il lotto successivo: il nastro resta fermo e la spia "lotto pieno" resta accesa. Che cosa controlli per primo?',
             options: [
-              { id: "a", text: "Il gradino del contatore: con che cosa si azzera." },
-              { id: "b", text: "Il filo del fungo di emergenza." },
-              { id: "c", text: "La taratura del rel\xE8 termico." }
+              { id: "a", text: "Il gradino del contatore: con che cosa si azzera alla fine del lotto." },
+              { id: "b", text: "Il filo del fungo di emergenza: forse si \xE8 staccato durante il lotto." },
+              { id: "c", text: "La taratura del rel\xE8 termico: il motore si \xE8 scaldato con il lotto." }
             ],
             correct: "a",
             why: "Il nastro ha appena finito un lotto, quindi fungo, termico e fili funzionano. Resta fermo perch\xE9 il contatore \xE8 ancora pieno: nel gradino del nastro il contatto C1 normalmente chiuso \xE8 aperto. Se nessun ingresso azzera il contatore, resta pieno per sempre."
@@ -13662,9 +13662,9 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
           type: "previsione",
           question: "Colleghi la serratura a 12 V direttamente ai 230 V della rete, con il tasto apriporta in serie. Che cosa succede alla prima pressione?",
           options: [
-            { id: "a", text: "Si sblocca normalmente: \xE8 solo un po\u2019 pi\xF9 forte." },
+            { id: "a", text: "Si sblocca normalmente: con pi\xF9 tensione scatta solo un po\u2019 pi\xF9 forte." },
             { id: "b", text: "La serratura si brucia, e sul portone c\u2019\xE8 la tensione di rete." },
-            { id: "c", text: "Non succede niente: il differenziale la protegge." }
+            { id: "c", text: "Non succede niente: il differenziale stacca prima che si bruci." }
           ],
           correct: "b",
           why: "Una serratura da 12 V sottoposta a 230 V si brucia. Il pericolo vero \xE8 un altro: la pulsantiera sul portone \xE8 raggiungibile da chiunque e non deve mai avere la tensione di rete. Il trasformatore separa i due lati."
@@ -13673,9 +13673,9 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
           type: "previsione",
           question: "Qualcuno preme nello stesso momento il tasto di chiamata e l\u2019apriporta. Che cosa succede?",
           options: [
-            { id: "a", text: "Suona la suoneria e si sblocca la serratura: i due rami sono indipendenti." },
-            { id: "b", text: "Si brucia il trasformatore." },
-            { id: "c", text: "Non succede niente: ci vuole un tasto alla volta." }
+            { id: "a", text: "Suona la suoneria e si sblocca la serratura: i rami sono indipendenti." },
+            { id: "b", text: "Si brucia il trasformatore: due carichi insieme sono troppi per lui." },
+            { id: "c", text: "Non succede niente: i due tasti insieme si annullano a vicenda." }
           ],
           correct: "a",
           why: "I due rami sono in parallelo: ognuno ha il suo anello e prende la sua corrente. Il trasformatore regge entrambi. Se i rami fossero in serie, uno impedirebbe all\u2019altro di funzionare."
@@ -13826,9 +13826,9 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
           type: "previsione",
           question: "Colleghi i due sensori in parallelo invece che in serie. Che cosa succede di giorno, quando passa qualcuno?",
           options: [
-            { id: "a", text: "La luce resta spenta: \xE8 giorno." },
-            { id: "b", text: "La luce si accende lo stesso: basta che chiuda un sensore." },
-            { id: "c", text: "La luce lampeggia." }
+            { id: "a", text: "Resta spenta: di giorno il sensore di buio tiene aperto tutto." },
+            { id: "b", text: "Si accende lo stesso: in parallelo basta che chiuda un sensore." },
+            { id: "c", text: "Lampeggia: i due sensori si alternano ad aprire e chiudere." }
           ],
           correct: "b",
           why: "Con due contatti in parallelo basta uno solo per far passare la corrente: \xE8 un O. Il sensore di presenza chiude e la luce si accende anche se \xE8 giorno. Per avere un E, servono entrambi: i contatti vanno in serie."
@@ -13837,9 +13837,9 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
           type: "previsione",
           question: "Ti fermi a lungo davanti al sensore di presenza, che resta chiuso. Quando si spegne la luce?",
           options: [
-            { id: "a", text: "Dopo 10 secondi da quando ti sei fermato." },
-            { id: "b", text: "10 secondi dopo che il sensore si \xE8 riaperto, cio\xE8 dopo che te ne sei andato." },
-            { id: "c", text: "Non si spegne mai." }
+            { id: "a", text: "Dopo 10 secondi da quando ti sei fermato davanti al sensore." },
+            { id: "b", text: "10 secondi dopo che il sensore si riapre, cio\xE8 quando te ne vai." },
+            { id: "c", text: "Non si spegne mai: il temporizzatore si \xE8 bloccato acceso." }
           ],
           correct: "b",
           why: "Il conto del temporizzatore parte quando la bobina perde la tensione, cio\xE8 quando il sensore si riapre. Finch\xE9 resti davanti al sensore la bobina \xE8 alimentata e la luce rimane accesa."
@@ -13966,9 +13966,9 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
           type: "previsione",
           question: "Nel gradino di Torno usi la bobina Q0 invece di Set. Che cosa succede quando rilasci il tasto?",
           options: [
-            { id: "a", text: "La luce resta accesa: il PLC ricorda." },
+            { id: "a", text: "La luce resta accesa: il PLC ricorda il tasto." },
             { id: "b", text: "La luce si spegne appena il tasto torna a 0." },
-            { id: "c", text: "Il PLC d\xE0 un errore." }
+            { id: "c", text: "Il PLC segnala un errore: manca il Set." }
           ],
           correct: "b",
           why: "Una bobina segue il suo gradino: la condizione vale 1 solo mentre il tasto \xE8 premuto, e allora la luce vale 1 solo per quel tempo. Per far restare la luce accesa si usa Set; per spegnerla Reset."
@@ -13977,9 +13977,9 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
           type: "previsione",
           question: "Con il programma finito, premi nello stesso istante Torno ed Esco. Che luci restano accese?",
           options: [
-            { id: "a", text: "Tutte e due: il PLC esegue Torno." },
+            { id: "a", text: "Tutte e due: il PLC esegue Torno, che viene per primo." },
             { id: "b", text: "Nessuna: il gradino di Esco \xE8 pi\xF9 in basso e vince." },
-            { id: "c", text: "Solo il soggiorno." }
+            { id: "c", text: "Solo il soggiorno: i due gradini si dividono le luci." }
           ],
           correct: "b",
           why: "Il gradino 1 accende le due luci, poi il gradino 3 le spegne, e vale l\u2019ultimo. \xC8 una scelta di chi scrive il programma: mettere in fondo il gradino che deve avere la precedenza."
@@ -14081,9 +14081,9 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
           type: "previsione",
           question: "Hai tolto l\u2019autoritenuta. Il fumo compare e poi si dirada. Che cosa fa la sirena?",
           options: [
-            { id: "a", text: "Continua a suonare finch\xE9 non premi la tacitazione." },
-            { id: "b", text: "Si spegne appena il fumo sparisce, e nessuno sa che c\u2019\xE8 stato un allarme." },
-            { id: "c", text: "Non suona mai." }
+            { id: "a", text: "Continua a suonare finch\xE9 qualcuno non preme la tacitazione." },
+            { id: "b", text: "Si spegne appena il fumo sparisce, e nessuno sa dell\u2019allarme." },
+            { id: "c", text: "Non suona mai: senza autoritenuta il rel\xE8 non si eccita." }
           ],
           correct: "b",
           why: "Senza memoria la sirena segue il sensore e si ferma appena il fumo sparisce. L\u2019autoritenuta tiene il rel\xE8 eccitato: l\u2019allarme resta finch\xE9 qualcuno lo tacita."
@@ -14092,9 +14092,9 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
           type: "previsione",
           question: "Il fumo c\u2019\xE8 ancora e premi la tacitazione. Che cosa succede quando la rilasci?",
           options: [
-            { id: "a", text: "La sirena resta spenta: l\u2019hai tacitata." },
-            { id: "b", text: "La sirena riparte, perch\xE9 il sensore \xE8 ancora chiuso." },
-            { id: "c", text: "Il rel\xE8 si rompe." }
+            { id: "a", text: "La sirena resta spenta: l\u2019hai tacitata e il rel\xE8 lo ricorda." },
+            { id: "b", text: "La sirena riparte, perch\xE9 il sensore di fumo \xE8 ancora chiuso." },
+            { id: "c", text: "Il rel\xE8 si rompe: la bobina viene spenta e riaccesa di colpo." }
           ],
           correct: "b",
           why: "Premendo il tasto togli la fase e il rel\xE8 si diseccita. Ma il sensore \xE8 ancora chiuso: appena rilasci il tasto la bobina riceve di nuovo la fase e il rel\xE8 si rieccita. Un pericolo ancora presente non si pu\xF2 tacitare."
@@ -14226,9 +14226,9 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
           type: "previsione",
           question: "Hai aperto il salvamotore ma non hai messo il lucchetto. Un collega, che non sa che stai lavorando, lo richiude. Che cosa succede?",
           options: [
-            { id: "a", text: "Niente: i fili sono collegati e basta." },
-            { id: "b", text: "La tensione torna sui fili mentre ci hai le mani: \xE8 il rischio che il lucchetto evita." },
-            { id: "c", text: "Il salvamotore scatta e si riapre da solo." }
+            { id: "a", text: "Niente: il salvamotore protegge i fili anche quando \xE8 chiuso." },
+            { id: "b", text: "La tensione torna sui fili mentre ci hai le mani sopra." },
+            { id: "c", text: "Il salvamotore scatta e si riapre da solo, perch\xE9 ci lavori." }
           ],
           correct: "b",
           why: "Un interruttore aperto si richiude con un dito, e chi lo fa non sa che stai lavorando. Il lucchetto impedisce la richiusura e dice agli altri che c\u2019\xE8 qualcuno al lavoro."
@@ -14237,9 +14237,9 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
           type: "previsione",
           question: "Il multimetro legge 0 V tra il morsetto 2 del salvamotore e il neutro. Basta per dire che a valle non c\u2019\xE8 tensione?",
           options: [
-            { id: "a", text: "S\xEC: uno zero \xE8 uno zero." },
-            { id: "b", text: "No: prima devi aver provato lo strumento su un punto in tensione, perch\xE9 uno strumento guasto legge zero comunque." },
-            { id: "c", text: "S\xEC, ma solo se lo misuri due volte." }
+            { id: "a", text: "S\xEC: uno zero letto sul morsetto vuol dire che non c\u2019\xE8 tensione." },
+            { id: "b", text: "No: prima va provato lo strumento su un punto in tensione." },
+            { id: "c", text: "S\xEC, ma solo se lo zero si legge uguale per due volte di fila." }
           ],
           correct: "b",
           why: "Uno zero pu\xF2 venire da un impianto spento o da uno strumento rotto. Solo se lo stesso strumento ha appena letto 230 V su un punto in tensione, lo zero a valle significa che \xE8 davvero spento."
@@ -14375,8 +14375,8 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
           question: "Togli i due temporizzatori: ora riattacchi la colonnina e la pompa appena la potenza \xE8 sotto soglia. Che cosa vedi sul grafico?",
           options: [
             { id: "a", text: "Niente di diverso: la potenza resta sotto il limite lo stesso." },
-            { id: "b", text: "I carichi pendolano: si staccano e riattaccano decine di volte nella serata." },
-            { id: "c", text: "La colonnina non riattacca mai." }
+            { id: "b", text: "I carichi pendolano: si staccano e riattaccano di continuo." },
+            { id: "c", text: "La colonnina non riattacca pi\xF9: senza ritardo resta staccata." }
           ],
           correct: "b",
           why: "Appena stacchi un carico la potenza scende sotto soglia: senza ritardo riattacchi subito, la potenza risale, stacchi di nuovo. Il contatore potrebbe anche reggere, ma i contattori si usurano e la casa \xE8 un andirivieni di accensioni."
@@ -14385,9 +14385,9 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
           type: "previsione",
           question: "Cambi la priorit\xE0: stacchi la pompa di calore per prima e la colonnina per seconda. Che cosa succede?",
           options: [
-            { id: "a", text: "Il contatore stacca comunque: la priorit\xE0 non conta." },
-            { id: "b", text: "Il contatore regge, ma la casa perde il riscaldamento mentre l\u2019auto continua a caricare: la priorit\xE0 \xE8 sbagliata." },
-            { id: "c", text: "La casa si scalda di pi\xF9." }
+            { id: "a", text: "Il contatore stacca comunque: l\u2019ordine dei carichi non conta." },
+            { id: "b", text: "Il contatore regge, ma la casa resta al freddo mentre l\u2019auto carica." },
+            { id: "c", text: "La casa si scalda di pi\xF9, perch\xE9 l\u2019auto non ruba pi\xF9 potenza." }
           ],
           correct: "b",
           why: "La potenza si abbassa lo stesso, ma si \xE8 tolto il carico che serve (il riscaldamento) e si \xE8 lasciato quello che pu\xF2 aspettare (l\u2019auto). La priorit\xE0 \xE8 una scelta sulla vita delle persone che abitano la casa, non solo un calcolo di watt."
@@ -14477,9 +14477,9 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
           type: "previsione",
           question: "Hai messo come consenso alla pompa solo la valvola del soggiorno. La camera chiede calore e il soggiorno \xE8 gi\xE0 caldo. Che cosa succede?",
           options: [
-            { id: "a", text: "La camera si scalda comunque." },
-            { id: "b", text: "La valvola della camera \xE8 aperta ma la pompa \xE8 ferma: la camera non si scalda." },
-            { id: "c", text: "La pompa gira a vuoto e si guasta." }
+            { id: "a", text: "La camera si scalda comunque: la sua valvola \xE8 gi\xE0 aperta." },
+            { id: "b", text: "La valvola della camera \xE8 aperta, ma la pompa resta ferma." },
+            { id: "c", text: "La pompa gira a vuoto: una valvola sola non basta a farla girare." }
           ],
           correct: "b",
           why: "Il consenso alla pompa deve tenere conto di tutte le zone: almeno una valvola aperta, Q1 oppure Q2. Con la sola valvola del soggiorno, il calore non parte mai per la camera."
@@ -14488,9 +14488,9 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
           type: "previsione",
           question: "Lasci il consenso della pompa sempre acceso, qualunque cosa facciano le valvole. Le stanze si scaldano e le valvole si chiudono. Che cosa succede?",
           options: [
-            { id: "a", text: "Niente: la pompa riposa da sola." },
-            { id: "b", text: "La pompa gira a vuoto con tutte le valvole chiuse e dopo un minuto si guasta." },
-            { id: "c", text: "Le stanze si scaldano di pi\xF9." }
+            { id: "a", text: "Niente: quando le stanze sono calde la pompa riposa da sola." },
+            { id: "b", text: "La pompa gira con le valvole chiuse e dopo un minuto si guasta." },
+            { id: "c", text: "Le stanze si scaldano di pi\xF9, perch\xE9 la pompa non si ferma mai." }
           ],
           correct: "b",
           why: "Con le valvole chiuse l\u2019acqua non circola. Una pompa che gira a vuoto si surriscalda e si blocca: \xE8 il guasto che il consenso a \u201Calmeno una valvola aperta\u201D evita."
@@ -14555,9 +14555,9 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
           type: "previsione",
           question: "Il pannello dice \u201CCiclo bloccato\u201D, il robot \xE8 alimentato e fermo con il braccio in basso. Che cosa fai per primo?",
           options: [
-            { id: "a", text: "Tocco il finecorsa in basso per vedere se si sblocca." },
-            { id: "b", text: "Apro la portella, cos\xEC il robot perde la potenza, e poi controllo il finecorsa in basso." },
-            { id: "c", text: "Premo Marcia di nuovo." }
+            { id: "a", text: "Tocco il finecorsa in basso per vedere se il robot si sblocca." },
+            { id: "b", text: "Apro la portella, cos\xEC il robot perde potenza, e poi controllo." },
+            { id: "c", text: "Premo di nuovo Marcia: il PLC rilegge i finecorsa e riparte." }
           ],
           correct: "b",
           why: "Il robot \xE8 fermo solo perch\xE9 il programma aspetta il finecorsa. Se lo sblocchi con il robot alimentato, il robot riparte con le tue mani nella cella. Con la portella aperta il robot non ha potenza e non pu\xF2 muoversi."
@@ -14566,9 +14566,9 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
           type: "previsione",
           question: "Hai riparato il finecorsa e richiuso la portella. Il robot non riparte. Che cosa manca?",
           options: [
-            { id: "a", text: "Il riarmo, e poi Marcia." },
+            { id: "a", text: "Il riarmo, e poi un nuovo comando di Marcia." },
             { id: "b", text: "Niente: riparte da solo dopo qualche secondo." },
-            { id: "c", text: "Bisogna spegnere e riaccendere il PLC." }
+            { id: "c", text: "Spegnere e riaccendere il PLC per azzerarlo." }
           ],
           correct: "a",
           why: "Dopo un arresto di sicurezza la macchina non riparte da sola: serve il riarmo con la portella chiusa. Il PLC intanto ha perso la marcia, perch\xE9 le sicurezze erano aperte: per continuare a produrre serve Marcia."
@@ -14650,9 +14650,9 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
           type: "previsione",
           question: "Vuoi una spia che si accenda quando la casa preleva pi\xF9 di 7 kW. Scrivi il gradino \u201CMW0 maggiore di 7000\u201D, con il misuratore da \u22126 a +6 kW. Una sera la casa preleva 8 kW. La spia si accende?",
           options: [
-            { id: "a", text: "S\xEC: 8 kW \xE8 pi\xF9 di 7 kW." },
-            { id: "b", text: "No: il misuratore si ferma a circa 6400 W e il confronto con 7000 non \xE8 mai vero." },
-            { id: "c", text: "Solo se la batteria \xE8 scarica." }
+            { id: "a", text: "S\xEC: 8 kW sono pi\xF9 di 7 kW, quindi il confronto \xE8 vero." },
+            { id: "b", text: "No: il misuratore si ferma a circa 6400 W e non arriva a 7000." },
+            { id: "c", text: "Solo se la batteria \xE8 scarica: altrimenti copre lei i consumi." }
           ],
           correct: "b",
           why: "Il PLC non vede la potenza vera ma il segnale del misuratore, che oltre il fondo scala resta fermo a 20,5 mA, circa 6400 W. Per sorvegliare 7 kW serve un misuratore con il fondo scala pi\xF9 alto, oppure una soglia che il misuratore pu\xF2 raggiungere."

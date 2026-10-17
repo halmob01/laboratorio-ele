@@ -28,6 +28,8 @@ Se Gianluca chiede "fai la review pedagogica del modulo N" (o di alcuni livelli)
 - **Script:** `scripts/review/pacchetto-allievo.mjs <modulo>` (testo per l'allievo finto; `--commit fe4fee0` per le lezioni di
   partenza), `scripts/review/misure.mjs <modulo>` (parole per slide, lunghezza delle risposte), `scripts/review/prova-tasti.mjs <livello>`
   (tasti della lezione nel browser), `scripts/check-review-scope.mjs` (perimetro: va lanciato dopo ogni commit).
+- **Specifiche delle pagine della lezione** (che cosa mostra ogni tipo di pagina, tabelle a due colonne, lunghezze, regole delle
+  previsioni): `docs/LEZIONE-ED-ESERCIZIO.md`, §6. Le previsioni hanno la risposta giusta lunga quanto le altre: lo controlla `npm test`.
 - **Perimetro:** nelle lezioni si cambiano spiegazioni, testi dei pezzi, previsioni, sintesi e lo stile delle lezioni; passi, sfida
   guasto, demo e il codice di banco, motore e scene no. Un difetto che tocca il codice si chiede prima a Gianluca.
 - **Stato:** pilota sul Modulo 2 fatto; da fare Modulo 3 e Modulo 6 sicurezza (c25-c27) con c28, poi il controllo leggero del resto

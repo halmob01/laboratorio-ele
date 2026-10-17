@@ -1,6 +1,8 @@
 # Lezione ed esercizio: modello valido per tutti i livelli
 
-Stato: **approvato il 13 ottobre 2026, non ancora implementato**. c01 è ancora nella versione precedente (lezione a 5 pagine di solo testo, pagina dell'esercizio con scheda, stanza e banco separati). Questo documento descrive il modello da applicare a c01 e a tutti i livelli successivi.
+Stato: approvato il 13 ottobre 2026 e applicato a tutti i livelli c01-c55. Le specifiche aggiornate nella fase 2 (come si scrive e come si
+vede ogni tipo di pagina, le regole delle previsioni) sono nel §6, in fondo; il metodo per rivedere le lezioni è in
+`docs/METODO-REVIEW-PEDAGOGICA.md`.
 
 Obiettivo: imparare a fare davvero l'impianto e vedere la luce che si accende, senza confusione. Il percorso segue lo schema del laboratorio: prima si guarda, poi si fa con aiuto, poi da soli.
 
@@ -72,4 +74,44 @@ La lezione deve spiegare davvero il perché, non solo il come. Per ogni livello 
 - Due previsioni: una sull'errore più probabile, una su un caso limite (due tasti insieme, il sensore ancora attivo).
 - Ogni passo dell'esercizio dice anche il perché ("Perché: ...") oltre a quali morsetti collegare.
 - La semplificazione del gioco si dice (per esempio i sensori che chiudono al pericolo, mentre nei sistemi veri sono NC in serie).
+
+## 6. Specifiche delle pagine della lezione (fase 2, aggiornate al 17 ottobre 2026)
+
+Come il gioco mostra ogni campo di una pagina (`src/ui2d/screens.js`, `lessonHTML`) e le regole decise nella review pedagogica.
+Chi scrive una lezione nuova o ne rivede una segue queste specifiche; i test le controllano dove indicato.
+
+### Che cosa mostra ogni tipo di pagina
+
+| Tipo | Campi mostrati | Note |
+|---|---|---|
+| `spiegazione` | `title`, `paras`, `table`, `warn`, `art` o `room` (disegno) | Unico tipo che mostra le tabelle |
+| `pezzi` | `title`, `focus` (pezzi illuminati sul banco), `paras`, `warn` | **Niente tabelle**. Il riquadro `warn` si vede dal 17 ottobre (prima no: test `test/lezione-vista.test.js`) |
+| `demo` | `captions` (una didascalia per filo, poi corrente e comandi) | Ricavata dalla soluzione del livello |
+| `previsione` | `question`, `options` (id `a`, `b`, `c`...), `correct`, `why` | Vedi sotto |
+| `sintesi` | `title`; i punti vengono da `summary` del livello | Una sola, l'ultima pagina; il Quaderno raccoglie le `summary` |
+
+### Tabelle
+- Due colonne: `head` con due titoli, `rows` con coppie. Una terza colonna non si vede.
+- Sul telefono la colonna di sinistra è stretta: etichette corte (il morsetto o il pezzo: `A2`, `11`, `Morsetti 3`, `Lampade`).
+- Per spiegare i collegamenti: a sinistra il morsetto, a destra "che cosa ci colleghi e perché", con la conseguenza dell'errore nella stessa cella.
+
+### Testi
+- Ogni pagina di spiegazione o pezzi: circa 90 parole, mai oltre 110 (tabella esclusa); se serve di più si divide la pagina.
+- Apostrofo tipografico ’ e virgolette « » nei testi; ogni frase nuova ha la traduzione araba (`node scripts/check-lang.mjs ar`).
+- La `summary` ha 3-5 punti, ognuno una regola con il suo perché.
+
+### Previsioni
+- **Una risposta per ogni previsione.** Una lezione può avere più previsioni: ognuna aspetta la sua risposta e mostra la sua
+  spiegazione (dal 17 ottobre; prima dalla seconda in poi comparivano già risposte). Solo la prima vale i punti (10 XP).
+  Test `test/previsioni.test.js`; lo stato sta in `us.pred` (prima previsione) e `us.more` (le altre, per pagina) in `src/engine/session.js`.
+- **Ordine mescolato.** Le opzioni si mostrano in un ordine mescolato ma fisso per domanda (`shuffledOptions` in `screens.js`);
+  le risposte si riconoscono dall'id, quindi la posizione nel file non conta. Vale anche per la sfida guasto. Test `test/opzioni.test.js`.
+- **Lunghezza equilibrata.** La risposta giusta è lunga tra 0,85 e 1,15 volte la sbagliata più lunga, così non si riconosce dalla
+  lunghezza (prima era la più lunga in 63 previsioni su 80). Il test `test/opzioni.test.js` fallisce se una previsione esce da questi
+  limiti; `node scripts/review/misure.mjs <modulo>` mostra il rapporto per ogni previsione.
+- **Come si scrivono le opzioni:** tre opzioni, ognuna una frase con il suo "perché" (giusto o sbagliato), per esempio
+  "Si spegne: il relè ha cambiato stato e lo ricorda" / "Si spegne solo finché tengo premuto, poi torna accesa". Le sbagliate sono
+  errori che un allievo potrebbe pensare davvero, mai assurdità; se la giusta è troppo lunga si accorcia la giusta, se è troppo corta
+  ("Accesa.") le si aggiunge il motivo. La `why` spiega il perché della giusta e, se serve, perché la convinzione sbagliata non regge.
+- Le domande della sfida guasto (`fault.diagnosis`) fanno parte dell'esercizio e non si riscrivono; il mescolamento basta.
 
