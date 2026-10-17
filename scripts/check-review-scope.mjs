@@ -1,11 +1,12 @@
-// Rete di sicurezza della review pedagogica (docs/PIANO-FASE-2.md, blocco B0).
-// Uso: node scripts/check-review-scope.mjs [commit-di-partenza]   (predefinito: fe4fee0)
-// Fallisce se, rispetto al commit di partenza, e' cambiato altro che i testi delle lezioni:
+// Rete di sicurezza della review pedagogica (docs/PIANO-FASE-2.md, blocco B0; regole in docs/METODO-REVIEW-PEDAGOGICA.md, par. 6).
+// Uso: node scripts/check-review-scope.mjs [commit-di-partenza]   (predefinito: BASE qui sotto)
+// Fallisce se, rispetto al commit di partenza, e' cambiato altro che la lezione:
 //  - file toccati fuori da units.js, units-v2.js, src/i18n/ar*.js, docs/, test/ e dai file costruiti;
-//  - in un livello: steps, fault, support, o le slide che non sono 'spiegazione' ne' 'sintesi'
-//    (previsione, pezzi, demo), che devono restare identiche e nello stesso ordine.
-// Si possono invece riscrivere i testi, aggiungere, togliere o spostare slide 'spiegazione',
-// e riscrivere la sintesi (summary: elenco di frasi non vuote; slide 'sintesi': una sola, l'ultima, con un titolo).
+//  - in un livello: steps, fault, support; le slide 'demo' (identiche); il 'focus' delle slide 'pezzi';
+//    l'ordine di demo e pezzi; il numero di slide 'previsione' (danno i punti).
+// Si possono invece: riscrivere, aggiungere, togliere, spostare slide 'spiegazione'; riscrivere titolo e testi dei 'pezzi';
+// riscrivere domanda, opzioni, risposta giusta e spiegazione delle 'previsione' (la risposta giusta deve essere una delle opzioni);
+// riscrivere la sintesi (summary: elenco di frasi non vuote; slide 'sintesi': una sola, l'ultima, con un titolo).
 import { execFileSync } from 'node:child_process';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -13,7 +14,8 @@ import { join } from 'node:path';
 import { isDeepStrictEqual } from 'node:util';
 import { pathToFileURL } from 'node:url';
 
-const base = process.argv[2] || 'fe4fee0';
+const BASE = 'fe4fee0';
+const base = process.argv[2] || BASE;
 const git = (...a) => execFileSync('git', a, { encoding: 'utf8', maxBuffer: 1 << 28 });
 const problems = [];
 
@@ -48,8 +50,19 @@ try {
     if (!Array.isArray(b.summary) || !b.summary.length || !b.summary.every(t => typeof t === 'string' && t.trim())) problems.push(`${id}: summary deve restare un elenco di frasi non vuote`);
     const sint = b.lesson.pages.filter(p => p.type === 'sintesi');
     if (sint.length !== 1 || b.lesson.pages[b.lesson.pages.length - 1].type !== 'sintesi' || typeof sint[0].title !== 'string' || !sint[0].title.trim()) problems.push(`${id}: deve esserci una sola slide 'sintesi', l'ultima, con un titolo`);
-    const fixed = l => l.pages.filter(p => p.type !== 'spiegazione' && p.type !== 'sintesi');
-    if (!isDeepStrictEqual(fixed(a.lesson), fixed(b.lesson))) problems.push(`${id}: cambiate slide che non sono 'spiegazione' (previsione, pezzi, demo)`);
+    const fixed = l => l.pages.filter(p => p.type === 'demo' || p.type === 'pezzi').map(p => (p.type === 'pezzi' ? { type: 'pezzi', focus: p.focus } : p));
+    if (!isDeepStrictEqual(fixed(a.lesson), fixed(b.lesson))) problems.push(`${id}: cambiate le slide 'demo' o il 'focus' dei 'pezzi' (o il loro ordine)`);
+    const preds = l => l.pages.filter(p => p.type === 'previsione');
+    if (preds(a.lesson).length !== preds(b.lesson).length) problems.push(`${id}: cambiato il numero di slide 'previsione'`);
+    for (const p of preds(b.lesson)) {
+      const ok = typeof p.question === 'string' && p.question.trim() && typeof p.why === 'string' && p.why.trim()
+        && Array.isArray(p.options) && p.options.length >= 2 && p.options.every(o => o.id && typeof o.text === 'string' && o.text.trim())
+        && new Set(p.options.map(o => o.id)).size === p.options.length && p.options.some(o => o.id === p.correct);
+      if (!ok) problems.push(`${id}: previsione non valida (domanda, opzioni con id diversi, risposta giusta tra le opzioni, spiegazione)`);
+    }
+    for (const p of b.lesson.pages.filter(p => p.type === 'pezzi')) {
+      if (!Array.isArray(p.paras) || !p.paras.length || !p.paras.every(t => typeof t === 'string' && t.trim())) problems.push(`${id}: slide 'pezzi' senza testi`);
+    }
   }
 } finally { rmSync(tmp, { recursive: true, force: true }); }
 

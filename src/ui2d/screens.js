@@ -266,8 +266,21 @@ export function introHTML(i) {
 }
 
 /* ---------- scheda dell'unità nel livello ---------- */
-const optButtons = (opts, chosen, correctId, action, retry = false) =>
-  `<div class="opts">${opts.map(o => {
+// Ordine delle opzioni mescolato ma fisso per ogni domanda (ricavato dal suo testo): la risposta giusta non sta sempre
+// nello stesso posto e non cambia a ogni ridisegno. Le risposte si riconoscono dall'id, quindi punti e salvataggi non cambiano.
+export function shuffledOptions(opts, key) {
+  let h = 2166136261;
+  for (const ch of String(key)) h = Math.imul(h ^ ch.codePointAt(0), 16777619) >>> 0;
+  const out = opts.slice();
+  for (let i = out.length - 1; i > 0; i--) {
+    h = Math.imul(h ^ (h >>> 15), 2246822507) >>> 0;
+    const j = h % (i + 1);
+    [out[i], out[j]] = [out[j], out[i]];
+  }
+  return out;
+}
+const optButtons = (opts, chosen, correctId, action, retry = false, key = '') =>
+  `<div class="opts">${shuffledOptions(opts, key).map(o => {
     const cls = chosen ? (o.id === correctId ? 'right' : o.id === chosen.option ? 'wrong' : '') : '';
     return `<button class="opt ${cls}" data-${action}="${o.id}" ${chosen && !(retry && !chosen.correct && o.id !== chosen.option) ? 'disabled' : ''}>${esc(o.text)}</button>`;
   }).join('')}</div>`;
@@ -295,7 +308,7 @@ export function lessonHTML(s, extra = {}) {
     body += `<div class="dplayer"><button class="btn pp" data-demo="toggle" aria-label="${extra.playing ? 'Pausa' : 'Riprendi'}">${extra.playing ? 'Pausa' : 'Riprendi'}</button><button class="btn" data-demo="step">Passo successivo</button><button class="btn" data-demo="restart">Rivedi</button><span class="pcount" id="demoCount">${i + 1} / ${f}</span></div>`;
   } else if (pg.type === 'previsione') {
     const a = u.pred;
-    body += `<h3 class="q">${esc(pg.question)}</h3>${optButtons(pg.options, a, pg.correct, 'pred')}`;
+    body += `<h3 class="q">${esc(pg.question)}</h3>${optButtons(pg.options, a, pg.correct, 'pred', false, pg.question)}`;
     body += a ? `<p class="fb ${a.correct ? 'ok' : 'ko'}"><b>${a.correct ? 'Giusto.' : 'Non proprio.'}</b> ${esc(pg.why)}</p>` : '<p class="note">Scegli una risposta per andare avanti.</p>';
   } else if (pg.type === 'sintesi') {
     body += `<ul class="sum">${u.summary.map(t => `<li>${esc(t)}</li>`).join('')}</ul><p class="note">La trovi anche nel Quaderno, dalla mappa.</p>`;
@@ -329,7 +342,7 @@ export function unitHTML(s) {
     const f = u.fault, d = s.unit.diag;
     const pv = !!s.unit.prova;     // nella prova non si "esce dalla sfida": si torna alla mappa
     return `<div class="kick">${pv ? 'Prova' : 'Sfida guasto'}</div><h2>${esc(f.diagnosis.question)}</h2><p>${esc(f.say)}</p>
-      ${optButtons(f.diagnosis.options, d, f.diagnosis.correct, 'diag', true)}
+      ${optButtons(f.diagnosis.options, d, f.diagnosis.correct, 'diag', true, f.diagnosis.question + f.say)}
       ${d ? `<p class="fb ${d.correct ? 'ok' : 'ko'}"><b>${d.correct ? 'Giusto.' : 'Non proprio.'}</b> ${d.correct ? esc(f.diagnosis.why) + ' ' + esc(f.fixSay) : 'Osserva i fili: gli aloni mostrano dove arriva la tensione. Puoi riprovare.'}</p>` : ''}
       <div class="uact">${pv ? '<a class="btn" href="#/home">Torna alla mappa</a>' : '<button class="btn" data-unit="leaveFault">Esci dalla sfida</button>'}</div>`;
   }
