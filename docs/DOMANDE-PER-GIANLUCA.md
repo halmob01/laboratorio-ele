@@ -84,3 +84,18 @@ Elenco completo in `docs/review/modulo4.md`, in fondo.
 - c28: tempo di commutazione stella-triangolo «da 5 a 15 secondi nei motori veri» e l'attimo senza collegamento tra stella e triangolo.
 - c29: «le uscite del PLC sono piccoli relè che reggono pochi ampere»; «molti PLC veri hanno gli ingressi a 24 V».
 - c32: «nelle macchine vere l'emergenza passa anche da un relè di sicurezza».
+
+## Review pedagogica del Modulo 5 (17 ottobre)
+
+**Da decidere (esercizio, non toccato):** c53, gestione dei carichi. I passi del banco dicono «se la colonnina è già staccata e non basta,
+tocca alla pompa», ma con il programma richiesto il PLC stacca le due insieme: legge i gradini uno dopo l'altro e il gradino della pompa
+vede già la colonnina spenta, con la potenza ancora sopra 5800 W (`src/engine/v2/plc.js`, `scan`). La lezione ora dice come va davvero
+(distacco insieme, priorità al ritorno). Se si vuole il distacco a gradini davvero, va cambiato l'esercizio: per esempio un TON di qualche
+secondo prima del distacco della pompa, oppure il gradino della pompa che legge un marcatore scritto nel giro prima. Non urgente.
+
+Frasi da far controllare al collega (elenco completo in `docs/review/modulo5.md`, in fondo):
+- c47: trasformatori per campanelli e citofoni «di sicurezza», che reggono un corto sul secondario.
+- c38: il LED vero vuole una resistenza in serie (nel gioco è compresa).
+- c39: pannello illuminato sempre in tensione; il sezionatore stacca solo l'inverter.
+- c41: la batteria con il suo inverter che decide quando caricare e scaricare.
+- c55: il contatore si riarma dal suo pulsante.
