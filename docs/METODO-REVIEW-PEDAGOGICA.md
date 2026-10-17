@@ -244,6 +244,8 @@ imitare: `docs/review/modulo2.md` (schede, risultati) e il ramo `review-modulo2`
 7. **Unione**: secondo `docs/PROCEDURA-UNIONE.md`, dopo il via di Gianluca; riga in `docs/STATO-AVANZAMENTO.md`.
 
 ### Che cosa aspettarsi (dal pilota)
+- `scripts/check-lang.mjs` non controlla i testi delle prove 3D (`src/content/prove.js`): chi li cambia aggiunge le traduzioni a mano
+  (esempio: `src/i18n/ar-55.js`) e controlla cercando la frase nei file `ar-*.js`. Review delle prove: `docs/review/prove3d.md`.
 - `scripts/check-review-scope.mjs` confronta il ramo con il commit `BASE` scritto in testa allo script. Se in `main` entra una correzione
   al codice della vista della lezione (come le opzioni mescolate o le previsioni multiple), nello stesso lavoro si sposta `BASE` su quel
   commit, altrimenti tutte le review successive segnalerebbero file fuori perimetro.

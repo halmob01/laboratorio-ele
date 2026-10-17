@@ -11276,10 +11276,10 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
         diagnosis: {
           question: "Quale linea disperde verso terra?",
           options: [
-            { id: "a", text: "La linea della luce." },
-            { id: "b", text: "La linea delle prese del soggiorno: un apparecchio collegato disperde." },
-            { id: "c", text: "La linea della cucina." },
-            { id: "d", text: "Nessuna: il differenziale \xE8 guasto." }
+            { id: "a", text: "La linea della luce: \xE8 quella che si usa di pi\xF9, di sera." },
+            { id: "b", text: "La linea delle prese: richiusa da sola, fa scattare il differenziale." },
+            { id: "c", text: "La linea della cucina: il forno e il frigo consumano pi\xF9 di tutti." },
+            { id: "d", text: "Nessuna: il differenziale \xE8 guasto e scatta senza motivo." }
           ],
           correct: "b",
           why: "Con la linea delle prese aperta il differenziale resta armato, con la linea richiusa scatta subito: la dispersione \xE8 l\xEC, in un apparecchio con l\u2019isolante rovinato."
@@ -11359,8 +11359,8 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
           question: "Perch\xE9, con il sovraccarico, il termico scatta ma il nastro non si ferma?",
           options: [
             { id: "a", text: "Il contatto 95-96 del termico non \xE8 nel circuito di comando." },
-            { id: "b", text: "Il termico \xE8 tarato su una corrente troppo alta." },
-            { id: "c", text: "Il salvamotore \xE8 guasto." }
+            { id: "b", text: "Il termico \xE8 tarato troppo alto: scatta, ma tardi per il motore." },
+            { id: "c", text: "Il salvamotore \xE8 guasto e tiene alimentato il comando." }
           ],
           correct: "a",
           why: "Il comando passa dal salvamotore al fungo senza attraversare il contatto 95-96 del termico: quando il termico scatta quel contatto apre, ma il comando non ne risente e il contattore resta chiuso."
@@ -13873,10 +13873,10 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
         diagnosis: {
           question: "Perch\xE9, finito il primo lotto, con Marcia il nastro non riparte e la spia resta accesa?",
           options: [
-            { id: "a", text: "La fotocellula conta due volte ogni pacco." },
-            { id: "b", text: "Il contatore non si azzera mai: nel suo gradino manca l\u2019ingresso di azzeramento." },
-            { id: "c", text: "Il pulsante di marcia non arriva al PLC." },
-            { id: "d", text: "Il termico \xE8 scattato." }
+            { id: "a", text: "La fotocellula conta due volte ogni pacco, e il lotto si riempie prima." },
+            { id: "b", text: "Il contatore non si azzera mai: nel suo gradino manca l\u2019azzeramento." },
+            { id: "c", text: "Il pulsante di marcia non arriva al PLC: il suo filo \xE8 staccato." },
+            { id: "d", text: "Il termico \xE8 scattato durante il primo lotto e non \xE8 stato riarmato." }
           ],
           correct: "b",
           why: "Il PLC vede Marcia (l\u2019ingresso I1 si accende) e i pacchi sono stati contati giusti, quattro. Ma il contatore non ha un ingresso che lo riporti a zero: resta pieno, il suo contatto normalmente chiuso nel gradino del nastro resta aperto e Marcia non pu\xF2 far partire niente."
@@ -14950,10 +14950,10 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
       diagnosis: {
         question: "La cella si \xE8 fermata: il pannello dice \u201CCiclo bloccato\u201D, il robot \xE8 alimentato e il braccio \xE8 in basso. Perch\xE9?",
         options: [
-          { id: "a", text: "Il rel\xE8 di sicurezza ha tolto la potenza al robot." },
-          { id: "b", text: "Il finecorsa \u201Cbraccio gi\xF9\u201D non risponde: il programma aspetta un segnale che non arriva." },
-          { id: "c", text: "Al prelievo manca il pezzo." },
-          { id: "d", text: "Il programma ha perso un passo." }
+          { id: "a", text: "Il rel\xE8 di sicurezza ha tolto la potenza al robot, che \xE8 rimasto gi\xF9." },
+          { id: "b", text: "Il finecorsa \u201Cbraccio gi\xF9\u201D non risponde: il programma lo aspetta." },
+          { id: "c", text: "Al prelievo manca il pezzo, e il robot aspetta che arrivi." },
+          { id: "d", text: "Il programma ha perso un passo e non sa pi\xF9 dove si trova." }
         ],
         correct: "b",
         why: "Con la potenza tolta il pannello direbbe \u201CSicurezze aperte\u201D e la spia del robot sarebbe spenta. Il braccio \xE8 sceso ma il PLC non vede il finecorsa in basso: il passo \u201CScendi\u201D aspetta il suo \u201Cfatto\u201D e dopo 40 secondi scatta \u201CCiclo bloccato\u201D."
@@ -15036,9 +15036,9 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
         question: "Verso le 19:45 il contatore ha staccato tutta la casa. Sul pannello, prima del buio, la rete era al fondo scala sopra la riga del limite, auto e pompa erano accese e nessun carico si era staccato. Perch\xE9?",
         options: [
           { id: "a", text: "Il forno non si pu\xF2 staccare: con il forno acceso il contatore stacca sempre." },
-          { id: "b", text: "La soglia di distacco (6500 W) \xE8 sopra il limite e oltre il fondo scala del misuratore: il PLC non l\u2019ha mai vista superata." },
-          { id: "c", text: "La batteria era scarica." },
-          { id: "d", text: "L\u2019ordine di distacco \xE8 al contrario: prima la pompa, poi l\u2019auto." }
+          { id: "b", text: "La soglia di distacco (6500 W) \xE8 oltre il fondo scala: il PLC non la vede mai." },
+          { id: "c", text: "La batteria era scarica e non poteva aiutare la casa durante la cena." },
+          { id: "d", text: "L\u2019ordine di distacco \xE8 al contrario: si stacca prima la pompa, poi l\u2019auto." }
         ],
         correct: "b",
         why: "Il misuratore arriva al massimo a circa 6400 W, quindi \u201Cmaggiore di 6500\u201D non \xE8 mai vero e il PLC non stacca niente. Con il forno acceso basta staccare l\u2019auto (3,7 kW) per tornare sotto il limite: il forno non \xE8 il problema. E con l\u2019ordine al contrario la casa reggerebbe comunque, solo pi\xF9 fredda."
@@ -24210,6 +24210,44 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
     "s\xEC per 5 secondi: si stacca anche la pompa": "\u0646\u0639\u0645 \u0644\u0645\u062F\u0629 5 \u062B\u0648\u0627\u0646\u064D: \u062A\u064F\u0641\u0635\u0644 \u0627\u0644\u0645\u0636\u062E\u0629 \u0623\u064A\u0636\u064B\u0627"
   };
 
+  // src/i18n/ar-55.js
+  var ar_55_default = {
+    "Al prelievo manca il pezzo, e il robot aspetta che arrivi.": "\u0639\u0646\u062F \u0646\u0642\u0637\u0629 \u0627\u0644\u0627\u0644\u062A\u0642\u0627\u0637 \u0644\u0627 \u062A\u0648\u062C\u062F \u0627\u0644\u0642\u0637\u0639\u0629\u060C \u0648\u0627\u0644\u0631\u0648\u0628\u0648\u062A \u064A\u0646\u062A\u0638\u0631 \u0648\u0635\u0648\u0644\u0647\u0627.",
+    "Il contatore non si azzera mai: nel suo gradino manca l\u2019azzeramento.": "\u0627\u0644\u0639\u062F\u0651\u0627\u062F \u0644\u0627 \u064A\u0639\u0648\u062F \u0625\u0644\u0649 \u0627\u0644\u0635\u0641\u0631 \u0623\u0628\u062F\u064B\u0627: \u0641\u064A \u062F\u0631\u062C\u062A\u0647 \u064A\u0646\u0642\u0635 \u0627\u0644\u062A\u0635\u0641\u064A\u0631.",
+    "Il finecorsa \u201Cbraccio gi\xF9\u201D non risponde: il programma lo aspetta.": "\u0646\u0647\u0627\u064A\u0629 \u0627\u0644\u0634\u0648\u0637 \xAB\u0627\u0644\u0630\u0631\u0627\u0639 \u0641\u064A \u0627\u0644\u0623\u0633\u0641\u0644\xBB \u0644\u0627 \u062A\u0633\u062A\u062C\u064A\u0628: \u0627\u0644\u0628\u0631\u0646\u0627\u0645\u062C \u064A\u0646\u062A\u0638\u0631\u0647\u0627.",
+    "Il programma ha perso un passo e non sa pi\xF9 dove si trova.": "\u0627\u0644\u0628\u0631\u0646\u0627\u0645\u062C \u0641\u0642\u062F \u062E\u0637\u0648\u0629 \u0648\u0644\u0645 \u064A\u0639\u062F \u064A\u0639\u0631\u0641 \u0623\u064A\u0646 \u0647\u0648.",
+    "Il pulsante di marcia non arriva al PLC: il suo filo \xE8 staccato.": "\u0632\u0631 \u0627\u0644\u062A\u0634\u063A\u064A\u0644 \u0644\u0627 \u064A\u0635\u0644 \u0625\u0644\u0649 \u0627\u0644\u0640PLC: \u0633\u0644\u0643\u0647 \u0645\u0641\u0635\u0648\u0644.",
+    "Il rel\xE8 di sicurezza ha tolto la potenza al robot, che \xE8 rimasto gi\xF9.": "\u0645\u0631\u062D\u0651\u0644 \u0627\u0644\u0623\u0645\u0627\u0646 \u0642\u0637\u0639 \u0627\u0644\u0642\u062F\u0631\u0629 \u0639\u0646 \u0627\u0644\u0631\u0648\u0628\u0648\u062A\u060C \u0641\u0628\u0642\u064A \u0641\u064A \u0627\u0644\u0623\u0633\u0641\u0644.",
+    "Il salvamotore \xE8 guasto e tiene alimentato il comando.": "\u0642\u0627\u0637\u0639 \u062D\u0645\u0627\u064A\u0629 \u0627\u0644\u0645\u062D\u0631\u0643 \u0645\u0639\u0637\u0651\u0644 \u0648\u064A\u064F\u0628\u0642\u064A \u062F\u0627\u0626\u0631\u0629 \u0627\u0644\u062A\u062D\u0643\u0645 \u0645\u0648\u0635\u0648\u0644\u0629 \u0628\u0627\u0644\u062A\u063A\u0630\u064A\u0629.",
+    "Il termico \xE8 scattato durante il primo lotto e non \xE8 stato riarmato.": "\u0627\u0644\u0645\u0631\u062D\u0651\u0644 \u0627\u0644\u062D\u0631\u0627\u0631\u064A \u0641\u0635\u0644 \u0623\u062B\u0646\u0627\u0621 \u0627\u0644\u062F\u0641\u0639\u0629 \u0627\u0644\u0623\u0648\u0644\u0649 \u0648\u0644\u0645 \u062A\u064F\u0639\u064E\u062F \u062A\u0633\u0644\u064A\u062D\u0647.",
+    "Il termico \xE8 tarato troppo alto: scatta, ma tardi per il motore.": "\u0627\u0644\u0645\u0631\u062D\u0651\u0644 \u0627\u0644\u062D\u0631\u0627\u0631\u064A \u0645\u0639\u0627\u064A\u0631 \u0639\u0644\u0649 \u0642\u064A\u0645\u0629 \u0639\u0627\u0644\u064A\u0629 \u062C\u062F\u064B\u0627: \u064A\u0641\u0635\u0644\u060C \u0644\u0643\u0646 \u0645\u062A\u0623\u062E\u0631\u064B\u0627 \u0628\u0627\u0644\u0646\u0633\u0628\u0629 \u0644\u0644\u0645\u062D\u0631\u0643.",
+    "La batteria era scarica e non poteva aiutare la casa durante la cena.": "\u0627\u0644\u0628\u0637\u0627\u0631\u064A\u0629 \u0643\u0627\u0646\u062A \u0641\u0627\u0631\u063A\u0629 \u0648\u0644\u0645 \u062A\u0633\u062A\u0637\u0639 \u0645\u0633\u0627\u0639\u062F\u0629 \u0627\u0644\u0645\u0646\u0632\u0644 \u0623\u062B\u0646\u0627\u0621 \u0627\u0644\u0639\u0634\u0627\u0621.",
+    "La fotocellula conta due volte ogni pacco, e il lotto si riempie prima.": "\u0627\u0644\u062E\u0644\u064A\u0629 \u0627\u0644\u0636\u0648\u0626\u064A\u0629 \u062A\u0639\u062F\u0651 \u0643\u0644 \u0637\u0631\u062F \u0645\u0631\u062A\u064A\u0646\u060C \u0641\u062A\u0645\u062A\u0644\u0626 \u0627\u0644\u062F\u0641\u0639\u0629 \u0623\u0628\u0643\u0631.",
+    "La linea della cucina: il forno e il frigo consumano pi\xF9 di tutti.": "\u062E\u0637 \u0627\u0644\u0645\u0637\u0628\u062E: \u0627\u0644\u0641\u0631\u0646 \u0648\u0627\u0644\u062B\u0644\u0627\u062C\u0629 \u064A\u0633\u062A\u0647\u0644\u0643\u0627\u0646 \u0623\u0643\u062B\u0631 \u0645\u0646 \u0627\u0644\u062C\u0645\u064A\u0639.",
+    "La linea della luce: \xE8 quella che si usa di pi\xF9, di sera.": "\u062E\u0637 \u0627\u0644\u0625\u0646\u0627\u0631\u0629: \u0647\u0648 \u0627\u0644\u0623\u0643\u062B\u0631 \u0627\u0633\u062A\u062E\u062F\u0627\u0645\u064B\u0627 \u0641\u064A \u0627\u0644\u0645\u0633\u0627\u0621.",
+    "La linea delle prese: richiusa da sola, fa scattare il differenziale.": "\u062E\u0637 \u0627\u0644\u0645\u0642\u0627\u0628\u0633: \u0639\u0646\u062F \u0625\u0639\u0627\u062F\u0629 \u0625\u063A\u0644\u0627\u0642\u0647 \u0648\u062D\u062F\u0647 \u064A\u0641\u0635\u0644 \u0627\u0644\u0642\u0627\u0637\u0639 \u0627\u0644\u062A\u0641\u0627\u0636\u0644\u064A.",
+    "La soglia di distacco (6500 W) \xE8 oltre il fondo scala: il PLC non la vede mai.": "\u0639\u062A\u0628\u0629 \u0627\u0644\u0641\u0635\u0644 (6500 W) \u0623\u0639\u0644\u0649 \u0645\u0646 \u0646\u0647\u0627\u064A\u0629 \u0645\u062F\u0649 \u0627\u0644\u0642\u064A\u0627\u0633: \u0627\u0644\u0640PLC \u0644\u0627 \u064A\u0631\u0627\u0647\u0627 \u0623\u0628\u062F\u064B\u0627.",
+    "L\u2019ordine di distacco \xE8 al contrario: si stacca prima la pompa, poi l\u2019auto.": "\u062A\u0631\u062A\u064A\u0628 \u0627\u0644\u0641\u0635\u0644 \u0645\u0639\u0643\u0648\u0633: \u062A\u064F\u0641\u0635\u0644 \u0627\u0644\u0645\u0636\u062E\u0629 \u0623\u0648\u0644\u064B\u0627 \u062B\u0645 \u0627\u0644\u0633\u064A\u0627\u0631\u0629.",
+    "Nessuna: il differenziale \xE8 guasto e scatta senza motivo.": "\u0648\u0644\u0627 \u0648\u0627\u062D\u062F: \u0627\u0644\u0642\u0627\u0637\u0639 \u0627\u0644\u062A\u0641\u0627\u0636\u0644\u064A \u0645\u0639\u0637\u0651\u0644 \u0648\u064A\u0641\u0635\u0644 \u0628\u0644\u0627 \u0633\u0628\u0628.",
+    "Non \xE8 quella. Guarda il registro: quale linea, richiusa da sola, fa scattare di nuovo il differenziale? Riprova.": "\u0644\u064A\u0633\u062A \u0647\u0630\u0647. \u0627\u0646\u0638\u0631 \u0625\u0644\u0649 \u0627\u0644\u0633\u062C\u0644: \u0623\u064A \u062E\u0637\u060C \u0639\u0646\u062F \u0625\u0639\u0627\u062F\u0629 \u0625\u063A\u0644\u0627\u0642\u0647 \u0648\u062D\u062F\u0647\u060C \u064A\u062C\u0639\u0644 \u0627\u0644\u0642\u0627\u0637\u0639 \u0627\u0644\u062A\u0641\u0627\u0636\u0644\u064A \u064A\u0641\u0635\u0644 \u0645\u0646 \u062C\u062F\u064A\u062F\u061F \u062D\u0627\u0648\u0644 \u0645\u0631\u0629 \u0623\u062E\u0631\u0649.",
+    "La stufetta del soggiorno aveva l\u2019isolante rovinato: perdeva verso terra circa 300 mA, dieci volte la soglia del differenziale. Scollegata la stufetta, le tre linee restano chiuse e il differenziale armato. Da ricordare: se il differenziale non resta armato, si aprono tutte le linee e se ne richiude una alla volta.": "\u0627\u0644\u0645\u062F\u0641\u0623\u0629 \u0641\u064A \u063A\u0631\u0641\u0629 \u0627\u0644\u062C\u0644\u0648\u0633 \u0643\u0627\u0646 \u0639\u0627\u0632\u0644\u0647\u0627 \u062A\u0627\u0644\u0641\u064B\u0627: \u0643\u0627\u0646\u062A \u062A\u0633\u0631\u0651\u0628 \u0646\u062D\u0648 \u0627\u0644\u0623\u0631\u0636 \u0646\u062D\u0648 300 mA\u060C \u0639\u0634\u0631\u0629 \u0623\u0636\u0639\u0627\u0641 \u0639\u062A\u0628\u0629 \u0627\u0644\u0642\u0627\u0637\u0639 \u0627\u0644\u062A\u0641\u0627\u0636\u0644\u064A. \u0628\u0639\u062F \u0641\u0635\u0644 \u0627\u0644\u0645\u062F\u0641\u0623\u0629 \u062A\u0628\u0642\u0649 \u0627\u0644\u062E\u0637\u0648\u0637 \u0627\u0644\u062B\u0644\u0627\u062B\u0629 \u0645\u063A\u0644\u0642\u0629 \u0648\u0627\u0644\u0642\u0627\u0637\u0639 \u0627\u0644\u062A\u0641\u0627\u0636\u0644\u064A \u0645\u0633\u0644\u0651\u062D\u064B\u0627. \u0644\u0644\u062A\u0630\u0643\u0651\u0631: \u0625\u0630\u0627 \u0644\u0645 \u064A\u0628\u0642\u064E \u0627\u0644\u0642\u0627\u0637\u0639 \u0627\u0644\u062A\u0641\u0627\u0636\u0644\u064A \u0645\u0633\u0644\u0651\u062D\u064B\u0627\u060C \u062A\u064F\u0641\u062A\u062D \u0643\u0644 \u0627\u0644\u062E\u0637\u0648\u0637 \u062B\u0645 \u064A\u064F\u0639\u0627\u062F \u0625\u063A\u0644\u0627\u0642\u0647\u0627 \u0648\u0627\u062D\u062F\u064B\u0627 \u0648\u0627\u062D\u062F\u064B\u0627.",
+    "Non \xE8 quella. Il termico \xE8 scattato, quindi il suo contatto si \xE8 aperto: perch\xE9 il comando non se n\u2019\xE8 accorto? Riprova.": "\u0644\u064A\u0633\u062A \u0647\u0630\u0647. \u0627\u0644\u0645\u0631\u062D\u0651\u0644 \u0627\u0644\u062D\u0631\u0627\u0631\u064A \u0641\u0635\u0644\u060C \u0625\u0630\u0646 \u0645\u0644\u0627\u0645\u0633\u0647 \u0627\u0646\u0641\u062A\u062D: \u0644\u0645\u0627\u0630\u0627 \u0644\u0645 \u062A\u0634\u0639\u0631 \u062F\u0627\u0626\u0631\u0629 \u0627\u0644\u062A\u062D\u0643\u0645 \u0628\u0630\u0644\u0643\u061F \u062D\u0627\u0648\u0644 \u0645\u0631\u0629 \u0623\u062E\u0631\u0649.",
+    "Lascia correre il pacco fino in fondo: il finecorsa deve fermarlo da solo, prima che cada dal nastro.": "\u062F\u0639 \u0627\u0644\u0637\u0631\u062F \u064A\u062C\u0631\u064A \u062D\u062A\u0649 \u0627\u0644\u0646\u0647\u0627\u064A\u0629: \u064A\u062C\u0628 \u0623\u0646 \u062A\u0648\u0642\u0641\u0647 \u0646\u0647\u0627\u064A\u0629 \u0627\u0644\u0634\u0648\u0637 \u0648\u062D\u062F\u0647\u0627\u060C \u0642\u0628\u0644 \u0623\u0646 \u064A\u0633\u0642\u0637 \u0639\u0646 \u0627\u0644\u0633\u064A\u0631.",
+    "Di nuovo in marcia, poi premi il fungo: deve fermare tutto, sempre. Ricordati di sbloccarlo.": "\u0634\u063A\u0651\u0644 \u0645\u0646 \u062C\u062F\u064A\u062F\u060C \u062B\u0645 \u0627\u0636\u063A\u0637 \u0632\u0631 \u0627\u0644\u0637\u0648\u0627\u0631\u0626: \u064A\u062C\u0628 \u0623\u0646 \u064A\u0648\u0642\u0641 \u0643\u0644 \u0634\u064A\u0621\u060C \u062F\u0627\u0626\u0645\u064B\u0627. \u062A\u0630\u0643\u0651\u0631 \u0623\u0646 \u062A\u062D\u0631\u0651\u0631\u0647.",
+    "In marcia, incastra un pacco: il motore si sforza e il termico deve fermare il nastro prima che il motore si bruci.": "\u0623\u062B\u0646\u0627\u0621 \u0627\u0644\u062A\u0634\u063A\u064A\u0644\u060C \u0627\u062C\u0639\u0644 \u0637\u0631\u062F\u064B\u0627 \u064A\u0639\u0644\u0642: \u0627\u0644\u0645\u062D\u0631\u0643 \u064A\u062C\u0647\u062F \u0648\u064A\u062C\u0628 \u0623\u0646 \u064A\u0648\u0642\u0641 \u0627\u0644\u0645\u0631\u062D\u0651\u0644 \u0627\u0644\u062D\u0631\u0627\u0631\u064A \u0627\u0644\u0633\u064A\u0631 \u0642\u0628\u0644 \u0623\u0646 \u064A\u062D\u062A\u0631\u0642 \u0627\u0644\u0645\u062D\u0631\u0643.",
+    "Apri il salvamotore (sui fili si lavora senza tensione), poi apri il banco e sistema il comando del termico.": "\u0627\u0641\u062A\u062D \u0642\u0627\u0637\u0639 \u062D\u0645\u0627\u064A\u0629 \u0627\u0644\u0645\u062D\u0631\u0643 (\u0639\u0644\u0649 \u0627\u0644\u0623\u0633\u0644\u0627\u0643 \u064A\u064F\u0639\u0645\u0644 \u0645\u0646 \u062F\u0648\u0646 \u062C\u0647\u062F)\u060C \u062B\u0645 \u0627\u0641\u062A\u062D \u0627\u0644\u0637\u0627\u0648\u0644\u0629 \u0648\u0623\u0635\u0644\u062D \u062F\u0627\u0626\u0631\u0629 \u062A\u062D\u0643\u0645 \u0627\u0644\u0645\u0631\u062D\u0651\u0644 \u0627\u0644\u062D\u0631\u0627\u0631\u064A.",
+    "Il contatto 95-96 del termico non era nel circuito di comando: con il sovraccarico il termico scattava ma il nastro non si fermava. Ora \xE8 in serie prima del fungo e il collaudo \xE8 completo. Da ricordare: ogni contatto che deve fermare la macchina sta in serie nel comando, e si collauda tutto prima di consegnare.": "\u0627\u0644\u0645\u0644\u0627\u0645\u0633 95-96 \u0644\u0644\u0645\u0631\u062D\u0651\u0644 \u0627\u0644\u062D\u0631\u0627\u0631\u064A \u0644\u0645 \u064A\u0643\u0646 \u0641\u064A \u062F\u0627\u0626\u0631\u0629 \u0627\u0644\u062A\u062D\u0643\u0645: \u0645\u0639 \u0627\u0644\u062D\u0645\u0644 \u0627\u0644\u0632\u0627\u0626\u062F \u0643\u0627\u0646 \u0627\u0644\u0645\u0631\u062D\u0651\u0644 \u0627\u0644\u062D\u0631\u0627\u0631\u064A \u064A\u0641\u0635\u0644 \u0644\u0643\u0646 \u0627\u0644\u0633\u064A\u0631 \u0644\u0627 \u064A\u062A\u0648\u0642\u0641. \u0627\u0644\u0622\u0646 \u0647\u0648 \u0639\u0644\u0649 \u0627\u0644\u062A\u0648\u0627\u0644\u064A \u0642\u0628\u0644 \u0632\u0631 \u0627\u0644\u0637\u0648\u0627\u0631\u0626 \u0648\u0627\u0644\u0641\u062D\u0635 \u0645\u0643\u062A\u0645\u0644. \u0644\u0644\u062A\u0630\u0643\u0651\u0631: \u0643\u0644 \u0645\u0644\u0627\u0645\u0633 \u064A\u062C\u0628 \u0623\u0646 \u064A\u0648\u0642\u0641 \u0627\u0644\u0622\u0644\u0629 \u064A\u0643\u0648\u0646 \u0639\u0644\u0649 \u0627\u0644\u062A\u0648\u0627\u0644\u064A \u0641\u064A \u062F\u0627\u0626\u0631\u0629 \u0627\u0644\u062A\u062D\u0643\u0645\u060C \u0648\u064A\u064F\u0641\u062D\u0635 \u0643\u0644 \u0634\u064A\u0621 \u0642\u0628\u0644 \u0627\u0644\u062A\u0633\u0644\u064A\u0645.",
+    "Non \xE8 quella. Marcia arriva al PLC e i pacchi sono contati giusti: che cosa tiene fermo il nastro nel programma? Riprova.": "\u0644\u064A\u0633\u062A \u0647\u0630\u0647. \u0623\u0645\u0631 \u0627\u0644\u062A\u0634\u063A\u064A\u0644 \u064A\u0635\u0644 \u0625\u0644\u0649 \u0627\u0644\u0640PLC \u0648\u0627\u0644\u0637\u0631\u0648\u062F \u0639\u064F\u062F\u0651\u062A \u0628\u0634\u0643\u0644 \u0635\u062D\u064A\u062D: \u0645\u0627 \u0627\u0644\u0630\u064A \u064A\u064F\u0628\u0642\u064A \u0627\u0644\u0633\u064A\u0631 \u0645\u062A\u0648\u0642\u0641\u064B\u0627 \u0641\u064A \u0627\u0644\u0628\u0631\u0646\u0627\u0645\u062C\u061F \u062D\u0627\u0648\u0644 \u0645\u0631\u0629 \u0623\u062E\u0631\u0649.",
+    "Con il nastro fermo apri il banco (un programma cambiato in marcia pu\xF2 far muovere la macchina di colpo): nel gradino del contatore scegli con che cosa si azzera.": "\u0648\u0627\u0644\u0633\u064A\u0631 \u0645\u062A\u0648\u0642\u0641 \u0627\u0641\u062A\u062D \u0627\u0644\u0637\u0627\u0648\u0644\u0629 (\u0628\u0631\u0646\u0627\u0645\u062C \u064A\u064F\u063A\u064A\u064E\u0651\u0631 \u0623\u062B\u0646\u0627\u0621 \u0627\u0644\u062A\u0634\u063A\u064A\u0644 \u0642\u062F \u064A\u062D\u0631\u0651\u0643 \u0627\u0644\u0622\u0644\u0629 \u0641\u062C\u0623\u0629): \u0641\u064A \u062F\u0631\u062C\u0629 \u0627\u0644\u0639\u062F\u0651\u0627\u062F \u0627\u062E\u062A\u0631 \u0628\u0645\u0627\u0630\u0627 \u064A\u0639\u0648\u062F \u0625\u0644\u0649 \u0627\u0644\u0635\u0641\u0631.",
+    "Il contatore dei pacchi non aveva l\u2019ingresso di azzeramento: dopo il primo lotto restava pieno e il nastro non ripartiva. Ora si azzera con Marcia e i lotti da 4 si susseguono. Da ricordare: un programma si collauda come un impianto, e si cambia solo a macchina ferma.": "\u0639\u062F\u0651\u0627\u062F \u0627\u0644\u0637\u0631\u0648\u062F \u0644\u0645 \u064A\u0643\u0646 \u0644\u0647 \u0645\u062F\u062E\u0644 \u062A\u0635\u0641\u064A\u0631: \u0628\u0639\u062F \u0627\u0644\u062F\u0641\u0639\u0629 \u0627\u0644\u0623\u0648\u0644\u0649 \u0628\u0642\u064A \u0645\u0645\u062A\u0644\u0626\u064B\u0627 \u0648\u0644\u0645 \u064A\u0639\u062F \u0627\u0644\u0633\u064A\u0631 \u064A\u0628\u062F\u0623. \u0627\u0644\u0622\u0646 \u064A\u0639\u0648\u062F \u0625\u0644\u0649 \u0627\u0644\u0635\u0641\u0631 \u0645\u0639 \u0627\u0644\u062A\u0634\u063A\u064A\u0644 \u0648\u062A\u062A\u062A\u0627\u0628\u0639 \u0627\u0644\u062F\u0641\u0639\u0627\u062A \u0645\u0646 4. \u0644\u0644\u062A\u0630\u0643\u0651\u0631: \u0627\u0644\u0628\u0631\u0646\u0627\u0645\u062C \u064A\u064F\u0641\u062D\u0635 \u0643\u0645\u0627 \u062A\u064F\u0641\u062D\u0635 \u0627\u0644\u0645\u0646\u0634\u0623\u0629\u060C \u0648\u0644\u0627 \u064A\u064F\u063A\u064A\u064E\u0651\u0631 \u0625\u0644\u0627 \u0648\u0627\u0644\u0622\u0644\u0629 \u0645\u062A\u0648\u0642\u0641\u0629.",
+    "Non \xE8 quella. Il robot ha ancora potenza e il braccio \xE8 gi\xF9: che segnale sta aspettando il programma? Riprova.": "\u0644\u064A\u0633\u062A \u0647\u0630\u0647. \u0627\u0644\u0631\u0648\u0628\u0648\u062A \u0645\u0627 \u0632\u0627\u0644\u062A \u0644\u062F\u064A\u0647 \u0627\u0644\u0642\u062F\u0631\u0629 \u0648\u0627\u0644\u0630\u0631\u0627\u0639 \u0641\u064A \u0627\u0644\u0623\u0633\u0641\u0644: \u0623\u064A \u0625\u0634\u0627\u0631\u0629 \u064A\u0646\u062A\u0638\u0631\u0647\u0627 \u0627\u0644\u0628\u0631\u0646\u0627\u0645\u062C\u061F \u062D\u0627\u0648\u0644 \u0645\u0631\u0629 \u0623\u062E\u0631\u0649.",
+    "Apri la portella, cos\xEC il robot resta senza potenza; sostituisci il sensore che non risponde, richiudi, riarma e premi Marcia.": "\u0627\u0641\u062A\u062D \u0627\u0644\u0628\u0648\u0627\u0628\u0629\u060C \u0641\u064A\u0628\u0642\u0649 \u0627\u0644\u0631\u0648\u0628\u0648\u062A \u0645\u0646 \u062F\u0648\u0646 \u0642\u062F\u0631\u0629\u061B \u0627\u0633\u062A\u0628\u062F\u0644 \u0627\u0644\u0645\u0633\u062A\u0634\u0639\u0631 \u0627\u0644\u0630\u064A \u0644\u0627 \u064A\u0633\u062A\u062C\u064A\u0628\u060C \u0623\u063A\u0644\u0642\u060C \u0623\u0639\u062F \u0627\u0644\u062A\u0633\u0644\u064A\u062D \u0648\u0627\u0636\u063A\u0637 \u0627\u0644\u062A\u0634\u063A\u064A\u0644.",
+    "La cella ha prodotto per tutta la notte. Ogni guasto \xE8 stato trovato dal pannello e riparato in sicurezza, con il robot senza potenza. Da ricordare: un robot fermo non \xE8 un robot sicuro; dentro la cella si entra solo a portella aperta.": "\u0627\u0644\u062E\u0644\u064A\u0629 \u0623\u0646\u062A\u062C\u062A \u0637\u0648\u0627\u0644 \u0627\u0644\u0644\u064A\u0644. \u0643\u0644 \u0639\u0637\u0644 \u0648\u064F\u062C\u062F \u0645\u0646 \u0644\u0648\u062D\u0629 \u0627\u0644\u0645\u0634\u063A\u0651\u0644 \u0648\u0623\u064F\u0635\u0644\u062D \u0628\u0623\u0645\u0627\u0646\u060C \u0648\u0627\u0644\u0631\u0648\u0628\u0648\u062A \u0645\u0646 \u062F\u0648\u0646 \u0642\u062F\u0631\u0629. \u0644\u0644\u062A\u0630\u0643\u0651\u0631: \u0627\u0644\u0631\u0648\u0628\u0648\u062A \u0627\u0644\u0645\u062A\u0648\u0642\u0641 \u0644\u064A\u0633 \u0631\u0648\u0628\u0648\u062A\u064B\u0627 \u0622\u0645\u0646\u064B\u0627\u061B \u0644\u0627 \u064A\u064F\u062F\u062E\u0644 \u0625\u0644\u0649 \u0627\u0644\u062E\u0644\u064A\u0629 \u0625\u0644\u0627 \u0648\u0627\u0644\u0628\u0648\u0627\u0628\u0629 \u0645\u0641\u062A\u0648\u062D\u0629.",
+    "Non \xE8 quella. Prima del buio la rete era sopra il limite, ma il PLC non ha staccato niente: che cosa doveva vedere? Riprova.": "\u0644\u064A\u0633\u062A \u0647\u0630\u0647. \u0642\u0628\u0644 \u0627\u0644\u0638\u0644\u0627\u0645 \u0643\u0627\u0646\u062A \u0627\u0644\u0634\u0628\u0643\u0629 \u0641\u0648\u0642 \u0627\u0644\u062D\u062F\u060C \u0644\u0643\u0646 \u0627\u0644\u0640PLC \u0644\u0645 \u064A\u0641\u0635\u0644 \u0634\u064A\u0626\u064B\u0627: \u0645\u0627\u0630\u0627 \u0643\u0627\u0646 \u064A\u062C\u0628 \u0623\u0646 \u064A\u0631\u0649\u061F \u062D\u0627\u0648\u0644 \u0645\u0631\u0629 \u0623\u062E\u0631\u0649.",
+    "Rifai la serata da capo e guardala fino alle 23. Alle 21:30 tieni d\u2019occhio il bagno: prima si asciuga la sonda, poi si tacita la sirena.": "\u0623\u0639\u062F \u0627\u0644\u0633\u0647\u0631\u0629 \u0645\u0646 \u0627\u0644\u0628\u062F\u0627\u064A\u0629 \u0648\u0631\u0627\u0642\u0628\u0647\u0627 \u062D\u062A\u0649 \u0627\u0644\u0633\u0627\u0639\u0629 23. \u0641\u064A 21:30 \u0627\u0646\u062A\u0628\u0647 \u0644\u0644\u062D\u0645\u0651\u0627\u0645: \u0623\u0648\u0644\u064B\u0627 \u062A\u064F\u062C\u0641\u064E\u0651\u0641 \u0627\u0644\u0645\u062C\u0633\u0651\u0629\u060C \u062B\u0645 \u062A\u064F\u0633\u0643\u064E\u062A \u0635\u0641\u0627\u0631\u0629 \u0627\u0644\u0625\u0646\u0630\u0627\u0631.",
+    "La soglia di distacco era sopra il limite del contatore e oltre il fondo scala del misuratore: il PLC non staccava mai niente. Con la soglia a 5800 W la casa ha retto la cena con l\u2019auto in carica e la pompa accesa. Da ricordare: una soglia vale solo se il misuratore la pu\xF2 vedere, e va sotto il limite con margine.": "\u0639\u062A\u0628\u0629 \u0627\u0644\u0641\u0635\u0644 \u0643\u0627\u0646\u062A \u0641\u0648\u0642 \u062D\u062F \u0627\u0644\u0639\u062F\u0651\u0627\u062F \u0648\u0623\u0639\u0644\u0649 \u0645\u0646 \u0646\u0647\u0627\u064A\u0629 \u0645\u062F\u0649 \u062C\u0647\u0627\u0632 \u0627\u0644\u0642\u064A\u0627\u0633: \u0627\u0644\u0640PLC \u0644\u0645 \u064A\u0643\u0646 \u064A\u0641\u0635\u0644 \u0634\u064A\u0626\u064B\u0627 \u0623\u0628\u062F\u064B\u0627. \u0645\u0639 \u0627\u0644\u0639\u062A\u0628\u0629 \u0639\u0646\u062F 5800 W \u0635\u0645\u062F \u0627\u0644\u0645\u0646\u0632\u0644 \u0623\u062B\u0646\u0627\u0621 \u0627\u0644\u0639\u0634\u0627\u0621 \u0648\u0627\u0644\u0633\u064A\u0627\u0631\u0629 \u062A\u064F\u0634\u062D\u0646 \u0648\u0627\u0644\u0645\u0636\u062E\u0629 \u062A\u0639\u0645\u0644. \u0644\u0644\u062A\u0630\u0643\u0651\u0631: \u0627\u0644\u0639\u062A\u0628\u0629 \u0644\u0627 \u062A\u0641\u064A\u062F \u0625\u0644\u0627 \u0625\u0630\u0627 \u0627\u0633\u062A\u0637\u0627\u0639 \u062C\u0647\u0627\u0632 \u0627\u0644\u0642\u064A\u0627\u0633 \u0631\u0624\u064A\u062A\u0647\u0627\u060C \u0648\u064A\u062C\u0628 \u0623\u0646 \u062A\u0643\u0648\u0646 \u062A\u062D\u062A \u0627\u0644\u062D\u062F \u0645\u0639 \u0647\u0627\u0645\u0634."
+  };
+
   // src/i18n/ar.js
   var ROLE = { "del neutro": "\u0627\u0644\u0645\u062D\u0627\u064A\u062F", "di terra": "\u0627\u0644\u0623\u0631\u0636\u064A", "di fase": "\u0627\u0644\u0637\u0648\u0631", "a bassa tensione": "\u0627\u0644\u062C\u0647\u062F \u0627\u0644\u0645\u0646\u062E\u0641\u0636", "di comando": "\u0627\u0644\u062A\u062D\u0643\u0645", "del positivo": "\u0627\u0644\u0645\u0648\u062C\u0628", "del negativo": "\u0627\u0644\u0633\u0627\u0644\u0628", "in continua": "\u0627\u0644\u062A\u064A\u0627\u0631 \u0627\u0644\u0645\u0633\u062A\u0645\u0631" };
   var COLORI = { "blu": "\u0623\u0632\u0631\u0642", "giallo-verde": "\u0623\u0635\u0641\u0631-\u0623\u062E\u0636\u0631", "marrone, nero o grigio": "\u0628\u0646\u064A\u064B\u0651\u0627 \u0623\u0648 \u0623\u0633\u0648\u062F \u0623\u0648 \u0631\u0645\u0627\u062F\u064A\u064B\u0651\u0627", "rosso, marrone, nero o grigio": "\u0623\u062D\u0645\u0631 \u0623\u0648 \u0628\u0646\u064A\u064B\u0651\u0627 \u0623\u0648 \u0623\u0633\u0648\u062F \u0623\u0648 \u0631\u0645\u0627\u062F\u064A\u064B\u0651\u0627", "di un colore diverso da blu e giallo-verde": "\u0628\u0644\u0648\u0646 \u0645\u062E\u062A\u0644\u0641 \u0639\u0646 \u0627\u0644\u0623\u0632\u0631\u0642 \u0648\u0627\u0644\u0623\u0635\u0641\u0631-\u0627\u0644\u0623\u062E\u0636\u0631", "rosso": "\u0623\u062D\u0645\u0631", "nero": "\u0623\u0633\u0648\u062F", "rosso o nero": "\u0623\u062D\u0645\u0631 \u0623\u0648 \u0623\u0633\u0648\u062F" };
@@ -24330,7 +24368,7 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
     [/^Togli il lucchetto da (.+)$/, (m, t) => `\u0623\u0632\u0644 \u0627\u0644\u0642\u0641\u0644 \u0639\u0646 ${t(m[1])}`],
     [/^Protezioni scattate: (.+)\.$/, (m, t) => `\u062D\u0645\u0627\u064A\u0627\u062A \u0641\u0635\u0644\u062A: ${t(m[1])}.`]
   ];
-  registerLang("ar", { ...ar_1_default, ...ar_2_default, ...ar_3_default, ...ar_4_default, ...ar_5_default, ...ar_6_default, ...ar_7_default, ...ar_8_default, ...ar_9_default, ...ar_10_default, ...ar_11_default, ...ar_12_default, ...ar_13_default, ...ar_14_default, ...ar_15_default, ...ar_16_default, ...ar_17_default, ...ar_18_default, ...ar_19_default, ...ar_20_default, ...ar_21_default, ...ar_22_default, ...ar_23_default, ...ar_24_default, ...ar_25_default, ...ar_26_default, ...ar_27_default, ...ar_28_default, ...ar_29_default, ...ar_30_default, ...ar_31_default, ...ar_32_default, ...ar_33_default, ...ar_34_default, ...ar_35_default, ...ar_36_default, ...ar_37_default, ...ar_38_default, ...ar_39_default, ...ar_40_default, ...ar_41_default, ...ar_42_default, ...ar_45_default, ...ar_46_default, ...ar_47_default, ...ar_48_default, ...ar_49_default, ...ar_50_default, ...ar_51_default, ...ar_52_default, ...ar_53_default }, PAT);
+  registerLang("ar", { ...ar_1_default, ...ar_2_default, ...ar_3_default, ...ar_4_default, ...ar_5_default, ...ar_6_default, ...ar_7_default, ...ar_8_default, ...ar_9_default, ...ar_10_default, ...ar_11_default, ...ar_12_default, ...ar_13_default, ...ar_14_default, ...ar_15_default, ...ar_16_default, ...ar_17_default, ...ar_18_default, ...ar_19_default, ...ar_20_default, ...ar_21_default, ...ar_22_default, ...ar_23_default, ...ar_24_default, ...ar_25_default, ...ar_26_default, ...ar_27_default, ...ar_28_default, ...ar_29_default, ...ar_30_default, ...ar_31_default, ...ar_32_default, ...ar_33_default, ...ar_34_default, ...ar_35_default, ...ar_36_default, ...ar_37_default, ...ar_38_default, ...ar_39_default, ...ar_40_default, ...ar_41_default, ...ar_42_default, ...ar_45_default, ...ar_46_default, ...ar_47_default, ...ar_48_default, ...ar_49_default, ...ar_50_default, ...ar_51_default, ...ar_52_default, ...ar_53_default, ...ar_55_default }, PAT);
 
   // src/trilocale/house.js
   function houseState(session2, on = true) {
@@ -25549,13 +25587,13 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
         switchOn: "Acceso l\u2019interruttore del corridoio.",
         switchOff: "Spento l\u2019interruttore del corridoio.",
         answerOk: "Risposta giusta: la linea delle prese disperde.",
-        answerKo: "Risposta sbagliata. Si pu\xF2 riprovare.",
+        answerKo: "Non \xE8 quella. Guarda il registro: quale linea, richiusa da sola, fa scattare di nuovo il differenziale? Riprova.",
         checkOk: "Verifica: impianto funzionante.",
         checkKo: "Verifica: qualcosa non va ancora."
       },
       win: {
         title: "La luce \xE8 tornata",
-        text: "La stufetta del soggiorno aveva l\u2019isolante rovinato: perdeva verso terra circa 300 mA, dieci volte la soglia del differenziale. Scollegata la stufetta, le tre linee restano chiuse e il differenziale armato."
+        text: "La stufetta del soggiorno aveva l\u2019isolante rovinato: perdeva verso terra circa 300 mA, dieci volte la soglia del differenziale. Scollegata la stufetta, le tre linee restano chiuse e il differenziale armato. Da ricordare: se il differenziale non resta armato, si aprono tutte le linee e se ne richiude una alla volta."
       }
     },
     officina: {
@@ -25615,23 +25653,23 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
         rewind: "Pacco rimesso all\u2019inizio del nastro.",
         fixed: "Il 95-96 del termico ora \xE8 in serie nel comando.",
         answerOk: "Risposta giusta: il 95-96 del termico non \xE8 nel comando.",
-        answerKo: "Risposta sbagliata. Si pu\xF2 riprovare.",
+        answerKo: "Non \xE8 quella. Il termico \xE8 scattato, quindi il suo contatto si \xE8 aperto: perch\xE9 il comando non se n\u2019\xE8 accorto? Riprova.",
         checkOk: "Verifica: collaudo superato.",
         checkKo: "Verifica: qualcosa non va ancora."
       },
       hints: [
         "Premi Marcia: il nastro deve partire e la spia accendersi.",
-        "Lascia correre il pacco fino in fondo: il finecorsa deve fermarlo da solo.",
+        "Lascia correre il pacco fino in fondo: il finecorsa deve fermarlo da solo, prima che cada dal nastro.",
         "Rimetti il pacco, premi Marcia e poi Arresto.",
-        "Di nuovo in marcia, poi premi il fungo. Ricordati di sbloccarlo.",
-        "In marcia, incastra un pacco: il motore si sforza e il termico deve fermare il nastro.",
+        "Di nuovo in marcia, poi premi il fungo: deve fermare tutto, sempre. Ricordati di sbloccarlo.",
+        "In marcia, incastra un pacco: il motore si sforza e il termico deve fermare il nastro prima che il motore si bruci.",
         "Il termico \xE8 scattato ma il nastro girava: perch\xE9? Rispondi.",
-        "Apri il salvamotore, poi apri il banco e sistema il comando del termico.",
+        "Apri il salvamotore (sui fili si lavora senza tensione), poi apri il banco e sistema il comando del termico.",
         "Richiudi il salvamotore, riarma il termico, rifai le prove e premi Verifica."
       ],
       win: {
         title: "Il turno pu\xF2 partire",
-        text: "Il contatto 95-96 del termico non era nel circuito di comando: con il sovraccarico il termico scattava ma il nastro non si fermava. Ora \xE8 in serie prima del fungo e il collaudo \xE8 completo."
+        text: "Il contatto 95-96 del termico non era nel circuito di comando: con il sovraccarico il termico scattava ma il nastro non si fermava. Ora \xE8 in serie prima del fungo e il collaudo \xE8 completo. Da ricordare: ogni contatto che deve fermare la macchina sta in serie nel comando, e si collauda tutto prima di consegnare."
       }
     },
     automatico: {
@@ -25687,7 +25725,7 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
         programLive: "Programma cambiato con il nastro in marcia.",
         fixed: "Nel programma il contatore ora si azzera con Marcia.",
         answerOk: "Risposta giusta: il contatore non si azzera mai.",
-        answerKo: "Risposta sbagliata. Si pu\xF2 riprovare.",
+        answerKo: "Non \xE8 quella. Marcia arriva al PLC e i pacchi sono contati giusti: che cosa tiene fermo il nastro nel programma? Riprova.",
         checkOk: "Verifica: collaudo superato.",
         checkKo: "Verifica: qualcosa non va ancora."
       },
@@ -25698,12 +25736,12 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
         "In marcia, premi Arresto.",
         "Di nuovo in marcia, poi premi il fungo. Ricordati di sbloccarlo.",
         "Marcia arrivava al PLC ma il nastro non ripartiva: perch\xE9? Rispondi.",
-        "Con il nastro fermo apri il banco: nel gradino del contatore scegli con che cosa si azzera.",
+        "Con il nastro fermo apri il banco (un programma cambiato in marcia pu\xF2 far muovere la macchina di colpo): nel gradino del contatore scegli con che cosa si azzera.",
         "Rifai le prove, con due lotti di fila, e premi Verifica."
       ],
       win: {
         title: "La linea riparte",
-        text: "Il contatore dei pacchi non aveva l\u2019ingresso di azzeramento: dopo il primo lotto restava pieno e il nastro non ripartiva. Ora si azzera con Marcia e i lotti da 4 si susseguono."
+        text: "Il contatore dei pacchi non aveva l\u2019ingresso di azzeramento: dopo il primo lotto restava pieno e il nastro non ripartiva. Ora si azzera con Marcia e i lotti da 4 si susseguono. Da ricordare: un programma si collauda come un impianto, e si cambia solo a macchina ferma."
       }
     },
     fabbrica: {
@@ -25767,21 +25805,21 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
         late: "Riparato in ritardo: ",
         end: "Ore 6:00: fine del turno.",
         answerOk: "Risposta giusta: il finecorsa \u201Cbraccio gi\xF9\u201D non risponde.",
-        answerKo: "Risposta sbagliata. Si pu\xF2 riprovare.",
+        answerKo: "Non \xE8 quella. Il robot ha ancora potenza e il braccio \xE8 gi\xF9: che segnale sta aspettando il programma? Riprova.",
         checkOk: "Verifica: turno consegnato.",
         checkKo: "Verifica: qualcosa non va ancora."
       },
       hints: [
         "Riarma le sicurezze (tasto Riarmo) e premi Marcia: il turno comincia quando il robot riceve potenza.",
         "La cella si \xE8 fermata: guarda il pannello e dove si \xE8 fermato il braccio, poi rispondi.",
-        "Apri la portella, sostituisci il sensore che non risponde, richiudi, riarma e premi Marcia.",
+        "Apri la portella, cos\xEC il robot resta senza potenza; sostituisci il sensore che non risponde, richiudi, riarma e premi Marcia.",
         "Tieni d\u2019occhio il pannello: ogni guasto ha un tempo massimo.",
         "Il turno finisce alle 6:00: intanto tieni la cella in produzione.",
         "Turno finito: premi Verifica."
       ],
       win: {
         title: "Turno consegnato",
-        text: "La cella ha prodotto per tutta la notte. Ogni guasto \xE8 stato trovato dal pannello e riparato in sicurezza, con il robot senza potenza."
+        text: "La cella ha prodotto per tutta la notte. Ogni guasto \xE8 stato trovato dal pannello e riparato in sicurezza, con il robot senza potenza. Da ricordare: un robot fermo non \xE8 un robot sicuro; dentro la cella si entra solo a portella aperta."
       }
     },
     casa: {
@@ -25862,7 +25900,7 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
         replay: "Serata rifatta da capo.",
         end: "Le 23:00: fine della serata.",
         answerOk: "Risposta giusta: la soglia di distacco \xE8 sopra il limite e il PLC non la vede mai.",
-        answerKo: "Risposta sbagliata. Si pu\xF2 riprovare.",
+        answerKo: "Non \xE8 quella. Prima del buio la rete era sopra il limite, ma il PLC non ha staccato niente: che cosa doveva vedere? Riprova.",
         checkOk: "Verifica: casa consegnata.",
         checkKo: "Verifica: qualcosa non va ancora."
       },
@@ -25871,12 +25909,12 @@ svg.procgraph{display:block;width:100%;max-width:560px;height:auto;margin:0 auto
         "Guarda il pannello: le potenze, la batteria, l\u2019auto e le due stanze.",
         "La casa \xE8 saltata: prima del buio la rete era sopra il limite e nessun carico si era staccato. Perch\xE9? Rispondi.",
         "Apri il banco: nei due gradini del distacco la soglia va sotto il limite, con margine.",
-        "Rifai la serata da capo e guardala fino alle 23. Alle 21:30 tieni d\u2019occhio il bagno.",
+        "Rifai la serata da capo e guardala fino alle 23. Alle 21:30 tieni d\u2019occhio il bagno: prima si asciuga la sonda, poi si tacita la sirena.",
         "Serata finita: premi Verifica e consegna."
       ],
       win: {
         title: "Casa consegnata",
-        text: "La soglia di distacco era sopra il limite del contatore e oltre il fondo scala del misuratore: il PLC non staccava mai niente. Con la soglia a 5800 W la casa ha retto la cena con l\u2019auto in carica e la pompa accesa."
+        text: "La soglia di distacco era sopra il limite del contatore e oltre il fondo scala del misuratore: il PLC non staccava mai niente. Con la soglia a 5800 W la casa ha retto la cena con l\u2019auto in carica e la pompa accesa. Da ricordare: una soglia vale solo se il misuratore la pu\xF2 vedere, e va sotto il limite con margine."
       }
     }
   };

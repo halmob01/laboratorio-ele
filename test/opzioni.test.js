@@ -48,3 +48,16 @@ test('nelle previsioni la risposta giusta non si riconosce dalla lunghezza', () 
   }
   assert.deepEqual(fuori, []);
 });
+
+// Le domande di diagnosi delle prove 3D (il momento centrale della prova) seguono la stessa regola delle previsioni.
+test('nelle prove la risposta giusta della diagnosi non si riconosce dalla lunghezza', () => {
+  const fuori = [];
+  for (const L of levels) {
+    const d = L.prova && L.unit && L.unit.fault && L.unit.fault.diagnosis;
+    if (!d) continue;
+    const len = d.options.map(o => o.text.length), i = d.options.findIndex(o => o.id === d.correct);
+    const r = len[i] / Math.max(...len.filter((_, k) => k !== i));
+    if (r < 0.85 || r > 1.15) fuori.push(`${L.id} (${r.toFixed(2)})`);
+  }
+  assert.deepEqual(fuori, []);
+});
