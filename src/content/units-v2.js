@@ -3721,7 +3721,7 @@ export const UNITS_V2 = {
           title: 'La polarità e il LED',
           paras: [
             'A una lampada a incandescenza non importa il verso: è un filo che scalda e si accende comunque. Un LED invece è un diodo: lascia passare la corrente in un solo verso, dall’anodo (A) al catodo (K). L’anodo va verso il positivo, il catodo verso il negativo. Al contrario resta spento.',
-            'Per questo nei circuiti in continua la polarità conta: un dispositivo collegato al contrario non funziona, e alcuni si rompono.',
+            'Per questo nei circuiti in continua la polarità conta: un dispositivo collegato al contrario non funziona, e alcuni si rompono. Il LED fa da spia: va in parallelo alla lampada, così riceve la stessa tensione e si accende con lei. L’interruttore si mette di solito sul positivo, come in alternata sulla fase.',
           ],
           warn: 'Un LED vero non si collega mai da solo a una batteria: serve una piccola resistenza in serie che limita la corrente (nei LED fatti per 12 V è già dentro). Nel gioco la resistenza è compresa nel LED.',
         },
@@ -3729,7 +3729,7 @@ export const UNITS_V2 = {
           type: 'spiegazione',
           title: 'Il cortocircuito in continua',
           paras: [
-            'Se il + e il − di una batteria si toccano con un filo, senza un carico in mezzo, la corrente è limitata solo dalla piccola resistenza interna della batteria: centinaia di ampere. Il filo scalda, la batteria si rovina. Per questo le batterie hanno un fusibile, che qui brucia appena c’è un corto.',
+            'Se il + e il − di una batteria si toccano con un filo, senza un carico in mezzo, la corrente è limitata solo dalla piccola resistenza interna della batteria: centinaia di ampere. Il filo scalda, la batteria si rovina. Per questo le batterie hanno un fusibile: nel gioco è dentro la batteria e brucia appena c’è un corto.',
           ],
           warn: 'Anche se 12 V non sono pericolosi da toccare, un cortocircuito su una batteria può bruciare i fili e dare fuoco.',
         },
@@ -3800,7 +3800,7 @@ export const UNITS_V2 = {
           title: 'Serie e parallelo: quanti pannelli e come',
           paras: [
             'Come per le batterie, due pannelli in serie sommano le tensioni; in parallelo la tensione resta quella di uno e si sommano le correnti. Un pannello da 22 V da solo non arriva a 30 V: l’inverter non parte. Due in serie danno 44 V: dentro la finestra. Tre in serie darebbero 66 V: oltre il limite, e l’inverter si brucia.',
-            'Una stringa fotovoltaica è proprio questo: più pannelli in serie, in numero scelto in modo che la tensione, con il sole più forte, resti sotto il limite dell’inverter e, con il sole più debole, non scenda troppo sotto il minimo.',
+            'Una stringa fotovoltaica è proprio questo: più pannelli in serie, in numero scelto in modo che la tensione, con il sole più forte, resti sotto il limite dell’inverter. Si lascia margine: con il freddo la tensione dei pannelli sale un po’. Qui il terzo pannello resta fuori.',
           ],
           table: {
             head: ['Collegamento', 'Tensione a pieno sole', 'Inverter'],
@@ -3888,7 +3888,7 @@ export const UNITS_V2 = {
           title: 'Due soglie: l’isteresi',
           paras: [
             'Servono due soglie diverse, una per accendere e una per spegnere: si chiama isteresi. Appena lo scaldabagno si accende consuma 2 kW e la potenza scambiata sale di colpo: se la soglia di spegnimento fosse la stessa dell’accensione si spegnerebbe subito e ripartirebbe di continuo.',
-            'Qui si accende con una potenza sotto −2200 W (immissione di più di 2,2 kW) e si spegne con una potenza sopra 300 W (la casa preleva). In mezzo mantiene il suo stato: Set e Reset.',
+            'Qui si accende sotto −2200 W: lo scaldabagno prende 2000 W e restano 200 W di scorta. Si spegne sopra +300 W, non a zero, per non spegnerlo a ogni piccolo prelievo di un attimo. In mezzo mantiene il suo stato: Set e Reset. La regola: tra le due soglie ci deve essere più della potenza del carico (2500 W contro 2000).',
           ],
         },
         {
@@ -3934,7 +3934,6 @@ export const UNITS_V2 = {
           title: 'Che cosa fa la batteria',
           paras: [
             'La batteria da 10 kWh ha una carica, in percentuale. Se la produzione supera il consumo, l’eccedenza (fino a 3 kW, la potenza massima della batteria) la carica; se il consumo supera la produzione, la batteria scarica e copre la differenza, fino a esaurirsi. Quando è piena, l’eccedenza va in rete; quando è vuota, si preleva di nuovo.',
-            'La scena mostra la carica a sinistra: verde mentre si carica, arancione mentre si scarica.',
           ],
           table: {
             head: ['Situazione', 'La batteria', 'La rete'],
@@ -3951,6 +3950,13 @@ export const UNITS_V2 = {
           paras: [
             'Due unità che sembrano uguali ma dicono cose diverse. I kilowattora (kWh) dicono quanta energia c’è nella batteria, come i litri in una tanica. I kilowatt (kW) dicono quanto in fretta l’energia entra o esce, come l’acqua che scorre dal rubinetto.',
             'Questa batteria contiene 10 kWh e li può dare al massimo a 3 kW: a piena potenza si svuota in poco più di tre ore. Il contatore di casa conta i kWh per la bolletta; il suo limite, invece, è in kW.',
+          ],
+        },
+        {
+          type: 'spiegazione',
+          title: 'Chi comanda la batteria',
+          paras: [
+            'La batteria è in continua e la casa in alternata: in mezzo c’è il suo inverter, che decide da solo quando caricare e quando scaricare. L’interruttore del banco mette in servizio batteria e inverter, e la spia lo segnala. Se la sera la casa chiede più di 3 kW, il resto arriva dalla rete.',
           ],
         },
         {
@@ -3988,7 +3994,7 @@ export const UNITS_V2 = {
           title: 'La colonnina e il limite del contatore',
           paras: [
             'Una colonnina di ricarica per auto assorbe molta potenza: qui 3,7 kW, quanto tutti gli elettrodomestici di casa messi insieme. Il contratto con il fornitore fissa una potenza massima; se la casa la supera per un po’, il contatore stacca tutto. Qui il limite è 4,5 kW e il contatore scatta se resta sopra per più di 20 secondi.',
-            'Quindi la colonnina non può partire sempre: deve partire quando la casa ha margine e fermarsi prima che la somma dei consumi raggiunga il limite. Si chiama gestione del carico.',
+            'Quindi la colonnina non può partire sempre: deve partire quando la casa ha margine e fermarsi prima che la somma dei consumi raggiunga il limite. Si chiama gestione del carico. L’auto si carica a pezzi, nelle ore con margine, e riprende da dove era arrivata.',
           ],
         },
         {
@@ -4365,7 +4371,7 @@ UNITS_V2['c47-videocitofono'] = {
         title: 'Il trasformatore ha due lati',
         paras: [
           'Il primario (morsetti 1 e 2) si collega alla rete e resta sempre alimentato. Il secondario (morsetti 3 e 4) dà i 12 V. Tra i due lati non c’è nessun filo: l’energia passa attraverso il campo magnetico del nucleo, quindi un guasto sul portone non arriva mai alla rete.',
-          'Con il trasformatore alimentato ma nessun tasto premuto non passa corrente: il secondario è un circuito aperto, come una lampada con l’interruttore spento.',
+          'Con il trasformatore alimentato ma nessun tasto premuto non passa corrente: il secondario è un circuito aperto, come una lampada con l’interruttore spento. I trasformatori per campanelli e citofoni sono di sicurezza: reggono un corto sul secondario o hanno una protezione dentro.',
         ],
         table: {
           head: ['Lato', 'Morsetti', 'Tensione', 'Che cosa si collega'],
@@ -4396,7 +4402,7 @@ UNITS_V2['c47-videocitofono'] = {
         focus: ['TR', 'SBC', 'B', 'SBA', 'SE'],
         paras: [
           'Dal morsetto 3 del secondario parte la linea a 12 V: un ramo passa dal tasto di chiamata e arriva alla suoneria, l’altro passa dall’apriporta e arriva alla serratura. Entrambi tornano al morsetto 4.',
-          'La serratura elettrica si sblocca finché il tasto è premuto. I fili a bassissima tensione non sono fase né neutro: puoi usare il bianco.',
+          'La serratura elettrica ha dentro una piccola bobina: finché il tasto è premuto la bobina tira il fermo e il portone si apre. I fili a bassissima tensione non sono fase né neutro: puoi usare il bianco.',
         ],
       },
       {
@@ -4434,7 +4440,7 @@ UNITS_V2['c47-videocitofono'] = {
           { id: 'c', text: 'Non succede niente: il differenziale stacca prima che si bruci.' },
         ],
         correct: 'b',
-        why: 'Una serratura da 12 V sottoposta a 230 V si brucia. Il pericolo vero è un altro: la pulsantiera sul portone è raggiungibile da chiunque e non deve mai avere la tensione di rete. Il trasformatore separa i due lati.',
+        why: 'Una serratura da 12 V sottoposta a 230 V si brucia, e il differenziale non scatta: la corrente torna tutta dal neutro, non c’è dispersione. Il pericolo vero è un altro: la pulsantiera sul portone è raggiungibile da chiunque e non deve mai avere la tensione di rete. Il trasformatore separa i due lati.',
       },
       {
         type: 'previsione',
@@ -4500,7 +4506,7 @@ UNITS_V2['c48-luce-automatica'] = {
         title: 'Un interruttore che si comanda da solo',
         paras: [
           'Un sensore è un interruttore che nessuno aziona con la mano: lo aziona qualcosa del mondo. Il sensore di luce chiude il contatto quando è buio. Il sensore di presenza lo chiude quando passa qualcuno.',
-          'Il contatto di un sensore è “libero da tensione”: apre e chiude e basta, non porta una tensione sua. Come per un interruttore, la tensione ce la porti tu con un filo.',
+          'Il contatto di un sensore è “libero da tensione”: apre e chiude e basta, non porta una tensione sua. Come per un interruttore, la tensione ce la porti tu con un filo. I sensori veri hanno anche due morsetti di alimentazione per la loro elettronica; nel gioco sono già alimentati.',
         ],
         table: {
           head: ['Sensore', 'Chiude il contatto quando', 'A che serve'],
@@ -4547,7 +4553,7 @@ UNITS_V2['c48-luce-automatica'] = {
         type: 'spiegazione',
         title: 'Il temporizzatore: perché la luce resta accesa',
         paras: [
-          'Il sensore di presenza chiude il contatto solo mentre vede muoversi qualcuno. Se la luce seguisse solo lui, si spegnerebbe a metà corridoio. Il temporizzatore risolve il problema: quando la bobina perde la tensione, il contatto resta chiuso ancora per il tempo impostato, 10 secondi.',
+          'Il sensore di presenza chiude il contatto solo mentre vede muoversi qualcuno. Se la luce seguisse solo lui, si spegnerebbe a metà corridoio. Il temporizzatore risolve il problema: quando la bobina perde la tensione, il suo orologio interno tiene chiuso il contatto ancora per il tempo impostato sul pezzo, qui 10 secondi.',
           'Se in quel tempo la bobina torna alimentata, il tempo riparte da capo.',
         ],
         table: {
@@ -4657,14 +4663,14 @@ UNITS_V2['c49-casa-plc'] = {
         type: 'spiegazione',
         title: 'Che cos’è una scena',
         paras: [
-          'Una scena cambia più luci con un solo tocco. Con i fili ti servirebbero molti relè e molti collegamenti; con il PLC basta un programma: il PLC legge i tasti e decide quali luci accendere.',
+          'Una scena cambia più luci con un solo tocco. Con i fili ti servirebbero molti relè e molti collegamenti; con il PLC basta un programma: il PLC legge i tasti e decide quali luci accendere. Conviene quando le scene sono tante o cambiano: una scena nuova si scrive, non si cabla.',
           'In questo livello l’impianto è già cablato. Il tuo lavoro è scrivere il programma.',
         ],
         table: {
           head: ['Scena', 'Luce dell’ingresso', 'Luce del soggiorno'],
           rows: [
             ['Torno', 'accesa', 'accesa'],
-            ['Cena', 'spenta', 'accesa'],
+            ['Cena', 'spenta', 'accesa (anche se era spenta)'],
             ['Esco', 'spenta', 'spenta'],
           ],
         },
@@ -4803,7 +4809,7 @@ UNITS_V2['c50-allarme'] = {
         type: 'spiegazione',
         title: 'Nei sistemi veri i sensori sono diversi',
         paras: [
-          'Negli impianti d’allarme veri i contatti dei sensori sono normalmente chiusi e stanno in serie: un filo tagliato o un sensore guasto apre il circuito e fa suonare l’allarme, come se ci fosse un pericolo. È più sicuro, perché un guasto non si nasconde.',
+          'Negli impianti d’allarme veri i contatti dei sensori sono normalmente chiusi e stanno in serie: un filo tagliato o un sensore guasto apre il circuito e fa suonare l’allarme, come se ci fosse un pericolo. È più sicuro, perché un guasto non si nasconde. E nelle centrali vere la tacitazione spegne la sirena ma lascia acceso un segnale finché il pericolo non passa.',
           'Qui i sensori si chiudono quando vedono il pericolo: il circuito è più semplice da leggere e ti fa imparare la memoria e la tacitazione, che sono uguali in tutti e due i casi.',
         ],
       },
@@ -5065,16 +5071,16 @@ UNITS_V2['c53-carichi'] = {
       },
       {
         type: 'spiegazione',
-        title: 'La priorità: chi si stacca per primo',
+        title: 'La priorità: chi aspetta e chi torna prima',
         paras: [
           'Si stacca per primo il carico che dà meno fastidio. L’auto può caricarsi anche più tardi, nessuno se ne accorge. La pompa di calore ha un’inerzia: la casa è calda e qualche minuto senza non si sente. Il forno e le luci no: se si spengono se ne accorgono subito.',
-          'Quindi: si stacca la colonnina; se non basta, anche la pompa di calore. Quando torna il margine, si riattaccano al contrario: prima la pompa di calore (più importante), poi la colonnina.',
+          'Attenzione a come lavora il programma del banco: il PLC legge i gradini uno dopo l’altro, e il gradino della pompa vede già la colonnina spenta. Così, sopra 5800 W, si staccano subito tutte e due. La priorità si vede al ritorno: prima la pompa di calore, che serve di più, poi la colonnina.',
         ],
         table: {
-          head: ['Ordine di distacco', 'Carico', 'Perché'],
+          head: ['Chi aspetta di più', 'Carico', 'Perché'],
           rows: [
-            ['1', 'colonnina', 'può aspettare, nessuno se ne accorge'],
-            ['2', 'pompa di calore', 'la casa ha inerzia, per qualche minuto non si sente'],
+            ['1', 'colonnina', 'torna per ultima: può aspettare, nessuno se ne accorge'],
+            ['2', 'pompa di calore', 'torna per prima: la casa ha inerzia, ma non può restare al freddo'],
             ['mai', 'forno e luci', 'se si spengono se ne accorgono subito'],
           ],
         },
@@ -5121,7 +5127,7 @@ UNITS_V2['c53-carichi'] = {
           head: ['Gradino', 'Condizione', 'Istruzione', 'Perché'],
           rows: [
             ['2', 'MW0 maggiore di 5800 E Q0 accesa', 'Reset su Q0', 'si stacca prima la colonnina'],
-            ['3', 'MW0 maggiore di 5800 E Q0 spenta', 'Reset su Q1', 'se non basta, la pompa di calore'],
+            ['3', 'MW0 maggiore di 5800 E Q0 spenta', 'Reset su Q1', 'la pompa: nello stesso giro vede la colonnina già spenta'],
             ['4', 'MW0 minore di 4200', 'TON T1, 30 s', 'margine per la pompa'],
             ['5', 'T1 scaduto', 'Set su Q1', 'riattacca la pompa'],
             ['6', 'MW0 minore di 2000 E Q1 accesa', 'TON T2, 30 s', 'margine per la colonnina'],
@@ -5163,7 +5169,7 @@ UNITS_V2['c53-carichi'] = {
   ],
   summary: [
     'Più carichi su un contatore: la potenza sommata supera il limite, e qualcuno deve aspettare.',
-    'Priorità: si stacca prima il carico che può aspettare (l’auto), poi quello con inerzia (la pompa di calore). Il forno e le luci no.',
+    'Priorità: torna per primo il carico che serve di più (la pompa di calore), per ultimo quello che può aspettare (l’auto). Il forno e le luci il PLC non li tocca.',
     'Soglia di riattacco più potenza del carico deve restare sotto la soglia di distacco, altrimenti riparte e si ferma.',
     'Il margine deve durare: un temporizzatore evita il pendolamento, cioè le decine di commutazioni nella serata.',
     'Il PLC comanda solo i carichi che gli sono collegati: il forno lo accendono le persone.',
@@ -5230,7 +5236,7 @@ UNITS_V2['c54-clima-zone'] = {
         title: 'La finestra aperta',
         paras: [
           'Se il soggiorno ha la finestra aperta il calore esce, e scaldarlo vuol dire scaldare la strada. Il contatto della finestra arriva all’ingresso I0: quando vale 1 la valvola del soggiorno si chiude, con un gradino Reset su Q1.',
-          'Il PLC legge i gradini dall’alto in basso e vince l’ultimo che scrive la stessa uscita. Il gradino della finestra va quindi dopo il Set della valvola: così, anche se la stanza è fredda, a finestra aperta la valvola resta chiusa. Quando richiudi la finestra, il Set riapre la valvola se serve.',
+          'Il PLC legge i gradini dall’alto in basso e vince l’ultimo che scrive la stessa uscita. Il gradino della finestra va quindi dopo il Set della valvola: così, anche se la stanza è fredda, a finestra aperta la valvola resta chiusa. Le uscite vere cambiano solo alla fine del giro: la valvola non si apre nemmeno per un attimo.',
         ],
       },
       {
@@ -5390,7 +5396,7 @@ UNITS_V2['c55-sera-inverno'] = {
         title: 'Il misuratore ha un fondo scala',
         paras: [
           'Il PLC conosce la potenza della casa solo attraverso il misuratore del contatore. Il misuratore manda un segnale da 4 a 20 mA che vuol dire da −6 kW (la casa immette) a +6 kW (la casa preleva). Oltre i 6 kW il segnale non sale più: si ferma a 20,5 mA, cioè circa 6,4 kW, anche se la casa preleva 8 o 10 kW.',
-          'Quindi una soglia scritta nel programma vale solo se il misuratore la può raggiungere. Una soglia oltre il fondo scala non scatta mai.',
+          'Quindi una soglia scritta nel programma vale solo se il misuratore la può raggiungere. Una soglia oltre il fondo scala non scatta mai. Il minimo è 4 mA e non 0, così un filo staccato non si confonde con una misura.',
         ],
         table: {
           head: ['Potenza vera', 'Segnale', 'Il PLC legge'],
@@ -5406,8 +5412,8 @@ UNITS_V2['c55-sera-inverno'] = {
         type: 'spiegazione',
         title: 'Si guarda la serata intera',
         paras: [
-          'Chiudi il generale alle 16:30 e lascia andare la casa fino alle 23. Il pannello a muro mostra le potenze, la batteria, l’auto e le due stanze. Alle 21:30 la sonda del bagno potrebbe bagnarsi: prima la asciughi, poi taciti la sirena.',
-          'Se il contatore stacca, la casa resta al buio fino a fine serata: il contatore non si riarma da solo e una casa che salta a ogni cena non si consegna. Si capisce perché, si corregge il programma e si rifà la serata da capo.',
+          'Chiudi il generale alle 16:30 e lascia andare la casa fino alle 23. Il pannello a muro mostra le potenze, la batteria, l’auto e le due stanze. Alle 21:30 la sonda del bagno potrebbe bagnarsi: prima la asciughi, poi taciti la sirena, perché con la sonda bagnata la sirena ripartirebbe.',
+          'Se il contatore stacca, la casa resta al buio fino a fine serata: il contatore non si riarma da solo e una casa che salta a ogni cena non si consegna. Si capisce perché leggendo il grafico della potenza, si corregge il programma e si rifà la serata da capo. Nelle case vere si riarma dal pulsante del contatore.',
         ],
       },
       {
