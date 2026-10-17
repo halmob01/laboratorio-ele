@@ -101,3 +101,28 @@ Frasi da far controllare al collega (elenco completo in `docs/review/modulo5.md`
 - c39: pannello illuminato sempre in tensione; il sezionatore stacca solo l'inverter.
 - c41: la batteria con il suo inverter che decide quando caricare e scaricare.
 - c55: il contatore si riarma dal suo pulsante.
+
+## Frasi della review pedagogica (Moduli 2-6): controllo sulle fonti (17 ottobre)
+
+Le frasi che le schede `docs/review/modulo*.md` chiedono di far controllare al collega, verificate con calcoli, norme e schede tecniche.
+Esito: nessuna frase è sbagliata; tre restano da confermare in laboratorio perché le fonti pubbliche non bastano.
+
+| Frase (livello) | Esito | Fonte |
+|---|---|---|
+| 12 V del campanello = bassissima tensione (c10, c47) | giusta: bassissima tensione fino a 50 V in alternata | CEI 64-8 |
+| Trasformatori per campanelli di sicurezza, reggono un corto (c47) | giusta: la norma li vuole resistenti ai cortocircuiti brevi, uscita sotto i 33 V | EN IEC 61558-2-8 |
+| Effetti della corrente: una decina di mA, poche decine (c20) | giusta: soglia di rilascio convenzionale 10 mA a 50 Hz; fibrillazione da alcune decine di mA in su, secondo il tempo | IEC 60479-1 (dispense universitarie) |
+| Comando spesso a 24 V da un trasformatore (c22) | giusta come «spesso»: la norma chiede un trasformatore per il comando in alternata (con eccezioni per macchine piccole) e consiglia di non superare 230 V; i 24 V sono l'uso comune, non un obbligo | CEI EN 60204-1, 9.1 |
+| Il termico scatta anche se manca una fase (c14) | giusta: i relè termici hanno la sensibilità alla mancanza di fase | CEI EN 60947-4-1 |
+| Invertire un motore lanciato: frenata di colpo, corrente fortissima (c15) | giusta: è la frenatura in controcorrente, con correnti più alte dell'avviamento | testi di macchine elettriche |
+| 10 kW: 14 A per fase a 400 V, 43 A a 230 V (c21) | giusta: 10000 / (1,73 × 400) = 14,4 A; 10000 / 230 = 43,5 A (fattore di potenza 1, dichiarato) | calcolo |
+| Stella-triangolo: commutazione dopo 5-15 s (c28) | giusta come valore tipico; si regola sul posto, quando il motore è vicino alla velocità piena | schede Lovato, Eaton, guide dei costruttori |
+| Uscite a relè del PLC: pochi ampere; ingressi spesso a 24 V (c29) | giusta: uscite a relè tipiche 2 A | schede dei PLC compatti |
+| Emergenza anche da un relè di sicurezza; barriere con uscite elettroniche (c32, c27) | giusta | EN ISO 13849-1, schede delle barriere (uscite OSSD) |
+| LED vero: serve una resistenza (c38) | giusta | - |
+| Pannelli sempre in tensione; stringhe a centinaia di volt (c39) | giusta: stringhe fino a 1000-1500 V in corrente continua | CEI 82-25 |
+| Trasmettitore a due fili: polarità invertita, 0 mA (c33) | giusta per i trasmettitori con protezione dall'inversione, che è la regola | schede dei trasmettitori 4-20 mA |
+| **Da confermare in laboratorio** | | |
+| La batteria ha il suo inverter (c41) | vero per gli impianti con accumulo aggiunto; spesso c'è un inverter ibrido unico. La lezione lo dice già come semplificazione | - |
+| Contatore che si riarma dal suo pulsante (c55) | le guide pubbliche di e-distribuzione trovate parlano del pulsante per leggere i dati; per il riarmo dopo il distacco il collega sa come si fa sui contatori della zona | guida «Open Meter» |
+| Lucchetto personale sulla portella della cella (c51) | è la pratica corretta (o la chiave portata con sé); come si fa nelle aziende dove vanno gli allievi lo sa il collega | EN ISO 14119 |
