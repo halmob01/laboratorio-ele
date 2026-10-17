@@ -66,3 +66,16 @@ Da far controllare al collega di laboratorio:
 - Allarme fumo e allagamento: contatti NC in serie come in antifurto reale, memoria dell'allarme con tacitazione. Il rilevatore reale ha un contatto di uscita libero da tensione: va bene rappresentarlo con un contatto normale?
 - Lavori in sicurezza (Modulo 3, prima dell'officina): procedura sezionare, bloccare con lucchetto, verificare l'assenza di tensione, lavorare. La sequenza e i termini ("lucchetto", "cartello") vanno bene o usate le cinque regole d'oro di cantiere con altre parole?
 - Tolti dal piano: condominio (autoclave, ascensore, lampade di emergenza, sgancio antincendio), gru, comando a due mani, palchi, bus di campo, manutenzione predittiva. Il condominio resta come idea futura.
+
+## Review pedagogica del Modulo 3 (17 ottobre): frasi da far controllare al collega
+
+Elenco completo in `docs/review/modulo3.md`, in fondo.
+- c22: «nelle macchine vere il comando è spesso a 24 V, preso da un trasformatore come quello del campanello».
+- c14: «esistono salvamotori che fanno anche da termico: qui i due compiti sono divisi, come in molti quadri»; il termico «scatta anche se manca una fase».
+- c15: «invertire un motore lanciato vuol dire frenarlo di colpo, con una corrente fortissima e uno strappo sulla macchina».
+- c52: il neutro non passa dal salvamotore tripolare (domanda dell'allievo finto); la verifica solo tra fase e neutro dichiarata come semplificazione.
+- **Tabelle con più di due colonne.** La vista della lezione mostra solo le prime due colonne (`screens.js`), ma 33 tabelle in 20 livelli
+  (c05, c34-c44, c47-c55) ne hanno tre o quattro: la terza e la quarta non si vedono (in c52, per esempio, sparivano il «perché» della
+  procedura e i valori attesi delle misure; corretto nel Modulo 3). Si riscrivono a due colonne nelle review dei moduli, oppure si cambia la
+  vista per mostrare tutte le colonne (tocca il codice: decidi tu)?
+
