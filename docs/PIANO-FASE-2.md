@@ -8,12 +8,14 @@ La review pedagogica puo' fare solo questo, in `src/content/units.js` e `src/con
 - riscrivere i testi delle slide di tipo `spiegazione` (titoli, paragrafi, avvisi);
 - **aggiungere, togliere o spostare slide `spiegazione`** per spiegare meglio il perche' (il gioco conta le slide da solo).
 
-Restano identici: `steps` (i passi del banco), `fault` (la sfida guasto), `summary` e la slide `sintesi` (la sintesi di fine livello,
-considerata "dopo": se Gianluca vuole ritoccarla lo dice), `support`, e le slide `previsione` (opzioni e risposta giusta: alimentano il
-punteggio), `demo` (le didascalie seguono i fili del livello) e `pezzi`.
+Si puo' anche **riscrivere la sintesi di fine livello** (`summary`: elenco di frasi non vuote; slide `sintesi`: una sola, l'ultima, con un titolo),
+perche' ne beneficia il Quaderno.
+
+Restano identici: `steps` (i passi del banco), `fault` (la sfida guasto), `support`, e le slide `previsione` (opzioni e risposta giusta:
+alimentano il punteggio), `demo` (le didascalie seguono i fili del livello) e `pezzi`.
 Lo script `node scripts/check-review-scope.mjs` (blocco B0, commit di partenza `fe4fee0`) lo verifica: va lanciato prima di ogni commit
-di review e fallisce se cambia qualcosa fuori da questo perimetro. Provato: blocca una modifica ai passi o a una previsione,
-lascia passare una slide `spiegazione` in piu'.
+di review e fallisce se cambia qualcosa fuori da questo perimetro. Provato: blocca una modifica ai passi o a una previsione e una sintesi
+tolta; lascia passare una slide `spiegazione` in piu' e una sintesi riscritta.
 
 ## Blocchi
 
