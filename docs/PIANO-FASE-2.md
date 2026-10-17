@@ -13,15 +13,16 @@ in `src/content/units.js` e `src/content/units-v2.js` e nelle traduzioni arabe c
 
 Restano identici: `steps`, `fault`, `support`, le didascalie delle `demo` e `focus` dei `pezzi`. Unica modifica di codice ammessa: il
 mescolamento delle opzioni delle domande nella vista (`docs/METODO-REVIEW-PEDAGOGICA.md` §6 bis).
-Lo script `node scripts/check-review-scope.mjs` (blocco B0, commit di partenza `fe4fee0`) lo verifica e va lanciato prima di ogni commit
-di review. **Da aggiornare prima del pilota** per lasciar passare testi dei `pezzi` e previsioni riscritte.
+Lo script `node scripts/check-review-scope.mjs` (blocco B0, commit di partenza `a18859a`) lo verifica e va lanciato prima di ogni commit
+di review. Provato: lascia passare testi dei pezzi e previsioni riscritte; blocca demo cambiate, `focus` dei pezzi cambiato, una previsione
+tolta, una risposta giusta che non e' tra le opzioni.
 
 ## Blocchi
 
 | Blocco | Cosa | Agente | Dopo |
 |---|---|---|---|
-| B0 | Rete di sicurezza: `scripts/check-review-scope.mjs` (fatto; da allargare a pezzi e previsioni) | Sonnet | - |
-| B1 | Opzioni delle domande mescolate nella vista, con test (`METODO-REVIEW-PEDAGOGICA.md` §6 bis) | Sonnet | - |
+| B0 | Rete di sicurezza: `scripts/check-review-scope.mjs` (fatto, allargato a pezzi e previsioni) | Sonnet | - |
+| B1 | Opzioni delle domande mescolate nella vista, con test `test/opzioni.test.js` (fatto) | Sonnet | - |
 | P | Review pedagogica (vedi sotto), modulo per modulo | Sonnet allievo finto, Opus diagnosi e riscritture, Haiku traduce | B0, B1 |
 | Q | Quaderno: rivedere cosa raccoglie e come si stampa | Sonnet, revisione Opus | P1 (serve sapere i testi) |
 | T | Tutorial iniziale del gioco al posto di "Per cominciare" (lezioni, banco, scene 3D, come muoversi); il vecchio testo su corrente e fili diventa la prima lezione del Modulo 1 | Sonnet testi, Opus controlla | - |

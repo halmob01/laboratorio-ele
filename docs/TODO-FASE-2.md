@@ -45,7 +45,7 @@ spiega i passi, ordine e misure).
 ## Decisioni del 17 ottobre
 - Opzioni mescolate nella vista sia nelle previsioni sia nella sfida guasto (blocco B1): approvato da Gianluca.
 - Metodo della review unito in `main`.
+- B0 allargato e B1 fatto; pilota sul Modulo 2 confermato. Arabo affidato ad Haiku come agente dalla sessione Opus.
 
 ## Domande ancora aperte per Gianluca
 - Chi deve poter aprire il gioco una volta pubblicato (la sua classe, la scuola, i colleghi) e si vende o no? Decide il blocco D e quanto serve l'area docenti.
-- Pilota sul Modulo 2: confermato?

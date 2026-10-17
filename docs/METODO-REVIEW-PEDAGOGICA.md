@@ -147,8 +147,7 @@ già mettono in scena nella sfida guasto, senza allungarlo a tavolino:
 
 ## 6. Regole di scrittura
 
-**Che cosa si può cambiare** (deciso con Gianluca il 17 ottobre; lo script `node scripts/check-review-scope.mjs` va aggiornato
-prima di cominciare il pilota):
+**Che cosa si può cambiare** (deciso con Gianluca il 17 ottobre; lo controlla `node scripts/check-review-scope.mjs`, gia' aggiornato):
 - slide `spiegazione`: testi liberi; si possono aggiungere, togliere, spostare;
 - slide `pezzi`: titolo e testi liberi; resta uguale solo `focus` (quale pezzo del banco si illumina) e il loro ordine rispetto alle demo;
 - slide `previsione`: domanda, opzioni, risposta giusta e spiegazione si possono riscrivere tutte (vedi §6 bis); resta uguale il numero
@@ -233,8 +232,8 @@ Un allievo che sceglie sempre "la più lunga" prende quasi tutti i punti senza l
    l'allievo finto e si ritocca dove serve, soprattutto lo scopo nel lavoro vero (tipo A) e i fili rossi. Eccezione: c29 riceve una
    slide nuova sul PLC nel lavoro vero (tipo A bis).
 
-In tutti i moduli si riscrivono anche le opzioni delle previsioni (§6 bis). Il mescolamento delle opzioni si fa una volta sola,
-prima del pilota, in un ramo a parte (`previsioni-mescolate`), con un test che controlla che ogni risposta giusta resti giusta.
+In tutti i moduli si riscrivono anche le opzioni delle previsioni (§6 bis). Il mescolamento delle opzioni e' fatto (blocco B1, `shuffledOptions` in `src/ui2d/screens.js`, test `test/opzioni.test.js`):
+la risposta giusta ora sta prima 32 volte, in mezzo 32, ultima 16 (prima era in mezzo 64 volte su 80).
 4. **Ultimo:** Modulo 0 (già a posto, va solo allineato ai fili rossi) e i briefing delle prove.
 
 I moduli diversi non toccano gli stessi testi, quindi dopo il pilota si può lavorare in parallelo.

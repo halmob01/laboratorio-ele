@@ -14,7 +14,8 @@ import { join } from 'node:path';
 import { isDeepStrictEqual } from 'node:util';
 import { pathToFileURL } from 'node:url';
 
-const BASE = 'fe4fee0';
+// Punto di partenza: il commit di B0 e B1 (17 ottobre). Le lezioni sono identiche a fe4fee0; cambia solo la vista (opzioni mescolate).
+const BASE = 'a18859a';
 const base = process.argv[2] || BASE;
 const git = (...a) => execFileSync('git', a, { encoding: 'utf8', maxBuffer: 1 << 28 });
 const problems = [];
