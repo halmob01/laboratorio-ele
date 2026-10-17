@@ -13,7 +13,7 @@ in `src/content/units.js` e `src/content/units-v2.js` e nelle traduzioni arabe c
 
 Restano identici: `steps`, `fault`, `support`, le didascalie delle `demo` e `focus` dei `pezzi`. Unica modifica di codice ammessa: il
 mescolamento delle opzioni delle domande nella vista (`docs/METODO-REVIEW-PEDAGOGICA.md` §6 bis).
-Lo script `node scripts/check-review-scope.mjs` (blocco B0, commit di partenza `a18859a`) lo verifica e va lanciato prima di ogni commit
+Lo script `node scripts/check-review-scope.mjs` (blocco B0, commit di partenza `7464a26`) lo verifica e va lanciato prima di ogni commit
 di review. Provato: lascia passare testi dei pezzi e previsioni riscritte; blocca demo cambiate, `focus` dei pezzi cambiato, una previsione
 tolta, una risposta giusta che non e' tra le opzioni.
 
