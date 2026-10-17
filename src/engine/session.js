@@ -99,6 +99,13 @@ export function createSession({ levels, deriveFull, storage = memoryStorage(), i
   // Uscendo dalla sfida guasto o da una prova di salto, la fase riparte da capo.
   const dropUnitState = () => { delete unitByKey[levelIndex]; };
   const save = () => { try { storage.save(progress); } catch (e) { /* si continua senza salvare */ } };
+  // Risposta data alla previsione della pagina indicata. La prima previsione della lezione sta in us.pred (vale i punti),
+  // le altre in us.more, una per pagina: ogni previsione ha la sua risposta.
+  const predOf = (level, us, page) => {
+    const pages = level.unit.lesson.pages;
+    if (!pages[page] || pages[page].type !== 'previsione') return null;
+    return page === pages.findIndex(pg => pg.type === 'previsione') ? us.pred : ((us.more || {})[page] || null);
+  };
   const record = () => progress.best[progressKey(levelAt().id)] || (progress.best[progressKey(levelAt().id)] = { base: 0, pred: false, fault: false, skipped: false });
 
   // Portate scelte per i magnetotermici del livello (solo v2): servono alla verifica, che parte da simulazioni nuove.
@@ -299,6 +306,7 @@ export function createSession({ levels, deriveFull, storage = memoryStorage(), i
         pages: level.unit.lesson.pages.length,
         pageData: phase === 'lesson' ? level.unit.lesson.pages[us.page || 0] : null,
         pred: us.pred && { ...us.pred },
+        pagePred: phase === 'lesson' && predOf(level, us, us.page || 0) ? { ...predOf(level, us, us.page || 0) } : null,
         diag: us.diag && { ...us.diag },
         faultSolved: us.faultSolved,
         hasFault: !!level.unit.fault,
@@ -359,7 +367,10 @@ export function createSession({ levels, deriveFull, storage = memoryStorage(), i
     } else delete work.w[workKeyOf(levelIndex, mode)];
     if (u && l.unit) {
       if (u.phase === 'lesson' && !u.page) delete work.u[l.id];
-      else work.u[l.id] = { phase: u.phase, page: u.page || 0, pred: u.pred ? { option: u.pred.option, correct: !!u.pred.correct } : null };
+      else {
+        work.u[l.id] = { phase: u.phase, page: u.page || 0, pred: u.pred ? { option: u.pred.option, correct: !!u.pred.correct } : null };
+        if (u.more && Object.keys(u.more).length) work.u[l.id].more = { ...u.more };
+      }
     }
     writeWork();
   }
@@ -446,6 +457,14 @@ export function createSession({ levels, deriveFull, storage = memoryStorage(), i
         pred = { option: e.pred.option, correct: pages[pi].correct === e.pred.option };
       }
       if (pi >= 0 && !pred && page > pi) page = pi;
+      // le previsioni successive alla prima: si tengono solo le risposte valide, e non si va oltre una previsione senza risposta
+      const more = {};
+      if (isObj(e.more)) Object.keys(e.more).forEach(k => {
+        const n = Number(k), a = e.more[k], pg = pages[n];
+        if (n !== pi && pg && pg.type === 'previsione' && isObj(a) && typeof a.option === 'string' && pg.options.some(o => o.id === a.option)) more[n] = { option: a.option, correct: pg.correct === a.option };
+      });
+      const open = pages.findIndex((pg, n) => pg.type === 'previsione' && n !== pi && n < page && !more[n]);
+      if (open >= 0 && (pi < 0 || pred || open < pi)) page = Math.min(page, open);
       let phase = e.phase;
       let result = null;
       if (phase === 'done') {
@@ -454,9 +473,10 @@ export function createSession({ levels, deriveFull, storage = memoryStorage(), i
         else result = isV2(levelAt(i, 'quadro')) ? evaluateV2(levelAt(i, 'quadro'), ws, { measured: measuredBy[keyOf(i, 'quadro')] || [], ratings: ratingsOf(i), programs: programsOf(i, 'quadro'), tuned: tunedByKey[keyOf(i, 'quadro')], liveEdits: liveEditsBy[keyOf(i, 'quadro')] || [] }) : evaluate(levelAt(i, 'quadro'), ws);
         if (result && !result.pass) { phase = 'build'; result = null; }
       }
-      unitByKey[i] = { phase, page, pred, diag: null, faultSolved: false };
+      unitByKey[i] = { phase, page, pred, more, diag: null, faultSolved: false };
       if (result) resultsByKey[keyOf(i, 'quadro')] = result;
       work.u[l.id] = { phase, page, pred };
+      if (Object.keys(more).length) work.u[l.id].more = more;
     });
     try { lastWorkStr = JSON.stringify(work); } catch (e) { lastWorkStr = ''; }
   }
@@ -511,7 +531,7 @@ export function createSession({ levels, deriveFull, storage = memoryStorage(), i
     if (!us || us.phase !== 'fault') return;
     // una prova non riuscita non lascia niente: alla riapertura riparte da capo
     if (levelAt().prova && !us.before) {
-      unitByKey[levelIndex] = { phase: 'fault', page: 0, pred: us.pred, diag: null, faultSolved: false };   // niente lezione da capo: si riarma all'apertura
+      unitByKey[levelIndex] = { phase: 'fault', page: 0, pred: us.pred, more: us.more, diag: null, faultSolved: false };   // niente lezione da capo: si riarma all'apertura
       wiresByKey[keyOf(levelIndex, 'quadro')] = blank(levelIndex, 'quadro');
       delete programsByKey[keyOf(levelIndex, 'quadro')];
       statesByKey[keyOf(levelIndex, 'quadro')] = {};
@@ -1025,7 +1045,7 @@ export function createSession({ levels, deriveFull, storage = memoryStorage(), i
       const us = unitState();
       if (us.phase !== 'lesson') return;
       const pg = currentPage();
-      if (pg.type === 'previsione' && !us.pred) return;
+      if (pg.type === 'previsione' && !predOf(level, us, us.page || 0)) return;
       if ((us.page || 0) < level.unit.lesson.pages.length - 1) us.page = (us.page || 0) + 1;
       else toPlay(us);
       emit();
@@ -1053,10 +1073,15 @@ export function createSession({ levels, deriveFull, storage = memoryStorage(), i
     answerPrediction(optionId) {
       const level = levelAt();
       const us = level.unit && unitState();
-      if (!us || us.phase !== 'lesson' || us.pred) return;
+      if (!us || us.phase !== 'lesson') return;
       const pg = currentPage();
-      if (!pg || pg.type !== 'previsione') return;
+      if (!pg || pg.type !== 'previsione' || predOf(level, us, us.page || 0)) return;
       const correct = pg.correct === optionId;
+      if ((us.page || 0) !== level.unit.lesson.pages.findIndex(p => p.type === 'previsione')) {
+        us.more = { ...(us.more || {}), [us.page || 0]: { option: optionId, correct } };   // le previsioni successive non danno punti
+        emit();
+        return;
+      }
       us.pred = { option: optionId, correct };
       // il bonus vale solo se la previsione precede la prima riuscita del livello
       if (correct && !(progress.stars[progressKey(level.id, 'quadro')] > 0)) {
