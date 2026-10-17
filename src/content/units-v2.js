@@ -3723,6 +3723,7 @@ export const UNITS_V2 = {
             'A una lampada a incandescenza non importa il verso: è un filo che scalda e si accende comunque. Un LED invece è un diodo: lascia passare la corrente in un solo verso, dall’anodo (A) al catodo (K). L’anodo va verso il positivo, il catodo verso il negativo. Al contrario resta spento.',
             'Per questo nei circuiti in continua la polarità conta: un dispositivo collegato al contrario non funziona, e alcuni si rompono.',
           ],
+          warn: 'Un LED vero non si collega mai da solo a una batteria: serve una piccola resistenza in serie che limita la corrente (nei LED fatti per 12 V è già dentro). Nel gioco la resistenza è compresa nel LED.',
         },
         {
           type: 'spiegazione',
@@ -3784,6 +3785,7 @@ export const UNITS_V2 = {
             'Un pannello fotovoltaico trasforma la luce del sole in corrente continua. Come una batteria ha un positivo e un negativo, ma la sua tensione non è fissa: dipende da quanta luce arriva. A pieno sole un pannello dà la sua tensione massima; con il cielo coperto o al tramonto ne dà molto meno; di notte niente.',
             'Il sole nella giornata sale e scende: la produzione ha la forma di una campana, con il massimo verso mezzogiorno. Nel grafico vedi la produzione in kilowatt (kW) e il consumo della casa.',
           ],
+          warn: 'Un pannello illuminato è sempre in tensione: nessun interruttore lo spegne, e aprire il sezionatore stacca solo l’inverter. Sui fili dei pannelli si lavora con attenzione anche di giorno; nei tetti veri una stringa arriva a centinaia di volt, non ai 44 V del gioco.',
         },
         {
           type: 'spiegazione',
@@ -3845,7 +3847,7 @@ export const UNITS_V2 = {
           type: 'spiegazione',
           title: 'Il contatore che va in due versi',
           paras: [
-            'Con i pannelli la casa non solo consuma ma produce. Il contatore allora misura in due versi: quando la casa consuma più di quanto produce preleva dalla rete (potenza positiva); quando produce più di quanto consuma immette in rete (potenza negativa). Si chiama scambio sul posto: l’energia immessa va in rete.',
+            'Con i pannelli la casa non solo consuma ma produce. Il contatore allora misura in due versi: quando la casa consuma più di quanto produce preleva dalla rete (potenza positiva); quando produce più di quanto consuma immette in rete (potenza negativa). Un contatore così si chiama bidirezionale.',
             'Nella scena vedi la potenza scambiata: verde se la casa immette, rosso se preleva. Il contatore ha anche due totali: i kilowattora prelevati e quelli immessi.',
           ],
           table: {
@@ -3862,14 +3864,30 @@ export const UNITS_V2 = {
           title: 'Meglio usare l’eccedenza che regalarla',
           paras: [
             'L’energia che si immette in rete si paga poco: conviene consumare noi, in casa, quando il sole produce. Questo si chiama autoconsumo. Un carico che si può spostare, come uno scaldabagno che accumula acqua calda, si accende proprio quando c’è eccedenza.',
-            'Il PLC legge la potenza scambiata (in watt, nella parola MW0). Il programma deve accendere lo scaldabagno quando la casa immette abbastanza da alimentarlo, cioè più di 2,2 kW, e spegnerlo quando la casa comincia a prelevare.',
+            'Il programma deve accendere lo scaldabagno quando la casa immette abbastanza da alimentarlo, cioè più di 2,2 kW, e spegnerlo quando la casa comincia a prelevare.',
           ],
         },
         {
           type: 'spiegazione',
-          title: 'Due soglie anche qui',
+          title: 'Un numero dentro il PLC',
           paras: [
-            'Come per la pompa del serbatoio servono due soglie diverse, una per accendere e una per spegnere. Appena lo scaldabagno si accende consuma 2 kW e la potenza scambiata sale di colpo: se la soglia di spegnimento fosse la stessa dell’accensione si spegnerebbe subito e riparirebbe di continuo.',
+            'Finora il PLC leggeva ingressi che valgono 0 o 1: un tasto premuto o no. La potenza invece è un numero, per esempio −2500 W. Il misuratore del contatore la manda al PLC, che la scrive in una parola: MW0. Un bit contiene solo 0 o 1; una parola contiene un numero intero.',
+            'Per usare quel numero nel programma c’è il contatto di confronto: è vero quando il numero rispetta una condizione, per esempio «MW0 minore di −2200». Per il resto è un contatto come gli altri: se è vero lascia passare, e il gradino esegue le sue istruzioni.',
+          ],
+          table: {
+            head: ['Nel PLC', 'Che cosa contiene'],
+            rows: [
+              ['I0, Q0 (bit)', '0 oppure 1: un tasto, una lampada.'],
+              ['MW0 (parola)', 'Un numero: qui la potenza scambiata, in watt.'],
+              ['Confronto', 'Vero o falso, secondo il numero e la condizione.'],
+            ],
+          },
+        },
+        {
+          type: 'spiegazione',
+          title: 'Due soglie: l’isteresi',
+          paras: [
+            'Servono due soglie diverse, una per accendere e una per spegnere: si chiama isteresi. Appena lo scaldabagno si accende consuma 2 kW e la potenza scambiata sale di colpo: se la soglia di spegnimento fosse la stessa dell’accensione si spegnerebbe subito e ripartirebbe di continuo.',
             'Qui si accende con una potenza sotto −2200 W (immissione di più di 2,2 kW) e si spegne con una potenza sopra 300 W (la casa preleva). In mezzo mantiene il suo stato: Set e Reset.',
           ],
         },
@@ -3896,7 +3914,7 @@ export const UNITS_V2 = {
       'Il contatore bidirezionale misura la potenza scambiata con la rete: positiva se la casa preleva, negativa se immette.',
       'L’autoconsumo consiste nell’usare in casa l’energia prodotta, spostando i carichi nelle ore di sole.',
       'Un carico che parte cambia subito la potenza scambiata: servono due soglie diverse (accendi e spegni), cioè Set e Reset.',
-      'Il PLC legge la potenza del contatore da un segnale 4-20 mA, che SCALE converte in watt.',
+      'Il PLC riceve la potenza come un numero (la parola MW0, in watt) e la usa con i contatti di confronto.',
     ],
   },
   'c41-accumulo': {
@@ -3926,6 +3944,14 @@ export const UNITS_V2 = {
               ['Notte, batteria vuota', 'ferma', 'preleva di nuovo'],
             ],
           },
+        },
+        {
+          type: 'spiegazione',
+          title: 'kWh e kW: quanta energia e quanto in fretta',
+          paras: [
+            'Due unità che sembrano uguali ma dicono cose diverse. I kilowattora (kWh) dicono quanta energia c’è nella batteria, come i litri in una tanica. I kilowatt (kW) dicono quanto in fretta l’energia entra o esce, come l’acqua che scorre dal rubinetto.',
+            'Questa batteria contiene 10 kWh e li può dare al massimo a 3 kW: a piena potenza si svuota in poco più di tre ore. Il contatore di casa conta i kWh per la bolletta; il suo limite, invece, è in kW.',
+          ],
         },
         {
           type: 'previsione',
@@ -3970,7 +3996,7 @@ export const UNITS_V2 = {
           title: 'Distanza tra le due soglie',
           paras: [
             'Il PLC legge la potenza scambiata (MW0, in watt). Per partire serve margine: la potenza deve essere sotto una soglia bassa. Per fermarsi, deve superare una soglia alta, un poco sotto il limite del contatore.',
-            'Le due soglie devono stare lontane almeno quanto assorbe la colonnina, 3,7 kW. Con la soglia bassa a 500 W e quella alta a 4300 W vanno bene: appena la colonnina parte la potenza sale di 3,7 kW e non può riaccenderla da sola; appena la si stacca la potenza scende di 3,7 kW. Con le soglie troppo vicine succede un pasticcio: staccata la colonnina, la casa sembra subito avere margine e la colonnina riparte, e così via.',
+            'Le due soglie devono stare lontane almeno quanto assorbe la colonnina, 3,7 kW. Con 500 W e 4300 W va bene: quando la colonnina parte la potenza sale di 3,7 kW, quando si stacca scende di 3,7 kW, e nessuna delle due volte si passa l’altra soglia. Con soglie troppo vicine, staccata la colonnina la casa sembra avere margine e la colonnina riparte subito.',
           ],
           table: {
             head: ['Soglia', 'Valore', 'Perché'],
@@ -4327,9 +4353,9 @@ UNITS_V2['c47-videocitofono'] = {
     pages: [
       {
         type: 'spiegazione',
-        title: 'Perché il portone è a bassa tensione',
+        title: 'Perché il portone è a bassissima tensione',
         paras: [
-          'Il tasto di chiamata e la serratura stanno fuori, sul portone: li tocca chiunque, anche con le mani bagnate. Per questo non possono mai essere collegati ai 230 V della rete. Funzionano con una tensione bassa e sicura, per esempio 12 V.',
+          'Il tasto di chiamata e la serratura stanno fuori, sul portone: li tocca chiunque, anche con le mani bagnate. Per questo non possono mai essere collegati ai 230 V della rete. Funzionano con una tensione bassissima e sicura, per esempio 12 V, come il campanello.',
           'Ma l’impianto del palazzo è a 230 V. Serve un componente che prenda i 230 V e ne ricavi 12 V, tenendo i due lati separati: il trasformatore, lo stesso del campanello.',
         ],
         warn: 'Sulla pulsantiera del portone non devono mai arrivare i 230 V della rete: chi la tocca rischia la vita.',
@@ -4370,7 +4396,7 @@ UNITS_V2['c47-videocitofono'] = {
         focus: ['TR', 'SBC', 'B', 'SBA', 'SE'],
         paras: [
           'Dal morsetto 3 del secondario parte la linea a 12 V: un ramo passa dal tasto di chiamata e arriva alla suoneria, l’altro passa dall’apriporta e arriva alla serratura. Entrambi tornano al morsetto 4.',
-          'La serratura elettrica si sblocca finché il tasto è premuto. I fili a bassa tensione non sono fase né neutro: puoi usare il bianco.',
+          'La serratura elettrica si sblocca finché il tasto è premuto. I fili a bassissima tensione non sono fase né neutro: puoi usare il bianco.',
         ],
       },
       {
@@ -4438,7 +4464,7 @@ UNITS_V2['c47-videocitofono'] = {
     { kind: 'verify', short: '11 Verifica', title: 'Controlla l’impianto', text: 'Premi Verifica.' },
   ],
   summary: [
-    'Il portone si comanda solo in bassa tensione: i 230 V non arrivano mai alla pulsantiera.',
+    'Il portone si comanda solo in bassissima tensione: i 230 V non arrivano mai alla pulsantiera.',
     'Il trasformatore separa la rete (primario) dai 12 V (secondario): tra i due lati non c’è nessun filo.',
     'La corrente passa solo in un anello chiuso: dal morsetto 3, attraverso tasto e utilizzatore, al morsetto 4.',
     'Chiamata e apriporta sono due rami in parallelo sul secondario: ciascuno funziona da solo.',
@@ -5153,7 +5179,7 @@ UNITS_V2['c54-clima-zone'] = {
         title: 'Una pompa, due stanze',
         paras: [
           'In una casa con il clima per zone c’è una sola pompa di calore, e ogni stanza ha il suo termostato. L’acqua calda arriva a tutte le stanze, ma una valvola per zona decide a quale lasciarla passare. Se la camera è calda la sua valvola si chiude e il calore va dove serve.',
-          'Il PLC legge la temperatura di ogni stanza con una sonda, e comanda le valvole e la pompa. È lo stesso schema del serbatoio di c35, con i gradi al posto del livello.',
+          'Il PLC legge la temperatura di ogni stanza con una sonda, e comanda le valvole e la pompa. È lo stesso schema dello scaldabagno di c40: due soglie, con i gradi al posto dei watt.',
         ],
         table: {
           head: ['Pezzo', 'Che cosa fa', 'Sul PLC'],
@@ -5185,7 +5211,7 @@ UNITS_V2['c54-clima-zone'] = {
         type: 'spiegazione',
         title: 'La pompa non deve girare a vuoto',
         paras: [
-          'La pompa fa circolare l’acqua attraverso le valvole aperte. Se tutte le valvole sono chiuse, l’acqua non ha dove andare: la pompa gira a vuoto e si surriscalda. Dopo un minuto si guasta e non riparte.',
+          'La pompa fa circolare l’acqua attraverso le valvole aperte. Se tutte le valvole sono chiuse, l’acqua non ha dove andare: la pompa gira a vuoto e si surriscalda. Le pompe vere spesso hanno una protezione che le ferma, ma il riscaldamento si blocca lo stesso; nel gioco, dopo un minuto, la pompa si guasta e non riparte.',
           'Per questo la pompa parte solo se almeno una zona chiede calore: almeno una valvola aperta. Nel circuito è un O: due contatti in parallelo, Q1 oppure Q2.',
         ],
         table: {
