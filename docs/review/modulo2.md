@@ -3,6 +3,30 @@
 Metodo: `docs/METODO-REVIEW-PEDAGOGICA.md`. Fonti: le lezioni, i passi e le sfide guasto di c17-c11 e c23, la prima prova
 dell'allievo finto (`modulo2-allievo-prova1.md`), `docs/VALORI-TECNICI.md`.
 
+## Risultato (allievo finto, stessa consegna prima e dopo)
+
+Seconda prova: conta solo il perché vero (perché si fa così e non in un altro modo, a che cosa serve), non il come ripetuto.
+Prove in `modulo2-allievo-prova2-originale.md` (lezioni di `fe4fee0`) e `modulo2-allievo-prova2.md` (lezioni riscritte).
+
+| Livello | Perché vero, prima | Perché vero, dopo | Capisce a che cosa serve |
+|---|---|---|---|
+| c17 | 4/7 | 6/7 | sì, sì |
+| c18 | 2/9 | 8/9 | **no → sì** |
+| c07 | 5/7 | 6/7 | sì, sì |
+| c08 | 3/9 | 7/9 | sì, sì |
+| c09 | 4/11 | 10/11 | sì, sì |
+| c10 | 2/6 | 5/6 | sì, sì |
+| c19 | 3/11 | 3/12 | sì, sì |
+| c20 | 5/7 | 4/7 | sì, sì |
+| c11 | 4/4 | 4/4 | sì, sì |
+| Totale | 32 | 53 | |
+
+Dopo la seconda prova sono state corrette c19 (tabella "perché ogni filo", sovraccarico, perché 10 A) e c20 (la contraddizione
+"una decina di mA è pericolosa / a 10 mA non scatta", la zona 15-30 mA, il neutro preso prima), più cinque contraddizioni trovate
+dalle domande dell'allievo: c17 (morsetto 1 e 2 a luce spenta), c18 (circuiti separati ma stessa fase), c09 (chi tiene chiuso il
+contatto senza bobina), c11 (il magnetotermico apre anche il neutro), c07 (sintesi). Le slide con le soglie di c19 e c20 sono state
+divise per stare sotto le 90 parole circa.
+
 ## Quadro d'insieme
 
 | Livello | Verdetto | Che cosa manca soprattutto |
